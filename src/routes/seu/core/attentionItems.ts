@@ -1,6 +1,3 @@
-// Ch.34 Attention Management Model — Post-MVP Phase 8. Lifecycle transitions
-// reuse the same generic transitionEngine every other entity type already
-// uses (Ch.29 §10), extended to a ninth entity type.
 import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
@@ -11,11 +8,6 @@ import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import type { AttentionItemRow } from "../../../dblayer/seuTypes.js";
 
-// author_id is a FK to participants(id) — the SEU-scoped engagement row for
-// the acting user's participants_master identity, not participants_master
-// itself (attention_items is a seu_id-scoped table, same shape every other
-// seu_id-scoped table's author_id FK already takes). No fallback: an actor
-// with no participants row in this SEU cannot author an Attention Item here.
 export async function resolveAuthor(seuId: string, actorId: string): Promise<{ authorId: string }> {
   const { data: master } = await participantsMasterDB.findById(actorId);
   if (!master) throw new Error(`No superuser provisioned.`);
@@ -24,13 +16,6 @@ export async function resolveAuthor(seuId: string, actorId: string): Promise<{ a
   return { authorId: participant.id };
 }
 
-// For a system-triggered raise (a blocked governed transition, a stalled
-// Work Item sweep, a Telemetry sustained-pattern check, ...) there is no
-// session user to record — Owner: use the SEU's own requested_by (the real
-// user who commissioned it) as the acting user, badged "system" (not a
-// resolved authority badge, since nothing was authorised — the transition
-// was blocked). Runs through the same resolveAuthor as every other path, no
-// separate fallback logic.
 export async function resolveSystemActor(seuId: string): Promise<{ actorId: string; authorBadge: "system" }> {
   const { data: seu } = await seusDB.findById(seuId);
   if (!seu) throw new Error(`SEU not found: ${seuId}`);
@@ -68,13 +53,6 @@ export async function createAttentionItem(input: {
   return attentionItem;
 }
 
-// Ch.34 AM-002 "Attention shall be minimised": raises a new Attention Item
-// for (seuId, category, relatedObjectType, relatedObjectId) only if no OPEN
-// one already exists for that exact situation — repeated retries of the same
-// blocked transition, for example, must not flood the inbox with duplicates.
-// This is the function other core modules call; createAttentionItem above
-// stays a plain, undeduplicated create for callers (e.g. a human filing one
-// by hand) that don't need that guard.
 export async function raiseAttentionItem(input: {
   seuId: string;
   category: string;

@@ -38,11 +38,6 @@ export const seuCapabilitiesDB = {
     }
   },
 
-  // Ch.12 §9 / CR-109 §6.2 — the one resolution both executionEngine.ts
-  // (persisting the eligible-Participant pool) and dispatchEngine.ts (before
-  // this pass, live-resolving it) need: which seu_capabilities row a
-  // Deliverable's producing capabilities.id actually corresponds to, for
-  // this SEU. Factored out so both stay in agreement.
   async findBySeuIdAndCapabilityId(seuId: string, capabilityId: string): Promise<DbResult<SeuCapabilityRow | null>> {
     try {
       const { rows } = await query<SeuCapabilityRow>(
@@ -86,12 +81,6 @@ export const seuCapabilitiesDB = {
     }
   },
 
-  // Owner: "Replace should take it back to unfilled state... Howmany ever
-  // number of participants are released, it should remain the same [->
-  // Unfulfilled]" — releasing any number of currently-fulfilling
-  // Participants (releaseParticipants, core/capabilities.ts) always reverts
-  // this Capability to Unfulfilled unconditionally, never conditional on
-  // whether some other fulfilment happens to remain active.
   async markUnfulfilled(id: string): Promise<DbResult<SeuCapabilityRow>> {
     try {
       const { rows } = await query<SeuCapabilityRow>(
@@ -105,12 +94,6 @@ export const seuCapabilitiesDB = {
     }
   },
 
-  // Engineering Telemetry — Plan, Build order step 5 — sustained-pattern
-  // detection input for capability shortage (d), Ch.35 §11's own example of
-  // a genuinely cross-SEU pattern. seu_ids ordered newest-SEU-first so the
-  // caller can pick a representative SEU (the most recently affected one)
-  // to attach the resulting Obligation to — obligations.seu_id is NOT NULL,
-  // so there is no "no SEU" attachment point for a platform-wide pattern.
   async findUnfulfilledByCapability(): Promise<DbResult<Array<{ capability_id: string; capability_code: string; capability_name: string; seu_ids: string[] }>>> {
     try {
       const { rows } = await query<{ capability_id: string; capability_code: string; capability_name: string; seu_ids: string[] }>(

@@ -1,5 +1,3 @@
-// Service Definition Registry (CR-086 follow-on) — mirrors
-// web/deliverableDefinitionRegistry.ts's own Registry page structure exactly.
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
@@ -16,11 +14,8 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 
-
-
 const SERVICE_DEFINITION_STATES = ["Defined", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
-/** GET /aisworg/seu/service-definitions — every published Version of every Service Definition. */
 router.get("/service-definitions", attachVM("seu/service-definitions/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Service Definitions";
@@ -51,7 +46,6 @@ router.get("/service-definitions", attachVM("seu/service-definitions/index"), as
   }
 });
 
-/** POST /aisworg/seu/service-definitions/:id/copy — Registry "Copy" action: a new, editable Definition at the same version, ready to re-author. */
 router.post("/service-definitions/:id/copy", async (req: Request, res: Response) => {
   const backTo = "/aisworg/seu/service-definitions";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";

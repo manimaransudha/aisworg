@@ -1,14 +1,3 @@
-// Owner: "there has to be a separate view for tenant_admins. They should have
-// user management screen for now. The user management screen should list
-// users scoped to that tenant. tenant_admin can allocate badges to users."
-// Originally scoped to Deliverable-noun badges only; owner later widened this
-// to every entity_type's real noun_verb badges (core/identity.ts's
-// listGrantableNounVerbBadges, sourced from authority_noun_verbs — the same
-// live vocabulary badgeGrantsDB validates a grant against). Gated by
-// requireRole('tenant_super') (middleware/auth.js) per owner's own
-// instruction — a deliberately separate authority axis from root's own
-// requirePlatformBadge-gated Identity Management (identity.ts), scoped by
-// req.session.user.tenant_id rather than any badge.
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
@@ -25,7 +14,6 @@ import { listUsersForTenant, listGrantableNounVerbBadges, setTenantUserAuthorise
 
 const usersBackTo = "/aisworg/seu/tenant-admin/users";
 
-/** GET /aisworg/seu/tenant-admin/users — Tenant Admin's own User Management: users scoped to their own tenant, Deliverable-verb badge grants only. */
 router.get("/tenant-admin/users", attachVM("seu/tenantAdmin/users"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const tenantId = req.session?.user?.tenant_id;
@@ -55,22 +43,12 @@ router.get("/tenant-admin/users", attachVM("seu/tenantAdmin/users"), async (req:
   }
 });
 
-/** POST /aisworg/seu/tenant-admin/users/:id/badges — owner: "write to
- *  participants_master and remove badge_grants" — reconciles a tenant user's
- *  noun_verb authorised_badges (multi-select) to exactly what's selected,
- *  same shape as Identity Management's own /identity/badges/:id/update. */
 router.post("/tenant-admin/users/:id/badges", async (req: Request, res: Response) => {
   const tenantId = req.session?.user?.tenant_id;
-  // Redirect back to wherever this form was submitted from (the list page's
-  // own current ?q=/sort=/page=), not the bare list path — a grant shouldn't
-  // reset the tenant_super's search/filter/sort state.
   const back = safeBack(req, usersBackTo);
   if (!tenantId) return flashError(req, res, back, "Your account has no tenant assigned.");
   const userId = String(req.params.id);
   if (!userId) return flashError(req, res, back, "Invalid user id.");
-  // A <select multiple> posts one badge per selection under the same key —
-  // express's urlencoded parser gives an array for 2+, a single selection
-  // arrives as a bare string, so both shapes need normalising.
   const rawBadges = req.body?.badges;
   const badges = (Array.isArray(rawBadges) ? rawBadges : rawBadges ? [rawBadges] : [])
     .filter((v: unknown): v is string => typeof v === "string" && v.trim().length > 0)

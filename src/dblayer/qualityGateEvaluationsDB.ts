@@ -40,12 +40,6 @@ export const qualityGateEvaluationsDB = {
     }
   },
 
-  // Ch.35 §7 Governance Telemetry — "Quality Gate latency": how long a
-  // (gate, entity) pair sat Blocked before it finally Passed. Zero when it
-  // passed on the first attempt (no friction). Platform-wide by default —
-  // Engineering Telemetry — Plan, Build order step 2: seuId narrows to one
-  // SEU when passed, a filter on rows that already carried seu_id, not new
-  // data collection.
   async findLatencies(seuId?: string): Promise<DbResult<QualityGateLatencyRow[]>> {
     try {
       const { rows } = await query<QualityGateLatencyRow>(
@@ -75,11 +69,6 @@ export const qualityGateEvaluationsDB = {
     }
   },
 
-  // Engineering Telemetry — Plan, Build order step 6 — Quality Telemetry's
-  // "rework rate": how many Blocked evaluations (across any gate) an entity
-  // accumulated before its eventual Pass. Only entities that eventually
-  // Passed at least one gate are counted — same "only what actually
-  // completed the step" discipline findLatencies already uses.
   async findReworkByEntity(seuId?: string): Promise<DbResult<ReworkRow[]>> {
     try {
       const { rows } = await query<{ entity_type: string; entity_id: string; seu_id: string; blocked_count: string }>(
@@ -100,9 +89,6 @@ export const qualityGateEvaluationsDB = {
     }
   },
 
-  // Ch.35 §11 sustained-pattern detection input — scoped to one SEU
-  // deliberately (see core/telemetry.ts for why: the resulting Obligation
-  // attaches to one SEU/Deliverable, so the count that triggers it must too).
   async countBlocked(qualityGateId: string, seuId: string): Promise<DbResult<number>> {
     try {
       const { rows } = await query<{ count: string }>(

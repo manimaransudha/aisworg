@@ -51,6 +51,7 @@ after(async () => {
   }
   if (createdDeliverableDefinitionIds.length) {
     await pool.query("UPDATE deliverable_definitions SET parent_deliverable_definition_id = NULL WHERE id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);
+    await pool.query("DELETE FROM version_events WHERE entity_type = 'DeliverableDefinition' AND entity_id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);
     await pool.query("DELETE FROM events WHERE originating_object_type = 'DeliverableDefinition' AND originating_object_id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);
     await pool.query("DELETE FROM deliverable_definitions WHERE id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);
   }
@@ -58,6 +59,7 @@ after(async () => {
     await pool.query("DELETE FROM template_packs WHERE template_id = ANY($1::uuid[])", [createdTemplateIds]);
     await pool.query("DELETE FROM template_capabilities WHERE template_id = ANY($1::uuid[])", [createdTemplateIds]);
     await pool.query("DELETE FROM dependency_definitions WHERE owning_entity_type = 'Template' AND owning_entity_id = ANY($1::uuid[])", [createdTemplateIds]);
+    await pool.query("DELETE FROM version_events WHERE entity_type = 'Template' AND entity_id = ANY($1::uuid[])", [createdTemplateIds]);
     await pool.query("DELETE FROM events WHERE originating_object_type = 'Template' AND originating_object_id = ANY($1::uuid[])", [createdTemplateIds]);
     await pool.query("DELETE FROM templates WHERE id = ANY($1::uuid[])", [createdTemplateIds]);
   }

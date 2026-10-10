@@ -1,23 +1,3 @@
-// service_definitions recovery seed — restores the 63 baseline rows
-// (extracted from src/dblayer/recovery/service_definitions_data_recovery.sql,
-// folding in its own 155/159/161/165 per-row replays) as JSON in
-// data/serviceDefinitions.json.
-//
-// Same governed-lifecycle discipline as seedCapabilityDefinitions.ts: a row
-// starts life via serviceDefinitionsDB.createDraft (status 'Defined') and
-// only becomes usable through the real governed transitions
-// (transitionServiceDefinition, core/serviceDefinitions.ts) -- Defined ->
-// Published -> Active. A raw bulk INSERT of the old flat rows would bypass
-// that lifecycle entirely (the parallel-mechanism gap CLAUDE.md rules out),
-// so this seed goes through createDraft + the two real governed hops for
-// every missing row, same as a human author would.
-//
-// NOT wired into cleanSlate.ts (service_definitions is INSERT-only /
-// lifecycle-governed at the application layer, same reasoning as
-// capability_definitions/schema_definitions). Runnable from the Data
-// Migrations admin UI (DATA_MIGRATION_TARGETS, core/dataMigrations.ts), and
-// standalone:
-//   npx tsx src/dblayer/seed/seedServiceDefinitions.ts
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -54,9 +34,6 @@ function loadSeeds(): ServiceDefinitionSeed[] {
   return JSON.parse(raw) as ServiceDefinitionSeed[];
 }
 
-// authoredBy is a participants_master.id -- createDraft's authoredBy and
-// transitionServiceDefinition's actorId are both this same
-// participants_master.id.
 export interface SeedActor {
   authoredBy: string;
   authorBadge: string;
@@ -81,7 +58,6 @@ export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
   if (!serviceSchema) throw new Error("no schema_definitions grammar for Service -- run the schema-definitions data migration first");
 
   let i = 0;
-  // get platform tenant id
   const PLATFORM_TENANT_ID = await getPlatformTenantId();
   for (const seed of missing) {
     i++;

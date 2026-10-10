@@ -56,9 +56,6 @@ export const decisionsDB = {
     }
   },
 
-  // related_objects is now a JSONB array of {related_object_type,
-  // related_object_ids[]} groups (migration 231) — "any Decision with a
-  // group whose type matches AND whose ids[] contains this id."
   async findByRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<DbResult<DecisionRow[]>> {
     try {
       const { rows } = await query<DecisionRow>(
@@ -87,9 +84,6 @@ export const decisionsDB = {
     }
   },
 
-  // participant_id/authority_badge: COALESCEd against the existing value so
-  // a transition whose actor couldn't be resolved to a Participant/badge
-  // doesn't blank out what an earlier hop already recorded.
   async updateStatus(id: string, status: string, actor?: { participantId?: string | null; authorityBadge?: string | null }): Promise<DbResult<DecisionRow>> {
     try {
       const { rows } = await query<DecisionRow>(

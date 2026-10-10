@@ -13,11 +13,6 @@ import { complianceDB } from "../../../dblayer/complianceDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 
-// Compliance Model — Plan (Phase 15, Ch.27). Read-only compliance read-out for a
-// SEU: the rolled-up status, per-requirement results, active waivers, and any
-// reported conflicts, with a form to grant a waiver.
-
-/** GET /aisworg/seu/seus/:id/compliance — the SEU's live compliance evaluation. */
 router.get("/seus/:id/compliance", attachVM("seu/compliance/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const seuId = String(req.params.id);
@@ -37,7 +32,6 @@ router.get("/seus/:id/compliance", attachVM("seu/compliance/index"), async (req:
   }
 });
 
-/** POST /aisworg/seu/seus/:id/compliance/waivers — grant a waiver against a requirement. */
 router.post("/seus/:id/compliance/waivers", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}/compliance`;
@@ -50,10 +44,6 @@ router.post("/seus/:id/compliance/waivers", async (req: Request, res: Response) 
     if (!actorId) return flashError(req, res, backTo, "Authentication required.");
     const { data: master } = await participantsMasterDB.findById(actorId);
     if (!master) return flashError(req, res, backTo, "No superuser provisioned.");
-    // route_authority declares no badge/role requirement for this route
-    // (Compliance's own waiver mechanism has no authority check, core/
-    // compliance.ts's own header) — authorBadge is attribution, whichever
-    // real badge this actor actually holds.
     const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(actorId);
     const authorBadge = isRoot ? "root" : [...badgeTypes][0] ?? "general";
     await grantWaiver({ seuId, requirementCode, rationale, grantedBy: master.id, authorBadge });

@@ -5,11 +5,6 @@ import { validateCapabilityDefinitionWriteAgainstSchema } from "../routes/seu/co
 import type { DbResult, CapabilityDefinitionRow, CapabilityRole } from "./seuTypes.js";
 import { getPlatformTenantId } from "./constants.js";
  
-// CR-111 — Capability Registry. Own table (265_capability_role_ontology.sql,
-// restructured 273_capability_definition_registry.sql), mirroring
-// serviceDefinitionsDB.ts's own shape column-for-column. No relationship to
-// any other entity structurally (only referenced BY other entities via its
-// own Ontology code, capability-name).
 export const capabilityDefinitionsDB = {
   async createDraft(input: {
     code: string;
@@ -17,16 +12,11 @@ export const capabilityDefinitionsDB = {
     description?: string | null;
     roles?: CapabilityRole[];
     version?: string;
-    // authored_by/author_badge are NOT NULL, participants_master-scoped --
-    // every caller must resolve and pass its own real actor (participants_master.id)
-    // + badge, never a default/null (same discipline as schema_definitions).
     authoredBy: string;
     authorBadge: string;
     draftContent?: Record<string, unknown>;
     tenantId?: string;
     parentCapabilityDefinitionId?: string | null;
-    // CR-114 follow-on — mandatory (owner: "Otherwise all this build is of no
-    // use"); every caller must resolve and pass a real schema_definition_id.
     schemaDefinitionId: string;
   }): Promise<DbResult<CapabilityDefinitionRow>> {
     try {
@@ -117,11 +107,6 @@ export const capabilityDefinitionsDB = {
     }
   },
 
-  // authorityBadge mirrors schemaDefinitionsDB.advanceLifecycle's own
-  // COALESCE convention -- every governed transition records who/what badge
-  // performed it; a null gate.authorityBadge (an ungoverned hop, no
-  // requiredAuthorityRuleCode) leaves the prior badge in place rather than
-  // clobbering it with null.
   async updateStatus(id: string, status: CapabilityDefinitionRow["status"], authorityBadge: string | null, authoredBy: string): Promise<DbResult<CapabilityDefinitionRow>> {
     try {
       const { rows } = await query<CapabilityDefinitionRow>(
@@ -194,7 +179,6 @@ export const capabilityDefinitionsDB = {
     }
   },
 
-  // Feeds the Inherit dropdown — every Active row Platform-owns.
   async findActivePlatformOwned(): Promise<DbResult<CapabilityDefinitionRow[]>> {
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {

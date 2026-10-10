@@ -7,18 +7,15 @@ const router = express.Router();
 import { attachVM } from "../../middleware/attachVM.js";
 import { renderView } from "../../utils/viewModel.js";
 import { getFlash } from "../../utils/flash.js";
-// import { isConnectionError } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { parseListParams, paginateList } from "../../utils/listQuery.js";
 import { appConfig } from "../../config/appconfig.js";
-// import { redirects } from "../../middleware/redirects.js";
 import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";
 import { getSeuQuickview } from "../seu/core/seus.js";
 import { getParticipantHomeView, completeMyWorkItem, raiseMyObligation } from "../seu/core/participantHome.js";
 import { flashError, flashSuccess } from "../../utils/flash.js";
 import { listConceptsForType } from "../seu/core/ontology.js";
 
-/** GET / — the SEU Commissioning Platform's home page: the architecture layers + live counts. */
 router.get("/", attachVM("seu/dashboard"), async (req, res, next) => {
   try {
     const [layers, counts] = await Promise.all([getArchitectureLayers(), getDashboardCounts()]);
@@ -33,12 +30,10 @@ router.get("/", attachVM("seu/dashboard"), async (req, res, next) => {
   }
 });
 
-/** GET /settings — display app settings */
 router.get("/settings", attachVM("settings/index"), async (req, res, next) => {
   try {
     const configData = await appConfig.getAll();
 
-    // Group configs by category
     const grouped = {};
     for (const row of configData) {
       if (!grouped[row.category]) {
@@ -62,7 +57,6 @@ router.get("/settings", attachVM("settings/index"), async (req, res, next) => {
   }
 });
 
-/** POST /settings/:key — update a setting */
 router.post("/settings/:key", async (req, res, next) => {
   try {
     const { key } = req.params;
@@ -88,21 +82,11 @@ router.post("/settings/:key", async (req, res, next) => {
   }
 });
 
-/** GET /quickview — post-login landing. CR-103: what's shown depends on the
- * viewer's own users.role — for 'general' this is their own Participant home
- * (their participants_master identity + every SEU they're a Participant on,
- * scoped to their own work); every other role keeps the original
- * "Commissioned SEUs" progress list. */
 router.get("/quickview", attachVM("quickview/index"), async (req, res, next) => {
   try {
     if (req.session?.user?.role === "general") {
       req.vm.req.title = "My Work";
       req.vm.req.participantHome = await getParticipantHomeView(req.session.user.id);
-      // Owner: "In the UI are the entities dropdown tied to ontology?" — the
-      // Raise Obligation form's Category/Severity options were a hardcoded
-      // array; category:obligation and category:obligation-severity are
-      // both real, live Ontology concept types (same ones the SDK authoring
-      // form already uses for Pack-side Obligation Definitions).
       const isRoot = (req.session.user.platformBadges ?? []).includes("root");
       const tenantId = req.session.user.tenant_id ?? null;
       const [obligationCategories, obligationSeverities] = await Promise.all([
@@ -131,11 +115,6 @@ router.get("/quickview", attachVM("quickview/index"), async (req, res, next) => 
   }
 });
 
-/** POST /quickview/work-items/:workItemId/complete — CR-109 Build Plan §7:
- * a Participant reports a result on their OWN Work Item, from their own "My
- * Work" page. Ownership is re-checked inside completeMyWorkItem (core/
- * participantHome.js) against the caller's own participants_master identity
- * — never trusted off the form alone. */
 router.post("/quickview/work-items/:workItemId/complete", async (req, res) => {
   const backTo = "/aisworg/quickview";
   const { outcome, reference } = req.body ?? {};
@@ -162,14 +141,6 @@ router.post("/quickview/work-items/:workItemId/complete", async (req, res) => {
   }
 });
 
-/** POST /quickview/seus/:seuId/obligations — owner: "Remove the add form on
- * the SEU detail page. The Participant should have an Obligation form...
- * the obligation has to be on the SEU that the participant is assigned to,
- * on a deliverable within the SEU." Ownership (this Deliverable is actually
- * assigned to the caller's own Participant engagement on this SEU) is
- * re-checked inside raiseMyObligation (core/participantHome.js), same
- * discipline as the Work Item completion route above — never trusted off
- * the form alone. */
 router.post("/quickview/seus/:seuId/obligations", async (req, res) => {
   const backTo = "/aisworg/quickview";
   const { deliverableId, category, title, description, severity, completionCriteria } = req.body ?? {};

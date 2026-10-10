@@ -6,14 +6,7 @@ import type { DbResult, ServiceDefinitionRow, ServiceLevelExpectation } from "./
 import { tenantsDB } from "./tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "./constants.js";
  
-// CR-086 follow-on — Service Definition (Book 3 Ch.11), a first-class
-// authored entity. Own table (153_service_definitions.sql), mirroring
-// deliverableDefinitionsDB.ts's own shape column-for-column.
 export const serviceDefinitionsDB = {
-  // Bug fix — inputs/outputs are TEXT[] (migration 159), not a bare string;
-  // `?? []` now matches `consumers`' own already-correct treatment just
-  // below (the pg driver serialises a JS array to a Postgres array literal
-  // for an array-typed column directly, no JSON.stringify).
   async createDraft(input: {
     code: string;
     name: string;
@@ -26,19 +19,13 @@ export const serviceDefinitionsDB = {
     success?: string | null;
     consumers?: string[];
     version?: string;
-    // authored_by/author_badge are NOT NULL, participants_master-scoped --
-    // every caller must resolve and pass its own real actor (participants_master.id)
-    // + badge, never a default/null (same discipline as capabilityDefinitionsDB.ts).
     authoredBy: string;
     authorBadge: string;
     draftContent?: Record<string, unknown>;
     tenantId?: string;
     parentServiceDefinitionId?: string | null;
-    // CR-114 follow-on — mandatory (owner: "Otherwise all this build is of no
-    // use"); every caller must resolve and pass a real schema_definition_id.
     schemaDefinitionId: string;
   }): Promise<DbResult<ServiceDefinitionRow>> {
-    // get platform tenant id
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
       
     try {
@@ -193,17 +180,7 @@ export const serviceDefinitionsDB = {
     }
   },
 
-  // CR-086 follow-on — core/packs.ts's own contributionServices[].code now
-  // resolves against a real Service Definition (owner: "the services form
-  // should show all services tied to the capabilities... in contributions.
-  // capability[]"); a Pack authored under a non-Platform tenant still needs
-  // to see Platform's own (the common case — most real Service Definitions
-  // are Platform-owned, same visibility every other Platform+tenant Registry
-  // lookup on this page already grants). Prefers the viewer's own tenant's
-  // row over Platform's when both exist for the same code (same tie-break
-  // findAllVisibleTo's own ORDER BY code implies elsewhere).
   async findActiveByCodeVisibleTo(code: string, viewerTenantId: string): Promise<DbResult<ServiceDefinitionRow | null>> {
-    // get platform tenant id
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
   
     try {
@@ -231,7 +208,6 @@ export const serviceDefinitionsDB = {
   },
 
   async findAllVisibleTo(viewerTenantId: string): Promise<DbResult<ServiceDefinitionRow[]>> {
-    // get platform tenant id
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
   
     try {
@@ -246,9 +222,7 @@ export const serviceDefinitionsDB = {
     }
   },
 
-  // Feeds the Inherit dropdown — every Active row Platform-owns.
   async findActivePlatformOwned(): Promise<DbResult<ServiceDefinitionRow[]>> {
-    // get platform tenant id
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
   
     try {

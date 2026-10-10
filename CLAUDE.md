@@ -24,7 +24,7 @@
 
 - never run db:clean-slate/tsc/tests or sql migrations even when the user's own words describe wanting to see results — only on an explicit direct instruction you can run these.
   
-- don't add new pnpm seed:X package.json entries; all seed data population goes through db:clean-slate only.
+- don't add new pnpm seed:X package.json entries; all seed data population goes through db:clean-slate only. Exception: the Demo-tenant seeding (src/dblayer/seed, run by the demo landing page reset button and the src/dry-run-suite command) is independent of db:clean-slate and writes through the governed path (real services/transitions, Demo User as actor), not bulkInsert. Its Demo-tenant purge is limited to Demo-tenant rows. See src/dry-run-suite/DECISIONS.md.
 
 - don't announce routine/expected tool-call steps; it burns tokens. Speak only for real findings/decisions.
 - new pages get full CR-083 (not just card class); existing pages get checked/fixed for CR-083 on every edit, unprompted.

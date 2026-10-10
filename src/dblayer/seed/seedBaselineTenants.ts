@@ -1,4 +1,3 @@
-// Tenants baseline seed
 import "dotenv/config";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
@@ -22,10 +21,8 @@ const TENANTS: SeedTenant[] = [
 
 export async function seedTenantsBaseline(): Promise<void> {
   const client = await pool.connect();
-  // Seed Platform tenant as default
   try {
     await client.query("BEGIN");
-    // Start with a temp author information. Update it later
     const result = await client.query(
     `INSERT INTO tenants (code, name, status, is_system, author_id, author_badge)
      VALUES ($1, $2, $3, $4, $5, $6)
@@ -54,7 +51,6 @@ export async function seedTenantsBaseline(): Promise<void> {
         WHERE author_id = $2`,[platformId,TEMP_TENANT_ID]
     );
     
-    // Seed test tenants
     for (const t of TENANTS) {
       let result = await client.query(
         `INSERT INTO tenants (code, name, status, is_system, author_id, author_badge)

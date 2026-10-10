@@ -1,16 +1,3 @@
-// Ontology Model — Plan (Phase 17, Ch.18). Two edge concerns over a canonical
-// core: write-path validation (a category must be a known canonical concept) and
-// read-time label resolution (a tenant's alias, else the platform default). The
-// core stores canonical codes only; neither the state machine, governance,
-// dependency wiring, attestation, nor traceability ever sees a tenant label.
-//
-// CR-022 (owner: "Include tenant_id as part of Ontology. So platform ones
-// will be visible to all + their own vocabulary"): a concept now belongs to a
-// tenant (Platform's is canonical/shared; a tenant's own is theirs alone) —
-// same shape Pack ownership already has. `OntologyActor` names who's asking:
-// isRoot bypasses every scope check (sees/writes any tenant, same as
-// everywhere else); everyone else reads Platform + their own tenant, and can
-// only ever write their own.
 import { ontologyDB, type OntologyViewer } from "../../../dblayer/ontologyDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
@@ -22,24 +9,11 @@ import type { OntologyConceptRow } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
 
-
-// actorId, added by migration 190's governed lifecycle — every real
-// transition (deprecate/retire/archive) and every Version-publishing action
-// (addConcept/composeConcept) records who did it, same "every transition: a
-// real actor + badge" discipline the rest of this codebase already holds
-// itself to. Optional so every pre-existing OntologyViewer-shaped call site
-// (resolveLabels, setAlias, the read-only helpers) keeps compiling unchanged.
 export interface OntologyActor extends OntologyViewer {
   actorId: string;
   actorBadge: string;
 }
 
-// Migration 285 — author_id/author_badge are NOT NULL on ontology_concepts,
-// never defaulted (schemaDefinitionsDB.create's own discipline). Creation
-// itself stays ungoverned (no transition — see this file's own header), so
-// authorBadge here is descriptive metadata, not a badgeAuthorityEngine
-// grant check (that check already happened at the route's own gate,
-// `ontology_define`, before addConcept/createConceptVersion is ever called).
 async function resolveAuthor(actor: OntologyActor): Promise<{ authorId: string; authorBadge: string }> {
   if (!actor.actorId) throw new Error("no acting user to record as this concept's author");
   const { data: master } = await participantsMasterDB.findById(actor.actorId);
@@ -53,35 +27,11 @@ export const CATEGORY_CONCEPT_TYPE: Record<string, string> = {
   Decision: "category:decision",
   Knowledge: "category:knowledge",
   Obligation: "category:obligation",
-  // Ch.30 §7 — the illustrative Event Categories taxonomy (State/Governance/
-  // Runtime/Integration/Administrative), a property of event_registry.category.
   EventType: "category:event-types",
-  // CR-058 follow-up 2 — a Quality Gate's category (and its code — "the
-  // code isn't a UUID or a freeform Pack-specific string — it's the
-  // category identifier itself") reuses category:evidence directly rather
-  // than a separate quality-gate-only vocabulary.
   QualityGate: "category:evidence",
 };
 
-// Write-path enforcement (Ch.18 Decision 4): a category must be a canonical
-// concept for its field. The canonical code is the string itself, so existing
-// values pass; a genuinely novel value is rejected. A retired concept is
-// treated the same as an unknown one — retirement means "no longer valid for
-// new writes", matching the discipline everywhere else (retired nouns/verbs
-// can't be assigned to new badges either). Throws on violation.
-//
-// `viewer` is optional and defaults to Platform-only visibility — every
-// pre-CR-022 caller (Deliverable/Evidence/Decision/Knowledge/Obligation
-// category checks) has no tenant/actor context available at its call site
-// today (creating one of those doesn't thread a session or an owning tenant
-// through), and none of those 5 concept types has ever had a tenant-owned row
-// — so the default preserves their exact prior behaviour untouched. Pack's
-// category/installationClassification checks (core/packs.ts) pass a real
-// scope, since PackSeedInput already carries the Pack's own tenantId.
 export async function assertCanonicalCategory(conceptType: string, value: string, viewer: OntologyViewer = { isRoot: false, tenantId: null }): Promise<void> {
-  // Migration 190 — findConcept itself now only ever resolves the row whose
-  // status = 'Active', so a Deprecated/Retired/Archived concept is already
-  // invisible here; no separate is_active check needed any more.
   const { data: concept } = await ontologyDB.findConcept(conceptType, value, viewer);
   if (!concept) {
     const { data: allowed } = await ontologyDB.findConceptsByType(conceptType, viewer);
@@ -98,15 +48,6 @@ function resolveConceptType(def: JsonSchemaProperty, source: Record<string, unkn
   return driverValue ? `${driverValue.toLowerCase()}${def["x-referential-source-suffix"] ?? ""}` : "";
 }
 
-// Resolves an `x-referential-source-by-value` field's ACTUAL concept type for
-// THIS submission (Policy's conditions[].applicabilityDeliverables[].name,
-// driven by the top-level `scope`) — the write-time counterpart of
-// ontologyComposableFieldsIn's own byValue branch (formGenerator.ts:612-629).
-// Returns null when the resolved variant isn't Ontology-governed at all
-// (Policy's scope=Eligibility variant is a real Authority Vocabulary noun,
-// checked by validateConditions's own hand-coded branch instead) or is itself
-// composable (defer to the propose flow, same as a static x-ontology-composable
-// field).
 function resolveByValueConceptType(def: JsonSchemaProperty, topLevelContent: Record<string, unknown>): string | null {
   const byValue = def["x-referential-source-by-value"];
   if (!byValue) return null;
@@ -115,23 +56,6 @@ function resolveByValueConceptType(def: JsonSchemaProperty, topLevelContent: Rec
   return resolved.source;
 }
 
-// Write-time counterpart to ontologyComposableFieldsIn/dynamicReferentialSourceFieldsIn
-// (both read-side, form-option concerns) — checks every `x-ontology: true`
-// (or Ontology-resolving `x-referential-source-by-value`) field's ACTUAL
-// submitted value against real Ontology data. Recurses to unbounded depth
-// into nested arrays-of-objects and nested plain objects, mirroring
-// formGenerator.ts's own collectOntologyTypesFromItemProps (CR-088's
-// Checklist precedent) and buildItemFields' "type: object" branch (Policy's
-// conditions[].requiredEvidence) respectively — this walker used to stop one
-// level into array-item rows, which was enough for Pack/Template/Profile's
-// flatter fields but not for Policy's conditions[].relatedObligations[]
-// (two levels of array nesting) or conditions[].requiredEvidence.category (a
-// nested object, not an array). `topLevelContent` stays fixed through the
-// whole recursion — an `x-referential-source-by-value` field's driver
-// (Policy's `scope`) is always a TOP-LEVEL field, never a sibling within a
-// nested row, the same as the read-side resolution it mirrors.
-// schema_definitions was previously read only by the form generator, never
-// enforced at write time (design/design whiteboards.md/schema_implementation.md).
 export async function validateOntologyFieldsAgainstSchema(
   schema: JsonSchemaDocument,
   content: Record<string, unknown>,
@@ -157,9 +81,6 @@ export async function validateOntologyFieldsAgainstSchema(
     for (const [name, def] of Object.entries(props)) {
       const label = `${labelPrefix}"${name}"`;
 
-      // Nested array-of-objects (Policy's conditions[], conditions[].relatedObligations[],
-      // conditions[].exceptionRules[], ... — recurse to whatever depth the
-      // schema actually declares, not just one level).
       if (def.type === "array" && def.items?.properties) {
         const rows = row[name];
         if (Array.isArray(rows)) {
@@ -172,9 +93,6 @@ export async function validateOntologyFieldsAgainstSchema(
         continue;
       }
 
-      // Nested plain object, not a repeatable sub-list (Policy's
-      // conditions[].requiredEvidence — "Required evidence will be an object
-      // by itself," owner) — one fixed set of sub-fields, no rows.
       if (def.type === "object" && def.properties) {
         const obj = row[name];
         if (obj && typeof obj === "object") {
@@ -190,20 +108,9 @@ export async function validateOntologyFieldsAgainstSchema(
         continue;
       }
 
-      // x-ontology-composable fields (Pack's own `code`) defer to a propose
-      // flow, not reject-on-unregistered — CR-079 "WIP is allowed to be
-      // incomplete." Their real enforcement point stays wherever it already
-      // was (validatePackSeed at actual publish time), unchanged by this
-      // generic write-time checker.
       if (def["x-ontology"] !== true || def["x-ontology-composable"] === true) continue;
       const conceptType = resolveConceptType(def, row);
       if (!conceptType) continue;
-      // A plain array-of-strings x-ontology field (Policy's own
-      // applicabilityEnvironments, Service's consumers — a real multi-select,
-      // not a referential-list of objects) checks every selected value, not
-      // the array itself (checkValue's own `typeof value !== "string"` guard
-      // would otherwise silently skip it entirely — the gap this walker had
-      // for exactly this field shape before this pass).
       if (def.type === "array") await checkMulti(conceptType, row[name], label);
       else await checkValue(conceptType, row[name], label);
     }
@@ -213,23 +120,6 @@ export async function validateOntologyFieldsAgainstSchema(
   return errors;
 }
 
-// Owner: "flag in the schema that will specify if an Ontology Composition is
-// allowed" (x-ontology-composable, formGenerator.ts), generalising CR-079
-// step (d)/CR-100's own Pack-code/Competency-value proposal mechanism
-// (previously `emitOntologyComposedIfUnregistered`, sdkAuthoring.ts,
-// hardcoded to originatingObjectType "Pack") to any kind, any composable
-// field. If `code` already resolves to a real concept, this is a no-op —
-// nothing to propose. Otherwise, de-duplicated per (originatingObjectType,
-// originatingObjectId, code, conceptType) via the events table itself
-// (same discipline as before — nothing else tracks "pending" proposals),
-// publishes ConceptCreated. Owner: "payload should carry
-// originator information (id, badge, tenant etc.), originating entity (pack,
-// policy, etc.), the ontology concept (code, applicable environment etc.,
-// proposed value)" — originator id/badge are the event's own actorId/
-// authorityBadge envelope fields (the platform's standing "every transition:
-// real actor + badge" discipline), not payload; everything without a
-// dedicated envelope column (tenant, the originating entity's own human
-// code, which authored field this came from) lives in payload.
 export async function emitConceptCreated(input: {
   originatingObjectType: string;
   originatingObjectId: string;
@@ -247,7 +137,7 @@ export async function emitConceptCreated(input: {
   if (!code || !conceptType) return;
   const tenantId = input.tenantId ?? (await getPlatformTenantId());
   const { data: concept } = await ontologyDB.findConcept(conceptType, code, { isRoot: false, tenantId });
-  if (concept) return; // already a real, registered concept — nothing to propose
+  if (concept) return;
   const { data: priorEvents } = await eventsDB.findByOriginatingObject(input.originatingObjectType, input.originatingObjectId);
   const alreadyProposed = (priorEvents ?? []).some(
     (e) => e.event_type === "ConceptCreated" && e.payload?.code === code && e.payload?.conceptType === conceptType
@@ -272,25 +162,6 @@ export async function emitConceptCreated(input: {
   });
 }
 
-// Scans a kind's own schema for every x-ontology-composable field
-// (formGenerator.ts's ontologyComposableFieldsIn — both multi-select arrays
-// and single-value driven/fixed fields, e.g. Pack's own `code`) and proposes
-// whichever of the submitted content's entered values aren't yet real
-// concepts — the draft-save-time counterpart to assertCanonicalCategory's
-// draft-blocking check: propose instead of reject. Callers still enforce
-// assertCanonicalCategory (or an equivalent) on these same fields at PUBLISH
-// time — this function alone never lets an unregistered value through past
-// that gate, it only stops it from being rejected at draft-save.
-//
-// Recurses to unbounded depth into nested arrays-of-objects and nested plain
-// objects, mirroring validateOntologyFieldsAgainstSchema's own `walk` just
-// above (formerly delegated to formGenerator.ts's ontologyComposableFieldsIn,
-// which only scanned schema.properties one level deep — silently invisible
-// to a composable field nested inside e.g. Pack's contributionObligationDefinitions[]
-// or Template's deliverableCatalogue[]). Lives here rather than in
-// formGenerator.ts because nothing else in the codebase calls
-// ontologyComposableFieldsIn — the read-side/UI concern formGenerator.ts
-// otherwise owns never needed per-row composable resolution.
 async function collectComposableValues(
   props: Record<string, JsonSchemaProperty>,
   row: Record<string, unknown>,
@@ -351,13 +222,6 @@ export async function proposeComposableOntologyValues(
   }, "");
 }
 
-// The publish-time counterpart of proposeComposableOntologyValues above —
-// same schema-driven recursive scan (no hardcoded concept types, no
-// per-entity field list to maintain), but hard-rejects instead of proposing:
-// whatever draft-save let through unregistered must have resolved to a real
-// concept by the time this runs. Entity-agnostic — one function for every
-// `x-ontology-composable` field platform-wide, per owner: "whatever is
-// x-ontology-composable will be gated at publish time."
 export async function validateComposableFieldsAgainstSchema(
   schema: JsonSchemaDocument,
   content: Record<string, unknown>,
@@ -374,30 +238,6 @@ export async function validateComposableFieldsAgainstSchema(
   return errors;
 }
 
-// --- Ontology Management CRUD (owner, 2026-08-18: "each of the concept_types
-// should have a CRUD UI... any further additions will be data changes") ---
-// No separate concept_types governance table (owner: "there will be no end to
-// this") — CRUD lands directly on ontology_concepts; the only guard-rail is a
-// naming convention (owner: "simple rules. small case no spaces"), enforced
-// here rather than by a second table.
-//
-// CR-022 design note — engine-bound concept types (owner, 2026-08-19):
-// "Think of it as platform provides a software engineering definition. Tenant
-// can override it, but within the boundaries of what the EOOM wants to
-// accomplish." A purely descriptive concept type (template-categories,
-// deliverable-name) is safe for a tenant to extend freely — nothing in the
-// engine pattern-matches its codes. A concept type that's the tenant-facing
-// name for a REAL engine mechanism (e.g. a future "quality-gate-type") is
-// different: the tenant's own code/label stays free (their own methodology,
-// their own words), but it must resolve to one of a small, fixed set of real
-// engine capabilities — carried as an explicit reference on the concept
-// (e.g. `engine_capability`), never inferred by the engine pattern-matching
-// the concept's own `code` string. That's the EOOM boundary: vocabulary is
-// tenant-owned, the mechanics it must still satisfy are not. Not built —
-// nothing today has an engine binding to attach it to (Quality Gates are the
-// natural first candidate once Pack's contribution types become
-// Ontology-driven rather than hardcoded structure) — recorded here so the
-// principle is on file before it's needed.
 const ONTOLOGY_CODE_RE = /^[a-z][a-z0-9-]*$/;
 
 export function assertOntologyCodeFormat(label: string, value: string): void {
@@ -406,43 +246,17 @@ export function assertOntologyCodeFormat(label: string, value: string): void {
   }
 }
 
-// The admin page's list of concept_types is derived from the data itself, not
-// a lookup table — whatever concept_type codes are visible to this viewer.
 export async function listConceptTypes(viewer: OntologyViewer): Promise<string[]> {
   const { data } = await ontologyDB.listDistinctConceptTypes(viewer);
   return data ?? [];
 }
 
-// Owner: "I want the sublists grouped and the items within the group will be
-// the vertical tabs on that particular page... ai-provider-preference,
-// development-methodology etc as a SEU Configurations." Migration 191 — this
-// reads straight off the `ui_grouping` column (owner: "add a column ui
-// grouping. So the rendering uses this UI grouping to generate the sub
-// lists") — a row with ui_grouping set (e.g. profile-configuration's own
-// 'ai-provider-preference' row) marks its OWN concept_type as a group's
-// "defining type", names its `code` as a member concept_type, and supplies
-// the group's display label — all three off one column, no inference, no
-// code-side label map. A future group is a row edit (set ui_grouping on
-// whichever rows should belong to it), not a code change.
 export interface ConceptTypeNav {
-  // Every concept_type NOT itself a member of some group, PLUS one entry per
-  // distinct group (anchored on whichever member concept_type sorts first —
-  // there's no "defining type" any more, groups are symmetric sets of
-  // sibling concept_types) — what the navbar/top-level tab strip renders.
   topLevel: Array<{ type: string; label: string; isGroup: boolean }>;
-  groupMembers: Record<string, string[]>; // anchor concept_type -> every concept_type in that group (anchor included)
-  memberToGroup: Record<string, string>; // any member concept_type -> its group's anchor concept_type
+  groupMembers: Record<string, string[]>;
+  memberToGroup: Record<string, string>;
 }
 
-// Owner: "The navbar in Ontology should reflect ui grouping. When the ui
-// grouping is selected, the vertical tabs should be concept_types." One
-// rule: a concept_type belongs to a group whenever its own rows carry
-// ui_grouping; every concept_type sharing the same value merges into one
-// entry, each becoming a tab inside it (see ontologyDB.findConceptTypeUiGroupings's
-// own header for why the earlier parent-names-child mechanism didn't
-// generalise). profile-configuration's own children now carry ui_grouping
-// on THEIR OWN rows too (migration 193) — no special case for it any more,
-// it's just another concept_type in the "SEU Configurations" set.
 export async function getConceptTypeNav(viewer: OntologyViewer, conceptTypes?: string[]): Promise<ConceptTypeNav> {
   const types = conceptTypes ?? (await listConceptTypes(viewer));
   const { data: pairs } = await ontologyDB.findConceptTypeUiGroupings(viewer);
@@ -471,12 +285,6 @@ export async function getConceptTypeNav(viewer: OntologyViewer, conceptTypes?: s
   return { topLevel, groupMembers, memberToGroup };
 }
 
-// The vertical-tabs list for whichever concept_type the page is currently
-// showing: inside a group (on its anchor, or on any one sibling member),
-// the tabs are every concept_type in that group (anchor included);
-// otherwise, every top-level concept_type, same flat strip this page always
-// had. Tab labels stay raw concept_type slugs throughout — only the
-// navbar/top-level entry point uses the friendlier ui_grouping label.
 export function tabsForActiveType(nav: ConceptTypeNav, activeType: string): string[] {
   if (nav.groupMembers[activeType]) return nav.groupMembers[activeType];
   const anchor = nav.memberToGroup[activeType];
@@ -489,27 +297,9 @@ export async function listConceptsForType(conceptType: string, viewer: OntologyV
   return data ?? [];
 }
 
-// `actor.isRoot` may add to ANY tenant's vocabulary (Platform's by default —
-// the natural "curate the canonical set" action for a root admin); everyone
-// else always adds to their OWN tenant's vocabulary, full stop — `targetTenantId`
-// is ignored for a non-root actor rather than trusted from the request.
-//
-// Migration 190 — this is now BOTH "create a new concept" (first Version,
-// publishes ConceptCreated) AND "publish a new Version of an existing one"
-// (publishes ConceptUpdated, auto-superseding whatever was Active before to
-// Deprecated) depending on whether a row already exists for this
-// (conceptType, code, tenantId) triple. Creation itself is still not a
-// governed transition (no badge beyond the route's own ontology_define gate)
-// — only the outbound Deprecated/Retired/Archived hops are (deprecateConcept/
-// retireConcept/archiveConcept below), same "creation authority is not a
-// transition" discipline every other entity in this codebase holds to.
 export async function addConcept(
   input: {
     conceptType: string; code: string; defaultLabel: string; description?: string; targetTenantId?: string;
-    // Migration 191 — author's own per-concept choice, not inferred; uiGrouping
-    // undefined means "leave whatever this code already had" on a re-add/
-    // version-bump, so editing a grouped concept's label doesn't silently
-    // un-group it.
     textType?: "text" | "markdown"; uiGrouping?: string | null;
   },
   actor: OntologyActor
@@ -521,23 +311,12 @@ export async function addConcept(
   assertOntologyCodeFormat("concept type", conceptType);
   assertOntologyCodeFormat("code", code);
   if (!defaultLabel) throw new Error("label is required");
-  // CR-049 — `deliverable-name` graduated out of plain CRUD into a real
-  // authored entity (Deliverable Definition, its own deliverable_definitions
-  // table + Draft->...->Active lifecycle) so a tenant's specialisation is a
-  // tracked derivation of Platform's own concept, not an orphan row that
-  // happens to share a string. A hand-added row here would bypass that
-  // lineage entirely, undermining the whole point of the CR.
   if (conceptType === "deliverable-name") {
     throw new Error('Deliverable names are authored at /aisworg/seu/sdk/deliverable-authoring now, not added directly here — use "Inherit" there to derive from an existing Platform Deliverable Definition, or start a new one.');
   }
   const tenantId = actor.isRoot ? (input.targetTenantId ?? (await getPlatformTenantId())) : actor.tenantId;
   if (!tenantId) throw new Error("no tenant to add this concept to");
 
-  // CR-113 item 4 — "if saving something that is already existing, current
-  // behavior continues [version-bump via createConceptVersion below]. If
-  // there is a new addition, publish ConceptCreated and set status to
-  // Draft." A code with no prior version at all (any status) is the "new
-  // addition" case; anything with a prior version keeps today's behavior.
   const { data: latest } = await ontologyDB.findLatestVersion(conceptType, code, tenantId);
   if (!latest) {
     const version = "1.0.0";
@@ -568,9 +347,6 @@ export async function addConcept(
   return createConceptVersion({ conceptType, code, tenantId, defaultLabel, description: description || null, textType: input.textType, uiGrouping: input.uiGrouping }, actor);
 }
 
-// The one place that computes the next version number and supersedes the
-// previous Active row (Ch.18 §12) — addConcept's own create/edit action and
-// composeConcept's Specialization/Override strategies both end up here.
 async function createConceptVersion(
   input: {
     conceptType: string; code: string; tenantId: string; defaultLabel: string; description: string | null;
@@ -584,9 +360,6 @@ async function createConceptVersion(
   const base = previousActive ?? latest;
   const nextVersion = base ? await nextAvailableVersion(input.conceptType, input.code, input.tenantId, base.version) : "1.0.0";
 
-  // Publishing a new Version without explicitly naming textType/uiGrouping
-  // inherits both from the prior Version (base) — a plain label/description
-  // edit shouldn't silently reset the render mode or drop group membership.
   const { authorId, authorBadge } = await resolveAuthor(actor);
   const { data: created, error } = await ontologyDB.insertConceptVersion({
     conceptType: input.conceptType, code: input.code, tenantId: input.tenantId, version: nextVersion,
@@ -598,10 +371,6 @@ async function createConceptVersion(
   });
   if (error || !created) throw error ?? new Error("failed to create concept version");
 
-  // Ch.18 §14 — ConceptCreated (first Version) / ConceptUpdated (every
-  // subsequent one). Not a governed transition (see addConcept's own header),
-  // so authorityBadge is null — the route's own ontology_define gate is the
-  // only authority check on this action.
   await eventBus.publish({
     eventType: latest ? "ConceptUpdated" : "ConceptCreated",
     originatingObjectType: "Ontology",
@@ -642,13 +411,6 @@ async function nextAvailableVersion(conceptType: string, code: string, tenantId:
   throw new Error(`could not find an unused version for ${conceptType}/${code} after bumping from ${fromVersion}`);
 }
 
-// Ch.18 §11 real governed hops (migration 190) — badge is `ontology_<verb>`
-// (transitionEngine's own noun_verb derivation), with alternateBadges
-// ['ontology_define'] so every existing ontology_define/root holder keeps
-// full access without a new badge grant; a future tenant that wants to split
-// these into their own separately-grantable badges still can, without any
-// code change here. Same ownership rule as addConcept: root may act on any
-// tenant's row; anyone else only their own.
 async function transitionConcept(
   conceptType: string, code: string, targetTenantId: string,
   toState: "Deprecated" | "Retired" | "Archived" | "Active" | "Draft",
@@ -672,11 +434,6 @@ async function transitionConcept(
     throw new Error(gate.reason);
   }
 
-  // CR-113 item 6 — Reject (Draft -> Draft) requires its own, new feedback on
-  // every use, same discipline as Objective's Active -> Reject (CR-073,
-  // objectives.ts's transitionObjective). Checked after authorisation (so an
-  // under-badged actor sees "requires badge...", not a comment-validation
-  // error) and before writing anything.
   const trimmedComment = opts?.comment?.trim() ?? "";
   if (fromState === "Draft" && toState === "Draft") {
     if (!trimmedComment) {
@@ -706,11 +463,10 @@ async function transitionConcept(
     payload: { conceptType, code, fromState, toState, version: concept.version },
     actorId: authorId,
     authorityBadge: gate.authorityBadge ?? "root",
-    // CR-117 — Ontology concepts are platform-global, not tenant-scoped.
     versionEvent: gate.versionEvent,
     fromState,
     toState,
-    tenantId: null,
+    tenantId: targetTenantId,
   });
 
   return updated;
@@ -720,11 +476,6 @@ export async function deprecateConcept(conceptType: string, code: string, target
   return transitionConcept(conceptType, code, targetTenantId, "Deprecated", actor);
 }
 
-// Same exported shape web/ontology.ts already called (conceptType, code,
-// targetTenantId, actor) — now a real governed Deprecated -> Retired
-// transition instead of a direct is_active flip off Active. A concept must
-// be Deprecated first (no skip-ahead edge), the same discipline Pack/
-// Template/Service Definition already hold themselves to.
 export async function retireConcept(conceptType: string, code: string, targetTenantId: string, actor: OntologyActor) {
   return transitionConcept(conceptType, code, targetTenantId, "Retired", actor);
 }
@@ -733,10 +484,6 @@ export async function archiveConcept(conceptType: string, code: string, targetTe
   return transitionConcept(conceptType, code, targetTenantId, "Archived", actor);
 }
 
-// CR-113 item 6 — the Ontology Approvals tab's own two outcomes of the same
-// process (owner: "only an approver can reject? they are 2 outcomes of the
-// same process") — one badge (ontology_approve) governs both hops, derived
-// off the same verb on both transition_definitions rows.
 export async function approveConcept(conceptType: string, code: string, targetTenantId: string, actor: OntologyActor) {
   return transitionConcept(conceptType, code, targetTenantId, "Active", actor);
 }
@@ -745,51 +492,16 @@ export async function rejectConcept(conceptType: string, code: string, targetTen
   return transitionConcept(conceptType, code, targetTenantId, "Draft", actor, { comment });
 }
 
-// The Approvals tab's own data source — every Draft concept visible to this
-// actor, across every concept_type (not scoped to whichever category tab
-// happens to be active), same "one page, everything" shape as the Metadata
-// page's listAllConceptsForPicker.
 export async function listDraftConceptsForApproval(actor: OntologyActor): Promise<OntologyConceptRow[]> {
   const { data } = await ontologyDB.findDraftConcepts({ isRoot: actor.isRoot, tenantId: actor.tenantId });
   return data ?? [];
 }
 
-// Owner: "Add a retire button also. - this should make the isActive false."
-// Migration 190 replaced the old flat is_active boolean with a real
-// Active -> Deprecated -> Retired -> Archived lifecycle (no skip-ahead edge —
-// deprecateConcept/retireConcept's own header), so there is no longer a
-// single flip that means "isActive = false" directly. This is that one-click
-// action's modern equivalent: walks a row through BOTH required hops
-// (Active -> Deprecated -> Retired) so the Ontology Metadata page can offer
-// one "Retire" button with the same one-click feel the old boolean had,
-// while every real transition still runs (its own badge check, its own
-// event) rather than a raw status write. Only valid from Active — the
-// caller is expected to only offer this button on Active rows (the
-// Metadata page's own listAllConceptsForPicker already only returns those).
 export async function quickRetireConcept(conceptType: string, code: string, targetTenantId: string, actor: OntologyActor): Promise<OntologyConceptRow> {
   await deprecateConcept(conceptType, code, targetTenantId, actor);
   return retireConcept(conceptType, code, targetTenantId, actor);
 }
 
-// Owner: "a CRUD to manually set the ui_grouping / text_type." Edits the
-// CURRENT Active row's own administrative metadata directly — no new
-// Version, no status change, no transitionEngine gate (this isn't a
-// lifecycle move, same "not a governed transition" territory as addConcept's
-// own create/edit action, gated only by the route's own ontology_define
-// badge). Same ownership rule as every other write here: root may edit any
-// tenant's row; everyone else only their own. `uiGrouping: null` here means
-// exactly what it says — clear it — since this is a direct edit of a known
-// current value, not createConceptVersion's own "unspecified = inherit".
-//
-// Owner: "Edit should emit ConceptUpdated. No versioning required" — this
-// function already had the "no versioning" half right (a plain in-place
-// write, unlike createConceptVersion's own edit path, which DOES bump a new
-// Version and already publishes its own ConceptUpdated for that case); it
-// was just missing the event entirely. Published with no versionEvent —
-// there's no transition_definitions row backing this (it isn't a governed
-// transition), so no version-history significance to tag it with, matching
-// a plain Revision everywhere else in this codebase (e.g. Objective's own
-// New/Edit actions, Version Feature Plan.md §3).
 export async function updateConceptMeta(
   conceptType: string,
   code: string,
@@ -820,45 +532,20 @@ export async function updateConceptMeta(
   return updated;
 }
 
-// Owner: "I want the metadata to be a separate option under ontology... the
-// list should show all. otherwise how do I edit?" The dedicated Ontology
-// Metadata page's own single data source — every Active concept, every
-// category, in one list (not scoped to whichever tab an admin happens to be
-// on), grouped or not — both the page's own review table AND its
-// (concept_type, code) picker read off this same query.
 export async function listAllConceptsForPicker(viewer: OntologyViewer) {
   const { data } = await ontologyDB.findAllActiveConcepts(viewer);
   return data ?? [];
 }
 
-// Owner: "Ui grouping in the tab forms should be having a similar change" —
-// every existing ui_grouping value, for the same free-text-input-plus-
-// datalist treatment (visible/pickable, never a locked-in dropdown) on both
-// the Metadata page's own form AND the per-category Add-concept form.
 export async function listDistinctUiGroupings(viewer: OntologyViewer): Promise<string[]> {
   const { data } = await ontologyDB.findDistinctUiGroupings(viewer);
   return data ?? [];
 }
 
-// --- System-sync entry points (pre-dating migration 190) ---------------
-// deliverableDefinitions.ts / serviceDefinitions.ts mirror their OWN already-
-// governed lifecycle onto a `deliverable-name`/`service-name` Ontology
-// concept (used to call ontologyDB.upsertConcept/retireConcept directly).
-// Not user-authored input — the code/label/description already came from a
-// row that went through its own real governed transition — so these skip
-// addConcept's user-input guards (the deliverable-name block, code-format
-// assertion) and retireConcept's transitionEngine gate (there is no second
-// human decision here to badge-check; it's a mechanical mirror of a decision
-// already made and authorised on the calling entity's own transition).
 export async function syncConceptFromEntity(conceptType: string, code: string, defaultLabel: string, description: string | null, tenantId: string, actorId: string): Promise<OntologyConceptRow> {
   return createConceptVersion({ conceptType, code, tenantId, defaultLabel, description }, { isRoot: true, tenantId, actorId, actorBadge: "root" });
 }
 
-// Mirrors the OLD ontologyDB.retireConcept's own direct-flip behaviour
-// exactly (no Deprecated waypoint) — these two callers already gate
-// eligibility themselves (only called once no other Version of the same
-// code is still Active), so this is a plain status set, not a re-run of the
-// Deprecated -> Retired governed gate real user-driven retireConcept uses.
 export async function retireConceptForEntity(conceptType: string, code: string, tenantId: string, actorId: string, actorBadge: string): Promise<void> {
   const { data: concept } = await ontologyDB.findActiveConcept(conceptType, code, tenantId);
   if (!concept) return;
@@ -875,14 +562,6 @@ export async function retireConceptForEntity(conceptType: string, code: string, 
   });
 }
 
-// Owner: "Allow tenants to compose using the composition strategy that packs
-// already have implemented." Reuses the SAME compositionEngine module Pack's
-// own composeAuthoringDraft calls (domain/engine/compositionEngine.ts) —
-// scoped to Specialization + Override only (migration 190's own header: the
-// other 4 compositionEngine strategies don't have clear meaning over a
-// 2-field label/description entity with a single composition source in the
-// common case). Publishes ConceptCreated — one of Ch.18 §14's own named
-// events, wired to nothing at all before this (§18.9's own audit finding).
 export async function composeConcept(
   input: { conceptType: string; code: string; strategy: "specialization" | "override"; sourceConceptId?: string; defaultLabel?: string; description?: string; targetTenantId?: string },
   actor: OntologyActor
@@ -898,9 +577,6 @@ export async function composeConcept(
   let composedFrom: string[];
 
   if (input.strategy === "override") {
-    // "Override reuses this entity's own normal version-bump flow" — same
-    // framing Pack's own composeAuthoringDraft uses for its override branch;
-    // there is no separate mechanism to invoke, just a label for traceability.
     const { data: existing } = await ontologyDB.findActiveConcept(conceptType, code, tenantId);
     if (!existing) throw new Error(`Override requires an existing concept ${conceptType}/${code} in your own tenant's vocabulary — use Specialization to create a new one.`);
     result = await createConceptVersion(
@@ -947,9 +623,6 @@ export async function composeConcept(
   return result;
 }
 
-// Read-time resolution: the tenant's alias for a canonical code, else the
-// platform default label (Platform's own concepts + this tenant's own).
-// Runs at the edge (views / tenant-facing serialisers).
 export async function resolveLabels(tenantId: string | null, conceptType: string): Promise<Record<string, string>> {
   const { data: concepts } = await ontologyDB.findConceptsByType(conceptType, { isRoot: false, tenantId });
   const labels: Record<string, string> = {};
@@ -961,13 +634,11 @@ export async function resolveLabels(tenantId: string | null, conceptType: string
   return labels;
 }
 
-// Resolve a single code to its tenant-facing label.
 export async function resolveLabel(tenantId: string | null, conceptType: string, code: string): Promise<string> {
   const labels = await resolveLabels(tenantId, conceptType);
   return labels[code] ?? code;
 }
 
-// Tenant alias management.
 export async function setAlias(input: { tenantId: string; conceptType: string; canonicalCode: string; displayLabel: string }) {
   const { data: concept } = await ontologyDB.findConcept(input.conceptType, input.canonicalCode, { isRoot: false, tenantId: input.tenantId });
   if (!concept) throw new Error(`cannot alias unknown concept ${input.conceptType}/${input.canonicalCode}`);

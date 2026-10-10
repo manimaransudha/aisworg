@@ -2,10 +2,6 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, ReviewOutcome, ReviewRow, TransitionEntityType } from "./seuTypes.js";
 
-// Review Model — Plan (Phase 14, Ch.25). Same shape as the other governed
-// entities (obligations/evidence/decisions): create, lifecycle updateStatus,
-// polymorphic findByRelatedObject. The outcome is set once (setOutcome) at the
-// Completed transition and never mutated again (enforced in core/reviews.ts).
 export const reviewsDB = {
   async create(input: {
     seuId: string;
@@ -76,9 +72,6 @@ export const reviewsDB = {
     }
   },
 
-  // Set the outcome and advance status in one write — used at the Completed
-  // transition. The outcome is only ever set here; core/reviews.ts refuses to
-  // call it if an outcome is already present (immutability, FR-25.5).
   async completeWithOutcome(id: string, outcome: ReviewOutcome): Promise<DbResult<ReviewRow>> {
     try {
       const { rows } = await query<ReviewRow>(

@@ -1,20 +1,3 @@
-// schema_definitions recovery seed — restores the baseline (entity_kind,
-// version) rows from schemaDefinitions.json (extracted from the live DB,
-// itself the resolved result of every migration-embedded INSERT/UPDATE
-// against this table). NOT wired into cleanSlate.ts: schema_definitions is
-// INSERT-only at the application layer and db:clean-slate never recreates
-// missing baseline rows (see
-// src/dblayer/recovery/schema_definitions_data_recovery.sql's own header).
-// Runnable from the Data Migrations admin UI (DATA_MIGRATION_TARGETS,
-// core/dataMigrations.ts), and standalone:
-//   npx tsx src/dblayer/seed/seedSchemaDefinitions.ts
-//
-// Loads the JSON once, checks which (entity_kind, version) pairs already
-// exist in a single batch query, and creates only the missing ones via the
-// real schemaDefinitionsDB.create() path (never a raw INSERT), passing the
-// real caller-supplied actor (author_id + author_badge, both NOT NULL) —
-// never defaulted, same discipline as every other seed function in this
-// folder.
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -27,7 +10,6 @@ import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// authoredBy is a participants_master.id 
 export interface SeedActor {
   authoredBy: string;
   authorBadge: string;

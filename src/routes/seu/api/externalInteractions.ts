@@ -10,7 +10,6 @@ import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import type { InteractionDirection } from "../../../dblayer/seuTypes.js";
 
-/** POST /external-interactions — Ch.36: record an External Interaction against a SEU (optionally a Deliverable). */
 router.post("/external-interactions", async (req: Request, res: Response) => {
   try {
     const { seuId, deliverableId, interactionType, direction, targetSystem, purpose } = req.body ?? {};
@@ -36,7 +35,6 @@ router.post("/external-interactions", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /external-interactions?seuId=... — every External Interaction for a given SEU. */
 router.get("/external-interactions", async (req: Request, res: Response) => {
   try {
     const seuId = typeof req.query.seuId === "string" ? req.query.seuId : null;
@@ -48,7 +46,6 @@ router.get("/external-interactions", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /external-interactions/:id/transition — Ch.36 §9 lifecycle: Created -> ... -> Archived (or -> Failed). */
 router.post("/external-interactions/:id/transition", async (req: Request, res: Response) => {
   try {
     const { targetState } = req.body ?? {};

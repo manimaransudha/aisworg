@@ -4,19 +4,6 @@ import { userDB } from "./userDB.js";
 import type { DbResult, ParticipantRow, ParticipantType } from "./seuTypes.js";
 
 export const participantsDB = {
-  // Participant Lifecycle Governance — Plan, Build order step 1: relies on
-  // the column's own DEFAULT 'Available' instead of a hardcoded literal —
-  // matching evidenceDB.create/obligationsDB.create's shape, neither of
-  // which lists status/state in its own INSERT column list either. A
-  // Participant becomes eligible for a Capability (fulfilCapability, Ch.12)
-  // at Available, per Ch.13 §10 — not pre-assigned to anything; the real
-  // Assigned transition belongs to dispatchEngine (step 3).
-  // author_id/author_badge are NOT NULL (participants_schema_recovery.sql)
-  // but nothing engaging a Participant into a SEU today is itself an
-  // authored, actor-driven transition — this resolves the SUPERUSER_EMAIL
-  // superuser (userDB.getSuperuserId(), the same real, governed "root"
-  // resolution every seed script already uses) as a stopgap author, until a
-  // real acting actor is threaded through every caller of this function.
   async create(input: { seuId: string; type: ParticipantType; displayName: string; participantId?: string | null }): Promise<DbResult<ParticipantRow>> {
     try {
       const { actorId, actorBadge } = await userDB.getSuperuserId();
@@ -53,8 +40,6 @@ export const participantsDB = {
     }
   },
 
-  // CR-103 — every per-SEU engagement of one participants_master identity,
-  // across every SEU, for that Participant's own home page.
   async findByParticipantMasterId(participantMasterId: string): Promise<DbResult<ParticipantRow[]>> {
     try {
       const { rows } = await query<ParticipantRow>("SELECT * FROM participants WHERE participant_id = $1 ORDER BY created_at DESC", [participantMasterId]);
@@ -65,11 +50,6 @@ export const participantsDB = {
     }
   },
 
-  // The one participants row that represents a given participants_master
-  // identity's engagement in a given SEU — needed wherever a NOT NULL
-  // author_id FK on a seu_id-scoped table (attention_items) must resolve
-  // the acting user down to a real per-SEU Participant, not just their
-  // platform-wide participants_master id.
   async findBySeuIdAndParticipantMasterId(seuId: string, participantMasterId: string): Promise<DbResult<ParticipantRow | null>> {
     try {
       const { rows } = await query<ParticipantRow>(

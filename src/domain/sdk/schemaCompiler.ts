@@ -1,37 +1,8 @@
-// CR-114 — widget-tree schema authoring, replacing CR-017's flat field-row
-// editor (`AuthoredField`/`META_SCHEMA`), which only ever exposed 9 of
-// `JsonSchemaProperty`'s 17 real `x-*` keywords and had no way to author a
-// nested repeatable list at all. A widget kind here is exactly one real kind
-// `formGenerator.ts` (generateFields/buildItemFields) renders and validates,
-// carrying only the properties that kind's own branch actually reads — so a
-// new `x-*` keyword later is "add one widget kind" to this file, not "add a
-// column to a flat row and every branch that reads it."
-//
-// Widgets nest to unbounded depth (a "list" widget's children are themselves
-// widgets, recursively) because production schemas actually need it — Pack's
-// `contributionChecklists` is a list whose own item field `items` is itself
-// another list. `isItem` (false only for the document's own top-level
-// widgets) tracks which of two slightly different key-sets a kind emits at
-// top level vs. nested — mirrors generateFields (top) vs. buildItemFields
-// (nested) exactly; see each case below for the specific divergence.
-//
-// Deliberately excluded from Pass 1 (CR-114's own design doc): `x-referential-
-// source` values using the "self:"/"derived:" resolver conventions (Template's
-// dependencyGraph) — not yet round-tripped; those fields stay on the raw-JSON
-// advanced path until Pass 2 locates and documents the resolver.
 import type { JsonSchemaDocument, JsonSchemaProperty } from "./formGenerator.js";
 
 export const SCHEMA_KINDS = ["Pack", "Template", "Profile", "Deliverable", "Service", "Policy", "Capability"] as const;
 
-// Kinds selectable for a TOP-LEVEL widget (document properties). Excludes
-// "boolean" (generateFields has no top-level boolean branch — would silently
-// render as a text input), "generated"/"referential-dynamic"/
-// "referential-by-scope" (item-only, driven-by-a-sibling concepts that only
-// make sense inside a repeatable row), and "object" (no top-level fixed-
-// sub-object case in generateFields).
 export const TOP_LEVEL_WIDGET_KINDS = ["text", "textarea", "version", "select", "referential", "referential-multi", "json", "list"] as const;
-// Kinds selectable for an ITEM-LEVEL widget (a "list" widget's children).
-// Excludes "version" (no item-level version case in buildItemFields).
 export const ITEM_WIDGET_KINDS = ["text", "textarea", "select", "boolean", "referential", "referential-multi", "referential-dynamic", "referential-by-scope", "generated", "json", "list", "object"] as const;
 
 export type WidgetKind = (typeof ITEM_WIDGET_KINDS)[number] | "version";
@@ -41,12 +12,6 @@ export interface AuthoredNote {
   note: string;
 }
 
-// A driven referential(-multi)'s "by value" mode, and referential-by-scope's
-// own variant list, share this exact shape — both compile to the same stored
-// `x-referential-source-by-value` document (JsonSchemaProperty's own single
-// type definition is used identically at top level and nested). matchValue
-// "" is the `default` variant (shown for any driver value not otherwise
-// listed).
 export interface AuthoredVariant {
   matchValue: string;
   source: string;
@@ -57,77 +22,44 @@ export interface AuthoredVariant {
 export interface AuthoredWidget {
   kind: WidgetKind;
   name: string;
-  label: string; // x-label — only ever emitted at item level (generateFields never reads it at top level; top-level label is always derived from name)
+  label: string;
   required: boolean;
-  help: string; // x-help
-  group: string; // x-group — only meaningful at top level (which x-groups tab)
-  showWhen: string; // x-show-when — a sibling field's name
-  showWhenValues: string; // x-show-when-values, csv
-  notes: AuthoredNote[]; // x-schema-notes on this one property — author-only, never read by formGenerator
+  help: string;
+  group: string;
+  showWhen: string;
+  showWhenValues: string;
+  notes: AuthoredNote[];
 
-  // text / textarea
-  numeric: boolean; // type: "number" instead of "string" (e.g. Service serviceLevel.target)
+  numeric: boolean;
   pattern: string;
   minLength: string;
-  defaultValue: string; // also reused by select ("" | csv match) and boolean ("true"/"false"/"")
-  markdown: boolean; // x-format: "markdown"
+  defaultValue: string;
+  markdown: boolean;
 
-  // select
-  enumValues: string; // csv
+  enumValues: string;
 
-  // referential / referential-multi / referential-dynamic / referential-by-scope
-  referentialSource: string; // x-referential-source (top) / x-referential (item) — fixed mode only
+  referentialSource: string;
   ontology: boolean;
-  ontologyComposable: boolean; // x-ontology-composable — fixed/by-suffix modes only; by-value mode carries composable per-variant instead
-  drivenMode: "" | "by-suffix" | "by-value"; // referential/referential-multi (top-level) only; referential-dynamic/referential-by-scope imply their own mode
-  driverField: string; // x-referential-source-by (by-suffix/dynamic) or the `field` of x-referential-source-by-value (by-value/by-scope)
-  driverSuffix: string; // x-referential-source-suffix (by-suffix/dynamic)
-  variants: AuthoredVariant[]; // by-value / by-scope modes
+  ontologyComposable: boolean;
+  drivenMode: "" | "by-suffix" | "by-value";
+  driverField: string;
+  driverSuffix: string;
+  variants: AuthoredVariant[];
 
-  // json
   jsonIsArray: boolean;
-  // The array-shaped json widget's own `items` sub-schema, verbatim — real
-  // data (Template/Profile's exposedParameterOverrides) carries a full
-  // structured item shape here despite being marked x-widget:"json" (opaque
-  // to generateFields/buildItemFields, which never render or validate a
-  // "json" field's own item structure). Nothing today authors this through
-  // a form; carried through untouched, like rawType, so editing OTHER
-  // fields on the same schema never silently drops it.
   rawItems: JsonSchemaProperty["items"] | undefined;
 
-  // CR-088's schema-level "cascades Pack -> Template -> Profile, narrowable
-  // downstream" flag (x-configurable) — orthogonal to widget kind, so
-  // captured/emitted generically in propertyToWidget/widgetToProperty's
-  // shared code rather than per-kind.
   configurable: boolean;
 
-  // Verbatim `type` from the source property, when this widget was built
-  // from existing data (propertyToWidget) — real live schemas are NOT
-  // perfectly consistent about which `type` accompanies a given `x-widget`
-  // (Service's `inputs`/`outputs` are `x-widget:"referential-multi-select"`
-  // with `type:"string"`; its own `consumers`, same widget, uses
-  // `type:"array"`). Preferred over the kind's own sensible default on
-  // compile-back so round-tripping existing data never silently changes it;
-  // blank (a freshly authored widget) falls back to the kind's default.
   rawType: string;
 
-  // list (recurses into itself; "object" reuses the same children field)
   children: AuthoredWidget[];
-  // Whether the SOURCE item-level nested list explicitly carried the
-  // x-widget:"referential-list" marker — real data is inconsistent here
-  // (Pack's contributionObligationDefinitions[].applicabilityDeliverables
-  // has it; contributionChecklists[].items and
-  // contributionServices[].serviceLevel don't), and buildItemFields detects
-  // a nested list purely by type:"array" + items.properties regardless of
-  // this marker, so there is no "correct" convention to normalise to.
-  // Always true for a top-level list (the marker is load-bearing there,
-  // per generateFields); meaningless for anything but kind "list".
   listWidgetMarker: boolean;
 }
 
 export interface AuthoredDocument {
-  groups: Array<{ key: string; label: string }>; // x-groups
-  notes: AuthoredNote[]; // x-schema-notes at the document root
+  groups: Array<{ key: string; label: string }>;
+  notes: AuthoredNote[];
   widgets: AuthoredWidget[];
 }
 
@@ -187,9 +119,6 @@ function byValueToVariants(byValue: NonNullable<JsonSchemaProperty["x-referentia
   return { driverField: byValue.field, variants };
 }
 
-// One widget -> the JsonSchemaProperty it compiles to. `isItem` is false only
-// for a document's own top-level widget; true for anything nested inside a
-// "list"/"object" widget's children, at any depth.
 function widgetToProperty(w: AuthoredWidget, isItem: boolean): JsonSchemaProperty {
   const prop: JsonSchemaProperty = {};
 
@@ -213,11 +142,6 @@ function widgetToProperty(w: AuthoredWidget, isItem: boolean): JsonSchemaPropert
       if (w.minLength.trim() && !w.numeric) prop.minLength = Number(w.minLength);
       if (w.defaultValue.trim()) prop.default = w.numeric ? Number(w.defaultValue) : w.defaultValue;
       if (w.markdown) prop["x-format"] = "markdown";
-      // Capability's own `code` (migration 046) carries x-ontology/
-      // x-referential-source with no x-widget at all — inert to
-      // formGenerator's own dispatch (which only reads them alongside a
-      // referential-select/-multi-select marker) but real, live data;
-      // preserved here so it round-trips rather than silently vanishing.
       if (w.ontology) prop["x-ontology"] = true;
       if (w.referentialSource.trim()) prop["x-referential-source"] = w.referentialSource.trim();
       common();
@@ -263,11 +187,6 @@ function widgetToProperty(w: AuthoredWidget, isItem: boolean): JsonSchemaPropert
       prop.type = w.rawType || (multi ? "array" : "string");
       if (!isItem) {
         prop["x-widget"] = multi ? "referential-multi-select" : "referential-select";
-        // Service's own inputs/outputs are referential-multi-select with
-        // type:"string" and no `items` at all (the same real-data
-        // inconsistency rawType exists to preserve — see its own comment);
-        // only an actually array-shaped multi field gets a matching
-        // `items: {type:"string"}` (its own selected-values shape).
         if (multi && prop.type === "array") prop.items = { type: "string" };
         if (w.pattern.trim()) prop.pattern = w.pattern.trim();
         if (w.minLength.trim()) prop.minLength = Number(w.minLength);
@@ -283,11 +202,6 @@ function widgetToProperty(w: AuthoredWidget, isItem: boolean): JsonSchemaPropert
           if (w.ontologyComposable) prop["x-ontology-composable"] = true;
         }
       } else {
-        // Author writes "derived:<name>" into the same free-text Referential
-        // source box as any other item-level referential field; the prefix
-        // (not a separate UI control) is what tells this apart from a plain
-        // registry/Ontology key — see formGenerator.ts's own
-        // x-referential-source-derived-by comment.
         const source = w.referentialSource.trim();
         if (source.startsWith("derived:")) prop["x-referential-source-derived-by"] = source.slice("derived:".length);
         else if (source) prop["x-referential"] = source;
@@ -328,9 +242,6 @@ function widgetToProperty(w: AuthoredWidget, isItem: boolean): JsonSchemaPropert
       if (itemRequired.length) prop.items.required = itemRequired;
       if (order.length) prop.items["x-property-order"] = order;
       if (!isItem || w.listWidgetMarker) prop["x-widget"] = "referential-list";
-      // Pack's own `dependencies` carries x-referential-source directly on
-      // the LIST property itself (redundant with its item field packCode's
-      // own x-referential, but real, live data) — only emitted if set.
       if (w.referentialSource.trim()) prop["x-referential-source"] = w.referentialSource.trim();
       common();
       break;
@@ -358,12 +269,6 @@ function widgetToProperty(w: AuthoredWidget, isItem: boolean): JsonSchemaPropert
   return prop;
 }
 
-// The inverse — a stored JsonSchemaProperty -> the widget that authored it
-// (or that faithfully represents it, for a hand-written raw-JSON schema).
-// Dispatch order mirrors generateFields (top level) / buildItemFields (item
-// level) exactly, since both functions check their own markers in a specific
-// priority order (e.g. a nested-list check must run before a plain enum
-// check, since a field could theoretically carry both).
 function propertyToWidget(name: string, def: JsonSchemaProperty, required: boolean, isItem: boolean): AuthoredWidget {
   const w = blankWidget();
   w.name = name;
@@ -378,8 +283,6 @@ function propertyToWidget(name: string, def: JsonSchemaProperty, required: boole
   if (!isItem) w.group = def["x-group"] ?? "";
   w.configurable = def["x-configurable"] === true;
 
-  // Nested list (item-level: type array + items.properties) / top-level
-  // referential-list (x-widget marker) — same recursive shape either way.
   if ((isItem && def.type === "array" && def.items?.properties) || (!isItem && def["x-widget"] === "referential-list")) {
     w.kind = "list";
     w.listWidgetMarker = def["x-widget"] === "referential-list";
@@ -396,7 +299,6 @@ function propertyToWidget(name: string, def: JsonSchemaProperty, required: boole
     return w;
   }
 
-  // Nested object (item-level only: type object + properties, no items).
   if (isItem && def.type === "object" && def.properties) {
     w.kind = "object";
     const required2 = new Set(def.required ?? []);
@@ -422,8 +324,6 @@ function propertyToWidget(name: string, def: JsonSchemaProperty, required: boole
     return w;
   }
 
-  // referential-source-by-value: "referential-by-scope" at item level;
-  // driven-mode "referential"/"referential-multi" at top level.
   if (def["x-referential-source-by-value"]) {
     const { driverField, variants } = byValueToVariants(def["x-referential-source-by-value"]);
     w.driverField = driverField;
@@ -471,7 +371,6 @@ function propertyToWidget(name: string, def: JsonSchemaProperty, required: boole
     return w;
   }
 
-  // Checked before plain x-referential — mutually exclusive with it.
   if (isItem && def["x-referential-source-derived-by"]) {
     w.kind = def["x-multi"] ? "referential-multi" : "referential";
     w.referentialSource = `derived:${def["x-referential-source-derived-by"]}`;
@@ -514,9 +413,6 @@ function propertyToWidget(name: string, def: JsonSchemaProperty, required: boole
   w.minLength = def.minLength !== undefined ? String(def.minLength) : "";
   w.defaultValue = def.default !== undefined ? String(def.default) : "";
   w.markdown = def["x-format"] === "markdown";
-  // Capability's own `code` (migration 046): x-ontology/x-referential-source
-  // with no x-widget marker at all, inert to formGenerator's own dispatch but
-  // real, live data — see the matching emit-side comment in widgetToProperty.
   w.ontology = def["x-ontology"] === true;
   w.referentialSource = def["x-referential-source"] ?? "";
   return w;
@@ -542,13 +438,6 @@ export function widgetTreeToJsonSchema(doc: AuthoredDocument): JsonSchemaDocumen
   return schema;
 }
 
-// Posted form data (express's extended-qs urlencoded parser) turns
-// `widgets[0][children][2][name]` into real nested objects/arrays, but a
-// removed-then-not-reindexed row (the client only removes DOM nodes, it
-// never renumbers sibling indices) can leave gaps — qs may hand back either
-// a genuine sparse Array (with holes) or a plain object keyed by numeric
-// strings depending on the gap size. Normalise both to a dense, ordered
-// array so neither shape needs handling twice.
 function normalizeIndexed<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw.filter((v): v is T => v !== undefined && v !== null);
   if (raw && typeof raw === "object") {
@@ -580,10 +469,6 @@ function parseWidgetFromBody(raw: Record<string, unknown>): AuthoredWidget {
   w.numeric = toBool(raw.numeric);
   w.pattern = String(raw.pattern ?? "");
   w.minLength = String(raw.minLength ?? "");
-  // select/boolean post their own default under a differently-named field
-  // (selectDefault/booleanDefault) — the row's Text/Select/Boolean panels are
-  // all present in the DOM at once (see _widgetRow.ejs), so a shared
-  // `defaultValue` name across them would submit multiple values for one key.
   w.defaultValue = w.kind === "select" ? String(raw.selectDefault ?? "") : w.kind === "boolean" ? String(raw.booleanDefault ?? "") : String(raw.defaultValue ?? "");
   w.markdown = toBool(raw.markdown);
   w.enumValues = String(raw.enumValues ?? "");
@@ -616,11 +501,6 @@ function parseWidgetFromBody(raw: Record<string, unknown>): AuthoredWidget {
   return w;
 }
 
-// Posted body -> AuthoredDocument, the inverse of what the tree editor's
-// field names encode. Rows with a blank name are dropped (an offered-but-
-// untouched "New widget" row, or a row emptied out and left rather than
-// removed) — same "blank means not real content" discipline the rest of the
-// SDK's authoring forms already use.
 export function parseAuthoredDocumentFromBody(body: Record<string, unknown>): AuthoredDocument {
   return {
     groups: normalizeIndexed<Record<string, unknown>>(body.groups)
@@ -650,12 +530,6 @@ export function jsonSchemaToWidgetTree(schema: JsonSchemaDocument): AuthoredDocu
   };
 }
 
-// CR-114 Compatibility feature — design/change-requests/CR-114-schema-
-// metadata.md's "Compatibility semantics (agreed)" section. B (newSchema) is
-// compatible with A (oldSchema) iff every document valid under A stays valid
-// under B: nothing breaking below. Differences are collected recursively
-// (nested `properties` sub-objects and array `items` sub-shapes), same
-// traversal formGenerator.ts's generateFields/buildItemFields already use.
 export type SchemaDifferenceKind = "added" | "removed" | "type-changed" | "newly-required" | "now-optional" | "enum-changed" | "pattern-changed" | "default-changed";
 
 export interface SchemaDifference {
@@ -694,7 +568,7 @@ function diffProperties(
       out.push({ path, kind: "added", breaking: bare });
       continue;
     }
-    if (!before || !after) continue; // both branches above already handled either side being absent
+    if (!before || !after) continue;
 
     if (before.type !== after.type) {
       out.push({ path, kind: "type-changed", breaking: true });
@@ -716,11 +590,9 @@ function diffProperties(
       out.push({ path, kind: "default-changed", breaking: false });
     }
 
-    // Nested fixed sub-object (`type: "object"` + `properties`, no `items`).
     if (before.properties || after.properties) {
       diffProperties(before.properties, after.properties, new Set(before.required ?? []), new Set(after.required ?? []), path, out);
     }
-    // Nested repeatable list (`items.properties`) — recurse the same way.
     if (before.items?.properties || after.items?.properties) {
       diffProperties(before.items?.properties, after.items?.properties, new Set(before.items?.required ?? []), new Set(after.items?.required ?? []), `${path}[]`, out);
     }

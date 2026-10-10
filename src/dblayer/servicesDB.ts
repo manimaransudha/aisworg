@@ -2,24 +2,12 @@ import pool, { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, ServiceRow, ServiceLevelExpectation } from "./seuTypes.js";
 
-// CR-064 — real, definition-side versioning, same "major.minor" bump-on-
-// change mechanism as Quality Gate (qualityGatesDB.ts's own bumpVersion) —
-// not an author-typed field. Real identity is (originating_pack_id, code);
-// version starts at "1.0" and bumps the minor component on every real
-// content change.
 function bumpVersion(version: string): string {
   const [major, minor] = version.split(".").map((n) => parseInt(n, 10) || 0);
   return `${major}.${minor + 1}`;
 }
 
 export const servicesDB = {
-  // Transactional: reads the current active row for this exact slot
-  // (originating_pack_id, code), decides whether anything actually changed,
-  // and either no-ops, inserts the first version, or deactivates the old row
-  // + inserts the next version — all in one commit (same discipline
-  // qualityGatesDB.upsert established). The partial unique index
-  // services_active_pack_code_key (migration 112) is what makes this lookup
-  // unambiguous: at most one active row can ever exist per slot.
   async upsertFromPack(input: {
     code: string;
     providingCapabilityId: string;

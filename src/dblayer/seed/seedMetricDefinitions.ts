@@ -1,11 +1,3 @@
-// metric_definitions recovery seed — restores the baseline rows (extracted
-// from src/dblayer/recovery/metric_definitions_schema_recovery.sql) as JSON
-// in data/metricDefinitions.json. metric_definitions is INSERT-only / not
-// lifecycle-governed (no status column), same shape as schema_definitions,
-// so this loads the JSON once, finds which identifiers are already present
-// in a single batch query, and creates only the missing ones via the real
-// metricDefinitionsDB.create() path (never a raw INSERT), passing the real
-// caller-supplied actor (author_id + author_badge, both NOT NULL).
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";

@@ -2,9 +2,6 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { ComplianceEvaluationRow, ComplianceFrameworkRow, ComplianceRequirementRow, ComplianceStatus, ComplianceWaiverRow, DbResult } from "./seuTypes.js";
 
-// Compliance Model — Plan (Phase 15, Ch.27). Frameworks + requirements are
-// Pack-contributed (upsert by code); waivers and evaluation snapshots are
-// per-SEU. Evaluation snapshots are append-only (immutable history, FR-27.6).
 export const complianceDB = {
   async upsertFramework(input: { code: string; name: string; description?: string | null; originatingPackId?: string | null; authorId: string; authorBadge: string }): Promise<DbResult<ComplianceFrameworkRow>> {
     try {
@@ -62,9 +59,6 @@ export const complianceDB = {
     }
   },
 
-  // Frameworks whose originating Pack is in the given set (FR-27.2 applicability
-  // by the SEU's composed Packs). A framework with no originating pack applies
-  // platform-wide.
   async findApplicableFrameworks(packIds: string[]): Promise<DbResult<ComplianceFrameworkRow[]>> {
     try {
       const { rows } = await query<ComplianceFrameworkRow>(
@@ -126,11 +120,6 @@ export const complianceDB = {
     }
   },
 
-  // author_id/author_badge are NOT NULL (compliance_evaluations_schema_
-  // recovery.sql) and FK to participants(id) — the SEU-scoped engagement row,
-  // not participants_master. The caller (evaluateCompliance) resolves the
-  // real per-SEU authorId/badge via resolveAuthor before calling this; no
-  // fallback here.
   async recordEvaluation(input: { seuId: string; status: ComplianceStatus; rationale: Record<string, unknown>; results: unknown[]; authorId: string; authorBadge: string }): Promise<DbResult<ComplianceEvaluationRow>> {
     try {
       const { rows } = await query<ComplianceEvaluationRow>(

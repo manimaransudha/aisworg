@@ -1,21 +1,3 @@
-// Participant Integration & Attestation — Plan step 3 (Decision 7): the Ch.20
-// Traceability query surface. Ch.20 is NOT a standalone subsystem here — the
-// attestation is the new provenance edge (the previously-missing "who produced
-// what, under what governance, at which commit"), and this module joins that
-// backbone with the structural relationships already in the schema (producing
-// Capability, dependency edges, Evidence/Decision/Knowledge/Obligation
-// attachments) to answer Ch.20's functional requirements:
-//
-//   FR-20.3 forward navigation      -> impactOfDeliverable (downstream)
-//   FR-20.4 backward navigation     -> explainDeliverable (upstream + provenance)
-//   FR-20.5 impact analysis         -> impactOfDeliverable (transitive downstream)
-//   FR-20.6/20.7 permanent provenance -> the attestation/reference timeline,
-//                                        immutable by construction (append-only).
-//
-// §0.1 core-invariance: this reads ONLY platform-held records — attestations,
-// deliverable_references, and the existing structural tables. It never makes a
-// live call into any tenant VCS or orchestrator, and it works identically
-// regardless of which provider produced the references (they are opaque here).
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
@@ -40,7 +22,7 @@ export interface ProvenanceEntry {
   toState: string;
   reference: string | null;
   participantLabel: string | null;
-  certified: boolean; // true when this state change also minted an attestation (an acceptance transition)
+  certified: boolean;
   actingBadgeType: string | null;
   at: string;
 }
@@ -62,16 +44,12 @@ export interface RelatedArtifact {
 export interface DeliverableExplanation {
   deliverable: { id: string; name: string; seuId: string; lifecycleState: string };
   producingCapability: { id: string; label: string } | null;
-  // Backward navigation (FR-20.4) + permanent provenance (FR-20.6/20.7): the
-  // commit and Participant that produced each state this Deliverable reached.
   provenance: ProvenanceEntry[];
   dependsOn: DependencyLink[];
   supportingEvidence: RelatedArtifact[];
   supportingDecisions: RelatedArtifact[];
   knowledge: RelatedArtifact[];
   obligations: RelatedArtifact[];
-  // Review Model (Ch.25 §14, Phase 14): the Reviews that evaluated this object
-  // and the Findings they produced — provenance edges in the same graph.
   reviews: Array<{ id: string; category: string; name: string; status: string; outcome: string | null }>;
   findings: Array<{ id: string; reviewId: string; severity: string; title: string; status: string; obligationId: string | null }>;
 }
@@ -87,9 +65,6 @@ export interface ImpactNode {
 
 export interface DeliverableImpact {
   deliverable: { id: string; name: string; seuId: string; lifecycleState: string };
-  // Forward navigation (FR-20.3) + impact analysis (FR-20.5): every downstream
-  // Deliverable that depends on this one, transitively — "if this changes, what
-  // is impacted."
   impacted: ImpactNode[];
 }
 
@@ -99,15 +74,11 @@ async function participantLabel(participantId: string | null): Promise<string | 
   return data ? `${data.display_name} (${data.type})` : "(unknown Participant)";
 }
 
-// CR-043 — the SEU's full owning scope (Template + every composed Pack +
-// Profile), for the two dependency_definitions lookups below.
 async function resolveOwningScope(seu: { template_id: string; profile_id: string; active_ebm_id: string | null }): Promise<DependencyOwningScope> {
   const { data: ebm } = seu.active_ebm_id ? await ebmsDB.findById(seu.active_ebm_id) : { data: null };
   return { templateId: seu.template_id, profileId: seu.profile_id, packIds: (ebm?.composed_packs ?? []).map((p) => p.packId) };
 }
 
-// FR-20.4 / FR-20.6 / FR-20.7 — "Explain this Deliverable." Where did each of
-// its states come from, and what supports it.
 export async function explainDeliverable(deliverableId: string): Promise<DeliverableExplanation | null> {
   const { data: deliverable } = await deliverablesDB.findById(deliverableId);
   if (!deliverable) return null;
@@ -129,9 +100,6 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
       findingsDB.findByRelatedObject("Deliverable", deliverableId),
     ]);
 
-  // An attestation exists for exactly the acceptance transitions; key them by
-  // (from -> to) so the provenance timeline can mark which state changes were
-  // certified vs. bare production completions.
   const attestationByTransition = new Map((attestations ?? []).map((a) => [`${a.from_state}->${a.to_state}`, a] as const));
 
   const provenance: ProvenanceEntry[] = [];
@@ -154,10 +122,6 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
     producingCapability = cap ? { id: cap.id, label: `${cap.name} (${cap.code})` } : { id: deliverable.producing_capability_id, label: "(unknown Capability)" };
   }
 
-  // CR-039 — dependency_definitions is Template-scoped and name-keyed; a row
-  // carries no per-SEU instance FK, so the target instance (if any) is
-  // resolved here for display, same as the old edge's to_deliverable_id/
-  // to_service_id resolution used to be.
   const dependsOn: DependencyLink[] = [];
   for (const row of rows ?? []) {
     const satisfied = await dependencyDefinitionEngine.isRowSatisfied(seu.id, row);
@@ -199,9 +163,6 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
   };
 }
 
-// FR-20.3 / FR-20.5 — "Show all downstream impacts." Transitive closure over
-// the dependency edges that point AT this Deliverable. Cycle-safe via a visited
-// set (dependency graphs shouldn't cycle, but a bad authoring import could).
 export async function impactOfDeliverable(deliverableId: string): Promise<DeliverableImpact | null> {
   const { data: deliverable } = await deliverablesDB.findById(deliverableId);
   if (!deliverable) return null;
@@ -215,11 +176,6 @@ export async function impactOfDeliverable(deliverableId: string): Promise<Delive
   const visited = new Set<string>([deliverableId]);
   const queue: string[] = [deliverable.name];
 
-  // CR-039 — walking forward now means "what names is this one a from_*
-  // prerequisite for" (findBySourceName), the opposite direction from the
-  // gating lookup (findByTargetName), then resolving each downstream name to
-  // its real instance within this same SEU — dependency_definitions has no
-  // instance FK of its own to walk directly, unlike the old edges table.
   while (queue.length > 0) {
     const currentName = queue.shift()!;
     const { data: rows } = await dependencyDefinitionsDB.findBySourceName(scope, "Deliverable", currentName);

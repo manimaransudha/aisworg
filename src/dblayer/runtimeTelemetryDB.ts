@@ -2,15 +2,7 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, DispatchLatencyRow, WorkItemDurationRow } from "./seuTypes.js";
 
-// Engineering Telemetry — Plan, Build order step 3 — Runtime Telemetry.
-// Every query here takes an optional seuId (Build order step 2's pattern),
-// omitted = platform-wide.
 export const runtimeTelemetryDB = {
-  // Ch.35 §7 "Command generation rate" — a total count, not yet a real
-  // time-bucketed rate (per-day/per-hour): there's no established
-  // time-series bucketing pattern anywhere in this codebase yet, and
-  // building one is Trend Telemetry (§12) territory, explicitly held.
-  // Volume today, same honesty as ET-005's own "no snapshot mechanism" note.
   async countCommandsGenerated(seuId?: string): Promise<DbResult<number>> {
     try {
       const { rows } = await query<{ count: string }>(
@@ -24,15 +16,6 @@ export const runtimeTelemetryDB = {
     }
   },
 
-  // CommandGenerated -> WorkItemDispatched, correlated by the correlationId
-  // executionEngine.execute threads through both. A Command whose dispatch
-  // was deferred (no eligible Participant) has no WorkItemDispatched event,
-  // so the join naturally excludes it — same "only count what actually
-  // completed the step" discipline qualityGateEvaluationsDB.findLatencies
-  // already uses (its own HAVING clause). commands.created_at stands in for
-  // CommandGenerated's own occurred_at (published immediately after the
-  // row is inserted) — same shortcut deliverablesDB.findCycleTimes already
-  // takes for its own start timestamp.
   async findDispatchLatencies(seuId?: string): Promise<DbResult<DispatchLatencyRow[]>> {
     try {
       const { rows } = await query<DispatchLatencyRow>(
@@ -55,14 +38,6 @@ export const runtimeTelemetryDB = {
     }
   },
 
-  // WorkItemStarted -> WorkItemCompleted, per Work Item. No autonomous
-  // Participant runtime exists yet (dispatchEngine.ts's own comment):
-  // execution is simulated synchronously in the same call as dispatch, so
-  // every duration today is a handful of milliseconds, not a meaningful
-  // spread — the mechanism is real and correct, the values are just
-  // currently near-zero, the same "computed correctly off data that doesn't
-  // vary yet" situation Governance latency was in before any gate had ever
-  // blocked anything.
   async findWorkItemDurations(seuId?: string): Promise<DbResult<WorkItemDurationRow[]>> {
     try {
       const { rows } = await query<WorkItemDurationRow>(

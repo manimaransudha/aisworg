@@ -1,9 +1,3 @@
-// Governance & EBM Sharpening — Plan (Phase 16, Ch.21 FR-21.1). Every SEU shall
-// possess ONE effective Governance Model derived from its Engineering Behavior
-// Model. Governance was only ever evaluated ad hoc per transition; this
-// materialises it as a single inspectable projection, computed on read from the
-// SEU's EBM (its composed Packs' declarative contributions). Read-only — it
-// assembles, it never governs or mutates.
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
@@ -15,8 +9,6 @@ export interface EffectiveGovernanceModel {
   seuId: string;
   ebm: { id: string; version: number; status: string; composedPacks: Array<{ packCode: string; packVersion: string }> };
   authorityRules: Array<{ code: string; governedTransition: string; authorisedRole: string; fromPack: string }>;
-  // CR-104 — null for scope "Eligibility" Policies (Capability Fulfilment
-  // participant selection, no transition involved at all).
   policies: Array<{ code: string; name: string; governedTransition: string | null; fromPack: string }>;
   qualityGates: Array<{ name: string; category: string; governedTransition: string; criteriaType: string; fromPack: string }>;
   conflicts: string[];
@@ -44,13 +36,6 @@ export async function getEffectiveGovernanceModel(seuId: string): Promise<Effect
       seenAuth.add(r.code);
       authorityRules.push({ code: r.code, governedTransition: r.governedTransition, authorisedRole: r.authorisedRole, fromPack: pack.code });
     }
-    // CR-089 follow-on — pack.contributions.policies is now a flat string[]
-    // of adopted Policy Definition codes (the name/governedTransition this
-    // projection needs no longer travel on the Pack's own authored content
-    // at all — they live on the real materialised Policy row, resolved from
-    // the canonical Policy Definition at publish time). Read from there,
-    // same policiesDB.findByPackCode lookup CR-088's Exposable Parameters
-    // candidate derivation (core/templates.ts) already uses for this reason.
     const { data: packPolicies } = await policiesDB.findByPackCode(pack.code);
     for (const p of packPolicies ?? []) {
       if (seenPolicy.has(p.code)) continue;
@@ -58,8 +43,6 @@ export async function getEffectiveGovernanceModel(seuId: string): Promise<Effect
       policies.push({ code: p.code, name: p.name, governedTransition: p.governed_transition, fromPack: pack.code });
     }
     for (const g of pack.contributions?.qualityGates ?? []) {
-      // CR-058 follow-up — a gate's real identity is (governedTransition,
-      // category), not an author-typed code (that field no longer exists).
       const slotKey = `${g.governedTransition}::${g.category}`;
       if (seenGate.has(slotKey)) continue;
       seenGate.add(slotKey);

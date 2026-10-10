@@ -11,11 +11,6 @@ import type { ReviewOutcome, TransitionEntityType } from "../../../dblayer/seuTy
 import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 
-// Review Model — Plan (Phase 14, Ch.25 §18: Review APIs). A Review is a governed
-// evaluation whose outcome Governance consumes; Findings are its traceable
-// observations.
-
-/** POST /reviews — plan a Review against a governed object (Ch.25 §8). */
 router.post("/reviews", async (req: Request, res: Response) => {
   try {
     const { seuId, relatedObjectType, relatedObjectId, category, name, criteria, reviewer } = req.body ?? {};
@@ -47,7 +42,6 @@ router.post("/reviews", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /reviews?seuId=... — every Review for a SEU, with possible next states. */
 router.get("/reviews", async (req: Request, res: Response) => {
   try {
     const seuId = typeof req.query.seuId === "string" ? req.query.seuId : "";
@@ -59,7 +53,6 @@ router.get("/reviews", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /reviews/:id/transition — walk the lifecycle; Completed requires an outcome (Ch.25 §9/§11). */
 router.post("/reviews/:id/transition", async (req: Request, res: Response) => {
   try {
     const { targetState, outcome } = req.body ?? {};
@@ -82,7 +75,6 @@ router.post("/reviews/:id/transition", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /reviews/:id/findings — raise a Finding from a Review (Ch.25 §12). */
 router.post("/reviews/:id/findings", async (req: Request, res: Response) => {
   try {
     const { severity, title, description } = req.body ?? {};
@@ -109,7 +101,6 @@ router.post("/reviews/:id/findings", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /reviews/:id/findings — the Findings a Review produced. */
 router.get("/reviews/:id/findings", async (req: Request, res: Response) => {
   try {
     res.status(200).json({ findings: await listFindingsByReview(String(req.params.id)) });
@@ -119,7 +110,6 @@ router.get("/reviews/:id/findings", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /findings/:id/transition — Open -> Resolved / Waived. */
 router.post("/findings/:id/transition", async (req: Request, res: Response) => {
   try {
     const { targetState } = req.body ?? {};
@@ -136,7 +126,6 @@ router.post("/findings/:id/transition", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /findings/:id/convert-to-obligation — Ch.25 §12: a Finding may lead to an Obligation. */
 router.post("/findings/:id/convert-to-obligation", async (req: Request, res: Response) => {
   try {
     const { category, severity } = req.body ?? {};

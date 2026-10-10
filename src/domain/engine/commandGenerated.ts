@@ -1,9 +1,3 @@
-// CommandGenerated consumer — moved out of executionEngine.execute() itself,
-// which used to call workItemGenerator.generate() inline, in the same call
-// stack as the code that published this event (the platform's no-code-after-
-// publish rule). Same orchestrator shape as ebmActivated.ts/
-// executionEngineKickoff.ts: a HANDLER_REGISTRY entry that loads the row its
-// own event points at, then runs the side effect.
 import { commandsDB } from "../../dblayer/commandsDB.js";
 import { workItemGenerator } from "./workItemGenerator.js";
 import { logger } from "../../utils/logger.js";

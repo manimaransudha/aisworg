@@ -1,7 +1,3 @@
-// design/design whiteboards.md/schema_implementation.md — write-time schema
-// validation for Pack. Lives outside packs.ts (not inside it) specifically
-// so packsDB.ts can import it without importing packs.ts, which itself
-// imports packsDB.ts — packs.ts stays the only place with that dependency.
 import { query } from "../../../utils/db.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { validateAgainstSchema, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
@@ -25,12 +21,7 @@ export interface PackWriteInput {
   schemaDefinitionId?: string | null;
 }
 
-// Runs at every Pack write path (packsDB.create/updateDraftContent), not
-// just the web authoring draft-save (which only ever ran this advisory,
-// non-blocking). Pins to the row's own schemaDefinitionId when given
-// (an update), else the latest Pack schema (a create).
 export async function validatePackWriteAgainstSchema(input: PackWriteInput): Promise<string[]> {
-  // get platform tenant id
   const PLATFORM_TENANT_ID = await getPlatformTenantId();
   const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
 

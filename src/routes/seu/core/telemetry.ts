@@ -1,11 +1,3 @@
-// Ch.35 Engineering Telemetry Model — Post-MVP Phase 7. Deliberately derives
-// every metric from existing Phase 3-6 data (events, quality_gate_evaluations,
-// deliverables) with no new persisted metric-storage table — ET-002: "No
-// engineering metric shall require duplicate data entry." Telemetry is
-// observational only (ET-001 "Telemetry is passive"): nothing here ever
-// writes to a Deliverable, Command, Obligation etc. except the one narrow,
-// chapter-mandated exception in checkSustainedQualityGateBlocking below
-// (FR-35.8), which raises an Obligation, not an engineering state change.
 import { qualityGateEvaluationsDB } from "../../../dblayer/qualityGateEvaluationsDB.js";
 import { obligationsDB } from "../../../dblayer/obligationsDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
@@ -57,13 +49,6 @@ export interface QualityMetrics {
   acceptanceRate: number | null;
 }
 
-// Engineering Telemetry — Plan, Build order step 1: reads through the
-// Metric Registry now (metricRegistryEngine.compute) instead of computing
-// directly — same computation, same output shape, so nothing downstream
-// (the web/api routes, the dashboard view) needed to change. Proves the
-// registry against known-good data before anything new depends on it.
-// Build order step 2: seuId narrows to one SEU; omitted keeps the original
-// platform-wide pooling.
 async function computeMetric<T>(identifier: string, seuId?: string): Promise<T> {
   const result = await metricRegistryEngine.compute(identifier, { seuId });
   if (result.outcome === "NotFound") throw new Error(`no metric_definitions row for identifier "${identifier}" — did migration 017 run?`);
@@ -71,21 +56,14 @@ async function computeMetric<T>(identifier: string, seuId?: string): Promise<T> 
   return result.value as T;
 }
 
-// Ch.35 §7 Flow Telemetry — "Deliverable cycle time."
 export async function getFlowMetrics(seuId?: string): Promise<FlowMetrics> {
   return computeMetric<FlowMetrics>("deliverable-cycle-time", seuId);
 }
 
-// Ch.35 §7 Governance Telemetry — "Quality Gate latency": friction, not
-// elapsed calendar time — zero for a gate that always passes on first
-// attempt, growing with every Blocked evaluation before the eventual Pass.
 export async function getGovernanceMetrics(seuId?: string): Promise<GovernanceMetrics> {
   return computeMetric<GovernanceMetrics>("quality-gate-latency", seuId);
 }
 
-// Ch.35 §7 Runtime Telemetry — Command generation volume, dispatch latency,
-// Work Item execution duration. Participant utilisation deliberately
-// excluded (held — see the plan's own reasoning).
 export async function getRuntimeMetrics(seuId?: string): Promise<RuntimeMetrics> {
   const [volume, latency, duration] = await Promise.all([
     computeMetric<CommandVolumeValue>("command-generation-rate", seuId),
@@ -101,9 +79,6 @@ export async function getRuntimeMetrics(seuId?: string): Promise<RuntimeMetrics>
   };
 }
 
-// Ch.35 §7 Knowledge Telemetry — growth (by Acquisition Scope) and Evidence
-// generation. Decision reuse and ontology expansion dropped, not built here
-// — see the plan's own reasoning.
 export async function getKnowledgeMetrics(seuId?: string): Promise<KnowledgeMetrics> {
   const [growth, evidence] = await Promise.all([
     computeMetric<KnowledgeGrowthValue>("knowledge-growth", seuId),
@@ -116,10 +91,6 @@ export async function getKnowledgeMetrics(seuId?: string): Promise<KnowledgeMetr
   };
 }
 
-// Ch.35 §7 Quality Telemetry — rework rate and Deliverable acceptance rate.
-// Review effectiveness and defect escape rate held, not built here — see
-// the plan's own reasoning (no Review entity, no governed backward
-// Deliverable transition).
 export async function getQualityMetrics(seuId?: string): Promise<QualityMetrics> {
   const [rework, acceptance] = await Promise.all([
     computeMetric<ReworkRateValue>("rework-rate", seuId),
@@ -137,45 +108,10 @@ export async function getQualityMetrics(seuId?: string): Promise<QualityMetrics>
   };
 }
 
-// Ch.35 §11: "What counts as 'sustained' (a threshold count, a time window,
-// a statistical trend) is a Pack-contributed policy, not fixed by this
-// chapter." MVP simplification: a fixed constant rather than a real
-// Pack-configurable policy — the Policy model (Ch.24) governs transitions,
-// and repurposing it purely as a config carrier for a value nothing ever
-// evaluates would stretch it further than Phase 4-6 have. Revisit once
-// Policies gain a general config-carrying role beyond gating transitions.
 const SUSTAINED_BLOCK_THRESHOLD = 3;
 
 export type SustainedPatternCheckResult = { raised: false } | { raised: true; obligation: ObligationRow };
 
-// Ch.35 §11 bottleneck analysis: "Where a bottleneck or other measured
-// pattern is sustained... Telemetry shall raise an Organisational Learning
-// Obligation rather than leave the pattern for engineering judgement to
-// notice independently each time." Shared by all three pattern types below
-// — Engineering Telemetry — Plan, Build order step 5 generalised this the
-// same way SDK UI Layer Plan.md generalised the Quality-Gate mechanism for
-// Transition Definition: one mechanism, reused, not bespoke copies per
-// pattern type. `marker` is a description substring, not a dedicated column
-// — the same "small, searchable, no schema change" tradeoff Phase 6 made
-// for scope promotion — so repeat detections of the same pattern don't
-// raise duplicate Obligations.
-//
-// Real bug, fixed 2026-08-06: dedup used to search obligationsDB.findBySeuId
-// (input.seuId), which is correct only when seuId is stable across repeated
-// checks for the same pattern — true for checkSustainedQualityGateBlocking
-// (the real SEU that blocked) and checkSustainedPolicyWaivers (the real SEU
-// that waived), but false for checkSustainedCapabilityShortages, whose
-// seuId (and relatedObjectId — the same value there) is a shifting "most
-// recently affected" representative pick by design. Every time the
-// representative shifted, the SEU-scoped dedup search looked at a SEU that
-// had never had this Obligation before and missed — confirmed live: 6 real
-// chronic shortages had produced 37 Obligations. The only thing actually
-// stable across checks for that caller is the capability id baked into
-// `marker` itself, which no per-SEU or per-related-object search can reach
-// — fixed by adding an explicit `dedupScope`: "seu" (default, unchanged
-// behaviour for the other two callers) searches obligationsDB.findBySeuId;
-// "platform" searches every Organisational Learning Obligation regardless
-// of SEU, for the one caller whose pattern genuinely isn't SEU-scoped.
 async function raiseSustainedPatternObligation(input: {
   marker: string;
   seuId: string;
@@ -189,11 +125,6 @@ async function raiseSustainedPatternObligation(input: {
   attentionTitle: string;
   attentionDescription: string;
   eventPayload: Record<string, unknown>;
-  // Ch.23 §10 category:obligation-origin — which of the 11 named sources
-  // this particular sustained pattern is really about, not a fixed value
-  // for the shared helper: the 3 real callers below are genuinely different
-  // sources (a Quality Gate, a Policy, a Capability shortage), even though
-  // all 3 are detected by the same Telemetry mechanism.
   origin: string;
 }): Promise<SustainedPatternCheckResult> {
   const { data: existingObligations } =
@@ -227,10 +158,6 @@ async function raiseSustainedPatternObligation(input: {
     payload: { ...input.eventPayload, obligationId: obligation.id },
   });
 
-  // Ch.34 §7: a sustained organisational pattern is exactly the "Escalation"
-  // category ("Requires management attention") — distinct from the
-  // per-attempt "Action Required" Attention Item transitionDeliverable
-  // already raises for the ordinary blocked-transition case.
   await raiseAttentionItem({
     seuId: input.seuId,
     category: "Escalation",
@@ -245,12 +172,6 @@ async function raiseSustainedPatternObligation(input: {
   return { raised: true, obligation };
 }
 
-// Scoped per-SEU (not cross-SEU/platform-wide, which Ch.35 §13's Cross-SEU
-// Analytics would need): the resulting Obligation attaches to one SEU and
-// one Deliverable (Phase 4's model), so the count that triggers it must be
-// measured at that same scope. Ch.35 §11's own primary example ("the
-// same...Decision...reached across many Deliverables") doesn't require
-// cross-SEU scope to be meaningful either.
 export async function checkSustainedQualityGateBlocking(input: {
   qualityGateId: string;
   gateName: string;
@@ -277,15 +198,6 @@ export async function checkSustainedQualityGateBlocking(input: {
   });
 }
 
-// Ch.35 §11 bottleneck (c) — "a Policy repeatedly waived." Platform-wide
-// scan (unlike checkSustainedQualityGateBlocking, this isn't triggered
-// inline by one transitioning entity — a waiver doesn't have one obvious
-// caller to thread the check through without touching every core/*.ts
-// transition* function). Reads transitionEngine.ts's own
-// StandardPolicyDeviation event (this step's small prerequisite). Called
-// from the Telemetry web dashboard's own GET handler — Telemetry itself is
-// the natural trigger point for its own §11 obligation, not a side effect
-// buried in an unrelated transition.
 export async function checkSustainedPolicyWaivers(): Promise<SustainedPatternCheckResult[]> {
   const { data: waivers } = await eventsDB.countStandardPolicyDeviations();
   const results: SustainedPatternCheckResult[] = [];
@@ -311,21 +223,6 @@ export async function checkSustainedPolicyWaivers(): Promise<SustainedPatternChe
   return results;
 }
 
-// Ch.35 §11 bottleneck (d) — "a capability shortage recurring across
-// multiple SEUs," the chapter's own genuinely cross-SEU example. Real
-// tension resolved here: obligations.seu_id is NOT NULL, so a pattern with
-// no single owning SEU still needs one to attach to. Resolution: attach to
-// the most recently affected SEU as a representative instance (seu_ids is
-// ordered newest-first by seuCapabilitiesDB.findUnfulfilledByCapability),
-// with the description naming the true cross-SEU count — the artifact
-// lives on one SEU because the schema requires it to, not because the
-// pattern is actually specific to that SEU. The representative SEU
-// genuinely does shift between checks as new SEUs are commissioned with the
-// same unfulfilled Capability, so dedup can't be scoped to it or to
-// relatedObjectId (the same shifting value) — dedupScope: "platform" (see
-// raiseSustainedPatternObligation's own comment, fixed 2026-08-06) searches
-// every Organisational Learning Obligation platform-wide for this caller
-// instead, matching on the stable capability id already baked into `marker`.
 export async function checkSustainedCapabilityShortages(): Promise<SustainedPatternCheckResult[]> {
   const { data: shortages } = await seuCapabilitiesDB.findUnfulfilledByCapability();
   const results: SustainedPatternCheckResult[] = [];

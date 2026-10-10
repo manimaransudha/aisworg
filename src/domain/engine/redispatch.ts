@@ -1,12 +1,3 @@
-// RedispatchRequested consumer — Ch.33 §14 Redispatch. Tracks attempts
-// against the Profile's N (redispatchMaxAttempts) / M
-// (redispatchAttentionThreshold) Configuration Parameters (N > M, read off
-// the SEU's active EBM behaviors.pool, same pattern workItemGenerator.ts's
-// resolveKnowledgeLocation already uses): at attempt M, an informational
-// Attention Item (no Obligation, retries continue); at attempt N, retries
-// stop and it becomes an Obligation + Action-Required Attention Item
-// (DispatchRejected) — the same terminal treatment as an empty pool. Below
-// N, calls back into dispatchEngine.dispatch with isRedispatch: true.
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
 import { commandsDB } from "../../dblayer/commandsDB.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
@@ -37,8 +28,6 @@ async function resolveRedispatchThresholds(seuId: string): Promise<{ maxAttempts
   };
 }
 
-// Ch.33 §9 — same resolution workItemGenerated.ts's resolveDispatchStrategies
-// uses for the first attempt; a retry needs the identical ordered list.
 async function resolveDispatchStrategies(seuId: string): Promise<Array<{ strategy: string; order: number }>> {
   const pool = await resolveEbmPool(seuId);
   const value = pool.find((e) => e.propertyName === "dispatchStrategyPreference")?.value;
@@ -61,16 +50,8 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
   const attempts = updated?.dispatch_attempts ?? workItem.dispatch_attempts + 1;
   const { maxAttempts, attentionThreshold } = await resolveRedispatchThresholds(command.seu_id);
 
-  // N reached: give up. Same terminal treatment as an empty pool (case 1) —
-  // an Obligation + Action-Required Attention Item, DispatchRejected, stop.
   if (maxAttempts != null && attempts >= maxAttempts) {
-    // Ch.32 §8 — same treatment as dispatchEngine.ts's own rejectDispatch:
-    // this Work Item was never assigned and never will be; straight to
-    // Disposed (Cancelled is just a route there), retained for traceability.
     await workItemsDB.updateStatus(workItem.id, "Disposed");
-    // Terminal, not in-flight (commandsDB.findInFlight) — same reasoning as
-    // dispatchEngine.ts's own rejectDispatch: a human resolving the
-    // Obligation below must be able to re-attempt this exact hop.
     await commandsDB.updateStatus(command.id, "Failed");
     const systemActor = await resolveSystemActor(command.seu_id);
     await createObligation({
@@ -105,7 +86,6 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
     return;
   }
 
-  // M reached, still retrying: informational only, no Obligation.
   if (attentionThreshold != null && attempts === attentionThreshold) {
     await raiseAttentionItem({
       seuId: command.seu_id,

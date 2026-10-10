@@ -1,10 +1,3 @@
-// Shared server-side list plumbing for paginated / searchable / sortable list
-// views (coding_principles.md — "List UI Requirements"). Every list page reads
-// its ?page/pageSize/q/sort/dir params through parseListParams, and its dbLayer
-// runs one paginated query (LIMIT/OFFSET + WHERE ILIKE + ORDER BY) plus a COUNT
-// via runPaginatedQuery, then shapes the ViewModel with listResult. Sort keys
-// are whitelisted here and mapped to trusted SQL expressions in code — raw
-// sort/dir input never reaches SQL.
 import { query } from "./db.js";
 
 export type SortDir = "asc" | "desc";
@@ -13,7 +6,7 @@ export interface ListParams {
   page: number;
   pageSize: number;
   q: string;
-  sort: string; // resolved, whitelisted sort key
+  sort: string;
   dir: SortDir;
   limit: number;
   offset: number;
@@ -28,23 +21,9 @@ export interface ListResult<T> {
   q: string;
   sort: string;
   dir: SortDir;
-  // Registry category tabs (owner: "the different categories have to be
-  // separate tabs") — set by the caller after paginateList when the list is
-  // also filtered by a category tab (Pack/Template/Profile Registries);
-  // undefined everywhere else. Read by helpers.ejs/listControls.ejs's own
-  // querystring builders so sort/page/search links keep the active tab.
   category?: string;
-  // CR-091 Part 3 — the Profile Registry's own tab, grouping by base
-  // Template code instead of the now-retired `category` field (Pack's/
-  // Template's own Registries still use `category` above, unaffected).
-  // Same no-op-elsewhere treatment.
   templateCode?: string;
-  // Registry state filter (owner, 2026-08-19: "Include filters to filter by
-  // state: Active, Deprecated etc.") — same no-op-elsewhere treatment as
-  // category above.
   status?: string;
-  // Identity Management's own Tenant filter (User Management) — same
-  // no-op-elsewhere treatment as status/category above.
   tenant?: string;
 }
 
@@ -57,10 +36,6 @@ function clampInt(raw: unknown, dflt: number, min: number, max: number): number 
   return Math.min(max, Math.max(min, Math.trunc(n)));
 }
 
-/**
- * Parse the standard list query params off req.query, whitelisting the sort key
- * against `sortable` (unknown/absent -> defaultSort) and clamping pageSize.
- */
 export function parseListParams(
   reqQuery: Record<string, unknown>,
   opts: { sortable: string[]; defaultSort: string; defaultDir?: SortDir }
@@ -74,7 +49,6 @@ export function parseListParams(
   return { page, pageSize, q, sort, dir, limit: pageSize, offset: (page - 1) * pageSize };
 }
 
-/** Shape a page of rows + total count into the ViewModel-facing ListResult. */
 export function listResult<T>(items: T[], total: number, p: ListParams): ListResult<T> {
   return {
     items,
@@ -88,13 +62,6 @@ export function listResult<T>(items: T[], total: number, p: ListParams): ListRes
   };
 }
 
-/**
- * In-memory paginate/search/sort for lists that are computed or aggregated
- * (no single SQL table to page over) or small/bounded enough that one fetch +
- * slice is fine. Filters over `searchFields`, sorts by the whitelisted
- * `sortFields[params.sort]` accessor, then slices to the page. For genuinely
- * large tables prefer runPaginatedQuery (true SQL LIMIT/OFFSET) — see SEUs.
- */
 export function paginateList<T>(
   items: T[],
   params: ListParams,
@@ -131,14 +98,6 @@ export function paginateList<T>(
   return listResult(rows.slice(params.offset, params.offset + params.limit), total, params);
 }
 
-/**
- * Build and run the data query (LIMIT/OFFSET, ORDER BY, optional ILIKE search)
- * plus a matching COUNT, and return { items, total }. All SQL fragments here
- * (`select`, `from`, `searchColumns`, `sortMap` values, `baseWhere`) are
- * code-defined and trusted; only `q`, `limit`, `offset`, and `baseParams`
- * values are bound as parameters. `baseWhere` (if given) must reference its own
- * params as $1..$n matching `baseParams` in order.
- */
 export async function runPaginatedQuery<T>(
   config: {
     select: string;

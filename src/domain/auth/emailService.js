@@ -19,7 +19,6 @@ function buildTransport() {
 export const emailService = {
   async sendPasswordReset({ to, name, token }) {
     const base    = process.env.BASE_URL || 'http://localhost:4300';
-    // const link    = `${base}/finanaly/auth/reset-password?token=${token}`;
     const link    = `${base}/aisworg/auth/reset-password?token=${token}`;
     const from    = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@finanaly.app';
     const subject = 'Reset your CapWise password';
@@ -48,7 +47,6 @@ export const emailService = {
 
   async sendVerification({ to, name, token }) {
     const base     = process.env.BASE_URL || 'http://localhost:4300';
-    // const link     = `${base}/finanaly/auth/verify?token=${token}`;
     const link     = `${base}/aisworg/auth/verify?token=${token}`;
     const from     = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@finanaly.app';
     const subject  = 'Set your CapWise password';
@@ -61,7 +59,6 @@ export const emailService = {
 
     const transport = buildTransport();
     if (!transport) {
-      // SMTP not configured yet — log the link so dev can test manually.
       logger.warn(`[emailService] SMTP not configured. Verification link for ${to}: ${link}`);
       return { success: true, link };
     }

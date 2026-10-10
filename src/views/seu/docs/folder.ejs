@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <nav class="mb-3" aria-label="breadcrumb">
+      <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a href="/aisworg/seu/docs">Documentation</a></li>
+        <% var _acc = ''; %>
+        <% breadcrumb.forEach(function(seg, i) { %>
+          <% _acc = _acc ? (_acc + '/' + seg) : seg; %>
+          <% if (i === breadcrumb.length - 1) { %>
+            <li class="breadcrumb-item active" aria-current="page"><%= seg %></li>
+          <% } else { %>
+            <li class="breadcrumb-item"><a href="<%= docPathHref(_acc) %>"><%= seg %></a></li>
+          <% } %>
+        <% }) %>
+      </ol>
+    </nav>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold"><%= title %></h2>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <div class="row g-3">
+          <% (folders || []).forEach(function(f) { %>
+            <div class="col-md-6">
+              <a class="d-block text-decoration-none border rounded p-3 h-100" href="<%= docPathHref(f.path) %>">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-folder2-open text-primary fs-5"></i>
+                  <span class="fw-semibold text-dark"><%= f.name %></span>
+                </div>
+              </a>
+            </div>
+          <% }) %>
+          <% (files || []).forEach(function(f) { %>
+            <div class="col-md-6">
+              <a class="d-block text-decoration-none border rounded p-3 h-100" href="<%= docPathHref(f.path) %>">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-file-earmark-text text-secondary fs-5"></i>
+                  <span class="text-dark"><%= f.name %></span>
+                </div>
+              </a>
+            </div>
+          <% }) %>
+          <% if (!(folders || []).length && !(files || []).length) { %>
+            <div class="col-12 text-muted small">No documents in this folder.</div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

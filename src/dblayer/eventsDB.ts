@@ -2,10 +2,6 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, EventConsumptionEntry, EventRow, EventSubscriptionRow } from "./seuTypes.js";
 
-// Owner: "In the eventbus UI, the columns should be sortable." Whitelisted
-// sort keys -> trusted SQL column expressions — the web route's own `sort`
-// query param is checked against these keys (never interpolated directly),
-// same discipline every other sortable list page in this app already uses.
 const SORT_COLUMNS: Record<string, string> = {
   sequence: "sequence",
   eventType: "event_type",
@@ -16,10 +12,6 @@ const SORT_COLUMNS: Record<string, string> = {
 };
 
 export const eventsDB = {
-  // seuId is required (not optional): forces every caller to consciously
-  // decide it, verified by typecheck — null is a deliberate, correct answer
-  // for entities with no single owning SEU (Objective, Pack, Template,
-  // Profile, DeliverableDefinition), not an oversight.
   async append(input: {
     eventType: string;
     originatingObjectType: string;
@@ -28,15 +20,8 @@ export const eventsDB = {
     correlationId: string;
     causationId?: string | null;
     payload?: Record<string, unknown>;
-    // Accountability record — real acting user + resolved noun_verb badge.
-    // Required on every publish (eventBus.publish's own PublishInput already
-    // enforces this at the call site); the DB column itself stays nullable
-    // (no schema change) — this is an application-level contract, not a CHECK.
     actorId: string;
     authorityBadge: string;
-    // Ch.30 Event Bus redesign — initial per-handler state, from the same
-    // subscription lookup that determines who to notify. {} when nobody
-    // subscribes to this event_type.
     consumptionState?: Record<string, EventConsumptionEntry>;
   }): Promise<DbResult<EventRow>> {
     try {
@@ -64,10 +49,6 @@ export const eventsDB = {
     }
   },
 
-  // Ch.30 Event Bus redesign — a targeted update of just one handler's own
-  // consumption_state entry, leaving every other handler's entry untouched
-  // (Ch.30 §9: "consumption by one subscriber shall not affect other
-  // subscribers").
   async updateConsumptionState(eventId: string, handlerName: string, status: "consumed" | "failed", error?: string): Promise<DbResult<void>> {
     try {
       const entry: EventConsumptionEntry =
@@ -83,9 +64,6 @@ export const eventsDB = {
     }
   },
 
-  // Ch.30 Event Bus redesign — the Event Subscriptions table, loaded into
-  // memory once at boot by eventBus.loadSubscriptions(). Never queried on
-  // the publish hot path.
   async findAllSubscriptions(): Promise<DbResult<EventSubscriptionRow[]>> {
     try {
       const { rows } = await query<EventSubscriptionRow>("SELECT event_type, handler_name FROM event_subscriptions");
@@ -109,9 +87,6 @@ export const eventsDB = {
     }
   },
 
-  // CR-072 — batched analog of findByOriginatingObject, for a list/tree view
-  // checking many entities' own trigger-submission state in one query instead
-  // of one round trip per row.
   async findByOriginatingObjects(objectType: string, objectIds: string[]): Promise<DbResult<EventRow[]>> {
     try {
       if (objectIds.length === 0) return { data: [] };
@@ -146,19 +121,6 @@ export const eventsDB = {
     }
   },
 
-  // CR-074 — the EventBus browser (owner: "Create a UI to show the EventBus
-  // (events table)"): a general, filterable, paginated view of the raw
-  // table, not scoped to any one entity like findByOriginatingObject or
-  // enriched like core/events.ts's own getSeuEvents. seuId filters the real
-  // column directly (set on every event a Deliverable/SEU transition
-  // publishes — confirmed against deliverables.ts's own eventBus.publish
-  // calls), not a cross-object join.
-  // Owner: "In the eventbus UI, the columns should be sortable." sort/dir are
-  // whitelisted against SORT_COLUMNS below (never interpolated raw) — same
-  // discipline as runPaginatedQuery's own sortMap (listQuery.ts), which this
-  // hand-rolled query predates and doesn't reuse (findPage's own WHERE
-  // building has its own optional-condition shape runPaginatedQuery's single
-  // baseWhere string doesn't fit as directly).
   async findPage(opts: {
     limit: number;
     offset: number;
@@ -184,11 +146,6 @@ export const eventsDB = {
         params.push(opts.entityType);
         conditions.push(`originating_object_type = $${params.length}`);
       }
-      // Owner: "Include a search by the name" — there's no dedicated name
-      // column on events; every publisher puts the entity's own `code` (its
-      // real human identifier) on the payload, and a few use `name` instead
-      // (same convention the view's own _entityLabel display reads), so this
-      // searches both payload keys rather than a real column.
       if (opts.name) {
         params.push(`%${opts.name}%`);
         conditions.push(`(payload->>'code' ILIKE $${params.length} OR payload->>'name' ILIKE $${params.length})`);
@@ -219,19 +176,6 @@ export const eventsDB = {
     }
   },
 
-  // Engineering Telemetry — Plan, Build order step 5 — sustained-pattern
-  // detection input for Policy waiver (c). Platform-wide (not seuId-scoped
-  // like the Metric Registry's own queries): the sustained-check needs to
-  // scan every (policy, SEU) pair to know which ones have crossed the
-  // threshold, not display one pair's number. Only events that recorded a
-  // real seu_id are counted — a StandardPolicyDeviation published for an
-  // entity type transitionDeliverable-style callers haven't migrated to
-  // pass entityId/seuId into transitionEngine.evaluate for yet is invisible
-  // here, not double-counted or mis-attributed.
-  //
-  // Ch.30 Event Bus redesign — reads the real events.seu_id column now,
-  // not the payload->>'seuId' workaround this query used before that
-  // column existed.
   async countStandardPolicyDeviations(): Promise<DbResult<Array<{ policy_id: string; policy_code: string; policy_name: string; seu_id: string; count: number }>>> {
     try {
       const { rows } = await query<{ policy_id: string; policy_code: string; policy_name: string; seu_id: string; count: string }>(

@@ -1,8 +1,3 @@
-// design/design whiteboards.md/schema_implementation.md — write-time schema
-// validation for Template. Lives outside templates.ts (not inside it)
-// specifically so templatesDB.ts can import it without importing
-// templates.ts, which itself imports templatesDB.ts — mirrors
-// core/packWriteValidator.ts exactly.
 import { query } from "../../../utils/db.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { validateAgainstSchema, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
@@ -19,13 +14,6 @@ export interface TemplateWriteInput {
   schemaDefinitionId?: string | null;
 }
 
-// Runs at every Template write path (templatesDB.createDraft/updateDraftContent),
-// not just the web authoring draft-save (which only ever ran this advisory,
-// non-blocking). Pins to the row's own schemaDefinitionId when given (an
-// update), else the latest Template schema (a create). `code`/`name`/
-// `templateVersion` are real columns AND schema properties — draftContent
-// alone doesn't carry them, so they're merged in here to validate what the
-// row will actually be written with.
 export async function validateTemplateWriteAgainstSchema(input: TemplateWriteInput): Promise<string[]> {
   const tenantId = input.tenantId ?? (await getPlatformTenantId());
 

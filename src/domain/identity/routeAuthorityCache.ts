@@ -1,9 +1,3 @@
-// CR-110 — in-memory cache of route_authority, loaded once and consulted by
-// the global route-authority gate (middleware/routeAuthorityGate.ts) on
-// every request — no per-route requireBadge/requireRole call needed
-// anymore. Refreshed on demand by the table's own CRUD screen
-// (routeAuthorityRegistry.ts) after a write, so an edit takes effect on the
-// very next request, no restart.
 import { match, type MatchFunction } from "path-to-regexp";
 import { routeAuthorityDB, type RouteAuthorityRow } from "../../dblayer/routeAuthorityDB.js";
 import { logger } from "../../utils/logger.js";
@@ -49,9 +43,6 @@ export async function loadRouteAuthorityCache(): Promise<void> {
   logger.info(`[routeAuthorityCache] loaded ${compiled.length} route_authority rows.`);
 }
 
-// Same operation, exported under the name the CRUD screen calls after a
-// write — kept as a distinct export so call sites read as intent ("refresh
-// after I just changed a row"), not as "loading for the first time".
 export const refreshRouteAuthorityCache = loadRouteAuthorityCache;
 
 export interface RouteAuthorityMatch {
@@ -62,11 +53,6 @@ export interface RouteAuthorityMatch {
   matchMode: "all" | "any";
 }
 
-// Ambiguity between a literal route (/objectives/new) and a parameterised
-// one (/objectives/:id) that both match the same incoming path is resolved
-// by preferring the fewest params, then the longest (most specific) pattern
-// — the same "literal beats param" precedence Express itself gives routes
-// registered in a sane order.
 export function lookupRouteAuthority(method: string, path: string): RouteAuthorityMatch | undefined {
   const upper = method.toUpperCase();
   let best: { row: CompiledRow; params: Record<string, string> } | null = null;

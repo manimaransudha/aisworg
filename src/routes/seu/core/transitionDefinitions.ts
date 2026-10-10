@@ -1,15 +1,7 @@
-// SDK UI Layer Plan — Transition Definition's own authoring surface (Build
-// order step 6). Ch.29 grounding: §9 State Transitions, §10 Transition
-// Definitions. CR-019: authored via the CR-007 noun x verb add/retire form
-// below, not a schema-driven pipeline.
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { authorityVocabularyDB } from "../../../dblayer/authorityVocabularyDB.js";
 import { listActiveNouns, activeMappingByNoun, type WriteResult } from "./authorityVocabulary.js";
 
-// CR-007: the current, live Transition Definitions — the governed-transition
-// graph as it actually stands (authority rule + required badge/role, policy &
-// quality-gate counts), for the "current definitions" view on the authoring
-// surface.
 export interface TransitionDefinitionListItem {
   id: string;
   entityType: string;
@@ -18,8 +10,6 @@ export interface TransitionDefinitionListItem {
   verb: string | null;
   isActive: boolean;
   retiredAt: string | null;
-  // CR-006: the noun × verb authority the transition will require once
-  // enforcement collapses onto it (`noun_verb`). Display-only for now.
   nounVerbBadge: string | null;
   authorityRuleCode: string | null;
   authorisedRole: string | null;
@@ -49,8 +39,6 @@ export async function listCurrentTransitionDefinitions(): Promise<TransitionDefi
   }));
 }
 
-// CR-007 Step 2 — detail of one transition definition (resolved codes) for the
-// view-detail page.
 export interface TransitionDefinitionDetailItem {
   id: string;
   entityType: string;
@@ -87,10 +75,6 @@ export async function getTransitionDefinitionDetail(id: string): Promise<Transit
   };
 }
 
-// CR-007 Step 2 — add a transition definition (edge + verb). The noun must be an
-// active noun and the verb must be in that noun's active mapping (the Mapping
-// tab is what says which verbs are legal on a noun). No authority rule / policy
-// wiring here — that is the retiring CR-006 mechanism; the verb is the authority.
 export async function addTransitionDefinition(input: {
   entityType: string;
   fromState: string;
@@ -114,17 +98,11 @@ export async function addTransitionDefinition(input: {
     return { ok: false, error: `Verb "${verb}" is not allowed on ${entityType}. Add it on the Mapping tab first.` };
   }
 
-  // A new edge starts at the mapping's own default_trigger (owner: "add a
-  // dropdown to choose trigger and pass it in the allow function") — set
-  // once, on the Mapping tab, when the noun+verb pair was allowed.
   const { data: defaultTrigger } = await authorityVocabularyDB.findDefaultTrigger(entityType, verb);
   const { error } = await transitionDefinitionsDB.insertDefinition({ entityType, fromState, toState, verb, trigger: defaultTrigger, authorId: input.authorId, authorBadge: input.authorBadge });
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
-// Edit action for the authoring list (owner: "View, Retire and Add are
-// there. Edit is missing") — only creates_obligation/category, same scope
-// transitionDefinitionsDB.updateMetadata deliberately keeps to.
 export async function updateTransitionDefinition(id: string, input: { createsObligation?: string | null; category?: string | null }): Promise<WriteResult> {
   const { data, error } = await transitionDefinitionsDB.updateMetadata(id, {
     createsObligation: input.createsObligation?.trim() ? input.createsObligation.trim() : null,

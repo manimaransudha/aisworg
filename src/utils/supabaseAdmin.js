@@ -1,16 +1,13 @@
-// src/utils/supabaseAdmin.js
-// This is legacy
 import {logger} from "./logger.js";
 import * as dotenv from "dotenv";
 import {createClient} from '@supabase/supabase-js';
 
 import path from "path";
 
-// Load environment variables from src/.env relative to project root
 dotenv.config({path: path.join(process.cwd(), 'src/.env')});
 
 const supabaseUrl = process.env.SUPABASE_URL || (process.env.NODE_ENV === 'test' ? 'https://dummy.supabase.co' : null);
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || (process.env.NODE_ENV === 'test' ? 'dummy-key' : null); // full privileges
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || (process.env.NODE_ENV === 'test' ? 'dummy-key' : null);
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
     if (process.env.NODE_ENV !== 'test') {
@@ -18,9 +15,6 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
     }
 }
 
-/**
- * Custom error for database connection issues
- */
 class DatabaseConnectionError extends Error {
     constructor (message, cause) {
         super(message);
@@ -30,12 +24,9 @@ class DatabaseConnectionError extends Error {
     }
 }
 
-/**
- * Custom fetch wrapper for Supabase to handle timeouts and retries
- */
 const robustFetch = async (url, options = {}, retries = 3, backoff = 1000) => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
         const response = await fetch(url, {
@@ -47,7 +38,6 @@ const robustFetch = async (url, options = {}, retries = 3, backoff = 1000) => {
     } catch (error) {
         clearTimeout(timeoutId);
 
-        // Detect connection timeout or fetch failure
         const isTimeout = error.name === 'AbortError' || error.code === 'UND_ERR_CONNECT_TIMEOUT' ||
             error.message?.includes('Connect Timeout') || error.message?.includes('UND_ERR_CONNECT_TIMEOUT');
 
@@ -59,7 +49,6 @@ const robustFetch = async (url, options = {}, retries = 3, backoff = 1000) => {
             return robustFetch(url, options, retries - 1, backoff * 2);
         }
 
-        // If all retries failed and it's a connection/timeout issue, throw specific error
         if (isTimeout || isNetworkError) {
             throw new DatabaseConnectionError('Database connection timed out or failed after multiple retries.', error);
         }
@@ -67,9 +56,6 @@ const robustFetch = async (url, options = {}, retries = 3, backoff = 1000) => {
         throw error;
     }
 };
-/**
- * Helper to identify if an error (potentially wrapped by Supabase) is a connection error.
- */
 function isConnectionError(err) {
     if (!err) return false;
     return (

@@ -3,9 +3,6 @@ import { logger } from "../utils/logger.js";
 import type { DbResult, OutstandingWorkItemDetail, WorkItemExecutionContext, WorkItemRow, WorkItemStatus } from "./seuTypes.js";
 
 export const workItemsDB = {
-  // CR-109 §6.3 — executionContext is resolved by workItemGenerator.generate
-  // before this insert, so it's written once, at creation, not patched in
-  // afterward.
   async create(input: { commandId: string; authorId: string; authorBadge: string; executionContext?: WorkItemExecutionContext | null }): Promise<DbResult<WorkItemRow>> {
     try {
       const { rows } = await query<WorkItemRow>(
@@ -55,8 +52,6 @@ export const workItemsDB = {
     }
   },
 
-  // Participant Integration — Plan step 1: the raw VCS reference a Participant
-  // returns on completion.
   async setOutputReference(id: string, outputReference: string | null): Promise<DbResult<WorkItemRow>> {
     try {
       const { rows } = await query<WorkItemRow>(
@@ -70,9 +65,6 @@ export const workItemsDB = {
     }
   },
 
-  // Participant Integration & Attestation — Plan step 4: the deadline handed to
-  // the Participant at assignment. The DEFAULT is NOW() + the Capability's
-  // turnaround SLA (seconds); computed in the DB so it uses the server clock.
   async setTargetCompletion(id: string, slaSeconds: number): Promise<DbResult<WorkItemRow>> {
     try {
       const { rows } = await query<WorkItemRow>(
@@ -86,8 +78,6 @@ export const workItemsDB = {
     }
   },
 
-  // The assigner may OVERRIDE the SLA-derived default with an explicit target
-  // date/time at assignment.
   async setTargetCompletionAt(id: string, at: Date): Promise<DbResult<WorkItemRow>> {
     try {
       const { rows } = await query<WorkItemRow>(
@@ -101,11 +91,6 @@ export const workItemsDB = {
     }
   },
 
-  // Participant Integration & Attestation — Plan step 4: the stall sweep, as one
-  // set-based query. Returns only outstanding (Dispatched) Work Items whose
-  // committed target has already passed — nothing else is scanned (partial
-  // index on target_completion_at). `now` is a parameter so tests are
-  // deterministic; `seuId` optionally bounds it to one SEU.
   async findOverdue(now: Date, seuId?: string): Promise<DbResult<WorkItemRow[]>> {
     try {
       const { rows } = seuId
@@ -130,9 +115,6 @@ export const workItemsDB = {
     }
   },
 
-  // Participant Integration — Plan step 5: the outstanding Work Items in a SEU,
-  // enriched with the Deliverable + transition they drive, for the human-on-UI
-  // work queue. Bounded to one SEU.
   async findOutstandingBySeuDetailed(seuId: string): Promise<DbResult<OutstandingWorkItemDetail[]>> {
     try {
       const { rows } = await query<OutstandingWorkItemDetail>(
@@ -153,9 +135,6 @@ export const workItemsDB = {
     }
   },
 
-  // Ch.33 §14 Redispatch — incremented once per RedispatchRequested attempt,
-  // compared against the Profile's N/M Configuration Parameters by the
-  // redispatch handler.
   async incrementDispatchAttempts(id: string): Promise<DbResult<WorkItemRow>> {
     try {
       const { rows } = await query<WorkItemRow>(
@@ -169,8 +148,6 @@ export const workItemsDB = {
     }
   },
 
-  // Ch.33 §9 Load Balancing strategy — how many non-terminal Work Items this
-  // Participant (the participants.id engagement row) currently holds.
   async countActiveByParticipantId(participantId: string): Promise<DbResult<number>> {
     try {
       const { rows } = await query<{ count: string }>(

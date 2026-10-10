@@ -46,11 +46,6 @@ export const authorityRulesDB = {
     }
   },
 
-  // Some rules (e.g. Phase 10's authority-deliverable-creator/-approver, seeded
-  // directly by 012_badge_model.sql) don't originate from any Pack's own
-  // contributions — seedSeu.ts's code -> id resolution needs a live lookup
-  // for those, not just the in-memory map built from one Pack's contributed
-  // rules.
   async findByCode(code: string): Promise<DbResult<AuthorityRuleRow | null>> {
     try {
       const { rows } = await query<AuthorityRuleRow>("SELECT * FROM authority_rules WHERE code = $1", [code]);

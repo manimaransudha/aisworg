@@ -1,9 +1,3 @@
-// CR-058 §13 — Quality Gate Waivers. Modeled on core/compliance.ts's
-// grantWaiver, with one deliberate difference: badge-gated. Compliance's own
-// waiver mechanism has no authority check at all (grantedBy is just whoever
-// the session user happens to be) — found while designing this CR and
-// explicitly not mirrored, since every other governed action on this
-// platform requires a real noun_verb badge (CR-006).
 import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
 import { qualityGateWaiversDB } from "../../../dblayer/qualityGateWaiversDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";

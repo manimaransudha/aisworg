@@ -5,18 +5,8 @@ import { userDB } from "./userDB.js";
 import type { DbResult, OntologyConceptRow, OntologyConceptCommentRow, TenantConceptAliasRow } from "./seuTypes.js";
 import { tenantsDB } from "./tenantsDB.js"
 
-// Ontology Model — Plan (Phase 17, Ch.18). The canonical registry + per-tenant
-// alias store. The core only ever reads/writes canonical codes; the alias is a
-// read-time presentation lookup (§0.1).
-//
-// CR-022 (owner: "Include tenant_id as part of Ontology. So platform ones
-// will be visible to all + their own vocabulary") — same shape Pack already
-// has (packsDB.findAllVisibleTo): a Platform-tenant concept is canonical and
-// visible to everyone; a tenant's own concept is theirs alone. Root sees
-// every tenant's, same as everywhere else on this platform.
 export interface OntologyViewer { isRoot: boolean; tenantId: string | null }
 
-// null => no filter (root sees every tenant's concepts, unscoped).
 async function visibleTenantIds(viewer: OntologyViewer): Promise<string[] | null> {
   if (viewer.isRoot) return null;
   const PLATFORM_TENANT_ID = await getPlatformTenantId();
@@ -26,22 +16,6 @@ async function visibleTenantIds(viewer: OntologyViewer): Promise<string[] | null
 }
 
 export const ontologyDB = {
-  // Bug fix (CR-091) — when a Platform row and a tenant's own shadow row both
-  // exist for the same (concept_type, code), this used to have no ORDER BY
-  // at all: which one "LIMIT 1" returned was whatever order Postgres
-  // happened to produce, not reliably the tenant's own. That's silently
-  // fine for every caller that only ever reads default_label/description
-  // (Platform's and a tenant's rarely differ in practice) — but CR-091's own
-  // tenant-overridable `is_mandatory` flag depends on the tenant's row
-  // actually winning every time, the same explicit preference
-  // policyDefinitionsDB.findActiveByCodeVisibleTo already has. Ordering by
-  // "this row's tenant_id is the viewer's own" first fixes it for every
-  // caller, not just the new one.
-  // Migration 190 — "the concept" for validation/picker purposes is
-  // specifically whichever row has status = 'Active' for this
-  // (concept_type, code) among the visible tenants; a Deprecated/Retired/
-  // Archived row is invisible here exactly the same way an is_active=FALSE
-  // row was before (off-canonical, rejected by assertCanonicalCategory).
   async findConcept(conceptType: string, code: string, viewer: OntologyViewer): Promise<DbResult<OntologyConceptRow | null>> {
     try {
       const tenantIds = await visibleTenantIds(viewer);
@@ -58,10 +32,6 @@ export const ontologyDB = {
     }
   },
 
-  // The exact-tenant Active row for a code — used for version-supersession
-  // (createConceptVersion) and transition gating (deprecate/retire/archive),
-  // where cross-tenant fallback (findConcept's own Platform-then-tenant
-  // preference) would resolve to the WRONG row.
   async findActiveConcept(conceptType: string, code: string, tenantId: string): Promise<DbResult<OntologyConceptRow | null>> {
     try {
       const { rows } = await query<OntologyConceptRow>(
@@ -85,11 +55,6 @@ export const ontologyDB = {
     }
   },
 
-  // Highest existing version row for a code (any status) — the base
-  // createConceptVersion bumps a patch from. Distinct from findActiveConcept:
-  // needed when every row for a code is terminal (Deprecated/Retired/
-  // Archived) and a new version is being published anyway (Template's own
-  // "reactivation is versioning" case).
   async findLatestVersion(conceptType: string, code: string, tenantId: string): Promise<DbResult<OntologyConceptRow | null>> {
     try {
       const { rows } = await query<OntologyConceptRow>(
@@ -116,11 +81,6 @@ export const ontologyDB = {
     }
   },
 
-  // includeInactive: false (default) is the picker/validation view — only
-  // each code's current Active version. The Ontology Management admin list
-  // passes true to show every version of every code, all statuses, newest
-  // version first per code (Ch.18 §12 "historical Ontologies shall remain
-  // available" — a real read of that history, not just a hidden flag).
   async findConceptsByType(conceptType: string, viewer: OntologyViewer, opts?: { includeInactive?: boolean }): Promise<DbResult<OntologyConceptRow[]>> {
     try {
       const tenantIds = await visibleTenantIds(viewer);
@@ -139,9 +99,6 @@ export const ontologyDB = {
     }
   },
 
-  // Every concept_type visible to this viewer — the Ontology Management admin
-  // page's list of "tables" (owner: no separate concept_types governance
-  // table, so this is derived from ontology_concepts itself, not a lookup).
   async listDistinctConceptTypes(viewer: OntologyViewer): Promise<DbResult<string[]>> {
     try {
       const tenantIds = await visibleTenantIds(viewer);
@@ -155,21 +112,6 @@ export const ontologyDB = {
     }
   },
 
-  // Migration 191, redesigned same-day (owner: "The navbar in Ontology
-  // should reflect ui grouping. When the ui grouping is selected, the
-  // vertical tabs should be concept_types"). Grouping is concept_type-level,
-  // one rule only: a concept_type belongs to a group whenever ITS OWN rows
-  // carry a `ui_grouping` value; every concept_type sharing that same value
-  // merges into one navbar entry, and each becomes a tab inside it. (The
-  // original mechanism read a row's `code` as naming a CHILD concept_type —
-  // correct only for profile-configuration's own parent-names-child shape;
-  // it broke the moment `ui_grouping` was set directly on a target type's
-  // own rows with several sibling types sharing one label — see CR-096's
-  // own "Obligation"/"Packs"/"Checklists" follow-up.) DISTINCT collapses a
-  // consistently-tagged type's many rows to one pair; a type whose rows
-  // disagree on the label surfaces as more than one row here — a real data
-  // inconsistency, not a bug, and exactly what the Metadata page's own
-  // review table exists to catch.
   async findConceptTypeUiGroupings(viewer: OntologyViewer): Promise<DbResult<Array<{ concept_type: string; ui_grouping: string }>>> {
     try {
       const tenantIds = await visibleTenantIds(viewer);
@@ -190,13 +132,6 @@ export const ontologyDB = {
     }
   },
 
-  // Owner: "the list should show all. otherwise how do I edit?" — the
-  // Ontology Metadata page's own review list AND its "set metadata" picker
-  // are the SAME data: every Active concept, every type/tenant, in one
-  // place (not scoped to whichever category tab you happen to be viewing).
-  // An ungrouped concept has ui_grouping: null, shown as "—" in the table —
-  // still listed, still editable, not filtered out just because it has
-  // nothing set yet.
   async findAllActiveConcepts(viewer: OntologyViewer): Promise<DbResult<Array<{ concept_type: string; code: string; default_label: string; text_type: "text" | "markdown"; ui_grouping: string | null; tenant_id: string }>>> {
     try {
       const tenantIds = await visibleTenantIds(viewer);
@@ -216,12 +151,6 @@ export const ontologyDB = {
     }
   },
 
-  // Owner: "Ui grouping in the tab forms should be having a similar change"
-  // — the same existing-groups datalist the Metadata page's own Add form
-  // got, now also on the per-category Add-concept form. A dedicated, cheap
-  // DISTINCT query rather than reusing findAllActiveConcepts's full 700+ row
-  // fetch just to read off one column, since this now also runs on every
-  // category tab's own page load, not just the Metadata page's.
   async findDistinctUiGroupings(viewer: OntologyViewer): Promise<DbResult<string[]>> {
     try {
       const tenantIds = await visibleTenantIds(viewer);
@@ -240,22 +169,12 @@ export const ontologyDB = {
     }
   },
 
-  // Bare insert — the two version-numbering/supersession policy decisions
-  // (what version number, whether to deprecate a previous Active row) live in
-  // core/ontology.ts's createConceptVersion, which is the only real caller;
-  // kept here as a raw writer the same way templatesDB.createDraft is a raw
-  // writer under core/templates.ts's own reactivateAsNewVersion policy.
   async insertConceptVersion(input: {
     conceptType: string; code: string; defaultLabel: string; tenantId: string; version: string;
     description?: string | null; contributedByPack?: string | null;
     compositionStrategy?: "specialization" | "override" | null; compositionSources?: Array<{ conceptId: string; code: string }>;
     textType?: "text" | "markdown"; uiGrouping?: string | null;
-    // CR-113 item 4 — Ontology Management's own Add/Save inserts a
-    // genuinely new code as 'Draft'; every other caller keeps the
-    // long-standing 'Active' default.
     status?: OntologyConceptRow["status"];
-    // author_id/author_badge (migration 285), both NOT NULL — never
-    // defaulted, same discipline as schemaDefinitionsDB.create.
     authorId: string; authorBadge: string;
   }): Promise<DbResult<OntologyConceptRow>> {
     try {
@@ -278,15 +197,6 @@ export const ontologyDB = {
     }
   },
 
-  // Raw status setter — every transition (deprecate/retire/archive) and the
-  // auto-supersede-previous-Active step on a new version both go through
-  // this; the authority/event-publish decisions live in core/ontology.ts,
-  // same split as templatesDB.updateStatus/transitionTemplate.
-  // Baseline-data recovery only (seedOntologyConcepts.ts) — one batch write
-  // for every missing (concept_type, code, tenant_id) row, never a live
-  // per-row query (CLAUDE.md's Ontology-seeding rule). Every row lands
-  // version '1.0.0' / status 'Active' — these ARE canonical baseline
-  // concepts, not a user's own Draft addition (addConcept's own path).
   async bulkInsertConceptVersions(
     rows: Array<{
       conceptType: string; code: string; defaultLabel: string; description: string | null; tenantId: string;
@@ -320,12 +230,6 @@ export const ontologyDB = {
     }
   },
 
-  // Owner: "a CRUD to manually set the ui_grouping / text_type." Unlike
-  // label/description, these are administrative/display metadata, not
-  // semantic content (Ch.18 §12's own versioning target) — edited IN PLACE
-  // on the current row, no new Version, no supersession. `uiGrouping: null`
-  // explicitly clears it (this is a direct edit of the current value, not
-  // createConceptVersion's own "undefined = inherit from prior Version").
   async updateConceptMeta(id: string, updates: { textType?: "text" | "markdown"; uiGrouping?: string | null }): Promise<DbResult<OntologyConceptRow | null>> {
     try {
       const sets: string[] = [];
@@ -345,10 +249,6 @@ export const ontologyDB = {
     }
   },
 
-  // author_id/author_badge are NOT NULL (tenant_concept_aliases_schema_
-  // recovery.sql) but core/ontology.ts's own setAlias has no actor param to
-  // thread through yet. Same stopgap as participantsDB.create: resolves the
-  // SUPERUSER_EMAIL superuser as author.
   async upsertAlias(input: { tenantId: string; conceptType: string; canonicalCode: string; displayLabel: string }): Promise<DbResult<TenantConceptAliasRow>> {
     try {
       const { actorId, actorBadge } = await userDB.getSuperuserId();
@@ -386,10 +286,6 @@ export const ontologyDB = {
     }
   },
 
-  // CR-113 item 6 — the Ontology Approvals tab's own data source: every
-  // Draft concept visible to this viewer (same visibility rule as every
-  // other query here — Platform's plus, for a non-root actor, their own
-  // tenant's).
   async findDraftConcepts(viewer: OntologyViewer): Promise<DbResult<OntologyConceptRow[]>> {
     try {
       const tenantIds = await visibleTenantIds(viewer);
@@ -406,9 +302,6 @@ export const ontologyDB = {
     }
   },
 
-  // CR-113 item 6 — mirrors objectivesDB.addComment/getComments exactly
-  // (objective_comments, migration 125): append-only, never UPDATEd/DELETEd
-  // at the application layer.
   async addConceptComment(conceptId: string, actorId: string, commentText: string): Promise<DbResult<OntologyConceptCommentRow>> {
     try {
       const { rows } = await query<OntologyConceptCommentRow>(

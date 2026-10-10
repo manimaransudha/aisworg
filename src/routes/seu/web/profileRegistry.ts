@@ -1,8 +1,3 @@
-// Profile Registry (owner, 2026-08-19: "Build the template and profile
-// registry") — closes Ch.6 §20.12's "no Template/Profile registry page" gap
-// for Profile too, and is the UI trigger Profile's own reactivation
-// mechanism (Ch.7 §19.2) otherwise has nowhere to run from. Mirrors
-// web/packs.ts / web/templateRegistry.ts's own Registry page structure.
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
@@ -22,7 +17,6 @@ import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/cons
  
 const PROFILE_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
-/** GET /aisworg/seu/profiles — every published Version of every Profile. */
 router.get("/profiles", attachVM("seu/profiles/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Profiles";
@@ -30,13 +24,6 @@ router.get("/profiles", attachVM("seu/profiles/index"), async (req: Request, res
     const isRoot = (req.session?.user?.platformBadges ?? []).includes("root");
     const viewerTenantId = req.session?.user?.tenant_id ?? null;
     const profiles = await listProfilesWithNextStates(viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null);
-    // CR-091 Part 3 — Registry now groups by base Template's code instead of
-    // the now-retired `category` field (owner: "Restricting the profiles to
-    // categories should not be present"), labelling each group with
-    // whichever Template Version is currently Active for that code (owner:
-    // "whatever is active") — not the specific, possibly older version an
-    // individual Profile happens to be pinned to (§19.8's frozen-reference
-    // design).
     const templateCodeById = new Map<string, string>();
     const activeTemplateNameByCode = new Map<string, string>();
     for (const templateId of new Set(profiles.map((p) => p.profile.base_template_id))) {
@@ -78,7 +65,6 @@ router.get("/profiles", attachVM("seu/profiles/index"), async (req: Request, res
   }
 });
 
-/** POST /aisworg/seu/profiles/:id/copy — Registry "Copy" action: a new, editable Draft at the next available version. */
 router.post("/profiles/:id/copy", async (req: Request, res: Response) => {
   const backTo = "/aisworg/seu/profiles";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";

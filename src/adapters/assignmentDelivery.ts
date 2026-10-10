@@ -1,11 +1,3 @@
-// Participant Integration & Attestation — Plan step 5 (§0.1 seam). The
-// assignment-out edge. The core (engine) never calls an adapter directly; it
-// publishes `WorkItemDispatched`, and this edge subscriber picks it up,
-// assembles the tenant-invariant AssignmentOut, resolves the Capability's
-// execution target, and delivers via the resolved adapter. Because the coupling
-// is an event the core already emits, adding/replacing an adapter or a delivery
-// mechanism never touches the core — the forbidden import direction (core ->
-// edge) simply does not exist here.
 import { workItemsDB } from "../dblayer/workItemsDB.js";
 import { commandsDB } from "../dblayer/commandsDB.js";
 import { deliverablesDB } from "../dblayer/deliverablesDB.js";
@@ -22,17 +14,11 @@ import type { AssignmentOut } from "./participantAdapter.js";
 import type { CommandRow, DeliverableRow, WorkItemRow } from "../dblayer/seuTypes.js";
 import type { EventHandler } from "../domain/engine/eventBus.js";
 
-// CR-043 — the SEU's full owning scope (Template + every composed Pack +
-// Profile).
 async function resolveOwningScope(seu: { template_id: string; profile_id: string; active_ebm_id: string | null }): Promise<DependencyOwningScope> {
   const { data: ebm } = seu.active_ebm_id ? await ebmsDB.findById(seu.active_ebm_id) : { data: null };
   return { templateId: seu.template_id, profileId: seu.profile_id, packIds: (ebm?.composed_packs ?? []).map((p) => p.packId) };
 }
 
-// §2.2 assignment-out: pull the input references the Participant needs from the
-// upstream Deliverables this one depends on — resolved from their recorded
-// references (which, at an accepted state, are attestation-backed) via the
-// dependency graph.
 async function resolveInputReferences(deliverable: DeliverableRow, scope: DependencyOwningScope): Promise<AssignmentOut["inputReferences"]> {
   const { data: rows } = await dependencyDefinitionsDB.findByTargetName(scope, "Deliverable", deliverable.name);
   const { data: siblings } = await deliverablesDB.findBySeuId(deliverable.seu_id);
@@ -82,9 +68,6 @@ export async function deliverAssignmentForWorkItem(workItemId: string): Promise<
   const { data: deliverable } = await deliverablesDB.findById(command.entity_id);
   if (!deliverable) return;
 
-  // Step 6: resolve the SEU's owning tenant and its edge config; the execution
-  // target and VCS binding are per-tenant, so the same Capability can be reached
-  // differently for different tenants.
   const { data: seu } = await seusDB.findById(command.seu_id);
   if (!seu) return;
   const tenantId = seu.tenant_id ?? null;
@@ -108,12 +91,6 @@ export async function deliverAssignmentForWorkItem(workItemId: string): Promise<
   }
 }
 
-// Ch.30 Event Bus redesign — registered against WorkItemDispatched via the
-// DB-backed event_subscriptions table (seedEventSubscriptions.ts), resolved
-// to this function by name ("assignmentDelivery") through
-// eventHandlerRegistry.ts, not by an imperative eventBus.subscribe() call at
-// boot. Only ever invoked for WorkItemDispatched — no self-filtering guard
-// needed here, the subscription itself is the filter.
 export const assignmentDeliveryHandler: EventHandler = async (event) => {
   await deliverAssignmentForWorkItem(event.originating_object_id);
 };

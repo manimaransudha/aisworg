@@ -37,6 +37,8 @@ import {seu_sdk_authority_detailVM} from "./seu_sdk_authority_detail.js";
 import {seu_sdk_authority_editVM} from "./seu_sdk_authority_edit.js";
 import {seu_sdk_authoring_editVM} from "./seu_sdk_authoring_edit.js";
 import {seu_sdk_schema_registry_indexVM} from "./seu_sdk_schema_registry_index.js";
+import {seu_docs_indexVM} from "./seu_docs_index.js";
+import {seu_docs_browseVM} from "./seu_docs_browse.js";
 import {seu_sdk_schema_registry_detailVM} from "./seu_sdk_schema_registry_detail.js";
 import {seu_sdk_schema_registry_newVM} from "./seu_sdk_schema_registry_new.js";
 import {seu_sdk_schema_registry_reviewVM} from "./seu_sdk_schema_registry_review.js";
@@ -50,11 +52,6 @@ import {seu_events_indexVM} from "./seu_events_index.js";
 import {seu_versionEvents_indexVM} from "./seu_versionEvents_index.js";
 import {seu_data_migrations_indexVM} from "./seu_data_migrations_index.js";
 
-// export const viewModels = {
-//   "auth/login": auth_loginVM,
-//   home: homeVM,
-//   "settings/index": settings_indexVM
-// };
 export const viewModels = {
   "auth/login": auth_loginVM,
   "settings/index": settings_indexVM,
@@ -93,6 +90,8 @@ export const viewModels = {
   "seu/sdk/authority/edit": seu_sdk_authority_editVM,
   "seu/sdk/authoring/edit": seu_sdk_authoring_editVM,
   "seu/sdk/schema-registry/index": seu_sdk_schema_registry_indexVM,
+  "seu/docs/index": seu_docs_indexVM,
+  "seu/docs/browse": seu_docs_browseVM,
   "seu/sdk/schema-registry/detail": seu_sdk_schema_registry_detailVM,
   "seu/sdk/schema-registry/new": seu_sdk_schema_registry_newVM,
   "seu/sdk/schema-registry/review": seu_sdk_schema_registry_reviewVM,

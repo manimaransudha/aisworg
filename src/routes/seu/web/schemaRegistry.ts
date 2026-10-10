@@ -1,9 +1,3 @@
-// SDK UI Layer Plan — "Schema Registry" section, the one piece of Build
-// order step 1 not shipped alongside Pack/Template/Profile authoring. Root
-// only — a wrong schema affects every future authoring session of a kind,
-// more platform-administrative than the sdk_creator/sdk_approver badges
-// that gate authoring itself, so this reuses the same root-only convention
-// Identity Management and the Pack Registry's lifecycle controls already use.
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
@@ -23,7 +17,6 @@ import type { SchemaDefinitionEntityKind } from "../../../dblayer/seuTypes.js";
 
 const backTo = "/aisworg/seu/sdk/schema-registry";
 
-/** GET /aisworg/seu/sdk/schema-registry — every (entity kind, version) row. */
 router.get("/sdk/schema-registry", attachVM("seu/sdk/schema-registry/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const schemas = (await listSchemaDefinitions()).map((s) => ({ id: s.id, entityKind: s.entity_kind, version: s.version, createdAt: s.created_at, lifecycleState: s.lifecycle_state }));
@@ -43,22 +36,17 @@ router.get("/sdk/schema-registry", attachVM("seu/sdk/schema-registry/index"), as
   }
 });
 
-/** GET /aisworg/seu/sdk/schema-registry/new — CR-114 widget-tree authoring form. */
 router.get("/sdk/schema-registry/new", attachVM("seu/sdk/schema-registry/new"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const entityKind = typeof req.query.entityKind === "string" ? req.query.entityKind : "";
     const validKind = SCHEMA_KINDS.includes(entityKind as (typeof SCHEMA_KINDS)[number]);
     let doc = blankDocument();
     if (validKind) {
-      // Start from the kind's current version so the author evolves it (immutable — save makes a new version).
       const { data: latest } = await schemaDefinitionsDB.findLatest(entityKind as SchemaDefinitionEntityKind);
       if (latest) doc = jsonSchemaToWidgetTree(latest.schema as JsonSchemaDocument);
     }
     req.vm.req.title = entityKind ? `New ${entityKind} schema version` : "New schema version";
     req.vm.req.entityKind = entityKind;
-    // Reached only via a kind-specific "New <kind> version" button (schema-
-    // registry/index.ejs) — the kind is locked to whichever one launched
-    // this form, not hand-editable inside it.
     req.vm.req.entityKindLocked = validKind;
     req.vm.req.doc = doc;
     req.vm.req.topLevelKinds = TOP_LEVEL_WIDGET_KINDS;
@@ -73,7 +61,6 @@ router.get("/sdk/schema-registry/new", attachVM("seu/sdk/schema-registry/new"), 
   }
 });
 
-/** GET /aisworg/seu/sdk/schema-registry/:id — one version's schema, readably rendered. */
 router.get("/sdk/schema-registry/:id", attachVM("seu/sdk/schema-registry/detail"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const schema = await getSchemaDefinition(String(req.params.id));
@@ -87,9 +74,6 @@ router.get("/sdk/schema-registry/:id", attachVM("seu/sdk/schema-registry/detail"
       createdAt: schema.created_at,
       compatibleVersions: schema.compatible_versions ?? [],
       incompatibleVersions: schema.incompatible_versions ?? [],
-      // CR-115 — Ch.39 §15 lifecycle. Publish/Reject only ever show for a
-      // Packaged row — the page is root-only, so no separate badge check is
-      // needed here (root already bypasses transitionEngine's own gate).
       lifecycleState: schema.lifecycle_state,
       authorBadge: schema.author_badge,
     };
@@ -101,9 +85,6 @@ router.get("/sdk/schema-registry/:id", attachVM("seu/sdk/schema-registry/detail"
   }
 });
 
-/** POST /aisworg/seu/sdk/schema-registry — CR-114 Compatibility feature: no longer writes
- *  directly. Builds the draft schema (form or raw-JSON path) and renders a compatibility
- *  review against every existing version of the kind; nothing is created until Publish. */
 router.post("/sdk/schema-registry", attachVM("seu/sdk/schema-registry/review"), async (req: Request, res: Response) => {
   const body = req.body ?? {};
   try {
@@ -111,12 +92,10 @@ router.post("/sdk/schema-registry", attachVM("seu/sdk/schema-registry/review"), 
     let schemaJson: string;
 
     if (typeof body.schemaJson === "string" && body.schemaJson.trim()) {
-      // Advanced raw-JSON path.
       entityKind = String(body.entityKind ?? "").trim();
       schemaJson = body.schemaJson;
       if (!entityKind) return flashError(req, res, backTo, "Entity kind is required.");
     } else {
-      // Form path — the widget tree posted by the CR-114 recursive editor.
       entityKind = String(body.entityKind ?? "").trim();
       const backToNew = `${backTo}/new?entityKind=${encodeURIComponent(entityKind)}`;
       if (!entityKind) return flashError(req, res, backTo, "Entity kind is required.");
@@ -143,9 +122,6 @@ router.post("/sdk/schema-registry", attachVM("seu/sdk/schema-registry/review"), 
   }
 });
 
-/** POST /aisworg/seu/sdk/schema-registry/publish — commits the reviewed draft as a new,
- *  additive version. Re-runs the compatibility check server-side (never trusts the client)
- *  and persists the recomputed compatible/incompatible version lists on the new row. */
 router.post("/sdk/schema-registry/publish", async (req: Request, res: Response) => {
   const body = req.body ?? {};
   try {
@@ -164,8 +140,6 @@ router.post("/sdk/schema-registry/publish", async (req: Request, res: Response) 
   }
 });
 
-/** POST /aisworg/seu/sdk/schema-registry/:id/publish — Ch.39 §15's real, manual
- *  Packaged -> Published decision (schemadefinition_publish). */
 router.post("/sdk/schema-registry/:id/publish", async (req: Request, res: Response) => {
   const id = String(req.params.id);
   if (req.session?.user?.id == null) return flashError(req, res, `${backTo}/${id}`, "No logged-in user on this session.");
@@ -175,8 +149,6 @@ router.post("/sdk/schema-registry/:id/publish", async (req: Request, res: Respon
   return flashSuccess(req, res, `${backTo}/${id}`, `${result.schema.entity_kind} schema v${result.schema.version} published.`);
 });
 
-/** POST /aisworg/seu/sdk/schema-registry/:id/reject — Ch.39 §15's Packaged ->
- *  PublicationRejected decision (schemadefinition_reject). */
 router.post("/sdk/schema-registry/:id/reject", async (req: Request, res: Response) => {
   const id = String(req.params.id);
   if (req.session?.user?.id == null) return flashError(req, res, `${backTo}/${id}`, "No logged-in user on this session.");

@@ -1,12 +1,3 @@
-// Ch.30 Event Bus redesign — Event Registry + Event Subscriptions seed.
-// Mirrors seedAuthorityVocabulary.ts's own shape: idempotent upsert,
-// standalone-runnable, safe to rerun via db:clean-slate.
-//
-// Deliberately minimal — only the one real subscription being migrated off
-// the old imperative eventBus.subscribe() call (WorkItemDispatched ->
-// assignmentDelivery). Populating the full ~90-event catalogue is the
-// chapter-by-chapter gap-closing work that comes after this structure, not
-// part of it.
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -18,7 +9,6 @@ import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// authoredBy is a participants_master.id
 export interface SeedActor {
   authoredBy: string;
   authorBadge: string;
@@ -27,10 +17,6 @@ export interface SeedActor {
 interface EventTypeSeed {
   eventType: string;
   description?: string;
-  // Ch.30 §7 — the illustrative Event Categories taxonomy (State/Governance/
-  // Runtime/Integration/Administrative), a property of the event type
-  // itself, not of any particular subscription. Not a closed set — §7 says
-  // Packs may introduce more.
   category?: string;
 }
 interface SubscriptionSeed {
@@ -49,8 +35,6 @@ function loadSeed(): EventSubscriptionsSeed {
 
 export async function seedEventSubscriptions(actor: SeedActor): Promise<void> {
   const seed = loadSeed();
-  // Loaded once and checked in-memory below, rather than a live Ontology
-  // query per event type in the loop.
   const ontologyViewer = { isRoot: false, tenantId: null };
   const { data: canonicalEventCategories } = await ontologyDB.findConceptsByType("category:event-types", ontologyViewer);
   const canonicalEventCategoryCodes = new Set((canonicalEventCategories ?? []).map((c) => c.code));
@@ -60,9 +44,6 @@ export async function seedEventSubscriptions(actor: SeedActor): Promise<void> {
     await client.query("BEGIN");
 
     for (const et of seed.eventTypes) {
-      // Ch.30 §7 category, validated against Ontology (category:event-types)
-      // exactly like category:evidence/category:deliverable/etc. — same
-      // write-path enforcement, not a DB-level CHECK constraint.
       if (et.category && !canonicalEventCategoryCodes.has(et.category)) {
         throw new Error(`"${et.category}" is not a canonical category:event-types concept. Allowed: ${[...canonicalEventCategoryCodes].join(", ") || "(none registered)"}`);
       }

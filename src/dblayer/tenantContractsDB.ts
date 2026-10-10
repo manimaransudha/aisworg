@@ -3,10 +3,6 @@ import { logger } from "../utils/logger.js";
 import { userDB } from "./userDB.js";
 import type { DbResult, TenantContractRow } from "./seuTypes.js";
 
-// Participant Integration — Plan step 6 (§2.1). The tenant's edge declarations
-// the core stores but never interprets: VCS binding (#1), callback auth (#3),
-// attestation config (#4). Each is opaque JSONB — a provider, a credential
-// scheme, a signing format all live here, not in the core.
 export const tenantContractsDB = {
   async upsert(input: {
     tenantId: string;
@@ -15,11 +11,6 @@ export const tenantContractsDB = {
     attestationConfig?: Record<string, unknown>;
   }): Promise<DbResult<TenantContractRow>> {
     try {
-      // author_id/author_badge are NOT NULL (tenant_contracts_schema_
-      // recovery.sql) but no real actor flows through this path today — same
-      // stopgap as participantsDB.create: resolves the SUPERUSER_EMAIL
-      // superuser as author. ON CONFLICT leaves author_id/author_badge
-      // untouched on an existing row.
       const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<TenantContractRow>(
         `INSERT INTO tenant_contracts (tenant_id, vcs_binding, callback_auth, attestation_config, author_id, author_badge)

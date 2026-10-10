@@ -1,11 +1,5 @@
-// src/utils/viewModel.js
 import { logger } from "./logger.js";
 
-/**
- * Creates a ViewModel validator
- * @param {Object} config - Configuration with required and optional keys
- * @returns {Function} Validator function
- */
 export function createViewModel(config) {
   const { required = [], optional = [] } = config;
 
@@ -22,13 +16,6 @@ export function createViewModel(config) {
   };
 }
 
-/**
- * Renders a view with validated ViewModel
- * @param {Object} req - Express request
- * @param {Object} res - Express response
- * @param {string} viewPath - Path to view
- * @param {Object} viewModel - ViewModel data
- */
 export function renderView(req, res, viewPath, viewModel) {
   try {
     const start = Date.now();

@@ -1,18 +1,9 @@
-// Shared row types + enums for the SEU platform tables (002_seu_platform.sql).
-// One file so dblayer/, routes/seu/core/ and domain/engine/ agree on shape
-// without every dblayer file redeclaring the same enums.
 
 export type DbResult<T> = { data: T; error?: undefined } | { data?: undefined; error: Error };
 
 export type ObjectiveTier = "Strategic" | "Operational" | "Engineering";
-// CR-073 — "Reject" (not "Rejected", not a reuse of "Proposed" — owner: "It
-// is Active to Reject") is a real, distinct status reached only via
-// Active -> Reject (migration 126).
 export type ObjectiveStatus = "Proposed" | "Active" | "Achieved" | "Superseded" | "Retired" | "Archived" | "Reject";
 
-// CR-071 — deliberately open-ended (Phase 12 multi-tenancy will add more than
-// `tenant` without a schema change), but `tenant` itself is typed since every
-// caller today reads it.
 export interface SponsoringAuthority {
   tenant: string | null;
   [key: string]: unknown;
@@ -24,35 +15,16 @@ export interface ObjectiveRow {
   tier: ObjectiveTier;
   parent_objective_id: string | null;
   status: ObjectiveStatus;
-  // "n.n.n" (owner: "Version is in the format n.n.n") — every edit that used
-  // to bump a bare integer now bumps the patch segment only; see
-  // objectivesDB.update/updateParent.
   version: string;
-  // NOT NULL (migration 127) — CR-068 deferred this to app-level enforcement
-  // only (createObjective already guaranteed it); promoted to a real DB
-  // constraint once every caller's real behavior confirmed it always holds.
   requested_by: string;
-  // CR-068 — user-friendly hierarchical id ("1", "1.2", "1.2.3"), system-
-  // assigned once at creation, frozen on re-parent. next_child_seq is this
-  // Objective's own counter for its children's segments; null on a legacy row
-  // predating this CR (a full db:clean-slate wipes and reseeds those).
   display_id: string | null;
   next_child_seq: number;
-  // CR-071 — every Objective's own tenant attribution, a child copying its
-  // parent's value at creation (never independently re-derived), a Strategic
-  // root deriving it fresh from its creator's own tenant. Null on a legacy
-  // row predating this CR.
   sponsoring_authority: SponsoringAuthority | null;
-  // CR-116 — the Objective that superseded this one; written only by the
-  // Active -> Superseded transition (transitionObjective, via
-  // supersessionEngine), null otherwise.
   superseding_objective_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-// CR-073 — general-purpose, append-only comment thread on an Objective.
-// Never updated/deleted at the application layer.
 export interface ObjectiveCommentRow {
   id: string;
   objective_id: string;
@@ -61,10 +33,6 @@ export interface ObjectiveCommentRow {
   created_at: string;
 }
 
-// CR-065 — category dropped (owner: "code already carries the required
-// intelligence"). version is no longer independent — it's a copy of the
-// owning Pack's own pack_version (owner: "capabilities.version just copies
-// over the pack's version"), TEXT to match, not incremented separately.
 export interface CapabilityRow {
   id: string;
   code: string;
@@ -75,10 +43,6 @@ export interface CapabilityRow {
   created_at: string;
 }
 
-// CR-086 step 2 — an Objective's required Capabilities are bare
-// capability-name Ontology terms (code/name/description resolved from
-// ontology_concepts), not rows from the Pack-instance-scoped `capabilities`
-// table above. See migration 150.
 export interface RequiredCapability {
   code: string;
   name: string;
@@ -87,21 +51,6 @@ export interface RequiredCapability {
 
 export type ServiceStatus = "Defined" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 
-// CR-064 — version is real, definition-side versioning (a new immutable row
-// per real content change, same "major.minor" bump-on-change mechanism as
-// Quality Gate/Review Gate, not an author-typed field) — TEXT starting
-// "1.0", not the old inert INTEGER default. is_active marks the current
-// version within its (originating_pack_id, code) slot; historical versions
-// stay is_active=false, never deleted (Ch.11 §13's own "historical Service
-// versions remain available").
-// CR-064's own free {label,target:string} pair (Ch.11 §8's open "may
-// specify" framing) is superseded by ServiceLevelExpectation — the richer
-// {code,label,target_level,target:number,units} shape service_definitions
-// (migration 155) uses, now shared here too: `services` is the Pack-composed
-// row FED FROM a Service Definition (CR-086 follow-on, core/packs.ts's
-// materializeContributions), so it carries the exact same shape as its source,
-// targets merged with whatever this Pack's own contributionServices[]
-// overrides.
 export interface ServiceRow {
   id: string;
   code: string;
@@ -118,26 +67,10 @@ export interface ServiceRow {
   created_at: string;
 }
 
-// CR-020: category is Ontology-governed (concept_type category:pack) — a data
-// change adds a category, not a code change, so this is no longer a fixed
-// literal union (that would have to be hand-kept in sync with the Ontology
-// Management admin page, defeating the point).
 export type PackCategory = string;
-// CR-080 — Pack's own lifecycle simplified to 6 states (Deprecated dropped,
-// no functional difference from Retired ever existed at runtime). Left as a
-// superset union rather than narrowed, since Template/Profile/
-// DeliverableDefinition genuinely still have Deprecated in their own real
-// lifecycles and share this same type — narrowing it here would misrepresent
-// theirs, not just Pack's. Pack's own `packs_status_check` CHECK constraint
-// (migration 137) is what actually enforces 'Deprecated' can never be
-// written for a Pack row again.
 export type PackStatus = "Draft" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
-// CR-020: same Ontology-governed treatment (concept_type installation-classification).
 export type PackClassification = string;
 
-// CR-080 — Pack's own comment thread (Validated -> Draft reject requires
-// feedback every time), mirrors ObjectiveCommentRow/objective_comments
-// (CR-073) exactly — no generic/shared comment table exists to reuse.
 export interface PackCommentRow {
   id: string;
   pack_id: string;
@@ -146,11 +79,6 @@ export interface PackCommentRow {
   created_at: string;
 }
 
-// CR-016 (Ch.5 §20) — the per-item executable-verification metadata. `statement`
-// is the human-readable standard; `classification` is who/what determines pass/
-// fail; `prompt` is the AI instruction; `participant`/`outputContract` shape the
-// execution; `assurance` is the optional escalation threshold; `externalEvidence`
-// marks a machine-verifiable item verified by an Integration connector (§20.4).
 export interface VerifiableItemFields {
   statement?: string;
   classification?: "machine-verifiable" | "judgment" | "human-attested";
@@ -161,32 +89,6 @@ export interface VerifiableItemFields {
   assurance?: string;
 }
 
-// CR-060, revised same day (owner: "you cannot determine a checklist item
-// to be mandatory. Checklist is generic. Pack has the specifics.") — a
-// Checklist Item carries NONE of VerifiableItemFields: no classification
-// (Participant already covered that distinction — moot now anyway),
-// no participant (a Review Gate's own single `participant` field covers
-// everything it does, including whichever Checklists it references — a
-// Quality Gate is engine-evaluated, never participant-driven, so needs
-// none either), no Mandatory/Recommended (a Checklist is generic/reusable;
-// whether completing it is required or advisory is specific to the Pack
-// referencing it, not the Checklist itself — see PackContributions.
-// qualityGates'/reviewGates' own checklistIds/recommendedChecklistIds).
-// Just the claim being verified. No item-level identifier (Ch.47 §9) —
-// items are addressed only by position within their Checklist's own
-// `items` array.
-// 2026-08-25 — `group` added back: a pure organisational label (e.g.
-// "Formatting", "Naming conventions"), not a gate-specific concern like the
-// fields migration 104 deliberately dropped, so it doesn't reopen that
-// simplification (migration 120).
-// 2026-09-05 (CR-088 prerequisite) — configurableKey/configurableValue added:
-// the Ontology-backed dimension/value pair Template's own "Exposable
-// Parameters" tab reads to expose this item as a filterable configurable
-// parameter, and a Profile filters items by. Flat fields, not a nested
-// `configurable: {}` envelope — formGenerator.ts's item-field kinds have no
-// "object" kind, and this is already the second level of nesting inside
-// contributionChecklists[].items[]. Both optional: absence means the item is
-// always included, unconditionally (CR-088's settled default).
 export interface ChecklistItem {
   statement: string;
   group?: string;
@@ -195,171 +97,25 @@ export interface ChecklistItem {
 }
 
 export interface PackContributions {
-  // CR-065 — category dropped entirely, not fixed. Owner: "what is stored in
-  // contributionCapabilities[]? Just store only the code" — name/description
-  // are 100% derivable from the capability-name Ontology concept the code
-  // already resolves to (materializeContributions looks them up there instead),
-  // so storing them redundantly per-Pack was pure duplication.
   capabilities?: Array<{ code: string }>;
-  // CR-064, then CR-086 follow-on (owner: "the services form should show all
-  // services tied to the capabilities... Capability Code/Name/Contract
-  // Description... do not have to be stored in contributionServices[]") —
-  // code now picks a canonical Service Definition (service_definitions);
-  // capabilityCode/name/contractDescription are derived off it (read-only in
-  // the form, never submitted). serviceLevel carries ONLY this Pack's own
-  // target overrides ({code, target} — code identifies which of the
-  // Definition's own service_level rows is overridden); anything not listed
-  // here simply inherits the Definition's own target — the Definition
-  // itself is never mutated (owner: "the original service definition should
-  // not be overwritten"). materializeContributions (core/packs.ts) resolves/merges
-  // at publish time, writing the merged result to the Pack-composed
-  // `services` table only.
   services?: Array<{ code: string; serviceLevel?: Array<{ code: string; target: number }> }>;
   authorityRules?: Array<{ code: string; governedTransition: string; authorisedRole: string }>;
-  // CR-089 follow-on (168_pack_contribution_policies_from_definitions.sql) —
-  // same architectural move CR-086 made for `services` above, but flatter
-  // still: a plain list of canonical Policy Definition codes this Pack
-  // adopts (check/uncheck, `x-widget: "referential-multi-select"` — no
-  // per-item sub-fields at all, unlike Service's own {code, serviceLevel}),
-  // scoped to whichever ones govern a deliverable-name this Pack's own
-  // declared Capabilities produce (via each Capability's own Service
-  // Definition outputs). Every other field (name/category/constraintType/
-  // governedTransition/conditionType/conditionField/conditionValues/severity)
-  // is derived off the Definition at materializeContributions time — governedTransition
-  // specifically from the Definition's own applicability_deliverable_lifecycle
-  // (owner: "is not deliverable_lifecycle equivalent of that?") — never
-  // authored here.
   policies?: string[];
-  // Post-MVP Phase 4 (Ch.26 FR-26.2: "Quality Gates shall be contributed
-  // through Packs"). CR-058 — the authored (form-facing) shape:
-  // governedTransition replaces the old free-typed entityType/fromState/
-  // toState triple ("the pack should not define something beyond what a
-  // transition definition already holds") — a delimited
-  // "EntityType|fromState|toState" value picked from real
-  // transition_definitions rows, parsed back into the 3 real columns at
-  // materializeContributions time (core/packs.ts). requiredPolicyCode reassembles
-  // into quality_gates.criteria's nested shape there too.
-  //
-  // CR-058 follow-up 2 (owner: "the code isn't a UUID or a freeform
-  // Pack-specific string — it's the category identifier itself, drawn from
-  // the same Ontology-governed vocabulary as Ch.17 §7's Evidence
-  // Categories"): `category` is Ontology-backed via category:evidence
-  // (reused directly, not a separate quality-gate vocabulary) and IS the
-  // gate's own code — qualityGatesDB.upsert sets `code = category` itself.
-  // requires_accepted_evidence_or_approved_decision reads this same
-  // `category` directly (qualityGateEngine.ts) — Evidence's own category
-  // column shares this vocabulary, so no separate field is needed there.
-  //
-  // No `code` field here at all — same CR-038 treatment
-  // TemplateDeliverableSeed's own `code` got ("dropped outright... nothing
-  // functional ever needed a separate identifier once the real identity
-  // fields exist").
-  // CR-059 — requires_accepted_review no longer takes a free-text
-  // `criteriaCategory` (Review's own unvalidated category vocabulary,
-  // matched against reviews.category by string). `deliverableName`
-  // replaces it: a reference to this SAME Pack's own reviewGates[].code
-  // (self-referential picker, sdkAuthoring.ts), resolved to a real
-  // review_gates row and then a real reviews.review_gate_id FK at
-  // materializeContributions time (core/packs.ts) — a strict join, not a
-  // coincidence string match (owner: matching by category/string alone
-  // "can lead to corrupt data").
   qualityGates?: Array<{
     name: string;
     category: string;
     governedTransition: string;
     criteriaType: "no_unresolved_obligations" | "requires_accepted_evidence_or_approved_decision" | "requires_accepted_review" | "requires_active_policy";
     deliverableName?: string;
-    // CR-061 — generalized from a single requiredPolicyCode to an array
-    // (owner: "(1) is right" — Quality Gate's requires_active_policy takes
-    // several Policies, not one). Entries are this same Pack's own declared
-    // Policy `code` (raw seed JSON, resolved via policyIdByCode) or an
-    // already-real, code-scoped cross-Pack `policies.id` (form-submitted) —
-    // identical dual-shape resolution to checklistIds. Threshold/aggregation
-    // logic is execution-side, deferred (owner: "each type may lead to some
-    // code change to the governance of the gates").
     requiredPolicyCodes?: string[];
-    // CR-060 — real ids of Checklists (any Pack's, not just this one) this
-    // gate requires. AND within the list (owner: "Every quality gate is
-    // defined by category and that is an AND"); a Checklist referenced by
-    // more than one gate is executed once, not once per referencing gate
-    // (owner: "If gates point to same checklist, it is taken once").
     checklistIds?: string[];
-    // CR-060, revised same day — Mandatory/Recommended moved off Checklist
-    // Item entirely (owner: "you cannot determine a checklist item to be
-    // mandatory. Checklist is generic. Pack has the specifics.") onto the
-    // gate's own reference to a Checklist instead: `checklistIds` (above)
-    // is this gate's required (AND) Checklists; `recommendedChecklistIds`
-    // is the advisory set — completing them doesn't block this gate, same
-    // "doesn't by itself determine the outcome" role Ch.47's own Recommended
-    // designation always had, just relocated from item to reference.
     recommendedChecklistIds?: string[];
-    // CR-104 — real deliverable-name codes this gate targets (mirrors
-    // policy_definitions.applicability_deliverable_names' own shape). Empty/
-    // omitted = every Deliverable reaching this gate's governedTransition,
-    // unchanged from before this field existed.
     applicabilityDeliverableNames?: string[];
   } & VerifiableItemFields>;
-  // CR-060 (Ch.47) — a Checklist is a real, persisted, cross-Pack-
-  // referenceable entity (checklists table) despite having no version or
-  // lifecycle of its own — it carries no scope (Category/Capability/
-  // Applicable-Deliverable-Type/Applicable-Transition) either; that's fully
-  // carried by whichever Review/Quality Gate(s) reference it via
-  // checklistIds (owner: "Checklist is just the mechanism for review and
-  // quality gate"). `items` is the ordered verification list — see
-  // ChecklistItem. Declaration-only here (this is the authored, form-facing
-  // shape persisted into packs.contributions verbatim); materialising into
-  // the real `checklists` table happens in materializeContributions (core/packs.ts),
-  // same as reviewGates/qualityGates. Executing a Checklist (a Participant
-  // works through `items`, produces one Evidence record) is out of scope —
-  // SEU-commissioning-phase work, not Pack-side declaration.
   checklists?: Array<{ name: string; description?: string; items: ChecklistItem[] }>;
-  // CR-059 — a Review Gate is real and persisted now (review_gates table),
-  // unlike the other declaration-only rows in this interface. `code` is the
-  // deliverable type it's for (Ontology's deliverable-name vocabulary,
-  // same referential picker Template's own Deliverable Catalogue uses) and
-  // IS the gate's real identity alongside governedTransition — unlike
-  // Quality Gate's own code=category collapse, `code` stays a real,
-  // author-visible field (owner: "it should show up on the form"). `name`
-  // is a separate, required label (Ch.25 §8's own Name-distinct-from-
-  // criteria structure). checklistIds/recommendedChecklistIds — see
-  // qualityGates' own fields above, identical semantics.
   reviewGates?: Array<{ code: string; name: string; governedTransition: string; checklistIds?: string[]; recommendedChecklistIds?: string[] } & VerifiableItemFields>;
-  // CR-062 — obligationType dropped (redundant with category, unclear
-  // purpose against Ch.23). category/origin real, Ontology-backed
-  // (category:obligation/category:obligation-origin). No real Obligation
-  // Definition table — nothing cross-references one by id, unlike
-  // Checklist/Policy — this stays a JSONB declaration only.
-  // Migration 222/224 (owner: "ObligationDefinition model has to be created
-  // and used in both the places so changes are sustained all the places
-  // correctly") — this is the same shared ObligationDefinition shape as
-  // Policy's own conditions[].relatedObligations[], plus this Pack-scoped
-  // `code` and the §20 verifiable-item execution-mechanism fields
-  // (classification/prompt/participant/outputContract/assurance/
-  // externalEvidence) layered on top; `statement` is dropped from
-  // VerifiableItemFields here since ObligationDefinition's own `description`
-  // already covers that concept (migration 222 renamed statement ->
-  // description on this exact field for this exact reason).
-  // Migration 249 (owner: "Pack has to define the Obligation definition
-  // similar to what the Policy Eligibility definition looks") —
-  // applicabilityDeliverables reuses Policy's own scope=Eligibility shape
-  // (PolicyApplicabilityDeliverable, below) verbatim: a Pack never knows
-  // Deliverable identity, so `name` is always a real Authority Vocabulary
-  // noun, never a Deliverable name — this is the trigger CR-108 line 35
-  // found missing (composed into the EBM, never read by anything at
-  // runtime).
   obligationDefinitions?: Array<{ code: string; applicabilityDeliverables?: PolicyApplicabilityDeliverable[] } & ObligationDefinition & Omit<VerifiableItemFields, "statement">>;
-  // CR-082 — Ch.5 §9's Engineering Behaviour / Engineering Metrics /
-  // Reusable Components / Engineering Templates, unified under one
-  // contribution kind rather than four schema fields. Minimal stub (owner:
-  // "these should be in details later") — type is Ontology-backed
-  // (engineering-capital, freely-extensible); not a §20 verifiable item —
-  // these are inputs/assets, not checks (tbi.md's own §9 classification note).
   engineeringCapital?: Array<{ type?: string; url?: string }>;
-  // CR-099 — which competency (Ontology category:pack dimension + that
-  // dimension's own child concept type's value) this Pack represents.
-  // Declaration only, same treatment as obligationDefinitions/
-  // engineeringCapital above — required at publish time whenever this
-  // Pack's own category is Technology or Domain (validatePackSeed).
   competencies?: Array<{ dimension?: string; value?: string }>;
 }
 
@@ -373,82 +129,19 @@ export interface PackRow {
   installation_classification: PackClassification;
   contributions: PackContributions;
   dependencies: Array<{ packCode: string; version: string; type: "required" | "optional" | "conditional" | "incompatible" }>;
-  // CR-067 — the Pack(s) this Pack's own compositionStrategy (metadata,
-  // below) combines from. Same shape/resolution discipline as `dependencies`:
-  // resolved live by code via findActiveByCode, never a pinned row id.
   composition_sources: Array<{ packCode: string }>;
-  // CR-018 — recorded-but-unenforced §8/§13 metadata.
   metadata: Record<string, unknown>;
-  // Entity-direct authoring (bug fix correcting CR-014): the real
-  // participants_master row authoring this Draft. NOT NULL, participants_master-scoped
-  // (same convention as templates.authored_by/profiles.authored_by).
   authored_by: string;
   author_badge: string;
-  // Pack ownership (owner: "Packs will have ownership... platform or the
-  // tenant"): always a real tenants.id — the reserved Platform tenant for a
-  // platform-wide Pack, never NULL (same convention users.tenant_id uses).
-  // Set at Draft creation from the real author's own tenant; preserved
-  // (never re-derived) across a reactivation-as-new-version.
   tenant_id: string;
   created_at: string;
-  // The schema_definitions row this Pack was actually authored/written
-  // against — write-time validation pins to this version, not always latest.
   schema_definition_id: string | null;
 }
 
-// CR-087 — `name` renamed to `code`: the deliverable-name Ontology concept's
-// own CODE (e.g. "solution-architecture-document"), validated server-side
-// (validateTemplateSeed) via assertCanonicalCategory, the same discipline
-// every other Ontology-backed authoring field already has. Reverses CR-038's
-// own "code dropped outright" call — that call assumed `name` itself would
-// already hold a real, controlled Ontology value; CR-087 found it never did
-// in practice (every seeded Template's catalogue drifted to free text, see
-// CR-087 finding 1). Runtime storage is unaffected: dependency_definitions/
-// deliverables stay name(label)-keyed exactly as before — materialisation
-// (materialiseDependencyGraph.ts) and commissioning (core/commissioning.ts)
-// resolve this code to its tenant-aware label at the point they write to
-// those tables.
-// CR-087 follow-up — category and producingCapabilityCode both dropped
-// (owner: "drop category... schema has to reflect the changes"; migration
-// 164). category was descriptive-only, never operationally read.
-// producingCapabilityCode is now derived automatically at commissioning time
-// (core/commissioning.ts) off the SEU's required Capabilities' own Active
-// Service Definition outputs, rather than hand-authored here.
 export interface TemplateDeliverableSeed {
   code: string;
 }
 
-// CR-041 — the dependency graph is authored explicitly, as its own top-level
-// list, not embedded per-catalogue-entry (the old dependsOnDeliverableCodes/
-// dependsOnCapabilityServiceCodes shape, retired — see migration that
-// converted every seed Template's data).
-//
-// CR-087 — toCode/fromCode (renamed from toName/fromName) reference
-// deliverableCatalogue's own `code` values within the same Template — the
-// self-referential picker (`x-referential: "self:deliverableCatalogue"`,
-// web/sdkAuthoring.ts's loadSelfReferentialOptions) already auto-detects
-// `code` vs `name` as the identity key from the TARGET field's own item
-// schema, so this rename needed no resolver change, only the schema/type
-// update (migration 160). dependency_definitions itself stays name(label)-
-// keyed throughout (matches deliverables.name at runtime, unchanged) —
-// materialiseDependencyGraph.ts resolves toCode/fromCode to their Ontology
-// labels at the point it writes those rows. fromCapabilityCode
-// names a required Capability (resolved to that Capability's declared
-// Service(s) — Ch.9 §8/Ch.11 §9: a Capability edge asks "is anyone actually
-// assigned to this upstream Capability," distinct from a Deliverable edge's
-// "did the upstream artefact reach the right state" — both can gate the same
-// target). requiredState is optional — absent means a sensible default
-// applies (Approved for Deliverable, Fulfilled for Capability); when
-// present, it's an explicit author override.
-// Ch.15 §12 (CR-049 Phase 2) — dependency is the existing plain edge label;
-// derivation/implementation/decomposition are Deliverable-to-Deliverable
-// only, structurally identical, just a different edge label. Defaults to
-// "dependency" wherever omitted — existing authored content round-trips
-// unchanged. Drives exactly one thing downstream: Template Inheritance's
-// publish-time check (validateTemplateSeed) — implementation/decomposition
-// edges must survive inheritance unaltered (a rename of either end is
-// allowed, tracing back through the tenant's own Deliverable Definition
-// lineage — CR-049's own resolution); derivation edges are freely editable.
 export type DependencyRelationshipKind = "dependency" | "derivation" | "implementation" | "decomposition";
 
 export interface TemplateDependencyGraphEntry {
@@ -464,32 +157,18 @@ export interface TemplateRow {
   id: string;
   code: string;
   name: string;
-  // CR-024: semver TEXT now, mirroring Pack's pack_version — was a plain
-  // INTEGER counter, never read or written anywhere (migration 059).
   template_version: string;
   status: PackStatus;
   parent_template_id: string | null;
   deliverable_catalogue: TemplateDeliverableSeed[];
-  // authored_by/author_badge are NOT NULL, participants_master-scoped (same
-  // discipline as capability_definitions/service_definitions) — every write
-  // must resolve and pass its own real actor + badge, never a default/null.
   authored_by: string;
   author_badge: string;
   draft_content: Record<string, unknown>;
-  // CR-026: Template ownership, mirroring packs.tenant_id (migration 044) —
-  // always a real tenants.id, the reserved Platform tenant for a
-  // platform-wide Template, never NULL.
   tenant_id: string;
-  // design/design whiteboards.md/schema_implementation.md — pins write-time
-  // schema validation to the schema version this row was actually authored
-  // against, mirroring packs.schema_definition_id (migration 266).
   schema_definition_id: string | null;
   created_at: string;
 }
 
-// CR-049 Phase 1 — Deliverable Definition, a first-class authored entity
-// mirroring TemplateRow's own shape column-for-column (its own table, not a
-// shared one — see 081_deliverable_definitions.sql's own header comment).
 export interface DeliverableDefinitionRow {
   id: string;
   code: string;
@@ -505,15 +184,8 @@ export interface DeliverableDefinitionRow {
   schema_definition_id: string | null;
 }
 
-// CR-086 follow-on — Service Definition (Book 3 Ch.11 §13), the chapter's own
-// 6-state lifecycle verbatim — deliberately its own status union, not
-// PackStatus (Ch.11 has no Draft/Validated; "Defined" plays that role).
 export type ServiceDefinitionStatus = "Defined" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 
-// CR-086/Ch.11 follow-on (migration 155) — one measurable expectation a
-// Service Level declares (Ch.11 §8), e.g. {code: "ambiguity-free", label:
-// "Percent unambiguous requirements", target_level: "minimum", target: 60,
-// units: "percent"}. Owner-specified shape.
 export interface ServiceLevelExpectation {
   code: string;
   label: string;
@@ -522,24 +194,12 @@ export interface ServiceLevelExpectation {
   units: string;
 }
 
-// Mirrors DeliverableDefinitionRow's shape above — its own table (see
-// 153_service_definitions.sql's header). `capability_code` is the 1:1
-// alignment to a capability-name concept; `code` is this Service's OWN
-// identity, validated against the separate service-name concept type
-// (migration 152) — owner: "I do not want to reuse the capability-name...
-// makes future mutations easy if required."
 export interface ServiceDefinitionRow {
   id: string;
   code: string;
   name: string;
   capability_code: string;
   purpose: string | null;
-  // Bug fix (migration 159 changed these to TEXT[] — a referential-multi-select
-  // of `deliverable-name` Ontology codes, mirroring `consumers` against
-  // capability-name — but this type, serviceDefinitionsDB.ts, and
-  // sdkAuthoring.ts's own form parsing were never updated to match; every
-  // caller omitting these hit a NOT NULL violation, and a real form
-  // submission could never populate them at all).
   inputs: string[];
   outputs: string[];
   service_level: ServiceLevelExpectation[];
@@ -557,25 +217,13 @@ export interface ServiceDefinitionRow {
   schema_definition_id: string | null;
 }
 
-// CR-111 — Capability Registry, Service Definition's own lean 6-state
-// lifecycle verbatim (owner, choosing among Service's 6-state/Policy's
-// 7-state/no lifecycle at all: "Defined -> Published -> Active ->
-// Deprecated -> Retired -> Archived").
 export type CapabilityDefinitionStatus = "Defined" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 
-// migration 265's own roles shape — one role this Capability decomposes
-// into, each with the worktype codes it covers. `name` -> role-name
-// (migration 263), each `worktypes[]` entry -> worktype-name (migration
-// 264).
 export interface CapabilityRole {
   name: string;
   worktypes: string[];
 }
 
-// capability_definitions (migration 265, restructured migration 273) — a
-// standalone catalog table, no relationship to any other entity
-// structurally (only referenced BY other entities via its own Ontology
-// code, capability-name) — mirrors ServiceDefinitionRow's own shape.
 export interface CapabilityDefinitionRow {
   id: string;
   code: string;
@@ -593,28 +241,8 @@ export interface CapabilityDefinitionRow {
   schema_definition_id: string | null;
 }
 
-// CR-089 — Policy Definition (Book 3 Ch.24 §13), the chapter's own 7-state
-// lifecycle verbatim — has a Validated step Service Definition's own leaner
-// 6-state lifecycle doesn't (owner: "Stick to the policy lifecycle defined
-// in chapter 24 for policy").
 export type PolicyDefinitionStatus = "Draft" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 
-// Ch.17 §8's Definition-side Evidence shape — Title/Category/Description/
-// Collection Method. Every other §8 field (Identifier, Status, Source,
-// Confidence Level, Timestamp, Related-*, Provenance) is execution-only
-// (owner: "Source is execution side... Evidence is related to an
-// engineering artefact" — Ch.17 §10) — a definition declares what TYPE of
-// evidence is needed; the real Evidence Item, once actually captured and
-// related to a real artefact, carries the rest. Category is Ontology-backed
-// (category:evidence, Ch.17 §7's own 6 named categories). Two real call
-// sites, not a Pack contribution kind of its own (owner: "Pack does not
-// have a contributingEvidence"):
-//   - Policy's own conditions[].requiredEvidence (migration 215, upgraded
-//     from its own narrow {evidenceType, evidenceFormat} shape here).
-//   - ObligationDefinition's own requiredEvidence, below — reaches both of
-//     ObligationDefinition's own call sites (Policy's relatedObligations[]
-//     and Pack's contributionObligationDefinitions[]) without a separate
-//     mechanism.
 export interface EvidenceDefinition {
   title: string;
   category: string;
@@ -622,23 +250,6 @@ export interface EvidenceDefinition {
   collectionMethod: string;
 }
 
-// Ch.23 §8's Definition-side Obligation shape — Category/Title/Description/
-// Origin/Priority/Severity/Completion Criteria/Required Evidence. Status
-// and every other Related-*/Traceability field are execution-only
-// (CR-106) — an Obligation Definition declares a TYPE of Obligation; the
-// real instance, raised at SEU-execution time, carries the rest. One shared
-// shape, two real call sites (owner: "ObligationDefinition model has to be
-// created and used in both the places so changes are sustained all the
-// places correctly"):
-//   - Policy's own conditions[].relatedObligations[] (migration 216).
-//   - Pack's own contributionObligationDefinitions[] (migration 222) —
-//     layers its own Pack-scoped `code` and the §20 verifiable-item
-//     execution-mechanism fields (classification/prompt/participant/
-//     outputContract/assurance/externalEvidence) on top of this same shape;
-//     those sit outside Ch.23 §8 entirely, not part of this type.
-// Category/Origin/Priority/Severity are Ontology-backed (category:obligation,
-// category:obligation-origin, category:obligation-priority,
-// category:obligation-severity) at every call site.
 export interface ObligationDefinition {
   category: string;
   title: string;
@@ -652,21 +263,6 @@ export interface ObligationDefinition {
 
 export type PolicyRelatedObligation = ObligationDefinition;
 
-// Owner: "identifier: system generated" — assigned server-side on save
-// (sdkAuthoring.ts's toPolicyConditions), never author-typed.
-// exceptionApprovers holds real Authority Vocabulary badge codes
-// (`{noun}_{verb}`, authority_noun_verbs) — owner: "should have list of
-// badges that are Ontology driven... It means Reference authority_noun_verbs"
-// (not an Ontology concept type; badges have no ontology_concepts row).
-// Migration 220 (Ch.24, lines 388-394 — "An exception shall specify:
-// justification; approving authority; duration; scope; review
-// requirements"): exceptionStatement is justification, exceptionApprovers
-// is approving authority; duration/exceptionScope/reviewRequirements are
-// the three that were missing. exceptionScope is distinct from Policy's own
-// top-level `scope` (Transition/Eligibility) — this is what the exception
-// itself applies to (e.g. "this SEU only"), not the Policy's governance
-// mode. Owner: "Exceptions are defined only when Constraint type='Policy'"
-// — enforced in validatePolicyDefinitionSeed, not this type.
 export interface PolicyExceptionRule {
   identifier: string;
   exceptionStatement: string;
@@ -677,21 +273,6 @@ export interface PolicyExceptionRule {
   reviewRequirements: string;
 }
 
-// Migration 216 (owner: "I am inclined to move the applicability inside the
-// condition. That is more practical") — replaces the Policy Definition's
-// old top-level applicability_deliverables column: each condition now
-// independently names which deliverable(s)/noun(s) and transition(s) it
-// governs (owner's own example: "2 reviewers required for Code, sign-off
-// required for Deployment Plan" — two conditions, two different scopes, one
-// Policy). Same {name, transitions} shape migration 214 already established.
-//
-// Migration 219 (owner: "The governing condition should be within
-// applicability deliverables") — governingCondition moved OFF the condition
-// itself and into each row here: a condition naming several deliverables/
-// transitions can now give each one its own real governing rule, instead of
-// one rule shared by every row the condition happens to list.
-// null/unset means that row is manual/human-attested, never checked by
-// policyEngine.ts.
 export interface PolicyApplicabilityDeliverable {
   name: string;
   transitions: string[];
@@ -707,10 +288,6 @@ export interface PolicyCondition {
   exceptionRules: PolicyExceptionRule[];
 }
 
-// `policy_definitions` (167_policy_definitions.sql) — a new, standalone
-// canonical catalog, mirroring ServiceDefinitionRow's own shape, but with NO
-// relationship to any other entity (unlike Service Definition's 1:1 tie to
-// Capability) — owner: "there is no relationship with any other entity."
 export interface PolicyDefinitionRow {
   id: string;
   code: string;
@@ -719,11 +296,6 @@ export interface PolicyDefinitionRow {
   category: string;
   constraint_type: "Policy" | "Standard";
   applicability_environments: string[];
-  // Migration 216 — applicabilityDeliverables/governedTransition/
-  // governingCondition all moved OFF this row (dropped as real columns) and
-  // into each element of `conditions` (see PolicyCondition) — owner: "Scope
-  // can be outside the condition. Move it into the metadata... remove the
-  // applicability tab."
   conditions: PolicyCondition[];
   scope: PolicyScope;
   version: string;
@@ -748,29 +320,14 @@ export interface ProfileRow {
   authored_by: string;
   author_badge: string;
   draft_content: Record<string, unknown>;
-  // Profile identity foundation (owner, 2026-08-19): mirrors packs.tenant_id /
-  // templates.tenant_id + template_version + parent_template_id exactly
-  // (migration 064) — always a real tenants.id, the reserved Platform tenant
-  // for a platform-wide Profile, never NULL.
   profile_version: string;
   tenant_id: string;
   parent_profile_id: string | null;
-  // Ch.7 §8 Profile Categories — Ontology-rooted (concept type
-  // profile-categories, migration 065), kept as its OWN field, not folded
-  // into `code` the way Template's category is (see migration 064's comment).
-  // Nullable: every row created before this field existed has none.
   category: string | null;
-  // design/design whiteboards.md/schema_implementation.md — pins write-time
-  // schema validation to the schema version this row was actually authored
-  // against, mirroring templates.schema_definition_id (migration 267).
   schema_definition_id: string | null;
   created_at: string;
 }
 
-// 'Validated' (migration 178) — Chapter 8's own "Validate Engineering Model"
-// step, distinct from Composed/Active: a human confirms the composed EBM
-// (EBMValidated) before a separate, later action activates it (EBMActivated,
-// EBMStatus -> 'Active'). See design/mvp-build-plan/SEU Composition.md.
 export type EbmStatus = "Composed" | "Validated" | "Active" | "Superseded" | "Retired";
 
 export interface EbmComposedPack {
@@ -779,14 +336,6 @@ export interface EbmComposedPack {
   packVersion: string;
 }
 
-// CR-092 Part 6 (owner: "The composition engine should not resolve the
-// conflicts automatically... the human resolves it by picking which
-// source's value wins, right on the validation page") — a value-level
-// disagreement across two-or-more selected Profiles overriding the same
-// exposed parameter (Commissioning Parameter, CR-088) to different values.
-// Structured (not a flat string, unlike `conflicts` below) specifically so
-// the validation page can render a real per-conflict choice — one radio per
-// option — rather than just displaying the disagreement as dead-end text.
 export interface ParameterConflictOption {
   profileId: string;
   profileCode: string;
@@ -794,7 +343,7 @@ export interface ParameterConflictOption {
   value: string;
 }
 export interface ParameterConflict {
-  key: string; // "sourceType::sourceCode::parameterName"
+  key: string;
   sourceType: "service" | "policy" | "checklist" | "dependency";
   sourceCode: string;
   parameterName: string;
@@ -803,16 +352,7 @@ export interface ParameterConflict {
 
 export interface EbmCompositionReport {
   warnings: string[];
-  // Governance/Quality-Gate conflicts across the composed Packs
-  // (detectGovernanceConflicts, compositionEngine.ts) — unchanged, still a
-  // flat human-readable list; not yet given the same per-conflict
-  // resolution treatment as parameterConflicts below.
   conflicts: string[];
-  // Resolved by the human on the validation page (key -> the value they
-  // picked, one of that conflict's own ParameterConflictOption.value
-  // choices) before commissioning is allowed to proceed — a key present
-  // here is no longer reported as a live conflict (compositionEngine.compose
-  // excludes it, given the same map back).
   parameterConflicts: ParameterConflict[];
   resolutions: string[];
 }
@@ -826,35 +366,13 @@ export interface EbmRow {
   composition_report: EbmCompositionReport;
   status: EbmStatus;
   version: number;
-  // migration 182 — the actual resolved behavioural content (Chapter 3 §7's
-  // own Behaviour Categories), not just which Packs composed. {pool: the
-  // full flat pool unravelComposition computed, resolvedCompositionConflicts:
-  // what each conflict actually resolved to} — loosely typed here for the
-  // same reason seus.composition_report is (dblayer has no business
-  // importing domain/engine's PoolEntry shape).
   behaviors: Record<string, unknown> | null;
-  // CR-104 — this EBM's own materialised governance: real Quality Gate/
-  // Policy row ids, resolved once at EBM creation from its composed Packs'
-  // own originating_pack_id (migration 203). The engines read these directly
-  // instead of a bare (entity_type, from_state, to_state) match that ignores
-  // composition entirely.
   applicable_quality_gate_ids: string[];
   applicable_policy_ids: string[];
-  // CR-104 — a distinct subset of applicable_policy_ids: Policies governing
-  // the SEU's own lifecycle transition (governed_transition entity type
-  // 'SEU'), read directly by commissioning.ts for its own transitions, never
-  // by policyEngine's entity-scoped check.
   seu_scoped_policy_ids: string[];
   created_at: string;
 }
 
-// 'Failed' (migration 177) — a commissioning attempt that died during
-// "Validate Request" or "Compose EBM", before ever reaching Commissioned.
-// Distinct from 'Retired' (reached only from Operational, after a full
-// successful run) — never reused for an early failure. Excluded from the
-// "at most one active SEU per Objective" uniqueness check (migration 179),
-// same as 'Retired'/'Archived' — see design/mvp-build-plan/SEU Composition.md,
-// "Retry after a failed commission".
 export type SeuLifecycleState =
   | "Pending"
   | "Commissioned"
@@ -867,11 +385,6 @@ export type SeuLifecycleState =
   | "Failed";
 
 export interface CommissioningReport {
-  // CR-092 Part 6 — templateCode/profileCode stay the single "primary"
-  // (seus.template_id/profile_id can only ever hold one each);
-  // templateCodes/profileCodes record the full set actually composed
-  // together, since a commissioning request may now name one or more of
-  // each (owner: "Multiple profiles are very much possible").
   identity: { seuId: string; templateCode: string; profileCode: string; templateCodes: string[]; profileCodes: string[]; ebmId: string };
   composition: { packsUsed: string[]; warnings: string[]; conflicts: string[] };
   validation: { errors: string[] };
@@ -888,15 +401,6 @@ export interface SeuRow {
   lifecycle_state: SeuLifecycleState;
   requested_by: string | null;
   commissioning_report: CommissioningReport | Record<string, never>;
-  // migration 180 — Compose EBM's own real output (unravelComposition/
-  // detectCompositionConflicts), written by ebmComposerHandler and by
-  // "Apply & re-validate" — never Validate Request's own output. Named for
-  // what it is (owner: "why are you using the word validate and compose in
-  // the same sense? Have i not told you multiple times they are not the
-  // same"), matching ebms.composition_report at the SEU level. Loosely typed
-  // here (dblayer has no business importing domain/engine's
-  // UnraveledComposition/CompositionConflict shapes) — the caller casts to
-  // the real shape it expects.
   composition_report: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
@@ -911,9 +415,6 @@ export interface SeuCapabilityRow {
   status: SeuCapabilityStatus;
 }
 
-// Migration 194 — Ontology-backed (concept_type 'participant-types'), not a
-// hardcoded union; validity is enforced at the write path via
-// assertCanonicalCategory, not by the TS type.
 export type ParticipantType = string;
 export type ParticipantState = "Created" | "Available" | "Assigned" | "Executing" | "Idle" | "Released" | "Archived";
 
@@ -923,70 +424,28 @@ export interface ParticipantRow {
   type: ParticipantType;
   display_name: string;
   state: ParticipantState;
-  // Migration 195 — renamed from user_id, repointed from users(id) to
-  // participants_master(id). This is a per-SEU engagement of a
-  // participants_master resource (CR-098); NOT the same reference as
-  // CapabilityFulfilmentRow.participant_id below, which points at THIS
-  // table's own id instead.
   participant_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-// Migration 195 (CR-098, Ch.13 §8) — the tenant-scoped, cross-SEU resource
-// registry: one row per real identity (a human, an AI agent configuration,
-// an Automated integration, an External authority), reusable across many
-// SEU engagements over time. `participants` (above) is one engagement of a
-// participants_master resource into one SEU's lifecycle.
 export interface ParticipantMasterRow {
   id: string;
   tenant_id: string;
-  // Ontology-backed (participant-types), same as ParticipantRow.type.
   type: ParticipantType;
   display_name: string;
-  // Array of capability-name Ontology codes — "Harry can fulfil development
-  // and code-review capabilities."
   capabilities: string[];
-  // { <category:pack code>: [{code, proficiency}] } — CR-099: dimension keys
-  // are category:pack's own codes (Domain/Technology/...), not a separate
-  // competency-dimension concept type. Each code carries its own proficiency
-  // (Ontology-backed, concept type "proficiency-level": Novice/Intermediate/
-  // Expert) — Dispatch Strategy input (Ch.33 §7/§9), a Participant can hold
-  // several competencies at different proficiency levels.
   competency: Record<string, Array<{ code: string; proficiency: string }>>;
-  // Dispatch Strategy input (Ch.33 §9 Cost Optimisation). Null = no cost
-  // recorded, not zero — a Cost Optimisation attempt with no cost data for a
-  // candidate simply can't rank it, same "no data, no ranking" discipline as
-  // the SLA-less Service Level case (dispatchEngine.ts's own
-  // resolveTurnaroundSeconds).
   cost: number | null;
-  // Ch.13 §14 Behaviour Context — array of {policy, payload}; policy is
-  // Ontology-backed (behaviour-context-policy), payload has no fixed shape.
   behaviour_context: Array<{ policy: string; payload: Record<string, unknown> }>;
-  // Migration 254 — standing authorisation grants distinct from the
-  // noun_verb badge model (requireBadge.ts governs transition authority;
-  // this is which standing role(s), if any, this identity holds and until
-  // when). role is Ontology-backed (authorised-role). seu_ids empty means
-  // the role applies across every SEU (tenant/platform-wide).
   authorised_role: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
-  // Migration 257 — noun x verb badges, standing-grant shape mirroring
-  // authorised_role above. Separate from (not a replacement for) the
-  // existing User-keyed badge_grants table (owner: "if badge_grants is a
-  // separate table that is fine. it addresses what is required") — this is
-  // the Participant identity's own record, not a re-key of that table.
   authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }>;
   is_active: boolean;
-  // Only ever set for a Human-type master — the real login this identity
-  // corresponds to (carries forward participants.user_id's old purpose,
-  // the SDK UI Layer Plan's "SEUs I'm a Participant on" visibility filter).
   user_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-// Migration 194 — widened alongside ParticipantType: every fulfilment
-// strategy is either an Ontology-backed Participant Type or one of the two
-// multi-Participant strategies (FR-13.4) that aren't a Participant Type at all.
 export type FulfilmentStrategy = ParticipantType | "Hybrid" | "Composite";
 
 export interface CapabilityFulfilmentRow {
@@ -1006,20 +465,9 @@ export interface DeliverableRow {
   id: string;
   seu_id: string;
   name: string;
-  // CR-087 follow-up — no longer authored on the Template's Deliverable
-  // Catalogue (owner: "producing capability code does not require an
-  // editable field... schema has to reflect the changes" — category dropped
-  // alongside it); nullable now (deliverables.category, migration 163) since
-  // a Template-commissioned Deliverable no longer supplies one. Still
-  // required on the separate manual "add a Deliverable to a live SEU" path
-  // (core/deliverables.ts's own createDeliverable, its own API-supplied
-  // input.category), which is unrelated to Template authoring.
   category: string | null;
-  // The deliverable-name Ontology code this row was created from — canonical,
-  // unlike `name` (a resolved display label). Null for the manual "add a
-  // Deliverable to a live SEU" path, which has no catalogue entry.
   code: string | null;
-  lifecycle_state: string; // not a fixed union — see Build Plan §2.3, validated by transitionEngine, not the DB
+  lifecycle_state: string;
   acceptance_criteria: unknown[];
   acquisition_scope: AcquisitionScope;
   producing_capability_id: string | null;
@@ -1030,19 +478,8 @@ export interface DeliverableRow {
 export type DependencyType = "Deliverable" | "Capability";
 export type ReadinessState = "Unknown" | "Pending" | "Satisfied" | "Blocked";
 
-// CR-039 — canonical, Template-scoped dependency graph replacing
-// dependency_edges' per-SEU-instance rows (migration 072's own header comment
-// has the full design rationale). entity_type is deliberately not narrowed to
-// TransitionEntityType here: Capability is a valid from/to type but carries no
-// transition_definitions state machine of its own (it's a Service-fulfilment
-// check, not a lifecycle), so the column stays plain string at the type level
-// too, same as the DB column.
 export type DependencyDefinitionEntityType = TransitionEntityType | "Capability";
 
-// CR-043 — a rule can be authored on the Template it's a fact about, a Pack
-// (applies wherever that Pack gets composed, across every Template that
-// pulls it in), or a Profile (environment-specific). No real FK — same
-// soft-reference tradeoff as related_object_type/related_object_id.
 export type DependencyDefinitionOwnerType = "Template" | "Pack" | "Profile";
 
 export interface DependencyDefinitionRow {
@@ -1066,24 +503,12 @@ export interface AuthorityRuleRow {
   authorised_role: string;
   originating_pack_id: string | null;
   created_at: string;
-  // Phase 10 (badge model, design/mvp-build-plan/Phase 10 - User Management
-  // and Dual Authority Design.md §9) — replaces authorised_role for
-  // migrated entity types. Deliverable is the first; authorised_role stays
-  // live for everything not yet migrated.
   required_badge_type: string | null;
   required_rank: number | null;
 }
 
 export type ConstraintType = "Policy" | "Standard";
 
-// CR-104 — "Transition" (the original, only shape until now): governs a real
-// state-machine hop, named by governed_transition, checked either at that
-// SEU's own lifecycle transition (SEU-scoped) or at an owned entity's own
-// transition (Deliverable/AttentionItem/etc — EBM-scoped). "Eligibility":
-// governs whether a Participant may be selected to fulfil a Capability at
-// all (Ch.12/33's own "who's eligible" question) — no transition involved,
-// governed_transition stays null, checked against a candidate Participant's
-// own behaviour_context instead.
 export type PolicyScope = "Transition" | "Eligibility";
 
 export interface PolicyRow {
@@ -1097,11 +522,6 @@ export interface PolicyRow {
   condition: Record<string, unknown>;
   severity: string;
   originating_pack_id: string | null;
-  // Migration 211 — real runtime enforcement of Policy's own Applicability
-  // Deliverable Names (previously declared on the Definition only, never
-  // copied here or consulted by policyEngine.ts). Same shape/semantics as
-  // quality_gates.applicability_deliverable_names: empty = matches every
-  // Deliverable name; non-empty narrows to just those named.
   applicability_deliverable_names: string[];
   created_at: string;
 }
@@ -1121,44 +541,13 @@ export type TransitionEntityType =
   | "Participant"
   | "Review"
   | "Finding"
-  // Entity-direct authoring (bug fix correcting CR-014): Template/Profile are
-  // authored as Draft rows driven through their own governed Draft->Active
-  // transition (verb `publish` → template_publish/profile_publish).
   | "Template"
   | "Profile"
-  // CR-086 follow-on — Service Definition (Ch.11 §13): the chapter's own
-  // 6-state lifecycle (Defined -> Published -> Active -> Deprecated ->
-  // Retired -> Archived) verbatim, entity-direct authoring same as
-  // Template/Profile above.
   | "Service"
-  // CR-089 — Policy Definition (Ch.24 §13): the chapter's own 7-state
-  // lifecycle (Draft -> Validated -> Published -> Active -> Deprecated ->
-  // Retired -> Archived) verbatim, entity-direct authoring same as
-  // Template/Profile/Service above.
   | "Policy"
-  // CR-111 — Capability Definition Registry: Service Definition's own lean
-  // 6-state lifecycle (Defined -> Published -> Active -> Deprecated ->
-  // Retired -> Archived) verbatim, entity-direct authoring same as
-  // Template/Profile/Service/Policy above.
   | "Capability"
-  // design/mvp-build-plan/SEU Composition.md — the EBM's own Composed ->
-  // Validated -> Active transitions (Chapter 3's own EBMValidated/
-  // EBMActivated), two separate, independently human-triggered actions, not
-  // a cascade. entity_type's own DB CHECK constraint was already dropped
-  // (migration 036) — this is a TS-side addition only, no migration needed.
   | "EBM"
-  // Ch.18 Ontology Model, migration 190 — a Concept's own real governed
-  // lifecycle (Active -> Deprecated -> Retired -> Archived), replacing the
-  // old flat is_active boolean. No Draft/Validated/Published prefix: a
-  // concept goes live the moment it's added (no review workflow, §18.8), so
-  // Active is the initial state, not a birth transition.
   | "Ontology"
-  // CR-115 — Ch.39 §15 SDK Element Schema lifecycle (schema_definitions'
-  // own lifecycle_state): Created -> Validated -> Tested -> Packaged ->
-  // Published, with a Packaged -> PublicationRejected branch. Entity-direct
-  // authoring (Created is the row's own INSERT-time default, not a birth
-  // transition), same convention as Ontology/Pack/Template/Profile/Service/
-  // Policy/Capability above.
   | "SchemaDefinition";
 
 export interface TransitionDefinitionRow {
@@ -1168,50 +557,19 @@ export interface TransitionDefinitionRow {
   to_state: string;
   required_authority_rule_id: string | null;
   required_policy_ids: string[];
-  // SDK UI Layer Plan — reference only, never read by transitionEngine or
-  // qualityGateEngine (forking the lookup key by category was considered and
-  // rejected; Quality Gates apply uniformly regardless of category).
   category: string | null;
-  // SDK UI Layer Plan, Transition Definition section — explicit references,
-  // opt-in per row (default []), read by transitionEngine.evaluate itself.
   required_quality_gate_ids: string[];
-  // An Obligation category to raise on a successful transition, or null for
-  // none ("creates, does not block"). Stored; not yet mechanically enforced.
   creates_obligation: string | null;
-  // CR-006 (035) — the verb this transition requires; the required badge is
-  // `entity_type + '_' + verb`. CR-007 (036) — soft-retire flag + timestamp.
   verb: string | null;
   is_active: boolean;
   retired_at: string | null;
-  // CR-072 — what causes this transition to be attempted at all (independent
-  // of required_authority_rule_id/policies/quality-gates, which only govern
-  // whether an attempt succeeds, not what initiates one). "manual": an actor
-  // has to explicitly decide to attempt it. "governed": the event bus itself
-  // drives it once conditions are met (not yet built — deferred until a real
-  // case exists). submit_verb is null unless a Submit step has actually been
-  // defined for this row (badge = `entity_type + '_' + submit_verb`) — a row
-  // can be trigger='manual' with submit_verb still null, meaning its own
-  // Submit behavior isn't modeled yet and it keeps behaving exactly as
-  // before (a plain badge-gated action button, no queue step).
   trigger: "manual" | "governed";
   submit_verb: string | null;
-  // Version Feature Plan.md §3 — the literal domain event this transition
-  // produces (replaces hardcoded per-entity *_TRANSITION_EVENT maps), the
-  // Chapter 41 §15 Version event it also constitutes (null for a pure
-  // Revision), and — for a row whose submit_verb queues a Submit step —
-  // that step's own Version event (e.g. Objective's VersionCreated fires on
-  // submit, not on the row's own to_state transition).
   event_type: string | null;
   version_event: string | null;
   submit_version_event: string | null;
 }
 
-// CR-109 §6.1 — the Governance Evaluation Outcome record. Written once per
-// PASSING evaluateDeliverableTransition call (migration 233's own header
-// comment: a blocked attempt is never recorded here — that history already
-// exists as Obligations/AttentionItems against the Deliverable/SEU
-// directly). Consumed by Command generation (governance_outcome_id) and,
-// downstream, by the Work Item Generator's Execution Context (§6.3).
 export type GovernedEntityType = TransitionEntityType;
 export type GovernanceOutcome = "Approved" | "Approved-with-Conditions" | "Deferred" | "Rejected" | "Escalated" | "Waived";
 export type QualityGateOutcomeCode = "Passed" | "NotApplicable" | "Waived";
@@ -1239,14 +597,8 @@ export interface GovernanceEvaluationOutcomeRow {
   created_at: string;
 }
 
-// What evaluateDeliverableTransition builds and returns on its ok:true path
-// — not yet a persisted row. execute() is the write boundary that inserts
-// it (governanceEvaluationOutcomesDB.create) and gets id/evaluated_at back.
 export type GovernanceEvaluationOutcomeInput = Omit<GovernanceEvaluationOutcomeRow, "id" | "created_at" | "evaluated_at">;
 
-// evaluateDeliverableTransition itself doesn't yet know who's authoring the
-// outcome (that's resolved in execute(), same real actorId/actingBadgeType
-// the eligible-Participant pool snapshot uses) — it builds everything else.
 export type GovernanceEvaluationOutcomeDraft = Omit<GovernanceEvaluationOutcomeInput, "author_id" | "author_badge">;
 
 export type CommandStatus = "Generated" | "Dispatched" | "Completed" | "Deferred" | "Cancelled" | "Failed";
@@ -1263,25 +615,12 @@ export interface CommandRow {
   requested_by: string;
   acting_badge_type: string | null;
   correlation_id: string;
-  // CR-109 §6.2 — governanceOutcomeRef: set once at creation, in execute(),
-  // to the governance_evaluation_outcomes row the passing evaluation built.
   governance_outcome_id: string | null;
-  // Ch.12 §9 / CR-109 §6.2 — eligibleParticipantPoolRef: set once at
-  // creation, to the capability_fulfilment_pools snapshot execute() took of
-  // Ch.12's own real multi-Participant pool. Null when no producing
-  // Capability was declared for this Command at all (dispatchEngine's own
-  // pre-existing NO_CAPABILITY_DECLARED path — no pool concept applies).
   eligible_participant_pool_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-// Ch.12 §9 / CR-109 §6.2 — a snapshot of the eligible-Participant pool
-// (capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId's own result) at
-// the moment a Command was generated for it. `participant_ids` is
-// `participants.id` (the per-SEU-Capability engagement row), the same id
-// space `capability_fulfilments.participant_id` already uses — not
-// `participants_master.id`.
 export interface CapabilityFulfilmentPoolRow {
   id: string;
   seu_id: string;
@@ -1293,9 +632,6 @@ export interface CapabilityFulfilmentPoolRow {
   author_badge: string;
 }
 
-// Participant Integration & Attestation — Plan step 2 (Resolution 3). The raw
-// VCS reference a Participant returns at any completion — candidate output, not
-// certified. Durable, append-only; the traceability backbone (Ch.20).
 export interface DeliverableReferenceRow {
   id: string;
   seu_id: string;
@@ -1310,8 +646,6 @@ export interface DeliverableReferenceRow {
   created_at: string;
 }
 
-// Participant Integration — Plan step 5. An outstanding Work Item enriched with
-// the Deliverable + transition it drives, for the human-on-UI work queue.
 export interface OutstandingWorkItemDetail {
   id: string;
   seu_id: string;
@@ -1325,10 +659,6 @@ export interface OutstandingWorkItemDetail {
   created_at: string;
 }
 
-// Participant Integration — Plan step 5. Per-Capability execution target: how
-// the fulfilling Participant is reached (human-on-UI vs external orchestrator).
-// Tenant-scoped in step 6 (Resolution 8): the same pack-global Capability can be
-// reached differently per tenant.
 export type ExecutionMode = "human-on-ui" | "external-orchestrator";
 
 export interface ExecutionTargetRow {
@@ -1342,73 +672,26 @@ export interface ExecutionTargetRow {
   updated_at: string;
 }
 
-// Ontology Model — Plan (Phase 17, Ch.18). Canonical vocabulary + per-tenant
-// rename-only alias layer resolved at read time.
 export interface OntologyConceptRow {
   id: string;
   concept_type: string;
   code: string;
   default_label: string;
-  // CR-023: the longer "when to use this" guidance text, separate from the
-  // short default_label. Generic to any concept_type; null where unset.
   description: string | null;
-  // Migration 191 — which of the two ways `description` should render:
-  // 'text' (escaped plain text) or 'markdown' (renderMarkdown, CR-094).
-  // Author's own per-concept choice, not inferred from content or
-  // concept_type — defaults to 'markdown' (every pre-191 row's existing
-  // behaviour, unchanged).
   text_type: "text" | "markdown";
-  // Migration 191 — CR-096's "which UI group does this concept_type belong
-  // to" replaced from a code-side inference + hardcoded label map with a
-  // direct data column: set on a row whose `code` names ANOTHER concept_type
-  // (e.g. profile-configuration's own 'ai-provider-preference' row), this
-  // value is both the group membership marker and the group's own display
-  // label (core/ontology.ts's getConceptTypeNav). Null on every ordinary row.
   ui_grouping: string | null;
   contributed_by_pack: string | null;
-  // Migration 190 (Ch.18 §11/§12) — replaces the old flat is_active boolean
-  // with a real governed lifecycle + version. One row per Version now (unique
-  // on concept_type/code/tenant_id/version, same shape as Pack/Template/
-  // Profile/Service Definition); "the concept" for validation/picker purposes
-  // is whichever row has status = 'Active' for a given (concept_type, code,
-  // tenant_id) — never more than one at a time, enforced by application
-  // discipline (auto-supersede-previous-on-new-version), not a DB constraint,
-  // same as every other multi-version entity in this codebase.
   version: string;
   status: "Draft" | "Active" | "Deprecated" | "Retired" | "Archived";
-  // Composition (owner: "allow tenants to compose using the composition
-  // strategy that packs already have implemented") — Specialization/Override
-  // only; see migration 190's own header for why the other 4 compositionEngine
-  // strategies don't apply to a 2-field entity. Null on a plain, non-composed
-  // add/edit — Compose is an opt-in explicit action, not implied by every edit.
   composition_strategy: "specialization" | "override" | null;
   composition_sources: Array<{ conceptId: string; code: string }>;
-  // CR-022: Platform's tenant_id for the shared canonical set; a tenant's own
-  // tenant_id for their own vocabulary.
   tenant_id: string;
   created_at: string;
-  // CR-091 — generic, nullable, meaningful only for `profile-configuration`
-  // concepts today (same "generic column, not special-cased" discipline
-  // description/status already established): whether the Configuration
-  // Parameter this concept names is mandatory on a Profile. A tenant
-  // overrides it by inserting their own (concept_type, code, tenant_id) row
-  // with the opposite value — no separate override mechanism, the same
-  // "tenant's own row wins" resolution every other Ontology concept already
-  // has (see ontologyDB.findConcept's own tenant-preference ordering).
   is_mandatory: boolean | null;
-  // Migration 285 — participants_master.id + the badge behind it, both NOT
-  // NULL, same "never defaulted" discipline as schema_definitions
-  // (seedSchemaDefinitions.ts's own header). Creation itself stays ungoverned
-  // (no transition, per core/ontology.ts's own header) — this only records
-  // who made the write and under which held badge, same as capability_definitions'
-  // own authored_by/author_badge on createDraft.
   author_id: string;
   author_badge: string;
 }
 
-// CR-113 item 6 — mirrors ObjectiveCommentRow/objective_comments (migration
-// 125): a Draft concept's Reject requires one of these on every use (its own
-// feedback), same discipline as Objective's Active -> Reject.
 export interface OntologyConceptCommentRow {
   id: string;
   concept_id: string;
@@ -1427,8 +710,6 @@ export interface TenantConceptAliasRow {
   updated_at: string;
 }
 
-// Compliance Model — Plan (Phase 15, Ch.27). Compliance composes existing
-// primitives; these are the only new persisted models.
 export type ComplianceStatus = "Compliant" | "Compliant with Exceptions" | "Partially Compliant" | "Non-Compliant" | "Compliance Unknown";
 
 export interface ComplianceFrameworkRow {
@@ -1473,8 +754,6 @@ export interface ComplianceEvaluationRow {
   created_at: string;
 }
 
-// Review Model — Plan (Phase 14, Ch.25). A governed evaluation of an engineering
-// object; produces an immutable outcome Governance consumes.
 export type ReviewOutcome = "Passed" | "Passed with Recommendations" | "Rework Required" | "Failed" | "Not Applicable" | "Deferred";
 
 export interface ReviewRow {
@@ -1489,12 +768,6 @@ export interface ReviewRow {
   status: string;
   reviewer: string | null;
   version: number;
-  // CR-059 — nullable FK to review_gates(id): which Review Gate declaration
-  // (if any) this Review was produced against. Null for standalone Reviews
-  // unrelated to any gate. qualityGateEngine's requires_accepted_review
-  // matches on this directly, not on `category` (a string match couldn't
-  // tell which transition's Review was intended, or that the Review
-  // actually followed the gate's own declared prompt/participant contract).
   review_gate_id: string | null;
   author_id: string;
   author_badge: string;
@@ -1502,8 +775,6 @@ export interface ReviewRow {
   updated_at: string;
 }
 
-// Review Model — Plan (Phase 14, Ch.25 §12). A Finding is an observation from a
-// Review; an independent, traceable object that can be converted to an Obligation.
 export interface FindingRow {
   id: string;
   review_id: string;
@@ -1519,9 +790,6 @@ export interface FindingRow {
   updated_at: string;
 }
 
-// Participant Integration — Plan step 6 (Resolution 8). The minimal tenancy
-// slice: a tenant owns SEUs and carries the edge configuration their Work Items
-// run against.
 export interface TenantRow {
   id: string;
   code: string;
@@ -1529,8 +797,6 @@ export interface TenantRow {
   created_at: string;
 }
 
-// The remaining tenant declarations (§2.1 #1/#3/#4) — opaque JSONB the core
-// stores and the edge interprets.
 export interface TenantContractRow {
   id: string;
   tenant_id: string;
@@ -1541,8 +807,6 @@ export interface TenantContractRow {
   updated_at: string;
 }
 
-// Minted only at an acceptance transition (In Progress -> Approved, Approved ->
-// Baselined). The SEU-scoped governance outcome bound to a commit (Resolution 3).
 export interface AttestationRow {
   id: string;
   seu_id: string;
@@ -1565,27 +829,14 @@ export interface WorkItemRow {
   participant_id: string | null;
   status: WorkItemStatus;
   dispatch_strategy: string | null;
-  // Ch.33 §14 Redispatch — incremented once per RedispatchRequested attempt.
   dispatch_attempts: number;
-  // Participant Integration — Plan step 1: the raw VCS reference the
-  // Participant returns on completion (candidate output; distinct from the
-  // attestation minted at an acceptance transition).
   output_reference: string | null;
-  // Participant Integration — Plan step 4: the deadline set when the Work Item
-  // is assigned to a Participant (dispatched_at + the Capability's turnaround
-  // SLA). Null when no SLA is declared. An outstanding Work Item past this time
-  // is stalled and escalates to an Attention Item.
   target_completion_at: string | null;
-  // CR-109 §6.3/Ch.32 §7/§11 — resolved once, at generation, by
-  // workItemGenerator.generate. Null only for Work Items generated before
-  // this column existed.
   execution_context: WorkItemExecutionContext | null;
   created_at: string;
   updated_at: string;
 }
 
-// Ch.32 §11's list, resolved to actual content (not references the
-// Participant has to chase) — see workItemGenerator.ts.
 export interface WorkItemExecutionContext {
   engineeringObjective: string;
   relevantDeliverable: { id: string; name: string; lifecycleState: string };
@@ -1600,20 +851,8 @@ export interface WorkItemExecutionContext {
   activeObligations: Array<{ id: string; title: string; status: string }>;
   openAttentionItems: Array<{ id: string; title: string; status: string }>;
   qualityGate: { id: string; name: string; outcome: string } | null;
-  // CR-108 follow-on (owner: "WorkItem Generator has to include everything in
-  // the EBM relevant to that deliverable including obligations, evidences,
-  // knowledge") — Engineering Practices (Checklist items) and Engineering
-  // Capital from every Pack that contributed this Deliverable's own
-  // producing Capability (matched via the EBM pool's source.code, the same
-  // link the pool already carries — see workItemGenerator.ts).
   applicableChecklists: Array<{ packCode: string; checklistName: string; statement: string }>;
   engineeringCapital: Array<{ packCode: string; type?: string; url?: string }>;
-  // The Profile's own execution-relevant Configuration Parameters (owner:
-  // "like methodology, environment etc" — explicitly NOT
-  // dispatchStrategyPreference/redispatchMaxAttempts/redispatchAttentionThreshold/
-  // compositionOptions/featureFlagCodes/additionalCapabilityCodes, which are
-  // Execution/Dispatch Engine and EBM-composition mechanics, not work
-  // content). Any field the Profile never set is simply absent.
   profileConfiguration: Partial<{
     developmentMethodology: string; environment: string; primaryProgrammingLanguage: string; sourceControlProvider: string;
     targetCloudProvider: string; deploymentStrategy: string; aiProviderPreference: string; defaultRepositoryStructure: string;
@@ -1634,33 +873,17 @@ export interface EventRow {
   event_type: string;
   originating_object_type: string;
   originating_object_id: string;
-  // Ch.30 Event Bus redesign — the SEU this event happened under, distinct
-  // from originating_object_type/id (which name the specific entity the
-  // event is about, e.g. a single Evidence row — not which SEU it belongs
-  // to). Null for entities with no single owning SEU (Objective, Pack,
-  // Template, Profile, DeliverableDefinition).
   seu_id: string | null;
   correlation_id: string;
   causation_id: string | null;
   payload: Record<string, unknown>;
-  // Accountability record (bug fix correcting CR-014): the real acting user and
-  // the resolved `noun_verb` badge the transition was authorised under. Null for
-  // pre-existing rows and ungoverned/system events that have no actor.
   actor_id: string;
   authority_badge: string;
   occurred_at: string;
-  sequence: string; // BIGSERIAL comes back as string via pg's default int8 handling
-  // Ch.30 Event Bus redesign — per-handler dispatch outcome, keyed by
-  // handler_name. Populated at publish time from the same lookup that
-  // determines who to notify; {} when nobody subscribes to this event_type.
+  sequence: string;
   consumption_state: Record<string, EventConsumptionEntry>;
 }
 
-// CR-117 — indexes the real `events` row by its `transition_definitions.
-// version_event` classification (VersionCreated/VersionPublished/etc.),
-// written by eventBus.publish() itself alongside the real event, never a
-// second publish. One row per version-classified hop; pure Revisions (null
-// version_event) get no row.
 export interface VersionEventRow {
   id: string;
   event_id: string;
@@ -1680,13 +903,6 @@ export interface EventSubscriptionRow {
   handler_name: string;
 }
 
-// Post-MVP Phase 4 (Ch.23 Obligation Model). status is not a fixed union —
-// see Build Plan §2.3 precedent for Deliverable.lifecycle_state — validated
-// by transitionEngine, not the DB.
-// Post-completion fix (Open Design Questions.md #3): related_object_type/id
-// replace a single Deliverable-only FK, same polymorphic pattern
-// attention_items already uses and for the same reason — no FK constraint is
-// possible once the related object can be any governed entity type.
 export interface ObligationRow {
   id: string;
   seu_id: string;
@@ -1697,40 +913,17 @@ export interface ObligationRow {
   description: string | null;
   severity: string;
   status: string;
-  // Migration 226 (CR-106 Option C) — Ch.23 §8's Origin/Priority/Completion
-  // Criteria, closing the execution-side gap the Definition-side shape
-  // (ObligationDefinition) already had. Nullable — every Obligation raised
-  // before this migration has none of these.
   origin: string | null;
   priority: string | null;
   completion_criteria: string | null;
-  // Which governed transition this Obligation is blocking, set only by
-  // raiseObligationForBlockedTransition — null for every other Obligation
-  // origin (Telemetry, Knowledge promotion, manual API).
   blocked_from_state: string | null;
   blocked_to_state: string | null;
-  // Migration 251 — execution-side additions, distinct from the Definition.
-  // version: a plain revision counter, bumped on every real transition
-  // (obligationsDB.updateStatus), same convention as Objective/Pack/Template/
-  // Profile's own real `version` field (Version Feature Plan.md).
   version: number;
-  // Which specific entity raised this Obligation — a real pointer, unlike
-  // `origin`'s own categorical label. Defaults to ("EBM", the SEU's own
-  // active_ebm_id) at creation when no more specific one is known.
   originating_entity_type: string | null;
   originating_entity_id: string | null;
-  // Who/what this Obligation is currently assigned to for resolution — a
-  // Participant or a SEU, or null (unassigned; real assignment workflow is
-  // not yet built, Ch.23 §19.10).
   assigned_entity_type: string | null;
   assigned_entity_id: string | null;
-  // Migration 252 — append-only diff log of plain field edits (Revisions),
-  // each { occurred_at, actor_id, changes: { field: { from, to } } }. Written
-  // only by reviseObligation, never by a transition.
   revision_history: Array<Record<string, unknown>>;
-  // Migration adding author_id/author_badge (obligations_schema_recovery.sql)
-  // — same shape as every other seu_id-scoped entity's authorship pair:
-  // author_id is a FK to participants(id), not participants_master.
   author_id: string;
   author_badge: string;
   created_at: string;
@@ -1739,9 +932,6 @@ export interface ObligationRow {
 
 export type QualityGateOutcomeValue = "Passed" | "Passed with Conditions" | "Blocked" | "Waived" | "Deferred" | "Not Applicable";
 
-// Post-MVP Phase 4 (Ch.26 Quality Gate Model). criteria is declarative but
-// MVP's qualityGateEngine only interprets one shape:
-// { type: "no_unresolved_obligations" }.
 export interface QualityGateRow {
   id: string;
   code: string;
@@ -1752,32 +942,14 @@ export interface QualityGateRow {
   to_state: string;
   criteria: Record<string, unknown>;
   originating_pack_id: string | null;
-  // CR-058 — a Quality Gate versions independently of the contributing
-  // Pack's own version (owner: "a pack can still be 1.0, but the quality
-  // gate associated with it moves to 1.4"). New immutable row per version,
-  // is_active marks the current one for a given (entity_type, from_state,
-  // to_state, category) tuple.
   version: string;
   is_active: boolean;
   created_at: string;
-  // CR-060 — real ids of Checklists this gate requires (AND across the
-  // list). See PackContributions.qualityGates' own checklistIds comment.
   checklist_ids: string[];
-  // CR-060, revised same day — advisory Checklists; see
-  // PackContributions.qualityGates' own recommendedChecklistIds comment.
   recommended_checklist_ids: string[];
-  // CR-104 (migration 203) — real deliverable-name codes this gate targets;
-  // empty = applies to every Deliverable reaching this (entity_type,
-  // from_state, to_state), same as before this field existed. Mirrors
-  // policy_definitions.applicability_deliverable_names' own shape.
   applicability_deliverable_names: string[];
 }
 
-// CR-059 — Review Gate, real and persisted. No `category`/`criteria`: the
-// key IS the identity (entity_type, from_state, to_state, code), same
-// reasoning quality_gates' own VerifiableItemFields stay declaration-only
-// (never real columns here either — the Pack's raw contributions JSONB is
-// still where statement/prompt/participant/etc. live).
 export interface ReviewGateRow {
   id: string;
   code: string;
@@ -1788,23 +960,11 @@ export interface ReviewGateRow {
   originating_pack_id: string | null;
   version: string;
   is_active: boolean;
-  // CR-060 — same as QualityGateRow's own checklist_ids.
   checklist_ids: string[];
-  // CR-060, revised same day — same as QualityGateRow's own
-  // recommended_checklist_ids.
   recommended_checklist_ids: string[];
   created_at: string;
 }
 
-// CR-060 — Checklist, real and persisted despite no version/lifecycle of
-// its own (Ch.47 §16, as edited: "nothing outside its own Pack ever holds a
-// stable reference to a specific Checklist" — model reach, not a ban on a
-// real table, owner: "Checklist can be in a table to get a fk"). `id` stays
-// stable across every republish of `originating_pack_id` (checklistsDB.upsert
-// keys on (originating_pack_id, name)). `originating_pack_id` is provenance
-// only, not a reference-scoping constraint — any Pack's gate may reference
-// any Pack's Checklist by id (owner: "any Pack's gate can point at any
-// Pack's checklist, same reach as Policy").
 export interface ChecklistRow {
   id: string;
   name: string;
@@ -1828,13 +988,6 @@ export interface QualityGateEvaluationRow {
   evaluated_at: string;
 }
 
-// CR-058 §13 — a waiver applies to one specific blocked entity instance
-// (quality_gate_id + entity_type/entity_id), not the gate definition
-// globally: the same gate can be waived for one Deliverable without waiving
-// it for every other entity it also applies to. Modeled on
-// ComplianceWaiverRow's shape but badge-gated (authority_badge NOT NULL) —
-// Compliance's own grantedBy-only waiver has no authority check at all,
-// deliberately not mirrored here.
 export interface QualityGateWaiverRow {
   id: string;
   quality_gate_id: string;
@@ -1849,22 +1002,8 @@ export interface QualityGateWaiverRow {
   created_at: string;
 }
 
-// Post-MVP Phase 5 (Ch.17 Evidence Model). status is not a fixed union — same
-// dynamic-validation-by-transitionEngine precedent as Deliverable/Obligation.
-// CR-051 item 1 (Ch.17 §20.2/§20.8) — related_object_type/id moved off this
-// row entirely, onto evidence_relationships (below): one Evidence Item may
-// support many engineering artefacts, not just one.
-// Ch.17 model cleanup (migration 232) — seu_id and the five originating_*
-// provenance columns are retired; every relationship Evidence has,
-// including SEU membership, goes through evidence_relationships instead
-// (owner: "Evidence does not need anything. Evidence is required by
-// others" — the mechanism changed, not the provenance guarantee itself).
 export interface EvidenceValidationAssessment {
-  // evidence-validation-dimension Ontology concept (authenticity/
-  // completeness/consistency/source-credibility/engineering-relevance).
   dimension: string;
-  // evidence-validation-status Ontology concept (Not Assessed/Pass/
-  // Partial/Fail).
   status: string;
   notes: string | null;
   assessedAt: string;
@@ -1876,15 +1015,9 @@ export interface EvidenceRow {
   title: string;
   description: string | null;
   source: string | null;
-  // Nullable now — computed from validation_dimensions, not author-set; no
-  // value exists until a computation has actually run.
   confidence_level: string | null;
   status: string;
-  // Append-only — a new entry per assessment, never overwritten in place,
-  // since Validated->Accepted->Referenced->Archived share one row with no
-  // new version minted at each hop.
   validation_dimensions: EvidenceValidationAssessment[];
-  // CR-051 item 4 (Ch.17 §15/§20.13) — supersession chain, nullable.
   supersedes_evidence_id: string | null;
   author_id: string;
   author_badge: string;
@@ -1892,9 +1025,6 @@ export interface EvidenceRow {
   updated_at: string;
 }
 
-// CR-051 item 1 — one row per (Evidence, related object) pair. Many rows can
-// share the same evidence_id (one Evidence supporting many artefacts) or the
-// same related_object_type/id (many Evidence Items supporting one artefact).
 export interface EvidenceRelationshipRow {
   id: string;
   evidence_id: string;
@@ -1905,13 +1035,6 @@ export interface EvidenceRelationshipRow {
   created_at: string;
 }
 
-// Ch.16 §10's relationship types, reused as the shared shape for every
-// Knowledge reference field (Evidence/Deliverable/Decision/Knowledge
-// References) — an object keyed by relationship type, each value an array
-// of ids in that field's own target id-space. "supersedes" is reserved for
-// Knowledge-to-Knowledge only (owner: "superseded should stay within
-// knowledge references only"); every other type applies universally
-// (owner: "knowledge can contradict anything").
 export interface KnowledgeRelationshipReferences {
   "derives from"?: string[];
   supports?: string[];
@@ -1924,18 +1047,6 @@ export interface KnowledgeSelfReferences extends KnowledgeRelationshipReferences
   supersedes?: string[];
 }
 
-// Post-MVP Phase 5 (Ch.16 Knowledge Model). acquisition_scope reuses
-// AcquisitionScope (Ch.15 §9) — inherited by default from the producing
-// Deliverable. Restructured (migration 239, "firm up the Knowledge
-// structure" session): evidence_id (singular FK) -> evidence_references
-// (§10-shaped JSONB, same treatment Decision's own knowledge_id ->
-// knowledge_ids got in migration 231); deliverable_id stays as the
-// provenance FK (§14's "originating Deliverable," structurally load-bearing
-// — SEU derivation, joins), with deliverable_references added alongside it
-// as the broader, separate §8 "Deliverable References" concept.
-// author_id/authority_badge mirror decisions.participant_id/.authority_badge
-// exactly (captured at creation — ungoverned, no badge yet — and updated on
-// every governed transition thereafter; full history stays in `events`).
 export interface KnowledgeItemRow {
   id: string;
   seu_id: string;
@@ -1957,11 +1068,6 @@ export interface KnowledgeItemRow {
   updated_at: string;
 }
 
-// Ch.16 §11/§14 — append-only validation/review notes, never overwritten.
-// Same discipline as objective_comments/pack_comments (migrations 125/137):
-// a dedicated child table, insert-only, no forced gate on any one transition
-// (owner: "no forced gate" — addable at any point in the Knowledge Item's
-// life, not just on a specific hop).
 export interface KnowledgeValidationNoteRow {
   id: string;
   knowledge_item_id: string;
@@ -1970,10 +1076,6 @@ export interface KnowledgeValidationNoteRow {
   created_at: string;
 }
 
-// Post-MVP Phase 6 (Ch.16 §13 / Book 1 Ch.21 §21.6) — a KnowledgeItemRow
-// joined with just enough to display Engineering Capital meaningfully:
-// which Capability it's attributable to (via its Deliverable) and which SEU
-// it originated from.
 export interface EngineeringCapitalRow extends KnowledgeItemRow {
   deliverable_name: string;
   capability_code: string | null;
@@ -1981,9 +1083,6 @@ export interface EngineeringCapitalRow extends KnowledgeItemRow {
   objective_statement: string;
 }
 
-// Post-MVP Phase 5 (Ch.19 Decision Model). Restructured this session (Ch.19
-// model cleanup, migration 231) — see that migration's own header for the
-// full reasoning behind each field.
 export interface DecisionRelatedObjectGroup {
   related_object_type: string;
   related_object_ids: string[];
@@ -1993,10 +1092,6 @@ export interface DecisionAlternative {
   statement: string;
   assumptions: string[];
   consequences: string[];
-  // decision-alternative-status Ontology concept type — Candidate/
-  // Evaluating/Investigating/Deferred/Rejected/Approved. Not Ch.19 §9's own
-  // Decision-level lifecycle — a separate, smaller vocabulary for the
-  // alternative's own standing within the Decision.
   status: string;
   rationale: string | null;
 }
@@ -2004,23 +1099,13 @@ export interface DecisionAlternative {
 export interface DecisionRow {
   id: string;
   seu_id: string;
-  // What gave rise to this Decision (e.g. an AttentionItem) — singular,
-  // distinct from related_object_type/ids below.
   originating_type: string | null;
   originating_id: string | null;
-  // What this Decision applies to — multiple entity types, multiple ids per
-  // type.
   related_objects: DecisionRelatedObjectGroup[];
-  // Propagation beyond this Decision's own originating SEU (Ch.19 §13
-  // Decision Reuse) — entity types 'seu'/'packs'.
   related_seu: DecisionRelatedObjectGroup[];
   knowledge_ids: string[];
   evidence_ids: string[];
   alternatives: DecisionAlternative[];
-  // Who acted — captured at creation (participant_id only; creation is
-  // ungoverned) and updated on every governed transition thereafter (both
-  // fields). Independent of the Participant means the Participant executing
-  // it is replaceable, not that attribution is absent.
   participant_id: string | null;
   authority_badge: string | null;
   category: string;
@@ -2031,7 +1116,6 @@ export interface DecisionRow {
   updated_at: string;
 }
 
-// Post-MVP Phase 7 (Ch.35 §7 Flow Telemetry — "Deliverable cycle time").
 export interface DeliverableCycleTimeRow {
   id: string;
   name: string;
@@ -2042,7 +1126,6 @@ export interface DeliverableCycleTimeRow {
   cycle_time_seconds: number;
 }
 
-// Post-MVP Phase 7 (Ch.35 §7 Governance Telemetry — "Quality Gate latency").
 export interface QualityGateLatencyRow {
   quality_gate_id: string;
   gate_name: string;
@@ -2053,10 +1136,6 @@ export interface QualityGateLatencyRow {
   latency_seconds: number;
 }
 
-// Post-MVP Phase 8 (Ch.34 Attention Management Model). status is not a fixed
-// union — same dynamic-validation-by-transitionEngine precedent as every
-// other governed entity. related_object_type/id are informational only, no
-// FK (see 009_attention_and_interaction.sql for why).
 export interface AttentionItemRow {
   id: string;
   seu_id: string;
@@ -2074,7 +1153,6 @@ export interface AttentionItemRow {
 
 export type InteractionDirection = "Inbound" | "Outbound";
 
-// Post-MVP Phase 8 (Ch.36 External Interaction Model).
 export interface ExternalInteractionRow {
   id: string;
   seu_id: string;
@@ -2090,28 +1168,17 @@ export interface ExternalInteractionRow {
   author_badge: string;
 }
 
-// Phase 10 (badge model) — design/mvp-build-plan/Phase 10 - User Management
-// and Dual Authority Design.md. An identity holds a *set* of badges
-// (badge_grants), not one flat role. §8: Layer 1 Platform, Layer 2a Tenant
-// Admin, Layer 2b Engineering (Creator/Reviewer/Approver).
-
 export interface TenantRow {
   id: string;
   code: string;
   name: string;
   status: string;
-  is_system: boolean; // CR-004: reserved non-engineering tenant (the 'platform' home)
+  is_system: boolean;
   author_id: string;
   author_badge: string;
   created_at: string;
 }
 
-// scope_kind: what a grant of this badge type must be scoped by.
-// 'SEU_or_Pack' is an implementation resolution, not in the design doc's own
-// table verbatim — see 012_badge_model.sql's header comment for why: §8.4
-// allows a Creator/Reviewer/Approver grant to be scoped to either one SEU or
-// one Pack, which only reconciles with §9's "one scope_kind per badge type"
-// framing if that badge type's scope_kind itself spans both.
 export type BadgeScopeKind = "None" | "Tenant" | "SEU" | "Pack" | "SEU_or_Pack";
 
 export interface BadgeTypeRow {
@@ -2120,7 +1187,7 @@ export interface BadgeTypeRow {
   code: string;
   name: string;
   scope_kind: BadgeScopeKind;
-  derived_from: string | null; // not a real FK — badge_types.code isn't globally unique; see badgeTypesDB.ts
+  derived_from: string | null;
   tiered: boolean;
   is_registration_default: boolean;
   created_at: string;
@@ -2140,42 +1207,21 @@ export interface BadgeTierRow {
   created_at: string;
 }
 
-// SDK UI Layer Plan (design/mvp-build-plan/SDK UI Layer Plan.md) — Pack,
-// Template, Profile and Transition Definition are authored as Deliverables
-// via their own bootstrap Template ("Core principle"), not a new
-// TransitionEntityType. These four support tables are what's actually new.
-
 export type SchemaDefinitionEntityKind = "Pack" | "Template" | "Profile" | "TransitionDefinition" | "Deliverable" | "Service" | "Policy" | "Capability";
 
-// One row per (entity kind, schema version) — the grammar and its validator
-// share one version (see the plan's versioning section); schema is a
-// standard JSON Schema document.
 export interface SchemaDefinitionRow {
   id: string;
   entity_kind: SchemaDefinitionEntityKind;
   version: number;
   schema: Record<string, unknown>;
-  // CR-114 Compatibility feature — version numbers (same entity_kind) this
-  // version was found compatible/incompatible with at publish time. Empty
-  // for a kind's first version (nothing to compare against).
   compatible_versions: number[];
   incompatible_versions: number[];
   created_at: string;
-  // CR-115 — Ch.39 §15 SDK Element Schema lifecycle (transition_definitions,
-  // entity_type='SchemaDefinition'). author_id/author_badge mirror
-  // knowledge_items' own precedent (migration 239): set at creation
-  // (ungoverned) and updated alongside lifecycle_state on every governed
-  // transition thereafter (Publish/Reject).
   lifecycle_state: "Created" | "Validated" | "Tested" | "Packaged" | "Published" | "PublicationRejected";
   author_id: string | null;
   author_badge: string | null;
 }
 
-// The bootstrap Deliverable only carries lifecycle state — this is where the
-// actual in-progress authored document lives while In Progress.
-// schema_definition_id is permanent once set: an instance is checked against
-// exactly the grammar it was authored against, never silently against
-// whatever's newest.
 export interface DeliverableAuthoringContentRow {
   id: string;
   deliverable_id: string;
@@ -2186,20 +1232,9 @@ export interface DeliverableAuthoringContentRow {
   updated_at: string;
 }
 
-// Engineering Telemetry — Plan (design/mvp-build-plan/Engineering Telemetry
-// — Plan.md), Ch.35 §8 Metric Registry, scoped to a metadata catalog — see
-// the plan's own "Scope, resolved 2026-08-06." calculation_method is a code
-// selecting hardcoded evaluator logic in metricRegistryEngine.ts, the same
-// shape as quality_gates.criteria.type, not a runtime-interpreted formula.
 export type TelemetryCategory = "Flow" | "Governance" | "Runtime" | "Knowledge" | "Quality" | "Collaboration";
 export type MetricAggregationStrategy = "Average" | "Count" | "Rate" | "Distribution";
 
-// Build order step 3 — Runtime Telemetry. dispatch_latency/work_item_duration
-// read the `events` table for the specific timestamps neither `commands` nor
-// `work_items` can give directly: both rows are mutated in place on every
-// status change (Assigned/Executing/Completed/Disposed), so their own
-// `updated_at` only ever reflects the most recent status, not "when did it
-// become Dispatched" or "when did it start Executing" specifically.
 export interface DispatchLatencyRow {
   command_id: string;
   seu_id: string;
@@ -2209,10 +1244,6 @@ export interface DispatchLatencyRow {
   latency_seconds: number;
 }
 
-// Build order step 6 — Quality Telemetry's "rework rate": per (entity,
-// SEU), how many Blocked evaluations it accumulated before its eventual
-// Pass. Only entities with at least one Pass are counted — same "only what
-// actually completed the step" discipline the latency query already uses.
 export interface ReworkRow {
   entity_type: string;
   entity_id: string;

@@ -25,6 +25,8 @@
           const _registryVisible = _nrv('GET','/aisworg/seu/capability-definitions') || _nrv('GET','/aisworg/seu/participants') || _nrv('GET','/aisworg/seu/packs') || _nrv('GET','/aisworg/seu/templates') || _nrv('GET','/aisworg/seu/profiles') || _nrv('GET','/aisworg/seu/deliverable-definitions') || _nrv('GET','/aisworg/seu/service-definitions') || _nrv('GET','/aisworg/seu/policy-definitions') || _nrv('GET','/aisworg/seu/sdk/schema-registry');
           const _authoringVisible = _nrv('GET','/aisworg/seu/sdk/pack-authoring') || _nrv('GET','/aisworg/seu/sdk/template-authoring') || _nrv('GET','/aisworg/seu/sdk/profile-authoring') || _nrv('GET','/aisworg/seu/sdk/transition-definition-authoring') || _nrv('GET','/aisworg/seu/sdk/deliverable-authoring') || _nrv('GET','/aisworg/seu/sdk/service-authoring') || _nrv('GET','/aisworg/seu/sdk/policy-authoring') || _nrv('GET','/aisworg/seu/sdk/capability-authoring');
           const _ontologyVisible = _nrv('GET','/aisworg/seu/sdk/ontology');
+          const _docsVisible = _nrv('GET','/aisworg/seu/docs');
+          const _docFolders = locals.docFolders || [];
         %>
 
         <% if (_isAuthenticated) { %>
@@ -267,6 +269,29 @@
                 <i class="bi bi-check2-square me-2"></i>Approvals
               </a></li>
               <% } %>
+            </ul>
+          </li>
+          <% } %>
+
+          <!-- Documentation — spec/implementation chapters served straight out
+               of src/docs; one sublink per top-level folder, landing on that
+               folder's own listing page (not a flattened file dump). -->
+          <% if (_docsVisible) { %>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle <%= currentPage === 'seu-docs' ? 'active' : '' %>"
+               href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-journal-text me-2"></i>Documentation
+            </a>
+            <ul class="dropdown-menu shadow-sm border">
+              <li><a class="dropdown-item" href="/aisworg/seu/docs">
+                <i class="bi bi-journal-bookmark me-2"></i>All Documentation
+              </a></li>
+              <% if (_docFolders.length) { %><li><hr class="dropdown-divider"></li><% } %>
+              <% _docFolders.forEach(function(f) { %>
+              <li><a class="dropdown-item" href="<%= docPathHref(f.path) %>">
+                <i class="bi bi-folder2-open me-2"></i><%= f.name %>
+              </a></li>
+              <% }) %>
             </ul>
           </li>
           <% } %>

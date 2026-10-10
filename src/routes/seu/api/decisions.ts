@@ -7,7 +7,6 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { createDecision, listDecisionsBySeu, transitionDecision } from "../core/decisions.js";
 
-/** POST /decisions — Ch.19: identify a Decision against any governed entity(ies). relatedObjects: [{related_object_type, related_object_ids[]}, ...] — polymorphic and multiple (Ch.19 model cleanup, migration 231). */
 router.post("/decisions", async (req: Request, res: Response) => {
   try {
     const { seuId, originatingType, originatingId, relatedObjects, relatedSeu, knowledgeIds, evidenceIds, category, title, engineeringQuestion, alternatives } = req.body ?? {};
@@ -35,7 +34,6 @@ router.post("/decisions", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /decisions?seuId=... — every Decision for a given SEU. */
 router.get("/decisions", async (req: Request, res: Response) => {
   try {
     const seuId = typeof req.query.seuId === "string" ? req.query.seuId : null;
@@ -47,7 +45,6 @@ router.get("/decisions", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /decisions/:id/transition — Ch.19 §9 lifecycle: Identified -> ... -> Archived. */
 router.post("/decisions/:id/transition", async (req: Request, res: Response) => {
   try {
     const { targetState } = req.body ?? {};

@@ -5,44 +5,26 @@ import {logger} from "./logger.js";
 
 const {Pool, types} = pkg;
 
-// Force Numeric (OID 1700) and INT8 (OID 20) to be parsed as float/int
-// Postgres NUMERIC/DECIMAL is OID 1700
 types.setTypeParser(1700, (val) => parseFloat(val));
-// Postgres BIGINT/INT8 is OID 20
 types.setTypeParser(20, (val) => parseInt(val, 10));
-// Force DATE (1082) to stay as string (YYYY-MM-DD)
 types.setTypeParser(1082, (val) => val);
-// Force TIMESTAMP (1114) and TIMESTAMPTZ (1184) to return ISO strings for compatibility with legacy formatting logic
 types.setTypeParser(1114, (val) => (typeof val === 'string') ? new Date(val + 'Z').toISOString() : (val instanceof Date ? val.toISOString() : val));
 types.setTypeParser(1184, (val) => (typeof val === 'string') ? new Date(val).toISOString() : (val instanceof Date ? val.toISOString() : val));
 
-// Only load src/.env if DATABASE_URL is missing (root .env should take precedence)
 if (!process.env.DATABASE_URL) {
     dotenv.config({path: path.join(process.cwd(), "src/.env")});
 }
 
 let connectionString = process.env.DATABASE_URL;
-// Fix for PG SSL Warning: treatment of 'require' vs 'verify-full'
 if (connectionString && connectionString.includes('sslmode=require') && !connectionString.includes('uselibpqcompat')) {
     connectionString += (connectionString.includes('?') ? '&' : '?') + 'uselibpqcompat=true';
 }
 
 const pool = new Pool({
     connectionString: connectionString,
-    // ssl: { rejectUnauthorized: false }, // local db
     max: parseInt(process.env.MAX_CONNECTIONS) || 10,
     connectionTimeoutMillis: parseInt(process.env.DB_TIMEOUT) || 60000,
     idleTimeoutMillis: 20000,
-    // Test-harness fix: every test file used to call pool.end() in its own
-    // after() so the process could exit promptly instead of waiting up to
-    // idleTimeoutMillis. But node --test runs all matched files in one
-    // shared process (this module's `pool` singleton included) — the FIRST
-    // file to finish permanently killed the pool for every file still
-    // running, surfacing as "Cannot use a pool after calling end on the
-    // pool" errors scattered across unrelated modules. allowExitOnIdle lets
-    // the process exit as soon as the pool is idle, without an explicit
-    // end() call, which is what the per-file end() calls were actually
-    // trying to achieve — removed from the test files themselves now.
     allowExitOnIdle: true
 });
 
@@ -53,12 +35,6 @@ pool.on("error", (err) => {
 export default pool;
 export const query = (text, params) => pool.query(text, params);
 
-/**
- * Multi-row INSERT ... VALUES (...), (...), ... RETURNING * in a single
- * round trip. `table` and `columns` are caller-supplied identifiers (never
- * user input) and are interpolated directly; `rows` values are always
- * parameterized.
- */
 export function bulkInsert(table, columns, rows) {
     if (rows.length === 0) {
         return Promise.resolve({ rows: [] });
@@ -74,9 +50,6 @@ export function bulkInsert(table, columns, rows) {
     return pool.query(text, values);
 }
 
-/**
- * Custom error for database connection issues
- */
 export class DatabaseConnectionError extends Error {
     constructor (message, cause) {
         super(message);
@@ -86,10 +59,6 @@ export class DatabaseConnectionError extends Error {
     }
 }
 
-/**
- * Helper to identify if an error is a connection error.
- * Updated for 'pg' driver patterns.
- */
 export function isConnectionError(err) {
     if (!err) return false;
     return (
@@ -104,5 +73,4 @@ export function isConnectionError(err) {
         ))
     );
 }
-
 

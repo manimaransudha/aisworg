@@ -15,26 +15,21 @@ import { logger }      from '../../utils/logger.js';
 import { parseListParams, paginateList } from '../../utils/listQuery.js';
 import { rateLimit }   from 'express-rate-limit';
 
-// 3 attempts per 4 hours per IP — applied only to credential-submission endpoints
 const loginLimiter = rateLimit({
-  windowMs:         4 * 60 * 60 * 1000,  // 4 hours
+  windowMs:         4 * 60 * 60 * 1000,
   limit:            3,
   standardHeaders:  'draft-8',
   legacyHeaders:    false,
   message:          { error: 'Too many login attempts. Please try again in 4 hours.' },
-  skipSuccessfulRequests: true,           // successful logins don't count against the limit
+  skipSuccessfulRequests: true,
 });
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || '').toLowerCase();
 
-// Root lands on the Identity Management hub (Tenant/Badge/User Management
-// cards) — the screens a platform administrator actually needs first.
-// Everyone else keeps landing on Commissioned SEUs, unchanged.
 function postLoginRedirectPath(user) {
   return (user?.platformBadges ?? []).includes('root') ? '/aisworg/seu/identity' : '/aisworg/quickview';
 }
 
-// ── Login page ──────────────────────────────────────────────────────────────
 router.get('/login', (req, res) => {
   if (req.session?.user) return res.redirect(postLoginRedirectPath(req.session.user));
   const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -47,20 +42,10 @@ router.get('/login', (req, res) => {
   delete req.session.flash;
 });
 
-// ── Local login ──────────────────────────────────────────────────────────────
 router.post('/login', loginLimiter, (req, res, next) => {
   passport.authenticate('local', async (err, user, info) => {
     if (err) return next(err);
 
-//     if (!user) {
-//       if (info?.message === 'disabled') return res.redirect('/finanaly/auth/disabled');
-//       req.session.flash = { error: info?.message || 'Invalid credentials.' };
-//       return res.redirect('/finanaly/login');
-//     }
-// 
-//     req.session.user = buildSessionUser(user);
-//     logger.info(`[Auth] Local login: ${user.email} (${user.role})`);
-//     return res.redirect('/finanaly/quickview');
     if (!user) {
       if (info?.message === 'disabled') return res.redirect('/aisworg/auth/disabled');
       req.session.flash = { error: info?.message || 'Invalid credentials.' };
@@ -75,19 +60,11 @@ router.post('/login', loginLimiter, (req, res, next) => {
   })(req, res, next);
 });
 
-// ── Google OAuth ─────────────────────────────────────────────────────────────
 router.get('/google',
   passport.authenticate('google', { scope: ['profile', 'email'], session: false })
 );
 
 router.get('/google/callback',
-//   passport.authenticate('google', { session: false, failureRedirect: '/finanaly/login' }),
-//   (req, res) => {
-//     if (!req.user) return res.redirect('/finanaly/auth/disabled');
-//     req.session.user = buildSessionUser(req.user);
-//     logger.info(`[Auth] Google login: ${req.user.email} (${req.user.role})`);
-//     res.redirect('/finanaly/quickview');
-//   }
   passport.authenticate('google', { session: false, failureRedirect: '/aisworg/login' }),
   async (req, res) => {
     if (!req.user) return res.redirect('/aisworg/auth/disabled');
@@ -99,32 +76,25 @@ router.get('/google/callback',
   }
 );
 
-// ── Logout ───────────────────────────────────────────────────────────────────
 router.get('/logout', (req, res) => {
   const email = req.session?.user?.email;
   req.session.destroy(() => {
-//     logger.info(`[Auth] Logout: ${email || 'unknown'}`);
-//     res.redirect('/finanaly');
     logger.info(`[Auth] Logout: ${email || 'unknown'}`);
     res.redirect('/aisworg');
   });
 });
 
-// ── Disabled account page ────────────────────────────────────────────────────
 router.get('/disabled', (req, res) => {
   res.render('auth/disabled', { title: 'Account Disabled' });
 });
 
-// ── Email verification — set password ───────────────────────────────────────
 router.get('/verify', async (req, res) => {
   const { token } = req.query;
-//   if (!token) return res.redirect('/finanaly/login');
   if (!token) return res.redirect('/aisworg/login');
 
   const user = await userDB.findByVerificationToken(token);
   if (!user) {
     req.session.flash = { error: 'Verification link is invalid or has expired.' };
-//     return res.redirect('/finanaly/login');
     return res.redirect('/aisworg/login');
   }
 
@@ -134,13 +104,11 @@ router.get('/verify', async (req, res) => {
 router.post('/verify', loginLimiter, async (req, res) => {
   const { token, password, password_confirm } = req.body;
 
-//   if (!token) return res.redirect('/finanaly/login');
   if (!token) return res.redirect('/aisworg/login');
 
   const user = await userDB.findByVerificationToken(token);
   if (!user) {
     req.session.flash = { error: 'Verification link is invalid or has expired.' };
-//     return res.redirect('/finanaly/login');
     return res.redirect('/aisworg/login');
   }
 
@@ -168,7 +136,6 @@ router.post('/verify', loginLimiter, async (req, res) => {
   res.redirect(postLoginRedirectPath(req.session.user));
 });
 
-// ── Forgot / reset password ──────────────────────────────────────────────────
 router.get('/forgot-password', (req, res) => {
   if (req.session?.user) return res.redirect(postLoginRedirectPath(req.session.user));
   const flash = req.session.flash || {};
@@ -186,36 +153,31 @@ router.post('/forgot-password', loginLimiter, async (req, res) => {
   try {
     if (email) {
       const token   = crypto.randomBytes(32).toString('hex');
-      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      const expires = new Date(Date.now() + 60 * 60 * 1000);
       const user    = await userDB.setResetToken(email, token, expires);
       if (user) {
         const result = await emailService.sendPasswordReset({ to: user.email, name: user.name, token });
         if (result.link) {
           req.session.flash = { info: `SMTP not configured — reset link: ${result.link}` };
-//           return res.redirect('/finanaly/auth/forgot-password');
           return res.redirect('/aisworg/auth/forgot-password');
         }
       }
     }
     req.session.flash = { info: GENERIC };
-//     return res.redirect('/finanaly/auth/forgot-password');
     return res.redirect('/aisworg/auth/forgot-password');
   } catch (err) {
     logger.error('[Auth] POST /forgot-password error:', err);
     req.session.flash = { info: GENERIC };
-//     return res.redirect('/finanaly/auth/forgot-password');
     return res.redirect('/aisworg/auth/forgot-password');
   }
 });
 
 router.get('/reset-password', async (req, res) => {
   const { token } = req.query;
-//   if (!token) return res.redirect('/finanaly/login');
   if (!token) return res.redirect('/aisworg/login');
   const user = await userDB.findByVerificationToken(token);
   if (!user) {
     req.session.flash = { error: 'Password reset link is invalid or has expired.' };
-//     return res.redirect('/finanaly/login');
     return res.redirect('/aisworg/login');
   }
   res.render('auth/reset-password', { title: 'Reset Your Password', token, email: user.email, error: null });
@@ -223,13 +185,11 @@ router.get('/reset-password', async (req, res) => {
 
 router.post('/reset-password', loginLimiter, async (req, res) => {
   const { token, password, password_confirm } = req.body;
-//   if (!token) return res.redirect('/finanaly/login');
   if (!token) return res.redirect('/aisworg/login');
 
   const user = await userDB.findByVerificationToken(token);
   if (!user) {
     req.session.flash = { error: 'Password reset link is invalid or has expired.' };
-//     return res.redirect('/finanaly/login');
     return res.redirect('/aisworg/login');
   }
 
@@ -250,11 +210,9 @@ router.post('/reset-password', loginLimiter, async (req, res) => {
   await userDB.activateWithPassword(user.email, hash);
   logger.info(`[Auth] Password reset: ${user.email}`);
   req.session.flash = { info: 'Password reset successfully. Please sign in.' };
-//   return res.redirect('/finanaly/login');
   return res.redirect('/aisworg/login');
 });
 
-// ── User management (super only) ─────────────────────────────────────────────
 router.get('/users', async (req, res) => {
   try {
     const managed = await userDB.listManaged(SUPERUSER_EMAIL);
@@ -283,25 +241,20 @@ router.post('/users/create', async (req, res) => {
     const { email, name, role } = req.body;
     if (!email || !role) {
       req.session.flash = { error: 'Email and role are required.' };
-//       return res.redirect('/finanaly/auth/users');
       return res.redirect('/aisworg/auth/users');
     }
     if (!['power', 'tenant_super', 'super'].includes(role)) {
       req.session.flash = { error: 'Invalid role.' };
-//       return res.redirect('/finanaly/auth/users');
       return res.redirect('/aisworg/auth/users');
     }
     if (email.toLowerCase() === SUPERUSER_EMAIL) {
       req.session.flash = { error: 'Cannot create account for the protected superuser.' };
-//       return res.redirect('/finanaly/auth/users');
       return res.redirect('/aisworg/auth/users');
     }
 
     const token   = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h
+    const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-    // CR-004: legacy super-only User Management creates Platform users (this
-    // surface predates tenants; the tenant-aware path is Identity Management).
     const { data: platformTenant } = await tenantsDB.findByCode('platform');
     await userDB.createLocalPending({ email, name: name || email, role, verification_token: token, verification_expires: expires, type: 'Platform', tenant_id: platformTenant?.id ?? null });
     const result = await emailService.sendVerification({ to: email, name: name || email, token });
@@ -311,12 +264,10 @@ router.post('/users/create', async (req, res) => {
     } else {
       req.session.flash = { info: `Account created. Verification email sent to ${email}.` };
     }
-//     return res.redirect('/finanaly/auth/users');
     return res.redirect('/aisworg/auth/users');
   } catch (err) {
     logger.error('[Auth] POST /users/create error:', err);
     req.session.flash = { error: err.message };
-//     return res.redirect('/finanaly/auth/users');
     return res.redirect('/aisworg/auth/users');
   }
 });
@@ -326,22 +277,18 @@ router.post('/users/role', async (req, res) => {
     const { email, role } = req.body;
     if (!['general', 'power', 'tenant_super', 'super'].includes(role)) {
       req.session.flash = { error: 'Invalid role.' };
-//       return res.redirect('/finanaly/auth/users');
       return res.redirect('/aisworg/auth/users');
     }
     if (email?.toLowerCase() === SUPERUSER_EMAIL) {
       req.session.flash = { error: 'Cannot modify the protected superuser.' };
-//       return res.redirect('/finanaly/auth/users');
       return res.redirect('/aisworg/auth/users');
     }
     await userDB.updateRole(email, role);
     req.session.flash = { info: `Role updated for ${email}.` };
-//     return res.redirect('/finanaly/auth/users');
     return res.redirect('/aisworg/auth/users');
   } catch (err) {
     logger.error('[Auth] POST /users/role error:', err);
     req.session.flash = { error: err.message };
-//     return res.redirect('/finanaly/auth/users');
     return res.redirect('/aisworg/auth/users');
   }
 });
@@ -351,18 +298,15 @@ router.post('/users/toggle', async (req, res) => {
     const { email, action } = req.body;
     if (email?.toLowerCase() === SUPERUSER_EMAIL) {
       req.session.flash = { error: 'Cannot modify the protected superuser.' };
-//       return res.redirect('/finanaly/auth/users');
       return res.redirect('/aisworg/auth/users');
     }
     const is_active = action === 'enable';
     await userDB.setActive(email, is_active);
     req.session.flash = { info: `${email} ${is_active ? 'enabled' : 'disabled'}.` };
-//     return res.redirect('/finanaly/auth/users');
     return res.redirect('/aisworg/auth/users');
   } catch (err) {
     logger.error('[Auth] POST /users/toggle error:', err);
     req.session.flash = { error: err.message };
-//     return res.redirect('/finanaly/auth/users');
     return res.redirect('/aisworg/auth/users');
   }
 });
@@ -373,14 +317,12 @@ router.post('/users/resend', async (req, res) => {
     const user = await userDB.findByEmail(email);
     if (!user || user.auth_provider !== 'local') {
       req.session.flash = { error: 'User not found or not a local account.' };
-//       return res.redirect('/finanaly/auth/users');
       return res.redirect('/aisworg/auth/users');
     }
 
     const token   = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-    // CR-004: resend preserves the user's existing home (don't overwrite type/tenant_id).
     await userDB.createLocalPending({ email, name: user.name, role: user.role, verification_token: token, verification_expires: expires, type: user.type, tenant_id: user.tenant_id });
     const result = await emailService.sendVerification({ to: email, name: user.name, token });
 
@@ -389,12 +331,10 @@ router.post('/users/resend', async (req, res) => {
     } else {
       req.session.flash = { info: `Verification email resent to ${email}.` };
     }
-//     return res.redirect('/finanaly/auth/users');
     return res.redirect('/aisworg/auth/users');
   } catch (err) {
     logger.error('[Auth] POST /users/resend error:', err);
     req.session.flash = { error: err.message };
-//     return res.redirect('/finanaly/auth/users');
     return res.redirect('/aisworg/auth/users');
   }
 });

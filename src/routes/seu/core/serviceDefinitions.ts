@@ -8,30 +8,12 @@ import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
  
-// CR-086 follow-on — Service Definition authoring (Book 3 Ch.11), mirroring
-// core/deliverableDefinitions.ts in shape. Two differences from that
-// entity's own treatment:
-//   1. Ch.11 §13's own lifecycle is used verbatim — Defined -> Published ->
-//      Active -> Deprecated -> Retired -> Archived, strictly linear (the
-//      chapter's own diagram has no reactivation/back-edges, so — unlike
-//      Deliverable Definition — reaching Active from a terminal state as a
-//      new Version isn't built here).
-//   2. `code` syncs the separate `service-name` concept type (not
-//      `capability-name` the way Deliverable Definition syncs
-//      `deliverable-name`) — owner: "I do not want to reuse the
-//      capability-name... makes future mutations easy if required."
 
 export interface ServiceDefinitionSeedInput {
   code: string;
   name: string;
   capabilityCode: string;
   purpose?: string | null;
-  // Bug fix — migration 159 made these TEXT[] (a referential-multi-select of
-  // deliverable-name Ontology codes, mirroring `consumers` against
-  // capability-name), but this field stayed typed/parsed as a bare string
-  // ever since — never actually populatable through the real form, and a
-  // NOT NULL violation for any caller (including this file's own
-  // copyServiceDefinitionAsNewDraft) that omitted it entirely.
   inputs?: string[];
   outputs?: string[];
   serviceLevel?: ServiceLevelExpectation[];
@@ -89,10 +71,6 @@ export async function validateServiceDefinitionSeed(seed: ServiceDefinitionSeedI
     }
   }
 
-  // Bug fix — migration 159 made inputs/outputs a referential-multi-select
-  // against deliverable-name (the same treatment consumers already gets
-  // against capability-name, just above), but no validation was ever added
-  // to match; this is the missing half of that migration.
   for (const input of seed.inputs ?? []) {
     try {
       await assertCanonicalCategory("deliverable-name", input);
@@ -143,10 +121,6 @@ export async function inheritedServiceDefinitionContent(parentServiceDefinitionI
 
 export type TransitionServiceDefinitionResult = { ok: true; serviceDefinition: ServiceDefinitionRow } | { ok: false; reason: string; detail?: string };
 
-// Syncs the `service-name` Ontology concept — only at the moment of
-// genuinely becoming (or ceasing to be) Active, mirroring
-// syncOntologyOnActivate/demoteOntologyIfNoOtherActive in
-// core/deliverableDefinitions.ts exactly, one concept type over.
 async function syncOntologyOnActivate(row: ServiceDefinitionRow, actorId: string): Promise<void> {
   await syncConceptFromEntity("service-name", row.code, row.name, row.purpose ?? null, row.tenant_id, actorId);
 }
@@ -156,19 +130,10 @@ async function demoteOntologyIfNoOtherActive(row: ServiceDefinitionRow, actorId:
   if (!stillActive) await retireConceptForEntity("service-name", row.code, row.tenant_id, actorId, actorBadge);
 }
 
-// Version Feature Plan.md §3/§4 (Ch.11, migration 188) — event_type is now
-// read straight off the resolved Transition Definition (transitionEngine's
-// TransitionOutcome), replacing the hardcoded EVENT_BY_TARGET_STATE map this
-// used to carry — mirrors how Template's/Profile's identical maps were
-// replaced, migrations 185/187.
 export async function transitionServiceDefinition(input: { serviceDefinitionId: string; targetState: ServiceDefinitionRow["status"]; actorRole: string; actorId: string }): Promise<TransitionServiceDefinitionResult> {
   const { data: serviceDefinition } = await serviceDefinitionsDB.findById(input.serviceDefinitionId);
   if (!serviceDefinition) return { ok: false, reason: "not_found" };
   const fromState = serviceDefinition.status;
-  // entityId passed so a Service Definition row ever declaring submit_verb
-  // (none do today) would have its triggerEngine.hasBeenSubmitted check
-  // actually work — the same latent gap Template's/Profile's own
-  // transitionTemplate/transitionProfile had before their fix.
   const gate = await transitionEngine.evaluate({ entityType: "Service", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: serviceDefinition.id, context: { serviceDefinition } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
@@ -193,12 +158,11 @@ export async function transitionServiceDefinition(input: { serviceDefinitionId: 
     eventType: gate.eventType ?? "ServiceDefinitionTransitioned",
     originatingObjectType: "ServiceDefinition",
     originatingObjectId: updated.id,
-    seuId: null, // platform catalog entity, not SEU-scoped
+    seuId: null,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: updated.code },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge ?? "root",
-    // CR-117
     versionEvent: gate.versionEvent,
     fromState,
     toState: input.targetState,
@@ -207,10 +171,6 @@ export async function transitionServiceDefinition(input: { serviceDefinitionId: 
   return { ok: true, serviceDefinition: updated };
 }
 
-// Mirrors advanceDeliverableDefinitionOneStep — runs exactly the NEXT
-// governed hop off the entity's current status. No Active-reached
-// supersession branch here (unlike Deliverable Definition): Ch.11's own
-// lifecycle never returns to Active from a terminal state.
 const AUTHORING_NEXT_STATE: Partial<Record<ServiceDefinitionRow["status"], ServiceDefinitionRow["status"]>> = {
   Defined: "Published",
   Published: "Active",
@@ -225,12 +185,9 @@ export async function advanceServiceDefinitionOneStep(serviceDefinition: Service
   return transitionServiceDefinition({ serviceDefinitionId: serviceDefinition.id, targetState, actorRole, actorId });
 }
 
-// Registry "Copy" action, mirrors copyDeliverableDefinitionAsNewDraft.
 export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await serviceDefinitionsDB.findById(serviceDefinitionId);
   if (!source) return { ok: false, errors: ["Service Definition not found"] };
-  // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
-  // templates.ts's copyTemplateAsNewDraft.
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Service");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Service`] };
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
@@ -266,8 +223,6 @@ export interface ServiceDefinitionWithNextStates {
   possibleNextStates: string[];
 }
 
-// Service Definition Registry — every Version of every Definition, with its
-// own governed next states, mirroring listDeliverableDefinitionsWithNextStates.
 export async function listServiceDefinitionsWithNextStates(viewer?: { isRoot: boolean; tenantId: string } | null): Promise<ServiceDefinitionWithNextStates[]> {
   const { data: rows } = viewer && !viewer.isRoot ? await serviceDefinitionsDB.findAllVisibleTo(viewer.tenantId) : await serviceDefinitionsDB.findAll();
   return Promise.all(

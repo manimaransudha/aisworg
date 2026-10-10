@@ -11,22 +11,9 @@ export const commandsDB = {
     fromState: string;
     toState: string;
     requestedBy: string | null;
-    // Participant Integration & Attestation — Plan step 2: the badge code
-    // that authorised this transition, resolved at dispatch and carried so
-    // the acceptance attestation can record who certified the state
-    // (completeWorkItem). Migration 259 — a badge code, not a live FK to a
-    // badge_grants row.
     actingBadgeType?: string | null;
     correlationId: string;
-    // CR-109 §6.2 — governanceOutcomeRef: the governance_evaluation_outcomes
-    // row the passing evaluation built (executionEngine.execute() inserts
-    // it first, then passes its id here). Null for command types that don't
-    // route through evaluateDeliverableTransition.
     governanceOutcomeId?: string | null;
-    // Ch.12 §9 / CR-109 §6.2 — eligibleParticipantPoolRef: the
-    // capability_fulfilment_pools snapshot execute() took of the real
-    // eligible-Participant pool for this Command's producing Capability.
-    // Null when no producing Capability was declared at all.
     eligibleParticipantPoolId?: string | null;
   }): Promise<DbResult<CommandRow>> {
     try {
@@ -76,12 +63,6 @@ export const commandsDB = {
     }
   },
 
-  // Duplicate-dispatch guard: a re-attempt of the same (entityType, entityId,
-  // fromState, toState) hop while an earlier attempt is still non-terminal
-  // (Generated/Dispatched/Deferred) would otherwise generate a second
-  // Command/Work Item/Dispatch for work already underway. Completed/
-  // Cancelled/Failed are terminal — a new attempt after one of those is a
-  // genuinely new hop, not a duplicate.
   async findInFlight(entityType: TransitionEntityType, entityId: string, fromState: string, toState: string): Promise<DbResult<CommandRow | null>> {
     try {
       const { rows } = await query<CommandRow>(

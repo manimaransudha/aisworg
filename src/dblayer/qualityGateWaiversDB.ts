@@ -2,9 +2,6 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, QualityGateWaiverRow } from "./seuTypes.js";
 
-// CR-058 §13 — modeled on complianceDB's grantWaiver/findActiveWaivers
-// shape, but badge-gated (authorityBadge is required here; Compliance's own
-// waiver has no authority check at all — deliberately not mirrored).
 export const qualityGateWaiversDB = {
   async grant(input: {
     qualityGateId: string;
@@ -30,8 +27,6 @@ export const qualityGateWaiversDB = {
     }
   },
 
-  // The one active, unexpired waiver (if any) for this exact gate + entity
-  // instance — what qualityGateEngine.evaluateGate checks before blocking.
   async findActive(qualityGateId: string, entityType: string, entityId: string): Promise<DbResult<QualityGateWaiverRow | null>> {
     try {
       const { rows } = await query<QualityGateWaiverRow>(

@@ -3,13 +3,7 @@ import { logger } from "../utils/logger.js";
 import type { DbResult, TenantRow } from "./seuTypes.js";
 import { PLATFORM_TENANT_NAME, TEMP_TENANT_ID } from "./constants.js";
 
-// Participant Integration — Plan step 6 (Resolution 8). The minimal tenancy
-// slice. A Capability, Template, and the whole engineering core are tenant-
-// invariant; a tenant differs only in its edge configuration.
 export const tenantsDB = {
-  // author_id/author_badge are NOT NULL on the table -- every caller must
-  // resolve and pass its own real actor + badge (the logged-in session's
-  // user id and held badge), never a default/null.
   async create(input: { code: string; name: string; authorId: string; authorBadge: string, is_system: boolean}): Promise<DbResult<TenantRow>> {
     try {
       const { rows } = await query<TenantRow>(
@@ -23,8 +17,6 @@ export const tenantsDB = {
     }
   },
 
-  // Returns the platform tenant's id, creating it (self-authored, fixed id
-  // TEMP_TENANT_ID matching the schema-recovery seed) if it doesn't exist yet.
   async ensurePlatformTenant(): Promise<DbResult<string>> {
     try {
       const existing = await this.findByCode("platform");
@@ -90,10 +82,6 @@ export const tenantsDB = {
     }
   },
 
-  // CR-004: operational tenants only — excludes reserved is_system tenants (the
-  // 'platform' home). Used by every tenant picker (Act-As, Tenant Management,
-  // the create-user tenant selector) so 'platform' never appears as a
-  // selectable engineering/admin tenant.
   async findAllOperational(): Promise<DbResult<TenantRow[]>> {
     try {
       const { rows } = await query<TenantRow>("SELECT * FROM tenants WHERE is_system = FALSE ORDER BY created_at ASC");

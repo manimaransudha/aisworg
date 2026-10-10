@@ -11,7 +11,6 @@ import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { listAttentionItems, listAttentionItemsWithNextStates, transitionAttentionItem } from "../core/attentionItems.js";
 
-/** GET /aisworg/seu/attention — Ch.34: platform-wide Attention inbox. */
 router.get("/attention", attachVM("seu/attention/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const items = await listAttentionItems();
@@ -36,7 +35,6 @@ router.get("/attention", attachVM("seu/attention/index"), async (req: Request, r
   }
 });
 
-/** POST /aisworg/seu/attention/:id/transition — Ch.34 §9 lifecycle. */
 router.post("/attention/:id/transition", async (req: Request, res: Response) => {
   const backTo = "/aisworg/seu/attention";
   const { targetState } = req.body ?? {};

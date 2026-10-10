@@ -1,4 +1,3 @@
-// Standalone dry-run addition
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -38,7 +37,6 @@ interface ProfileSeed {
   environment: string;
   optionalPackCodes?: string[];
 }
-// authoredBy is a participants_master.id 
 export interface SeedActor {
   authoredBy: string;
   authorBadge: string;
@@ -57,8 +55,6 @@ async function run(actor: SeedActor): Promise<void> {
     });
     if (templateErr || !template) throw templateErr ?? new Error(`template upsert failed: ${templateSeed.code}`);
     
-    // CR-039/CR-041 — materialised at seed time (Template-scoped), not at
-    // commissioning. dependencyGraph is the real authored source.
     await materialiseDependencyGraph({
       owningEntityType: "Template",
       owningEntityId: template.id,
@@ -78,18 +74,6 @@ async function run(actor: SeedActor): Promise<void> {
     });
     await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds, actor.authoredBy, actor.authorBadge);
 
-    // Bug fix (013_template_profile_pack_by_code.sql): template_packs/
-    // profile_packs now store the Pack's code, resolved to whichever Version
-    // is currently Active at commissioning time, not a frozen row pinned
-    // here. This is exactly what this file's own earlier workaround for the
-    // "platform-core-engineering was Archived when this pilot was seeded"
-    // finding (2026-08-04, Ebook Library Dry Run.md) needed — that workaround
-    // is gone because the underlying bug it was routing around is fixed:
-    // whichever Version is Active when an SEU is actually commissioned from
-    // this Template/Profile is what composes, not whatever was Active (or
-    // wasn't) at seed time. Still validated against a real, known Pack code
-    // here so a typo fails loudly at seed time, not silently at first
-    // commissioning.
     for (const code of templateSeed.mandatoryPackCodes) {
       const { data: pack } = await packsDB.findByCode(code);
       if (!pack) throw new Error(`template ${templateSeed.code} requires unknown pack ${code}`);

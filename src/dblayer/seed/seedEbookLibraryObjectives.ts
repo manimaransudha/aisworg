@@ -1,29 +1,7 @@
-// Owner-provided worked example (example.md) — an ebook library management
-// system's Objective decomposition, seeded once per db:clean-slate so it
-// doesn't have to be hand-created every time. Every node is created Proposed
-// (owner: "Let it stay in the proposed phase") — none of these are meant to
-// be Active/commissionable out of the box.
-//
-// Uses createObjective (core/objectives.ts), not a raw INSERT — this is the
-// same validated path the app itself uses (tier-rank checks, requestedBy
-// attribution, sponsoring_authority derivation), so this tree is exactly as
-// legitimate as one a user built by hand through the UI.
-//
-// Node order matters: objectivesDB.create's own display_id numbering
-// (next_child_seq per parent, next_seq per tenant for roots) is purely
-// sequential, so creating these in the exact order below is what makes the
-// auto-generated display_id sequence land on 1 / 1.1 / 1.2 / 1.1.1 / 1.1.2 /
-// 1.1.3 / 1.2.1 / 1.2.2 — the same ids example.md itself uses — rather than
-// something that merely happens to match by coincidence.
 import { createObjective } from "../../routes/seu/core/objectives.js";
 import { logger } from "../../utils/logger.js";
 import { getTesterId, TEST_ALL_EMAIL } from "../constants.js";
 import { userDB } from "../userDB.js";
-
-// Test — All Badges (seedIdentityBaseline.ts's own TESTER_ALL_ID) — the same
-// requestedBy convention every other test/seed fixture in this codebase
-// already uses (e.g. tests/commission-profile-choice.test.ts).
-
 
 export async function seedEbookLibraryObjectives(): Promise<void> {
   const REQUESTED_BY = await getTesterId(TEST_ALL_EMAIL);

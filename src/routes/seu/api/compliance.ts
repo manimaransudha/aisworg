@@ -10,11 +10,6 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
 import { evaluateCompliance, grantWaiver, generateComplianceReport, complianceHistory } from "../core/compliance.js";
 
-// route_authority declares no badges/roles for the two registration routes
-// below (an explicit "no requirement" row, routeAuthorityGate.ts) — the
-// gate itself already let the request through, so this resolves a real
-// actor + badge for attribution on the row (author_id/author_badge NOT
-// NULL), not a second authorization check.
 async function resolveConfigAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
   if (!actorId) return { error: `No actor.` };
@@ -25,12 +20,6 @@ async function resolveConfigAuthor(req: Request): Promise<{ authorId: string; au
   return { authorId: master.id, authorBadge };
 }
 
-// Compliance Model — Plan (Phase 15, Ch.27 §18: Compliance APIs). Evaluation is
-// read-only and derived from engineering state. The framework/requirement
-// registration endpoints are the config surface; the faithful production path is
-// Pack contribution (publishPack), which uses the same DB upserts.
-
-/** POST /compliance/frameworks — register a Compliance Framework (config; Packs use the same upsert). */
 router.post("/compliance/frameworks", async (req: Request, res: Response) => {
   try {
     const { code, name, description, originatingPackId } = req.body ?? {};
@@ -46,7 +35,6 @@ router.post("/compliance/frameworks", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /compliance/requirements — register a declarative Compliance Requirement. */
 router.post("/compliance/requirements", async (req: Request, res: Response) => {
   try {
     const { code, frameworkCode, name, description, criteria, severity, conflictsWith, originatingPackId } = req.body ?? {};
@@ -71,7 +59,6 @@ router.post("/compliance/requirements", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /seus/:id/compliance — evaluate the SEU's compliance now (records a snapshot). */
 router.get("/seus/:id/compliance", async (req: Request, res: Response) => {
   try {
     res.status(200).json(await evaluateCompliance(String(req.params.id)));
@@ -81,7 +68,6 @@ router.get("/seus/:id/compliance", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /seus/:id/compliance/report — the Ch.27 §12 report projection. */
 router.get("/seus/:id/compliance/report", async (req: Request, res: Response) => {
   try {
     res.status(200).json(await generateComplianceReport(String(req.params.id)));
@@ -91,7 +77,6 @@ router.get("/seus/:id/compliance/report", async (req: Request, res: Response) =>
   }
 });
 
-/** GET /seus/:id/compliance/history — immutable evaluation snapshots (FR-27.6). */
 router.get("/seus/:id/compliance/history", async (req: Request, res: Response) => {
   try {
     res.status(200).json({ history: await complianceHistory(String(req.params.id)) });
@@ -101,7 +86,6 @@ router.get("/seus/:id/compliance/history", async (req: Request, res: Response) =
   }
 });
 
-/** POST /seus/:id/compliance/waivers — grant a waiver against a requirement. */
 router.post("/seus/:id/compliance/waivers", async (req: Request, res: Response) => {
   try {
     const { requirementCode, rationale, expiresAt } = req.body ?? {};

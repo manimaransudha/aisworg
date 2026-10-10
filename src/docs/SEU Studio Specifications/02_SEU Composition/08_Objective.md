@@ -1,4 +1,4 @@
-# Chapter 1 – Objective
+# Chapter 8 – Objective
 
 ## 1. Purpose
 
@@ -75,61 +75,61 @@ An Objective does not specify implementation. Implementation is determined by Te
  
 ## 5. Architectural Principles
 
-### OBJ-001
+##### OBJ-001
 
 Every SEU shall be commissioned in service of at least one Objective.
 
 
-### OBJ-002
+##### OBJ-002
 
 Objectives are persistent and independently traceable.
 
 
-### OBJ-003
+##### OBJ-003
 
 Every Objective shall declare, or allow derivation of, the Capabilities required to achieve it.
 
 
-### OBJ-004
+##### OBJ-004
 
 Objectives are hierarchical: Strategic Objectives decompose into Operational Objectives, which decompose into Engineering Objectives.
 
-### OBJ-005
+##### OBJ-005
 
 Objectives remain independent of Template, Pack and Participant selection.
 
-### OBJ-006
+##### OBJ-006
 
 Objectives may be reviewed, reaffirmed or superseded without invalidating the historical Deliverables, Decisions or Capabilities that trace back to them.
 
 ## 6. Functional Requirements
 
-### FR-1.1
+##### FR-8.1
 
 Every Objective shall possess a globally unique identifier.
 
-### FR-1.2
+##### FR-8.2
 
 Every Objective shall declare its tier: Strategic, Operational or Engineering.
 
-### FR-1.3
+##### FR-8.3
 
 Every Objective shall declare, or support automated derivation of, one or more required Capabilities.
 
-### FR-1.4
+##### FR-8.4
 
 Objectives shall support hierarchical decomposition from Strategic through Operational to Engineering tiers.
 
-### FR-1.5
+##### FR-8.5
 
 Every SEU commissioning request shall reference at least one Objective. 
 
-### FR-1.6
+##### FR-8.6
 
 Objective state changes shall be governed and fully traceable.
 
 
-### FR-1.7
+##### FR-8.7
 
 An Objective referenced by an active Deliverable shall remain immutable except through governed supersession.
 
@@ -138,19 +138,19 @@ An Objective referenced by an active Deliverable shall remain immutable except t
 
 Every Objective shall belong to one of the following tiers.
 
-### Strategic Objective
+##### Strategic Objective
 
 Organisational-level intent, typically spanning multiple SEUs or an extended time horizon.
 
 Example: "Establish a claims-processing capability compliant with regional insurance regulation."
  
-### Operational Objective
+##### Operational Objective
 
 Intent scoped to a specific programme or initiative, typically realised by one SEU.
 
 Example: "Deliver an automated claims-adjudication service for the retail claims line of business."
  
-### Engineering Objective
+##### Engineering Objective
 
 Intent scoped to a specific, boundable engineering outcome within an SEU.
 
@@ -194,18 +194,18 @@ Before an SEU may be commissioned against it, every Objective shall carry a set 
 Required Capabilities may be:
 
 - declared explicitly, as part of the Objective's own authored content; or
-- derived by Capability Packs (Chapter 5), contributed by the platform, an Organisation, a Domain or a Customer, acting on the Objective's content.
+- derived by Capability Packs, contributed by the platform, an Organisation, a Domain or a Customer, acting on the Objective's content.
 
 This determination acts on the Objective's content. It is not something the Objective itself performs. The Objective holds the resulting list. It does not derive, select or compose anything.
 
-The Composition Engine (Chapter 4) shall not compose Packs until required Capabilities have been determined.
+The Composition Engine shall not compose Packs until required Capabilities have been determined.
 
 Required Capabilities are the sole input Objective contributes to commissioning.
 
 
 ## 11. Objective and Template Selection
 
-Template Model (Chapter 6) shall validate or select a Template against an Objective's required Capabilities.
+Template Model shall validate or select a Template against an Objective's required Capabilities.
 
 A Template is suitable for an Objective only if it supports every Capability the Objective requires.
 

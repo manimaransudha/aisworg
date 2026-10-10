@@ -4,15 +4,14 @@ const PUBLIC_EXACT = new Set([
   '/favicon.ico',
 ]);
 
-
 const PUBLIC_PREFIX = [
   '/css/',
   '/js/',
   '/images/',
   '/fonts/',
-  '/aisworg/auth/',   // login, logout, OAuth callbacks, verify
-  '/aisworg/login',  // backwards-compat redirect
-  '/aisworg/logout', // backwards-compat redirect
+  '/aisworg/auth/',
+  '/aisworg/login',
+  '/aisworg/logout',
 ];
 
 export function isPublic(path) {

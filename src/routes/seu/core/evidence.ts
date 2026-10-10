@@ -1,7 +1,3 @@
-// Ch.17 Evidence Model — Post-MVP Phase 5. Lifecycle transitions reuse the
-// same generic transitionEngine every other entity type already uses
-// (Ch.29 §10), extended to a fifth entity type. Restructured this session
-// (Ch.17 model cleanup, migration 232) — see that migration's own header.
 import { evidenceDB } from "../../../dblayer/evidenceDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
@@ -20,10 +16,6 @@ async function assertRelatedObjectExists(relatedObjectType: TransitionEntityType
   if (!deliverable) throw new Error(`deliverable not found: ${relatedObjectId}`);
 }
 
-// evidence.author_id is a `participants` row (SEU-scoped engagement), not a
-// participants_master row directly — two hops from the acting user's id.
-// evidence_relationships.author_id references participants_master(id)
-// directly — one hop — so both ids are resolved and returned together.
 async function resolveAuthorIds(seuId: string, actorId: string): Promise<{ participantId: string; masterId: string }> {
   const { data: master } = await participantsMasterDB.findById(actorId);
   if (!master) throw new Error(`No superuser provisioned.`);
@@ -32,9 +24,6 @@ async function resolveAuthorIds(seuId: string, actorId: string): Promise<{ parti
   return { participantId: participant.id, masterId: master.id };
 }
 
-// For call sites with no SEU context available yet (e.g. linking an existing
-// Evidence Item to another object) — evidence_relationships.author_id only
-// needs the direct participants_master hop.
 async function resolveAuthorMasterId(actorId: string): Promise<string> {
   const { data: master } = await participantsMasterDB.findById(actorId);
   if (!master) throw new Error(`No superuser provisioned.`);
@@ -89,11 +78,6 @@ export async function createEvidence(input: {
   });
 
   if (input.supersedesEvidenceId) {
-    // Not a transition_definitions-governed hop (Supersede creates a new
-    // row, it doesn't move an existing one between states), so there's no
-    // row to carry a version_event — this IS the version-significant act
-    // itself, tagged VersionSuperseded directly, confirmed with the owner
-    // this session.
     await eventBus.publish({
       eventType: "EvidenceSuperseded",
       originatingObjectType: "Evidence",
@@ -162,13 +146,6 @@ export async function linkEvidenceToObject(evidenceId: string, relatedObjectType
   return { ok: true };
 }
 
-// evidence-validation-dimension / evidence-validation-status Ontology
-// concepts (migration 232). Confidence computation: the simplest rule that
-// respects "computed, not author-set" — Fail anywhere -> Low, otherwise
-// Partial anywhere -> Medium, otherwise (all Pass, or nothing yet assessed
-// beyond this) -> High. Recomputed from the FULL history (every assessment
-// ever appended), not just the latest one per dimension, since a later
-// re-assessment doesn't erase an earlier Fail from the record.
 const CONFIDENCE_RANK: Record<string, number> = { Fail: 0, "Not Assessed": 0, Partial: 1, Pass: 2 };
 function computeConfidenceLevel(assessments: EvidenceValidationAssessment[]): string | null {
   if (assessments.length === 0) return null;
@@ -180,11 +157,6 @@ function computeConfidenceLevel(assessments: EvidenceValidationAssessment[]): st
 
 export type RecordValidationAssessmentResult = { ok: true; evidence: EvidenceRow } | { ok: false; reason: "not_found" };
 
-// Append-only, per the owner's own direction: Validated->Accepted->
-// Referenced->Archived share one row with no new version minted at each
-// hop, so every assessment made against this Evidence must survive as its
-// own entry — never overwritten, never lost when a dimension is
-// re-assessed later.
 export async function recordValidationAssessment(input: { evidenceId: string; dimension: string; status: string; notes?: string | null }): Promise<RecordValidationAssessmentResult> {
   await assertCanonicalCategory("evidence-validation-dimension", input.dimension);
   await assertCanonicalCategory("evidence-validation-status", input.status);
@@ -253,11 +225,6 @@ export async function transitionEvidence(input: { evidenceId: string; targetStat
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 
-  // Post-completion fix (Open Design Questions.md #3): same check
-  // obligations.ts's own transitionObligation runs, generalised to every
-  // SEU-scoped entity type. quality_gate_evaluations.author_id references
-  // participants(id) — a real SEU-scoped engagement is required to record
-  // one, same as every other governed transition here.
   if (!input.actorId) throw new Error("actorId is required to transition Evidence");
   if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Evidence ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
   if (!seuId) throw new Error(`Evidence ${evidence.id} has no SEU relationship — cannot resolve a governed author for its Quality Gate evaluation`);

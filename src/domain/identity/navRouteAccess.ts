@@ -1,15 +1,3 @@
-// CR-110 — navbar link visibility, generically keyed off route_authority for
-// every nav link's own target route, instead of hardcoded users.role/badge
-// literals (navbar.ejs's old _isGeneral gate, app.js's old Ontology
-// role/root check). A link whose target has no route_authority row is
-// treated as NOT visible — mirrors routeAuthorityGate's own fail-closed
-// behaviour, so the nav never shows a link the gate would then 403. A row
-// with empty badges[] and roles[] is always visible. Uses the same
-// in-memory routeAuthorityCache (path-to-regexp matching, so pattern rows
-// like /aisworg/seu/sdk/:slug resolve correctly) and the same
-// resolveHeldBadges/resolveHeldRoles primitives the gate itself uses — this
-// is the navbar's own visibility signal ONLY; the route's own gate lookup on
-// request is still the real enforcement, they just read the same table.
 import type { Request } from "express";
 import { lookupRouteAuthority } from "./routeAuthorityCache.js";
 import { resolveHeldBadges } from "./heldBadges.js";

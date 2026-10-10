@@ -1,8 +1,3 @@
-// Participant Registry (CR-098, Ch.13 §8) — the tenant-scoped, cross-SEU
-// resource registry: every participants_master row (a reusable identity —
-// human, AI agent configuration, Automated integration, External authority),
-// not the per-SEU lifecycle `participants` engagements (those stay visible
-// on each SEU's own detail page, same as today).
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
@@ -20,7 +15,6 @@ import type { ParticipantMasterRow } from "../../../dblayer/seuTypes.js";
 
 const PARTICIPANT_TYPES = ["AI", "Human", "Automated", "External"];
 
-/** GET /aisworg/seu/participants — every participants_master resource. */
 router.get("/participants", attachVM("seu/participants/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Participants";

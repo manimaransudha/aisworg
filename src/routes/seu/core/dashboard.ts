@@ -1,11 +1,3 @@
-// Drives the SEU platform's landing page — a direct reflection of the layered
-// architecture from design/foundations/03_Book 3 (Refined)/Introduction.md
-// ("## The architecture becomes"): User Experience Layer / SEU Runtime Layer /
-// Extension Framework / Runtime Kernel. Every component in that diagram is
-// listed here with an honest status against what this MVP actually built —
-// see design/mvp-build-plan/MVP Build Plan.md §1 and §5 for why each one is
-// live, partial, or deferred. This is data the view renders, not something
-// the view decides for itself.
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";

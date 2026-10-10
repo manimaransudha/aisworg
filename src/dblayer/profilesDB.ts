@@ -6,28 +6,7 @@ import type { DbResult, ProfileRow } from "./seuTypes.js";
 import { getPlatformTenantId  } from "./constants.js";
  
 
-// Also owns profile_packs — Profile owns everything selectable/optional on top
-// of the Template's mandatory set (Build Plan §5 item 6).
-//
-// Profile identity foundation (owner, 2026-08-19): "19.2 and 19.3 has to be
-// fixed similar to pack and template" — (code, profile_version, tenant_id) is
-// the real identity now (migration 064), mirroring templatesDB.ts's own
-// CR-024/CR-026 shape exactly. category (also migration 064) is Profile's
-// own §8 field, kept separate from `code` (see the migration's own comment
-// on why) — not part of identity, just another authored column.
 export const profilesDB = {
-  // CR-091 Part 2/Part 3 — configParameters/category both dropped from every
-  // write path below. Neither the profiles.config_parameters nor
-  // profiles.category DATABASE COLUMN is touched by this (owner: "do not
-  // delete. But do not use them") — they simply stop being written to by any
-  // new row from here on; existing historical values sit there untouched.
-  // `status` defaults to 'Active' HERE, explicitly — not by relying on the
-  // column's own DEFAULT (which is 'Draft' as of migration 185b, matching
-  // Pack/Template). This is the raw "already-published catalog entry"
-  // DB-layer helper — direct test fixtures across the suite call it
-  // expecting an immediately-usable Active row with no lifecycle walk, and
-  // that stays true. publishProfile (core/profiles.ts) no longer calls this
-  // at all — it creates a real Draft (createDraft) and walks it forward.
   async upsert(input: {
     code: string;
     name: string;
@@ -66,17 +45,6 @@ export const profilesDB = {
     }
   },
 
-  // Bug fix — this omitted `status` entirely, relying on the column's own
-  // default. That default was 'Active' until migration 186 (Version Feature
-  // Plan.md's Ch.7 pass) moved it to 'Draft', matching Pack — this throwaway
-  // synthesizer (findOrCreateDefaultProfile's own fallback, core/profiles.ts)
-  // needs an immediately-usable Active row, not a Draft, so it's now
-  // explicit about it, the same way upsert() already is.
-  // design/design whiteboards.md/schema_implementation.md (owner: "Who is
-  // using findOrCreateDefaultProfile? It has to follow the same validation")
-  // — validated the same as every other real write, not exempted for being
-  // a throwaway synthesizer. `environment` is the only schema-governed field
-  // this ever writes (no draftContent).
   async create(input: {
     baseTemplateId: string;
     baseTemplateCode: string;
@@ -114,14 +82,6 @@ export const profilesDB = {
     }
   },
 
-  // Entity-direct authoring (bug fix correcting CR-014): a Draft Profile row is
-  // the authoring document. base_template_id is NOT NULL, so a Draft must name a
-  // real base Template up front (chosen on the create form); the rest of the
-  // authored content lives in draft_content until publish.
-  // tenantId — the real author's own tenant (Platform for a Platform author),
-  // mirrors packsDB.create/templatesDB.createDraft. parentProfileId (Ch.7 §9
-  // Profile Inheritance) is set once at Draft creation via the "Inherit"
-  // control and never revisited by Save.
   async createDraft(input: {
     code: string;
     name: string;
@@ -133,8 +93,6 @@ export const profilesDB = {
     profileVersion?: string;
     tenantId?: string;
     parentProfileId?: string | null;
-    // CR-114 follow-on — mandatory (owner: "Otherwise all this build is of no
-    // use"); every caller must resolve and pass a real schema_definition_id.
     schemaDefinitionId: string;
   }): Promise<DbResult<ProfileRow>> {
     try {
@@ -181,29 +139,6 @@ export const profilesDB = {
     }
   },
 
-  // Bug fix (owner, 2026-09-06: "every seeded Profile in the current DB has
-  // empty draft_content — this will not be useful. There has to be real
-  // prod grade data") — publishProfile's own upsert() never writes
-  // draft_content at all (only code/name/baseTemplateId/environment/
-  // profileVersion/tenantId), so nothing passed to publishProfile beyond
-  // those — description, the 8 Configuration Parameters, Pack-selection
-  // slots as their own authored arrays, exposedParameterOverrides, etc. —
-  // ever reached the row, regardless of what a seed file actually declared.
-  // updateDraftContent above is scoped to `WHERE status = 'Draft'`
-  // (interactive authoring's own save-while-editing case) and upsert's own
-  // INSERT defaults status to 'Active' (migration 002), so it never matches
-  // a seeded row — a genuinely different write path is needed here, not a
-  // reuse of that one. No status restriction: materialiseProfileDraft (the
-  // one caller) runs after both upsert (Active) and createDraft (Draft), so
-  // this has to work regardless of which state the row is actually in.
-  // design/design whiteboards.md/schema_implementation.md — this is a real,
-  // unconditional write to draft_content (no `status = 'Draft'` guard, unlike
-  // updateDraftContent below), and it's the actual write path publishProfile/
-  // seed scripts use to materialise Pack selections/draft content (via
-  // materialiseProfileDraft) — validated the same way createDraft/
-  // updateDraftContent are, not skipped just because its name doesn't say
-  // "create"/"update". code/name/environment/profileVersion aren't passed
-  // here (only draftContent is) — read off the row's own real columns.
   async setDraftContent(id: string, draftContent: Record<string, unknown>): Promise<DbResult<ProfileRow>> {
     try {
       const { rows: existingRows } = await query<{ code: string; name: string; environment: string; profile_version: string; schema_definition_id: string | null; tenant_id: string }>(
@@ -286,11 +221,6 @@ export const profilesDB = {
     }
   },
 
-  // Profile ownership visibility, mirroring packsDB/templatesDB's own
-  // findAllVisibleTo/findActiveVisibleTo exactly — Platform's own plus this
-  // Profile Registry listing (owner, 2026-08-19), mirroring
-  // packsDB.findAll/templatesDB.findAll exactly — every Version of every
-  // Profile, unscoped by tenant. Root/admin "see everything" view.
   async findAll(): Promise<DbResult<ProfileRow[]>> {
     try {
       const { rows } = await query<ProfileRow>("SELECT * FROM profiles ORDER BY category, code, created_at DESC");
@@ -301,8 +231,6 @@ export const profilesDB = {
     }
   },
 
-  // viewer's own tenant's. Feeds the Profile Registry and the Inheritance
-  // dropdown.
   async findAllVisibleTo(viewerTenantId: string): Promise<DbResult<ProfileRow[]>> {
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
@@ -331,8 +259,6 @@ export const profilesDB = {
     }
   },
 
-  // Authoring surface, the "Queue" tabs — see templatesDB.findByStatus for the
-  // full rationale. viewerTenantId null = unscoped (root).
   async findByStatus(status: ProfileRow["status"], viewerTenantId: string | null): Promise<DbResult<ProfileRow[]>> {
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
@@ -349,7 +275,6 @@ export const profilesDB = {
     }
   },
 
-  // Authoring surface, per-verb tabs — see packsDB.findByStatusActedBy.
   async findByStatusActedBy(status: ProfileRow["status"], authorityBadge: string, actorId: number | null): Promise<DbResult<ProfileRow[]>> {
     try {
       const { rows } = actorId == null
@@ -396,11 +321,6 @@ export const profilesDB = {
     }
   },
 
-  // Code alone is no longer unique (multiple versions/tenants can share it) —
-  // "latest by created_at", same convention/caveat packsDB.findByCode/
-  // templatesDB.findByCode document. Unscoped on purpose: legacy callers
-  // (baseTemplateCode-style resolution equivalents) predate tenant-scoped
-  // identity.
   async findByCode(code: string): Promise<DbResult<ProfileRow | null>> {
     try {
       const { rows } = await query<ProfileRow>("SELECT * FROM profiles WHERE code = $1 ORDER BY created_at DESC LIMIT 1", [code]);
@@ -423,9 +343,6 @@ export const profilesDB = {
     }
   },
 
-  // The one row (if any) currently Active for a code — reactivateAsNewVersion's
-  // supersede step uses this, same as packsDB/templatesDB.findActiveByCode.
-  // "One Active per code" is per (code, tenant_id) once tenantId is given.
   async findActiveByCode(code: string, tenantId?: string): Promise<DbResult<ProfileRow | null>> {
     try {
       const { rows } = tenantId == null
@@ -438,9 +355,6 @@ export const profilesDB = {
     }
   },
 
-  // Ebook Library — Full Demo Walkthrough.md, real finding #3: lets
-  // commissioning check for an already-published Profile before falling
-  // back to synthesizing a throwaway one.
   async findByBaseTemplateId(templateId: string): Promise<DbResult<ProfileRow[]>> {
     try {
       const { rows } = await query<ProfileRow>("SELECT * FROM profiles WHERE base_template_id = $1 ORDER BY created_at", [templateId]);
@@ -451,24 +365,9 @@ export const profilesDB = {
     }
   },
 
-  // Stores the Pack's *code*, not a specific row id — bug fix, see
-  // 013_template_profile_pack_by_code.sql. Same reasoning as
-  // templatesDB.setMandatoryPacks: which Version a code resolves to is
-  // decided fresh at every commissioning, not frozen here.
-  // Ch.7 §7 fields (owner, 2026-08-19): Selected Packs (optional), Selected
-  // Technologies, Selected Domains, Selected Compliance Packs, and
-  // Integration Packs are five slots on the SAME join table, disambiguated
-  // by `list_kind` (migration 067) rather than five tables —
-  // setOptionalPacks/getOptionalPackCodes below default to `list_kind =
-  // 'optional'`, the pre-existing list's own identity.
   async setPackSelection(profileId: string, listKind: string, packCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM profile_packs WHERE profile_id = $1 AND list_kind = $2", [profileId, listKind]);
-      // ON CONFLICT DO NOTHING — same concurrent-writer race as
-      // templatesDB.setPackSelection/setRequiredCapabilities (see their own
-      // comments): this DELETE+loop-INSERT isn't atomic, and testFixtures.ts's
-      // shared fixture can be reached by many concurrent `node --test`
-      // processes racing to write the exact same target rows the first time.
       for (const packCode of packCodes) {
         await query(
           "INSERT INTO profile_packs (profile_id, pack_code, list_kind, author_id, author_badge) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (profile_id, pack_code, list_kind) DO NOTHING",

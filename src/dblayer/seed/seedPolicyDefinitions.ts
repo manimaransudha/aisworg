@@ -1,13 +1,3 @@
-// CR-089 — seed the 34 canonical Policy Definitions from
-// design/fragments/policies.md, one JSON file per Policy (src/dblayer/seed/data/
-// policy-*.json). Same "readFileSync + hardcoded file list" pattern
-// seedCompliancePacks.ts already uses for its own 33 files. Unlike Packs
-// (published through publishPack's own lifecycle machinery), these are
-// written directly at status='Active' via policyDefinitionsDB — same
-// convention 154_service_definitions_seed.sql used for the 60 Service
-// Definitions: "a bulk import of an already-vetted catalog... Packs/
-// Templates/Ontology concepts are never walked through their own authoring
-// lifecycle one row at a time either."
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -27,23 +17,10 @@ interface PolicyDefinitionSeedFile {
   description: string;
   category: string;
   constraintType: "Policy" | "Standard";
-  // Migrations 214/216 — these three named the OLD, now-dropped
-  // policy_definitions columns' own JSON shape (applicability_deliverables,
-  // governed_transition, governing_condition — all folded into each element
-  // of `conditions` now, PolicyCondition.applicabilityDeliverables/
-  // governingCondition). None of the 34 real seed files ever set any of
-  // them to begin with ("seed data work is deferred" — owner), so the
-  // mechanical fold below (attached to every condition, or left as the
-  // packs.ts DEFAULT_CONDITION fallback when `conditions` is empty) is never
-  // actually exercised on real data today — this only keeps this script
-  // from referencing columns that no longer exist.
   applicabilityDeliverableNames: string[];
   applicabilityEnvironments: string[];
   applicabilityDeliverableLifecycle: string[];
   conditions: PolicyCondition[];
-  // CR-104 follow-up — optional; none of the 34 original real files set
-  // these, so they fall back to the DB column defaults (scope "Transition")
-  // exactly as before this field existed.
   scope?: PolicyScope;
   governingCondition?: Record<string, unknown> | null;
   version: string;
@@ -90,11 +67,6 @@ const POLICY_DEFINITION_FILES = [
   "policy-organisational-knowledge-currency.json",
 ];
 
-// CR-104 follow-up — real, seeded validation fixtures for the SEU-scoped
-// and Eligibility-scoped Policy scopes (owner: "we have to fix publishPack
-// also. it should not override anything" — these adopt through the same
-// real Definition -> Pack -> materialised Policy path every other real
-// Policy does, no bypass).
 const TEST_POLICY_DEFINITION_FILES = [
   "policy-cr104-demo-seu-commence-work.json",
   "policy-cr104-demo-background-check.json",
@@ -109,13 +81,9 @@ export interface SeedActor {
   authorBadge: string;
 }
 
-// get platform tenant id
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
   
 export async function seedPolicyDefinitions(actor: SeedActor): Promise<void> {
-  // authored_by/author_badge are NOT NULL, participants_master-scoped --
-  // resolve once, not a default (same discipline as seedServiceDefinitions.ts,
-  // db:clean-slate's own root-actor convention elsewhere in this directory).
   
   const client = await pool.connect();
   try {
@@ -123,15 +91,6 @@ export async function seedPolicyDefinitions(actor: SeedActor): Promise<void> {
     let count = 0;
     for (const file of ALL_POLICY_FILES) {
       const seed = loadJson(file);
-      // Migrations 214/216/219 — mechanical fold of the old independent
-      // names/lifecycle-transitions/governingCondition fields into each
-      // condition's own applicabilityDeliverables rows, each carrying the
-      // fold's own governingCondition (moved off the condition and onto
-      // each row by migration 219): every name paired with every listed
-      // transition, attached to every condition that doesn't already
-      // declare its own rows. Never exercised on real data today (see the
-      // interface's own comment above) — the real per-condition authoring
-      // is the deferred reseed pass.
       const applicabilityDeliverables = seed.applicabilityDeliverableNames.map((name) => ({
         name, transitions: seed.applicabilityDeliverableLifecycle, governingCondition: seed.governingCondition ?? null,
       }));

@@ -1,6 +1,3 @@
-// CR-015 — Pack categories as data (Ch.5 §6/§17). A new category is an INSERT
-// here, not a migration. Soft-retire via is_active (never delete/rename), same
-// discipline as authority_nouns.
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult } from "./seuTypes.js";

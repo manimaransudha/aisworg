@@ -2,9 +2,6 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, ExecutionMode, ExecutionTargetRow } from "./seuTypes.js";
 
-// Participant Integration — Plan step 5. The per-Capability execution-target
-// config the adapter seam resolves against (Contract declaration #2). A
-// Capability with no row defaults to human-on-ui.
 export const executionTargetsDB = {
   async upsert(input: {
     tenantId: string;

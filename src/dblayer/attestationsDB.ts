@@ -2,11 +2,6 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { AttestationRow, DbResult } from "./seuTypes.js";
 
-// Participant Integration & Attestation — Plan step 2 (Resolution 3). The
-// immutable, SEU-scoped governance-outcome record, minted only when a governed
-// acceptance transition (In Progress -> Approved, Approved -> Baselined) fires.
-// The Baselining Quality Gate accepts an attestation as Evidence (Resolution 7),
-// and each row is a provenance edge for the Ch.20 traceability query.
 export const attestationsDB = {
   async create(input: {
     seuId: string;

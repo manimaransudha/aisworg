@@ -1,11 +1,3 @@
-// Participant Lifecycle Governance — Plan (design/mvp-build-plan/Participant
-// Lifecycle Governance — Plan.md), Build order step 1/2. `Participant` is a
-// brand-new TransitionEntityType, added after transitionEngine.evaluate
-// itself gained a generic Quality Gate check (SDK UI Layer Plan) — unlike
-// the 9 entity types that predate that generalisation, there's no legacy
-// coincidental-(entityType,fromState,toState) quality_gates row to preserve
-// here, so this calls transitionEngine.evaluate directly, no separate
-// qualityGateEngine.evaluate pre-check.
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
@@ -18,14 +10,6 @@ export type TransitionParticipantResult =
   | { ok: true; participant: ParticipantRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" | "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked"; detail: string };
 
-// Ch.13 §16's event list doesn't map one-to-one onto §9's seven-edge graph:
-// ParticipantCreated fires separately (fulfilCapability, not a transition);
-// Available->Assigned and Idle->Assigned both mean "now Assigned," so both
-// fire ParticipantAssigned; Assigned->Executing has no chapter-named event
-// at all — Ch.13 §16 never lists a "started executing" event, so none is
-// invented here. ParticipantReplaced (step 4) and ParticipantUnavailable
-// (held, no graph edge to hang it on — see the plan's own note) aren't
-// transition-driven, so they're not in this table.
 const CH13_EVENT_BY_TRANSITION: Record<string, string> = {
   "Created->Available": "ParticipantActivated",
   "Available->Assigned": "ParticipantAssigned",
@@ -85,26 +69,10 @@ export type ReplaceParticipantResult =
   | { ok: false; reason: "no_active_fulfilment"; detail: string }
   | Exclude<TransitionParticipantResult, { ok: true }>;
 
-// Ch.13 §13 (Participant Replacement), PM-001 — Build order step 4. "The
-// platform shall permit replacement of any Participant": Available,
-// Assigned, Executing and Idle each have a real edge into Released (seeded
-// alongside step 1's graph, specifically for this — the chapter is explicit
-// that replacement isn't limited to an Idle Participant), so the old
-// Participant is driven to Released from whatever state it's actually in,
-// then Released -> Archived — two real, governed transitionParticipant
-// calls, not a bypass. Preserves everything Ch.13 §13 lists (Deliverable
-// state, Knowledge, Decisions, Evidence, Traceability, Outstanding
-// Obligations): none of those reference participant_id at all (PM-003,
-// confirmed in the design doc's own review), so there is nothing to
-// re-point for them — only capability_fulfilments does, and that's exactly
-// what this function re-points.
 export async function replaceParticipant(input: {
   oldParticipantId: string;
   newParticipantType: ParticipantType;
   newDisplayName: string;
-  // Migration 195 — the participants_master resource this new engagement
-  // is for, if any (CR-098). Renamed from newUserId; no current caller
-  // populates this (unchanged from before the rename).
   newParticipantMasterId?: string | null;
   actorRole: string;
   actorId?: string;
@@ -145,11 +113,6 @@ export async function replaceParticipant(input: {
     payload: { participantType: input.newParticipantType },
   });
 
-  // Same primitive (revoked_at) every other "active" fulfilment query
-  // already filters on — end the old row, start a fresh one for the new
-  // Participant, rather than re-pointing participant_id in place (which
-  // would conflate two different Participants' tenure into a single row's
-  // established_at/revoked_at history).
   await capabilityFulfilmentsDB.revoke(fulfilment.id);
   const { authorId } = await resolveAuthor(oldParticipant.seu_id, input.actorId);
   const { data: newFulfilment, error: fulfilmentErr } = await capabilityFulfilmentsDB.create({

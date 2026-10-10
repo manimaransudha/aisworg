@@ -1,13 +1,3 @@
-// Ch.26 minimal instance — evaluates whether a declared Quality Gate permits
-// a governed transition. A gate is scoped to one specific (entityType,
-// fromState, toState) triple, same granularity as transition_definitions
-// (Ch.29), so extending which transitions get gated is a quality_gates row,
-// not a code change. MVP implements two declarative criteria types:
-//   - "no_unresolved_obligations" (Phase 4 — Ch.23 §11's own worked example)
-//   - "requires_accepted_evidence_or_approved_decision" (Phase 5 — Ch.17's
-//     Trust Pipeline ADR: "Deliverable State Transitions occur only after
-//     sufficient evidence and approved decisions")
-// Richer criteria (Review-based, per Ch.26 §9) are future scope.
 import { qualityGatesDB } from "../../dblayer/qualityGatesDB.js";
 import { qualityGateEvaluationsDB } from "../../dblayer/qualityGateEvaluationsDB.js";
 import { qualityGateWaiversDB } from "../../dblayer/qualityGateWaiversDB.js";
@@ -23,35 +13,13 @@ import { evaluateCondition, type GoverningCondition } from "./governingCondition
 import { eventBus } from "./eventBus.js";
 import type { QualityGateRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
-// Ch.23 §12: an Obligation stops blocking once it's at least Verified —
-// Closed/Archived are further administrative steps past the point governance
-// cares.
-// Exported — CR-107's own resolution-triggered retry subscriber
-// (executionEngineKickoff, domain/engine/executionEngineKickoff.ts) fires on
-// the exact same "resolved enough" set no_unresolved_obligations already
-// uses, so the two never drift apart on what "resolved" means.
 export const RESOLVED_OBLIGATION_STATUSES = new Set(["Verified", "Closed", "Archived"]);
 
-// Ch.34 §9: Created -> Delivered -> Acknowledged -> In Progress -> Resolved
-// -> Closed. Owner: "Participants transition the attention items and provide
-// evidence etc. There should be AttentionTransition that should be published
-// and the execution engine handler should be the subscriber (same handler
-// as the ObligationTransitioned)" — a Participant resolving/closing an
-// AttentionItem (raised alongside a blocking Obligation, or standalone) is
-// as legitimate a retry trigger as the Obligation itself resolving.
 export const RESOLVED_ATTENTION_STATUSES = new Set(["Resolved", "Closed"]);
 
-// Ch.17 §9: Evidence counts once it's reached Accepted or is actively
-// Referenced; Archived means retired from active use, so a newly-requested
-// transition shouldn't lean on it. Ch.19 §9: only Approved/Applied Decisions
-// influence a Deliverable transition — Superseded/Archived are no longer the
-// current decision.
 const QUALIFYING_EVIDENCE_STATUSES = new Set(["Accepted", "Referenced"]);
 const QUALIFYING_DECISION_STATUSES = new Set(["Approved", "Applied"]);
 
-// Review Model (Ch.25 §11): a Review satisfies a gate only when its lifecycle is
-// Accepted AND its outcome is a passing one. Rework Required/Failed never
-// satisfy; Deferred/Not Applicable do not satisfy a *required* Review.
 const QUALIFYING_REVIEW_OUTCOMES = new Set(["Passed", "Passed with Recommendations"]);
 
 export type QualityGateEvaluationResult =
@@ -66,11 +34,6 @@ export type QualityGateListEvaluationResult =
   | { outcome: "Waived"; gate: QualityGateRow; reason: string };
 
 export const qualityGateEngine = {
-  // CR-058 — a transition may now have several active gates (one per
-  // category, owner: "one gate per category"). All must pass; short-circuits
-  // and reports the first one that blocks or is waived, same "first
-  // blocking gate wins" semantics evaluateByIds already had for explicit
-  // gate-id references — now shared by both paths.
   async evaluate(input: {
     entityType: TransitionEntityType;
     entityId: string;
@@ -78,27 +41,9 @@ export const qualityGateEngine = {
     fromState: string;
     toState: string;
     context?: Record<string, unknown>;
-    // Real, already-resolved participants(id) + badge of whoever is running
-    // this evaluation — no fallback; every caller must resolve these before
-    // calling in (author_id/author_badge are NOT NULL on quality_gate_evaluations).
     authorId: string;
     authorBadge: string;
   }): Promise<QualityGateListEvaluationResult> {
-    // CR-104 — for a SEU-scoped entity (real seuId, an EBM already
-    // materialised), Quality Gates are matched via this SEU's own EBM
-    // materialised applicable_quality_gate_ids (compositionCompleted.ts,
-    // computed once at commissioning from the composed Packs' own
-    // originating_pack_id) — not a bare (entity_type, from_state, to_state)
-    // match against the GLOBAL quality_gates table, which used to apply any
-    // Pack's gate to every SEU platform-wide regardless of composition.
-    //
-    // Platform-level entities (Pack, Objective, TransitionDefinition, ...)
-    // genuinely have no SEU/EBM/composition at all — seuId is null by
-    // design there (§4.3/Open Q#3's own "a Quality Gate can gate a Pack
-    // transition with a null SEU"), so composition scoping doesn't apply;
-    // these keep the original global match. Same fallback for the (should
-    // be rare/transient) case of a SEU-scoped entity whose SEU has no
-    // active EBM yet.
     let gates: QualityGateRow[];
     if (!input.seuId) {
       const { data } = await qualityGatesDB.findAllActive(input.entityType, input.fromState, input.toState);
@@ -133,16 +78,6 @@ export const qualityGateEngine = {
     return { outcome: "Passed" };
   },
 
-  // SDK UI Layer Plan, Transition Definition section, "Mechanism — resolved"
-  // — explicit gate references (transition_definitions.required_quality_gate_ids)
-  // replace the coincidental (entityType, fromState, toState) match above,
-  // for any transition_definitions row that declares them. Called from
-  // transitionEngine.evaluate itself, generically, for any entity type — not
-  // a per-entity-type qualityGateEngine.evaluate call the way the 9 existing
-  // entity types' own core/*.ts functions still do it (unchanged, still
-  // live). All gates must pass; short-circuits and reports the first one
-  // that blocks, same "first blocking gate wins" semantics evaluate's own
-  // multi-gate check above shares.
   async evaluateByIds(
     gateIds: string[],
     input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown>; authorId: string; authorBadge: string }
@@ -162,14 +97,6 @@ export const qualityGateEngine = {
   ): Promise<QualityGateEvaluationResult> {
     const criteriaType = (gate.criteria as { type?: string }).type;
 
-    // Post-completion fix (Open Design Questions.md #3): both criteria types
-    // below used to resolve Obligations/Evidence/Decisions by a Deliverable-
-    // only deliverable_id FK — meaning a Quality Gate on any other entity
-    // type could never mean anything, even though quality_gates.entity_type
-    // was never actually restricted to 'Deliverable'. Obligation/Evidence/
-    // Decision now carry a polymorphic (related_object_type, related_object_id)
-    // pair instead, resolved generically here against whatever entity this
-    // evaluation is actually for — no entity-type-specific branch needed.
     if (criteriaType === "no_unresolved_obligations") {
       const { data: obligations } = await obligationsDB.findByRelatedObject(input.entityType, input.entityId);
       const unresolved = (obligations ?? []).filter((o) => !RESOLVED_OBLIGATION_STATUSES.has(o.status));
@@ -182,16 +109,6 @@ export const qualityGateEngine = {
     }
 
     if (criteriaType === "requires_accepted_evidence_or_approved_decision") {
-      // CR-058 follow-up 2 — the gate's own `category` (now always a real
-      // category:evidence value — owner: "code = category ... drawn from
-      // the same vocabulary as Ch.17 §7's Evidence Categories") is what
-      // narrows this, replacing the old separate `criteriaCategory` param.
-      // Applied to Evidence only: Evidence's own `category` column shares
-      // this exact vocabulary, so it's a real, meaningful filter. Decision
-      // is deliberately left unfiltered — Decision has its own, different
-      // category vocabulary (category:decision, Ch.19 §7), so filtering it
-      // against an Evidence-vocabulary value could never meaningfully match;
-      // any Approved/Applied Decision still qualifies regardless of category.
       const requiredCategory = gate.category;
       const [{ data: evidence }, { data: decisions }] = await Promise.all([
         evidenceDB.findByRelatedObject(input.entityType, input.entityId),
@@ -200,35 +117,12 @@ export const qualityGateEngine = {
       const qualifyingEvidence = (evidence ?? []).filter((e) => QUALIFYING_EVIDENCE_STATUSES.has(e.status) && e.category === requiredCategory);
       const qualifyingDecisions = (decisions ?? []).filter((d) => QUALIFYING_DECISION_STATUSES.has(d.status));
 
-      // Participant Integration & Attestation — Plan step 2, refined 2026-08-11:
-      // the acceptance attestation is deliberately NOT accepted as satisfying
-      // this gate. Baselining is a genuine second bar above Approval: an
-      // attestation certifies the commit that reached Approved, but a later CR
-      // can change that code, so auto-baselining off the approval attestation
-      // would certify a stale artifact. Baselining still requires its own fresh
-      // accepted Evidence or approved Decision. (This refines Resolution 7 —
-      // the attestation's role is provenance + the empty-centre presence check,
-      // not gate satisfaction.)
       if (qualifyingEvidence.length === 0 && qualifyingDecisions.length === 0) {
         return this.blockOrWaive(gate, input, `no accepted Evidence of category "${requiredCategory}" or approved Decision found for this entity`, { requiredCategory });
       }
       return this.recordAndPass(gate, input);
     }
 
-    // Review Model — Plan (Phase 14, Ch.25 §11): Governance consumes the Review
-    // outcome. This gate blocks a transition until an Accepted Review with a
-    // passing outcome exists for the entity. Reviews are polymorphic, so this
-    // works for any gated entity type.
-    //
-    // CR-059 — replaces the old free-text `criteria.category` match entirely.
-    // A quality gate must reference a real Review Gate (`criteria.reviewGateId`,
-    // resolved at materializeContributions time from the authored `deliverableName`
-    // against this same Pack's own reviewGates[]), and the qualifying check is
-    // a strict `review_gate_id` FK match, not a category/string comparison
-    // (owner: a string match "can lead to corrupt data" — it can't tell which
-    // transition's Review was intended when the same deliverable type is
-    // reviewed more than once in a lifecycle, and can't guarantee the Review
-    // actually followed the gate's own declared prompt/participant contract).
     if (criteriaType === "requires_accepted_review") {
       const reviewGateId = (gate.criteria as { reviewGateId?: string }).reviewGateId;
       if (!reviewGateId) return this.blockOrWaive(gate, input, "requires_accepted_review criteria has no reviewGateId configured", {});
@@ -242,23 +136,6 @@ export const qualityGateEngine = {
       return this.recordAndPass(gate, input);
     }
 
-    // CR-058 — Ch.26 §9 ¶2: "a Quality Gate may still choose to treat
-    // adherence as blocking for that specific gate... even though the
-    // underlying Policy does not block by default elsewhere." That's exactly
-    // what this criteria type is: unlike transitionEngine's own Policy
-    // handling (which only blocks for constraint_type "Policy", letting
-    // "Standard" deviate non-blockingly), a Policy explicitly referenced by
-    // a Quality Gate always blocks on non-satisfaction, regardless of its
-    // own constraint_type — the gate IS the explicit override the chapter
-    // describes.
-    // CR-061 — generalized from a single policyCode to policyIds (real,
-    // already-resolved ids — resolved at materializeContributions time from the
-    // authored requiredPolicyCodes, core/packs.ts). All referenced Policies
-    // must be satisfied (owner: "Every quality gate is defined by category
-    // and that is an AND") — the "all" case is the only one built; a real
-    // percentage/threshold system is explicitly deferred execution-side
-    // work, not part of this CR ("each type may lead to some code change to
-    // the governance of the gates").
     if (criteriaType === "requires_active_policy") {
       const policyIds = (gate.criteria as { policyIds?: string[] }).policyIds ?? [];
       if (policyIds.length === 0) return this.blockOrWaive(gate, input, "requires_active_policy criteria has no policyIds configured", {});
@@ -275,18 +152,9 @@ export const qualityGateEngine = {
       return this.recordAndPass(gate, input);
     }
 
-    // Unrecognised criteria type fails closed, same discipline as
-    // transitionEngine's policy-condition evaluation.
     return this.blockOrWaive(gate, input, `unrecognised Quality Gate criteria type: ${criteriaType}`, { criteriaType });
   },
 
-  // CR-058 §13 — checked before a would-be block is finalized: an active,
-  // unexpired waiver for this exact (gate, entity) pair turns a Blocked
-  // outcome into a real, recorded Waived one instead. Waivers are granted
-  // per entity instance, never per gate definition globally (core/
-  // qualityGateWaivers.ts) — the same criteria failure can be waived for one
-  // Deliverable without silently waiving it for every other entity the gate
-  // also applies to.
   async blockOrWaive(
     gate: QualityGateRow,
     input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string },
@@ -303,9 +171,6 @@ export const qualityGateEngine = {
     input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string }
   ): Promise<QualityGateEvaluationResult> {
     await qualityGateEvaluationsDB.create({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Passed", authorId: input.authorId, authorBadge: input.authorBadge });
-    // Ch.26 §15: the Quality Gate subsystem itself should publish this — a
-    // real gap found in Phase 7's audit (evaluations were only ever written
-    // to quality_gate_evaluations, never announced on the event bus).
     await eventBus.publish({
       eventType: "QualityGatePassed",
       originatingObjectType: "QualityGate",

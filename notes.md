@@ -104,11 +104,6 @@ NODE_ENV=test node --import tsx --test tests/attestation.test.ts > output.txt 2>
 
 
 
-
-
-
-
-
 ---------
 Keep the responses short, relevant and non-repetitive. I understand English. You do not have to restate it different ways - understood ?
 

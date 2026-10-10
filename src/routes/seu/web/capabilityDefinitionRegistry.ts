@@ -1,5 +1,3 @@
-// Capability Definition Registry (CR-111) — mirrors
-// web/serviceDefinitionRegistry.ts's own Registry page structure exactly.
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
@@ -17,7 +15,6 @@ import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/cons
  
 const CAPABILITY_DEFINITION_STATES = ["Defined", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
-/** GET /aisworg/seu/capability-definitions — every published Version of every Capability Definition. */
 router.get("/capability-definitions", attachVM("seu/capability-definitions/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Capability Definitions";
@@ -48,7 +45,6 @@ router.get("/capability-definitions", attachVM("seu/capability-definitions/index
   }
 });
 
-/** POST /aisworg/seu/capability-definitions/:id/copy — Registry "Copy" action: a new, editable Definition at the same version, ready to re-author. */
 router.post("/capability-definitions/:id/copy", async (req: Request, res: Response) => {
   const backTo = "/aisworg/seu/capability-definitions";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";

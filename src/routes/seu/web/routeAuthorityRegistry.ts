@@ -1,7 +1,3 @@
-// CR-110 — Route Authority admin screen. The ONE exception to "every badge
-// check comes from route_authority": this screen's own gate is a literal
-// badge read from an env var, not a table lookup — the table can't govern
-// access to its own editor. Default `root` if the env var is unset.
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
@@ -24,9 +20,6 @@ const backTo = "/aisworg/seu/route-authority";
 const adminBadge = process.env.ROUTE_AUTHORITY_ADMIN_BADGE || "root";
 const gate = requireBadge([adminBadge], { redirectTo: "/aisworg" });
 
-// route_authority.author_id/author_badge are participants_master-scoped and
-// NOT NULL -- resolve the real actor + the real badge this screen's own
-// gate (adminBadge, above) already verified, never a default.
 async function resolveRouteAuthorityAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
   const userId = req.session?.user?.id != null ? String(req.session.user.id) : null;
   if (!userId) return { error: "No logged-in user on this session." };
@@ -49,7 +42,6 @@ function parseMultiValue(raw: unknown): string[] {
   return (Array.isArray(raw) ? raw : raw ? [raw] : []).filter((v): v is string => typeof v === "string" && v.trim() !== "");
 }
 
-/** GET /aisworg/seu/route-authority — every gated route's required badge(s)/role(s). */
 router.get("/route-authority", gate, attachVM("seu/route-authority/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data: rows } = await routeAuthorityDB.findAll();
@@ -68,7 +60,6 @@ router.get("/route-authority", gate, attachVM("seu/route-authority/index"), asyn
   }
 });
 
-/** GET /aisworg/seu/route-authority/new */
 router.get("/route-authority/new", gate, attachVM("seu/route-authority/edit"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "New route authority row";
@@ -83,7 +74,6 @@ router.get("/route-authority/new", gate, attachVM("seu/route-authority/edit"), a
   }
 });
 
-/** GET /aisworg/seu/route-authority/:id/edit */
 router.get("/route-authority/:id/edit", gate, attachVM("seu/route-authority/edit"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data: row } = await routeAuthorityDB.findById(String(req.params.id));
@@ -110,7 +100,6 @@ function readForm(body: Record<string, unknown>): { method: string; path: string
   return { method, path, badges: parseMultiValue(body.badges), roles: parseMultiValue(body.roles), matchMode, description };
 }
 
-/** POST /aisworg/seu/route-authority — create a new row. */
 router.post("/route-authority", gate, async (req: Request, res: Response) => {
   try {
     const parsed = readForm(req.body ?? {});
@@ -127,7 +116,6 @@ router.post("/route-authority", gate, async (req: Request, res: Response) => {
   }
 });
 
-/** POST /aisworg/seu/route-authority/:id/update */
 router.post("/route-authority/:id/update", gate, async (req: Request, res: Response) => {
   const id = String(req.params.id);
   try {
@@ -143,7 +131,6 @@ router.post("/route-authority/:id/update", gate, async (req: Request, res: Respo
   }
 });
 
-/** POST /aisworg/seu/route-authority/:id/delete */
 router.post("/route-authority/:id/delete", gate, async (req: Request, res: Response) => {
   try {
     const { error } = await routeAuthorityDB.delete(String(req.params.id));

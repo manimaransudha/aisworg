@@ -14,14 +14,6 @@ import { seusDB } from "../../../dblayer/seusDB.js";
 import { completeWorkItem, type WorkItemOutcome } from "../core/workItems.js";
 import { resolveExecutionTarget } from "../../../adapters/executionTargetResolver.js";
 
-// Participant Integration — Plan step 5, Resolution 10. The human-on-UI
-// completion surface: a LABELLED STUB. It lists a SEU's outstanding Work Items
-// and lets a human report the result (done/failed/blocked + a reference)
-// through the same result-in path an external orchestrator uses. It is visibly
-// marked as a tenant-specific placeholder — a real tenant replaces this with
-// its own intake under the contract.
-
-/** GET /aisworg/seu/seus/:id/work-queue — the human-on-UI work queue for a SEU. */
 router.get("/seus/:id/work-queue", attachVM("seu/workqueue/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const seuId = String(req.params.id);
@@ -56,7 +48,6 @@ router.get("/seus/:id/work-queue", attachVM("seu/workqueue/index"), async (req: 
   }
 });
 
-/** POST /aisworg/seu/seus/:id/work-items/:workItemId/complete — human reports a result. */
 router.post("/seus/:id/work-items/:workItemId/complete", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}/work-queue`;

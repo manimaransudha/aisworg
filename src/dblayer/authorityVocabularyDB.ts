@@ -1,14 +1,7 @@
-// CR-006 / CR-007 Step 2 — read + write access for the noun × verb authority
-// vocabulary. Lifecycle is add + soft-retire only (never delete/rename): a
-// retired row stays (existing data + FKs intact) and simply drops out of the
-// "add new" pickers. Small bounded config tables — the management lists are
-// paged/searched/sorted in memory via paginateList (listQuery.ts).
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult } from "./seuTypes.js";
 
-// Work outcome — a noun with how many ACTIVE verbs it allows (mapping) and how
-// many ACTIVE transitions currently carry a verb.
 export interface AuthorityNounRow {
   code: string;
   label: string;
@@ -18,7 +11,6 @@ export interface AuthorityNounRow {
   transition_count: number;
 }
 
-// Work process — a verb with how many ACTIVE nouns allow it.
 export interface AuthorityVerbRow {
   code: string;
   label: string;
@@ -27,32 +19,14 @@ export interface AuthorityVerbRow {
   noun_count: number;
 }
 
-// Mapping — one row per (noun, verb) pair, so a single pair can be retired.
 export interface AuthorityMappingRow {
   noun_code: string;
   noun_label: string;
   verb_code: string;
   verb_label: string;
   is_active: boolean;
-  // The trigger chosen on the Allow form (owner: "add a dropdown to choose
-  // trigger and pass it in the allow function") — the starting trigger for
-  // any Transition Definition added under this (noun, verb) later. Never
-  // applied retroactively to a transition that already exists (that would
-  // silently overwrite a real, deliberately-set trigger every time Allow is
-  // resubmitted for a pair that already exists — the mapping upsert is
-  // idempotent).
   default_trigger: "manual" | "governed";
-  // CR-072 — the shared, ACTUAL trigger across every transition_definitions
-  // row already wired to this (entity_type, verb), the real, entity-agnostic
-  // value transitionEngine.evaluate reads. Falls back to default_trigger when
-  // no transition is wired yet; null when the wired ones disagree (shouldn't
-  // normally happen — surfaced as "mixed" rather than guessing).
   trigger: "manual" | "governed" | null;
-  // Whether `trigger` above reflects a REAL wired transition (true) or is
-  // just default_trigger showing through because none exists yet (false) —
-  // the per-row "Edit" control only means anything (updateTriggerForVerb
-  // only ever touches real rows) when this is true; when false, editing the
-  // trigger here is exactly what re-submitting Allow now safely does instead.
   has_wired_transitions: boolean;
 }
 
@@ -119,12 +93,6 @@ export const authorityVocabularyDB = {
     }
   },
 
-  // The mapping's own starting trigger (owner: "add a dropdown to choose
-  // trigger and pass it in the allow function") — used by
-  // core/transitionDefinitions.ts's addTransitionDefinition so a NEW edge
-  // under this (noun, verb) starts at the chosen value instead of the
-  // column's hardcoded 'manual' default. Falls back to 'manual' when no
-  // mapping row exists yet (matches the column's own DB default).
   async findDefaultTrigger(nounCode: string, verbCode: string): Promise<DbResult<"manual" | "governed">> {
     try {
       const { rows } = await query<{ default_trigger: "manual" | "governed" }>(
@@ -138,9 +106,6 @@ export const authorityVocabularyDB = {
     }
   },
 
-  // Called alongside updateTriggerForVerb (core's updateMappingTrigger) so an
-  // explicit correction to already-wired transitions also updates what the
-  // NEXT new transition under this pair will start at.
   async setDefaultTrigger(nounCode: string, verbCode: string, trigger: "manual" | "governed"): Promise<DbResult<{ noun_code: string } | null>> {
     try {
       const { rows } = await query<{ noun_code: string }>(
@@ -154,12 +119,6 @@ export const authorityVocabularyDB = {
     }
   },
 
-  // CR-072 — edits every transition_definitions row sharing this exact
-  // (entity_type, verb) at once, e.g. Objective's own "archive" (used by 3
-  // separate from_states, all -> Archived) gets updated together in one
-  // action, keeping them consistent by construction rather than by
-  // discipline. No-op (0 rows) is a real, valid outcome — a mapping entry
-  // with no wired transition yet (nothing to update).
   async updateTriggerForVerb(nounCode: string, verbCode: string, trigger: "manual" | "governed"): Promise<DbResult<number>> {
     try {
       const { rowCount } = await query("UPDATE transition_definitions SET trigger = $1 WHERE entity_type = $2 AND verb = $3", [trigger, nounCode, verbCode]);
@@ -170,7 +129,6 @@ export const authorityVocabularyDB = {
     }
   },
 
-  // Active-only vocab for the "add new" pickers.
   async listActiveNouns(): Promise<DbResult<CodeLabel[]>> {
     try {
       const { rows } = await query<CodeLabel>("SELECT code, label FROM authority_nouns WHERE is_active ORDER BY code");
@@ -191,8 +149,6 @@ export const authorityVocabularyDB = {
     }
   },
 
-  // Active (noun, verb) pairs — used to constrain the verb a transition may
-  // pick to its noun's allowed set.
   async listActiveMappingPairs(): Promise<DbResult<{ noun_code: string; verb_code: string }[]>> {
     try {
       const { rows } = await query<{ noun_code: string; verb_code: string }>(
@@ -205,7 +161,6 @@ export const authorityVocabularyDB = {
     }
   },
 
-  // ── add (re-adding a retired row reactivates it) ──────────────────────────
   async addNoun(code: string, label: string, description: string | null, authorId: string, authorBadge: string): Promise<DbResult<{ code: string }>> {
     try {
       const { rows } = await query<{ code: string }>(
@@ -236,11 +191,6 @@ export const authorityVocabularyDB = {
     }
   },
 
-  // defaultTrigger is stored on the mapping itself (never applied
-  // retroactively to an already-wired transition — that's what made the
-  // Allow form's trigger choice unsafe before this column existed). A
-  // resubmit of Allow for a pair that already exists updates its own default
-  // going forward, same as it already reactivates is_active.
   async addMapping(
     nounCode: string,
     verbCode: string,
@@ -262,7 +212,6 @@ export const authorityVocabularyDB = {
     }
   },
 
-  // ── retire (soft; never delete) ───────────────────────────────────────────
   async retireNoun(code: string): Promise<DbResult<{ code: string } | null>> {
     try {
       const { rows } = await query<{ code: string }>("UPDATE authority_nouns SET is_active = FALSE WHERE code = $1 RETURNING code", [code]);

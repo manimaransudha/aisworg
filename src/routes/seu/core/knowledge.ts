@@ -1,6 +1,3 @@
-// Ch.16 Knowledge Model — Post-MVP Phase 5. Lifecycle transitions reuse the
-// same generic transitionEngine every other entity type already uses
-// (Ch.29 §10), extended to a sixth entity type.
 import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
@@ -15,11 +12,6 @@ import { resolveSystemActor } from "./attentionItems.js";
 import { resolveAuthor } from "./attentionItems.js";
 import type { AcquisitionScope, EngineeringCapitalRow, KnowledgeItemRow, KnowledgeRelationshipReferences, KnowledgeSelfReferences, KnowledgeValidationNoteRow, ObligationRow } from "../../../dblayer/seuTypes.js";
 
-// author_id points at the per-SEU engagement (participants.id), not
-// users.id directly — same resolution decisions.ts's own resolveParticipantId
-// (Ch.19) already uses. Returns null for an actor with no Participant
-// identity on this SEU (e.g. an admin/root user acting directly) —
-// author_id then stays unset, which is honest, not an error.
 async function resolveParticipantId(userId: string, seuId: string): Promise<string | null> {
   const { data: master } = await participantsMasterDB.findById(userId);
   if (!master) return null;
@@ -27,18 +19,12 @@ async function resolveParticipantId(userId: string, seuId: string): Promise<stri
   return (engagements ?? []).find((p) => p.seu_id === seuId)?.id ?? null;
 }
 
-// Ch.16 §10: Related Knowledge must never refer to itself.
 function assertNoSelfReference(knowledgeItemId: string, references: KnowledgeSelfReferences): void {
   for (const ids of Object.values(references)) {
     if (ids?.includes(knowledgeItemId)) throw new Error(`knowledge_references may not include the Knowledge Item's own id (${knowledgeItemId})`);
   }
 }
 
-// FR-16.8: Acquisition Scope is inherited by default from the producing
-// Deliverable (Ch.15 §9) — a caller may still override it explicitly (e.g. an
-// SEU-scoped Deliverable can still produce Capability-scoped Knowledge, if a
-// human judges the understanding generalises further than the Deliverable
-// itself was declared to).
 export async function createKnowledgeItem(input: {
   seuId: string;
   deliverableId: string;
@@ -165,11 +151,6 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
   const { data: updated, error } = await knowledgeItemsDB.updateStatus(knowledgeItem.id, input.targetState, authorId, gate.authorityBadge);
   if (error || !updated) throw error ?? new Error("failed to update knowledge item status");
 
-  // Version Feature Plan.md — migration 238 populates transition_definitions'
-  // event_type/version_event for every real Knowledge hop (Ch.16 §9); the old
-  // generic "KnowledgeUpdated" literal is retired in favor of reading
-  // gate.eventType straight off that row, same as transitionPolicyDefinition/
-  // transitionTemplate/transitionProfile already do.
   await eventBus.publish({
     eventType: gate.eventType ?? "KnowledgeUpdated",
     originatingObjectType: "Knowledge",
@@ -184,13 +165,6 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
   return { ok: true, knowledgeItem: updated, appliedTransition: { fromState, toState: input.targetState } };
 }
 
-// Ch.16 §12/§13, Book 1 Ch.21 §21.6, Ch.23 §7. Acquisition Scope promotion is
-// its own governed transition track (entityType 'KnowledgeScope', distinct
-// from 'Knowledge' which governs .status) — see 008_engineering_capital.sql
-// for why. The only seeded KnowledgeScope transitions are SEU -> Capability
-// -> Enterprise -> Platform, so a demotion or a skipped tier is rejected by
-// the ordinary "no_transition_definition" path, with no bespoke validation
-// code required (Ch.16 §12: "Acquisition Scope may not be silently demoted").
 const PROMOTION_SEVERITY: Record<AcquisitionScope, string> = { SEU: "Low", Capability: "Medium", Enterprise: "High", Platform: "High" };
 
 export type PromoteKnowledgeItemScopeResult =
@@ -204,9 +178,6 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
   const { data: knowledgeItem } = await knowledgeItemsDB.findById(input.knowledgeItemId);
   if (!knowledgeItem) return { ok: false, reason: "not_found" };
 
-  // Ch.16 §9: "Only Published Knowledge may be reused across SEUs by
-  // default" — promoting scope before that point would widen reuse of
-  // understanding nobody has validated yet.
   if (knowledgeItem.status !== "Published") {
     return { ok: false, reason: "not_published", detail: `Knowledge Item must be Published before its Acquisition Scope can be promoted (currently ${knowledgeItem.status})` };
   }
@@ -237,11 +208,6 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
   const { data: updated, error } = await knowledgeItemsDB.updateAcquisitionScope(knowledgeItem.id, input.targetScope, authorId, gate.authorityBadge);
   if (error || !updated) throw error ?? new Error("failed to promote knowledge item acquisition scope");
 
-  // Version Feature Plan.md — migration 238 populates KnowledgeScope's
-  // event_type (event_type only; version_event stays NULL on all 3 hops,
-  // confirmed with the owner: promoting scope broadens an existing version's
-  // reach, it does not mint a new version, same reasoning as SEU/EBM's
-  // runtime lifecycle in Chapter 8's own pass).
   await eventBus.publish({
     eventType: gate.eventType ?? "KnowledgeScopePromoted",
     originatingObjectType: "Knowledge",
@@ -253,12 +219,6 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
     authorityBadge: gate.authorityBadge ?? "root",
   });
 
-  // Ch.23 §7 Organisational Learning: Knowledge promoted past its
-  // originating SEU indicates the understanding should be formally codified
-  // (a revised Capability, Service or Policy), not left as a queryable
-  // Knowledge Item (Ch.16 §13) — that codification work is the Obligation
-  // this raises. Attached to the Knowledge Item's own originating
-  // Deliverable, the only FK Obligation supports (Phase 4 scope).
   if (!gate.authorityBadge) throw new Error("promoteKnowledgeItemScope: no resolved authority badge to author the resulting Obligation");
   const obligation = await createObligation({
     relatedObjectType: "Deliverable",
@@ -277,19 +237,12 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
   return { ok: true, knowledgeItem: updated, appliedTransition: { fromState: fromScope, toState: input.targetScope }, obligation };
 }
 
-// Ch.16 §13 / Book 1 Ch.21 §21.6: Engineering Capital, platform-wide.
 export async function getEngineeringCapital(): Promise<EngineeringCapitalRow[]> {
   const { data } = await knowledgeItemsDB.findEngineeringCapital();
   return data ?? [];
 }
 
-// Ch.16 §11 Validation / §14 "validation history" — append-only, no forced
-// gate on any one transition (owner: "no forced gate"). Aggregates, never
-// overwrites, the same discipline as Objective's own reject-comment thread.
 export async function addKnowledgeValidationNote(input: { knowledgeItemId: string; noteText: string; actorUserId?: string | null }): Promise<KnowledgeValidationNoteRow> {
-  // knowledge_validation_notes.actor_id references participants_master(id)
-  // directly, not the raw session user id — same one-hop resolution
-  // schemaRegistry.ts's own resolveAuthorParticipantId uses.
   let authorId: string | null = null;
   if (input.actorUserId != null) {
     const { data: master } = await participantsMasterDB.findById(input.actorUserId);
@@ -306,10 +259,6 @@ export async function listKnowledgeValidationNotes(knowledgeItemId: string): Pro
   return data ?? [];
 }
 
-// Ch.16 §10 Related Knowledge — the only reference field editable after
-// creation today (Evidence/Deliverable/Decision References are set at
-// creation only, same immutable-content discipline as every other field —
-// Edit is deferred, per the owner's own note). Guards against self-reference.
 export async function updateKnowledgeReferences(knowledgeItemId: string, knowledgeReferences: KnowledgeSelfReferences): Promise<KnowledgeItemRow> {
   assertNoSelfReference(knowledgeItemId, knowledgeReferences);
   const { data: updated, error } = await knowledgeItemsDB.updateKnowledgeReferences(knowledgeItemId, knowledgeReferences);

@@ -1,9 +1,3 @@
-// Review Model — Plan (Phase 14, Ch.25 §12), Decision C. A Finding is an
-// observation from a Review — its own governed object (Open -> Resolved/Waived).
-// A High/Critical Finding auto-surfaces a deduped Attention Item; a Finding can
-// be manually converted to an Obligation. Findings are NOT auto-converted to
-// Obligations (that would implicitly couple two governed lifecycles) — the human
-// decides what a Finding becomes.
 import { findingsDB } from "../../../dblayer/findingsDB.js";
 import { reviewsDB } from "../../../dblayer/reviewsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
@@ -17,8 +11,6 @@ import type { FindingRow } from "../../../dblayer/seuTypes.js";
 
 const BLOCKING_SEVERITIES = new Set(["High", "Critical"]);
 
-// findings.author_id is a `participants` row (SEU-scoped engagement), not a
-// participants_master row directly — same two-hop resolution as reviews.ts.
 async function resolveAuthorId(seuId: string, actorId: string): Promise<string> {
   const { data: master } = await participantsMasterDB.findById(actorId);
   if (!master) throw new Error(`No superuser provisioned.`);
@@ -64,9 +56,6 @@ export async function createFinding(input: {
     payload: { reviewId: review.id, severity: input.severity, relatedObjectType: review.related_object_type, relatedObjectId: review.related_object_id },
   });
 
-  // Decision C: a blocking-severity Finding auto-surfaces an Attention Item
-  // (deduped per (SEU, category, object) like every other Attention path). It
-  // does NOT auto-create an Obligation.
   if (BLOCKING_SEVERITIES.has(input.severity)) {
     await raiseAttentionItem({
       seuId: review.seu_id,
@@ -93,7 +82,6 @@ export type TransitionFindingResult =
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked"; detail: string };
 
-// Open -> Resolved / Waived, via the same generic transitionEngine.
 export async function transitionFinding(input: { findingId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionFindingResult> {
   const { data: finding } = await findingsDB.findById(input.findingId);
   if (!finding) return { ok: false, reason: "not_found" };
@@ -131,8 +119,6 @@ export type ConvertFindingResult =
   | { ok: true; finding: FindingRow; obligationId: string }
   | { ok: false; reason: "not_found" | "already_converted"; detail: string };
 
-// Manual conversion of a Finding to an Obligation (Ch.25 §12). Idempotent-safe:
-// a Finding already linked to an Obligation is not converted twice.
 export async function convertFindingToObligation(input: { findingId: string; category?: string; severity?: string; actorId: string; authorBadge: string }): Promise<ConvertFindingResult> {
   const { data: finding } = await findingsDB.findById(input.findingId);
   if (!finding) return { ok: false, reason: "not_found", detail: `finding not found: ${input.findingId}` };

@@ -1,10 +1,3 @@
-// Recovery script runner. Usage: node --loader ts-node/esm src/dblayer/recovery/run.ts
-// Applies every *_schema_recovery.sql file in this directory in explicit
-// dependency order below (each script drops and recreates its own table, so
-// a referenced table must already exist when a script's FK constraint runs).
-// Three FK cycles (tenants<->participants_master, seus<->ebms,
-// decisions<->evidence) are broken by deferring one side of each cycle's FK
-// to an ALTER TABLE ADD CONSTRAINT inside the later script in this order.
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";

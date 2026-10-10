@@ -12,10 +12,6 @@ import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCac
 import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import type { ExecutionMode } from "../../../dblayer/seuTypes.js";
 
-// execution_targets.author_id/author_badge are NOT NULL -- resolve the real
-// acting participants_master row and the real held badge this route's own
-// route_authority gate requires, never a default (same pattern as
-// sdkAuthoring.ts's resolveAuthorityVocabAuthor).
 async function resolveExecutionTargetAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
   const userId = req.session?.user?.id;
   if (!(userId)) return { error: "No logged-in user on this session." };
@@ -28,10 +24,6 @@ async function resolveExecutionTargetAuthor(req: Request): Promise<{ authorId: s
   return { authorId: master.id, authorBadge };
 }
 
-// Participant Integration — Plan step 6 (Contract declaration #2, tenant-scoped).
-// Register how a tenant's Participant for a Capability is reached: human-on-UI
-// (the labelled UI stub) or external-orchestrator (deliver the assignment to an
-// endpoint). Omitting tenantId targets the default tenant.
 const VALID_MODES: ExecutionMode[] = ["human-on-ui", "external-orchestrator"];
 
 async function resolveTenantId(body: Record<string, unknown>): Promise<string | null> {

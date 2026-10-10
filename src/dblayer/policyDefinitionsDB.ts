@@ -5,12 +5,6 @@ import { validatePolicyDefinitionWriteAgainstSchema } from "../routes/seu/core/p
 import type { DbResult, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "./seuTypes.js";
 import { getPlatformTenantId } from "./constants.js";
  
-// CR-089 — Policy Definition (Book 3 Ch.24), a new standalone table
-// (167_policy_definitions.sql), mirroring serviceDefinitionsDB.ts's own shape
-// column-for-column. No relationship to any other entity (owner: "there is
-// no relationship with any other entity") — unlike Service Definition, there
-// is no capabilityCode-equivalent foreign concept threaded through every
-// method here.
 export const policyDefinitionsDB = {
   async createDraft(input: {
     code: string;
@@ -20,23 +14,13 @@ export const policyDefinitionsDB = {
     constraintType?: "Policy" | "Standard";
     applicabilityEnvironments?: string[];
     conditions?: PolicyCondition[];
-    // Migration 216 — governedTransition/governingCondition dropped as real
-    // columns (folded into each condition — PolicyCondition.governingCondition);
-    // scope stays, optional/defaulted so every existing caller keeps today's
-    // behaviour ("Transition").
     scope?: PolicyScope;
     version?: string;
-    // authored_by/author_badge are NOT NULL, participants_master-scoped --
-    // every caller must resolve and pass its own real actor
-    // (participants_master.id) + badge, never a default/null (same
-    // discipline as serviceDefinitionsDB.ts).
     authoredBy: string;
     authorBadge: string;
     draftContent?: Record<string, unknown>;
     tenantId?: string;
     parentPolicyDefinitionId?: string | null;
-    // CR-114 follow-on — mandatory (owner: "Otherwise all this build is of no
-    // use"); every caller must resolve and pass a real schema_definition_id.
     schemaDefinitionId: string;
   }): Promise<DbResult<PolicyDefinitionRow>> {
     try {
@@ -99,8 +83,6 @@ export const policyDefinitionsDB = {
       code: string; name: string; description: string | null; category: string; constraintType: "Policy" | "Standard";
       applicabilityEnvironments: string[];
       conditions: PolicyCondition[];
-      // CR-104 follow-up — optional so a Draft authored before this field
-      // existed round-trips unchanged.
       scope?: PolicyScope;
       version: string; draftContent: Record<string, unknown>;
     }
@@ -203,10 +185,6 @@ export const policyDefinitionsDB = {
     }
   },
 
-  // Pack authoring's own contributionPolicies[] resolution (mirrors
-  // serviceDefinitionsDB.findActiveByCodeVisibleTo exactly) — prefers the
-  // viewer's own tenant's row over Platform's when both exist for the same
-  // code.
   async findActiveByCodeVisibleTo(code: string, viewerTenantId: string): Promise<DbResult<PolicyDefinitionRow | null>> {
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
@@ -223,7 +201,6 @@ export const policyDefinitionsDB = {
     }
   },
 
-  // Feeds the Inherit dropdown — every Active row Platform-owns.
   async findActivePlatformOwned(): Promise<DbResult<PolicyDefinitionRow[]>> {
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {

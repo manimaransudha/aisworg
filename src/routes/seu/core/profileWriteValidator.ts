@@ -1,8 +1,3 @@
-// design/design whiteboards.md/schema_implementation.md — write-time schema
-// validation for Profile. Lives outside profiles.ts (not inside it)
-// specifically so profilesDB.ts can import it without importing profiles.ts,
-// which itself imports profilesDB.ts — mirrors core/templateWriteValidator.ts
-// exactly.
 import { query } from "../../../utils/db.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { validateAgainstSchema, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
@@ -20,15 +15,6 @@ export interface ProfileWriteInput {
   schemaDefinitionId?: string | null;
 }
 
-// Runs at every Profile write path that carries schema-governed content
-// (profilesDB.create/createDraft/updateDraftContent/setDraftContent) — not
-// just the two named create*/update*; setDraftContent is the actual seed/
-// publish materialisation write, same lesson learned wiring Template's own
-// equivalent. Pins to the row's own schemaDefinitionId when given (an
-// update), else the latest Profile schema (a create). `code`/`name`/
-// `environment`/`profileVersion` are real columns AND schema properties —
-// draftContent alone doesn't carry them, so they're merged in here to
-// validate what the row will actually be written with.
 export async function validateProfileWriteAgainstSchema(input: ProfileWriteInput): Promise<string[]> {
   const tenantId = input.tenantId ?? (await getPlatformTenantId());
 

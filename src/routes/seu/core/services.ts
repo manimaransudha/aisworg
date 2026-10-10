@@ -13,9 +13,6 @@ export interface ServiceListItem {
   providingCapabilityName: string;
 }
 
-// Post-MVP Phase 2 (Ch.11 §7-§8): Services and their declared Service Level
-// made visible — previously seeded (2 Services on the one Pack) but never
-// surfaced anywhere, and never actually referenced by a real dependency edge.
 export async function listServices(): Promise<ServiceListItem[]> {
   const [{ data: services }, { data: capabilities }] = await Promise.all([servicesDB.findAll(), capabilitiesDB.findAll()]);
   const capById = new Map((capabilities ?? []).map((c) => [c.id, c]));

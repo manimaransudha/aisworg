@@ -7,7 +7,6 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { findCandidateTemplates } from "../core/templates.js";
 
-/** GET /templates?capabilityCodes=a,b,c — Ch.6 §11: select/validate a Template against required Capabilities. */
 router.get("/templates", async (req: Request, res: Response) => {
   try {
     const raw = typeof req.query.capabilityCodes === "string" ? req.query.capabilityCodes : "";

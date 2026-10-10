@@ -1968,5 +1968,19 @@
       "tenant_admin"
     ],
     "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/docs",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/docs/*splat",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
   }
 ]

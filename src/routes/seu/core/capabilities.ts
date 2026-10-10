@@ -1,18 +1,3 @@
-// Ch.12 Capability Fulfilment — direct assignment, no Dispatch Engine
-// (Build Plan §5 item 3). Ch.12 §18.1/§18.4 follow-up (owner: "The
-// Participant name should be a dropdown that gives a list of [available]
-// participants that satisfy the capability") — fulfilment now selects an
-// existing, eligible participants_master resource (CR-098) rather than
-// minting an ad hoc identity from freely-typed type+name; the lifecycle
-// Participant's own participant_id FK (migration 195) is finally populated.
-//
-// Owner: "The participants dropdown should be multi-select. It chooses as
-// many as it wants as eligible." — Ch.12 §7 Hybrid/Composite + FR-12.3
-// ("Multiple Participants may jointly fulfil a Capability"), previously
-// flagged unbuilt (§18.3). fulfilCapabilityWithParticipants creates one
-// lifecycle Participant + one capability_fulfilments row per selected
-// participants_master resource; fulfilmentStrategy is "Composite" when more
-// than one is selected, otherwise that one Participant's own type.
 import { seuCapabilitiesDB, type SeuCapabilityWithCode } from "../../../dblayer/seuCapabilitiesDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
@@ -45,14 +30,6 @@ async function loadContext(seuId: string, capabilityId: string): Promise<{ seu: 
   return { seu, seuCapability };
 }
 
-// Resolves a participants_master id to {type, displayName}, re-deriving
-// eligibility server-side through the same helper the dropdown itself was
-// populated from (participantEligibility.ts) — never trusting the
-// submitted id — so the two can never drift apart as more of §8's criteria
-// get added to that one place. excludeParticipantMasterIds mirrors exactly
-// what the dropdown itself was built with (getSeuDetailView, core/seus.ts)
-// — a Participant just released from this same Capability (releaseParticipants
-// below) must fail this re-check too, not just be hidden from the dropdown.
 async function resolveMasterParticipant(
   seu: SeuRow,
   seuCapability: SeuCapabilityWithCode,
@@ -99,10 +76,6 @@ async function fulfilOne(
 
   await seuCapabilitiesDB.markFulfilled(seuCapability.id);
 
-  // CR-042 — dependency_definitions Capability-type rows are keyed by
-  // Service code, not the bare Capability code (materialiseDependencyGraph
-  // already expands one fromCapabilityCode into one row per Service that
-  // Capability provides), so push-evaluation fires once per Service here.
   const { data: fulfilledServices } = await servicesDB.findByCapabilityId(seuCapability.capability_id);
   for (const service of fulfilledServices ?? []) {
     await dependencyDefinitionEngine.evaluateAndPublishFromTransition({
@@ -113,9 +86,6 @@ async function fulfilOne(
     });
   }
 
-  // Ch.13 §16 — about the Participant now existing, not about the
-  // Capability being fulfilled (CapabilityFulfilled, published right below,
-  // unchanged) — two different facts from the same call.
   await eventBus.publish({
     eventType: "ParticipantCreated",
     originatingObjectType: "Participant",
@@ -142,14 +112,6 @@ async function fulfilOne(
   return { fulfilment, participant, seuCapabilityId: seuCapability.id, capabilityCode: seuCapability.capability_code };
 }
 
-// Two ways in: the SEU detail page's own Fulfil dropdown selects one or more
-// existing, eligible participants_master resources (CR-098; see
-// fulfilCapabilityWithParticipants below for the multi-select path); the
-// JSON API (api/seus.ts) and every existing test still create a single ad
-// hoc Participant directly from a freely-supplied type+name, exactly as
-// before this dropdown existed — kept working deliberately rather than
-// migrated in the same pass (17 call sites; a real, separate decision, not
-// mechanical).
 export async function fulfilCapability(input: {
   seuId: string;
   capabilityId: string;
@@ -173,15 +135,6 @@ export async function fulfilCapability(input: {
   throw new Error("either participantMasterId or participantType+displayName is required");
 }
 
-// Owner: "The participants dropdown should be multi-select. It chooses as
-// many as it wants as eligible." One lifecycle Participant + one
-// capability_fulfilments row per selected participants_master resource,
-// all against the same SEU Capability — Ch.12 §7's Hybrid/Composite made
-// real. fulfilmentStrategy is "Composite" whenever more than one Participant
-// is selected together (each one's own type is still recorded on its own
-// `participants.type`); a single selection keeps behaving exactly like
-// fulfilCapability's own participantMasterId path (that one participant's
-// own type as the strategy).
 export async function fulfilCapabilityWithParticipants(input: {
   seuId: string;
   capabilityId: string;
@@ -203,20 +156,6 @@ export async function fulfilCapabilityWithParticipants(input: {
   return results;
 }
 
-// Owner: "it should show the list of already assigned participants, by
-// participant type. Choose and click on replace. Replace should take it
-// back to unfilled state... Howmany ever number of participants are
-// released, it should remain the same [-> Unfulfilled]." Replaces the
-// detail page's own use of the old atomic replaceParticipant swap
-// (core/participants.ts, left untouched — still used by the JSON dry-run
-// suite's own separate web route) with a two-step flow: release drives
-// each selected Participant through the same governed Released -> Archived
-// transitions and revokes their fulfilment, then unconditionally reverts
-// the Capability to Unfulfilled, regardless of how many (or how few) of
-// its current fulfilments were released. The human then picks
-// replacement(s) through the ordinary Fulfil/Assign path
-// (fulfilCapabilityWithParticipants above), which already excludes
-// whoever was just released via findReleasedParticipantMasterIds.
 export async function releaseParticipants(input: {
   seuId: string;
   capabilityId: string;

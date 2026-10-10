@@ -25,29 +25,14 @@ const tenantsBackTo = "/aisworg/seu/identity/tenants";
 const badgesBackTo = "/aisworg/seu/identity/badges";
 const usersBackTo = "/aisworg/seu/identity/users";
 
-/** GET /aisworg/seu/identity — hub: Tenant Management, Badge Management, User Management, each its own page. Root badge only, this pass. */
 router.get("/identity", attachVM("seu/identity/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const view = await getIdentityDashboardView();
     req.vm.req.title = "Identity Management";
     req.vm.req.counts = {
-      // Bug fix (owner, 2026-08-19: "There are only 5 tenants. But .../identity
-      // page shows 6 tenants") — getIdentityDashboardView's own `tenants` is
-      // deliberately unfiltered (Badge Management's tenant-scoped picker,
-      // .../identity/badges, needs the reserved Platform system tenant as a
-      // real scope option) — but this hub tile links straight through to
-      // .../identity/tenants, which correctly counts operational tenants only
-      // (findAllOperational, CR-004). The tile's own number must match what's
-      // actually on the other side of that link.
       tenants: view.tenants.filter((t) => !t.is_system).length,
       users: view.users.length,
     };
-    // Route Authority's own CRUD screen is gated by an env-var badge, not
-    // by this hub's own ["root"] gate or the (not-yet-wired) route_authority
-    // table — its hub card must key off the same env-var badge, via the
-    // same live resolveHeldBadges check requireBadge itself uses, not the
-    // session-cached platformBadges (the env badge need not be one of the
-    // fixed 3-code Platform vocabulary).
     const routeAuthorityBadge = process.env.ROUTE_AUTHORITY_ADMIN_BADGE || "root";
     const held = await resolveHeldBadges(req);
     req.vm.req.showRouteAuthorityCard = held.has(routeAuthorityBadge);
@@ -59,11 +44,8 @@ router.get("/identity", attachVM("seu/identity/index"), async (req: Request, res
   }
 });
 
-/** GET /aisworg/seu/identity/tenants — Tenant Management: the old Tenants tab, split out on its own. */
 router.get("/identity/tenants", attachVM("seu/identity/tenants"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Only the tenant list — not the whole identity dashboard (CR: this page
-    // was paying for the grant/user N+1 and took ~9s).
     const tenants = await listTenantsForManagement();
     req.vm.req.title = "Tenant Management";
     const params = parseListParams(req.query, { sortable: ["code", "name", "status", "created"], defaultSort: "created", defaultDir: "asc" });
@@ -80,17 +62,10 @@ router.get("/identity/tenants", attachVM("seu/identity/tenants"), async (req: Re
   }
 });
 
-/** GET /aisworg/seu/identity/badges — Badge Management. Owner: "badge_grants on
- *  the user management should be replaced with the new badges implementation"
- *  — same per-user multi-select shape as /identity/users' own authorised-role
- *  Actions column, backed by participants_master.authorised_badges instead of
- *  badge_grants (Badge Catalog tab already dropped). */
 router.get("/identity/badges", attachVM("seu/identity/badges"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const view = await getIdentityDashboardView();
     req.vm.req.title = "Badge Management";
-    // Tenant filter — same shape as /identity/users' own (owner: "add a
-    // tenant filter similar to user management").
     const tenantFilterOptions = [...new Map(view.users.filter((u) => u.tenantId).map((u) => [u.tenantId as string, u.tenantName ?? u.tenantId as string])).entries()]
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -116,14 +91,10 @@ router.get("/identity/badges", attachVM("seu/identity/badges"), async (req: Requ
   }
 });
 
-/** GET /aisworg/seu/identity/users — User Management: the old Platform Users tab, split out on its own. */
 router.get("/identity/users", attachVM("seu/identity/users"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const view = await getIdentityDashboardView();
     req.vm.req.title = "User Management";
-    // Tenant filter — every tenant that actually has a user, not the "manageable"
-    // list below (that one deliberately excludes the reserved Platform tenant,
-    // which real Platform-type users DO belong to and need to be filterable by).
     const tenantFilterOptions = [...new Map(view.users.filter((u) => u.tenantId).map((u) => [u.tenantId as string, u.tenantName ?? u.tenantId as string])).entries()]
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -139,19 +110,8 @@ router.get("/identity/users", attachVM("seu/identity/users"), async (req: Reques
     req.vm.opt.listBasePath = "/aisworg/seu/identity/users";
     req.vm.opt.tenantFilterOptions = tenantFilterOptions;
     req.vm.opt.activeTenant = activeTenant;
-    // Owner: "Type should be renamed to Tenant. The dropdown should have the
-    // tenants list" — every real tenant, Platform's own reserved row
-    // included (it's a valid, real choice now: picking it is how a
-    // Platform-type account gets created, createPlatformUser derives `type`
-    // from it). CR-004's old operational-only filter is gone with the Type field.
     req.vm.req.tenants = view.tenants;
-    // Owner: "actions dropdown should be from ontology authorised-role" —
-    // the multi-select's option list.
     req.vm.req.authorisedRoleCodes = view.authorisedRoleCodes;
-    // Owner: "add an action button to edit the users" — the edit form is
-    // hidden for the viewer's own row (same self-edit guard the legacy
-    // /auth/users page already has), so the view needs to know who's
-    // looking, not just who's listed.
     req.vm.req.currentUserEmail = req.session?.user?.email ?? null;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/identity/users", req.vm);
@@ -161,9 +121,6 @@ router.get("/identity/users", attachVM("seu/identity/users"), async (req: Reques
   }
 });
 
-/** POST /aisworg/seu/identity/tenants — CR-005: create a Tenant only. Its first
- *  admin is created separately (createPlatformUser, type=Tenant) then granted
- *  the tenant_admin badge via the Badge Management grant form. */
 router.post("/identity/tenants", async (req: Request, res: Response) => {
   const { code, name } = req.body ?? {};
   if (typeof code !== "string" || !code.trim() || typeof name !== "string" || !name.trim()) {
@@ -171,9 +128,6 @@ router.post("/identity/tenants", async (req: Request, res: Response) => {
   }
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
   if (!actorId) return flashError(req, res, tenantsBackTo, "No actor resolved for this Tenant creation.");
-  // The required badge(s) for this route are route_authority's own data
-  // (CR-110), not a literal here -- authorBadge is whichever of those this
-  // session's actual held badges satisfies.
   const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
   const authorBadge = resolveAuthorBadge(authRow, held);
@@ -188,7 +142,6 @@ router.post("/identity/tenants", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /aisworg/seu/identity/users — root creates a platform user account (badge issuance is a separate step, via Badge Management). */
 router.post("/identity/users", async (req: Request, res: Response) => {
   const { email, name, tenantId } = req.body ?? {};
   if (typeof email !== "string" || !email.trim()) {
@@ -214,22 +167,13 @@ router.post("/identity/users", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /aisworg/seu/identity/users/:id/update — owner: "add an action
- *  button to edit the users," later revised: "omit the legacy role column...
- *  actions dropdown should be from ontology authorised-role... dropdown is
- *  multi-select." Active (updatePlatformUser) and the authorised_role
- *  multi-select (setAuthorisedRoles) are two separate DB edits — users vs
- *  participants_master — run together from this one form submit. */
 router.post("/identity/users/:id/update", async (req: Request, res: Response) => {
   const id = String(req.params.id);
   if (!id) return flashError(req, res, usersBackTo, "Invalid user id.");
-  // An unchecked checkbox submits no key at all — its absence IS "false".
   const isActive = req.body?.isActive === "true";
   const rawRoles = req.body?.roles;
   const roles = (Array.isArray(rawRoles) ? rawRoles : rawRoles ? [rawRoles] : []).filter((r): r is string => typeof r === "string" && r.trim() !== "");
   try {
-    // Self-edit guard lives in both functions (by email, not id — see
-    // updatePlatformUser's own comment for why id doesn't work here).
     const actingUserEmail = req.session?.user?.email ?? null;
     const activeResult = await updatePlatformUser({ id, isActive, actingUserEmail });
     if (!activeResult.ok) return flashError(req, res, usersBackTo, `Could not update user: ${activeResult.detail}`);
@@ -242,11 +186,6 @@ router.post("/identity/users/:id/update", async (req: Request, res: Response) =>
   }
 });
 
-/** POST /aisworg/seu/identity/badges/:id/update — owner: "badge_grants on
- *  the user management should be replaced with the new badges
- *  implementation." Same multi-select-reconcile shape as
- *  /identity/users/:id/update's own authorised_role form, for
- *  authorised_badges instead. */
 router.post("/identity/badges/:id/update", async (req: Request, res: Response) => {
   const id = String(req.params.id);
   if (!id) return flashError(req, res, badgesBackTo, "Invalid user id.");

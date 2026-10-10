@@ -1,13 +1,3 @@
-// Ch.36 External Interaction Model — Post-MVP Phase 8. Lifecycle transitions
-// reuse the same generic transitionEngine every other entity type already
-// uses (Ch.29 §10), extended to a tenth entity type. No real Interaction
-// Adapter exists yet (Ch.36 §10) — this is the record-keeping/traceability
-// model the chapter itself scopes separately from "communication protocols;
-// API technologies... implementation concerns" (Ch.36 §2). Recording an
-// interaction here is presently a manual, human-entered act (e.g. "I emailed
-// the customer for approval," "I opened a PR on GitHub by hand") — a real,
-// honest MVP instance of "External Interaction exists as a governed,
-// traceable record," not a simulated integration.
 import { externalInteractionsDB } from "../../../dblayer/externalInteractionsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
@@ -78,10 +68,6 @@ export type TransitionExternalInteractionResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-// Ch.36 §13: "Interaction failures shall... generate Attention Items where
-// appropriate" — the concrete cross-chapter link back to Ch.34. A transition
-// to 'Failed' automatically raises one (category "Exception," matching
-// Ch.34 §7's own definition: "Engineering execution cannot proceed").
 export async function transitionExternalInteraction(input: { interactionId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionExternalInteractionResult> {
   const { data: interaction } = await externalInteractionsDB.findById(input.interactionId);
   if (!interaction) return { ok: false, reason: "not_found" };

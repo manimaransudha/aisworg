@@ -1,21 +1,3 @@
-// Participant Integration & Attestation — Plan step 4 (Decision 8, Resolution 9),
-// refined 2026-08-11. The stall half of first-class async failure handling.
-// Out-of-process execution can hang (a human on leave, an agent that never
-// calls back); a dispatched Work Item is genuinely outstanding, not simulated,
-// so nothing completes it on its own.
-//
-// The SLA is materialized as a target completion time set on the Work Item at
-// assignment (dispatchEngine), so this sweep is a single set-based query for
-// Work Items already past their target — no per-item SLA re-derivation, no
-// service join, no scan-and-loop. It escalates each to an Escalation Attention
-// Item (Ch.34) — unattended, driven by a scheduler, not a Participant callback.
-// (The explicit `failed`/`blocked` path is handled in completeWorkItem's Ch.36
-// Failed -> Attention route.)
-//
-// §0.1 core-invariance: the logic keys off ONLY the Work Item's outstanding
-// state and its committed target. It embeds no assumption about how or where
-// the Participant executes — a stalled human-on-UI item and a stalled external
-// orchestrator item are indistinguishable here, exactly as required.
 import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { commandsDB } from "../../../dblayer/commandsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
@@ -31,8 +13,6 @@ export interface StallSweepResult {
 
 export async function sweepStalledWorkItems(input?: { now?: Date; seuId?: string }): Promise<StallSweepResult> {
   const now = input?.now ?? new Date();
-  // One indexed query returns ONLY the outstanding Work Items already past their
-  // committed target — nothing else is loaded.
   const { data: overdue } = await workItemsDB.findOverdue(now, input?.seuId);
 
   let escalated = 0;
@@ -44,9 +24,6 @@ export async function sweepStalledWorkItems(input?: { now?: Date; seuId?: string
 
     const { data: deliverable } = await deliverablesDB.findById(command.entity_id);
 
-    // Idempotent: one open Escalation per stalled Deliverable, however many
-    // times the sweep runs (AM-002, same dedup discipline as the other
-    // Attention paths). Skip the count + event too, not just the row.
     const { data: existing } = await attentionItemsDB.findOpenByRelatedObject(command.seu_id, "Escalation", "Deliverable", command.entity_id);
     if (existing) continue;
 

@@ -1,8 +1,3 @@
-// Review Model — Plan (Phase 14, Ch.25). A Review is a governed evaluation of an
-// engineering object. It reuses the same generic transitionEngine every other
-// entity type uses (Ch.29 §10), as the 13th entity type. A Review NEVER modifies
-// the reviewed object (RM-001); it produces an outcome at Completion that is
-// immutable (FR-25.5) and that Governance consumes via the Quality Gate (step 2).
 import { reviewsDB } from "../../../dblayer/reviewsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
@@ -15,8 +10,6 @@ import type { ReviewOutcome, ReviewRow, TransitionEntityType } from "../../../db
 
 const PASSING_OUTCOMES = new Set<ReviewOutcome>(["Passed", "Passed with Recommendations"]);
 
-// reviews.author_id is a `participants` row (SEU-scoped engagement), not a
-// participants_master row directly — same two-hop resolution as evidence.ts.
 async function resolveAuthorId(seuId: string, actorId: string): Promise<string> {
   const { data: master } = await participantsMasterDB.findById(actorId);
   if (!master) throw new Error(`No superuser provisioned.`);
@@ -33,10 +26,6 @@ export async function createReview(input: {
   name: string;
   criteria?: Record<string, unknown>;
   reviewer?: string | null;
-  // CR-059 — which Review Gate declaration (if any) this Review was
-  // produced against. Set explicitly by whatever creates the Review in
-  // response to a gate's declared prompt/participant contract; null for a
-  // standalone Review unrelated to any gate.
   reviewGateId?: string | null;
   actorId: string;
   authorBadge: string;
@@ -105,8 +94,6 @@ export type TransitionReviewResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-// The lifecycle walk. The outcome is produced at the In Progress -> Completed
-// transition (Ch.25 §9/§11) and frozen there — no later transition changes it.
 export async function transitionReview(input: {
   reviewId: string;
   targetState: string;
@@ -130,8 +117,6 @@ export async function transitionReview(input: {
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 
-  // Governance still evaluates a gate on the Review's own lifecycle for
-  // uniformity (there are none seeded on Review today, so this passes).
   if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Review ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
   const authorId = await resolveAuthorId(review.seu_id, input.actorId);
   const qualityGateResult = await qualityGateEngine.evaluate({ entityType: "Review", entityId: review.id, seuId: review.seu_id, fromState, toState: input.targetState, authorId, authorBadge: gate.authorityBadge });
@@ -142,7 +127,6 @@ export async function transitionReview(input: {
   let updated: ReviewRow;
   if (input.targetState === "Completed") {
     if (!input.outcome) return { ok: false, reason: "outcome_required", detail: "completing a Review requires an outcome (Passed / Passed with Recommendations / Rework Required / Failed / Not Applicable / Deferred)" };
-    // Immutability guard (FR-25.5): an outcome, once produced, is never changed.
     if (review.outcome != null) return { ok: false, reason: "outcome_immutable", detail: `this Review already has outcome "${review.outcome}" — a Review outcome is immutable` };
     const { data, error } = await reviewsDB.completeWithOutcome(review.id, input.outcome);
     if (error || !data) throw error ?? new Error("failed to complete review");

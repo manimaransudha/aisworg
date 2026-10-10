@@ -5,15 +5,6 @@ import type { BadgeScopeKind, BadgeTypeRow, DbResult } from "./seuTypes.js";
 
 export type BadgeTypeValidationResult = { ok: true } | { ok: false; errors: string[] };
 
-// Single writer for badge_types — design doc §9's Enforcement point. Checks
-// what a plain CHECK constraint can't reach (derived_from must resolve to a
-// real row, not just be non-NULL, and that row must be a genuine
-// Platform-recommended badge, not another Tenant's custom one, and not an
-// unscoped Layer 1 badge — §8.1's correction). The same-row half of this
-// (derived_from requires tenant_id) is also a DB CHECK constraint
-// (belt-and-suspenders); this function is the only place the cross-row half
-// is checked, since a database trigger was rejected for consistency with the
-// rest of this schema (design doc §9).
 async function validateBadgeType(input: { tenantId: string | null; code: string; scopeKind: BadgeScopeKind; derivedFrom: string | null }): Promise<BadgeTypeValidationResult> {
   const errors: string[] = [];
 
@@ -22,11 +13,6 @@ async function validateBadgeType(input: { tenantId: string | null; code: string;
     return errors.length ? { ok: false, errors } : { ok: true };
   }
 
-  // Tenant-added badge: derived_from is required, and must resolve to a
-  // genuine Platform-recommended row whose scope_kind isn't 'None' (§8.1:
-  // Layer 1/Platform badges are unscoped and excluded from Tenant
-  // customization entirely — a Tenant deriving from one would produce an
-  // equally unscoped badge, a privilege-escalation path, not a customization).
   if (!input.derivedFrom) {
     errors.push("a Tenant-added badge must declare derived_from — which Platform-recommended badge it's a variant of (§8.1)");
     return { ok: false, errors };
@@ -42,8 +28,6 @@ async function validateBadgeType(input: { tenantId: string | null; code: string;
   } else if (parent.scope_kind === "None") {
     errors.push(`derived_from "${input.derivedFrom}" is an unscoped Layer 1 (Platform) badge — Layer 1 badges are excluded from Tenant customization (§8.1)`);
   } else if (parent.scope_kind !== input.scopeKind) {
-    // §8.1: a derived badge "inherits that parent's scope boundary" — not just
-    // "must have one," it must be the *same* one as its declared parent.
     errors.push(`derived badge's scope_kind ("${input.scopeKind}") must match its parent's ("${parent.scope_kind}") — a derived badge inherits its parent's scope boundary, it doesn't redefine it`);
   }
 
@@ -58,10 +42,6 @@ export const badgeTypesDB = {
       return { error: new Error("badge type validation failed"), validationErrors: validation.errors };
     }
     try {
-      // author_id/author_badge are NOT NULL (badge_types_schema_recovery.sql)
-      // but no real actor flows through this path today — same stopgap as
-      // participantsDB.create/templatesDB.upsert: resolves the
-      // SUPERUSER_EMAIL superuser as author.
       const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<BadgeTypeRow>(
         `INSERT INTO badge_types (tenant_id, code, name, scope_kind, derived_from, tiered, author_id, author_badge)
@@ -87,9 +67,6 @@ export const badgeTypesDB = {
     }
   },
 
-  // Tenant-override-then-Platform-default resolution (design doc §9) — the
-  // shape a Tenant sees for a given badge code, whether or not they've
-  // renamed/added a variant of it.
   async resolveForTenant(code: string, tenantId: string | null): Promise<DbResult<BadgeTypeRow | null>> {
     try {
       if (tenantId) {

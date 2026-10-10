@@ -66,10 +66,6 @@ export const knowledgeItemsDB = {
     }
   },
 
-  // author_id/authority_badge mirror decisionsDB's own participant_id/
-  // authority_badge update-on-every-governed-transition treatment (migration
-  // 231) — the row always reflects the most recent actor, full history
-  // stays in `events`.
   async updateStatus(id: string, status: string, authorId?: string | null, authorityBadge?: string | null): Promise<DbResult<KnowledgeItemRow>> {
     try {
       const { rows } = await query<KnowledgeItemRow>(
@@ -115,9 +111,6 @@ export const knowledgeItemsDB = {
     }
   },
 
-  // Ch.16 §11/§14 — append-only validation/review notes (knowledge_validation_notes,
-  // migration 239), never overwritten. Same discipline as objective_comments/
-  // pack_comments — no forced gate on any one transition (owner: "no forced gate").
   async addValidationNote(input: { knowledgeItemId: string; noteText: string; actorId?: string | null }): Promise<DbResult<KnowledgeValidationNoteRow>> {
     try {
       const { rows } = await query<KnowledgeValidationNoteRow>(
@@ -145,11 +138,6 @@ export const knowledgeItemsDB = {
     }
   },
 
-  // Ch.16 §13 / Book 1 Ch.21 §21.6: Engineering Capital is precisely the
-  // Knowledge Items whose Acquisition Scope has outlived their originating
-  // SEU (i.e. anything not still SEU-scoped), "groupable by contributing
-  // Capability and by Tenant" — no Tenant model yet (Build Plan §5), so this
-  // groups by contributing Capability only, platform-wide.
   async findEngineeringCapital(): Promise<DbResult<EngineeringCapitalRow[]>> {
     try {
       const { rows } = await query<EngineeringCapitalRow>(
@@ -172,11 +160,6 @@ export const knowledgeItemsDB = {
     }
   },
 
-  // Engineering Telemetry — Plan, Build order step 4 — Knowledge Telemetry's
-  // "growth": distinct from findEngineeringCapital above (which deliberately
-  // excludes SEU-scoped items — Capital is about reusability). Growth counts
-  // every Knowledge Item, broken down by acquisition_scope, so it also
-  // surfaces how much is staying SEU-local vs. being promoted.
   async countByAcquisitionScope(seuId?: string): Promise<DbResult<Record<AcquisitionScope, number>>> {
     try {
       const { rows } = await query<{ acquisition_scope: AcquisitionScope; count: string }>(

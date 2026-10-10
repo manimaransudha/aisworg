@@ -1,25 +1,3 @@
-// ontology_concepts baseline recovery seed — restores the canonical rows
-// originally seeded by raw migration INSERTs (030 through 068 and onward)
-// from data/ontologyConcepts.json, itself extracted from
-// src/dblayer/recovery/ontology_concepts_data_recovery.sql (every migration
-// INSERT, with that same file's 13 UPDATE statements already applied —
-// description/is_mandatory/ui_grouping reflect the final, not the
-// as-first-inserted, values).
-//
-// NOT wired into cleanSlate.ts: ontology_concepts is not TRUNCATEd by
-// clean-slate step 1 (migration 282 dropped the FK that used to pull it into
-// that TRUNCATE CASCADE), so a fresh clean-slate run never loses these rows
-// in the first place. Runnable from the Data Migrations admin UI
-// (DATA_MIGRATION_TARGETS, core/dataMigrations.ts), and standalone:
-//   npx tsx src/dblayer/seed/seedOntologyConcepts.ts
-//
-// Loads the JSON once, checks which (concept_type, code, tenant_id) triples
-// already exist in a single batch query, and bulk-inserts only the missing
-// ones in one write (ontologyDB.bulkInsertConceptVersions) — never a live
-// per-row query, never assertCanonicalCategory, per this project's own
-// Ontology-seeding rule. author_id/author_badge (migration 285, both NOT
-// NULL) come from the real caller-supplied actor, never defaulted, same
-// discipline as every other seed function in this folder.
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -32,7 +10,6 @@ import { getPlatformTenantId } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// authoredBy is a participants_master.id
 interface SeedActor {
   authoredBy: string;
   authorBadge: string;

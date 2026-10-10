@@ -2,14 +2,6 @@ import pool, { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, EvidenceRow, EvidenceRelationshipRow, EvidenceValidationAssessment, TransitionEntityType } from "./seuTypes.js";
 
-// Ch.17 EM-002/FR-17.5: Evidence is immutable after acceptance. Deliberately
-// no "update content" function here at all — create + lifecycle transition
-// + append-only validation-assessment recording only, so immutability holds
-// architecturally rather than needing a runtime check on every field.
-//
-// Ch.17 model cleanup (migration 232) — seu_id retired; SEU membership is
-// now just one more evidence_relationships row (related_object_type =
-// 'SEU'), same mechanism as everything else Evidence relates to.
 export const evidenceDB = {
   async create(input: {
     relatedObjectType: TransitionEntityType;
@@ -22,10 +14,6 @@ export const evidenceDB = {
     supersedesEvidenceId?: string | null;
     authorId: string;
     authorBadge: string;
-    // evidence_relationships.author_id references participants_master(id)
-    // directly (one hop), unlike evidence.author_id which references the
-    // SEU-scoped participants(id) row (two hops) — distinct ids, do not
-    // conflate them.
     authorMasterId: string;
   }): Promise<DbResult<EvidenceRow>> {
     const client = await pool.connect();
@@ -60,9 +48,6 @@ export const evidenceDB = {
     }
   },
 
-  // Every relationship after the first (or the only relationship, for an
-  // Evidence row created before this without one). Idempotent: re-linking
-  // the same (evidence, object) pair is a no-op, not an error.
   async addRelationship(evidenceId: string, relatedObjectType: TransitionEntityType, relatedObjectId: string, authorMasterId: string, authorBadge: string): Promise<DbResult<EvidenceRelationshipRow | undefined>> {
     try {
       const { rows } = await query<EvidenceRelationshipRow>(
@@ -79,7 +64,6 @@ export const evidenceDB = {
     }
   },
 
-  // What one Evidence row currently supports — the display/UI shape.
   async findRelationshipsByEvidenceId(evidenceId: string): Promise<DbResult<EvidenceRelationshipRow[]>> {
     try {
       const { rows } = await query<EvidenceRelationshipRow>(
@@ -103,9 +87,6 @@ export const evidenceDB = {
     }
   },
 
-  // Public signature/behaviour unchanged — every existing caller
-  // (qualityGateEngine.ts, dependencyDefinitionEngine.ts, traceability.ts)
-  // needs no changes.
   async findByRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<DbResult<EvidenceRow[]>> {
     try {
       const { rows } = await query<EvidenceRow>(
@@ -122,14 +103,10 @@ export const evidenceDB = {
     }
   },
 
-  // seu_id retired (migration 232) — SEU membership is a relationship now,
-  // same query shape findByRelatedObject already uses.
   async findBySeuId(seuId: string): Promise<DbResult<EvidenceRow[]>> {
     return evidenceDB.findByRelatedObject("SEU", seuId);
   },
 
-  // Reverse lookup: what corrects this row (0 or more; no uniqueness
-  // constraint on supersedes_evidence_id).
   async findSupersededBy(evidenceId: string): Promise<DbResult<EvidenceRow[]>> {
     try {
       const { rows } = await query<EvidenceRow>(
@@ -143,10 +120,6 @@ export const evidenceDB = {
     }
   },
 
-  // Every Evidence Item currently linked to any Deliverable owned by this
-  // SEU, regardless of the Evidence's own origin. Needed so a cross-SEU-
-  // shared Evidence Item is discoverable as a supersede-predecessor from the
-  // CONSUMING SEU's own page, not just the originating one.
   async findLinkedToSeu(seuId: string): Promise<DbResult<EvidenceRow[]>> {
     try {
       const { rows } = await query<EvidenceRow>(
@@ -177,10 +150,6 @@ export const evidenceDB = {
     }
   },
 
-  // Append-only: pushes one new assessment entry onto validation_dimensions
-  // (never overwrites an existing entry) and recomputes confidence_level
-  // from the full, updated set. Both happen in the same UPDATE so the two
-  // never disagree.
   async appendValidationAssessment(id: string, assessment: EvidenceValidationAssessment, confidenceLevel: string | null): Promise<DbResult<EvidenceRow>> {
     try {
       const { rows } = await query<EvidenceRow>(
@@ -199,7 +168,6 @@ export const evidenceDB = {
     }
   },
 
-  // Engineering Telemetry — Knowledge Telemetry's "Evidence generation."
   async count(seuId?: string): Promise<DbResult<number>> {
     try {
       const { rows } = seuId

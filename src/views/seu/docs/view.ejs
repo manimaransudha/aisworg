@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <nav class="mb-3" aria-label="breadcrumb">
+      <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a href="/aisworg/seu/docs">Documentation</a></li>
+        <% var _acc = ''; %>
+        <% breadcrumb.forEach(function(seg, i) { %>
+          <% _acc = _acc ? (_acc + '/' + seg) : seg; %>
+          <% if (i === breadcrumb.length - 1) { %>
+            <li class="breadcrumb-item active" aria-current="page"><%= seg.replace(/\.md$/i, '') %></li>
+          <% } else { %>
+            <li class="breadcrumb-item"><a href="<%= docPathHref(_acc) %>"><%= seg %></a></li>
+          <% } %>
+        <% }) %>
+      </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body doc-content">
+        <%- html %>
+      </div>
+    </div>
+  </main>
+
+  <style>
+    .doc-content table { width: 100%; margin-bottom: 1rem; }
+    .doc-content th, .doc-content td { border: 1px solid var(--border, #cbd5e1); padding: 0.4rem 0.6rem; }
+    .doc-content thead { background: var(--bg-subtle, #f1f5f9); }
+    .doc-content pre { background: #f1f5f9; padding: 0.75rem; border-radius: 0.375rem; overflow-x: auto; }
+    .doc-content img { max-width: 100%; }
+  </style>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

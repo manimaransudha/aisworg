@@ -9,13 +9,6 @@ import type { CapabilityDefinitionRow, CapabilityRole } from "../../../dblayer/s
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
  
-// CR-111 — Capability Definition authoring, mirroring
-// core/serviceDefinitions.ts in shape (Service Definition's own lean 6-state
-// lifecycle, Defined -> Published -> Active -> Deprecated -> Retired ->
-// Archived, chosen verbatim). No Ontology sync on activation, unlike Service
-// (which syncs the separate service-name concept type) — `code` here IS
-// itself the capability-name concept (migration 046), not a second,
-// independently-synced identity.
 
 export interface CapabilityDefinitionSeedInput {
   code: string;
@@ -115,10 +108,6 @@ export async function inheritedCapabilityDefinitionContent(parentCapabilityDefin
 
 export type TransitionCapabilityDefinitionResult = { ok: true; capabilityDefinition: CapabilityDefinitionRow } | { ok: false; reason: string; detail?: string };
 
-// Version Feature Plan.md — transition_definitions' event_type/version_event
-// wired in at build time (migration 273 + seedTransitionDefinitions' own
-// data file), read straight off the resolved Transition Definition, same as
-// transitionServiceDefinition/transitionPolicyDefinition already do.
 export async function transitionCapabilityDefinition(input: { capabilityDefinitionId: string; targetState: CapabilityDefinitionRow["status"]; actorRole: string; actorId: string }): Promise<TransitionCapabilityDefinitionResult> {
   const { data: capabilityDefinition } = await capabilityDefinitionsDB.findById(input.capabilityDefinitionId);
   if (!capabilityDefinition) return { ok: false, reason: "not_found" };
@@ -131,8 +120,6 @@ export async function transitionCapabilityDefinition(input: { capabilityDefiniti
     return { ok: false, reason: gate.reason };
   }
 
-  // authored_by is participants_master-scoped and NOT NULL -- resolve the
-  // real actor, never a default.
   if (!input.actorId) return { ok: false, reason: "no_actor", detail: "no actorId supplied for this transition" };
   const { data: transitionMaster } = await participantsMasterDB.findById(input.actorId);
   if (!transitionMaster) return { ok: false, reason: "no_actor", detail: `No superuser provisioned.` };
@@ -144,12 +131,11 @@ export async function transitionCapabilityDefinition(input: { capabilityDefiniti
     eventType: gate.eventType ?? "CapabilityDefinitionTransitioned",
     originatingObjectType: "CapabilityDefinition",
     originatingObjectId: updated.id,
-    seuId: null, // platform catalog entity, not SEU-scoped
+    seuId: null,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: updated.code },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge ?? "root",
-    // CR-117
     versionEvent: gate.versionEvent,
     fromState,
     toState: input.targetState,
@@ -158,8 +144,6 @@ export async function transitionCapabilityDefinition(input: { capabilityDefiniti
   return { ok: true, capabilityDefinition: updated };
 }
 
-// Mirrors advanceServiceDefinitionOneStep — runs exactly the NEXT governed
-// hop off the entity's current status.
 const AUTHORING_NEXT_STATE: Partial<Record<CapabilityDefinitionRow["status"], CapabilityDefinitionRow["status"]>> = {
   Defined: "Published",
   Published: "Active",
@@ -174,12 +158,9 @@ export async function advanceCapabilityDefinitionOneStep(capabilityDefinition: C
   return transitionCapabilityDefinition({ capabilityDefinitionId: capabilityDefinition.id, targetState, actorRole, actorId });
 }
 
-// Registry "Copy" action, mirrors copyServiceDefinitionAsNewDraft.
 export async function copyCapabilityDefinitionAsNewDraft(capabilityDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await capabilityDefinitionsDB.findById(capabilityDefinitionId);
   if (!source) return { ok: false, errors: ["Capability Definition not found"] };
-  // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
-  // templates.ts's copyTemplateAsNewDraft.
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Capability");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Capability`] };
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
@@ -206,8 +187,6 @@ export interface CapabilityDefinitionWithNextStates {
   possibleNextStates: string[];
 }
 
-// Capability Definition Registry — every Version of every Definition, with
-// its own governed next states, mirroring listServiceDefinitionsWithNextStates.
 export async function listCapabilityDefinitionsWithNextStates(viewer?: { isRoot: boolean; tenantId: string } | null): Promise<CapabilityDefinitionWithNextStates[]> {
   const { data: rows } = viewer && !viewer.isRoot ? await capabilityDefinitionsDB.findAllVisibleTo(viewer.tenantId) : await capabilityDefinitionsDB.findAll();
   return Promise.all(

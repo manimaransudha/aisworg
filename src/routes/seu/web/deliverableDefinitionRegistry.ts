@@ -1,7 +1,3 @@
-// Deliverable Definition Registry (CR-049 Phase 1 follow-up) — mirrors
-// web/templateRegistry.ts's own Registry page structure exactly, minus the
-// category-tab dimension (Deliverable Definition has no category concept
-// the way Template's code doubles as one).
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
@@ -19,7 +15,6 @@ import { getPlatformTenantId } from "../../../dblayer/constants.js";
  
 const DELIVERABLE_DEFINITION_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
-/** GET /aisworg/seu/deliverable-definitions — every published Version of every Deliverable Definition. */
 router.get("/deliverable-definitions", attachVM("seu/deliverable-definitions/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Deliverable Definitions";
@@ -51,7 +46,6 @@ router.get("/deliverable-definitions", attachVM("seu/deliverable-definitions/ind
   }
 });
 
-/** POST /aisworg/seu/deliverable-definitions/:id/copy — Registry "Copy" action: a new, editable Draft at the next available version. */
 router.post("/deliverable-definitions/:id/copy", async (req: Request, res: Response) => {
   const backTo = "/aisworg/seu/deliverable-definitions";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";

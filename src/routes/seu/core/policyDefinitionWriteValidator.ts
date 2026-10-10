@@ -1,8 +1,3 @@
-// design/design whiteboards.md/schema_implementation.md — write-time schema
-// validation for Policy Definition. Lives outside policyDefinitions.ts (not
-// inside it) specifically so policyDefinitionsDB.ts can import it without
-// importing policyDefinitions.ts, which itself imports policyDefinitionsDB.ts
-// — mirrors core/templateWriteValidator.ts exactly.
 import { query } from "../../../utils/db.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { validateAgainstSchema, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
@@ -27,17 +22,6 @@ export interface PolicyDefinitionWriteInput {
   schemaDefinitionId?: string | null;
 }
 
-// Runs at every Policy Definition write path (policyDefinitionsDB.createDraft/
-// updateDraftContent), not just the sdkAuthoring.ts call site (which already
-// calls validatePolicyDefinitionSeed first, unlike Pack/Template/Profile's own
-// pre-fix advisory-only web layer — but that's a caller-side gate, not DB-layer
-// enforcement; anything bypassing sdkAuthoring.ts writes ungoverned today).
-// Pins to the row's own schemaDefinitionId when given (an update), else the
-// latest Policy schema (a create). `code`/`name`/`description`/`category`/
-// `constraintType`/`applicabilityEnvironments`/`scope`/`conditions` are real
-// columns AND schema properties — draftContent alone doesn't carry them, so
-// they're merged in here to validate what the row will actually be written
-// with.
 export async function validatePolicyDefinitionWriteAgainstSchema(input: PolicyDefinitionWriteInput): Promise<string[]> {
   const tenantId = input.tenantId ?? (await getPlatformTenantId());
 

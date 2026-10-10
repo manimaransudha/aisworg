@@ -1,7 +1,7 @@
 import { appConfigDB } from '../dblayer/appConfigDB.js';
 import { logger } from '../utils/logger.js';
 
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL = 10 * 60 * 1000;
 
 let _cache = new Map();
 let _loadedAt = 0;
@@ -35,10 +35,6 @@ async function loadFromDB() {
 }
 
 export const appConfig = {
-  /**
-   * Load config from DB. Call once at app startup.
-   * Safe to call multiple times — skips if cache is still fresh.
-   */
   async init() {
     if (_ready && (Date.now() - _loadedAt) < CACHE_TTL) return;
     try {
@@ -49,18 +45,12 @@ export const appConfig = {
     }
   },
 
-  /**
-   * Synchronous read. Returns fallback if key is missing or cache not yet warmed.
-   */
   get(key, fallback = null) {
     const entry = _cache.get(key);
     if (!entry) return fallback;
     return coerce(entry.raw, entry.type, fallback);
   },
 
-  /**
-   * Persist a new value and update the in-memory cache immediately.
-   */
   async set(key, value) {
     const strValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
     await appConfigDB.setValue(key, strValue);
@@ -68,9 +58,6 @@ export const appConfig = {
     if (entry) entry.raw = strValue;
   },
 
-  /**
-   * Upsert a value — creates the row if missing, updates otherwise.
-   */
   async upsert(key, value, meta = {}) {
     const strValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
     await appConfigDB.upsertValue(key, strValue, meta);
@@ -81,17 +68,11 @@ export const appConfig = {
     }
   },
 
-  /**
-   * Force a full reload from DB (called after settings are saved).
-   */
   async reload() {
     _ready = false;
     await loadFromDB();
   },
 
-  /**
-   * Return all rows with metadata for the settings UI.
-   */
   async getAll() {
     const { data, error } = await appConfigDB.getAll();
     if (error) throw error;

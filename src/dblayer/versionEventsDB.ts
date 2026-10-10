@@ -2,9 +2,6 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, VersionEventRow } from "./seuTypes.js";
 
-// CR-117 — Chapter 41 §12/§13/§15/§18. One row per version-classified hop,
-// written by eventBus.publish() itself (never a second insert at each
-// transitionX call site, and never a second eventBus.publish call).
 const SORT_COLUMNS: Record<string, string> = {
   occurredAt: "occurred_at",
   entityType: "entity_type",
@@ -49,9 +46,6 @@ export const versionEventsDB = {
     }
   },
 
-  // §12 Historical Reconstruction / §13 Version Traceability — the real
-  // per-entity version chain, ordered by occurrence (parent/successor by
-  // position in this list).
   async findByEntity(entityType: string, entityId: string): Promise<DbResult<VersionEventRow[]>> {
     try {
       const { rows } = await query<VersionEventRow>(
@@ -65,8 +59,6 @@ export const versionEventsDB = {
     }
   },
 
-  // §18 Version API — a thin, filterable, paginated read, scoped by
-  // entity/tenant, modeled on eventsDB.findPage (CR-074).
   async findPage(opts: {
     limit: number;
     offset: number;

@@ -7,11 +7,6 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { grantQualityGateWaiver, listQualityGateWaivers } from "../core/qualityGateWaivers.js";
 
-// CR-058 §13 — mirrors api/compliance.ts's waiver route shape, but
-// badge-gated (grantQualityGateWaiver requires the actor to hold
-// qualitygate_waive; Compliance's own waiver route has no such check).
-
-/** POST /seus/:id/quality-gate-waivers — waive a specific blocked gate evaluation for one entity instance. */
 router.post("/seus/:id/quality-gate-waivers", async (req: Request, res: Response) => {
   try {
     const { qualityGateId, entityType, entityId, rationale, expiresAt } = req.body ?? {};
@@ -40,7 +35,6 @@ router.post("/seus/:id/quality-gate-waivers", async (req: Request, res: Response
   }
 });
 
-/** GET /seus/:id/quality-gate-waivers — every waiver granted for this SEU. */
 router.get("/seus/:id/quality-gate-waivers", async (req: Request, res: Response) => {
   try {
     res.status(200).json({ waivers: await listQualityGateWaivers(String(req.params.id)) });

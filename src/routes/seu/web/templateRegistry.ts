@@ -1,8 +1,3 @@
-// Template Registry (owner, 2026-08-19: "Build the template and profile
-// registry") — closes Ch.6 §20.12's "no Template/Profile registry page"
-// gap, and is the UI trigger §20.3/CR-024 flagged as missing for Template
-// reactivation. Mirrors web/packs.ts's own Registry page structure exactly,
-// including the same generic transition form.
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
@@ -21,7 +16,6 @@ import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/cons
  
 const TEMPLATE_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
-/** GET /aisworg/seu/templates — every published Version of every Template. */
 router.get("/templates", attachVM("seu/templates/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Templates";
@@ -29,8 +23,6 @@ router.get("/templates", attachVM("seu/templates/index"), async (req: Request, r
     const isRoot = (req.session?.user?.platformBadges ?? []).includes("root");
     const viewerTenantId = req.session?.user?.tenant_id ?? null;
     const templates = await listTemplatesWithNextStates(viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null);
-    // Template's `code` IS its category (CR-021, Ch.6 §20.1/§20.14) — one tab
-    // per code, not a separate category field the way Pack/Profile have.
     const categories = [...new Set(templates.map((t) => t.template.code))].sort();
     const activeCategory = typeof req.query.category === "string" && categories.includes(req.query.category) ? req.query.category : "";
     const activeStatus = typeof req.query.status === "string" && TEMPLATE_STATES.includes(req.query.status) ? req.query.status : "";
@@ -61,7 +53,6 @@ router.get("/templates", attachVM("seu/templates/index"), async (req: Request, r
   }
 });
 
-/** POST /aisworg/seu/templates/:id/copy — Registry "Copy" action: a new, editable Draft at the next available version. */
 router.post("/templates/:id/copy", async (req: Request, res: Response) => {
   const backTo = "/aisworg/seu/templates";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";

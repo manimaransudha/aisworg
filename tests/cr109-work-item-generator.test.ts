@@ -33,7 +33,7 @@ import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { decisionsDB } from "../src/dblayer/decisionsDB.js";
 import { governanceEvaluationOutcomesDB } from "../src/dblayer/governanceEvaluationOutcomesDB.js";
 import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
-import { driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
@@ -324,6 +324,7 @@ test("Ch.12 §9 / CR-109 §6.2: no producing Capability declared means no pool a
   // outcome are no longer the same synchronous fact — transitionDeliverable
   // reports "Command requested" regardless, and an empty pool is Dispatch's
   // own case 1 (DispatchRejected, Command marked Failed), not a deferral.
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   const requested = await transitionDeliverable({ deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(requested);
 

@@ -11,7 +11,6 @@ import { logger } from "../../../utils/logger.js";
 import { listServices } from "../core/services.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 
-/** GET /aisworg/seu/services — Ch.11: every declared Service and its Service Level. */
 router.get("/services", attachVM("seu/services/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Services";

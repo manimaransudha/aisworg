@@ -7,7 +7,6 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { getFlowMetrics, getGovernanceMetrics, getRuntimeMetrics, getKnowledgeMetrics, getQualityMetrics } from "../core/telemetry.js";
 
-/** GET /telemetry?seuId=... — Ch.35: Flow, Governance, Runtime, Knowledge, and Quality metrics, platform-wide by default, or narrowed to one SEU (Build order step 2). */
 router.get("/telemetry", async (req: Request, res: Response) => {
   try {
     const seuId = typeof req.query.seuId === "string" && req.query.seuId.trim() ? req.query.seuId.trim() : undefined;

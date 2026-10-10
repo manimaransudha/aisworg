@@ -1,4 +1,3 @@
-// Seed users
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -15,13 +14,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const TENANTS = [PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, CAMBODIA_TENANT_NAME];
 
-// tests/acceptance.e2e.test.ts's own non-root, tenant-scoped journey actor —
-// "a real, authorised identity instead of an implicit [root] bypass," holding
-// every noun_verb badge the full commissioning journey might touch (not just
-// objective_*, unlike TESTER_OBJECTIVE_ATHENS below). Derived from the same
-// authorityVocabulary.json seedAuthorityVocabulary.ts itself reads, not
-// hand-listed, so this fixture never drifts out of sync with the real
-// noun_verb set as transitions are added.
 function allNounVerbBadges(): Array<{ badge: string; effective_till: string; seu_ids: string[] }> {
   const raw = readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8");
   const vocab = JSON.parse(raw) as {
@@ -60,12 +52,6 @@ const USERS: SeedUser[] = [
   {email: "tester-all@test.local", name: "Test — All Badges", avatar_url: null, display_name: "Platform Test All", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: DEMO_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
   {email: "tester-creator@test.local", name: "Test — Creator", avatar_url: null, display_name: "Platform Test Creator", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: DEMO_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
   {email: "tester-approver@test.local", name: "Test — Approver", avatar_url: null, display_name: "Platform Test Approver", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: DEMO_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
-  // tests/web-flow.e2e.test.ts's own cross-tenant Objective fixtures
-  // (TESTER_OBJECTIVE_ATHENS/TESTER_OBJECTIVE_BABYLON, testFixtures.ts) —
-  // genuinely scoped, non-root identities (every real objective_* noun_verb
-  // badge: propose/activate/reject/achieve/supersede/retire/archive, plus
-  // objective_all, NOT root) in two different real tenants, so those tests
-  // exercise the actual badge + tenant-reach gates instead of bypassing them.
   {email: "tester-objective-athens@test.local", name: "Test — Objective Badges (Athens)", avatar_url: null, display_name: "Athens Test Objective Badges", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [
     {"badge":"objective_propose","effective_till":"9999-12-31","seu_ids":[]},
     {"badge":"objective_activate","effective_till":"9999-12-31","seu_ids":[]},
@@ -86,16 +72,9 @@ const USERS: SeedUser[] = [
     {"badge":"objective_archive","effective_till":"9999-12-31","seu_ids":[]},
     {"badge":"objective_all","effective_till":"9999-12-31","seu_ids":[]}
   ] },
-  // tests/web-flow.e2e.test.ts's own ATHENS_NO_PROPOSE fixture — holds
-  // objective_achieve only, deliberately NOT objective_propose, to prove the
-  // real create/edit denial for a badge-less-for-that-verb viewer.
   {email: "tester-objective-achieve-only@test.local", name: "Test — Objective Achieve Only (Athens)", avatar_url: null, display_name: "Athens Test Objective Achieve Only", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [
     {"badge":"objective_achieve","effective_till":"9999-12-31","seu_ids":[]}
   ] },
-  // tests/acceptance.e2e.test.ts's own full-journey actor — non-root,
-  // tenant-scoped, holds every real noun_verb badge (allNounVerbBadges()
-  // above), so the M5 acceptance journey runs as a real authorised identity
-  // instead of root's implicit bypass.
   {email: "tester-acceptance-journey@test.local", name: "Test — Acceptance Journey (Athens)", avatar_url: null, display_name: "Athens Test Acceptance Journey", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME, participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: allNounVerbBadges() },
 ];
 
@@ -139,7 +118,6 @@ export async function seedIdentityBaseline(): Promise<void> {
          RETURNING id`,
         [u.email, u.name, u.avatar_url, u.auth_provider, u.provider_id, u.is_active, u.is_protected, u.type, tenantId]
       );
-      // the insert returns an id. this id has to be populated in the participants_master as the user_id.
        await client.query(
   `INSERT INTO participants_master
    (tenant_id, type, display_name, capabilities, competency, behaviour_context,

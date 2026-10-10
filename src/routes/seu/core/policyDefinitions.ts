@@ -10,20 +10,6 @@ import { listActiveNouns, activeMappingByNoun } from "./authorityVocabulary.js";
 import type { EvidenceDefinition, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "../../../dblayer/seuTypes.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 
-// CR-089 — Policy Definition authoring (Book 3 Ch.24), mirroring
-// core/serviceDefinitions.ts in shape. Two differences from that entity's
-// own treatment:
-//   1. Ch.24 §13's own lifecycle is used verbatim — Draft -> Validated ->
-//      Published -> Active -> Deprecated -> Retired -> Archived — one hop
-//      longer than Service Definition's leaner 6-state lifecycle (no
-//      Validated step there). Owner: "Stick to the policy lifecycle defined
-//      in chapter 24 for policy."
-//   2. No Ontology sync on activation — `code` isn't itself an Ontology
-//      concept type the way Service's `service-name`/Deliverable's
-//      `deliverable-name` are (nothing outside this table references a
-//      Policy Definition's code yet). Owner: "there is no relationship with
-//      any other entity."
-
 export interface PolicyDefinitionSeedInput {
   code: string;
   name: string;
@@ -31,10 +17,6 @@ export interface PolicyDefinitionSeedInput {
   category: string;
   constraintType: "Policy" | "Standard";
   applicabilityEnvironments?: string[];
-  // Migration 216 (owner: "I am inclined to move the applicability inside
-  // the condition") — applicabilityDeliverables/governedTransition/
-  // governingCondition all moved into each element of `conditions`
-  // (PolicyCondition); see seuTypes.ts's own comment.
   conditions?: PolicyCondition[];
   scope?: PolicyScope;
   version: string;
@@ -46,27 +28,6 @@ export type PolicyDefinitionValidationResult = { ok: true } | { ok: false; error
 
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 
-// Bug fix (owner: "applicabilityDeliverableLifecycle is not OntologyComposable"
-// — a real dropdown, not Ontology, not a hardcoded Set either) — this used to
-// be a hardcoded `new Set([...])` of just 4 state names, even though its own
-// comment already claimed "real transition_definitions states." Owner,
-// second pass: "the dropdown should show the applicable transitions so it's
-// more clear" — a bare state NAME is ambiguous (e.g. "Active" is both a
-// from_state and a to_state across several real Deliverable hops; the field
-// also can't distinguish Deliverable's two real lifecycles — its own
-// authoring lifecycle, Draft..Archived, vs. an SEU-execution instance's
-// Defined/In Progress/Approved/Baselined — since nothing on the row marks
-// which is which). Storing/offering the real EDGE (`Deliverable|From|To`,
-// the same shape governedTransition/the "transition-definition" registry
-// key already use) removes the ambiguity entirely and needs no inference —
-// not Ontology-backed (Ch.24 §9's states are the real state machine, not an
-// extensible vocabulary), deliberately not composable (no propose-a-new-one
-// path).
-// Migration 214 (owner: "Scope=Eligibility; Applicable Deliverable Name =
-// SEU. Applicability Deliverable Lifecycle should show the SEU transitions")
-// — generalised from Deliverable-only to any entity type, since
-// applicabilityDeliverables[].name can now be a noun (an entity type in its
-// own right) under scope=Eligibility, each with its own real transitions.
 export async function listTransitionsForEntityType(entityType: string): Promise<string[]> {
   const { data } = await transitionDefinitionsDB.listAll();
   const transitions = new Set<string>();
@@ -87,13 +48,6 @@ async function assertPolicyDefinitionCodeVersionFree(code: string, version: stri
 
 const EXCEPTION_COMPOSITIONS = new Set(["all", "any"]);
 
-// Ch.17 §8's Definition-side Evidence shape (seuTypes.ts's EvidenceDefinition)
-// — owner: "Evidence definition has to be a common model and used in Policy
-// [and] Obligations." Two real call sites: a condition's own requiredEvidence
-// directly, and each relatedObligations[] row's own requiredEvidence — both
-// validated through this one function. category is the only field with a
-// real vocabulary to check (category:evidence, Ch.17 §7); title/description/
-// collectionMethod are free text.
 async function validateEvidenceDefinition(evidence: EvidenceDefinition | undefined, label: string): Promise<string[]> {
   if (!evidence?.category?.trim()) return [];
   try {
@@ -104,11 +58,6 @@ async function validateEvidenceDefinition(evidence: EvidenceDefinition | undefin
   }
 }
 
-// Migration 218 (owner: "make the GoverningCondition UI user friendly and
-// not a json edit") — per-type field requirements, now that each type has
-// its own real form fields rather than one free-form JSON blob. Migration
-// 219 moved the call site from the condition itself to each
-// applicabilityDeliverables row, unchanged otherwise.
 function validateGoverningCondition(governingCondition: Record<string, unknown> | null | undefined, label: string): string[] {
   if (governingCondition == null) return [];
   const errors: string[] = [];
@@ -131,21 +80,6 @@ function validateGoverningCondition(governingCondition: Record<string, unknown> 
   return errors;
 }
 
-// Full redesign (migrations 215/216) — Ch.24 §8's Conditions/Required
-// Evidence/Related Obligations/Exception Rules/Severity, structured and
-// (where the owner said so) Ontology-enforced, PLUS applicability and the
-// real governing rule folded in per-condition (owner: "I am inclined to
-// move the applicability inside the condition"; "Governing condition has to
-// be folded into condition"). Every Ontology check here is unconditional
-// (not gated by `draft` the way applicabilityEnvironments' own composable
-// field is) — none of these fields carry x-ontology-composable, so there is
-// no propose-instead-of-reject path for any of them; same treatment
-// `category`'s own unconditional check above already gets. `scope` decides
-// each condition's own applicabilityDeliverables vocabulary exactly the way
-// it used to decide the Policy-level field's vocabulary (migration 214) —
-// Eligibility: real Authority Vocabulary nouns + that noun's own real
-// transitions; Transition/default: deliverable-name Ontology (composable,
-// gated by `draft`) + Deliverable's own real transitions.
 async function validateConditions(conditions: PolicyCondition[] | undefined, scope: PolicyScope | undefined, draft: boolean, constraintType: "Policy" | "Standard"): Promise<string[]> {
   const errors: string[] = [];
   const validBadges = new Set(
@@ -191,10 +125,6 @@ async function validateConditions(conditions: PolicyCondition[] | undefined, sco
           if (!deliverableTransitions!.has(transition)) errors.push(`${dLabel}: transition "${transition}" is not one of Deliverable's real transitions (${[...deliverableTransitions!].join(", ")})`);
         }
       }
-      // Migration 219 (owner: "The governing condition should be within
-      // applicability deliverables") — moved here from the condition level;
-      // per-type field requirements, each type having its own real form
-      // fields rather than one free-form JSON blob (migration 218).
       errors.push(...validateGoverningCondition(row.governingCondition, dLabel));
     }
     errors.push(...(await validateEvidenceDefinition(cond?.requiredEvidence, `${label} requiredEvidence`)));
@@ -232,9 +162,6 @@ async function validateConditions(conditions: PolicyCondition[] | undefined, sco
       }
       errors.push(...(await validateEvidenceDefinition(ob.requiredEvidence, `${obLabel} requiredEvidence`)));
     }
-    // Owner: "Exceptions are defined only when Constraint type='Policy'"
-    // (Ch.24 §4 — a Standard's deviations already don't block anything;
-    // there is nothing for an exception to except).
     if ((cond?.exceptionRules ?? []).length && constraintType !== "Policy") {
       errors.push(`${label}: exceptionRules can only be declared when constraintType is "Policy" (this Definition is "${constraintType}")`);
     }
@@ -244,11 +171,6 @@ async function validateConditions(conditions: PolicyCondition[] | undefined, sco
       if (ex.exceptionComposition && !EXCEPTION_COMPOSITIONS.has(ex.exceptionComposition)) {
         errors.push(`${exLabel}: exceptionComposition "${ex.exceptionComposition}" is not one of all/any`);
       }
-      // Owner: "exceptionApprovers[] should have list of badges that are
-      // Ontology driven... Reference authority_noun_verbs" — validated
-      // against the real, active badge vocabulary, same source
-      // exceptionApprovers itself is authored from (web/sdkAuthoring.ts's
-      // "authority-badge" referential option), not Ontology.
       for (const approver of ex.exceptionApprovers ?? []) {
         if (!validBadges.has(approver)) {
           errors.push(`${exLabel}: exceptionApprovers "${approver}" is not one of this platform's real active badges (noun_verb)`);
@@ -259,19 +181,6 @@ async function validateConditions(conditions: PolicyCondition[] | undefined, sco
   return errors;
 }
 
-// `draft: true` still governs everything this function and validateConditions
-// skip for WIP-tolerance during Save (including applicabilityDeliverables[].name
-// — not a composability concern, a real reject-on-unregistered field;
-// migration 214 dropped the old applicabilityDeliverableNames composable
-// flag). `skipComposableChecks` (default: mirrors `draft`, so Save's
-// existing behaviour is unchanged) governs ONLY whichever field(s) the
-// Policy schema marks `x-ontology-composable` (today: applicabilityEnvironments,
-// category — migrations 209/275) — schema-driven via
-// validateComposableFieldsAgainstSchema (core/ontology.ts), not a hardcoded
-// field list — decoupled from `draft` so a caller can enforce every other
-// field at the Draft->Validated hop while still deferring JUST the
-// composable one(s) to Validated->Published, per owner: "whatever is
-// x-ontology-composable will be gated at publish time."
 export async function validatePolicyDefinitionSeed(seed: PolicyDefinitionSeedInput, excludeId?: string, draft = false, skipComposableChecks: boolean = draft): Promise<PolicyDefinitionValidationResult> {
   const errors: string[] = [];
   if (!seed.code?.trim()) errors.push("code is required");
@@ -332,10 +241,6 @@ export async function inheritedPolicyDefinitionContent(parentPolicyDefinitionId:
 
 export type TransitionPolicyDefinitionResult = { ok: true; policyDefinition: PolicyDefinitionRow } | { ok: false; reason: string; detail?: string };
 
-// Version Feature Plan.md — migration 221 populates transition_definitions'
-// event_type/version_event for every real Policy hop (Ch.24 §13); this map
-// is retired in favor of reading gate.eventType straight off that row, same
-// as transitionTemplate/transitionProfile already do.
 export async function transitionPolicyDefinition(input: { policyDefinitionId: string; targetState: PolicyDefinitionRow["status"]; actorRole: string; actorId: string }): Promise<TransitionPolicyDefinitionResult> {
   const { data: policyDefinition } = await policyDefinitionsDB.findById(input.policyDefinitionId);
   if (!policyDefinition) return { ok: false, reason: "not_found" };
@@ -357,12 +262,11 @@ export async function transitionPolicyDefinition(input: { policyDefinitionId: st
     eventType: gate.eventType ?? "PolicyDefinitionTransitioned",
     originatingObjectType: "PolicyDefinition",
     originatingObjectId: updated.id,
-    seuId: null, // platform catalog entity, not SEU-scoped
+    seuId: null,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: updated.code },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge,
-    // CR-117
     versionEvent: gate.versionEvent,
     fromState,
     toState: input.targetState,
@@ -371,8 +275,6 @@ export async function transitionPolicyDefinition(input: { policyDefinitionId: st
   return { ok: true, policyDefinition: updated };
 }
 
-// Mirrors advanceServiceDefinitionOneStep — runs exactly the NEXT governed
-// hop off the entity's current status.
 const AUTHORING_NEXT_STATE: Partial<Record<PolicyDefinitionRow["status"], PolicyDefinitionRow["status"]>> = {
   Draft: "Validated",
   Validated: "Published",
@@ -388,12 +290,9 @@ export async function advancePolicyDefinitionOneStep(policyDefinition: PolicyDef
   return transitionPolicyDefinition({ policyDefinitionId: policyDefinition.id, targetState, actorRole, actorId });
 }
 
-// Registry "Copy" action, mirrors copyServiceDefinitionAsNewDraft.
 export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await policyDefinitionsDB.findById(policyDefinitionId);
   if (!source) return { ok: false, errors: ["Policy Definition not found"] };
-  // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
-  // templates.ts's copyTemplateAsNewDraft.
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Policy");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Policy`] };
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
@@ -429,8 +328,6 @@ export interface PolicyDefinitionWithNextStates {
   possibleNextStates: string[];
 }
 
-// Policy Definition Registry — every Version of every Definition, with its
-// own governed next states, mirroring listServiceDefinitionsWithNextStates.
 export async function listPolicyDefinitionsWithNextStates(viewer?: { isRoot: boolean; tenantId: string } | null): Promise<PolicyDefinitionWithNextStates[]> {
   const { data: rows } = viewer && !viewer.isRoot ? await policyDefinitionsDB.findAllVisibleTo(viewer.tenantId) : await policyDefinitionsDB.findAll();
   return Promise.all(

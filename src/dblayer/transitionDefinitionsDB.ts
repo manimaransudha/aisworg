@@ -3,9 +3,6 @@ import { logger } from "../utils/logger.js";
 import { userDB } from "./userDB.js";
 import type { DbResult, TransitionDefinitionRow, TransitionEntityType } from "./seuTypes.js";
 
-// CR-007: a readable view of a live transition_definitions row — the authority
-// rule resolved to its code + required badge/role, and policy/quality-gate
-// counts, for the "current definitions" surface.
 export interface TransitionDefinitionListRow {
   id: string;
   entity_type: string;
@@ -23,8 +20,6 @@ export interface TransitionDefinitionListRow {
 }
 
 export const transitionDefinitionsDB = {
-  // CR-007: every current Transition Definition, with its authority rule
-  // resolved, for the Transition Definition Authoring "current state" view.
   async listAll(): Promise<DbResult<TransitionDefinitionListRow[]>> {
     try {
       const { rows } = await query<TransitionDefinitionListRow>(
@@ -45,17 +40,6 @@ export const transitionDefinitionsDB = {
     }
   },
 
-  // SDK UI Layer Plan — a Transition Definition authored (or re-published)
-  // through the SDK targets an (entityType, fromState, toState) triple by
-  // this same upsert. Collision risk, not yet reconciled: seedSeu.ts's own
-  // seedTransitionDefinitions re-asserts every triple listed in
-  // transitionDefinitions.json on every `pnpm seed:seu` run — authoring a
-  // Transition Definition for a triple that JSON file also seeds would get
-  // silently reverted by the next reseed, the same class of bug already
-  // found and fixed once for Deliverable's badge-model authority repoint
-  // (see 014_sdk_authoring.sql's header / Open Design Questions.md). Safe
-  // for any triple the JSON file doesn't cover; logged, not solved, for one
-  // that collides.
   async upsert(input: {
     entityType: TransitionEntityType;
     fromState: string;
@@ -65,22 +49,11 @@ export const transitionDefinitionsDB = {
     requiredQualityGateIds?: string[];
     createsObligation?: string | null;
     category?: string | null;
-    // Version Feature Plan.md §3 — kept in sync with the JSON-seeded path
-    // (seedTransitionDefinitions.ts) so an SDK-authored definition doesn't
-    // silently lose its event/version declaration relative to a seeded one.
     eventType?: string | null;
     versionEvent?: string | null;
     submitVersionEvent?: string | null;
   }): Promise<DbResult<TransitionDefinitionRow>> {
     try {
-      // author_id/author_badge are NOT NULL (transition_definitions_schema_
-      // recovery.sql) but this SDK-authoring upsert has no real actor
-      // flowing through it today — same stopgap as participantsDB.create/
-      // templatesDB.upsert: resolves the SUPERUSER_EMAIL superuser
-      // (userDB.getSuperuserId()) as author until a real actor is threaded
-      // through every caller. ON CONFLICT leaves author_id/author_badge
-      // untouched on an existing row (re-upserting the same triple doesn't
-      // reattribute it to whichever caller happened to re-run it).
       const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<TransitionDefinitionRow>(
         `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, required_quality_gate_ids, creates_obligation, category, event_type, version_event, submit_version_event, author_id, author_badge)
@@ -131,16 +104,6 @@ export const transitionDefinitionsDB = {
     }
   },
 
-  // Drives the transition dropdown in the SEU detail page — every state a
-  // Deliverable/SEU could move to from here, per what's actually declared in
-  // the data, not hardcoded state names in a view.
-  //
-  // NOTE (CR-007 Step 2, owner 2026-08-13): retiring a transition currently
-  // only marks it (is_active + retired_at) for the management view — the actual
-  // traversal semantics (grandfathering an SEU whose creation predates
-  // retired_at; excluding retired edges here and in find) are DEFERRED, since
-  // that refinement also touches Template/Profile cleanup. So this still lists
-  // all declared edges for now; retired_at is captured for that later work.
   async findPossibleNextStates(entityType: TransitionEntityType, fromState: string): Promise<DbResult<string[]>> {
     try {
       const { rows } = await query<{ to_state: string }>(
@@ -154,16 +117,6 @@ export const transitionDefinitionsDB = {
     }
   },
 
-  // CR-071 — findPossibleNextStates only names the target state, not the verb
-  // that gates it, so a caller that needs to check "does the viewer hold the
-  // noun_verb badge for this specific option" (transitionEngine's own
-  // `${entityType}_${verb}` convention) can't derive it from that alone. A new,
-  // additive function — findPossibleNextStates itself is used by 16+ callers
-  // across most entity types; widening its return type there risks all of
-  // them for a need only Objective's own detail page has today.
-  // CR-072 — also returns trigger/submitVerb: a manual transition with a
-  // defined submit_verb needs its own from_state submitted (triggerEngine)
-  // before it's a real option, not just the viewer's own badge.
   async findPossibleNextTransitions(entityType: TransitionEntityType, fromState: string): Promise<DbResult<Array<{ toState: string; verb: string | null; trigger: "manual" | "governed"; submitVerb: string | null }>>> {
     try {
       const { rows } = await query<{ to_state: string; verb: string | null; trigger: "manual" | "governed"; submit_verb: string | null }>(
@@ -177,8 +130,6 @@ export const transitionDefinitionsDB = {
     }
   },
 
-  // CR-007 Step 2 — full detail of one transition definition (resolved policy
-  // & quality-gate codes, authority rule code, verb), for the view-detail page.
   async findDetailById(id: string): Promise<DbResult<TransitionDefinitionDetailRow | null>> {
     try {
       const { rows } = await query<TransitionDefinitionDetailRow>(
@@ -199,12 +150,6 @@ export const transitionDefinitionsDB = {
     }
   },
 
-  // CR-007 Step 2 — add a transition definition (a new noun/from/to edge with a
-  // verb). Re-adding a retired triple reactivates it and updates its verb —
-  // trigger is deliberately NOT in that DO UPDATE SET list, so reactivating
-  // an existing row never overwrites whatever trigger it already carries;
-  // `trigger` here only ever seeds a genuinely NEW row (the mapping's own
-  // default_trigger, resolved by the caller).
   async insertDefinition(input: {
     entityType: string;
     fromState: string;
@@ -232,10 +177,6 @@ export const transitionDefinitionsDB = {
     }
   },
 
-  // CR-007 Step 2 — soft-retire (never delete). The row stays; it drops out of
-  // the add-pickers and is greyed in the management view. retired_at records
-  // WHEN, for the later SEU-creation-date grandfathering refinement (traversal
-  // semantics deferred — see findPossibleNextStates note).
   async retireById(id: string): Promise<DbResult<{ id: string } | null>> {
     try {
       const { rows } = await query<{ id: string }>(
@@ -249,16 +190,6 @@ export const transitionDefinitionsDB = {
     }
   },
 
-  // Edit action (list had View/Retire/Add but no way to change an existing
-  // row) — deliberately narrow: entity_type/from_state/to_state are this
-  // row's identity (never renamed, same "never delete/rename" convention as
-  // Add/Retire) and verb is governed by the Mapping tab, not this. Touches
-  // only the two fields that are still live, freely-editable metadata —
-  // creates_obligation and category — leaving required_authority_rule_id/
-  // required_policy_ids/required_quality_gate_ids (the retiring CR-006
-  // mechanism, display-only per detail.ejs's own "(legacy)" label) untouched
-  // rather than risk clearing them via a lossy round trip through upsert()'s
-  // resolved-code-to-id path.
   async updateMetadata(id: string, input: { createsObligation: string | null; category: string | null }): Promise<DbResult<{ id: string } | null>> {
     try {
       const { rows } = await query<{ id: string }>(
@@ -273,7 +204,6 @@ export const transitionDefinitionsDB = {
   },
 };
 
-// CR-007 Step 2 — full detail shape for the view-detail page.
 export interface TransitionDefinitionDetailRow {
   id: string;
   entity_type: string;

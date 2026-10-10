@@ -1,4 +1,3 @@
-// CR-098 (Ch.13 §8) — the tenant-scoped, cross-SEU resource registry.
 import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, ParticipantMasterRow, ParticipantType } from "./seuTypes.js";
@@ -87,9 +86,6 @@ export const participantsMasterDB = {
     }
   },
 
-  // CR-103 — resolves the participants_master identity behind a logged-in
-  // user, for that user's own "SEUs I'm a Participant on" home page. Only
-  // ever set for a Human-type master (migration 195's own user_id comment).
   async findByUserId(userId: string): Promise<DbResult<ParticipantMasterRow | null>> {
     try {
       const { rows } = await query<ParticipantMasterRow>("SELECT * FROM participants_master WHERE user_id = $1", [userId]);
@@ -100,12 +96,6 @@ export const participantsMasterDB = {
     }
   },
 
-  // Identity Management's own authorised-role multi-select (owner: "dropdown
-  // is multi-select. Existing grant should be in a selected state. so add or
-  // revoke will work") — the one write path for authorised_role after
-  // create. Replaces the whole array; the caller (core/identity.ts's
-  // setAuthorisedRoles) is responsible for preserving any SEU-scoped entry
-  // this platform-wide screen has no business touching.
   async setAuthorisedRole(id: string, authorisedRole: Array<{ role: string; effective_till: string; seu_ids: string[] }>): Promise<DbResult<ParticipantMasterRow>> {
     try {
       const { rows } = await query<ParticipantMasterRow>(
@@ -119,9 +109,6 @@ export const participantsMasterDB = {
     }
   },
 
-  // Owner: "badge_grants on the user management should be replaced with the
-  // new badges implementation" — same shape/discipline as setAuthorisedRole
-  // above, for noun x verb badges instead of standing roles.
   async setAuthorisedBadges(id: string, authorisedBadges: Array<{ badge: string; effective_till: string; seu_ids: string[] }>): Promise<DbResult<ParticipantMasterRow>> {
     try {
       const { rows } = await query<ParticipantMasterRow>(
@@ -145,7 +132,6 @@ export const participantsMasterDB = {
     }
   },
 
-  // Registry page (root/platform view — every tenant's resources).
   async findAll(): Promise<DbResult<ParticipantMasterRow[]>> {
     try {
       const { rows } = await query<ParticipantMasterRow>("SELECT * FROM participants_master ORDER BY tenant_id, created_at");
@@ -156,13 +142,6 @@ export const participantsMasterDB = {
     }
   },
 
-  // Ch.12 §18.1/§18.4 follow-up (owner: "The Participant name should be a
-  // dropdown that gives a list of participants that satisfy the
-  // capability... gives a list of available participants") — the SEU
-  // detail page's Fulfil form's own candidate list: every active,
-  // this-tenant participants_master resource whose capabilities[] already
-  // includes the code being fulfilled. `@>` is JSONB containment — capabilities
-  // is a bare array of capability-name codes (migration 195).
   async findEligibleForCapability(tenantId: string, capabilityCode: string): Promise<DbResult<ParticipantMasterRow[]>> {
     try {
       const { rows } = await query<ParticipantMasterRow>(

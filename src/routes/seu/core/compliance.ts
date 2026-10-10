@@ -1,10 +1,3 @@
-// Compliance Model — Plan (Phase 15, Ch.27). Compliance is an emergent, read-only
-// evaluation over the existing governance primitives (Ch.27 §1/§8/§9): it never
-// modifies engineering state and never blocks a transition. Each requirement's
-// declarative criteria is evaluated by REUSING the same resolvers/status sets the
-// qualityGateEngine uses, generalised to SEU scope. Evaluation is deterministic
-// (FR-27.3) and, being a pure function of current state, continuous by
-// construction (§12); every run persists an immutable snapshot (FR-27.6).
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { complianceDB } from "../../../dblayer/complianceDB.js";
@@ -16,8 +9,6 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { resolveAuthor, resolveSystemActor } from "./attentionItems.js";
 import type { ComplianceRequirementRow, ComplianceStatus } from "../../../dblayer/seuTypes.js";
 
-// Same qualifying sets the qualityGateEngine uses — compliance consumes the
-// identical governance semantics, not a parallel definition.
 const RESOLVED_OBLIGATION_STATUSES = new Set(["Verified", "Closed", "Archived"]);
 const QUALIFYING_EVIDENCE_STATUSES = new Set(["Accepted", "Referenced"]);
 const QUALIFYING_DECISION_STATUSES = new Set(["Approved", "Applied"]);
@@ -30,7 +21,7 @@ export interface RequirementResult {
   severity: string;
   state: "satisfied" | "unsatisfied" | "waived";
   detail: string;
-  supporting: string[]; // ids of the engineering records that satisfied it (§11 evidence / §13 traceability)
+  supporting: string[];
 }
 
 export interface ComplianceConflict {
@@ -56,8 +47,6 @@ async function composedPackIds(seuId: string): Promise<string[]> {
   return packs.map((p) => p.packId).filter((id): id is string => typeof id === "string");
 }
 
-// Evaluate ONE requirement's declarative criteria against the SEU's engineering
-// state. Composes existing primitives (Ch.27 §8) — no new governance.
 async function evaluateRequirement(seuId: string, req: ComplianceRequirementRow): Promise<{ satisfied: boolean; detail: string; supporting: string[] }> {
   const criteria = (req.criteria ?? {}) as { type?: string; category?: string };
   const type = criteria.type;
@@ -97,14 +86,10 @@ async function evaluateRequirement(seuId: string, req: ComplianceRequirementRow)
         : { satisfied: false, detail: `no accepted, passing ${category ?? ""} review`.replace("  ", " "), supporting: [] };
     }
     default:
-      // Unknown criteria fails closed (deterministic, FR-27.3) — a requirement
-      // whose criteria the platform can't interpret is not silently satisfied.
       return { satisfied: false, detail: `unrecognised compliance criteria type: ${type ?? "(none)"}`, supporting: [] };
   }
 }
 
-// Minimal conflict detection (FR-27.7): report requirements in the applicable
-// set that declare each other in conflicts_with. Reported, not resolved.
 function detectConflicts(requirements: ComplianceRequirementRow[]): ComplianceConflict[] {
   const codes = new Set(requirements.map((r) => r.code));
   const conflicts: ComplianceConflict[] = [];
@@ -159,8 +144,6 @@ export async function evaluateCompliance(seuId: string, opts?: { persist?: boole
   const status = rollUp(counts);
   const conflicts = detectConflicts(requirements ?? []);
 
-  // ComplianceStatusChanged fires only when the status differs from the last
-  // recorded snapshot (§15).
   const { data: previous } = await complianceDB.findLatestEvaluation(seuId);
 
   if (opts?.persist !== false) {
@@ -190,8 +173,6 @@ export async function grantWaiver(input: { seuId: string; requirementCode: strin
   return waiver;
 }
 
-// The compliance report (Ch.27 §12) — a projection of the current evaluation,
-// derived from engineering state, not maintained separately.
 export async function generateComplianceReport(seuId: string) {
   const evaluation = await evaluateCompliance(seuId, { persist: true });
   const { data: waivers } = await complianceDB.findActiveWaivers(seuId);

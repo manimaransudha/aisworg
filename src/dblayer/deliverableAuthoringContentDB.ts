@@ -31,8 +31,6 @@ export const deliverableAuthoringContentDB = {
     }
   },
 
-  // schema_definition_id is deliberately not updated here — an instance
-  // stays checked against the grammar it was authored against, permanently.
   async updateContent(deliverableId: string, content: Record<string, unknown>): Promise<DbResult<DeliverableAuthoringContentRow>> {
     try {
       const { rows } = await query<DeliverableAuthoringContentRow>(

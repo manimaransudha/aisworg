@@ -2,56 +2,22 @@ import pool, { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, ObjectiveCommentRow, ObjectiveRow, ObjectiveStatus, ObjectiveTier, SponsoringAuthority } from "./seuTypes.js";
 
-// version is "n.n.n" (migration 124); every edit bumps the patch segment
-// only — the exact same "every edit advances by one" behavior the old bare
-// integer column had, just semver-shaped.
 const BUMP_PATCH_SQL = "split_part(version, '.', 1) || '.' || split_part(version, '.', 2) || '.' || (split_part(version, '.', 3)::int + 1)::text";
 
-// Also owns the objective_capabilities join table (Ch.1 §10 — MVP declares
-// required Capabilities explicitly rather than deriving them from a
-// "Capability Pack", a Book 3 concept Ch.5's own taxonomy never defines).
 export const objectivesDB = {
-  // CR-068 — assigns the new Objective's display_id atomically alongside the
-  // INSERT, in the same transaction, so a rolled-back create never leaves a
-  // segment issued with no row to show for it:
-  //   - a child (has parentObjectiveId): its segment comes from the parent
-  //     row's own next_child_seq counter, incremented via a single
-  //     UPDATE ... RETURNING — the UPDATE's row lock on the parent is what
-  //     serializes two children created under it at the same time, no
-  //     SELECT ... FOR UPDATE needed.
-  //   - a Strategic root: its segment is tenant-scoped (owner: "use the
-  //     tenant_id ... indirectly related ... through the user that proposes
-  //     it"), resolved via requestedBy -> participants_master.tenant_id, then issued from
-  //     objective_root_sequences (a root has no parent row of its own to hold
-  //     a counter on) via the same atomic INSERT ... ON CONFLICT ... RETURNING
-  //     idiom.
-  //
-  // CR-071 — sponsoring_authority is assigned in the same statements, at zero
-  // extra query cost: a child copies its parent's own value (same RETURNING
-  // clause that already fetches display_id); a root derives it fresh from the
-  // same tenantId this function already resolves for its sequence counter.
   async create(input: {
     statement: string;
     tier?: ObjectiveTier;
     status?: ObjectiveStatus;
     parentObjectiveId?: string | null;
-    // NOT NULL (migration 127) — required here too, not just on ObjectiveRow.
     requestedBy: string;
-    // objective_root_sequences.author_id/author_badge are NOT NULL with no
-    // DB default — required whenever a root (no parentObjectiveId) is being
-    // created, since that branch inserts into that table.
     authorId: string;
     authorBadge: string;
   }): Promise<DbResult<ObjectiveRow>> {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
-      // requested_by is NOT NULL (migration 127) -- enforced here regardless
-      // of branch, not just in the no-parent branch below which needed it
-      // for its own tenant-sequence lookup anyway.
       if (input.requestedBy == null) throw new Error("an Objective must be attributed to a real requestedBy — this can never be null");
-      // objectives.author_badge is NOT NULL, no DB default — required for every
-      // create, child or root.
       if (!input.authorBadge) throw new Error("creating an Objective requires authorBadge — this can never be null");
       let displayId: string;
       let sponsoringAuthority: SponsoringAuthority;
@@ -69,8 +35,6 @@ export const objectivesDB = {
         displayId = `${parent.parent_display_id}.${parent.seq}`;
         sponsoringAuthority = parent.parent_sponsoring_authority ?? { tenant: null };
       } else {
-        // author_id/author_badge are NOT NULL, no DB default — required for
-        // this branch's INSERT, not optional/fallback-coalesced.
         if (!input.authorId || !input.authorBadge) throw new Error("creating a root Objective requires authorId/authorBadge — this can never be null");
         const { rows: participantRows } = await client.query<{ tenant_id: string }>("SELECT tenant_id FROM participants_master WHERE id = $1", [input.requestedBy]);
         const tenantId = participantRows[0]?.tenant_id;
@@ -112,11 +76,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-071 — tenantId omitted (undefined) means no filter (root/superuser
-  // sees every tenant); a provided value (including null, for a session
-  // that somehow resolved no tenant) filters and fails closed — `= NULL`
-  // never matches any row in SQL, so that edge case returns zero rows rather
-  // than silently falling through to "everything."
   async findAll(tenantId?: string | null): Promise<DbResult<ObjectiveRow[]>> {
     try {
       const { rows } =
@@ -130,11 +89,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-009 — the one-shot commissioning path (commissionFromForm) needs a
-  // Strategic root to hang its Engineering Objective under (bare Engineering
-  // objectives are no longer allowed). It reuses a single well-known container
-  // rather than minting a fresh root per SEU; this finds it by its sentinel
-  // statement.
   async findStrategicByStatement(statement: string): Promise<DbResult<ObjectiveRow | null>> {
     try {
       const { rows } = await query<ObjectiveRow>(
@@ -174,12 +128,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-009 tree — the parentless Strategic roots, one server-side page at a
-  // time (there can be many). Browse mode paginates over these; each root is
-  // then expanded via findChildren lazily.
-  // CR-071 — tenantId omitted (undefined) means no filter (root/superuser
-  // sees every tenant); a provided value filters and fails closed on a null
-  // tenant, same reasoning as findAll above.
   async findRootsPage(opts: { limit: number; offset: number; tenantId?: string | null }): Promise<DbResult<{ items: ObjectiveRow[]; total: number }>> {
     try {
       const noFilter = opts.tenantId === undefined;
@@ -199,12 +147,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-073 — the proposer's "was rejected" filter/section on the existing
-  // Objectives page (owner: "not a standalone page"). Reject is a real,
-  // distinct status (owner: "It is Active to Reject"), reachable only via
-  // Active -> Reject, which always fires ObjectiveRejected — so status alone
-  // is the authoritative marker, no events-table join needed. Same
-  // tenant-filter/pagination shape as findRootsPage.
   async findRejectedPage(opts: { limit: number; offset: number; tenantId?: string | null }): Promise<DbResult<{ items: ObjectiveRow[]; total: number }>> {
     try {
       const noFilter = opts.tenantId === undefined;
@@ -224,9 +166,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-009 tree — how many direct children each of the given parents has, in a
-  // single query. Drives leaf detection (leaf = 0 children → commissionable)
-  // and the expand affordance, without an N+1 per node.
   async childCounts(parentIds: string[]): Promise<DbResult<Map<string, number>>> {
     try {
       const map = new Map<string, number>();
@@ -246,9 +185,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-009 re-parenting — every descendant id of `id` (transitive), so a move
-  // can reject choosing the node itself or any descendant as its new parent
-  // (cycle guard). Recursive CTE; excludes `id` itself.
   async findDescendantIds(id: string): Promise<DbResult<string[]>> {
     try {
       const { rows } = await query<{ id: string }>(
@@ -267,8 +203,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-009 search — the ancestor chain root→node (exclusive of the node), so a
-  // flat search hit can show its breadcrumb/path for context.
   async findAncestorPath(id: string): Promise<DbResult<ObjectiveRow[]>> {
     try {
       const { rows } = await query<ObjectiveRow & { depth: number }>(
@@ -287,9 +221,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-009 re-parenting — moves only this node; its subtree comes with it
-  // automatically (descendants already point at it). Accepts null only for a
-  // Strategic root (the CHECK constraint enforces that invariant).
   async updateParent(id: string, parentObjectiveId: string | null): Promise<DbResult<ObjectiveRow>> {
     try {
       const { rows } = await query<ObjectiveRow>(
@@ -306,15 +237,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-068 — requestedBy heals a legacy null left over from creation
-  // (COALESCE only ever fills in a currently-null value, it never overwrites
-  // a real original requester with whoever happens to save the next edit).
-  // Tier is deliberately not editable here (owner: "Edit should not change
-  // the tier. This will cause utter confusion to the hierarchy") — tier is
-  // fixed at creation and has no update path at all anymore.
-  // bumpVersion (default true) — owner: "add a save without versioning. in
-  // which case the current version carries over" — false leaves version
-  // untouched instead of advancing its patch segment.
   async update(id: string, input: { statement?: string; requestedBy: string; bumpVersion?: boolean }): Promise<DbResult<ObjectiveRow>> {
     try {
       const { rows } = await query<ObjectiveRow>(
@@ -334,9 +256,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-116 — supersedingObjectiveId is only ever passed on the
-  // Active -> Superseded transition; every other transition leaves the
-  // column untouched (the column is only ever set once, on supersession).
   async updateStatus(id: string, status: ObjectiveStatus, supersedingObjectiveId?: string): Promise<DbResult<ObjectiveRow>> {
     try {
       const { rows } = await query<ObjectiveRow>(
@@ -350,8 +269,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-086 step 2 — capabilityCodes are bare capability-name Ontology codes
-  // now, not capabilities.id (migration 150).
   async addCapabilities(objectiveId: string, capabilityCodes: string[], authorId?: string, authorBadge?: string): Promise<DbResult<void>> {
     try {
       if (capabilityCodes.length > 0 && (!authorId || !authorBadge)) {
@@ -372,9 +289,6 @@ export const objectivesDB = {
     }
   },
 
-  // Replaces the full required-Capability set for an edit (owner: "Allow
-  // edit of required capabilities") — delete-then-insert, same "set"
-  // idiom as profilesDB.setPackSelection/templatesDB.setMandatoryPacks.
   async setRequiredCapabilities(objectiveId: string, capabilityCodes: string[], authorId?: string, authorBadge?: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM objective_capabilities WHERE objective_id = $1", [objectiveId]);
@@ -396,10 +310,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-012 — hard delete of a Proposed leaf Objective. Only ever called for an
-  // Objective with no children and no SEU (the core enforces both), so the only
-  // dependent rows are its objective_capabilities links; remove those first,
-  // then the row. Idempotent-safe (a missing id deletes nothing).
   async delete(id: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM objective_capabilities WHERE objective_id = $1", [id]);
@@ -411,8 +321,6 @@ export const objectivesDB = {
     }
   },
 
-  // Bare codes only — name/description are Ontology-resolved at the core
-  // layer (core/objectives.ts), not joined here (CR-086 step 2).
   async getRequiredCapabilities(objectiveId: string): Promise<DbResult<{ code: string }[]>> {
     try {
       const { rows } = await query<{ code: string }>(
@@ -426,9 +334,6 @@ export const objectivesDB = {
     }
   },
 
-  // CR-073 — general-purpose, append-only comment thread. Never updated or
-  // deleted at the application layer; oldest first (a narrative history, not
-  // an activity feed).
   async addComment(objectiveId: string, actorId: string, commentText: string): Promise<DbResult<ObjectiveCommentRow>> {
     try {
       const { rows } = await query<ObjectiveCommentRow>(

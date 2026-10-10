@@ -22,10 +22,6 @@ import {cacheValidator} from "../domain/analysis/cacheValidator.js";
 import {getAggregatedStocks} from "../domain/analysis/dataAggregator.js";
 import {userPreferencesDB} from "../dblayer/userPreferences.js";
 
-
-
-
-/** GET / - Decision Storyboard (general) */
 router.get("/", requireRole(['general'], { redirectTo: "/aisworg" }), attachVM("dashboard"), async (req, res) => {
   const flash = getFlash(req);
   const query = (req.query.q || "").toLowerCase().trim();

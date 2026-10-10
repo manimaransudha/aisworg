@@ -2,9 +2,6 @@ import { query } from '../utils/db.js';
 import { logger } from '../utils/logger.js';
 
 export const appConfigDB = {
-  /**
-   * Load all config rows (key, value, value_type) for the in-memory cache.
-   */
   async loadAll() {
     try {
       const res = await query('SELECT key, value, value_type FROM app_config');
@@ -15,9 +12,6 @@ export const appConfigDB = {
     }
   },
 
-  /**
-   * Update a single config value by key (must already exist in DB).
-   */
   async setValue(key, value) {
     try {
       await query(
@@ -31,9 +25,6 @@ export const appConfigDB = {
     }
   },
 
-  /**
-   * Upsert a config value — creates the row if it does not exist yet.
-   */
   async upsertValue(key, value, { valueType = 'string', category = 'general', label = '', description = '' } = {}) {
     try {
       await query(
@@ -50,9 +41,6 @@ export const appConfigDB = {
     }
   },
 
-  /**
-   * Fetch all rows with metadata for the settings UI.
-   */
   async getAll() {
     try {
       const res = await query(

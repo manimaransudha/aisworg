@@ -10,10 +10,6 @@ import { parseListParams, listResult } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
 import { getVersionEventsPage } from "../core/versionEvents.js";
 
-// CR-117 (Ch.41 §18 "Version APIs") — a general, filterable, paginated
-// browser over version_events, scoped by entity/tenant instead of global,
-// modeled directly on web/events.ts (CR-074). Super only, same gating as
-// the Event Bus link in this Profile dropdown.
 router.get("/version-events", attachVM("seu/versionEvents/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Version Replay";

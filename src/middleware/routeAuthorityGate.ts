@@ -1,28 +1,3 @@
-// CR-110 — the global route-authority gate. Mounted once in app.js, after
-// the session/auth gatekeeper and before every router: replaces the ~237
-// individual requireBadge/requireRole call sites (and the hand-rolled
-// requireAuthorityAdmin/requireOntologyAdmin gates) with one lookup into
-// route_authority (routeAuthorityCache.ts), keyed by the incoming request's
-// own method + path matched against each row's path-to-regexp pattern.
-//
-// Settled design (design/route-authority-decisions.md):
-// - Generic denial message for everyone, no more per-route wording —
-//   "You are not authorised for this action."
-// - Web mode: safeBack() (Referer-based back-redirect) + flash. API mode
-//   (/aisworg/api/... prefix): plain JSON 403, same message.
-// - A request whose method+path matches no row at all fails closed (deny +
-//   loud log) — safe now that migration 261's backfill covers every live
-//   route; a genuinely new route with no row is a config gap, not a route
-//   this gate should let through unchecked.
-// - Root bypasses everything outside production (dev/test convenience,
-//   same NODE_ENV gate requireBadge/requireRole always used). Superuser
-//   (participants_master.authorised_role) bypasses role checks in
-//   production too, same as requireRole always did.
-// - A row with empty badges[] and empty roles[] is a real, explicit "no
-//   requirement" declaration — passes without even needing a session user
-//   (gatekeeper has already handled authentication for anything not on its
-//   own public list; a route with a real requirement here is guaranteed to
-//   have a session user by the time it reaches this gate).
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../utils/logger.js";
 import { flashError } from "../utils/flash.js";
@@ -47,28 +22,6 @@ function deny(req: Request, res: Response, api: boolean, reason: string): void {
   flashError(req, res, safeBack(req), DENY_MESSAGE);
 }
 
-// The table's own CRUD screen keeps its own literal env-var badge check
-// (routeAuthorityRegistry.ts's `gate`) as the sole authority over itself —
-// the one deliberate exception (design decision #4). This global gate skips
-// these paths entirely rather than also enforcing whatever row happens to
-// exist for them, so changing ROUTE_AUTHORITY_ADMIN_BADGE away from its
-// `root` default isn't silently overridden by a stale table row.
-//
-// gatekeeper.js's own isPublic() (favicon/css/js/images/fonts/auth) is
-// reused here too: those paths were never meant to be authority-gated
-// "actions", and denying them here (fail-closed, no route_authority row)
-// planted a stray flash message that then surfaced on the user's next,
-// unrelated page render.
-//
-// /aisworg/seu/data-migrations is the SAME bootstrap exception as
-// route-authority itself, one level removed: it's the screen that
-// populates route_authority in the first place (seedRouteAuthority.ts), so
-// gating it BY route_authority is circular — on a table with zero rows
-// (exactly the state this seed exists to fix), visiting the page that would
-// fix it is itself denied, and the deny-redirect's Referer bounce between
-// two denied pages is an infinite loop (seen in practice, not theoretical).
-// web/dataMigrations.ts keeps its own literal root-only gate as the real
-// authority here, same pattern routeAuthorityRegistry.ts's own `gate` uses.
 function isSelfCrud(path: string): boolean {
   return path === "/aisworg/seu/route-authority" || path.startsWith("/aisworg/seu/route-authority/")
     || path === "/aisworg/seu/data-migrations" || path.startsWith("/aisworg/seu/data-migrations/");
@@ -83,12 +36,6 @@ export function routeAuthorityGate() {
     const api = apiMode(req.path);
     const found = lookupRouteAuthority(req.method, req.path);
 
-    // Same dev-only root bypass the "row found, badge missing" branch below
-    // already applies (rootBypassAllowed) -- a row-less path (table empty,
-    // or a route genuinely missing its row) must not lock root out entirely.
-    // Without this, an empty/incomplete route_authority (exactly the state
-    // this recovery/seed work starts from) denies EVERY route including the
-    // dashboard, for EVERYONE, with no way back in to fix it.
     const rootBypassAllowedNoRow = process.env.NODE_ENV !== "production" && (req.session?.user?.platformBadges ?? []).includes("root");
 
     if (!found) {
@@ -108,9 +55,6 @@ export function routeAuthorityGate() {
 
     const user = req.session?.user;
     if (!user) {
-      // Defensive only — gatekeeper already requires a session for any
-      // route not on its own public list, so a real requirement here
-      // should never see an anonymous request.
       if (api) {
         res.status(401).json({ success: false, message: "Session expired — please log in again." });
         return;

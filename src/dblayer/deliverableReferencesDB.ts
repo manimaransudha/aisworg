@@ -2,12 +2,6 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, DeliverableReferenceRow } from "./seuTypes.js";
 
-// Participant Integration & Attestation — Plan step 2 (Resolution 3). The
-// durable, append-only home for the raw VCS reference a Participant returns at
-// each completion, keyed by the Deliverable and the state its Work Item drove
-// toward. Read by the empty-centre presence check (a reference must exist
-// before an approval can be dispatched) and, later, by the Ch.20 traceability
-// query.
 export const deliverableReferencesDB = {
   async record(input: {
     seuId: string;
@@ -34,8 +28,6 @@ export const deliverableReferencesDB = {
     }
   },
 
-  // The presence check: does this Deliverable already hold a real (non-empty)
-  // reference produced toward a given state? "You cannot approve nothing."
   async findLatestWithReference(deliverableId: string, toState: string): Promise<DbResult<DeliverableReferenceRow | null>> {
     try {
       const { rows } = await query<DeliverableReferenceRow>(

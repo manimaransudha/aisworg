@@ -1,8 +1,3 @@
-// Phase 10 (badge model) — design/mvp-build-plan/Phase 10 - User Management
-// and Dual Authority Design.md. "Everything should be done through the
-// Identity Management feature" — this is the one core module the Identity
-// Management UI routes (routes/seu/web/identity.ts) call into; no other
-// route creates a tenant, a badge type, or a badge grant directly.
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const crypto = require("crypto");
@@ -28,39 +23,19 @@ export interface PlatformUserView {
   created_at: string;
   tenantId: string | null;
   tenantName: string | null;
-  // Owner: "actions dropdown should be from ontology authorised-role...
-  // Existing grant should be in a selected state." Unscoped (seu_ids: [])
-  // and unexpired authorised_role codes only — this platform-wide screen
-  // has no SEU context, so a SEU-scoped grant is neither shown nor
-  // touchable here (setAuthorisedRoles below leaves those alone).
   authorisedRoles: string[];
-  // Owner: "badge_grants on the user management should be replaced with the
-  // new badges implementation" — same unscoped/unexpired-only display rule
-  // as authorisedRoles above, read from participants_master.authorised_badges
-  // (migration 257) instead of badge_grants.
   authorisedBadges: string[];
 }
 
 export interface IdentityDashboardView {
   tenants: TenantRow[];
-  badgeTypes: BadgeTypeRow[]; // Platform-recommended + every Tenant's overrides/additions, for this pass's single-page view
+  badgeTypes: BadgeTypeRow[];
   users: PlatformUserView[];
-  // Ontology "authorised-role" concept codes, for the Actions column's
-  // multi-select — root sees the full Platform-recommended vocabulary.
   authorisedRoleCodes: string[];
-  // The live noun x verb vocabulary (authority_noun_verbs), for the new
-  // Badges multi-select — same source listUsersForTenant's own grant form
-  // already uses (listGrantableNounVerbBadges, below).
   authorisedBadgeCodes: string[];
 }
 
-// Tenant Management only needs the tenant list — it must NOT pay for the whole
-// identity dashboard (badge grants, per-holder user lookups, platform-badge
-// rollup). Kept in this core module so the "everything through core" boundary
-// holds (routes/seu/web/identity.ts calls this, not tenantsDB directly).
 export async function listTenantsForManagement(): Promise<TenantRow[]> {
-  // CR-004: operational tenants only — the reserved 'platform' system tenant is
-  // not a manageable org and never appears in Tenant Management.
   const { data } = await tenantsDB.findAllOperational();
   return data ?? [];
 }
@@ -87,8 +62,6 @@ export async function getIdentityDashboardView(): Promise<IdentityDashboardView>
   const { data: authorisedRoleConcepts } = await ontologyDB.findConceptsByType("authorised-role", { isRoot: true, tenantId: null });
   const authorisedRoleCodes = (authorisedRoleConcepts ?? []).map((c) => c.code);
 
-  // authorised_badges (migration 257) — same batch-load discipline as
-  // authorised_role above.
   const { rows: masterBadgeRows } = await query<{ user_id: number; authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }> }>(
     "SELECT user_id, authorised_badges FROM participants_master WHERE user_id IS NOT NULL"
   );
@@ -115,22 +88,6 @@ export async function getIdentityDashboardView(): Promise<IdentityDashboardView>
 
 export type CreatePlatformUserResult = { ok: true; email: string; verificationLink: string | null } | { ok: false; detail: string };
 
-// Root creating a platform user account (this tab's own concern) is
-// deliberately separate from granting that user any Platform-layer badge
-// (the Badge Grants tab) — account creation and badge issuance are two
-// steps, matching §9's top-down chain (nothing is granted implicitly by
-// existing). Reuses the same local-pending + email-verification mechanism
-// routes/web/auth.js's existing (legacy-role) User Management already uses,
-// rather than inventing a second account-creation path. The legacy `role`
-// column is left at its default ('general') — that axis is untouched by
-// Phase 10 (design doc §5) and irrelevant to what badges this account can
-// later be granted.
-// Owner: "Type should be renamed to Tenant. The dropdown should have the
-// tenants list. Include a authorised_role dropdown" — collapses the old
-// Type (Platform/Tenant) + conditional tenant picker into one dropdown of
-// every real tenant, Platform's own reserved row included; `type` is no
-// longer a human choice, it's derived from which tenant was picked
-// (tenant.is_system — true only for the reserved 'platform' row today).
 export async function createPlatformUser(input: { email: string; name?: string; tenantId: string; authorisedRoles?: string[] }): Promise<CreatePlatformUserResult> {
   const existing = await userDB.findByEmail(input.email);
   if (existing) return { ok: false, detail: `a user already exists for ${input.email}` };
@@ -148,11 +105,6 @@ export async function createPlatformUser(input: { email: string; name?: string; 
   const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
   const created = await userDB.createLocalPending({ email: input.email, name: input.name || input.email, verification_token: token, verification_expires: expires, type, tenant_id: tenant.id });
 
-  // Owner: "I said badge has to be empty. badge is in participants_master."
-  // — authorised_role is exactly whatever the admin selected on the create
-  // form, nothing implied. No forced 'general' here; NON_REVOCABLE_ROLES
-  // (setAuthorisedRoles below) only ever stops a HELD 'general' grant from
-  // being revoked later — it doesn't grant one on creation.
   const rolesResult = await setAuthorisedRoles({ id: created.id, roles: input.authorisedRoles ?? [], actingUserEmail: null });
   if (!rolesResult.ok) return { ok: false, detail: `user created, but authorised roles failed: ${rolesResult.detail}` };
 
@@ -162,46 +114,16 @@ export async function createPlatformUser(input: { email: string; name?: string; 
 
 export type UpdatePlatformUserResult = { ok: true } | { ok: false; detail: string };
 
-// Owner: "In aisworg/seu/identity/users page, add an action button to edit
-// the users." Active is still edited here (userDB.setActive, keyed by
-// email — see the self-edit guard comment below for why email not id).
-// Role editing moved to setAuthorisedRoles below (owner: "omit the legacy
-// role column... actions dropdown should be from ontology authorised-role")
-// — the legacy `role` column itself is untouched, just no longer editable
-// from this page. Badges are a separate, already-built flow
-// (issueBadgeGrant/revokeBadgeGrant, Badge Management) — not duplicated here.
 export async function updatePlatformUser(input: { id: string; isActive: boolean; actingUserEmail: string | null }): Promise<UpdatePlatformUserResult> {
   const user = await userDB.findById(input.id);
   if (!user) return { ok: false, detail: "user not found" };
-  // Self-edit guard, by EMAIL not id — same as the legacy /auth/users page's
-  // own guard, and NOT interchangeable here: this app's dev/test auto-login
-  // shim (src/app.js) hardcodes a fixed id:1 session identity whose EMAIL
-  // happens to match a real seeded user row that itself has a DIFFERENT real
-  // database id — an id-based comparison silently never matches for that
-  // shim identity (confirmed live: the guard never fired), while email
-  // always correctly identifies who's actually acting, in the shim and in
-  // real OAuth login alike.
   if (input.actingUserEmail && user.email === input.actingUserEmail) return { ok: false, detail: "you can't edit your own account from here" };
   await userDB.setActive(user.email, input.isActive);
   return { ok: true };
 }
 
-// Owner: "provide all participants with general role... to denote always" —
-// 'general' is the platform's own default standing grant (migration 255's
-// column default; every onboarding adapter sets it). Owner, this session:
-// "Don't allow revoke of general because that is a default" — once a user
-// holds it unscoped, it's never dropped here even if deselected.
 const NON_REVOCABLE_ROLES = new Set(["general"]);
 
-// Owner: "dropdown is multi-select. Existing grant should be in a selected
-// state. so add or revoke will work" — reconciles this user's UNSCOPED
-// (seu_ids: []) authorised_role grants to exactly the given set: adds a
-// standing grant (effective_till 9999-12-31, seu_ids: []) for any newly
-// selected role, drops any unscoped grant whose role was deselected (except
-// NON_REVOCABLE_ROLES), and leaves any SEU-scoped grant untouched (this
-// platform-wide screen has no SEU context to revoke one correctly). Same
-// self-edit guard as updatePlatformUser — deselecting your own only
-// `superuser` grant here would otherwise lock the acting admin out.
 export async function setAuthorisedRoles(input: { id: string; roles: string[]; actingUserEmail: string | null }): Promise<UpdatePlatformUserResult> {
   const user = await userDB.findById(input.id);
   if (!user) return { ok: false, detail: "user not found" };
@@ -230,13 +152,6 @@ export async function setAuthorisedRoles(input: { id: string; roles: string[]; a
   return { ok: true };
 }
 
-// Owner (2026-09-22): "web/ontology.ts should have badge ontology_manage" —
-// the Ontology-registered admin-surface badges (concept_types
-// badges:platform/badges:tenant, migration 256: identity_manage,
-// tenant_manage, ontology_manage, platform_manage), alongside the real
-// noun_verb vocabulary. Unioned, not scoped per platform/tenant — "badge
-// does not need seuid" (owner) already settled authorised_badges as
-// unscoped, same discipline here.
 export async function listAdminSurfaceBadgeCodes(): Promise<string[]> {
   const viewer: OntologyViewer = { isRoot: true, tenantId: null };
   const [{ data: platformConcepts }, { data: tenantConcepts }] = await Promise.all([
@@ -246,13 +161,6 @@ export async function listAdminSurfaceBadgeCodes(): Promise<string[]> {
   return [...new Set([...(platformConcepts ?? []), ...(tenantConcepts ?? [])].map((c) => c.code))].sort();
 }
 
-// Owner: "badge_grants on the user management should be replaced with the
-// new badges implementation" — same reconcile shape as setAuthorisedRoles
-// above (add newly selected, drop deselected, leave any SEU-scoped entry
-// untouched), validated against the real noun x verb vocabulary
-// (listGrantableNounVerbBadges) plus the Ontology-registered admin-surface
-// badges above. No NON_REVOCABLE_ROLES equivalent — badges have no sticky
-// default.
 export async function setAuthorisedBadges(input: { id: string; badges: string[]; actingUserEmail: string | null }): Promise<UpdatePlatformUserResult> {
   const user = await userDB.findById(input.id);
   if (!user) return { ok: false, detail: "user not found" };
@@ -286,39 +194,14 @@ export type CreateTenantResult =
   | { ok: true; tenant: TenantRow }
   | { ok: false; reason: "validation_failed"; detail: string };
 
-// CR-005 — tenant creation is decoupled from tenant-admin assignment. This
-// creates the Tenant only; its first admin is created separately via
-// createPlatformUser(type='Tenant', tenant_id=<this tenant>) and then granted
-// the tenant_admin badge through the existing issueBadgeGrant path. (Previously
-// createTenantWithFirstAdmin bundled all three, which made a Tenant unable to
-// exist before its admin — the conflict CR-005 resolves.)
 export async function createTenant(input: { code: string; name: string; authorId: string; authorBadge: string, is_system: false }): Promise<CreateTenantResult> {
   const { data: tenant, error } = await tenantsDB.create({ code: input.code, name: input.name, authorId: input.authorId, authorBadge: input.authorBadge, is_system: input.is_system });
   if (error || !tenant) return { ok: false, reason: "validation_failed", detail: error?.message ?? "failed to create tenant" };
   return { ok: true, tenant };
 }
 
-
-// --- Tenant Admin (tenant_super role) — a separate, tenant-scoped view. ----
-// Owner: "there has to be a separate view for tenant_admins... user
-// management screen should list users scoped to that tenant... tenant_admin
-// can allocate badges to users" — the badges that can be allotted correspond
-// to the Deliverable noun (transition_definitions has the valid verbs, so
-// the badge is noun_verb). Gated by requireRole('tenant_super')
-// (middleware/auth.js), not requirePlatformBadge — a deliberately separate
-// authority axis from root's own Identity Management above, scoped by
-// req.session.user.tenant_id rather than any badge.
-
-// Same PlatformUserView shape as the platform-wide dashboard, filtered to one
-// tenant — deliberately not a call to getIdentityDashboardView (that loads
-// every tenant's users/grants; a tenant_super only ever needs its own).
 export type TenantUserView = PlatformUserView;
 
-// Owner (2026-09-22): "write to participants_master and remove badge_grants"
-// — authorisedBadges (participants_master, migration 257) replaces the old
-// badge_grants-based revocableGrants entirely; there's no per-grant id to
-// revoke by any more, just a reconcile-to-selection (setTenantUserAuthorisedBadges
-// below), same shape as Identity Management's own setAuthorisedBadges.
 export async function listUsersForTenant(tenantId: string): Promise<TenantUserView[]> {
   const { rows: userRows } = await query<{ id: number; email: string; name: string | null; is_active: boolean; created_at: string }>(
     "SELECT id, email, name, is_active, created_at FROM users WHERE tenant_id = $1 ORDER BY created_at DESC",
@@ -348,10 +231,6 @@ export async function listUsersForTenant(tenantId: string): Promise<TenantUserVi
     ])
   );
 
-  // tenantId is this function's own input (every row shares it); tenantName
-  // is Identity Management's own (getIdentityDashboardView) concern,
-  // deliberately not loaded here — this function stays the lightweight,
-  // this-tenant-only read its own header comment describes.
   const { data: tenant } = await tenantsDB.findById(tenantId);
   return userRows.map((u) => ({
     ...u,
@@ -364,31 +243,11 @@ export async function listUsersForTenant(tenantId: string): Promise<TenantUserVi
   }));
 }
 
-// Owner: tenant_admin's own grant screen should not be limited to Deliverable
-// — every real noun_verb badge (lifecycle transition verbs AND
-// creation-authority verbs like propose/define/create, per
-// [[creation-authority-not-a-transition]]) should be grantable. authority_noun_verbs
-// (authorityVocabularyDB) is the live, Ontology-driven mapping table itself —
-// the same source badgeGrantsDB's own resolveNounVerbBadge validates a grant
-// against — so this list and that later validation can never disagree.
-// Deliberately narrower than "every badge_type": platform-scoped badges
-// (root, tenant_admin, pack_all, viewer) have no noun in this mapping table
-// at all, so they stay structurally excluded, not filtered out by convention.
 export async function listGrantableNounVerbBadges(): Promise<string[]> {
   const { data } = await authorityVocabularyDB.listActiveMappingPairs();
   return [...new Set((data ?? []).map((r) => `${r.noun_code.toLowerCase()}_${r.verb_code}`))].sort();
 }
 
-// Owner (2026-09-22): "write to participants_master and remove badge_grants"
-// — reconciles this tenant user's noun_verb authorised_badges to exactly the
-// given set (same add/drop-by-selection shape as setAuthorisedBadges),
-// restricted to a user already confirmed to belong to the acting
-// tenant_super's own tenant — a userId picked from that tenant's own User
-// Management list, not a free-typed email, so there's no cross-tenant path
-// to begin with; checked again here regardless, since the route boundary is
-// the only real enforcement point. Delegates to setAuthorisedBadges itself
-// (root of Identity Management's own Badge Management) rather than
-// re-implementing the same reconcile logic a second time.
 export async function setTenantUserAuthorisedBadges(input: { actingTenantId: string; userId: string; badges: string[] }): Promise<UpdatePlatformUserResult> {
   const holder = await userDB.findById(input.userId);
   if (!holder) return { ok: false, detail: "user not found" };

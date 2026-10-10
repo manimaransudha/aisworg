@@ -1,7 +1,3 @@
-// Ch.12 §9 / CR-109 §6.2 — persists the eligible-Participant pool snapshot
-// executionEngine.execute() takes at Command generation, so Dispatch (and any
-// future Work Item Generation use) reads what Fulfilment already decided
-// rather than re-deriving it live (CR-109 §5's "connective tissue" principle).
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { CapabilityFulfilmentPoolRow, DbResult } from "./seuTypes.js";

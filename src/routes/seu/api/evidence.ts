@@ -10,7 +10,6 @@ import type { TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 
-/** POST /evidence — Ch.17: collect an Evidence Item against any governed entity (relatedObjectType/relatedObjectId — polymorphic, Open Design Questions.md #3). */
 router.post("/evidence", async (req: Request, res: Response) => {
   try {
     const { seuId, relatedObjectType, relatedObjectId, category, title, description, source, supersedesEvidenceId } = req.body ?? {};
@@ -35,9 +34,6 @@ router.post("/evidence", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /evidence/:id/validate — Ch.17 §11/§13: record one validation-
- *  dimension assessment. Append-only; confidence_level is recomputed from
- *  the full history each time. */
 router.post("/evidence/:id/validate", async (req: Request, res: Response) => {
   try {
     const { dimension, status, notes } = req.body ?? {};
@@ -53,7 +49,6 @@ router.post("/evidence/:id/validate", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /evidence?seuId=... — every Evidence Item for a given SEU. */
 router.get("/evidence", async (req: Request, res: Response) => {
   try {
     const seuId = typeof req.query.seuId === "string" ? req.query.seuId : null;
@@ -65,7 +60,6 @@ router.get("/evidence", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /evidence/:id/transition — Ch.17 §9 lifecycle: Collected -> ... -> Archived. */
 router.post("/evidence/:id/transition", async (req: Request, res: Response) => {
   try {
     const { targetState } = req.body ?? {};
@@ -87,9 +81,6 @@ router.post("/evidence/:id/transition", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /evidence/:id/link — CR-051 item 1 (Ch.17 §20.2/§20.8): link an
- *  existing Evidence Item to another object it also supports — one Evidence
- *  Item may support many engineering artefacts. */
 router.post("/evidence/:id/link", async (req: Request, res: Response) => {
   try {
     const { relatedObjectType, relatedObjectId } = req.body ?? {};

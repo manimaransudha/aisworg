@@ -22,10 +22,7 @@ function applyRoleOverride(user) {
 }
 
 export function configurePassport() {
-  // Passport session serialization is not used — we manage req.session.user ourselves.
-  // Only passport.initialize() is needed, not passport.session().
 
-  // ── Google OAuth strategy ──────────────────────────────────────────────────
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     passport.use(new GoogleStrategy(
       {
@@ -42,7 +39,6 @@ export function configurePassport() {
           try {
             user = await userDB.findByEmail(email);
           } catch (dbErr) {
-            // Retry once on connection timeout (Neon cold-start)
             if (dbErr.message?.includes('timeout') || dbErr.message?.includes('terminated')) {
               logger.warn('[Auth] DB cold-start on Google callback — retrying once');
               user = await userDB.findByEmail(email);
@@ -53,32 +49,28 @@ export function configurePassport() {
 
           if (!user) {
 
-            // A Platform tenant has to exist by default. Otherwise create one. 
-            const existing = await tenantsDB.ensurePlatformTenant();
-            if (existing.error) return done(existing.error);
-
             const isSuper = SUPERUSER_EMAIL && email.toLowerCase() === SUPERUSER_EMAIL;
 
-            // CR-004: the SUPERUSER is the platform identity; every other Google
-            // self-signup lands active in the operational 'demo' sandbox tenant
-            // (frictionless play), never Platform.
-            const homeCode = isSuper ? 'platform' : 'demo';
+            const home = isSuper
+              ? await tenantsDB.ensurePlatformTenant()
+              : await tenantsDB.findByName(DEMO_TENANT_NAME);
+            if (home.error) return done(home.error);
+            const homeTenantId = isSuper ? home.data : home.data.id;
+
             user = await userDB.create({
               email,
               name:          profile.displayName,
               avatar_url:    profile.photos?.[0]?.value || null,
-              // role:          'general',
               auth_provider: 'google',
               provider_id:   profile.id,
               is_active:     true,
               type:          isSuper ? 'Platform' : 'Tenant',
-              tenant_id: existing.data
+              tenant_id: homeTenantId
             });
             logger.info(`[Auth] New Google user created: (${isSuper ? 'Platform' : 'Tenant/demo'})`);
           } else {
             await userDB.updateLastLogin(email);
           }
-          // insert this userid in participants_master table if not already present
           const {data: existingParticipant, error: participantLookupErr} = await participantsMasterDB.findByUserId(user.id);
           if (participantLookupErr) return done(participantLookupErr);
           if (!existingParticipant) {
@@ -105,8 +97,6 @@ export function configurePassport() {
             if (participantCreateErr) return done(participantCreateErr);
           }
 
-          // applyRoleOverride(user);
-
           if (!user.is_active) {
             return done(null, false, { message: 'disabled' });
           }
@@ -123,7 +113,6 @@ export function configurePassport() {
     logger.warn('[Auth] GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set — Google login disabled.');
   }
 
-  // ── Local strategy (email + password) ─────────────────────────────────────
   passport.use(new LocalStrategy(
     { usernameField: 'email' },
     async (email, password, done) => {
@@ -135,19 +124,6 @@ export function configurePassport() {
         }
 
         if (!user.password_hash) {
-          // ─── DEV/TEST BYPASS — remove this block to revert ─────────────────
-          // Owner: "I created a test user and I get a Account not yet
-          // activated... I want to override this in the dev and test
-          // environment." Root-created accounts (Identity Management's own
-          // "Create user" form) sit pending — real password_hash, is_active,
-          // verification_token/expires — until the emailed verification link
-          // is used (routes/web/auth.js's activation flow). Same
-          // NODE_ENV !== 'production' gate every other dev-only bypass in
-          // this app already uses (requireBadge/requireRole's root bypass,
-          // dev/actAs.js). Whatever password is submitted here becomes the
-          // account's real password, via the SAME userDB.activateWithPassword
-          // the real verification-link flow calls — this only skips having to
-          // click the emailed link first, nothing about activation itself.
           if (process.env.NODE_ENV !== 'production') {
             const hash = await bcrypt.hash(password, 12);
             const activated = await userDB.activateWithPassword(user.email, hash);
@@ -160,7 +136,6 @@ export function configurePassport() {
               return done(null, activated);
             }
           }
-          // ─── end dev/test bypass ────────────────────────────────────────────
           return done(null, false, { message: 'Account not yet activated. Check your verification email.' });
         }
 

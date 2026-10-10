@@ -1,15 +1,3 @@
-// design/mvp-build-plan/SEU Composition.md, 2026-09-07 — the CompositionCompleted
-// consumer for the conflict-resolution retry path. Owner: "The conflicts if
-// resolved emits Composition completed. And composition completes here...
-// the handler should call ebmcreate()." Fires from POST .../compose-ebm
-// once every composition conflict is resolved (compositionConflicts.length
-// === 0 after the recompute) — mirrors ebmComposerHandler's own success
-// path exactly (ebmsDB.create -> seusDB.setActiveEbm -> publish EBMCreated),
-// just triggered by resolution instead of a conflict-free first pass.
-//
-// Payload is {seuId} only — composedPacks/compositionReport are read off
-// seus.composition_report, already written by the compose-ebm route right
-// before this event was published, not recomputed here.
 import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { qualityGatesDB } from "../../dblayer/qualityGatesDB.js";
@@ -26,8 +14,6 @@ interface CompositionCompletedPayload {
   authorBadge: string;
 }
 
-// ebms.author_id is a `participants` row (SEU-scoped engagement), not a
-// participants_master row directly — two hops from the acting user's id.
 async function resolveAuthorParticipantId(seuId: string, actorId: string): Promise<string> {
   const { data: master } = await participantsMasterDB.findById(actorId);
   if (!master) throw new Error(`No superuser provisioned.`);
@@ -36,13 +22,6 @@ async function resolveAuthorParticipantId(seuId: string, actorId: string): Promi
   return participant.id;
 }
 
-// Same failure-reporting shape the pre-existing ebmErr branch below already
-// publishes — factored out so every other way this handler can fail (a
-// thrown exception, not just ebmsDB.create's own checked error) reports
-// through the identical path instead of being silently swallowed:
-// resolveAuthorParticipantId's own catch used to just log and return, never
-// marking the SEU Failed or publishing CommissionFailed — a caller polling
-// for either would spin until its own timeout, never finding out why.
 async function failComposition(seuId: string, event: EventRow, authorBadge: string, reason: string): Promise<void> {
   await seusDB.updateLifecycleState(seuId, "Failed");
   await eventBus.publish({
@@ -86,40 +65,12 @@ async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string)
     resolvedCompositionConflicts?: Record<string, unknown>;
   } | null;
 
-  // Owner: "the ebm should carry this [the real behavioural content] . that
-  // is what drives the behavior. that is the reason why conflicts are
-  // resolved." The full flat pool unravelComposition already computed
-  // (already persisted here by ebmComposerHandler/the compose-ebm route),
-  // plus what every conflict actually resolved to — not recomputed, just
-  // carried onto the EBM itself instead of staying stranded in
-  // seus.composition_report.
-  //
-  // competencyRequirements (owner: "the primary programming language should
-  // be unioned with the technology competencies in the packs... Same with
-  // domain as well") — unravelComposition's own union, carried the same way,
-  // read by findEligibleParticipants (core/participantEligibility.ts) as its
-  // `competency` filter once this EBM is this SEU's active one.
   const behaviors = {
     pool: stashed?.unraveled?.pool ?? [],
     resolvedCompositionConflicts: stashed?.resolvedCompositionConflicts ?? {},
     competencyRequirements: stashed?.unraveled?.competencyRequirements ?? {},
   };
 
-  // CR-104 — this EBM's own materialised governance: real Quality Gate/
-  // Policy rows contributed by the Packs actually composed here
-  // (originating_pack_id), computed once now rather than re-derived by a
-  // bare (entity_type, from_state, to_state) match on every later
-  // transition attempt — the same "compute once, store the fact" discipline
-  // composed_packs/behaviors.competencyRequirements already established.
-  //
-  // Policies split three ways by their own scope/governed_transition:
-  //   - scope 'Eligibility' — onboarding, not engineering behaviour; never
-  //     materialised onto the EBM at all (resolved live, off the SEU's own
-  //     Template/Profile, by findEligibleParticipants — see participantEligibility.ts).
-  //   - scope 'Transition' governing 'SEU|...' — the SEU's own lifecycle,
-  //     kept as its own field; commissioning.ts reads this one directly.
-  //   - every other 'Transition' policy — an owned entity's own transition
-  //     (Deliverable/AttentionItem/etc), unchanged from before.
   const composedPackIds = (stashed?.composedPacks ?? []).map((p) => p.packId);
   const [{ data: applicableQualityGates }, { data: composedPolicies }] = await Promise.all([
     qualityGatesDB.findByPackIds(composedPackIds),
@@ -167,9 +118,6 @@ async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string)
     causationId: event.id,
     actorId: event.actor_id,
     authorityBadge: authorBadge,
-    // CR-104 — carried on the payload too (not just persisted on the EBM
-    // row), so a listener reacting to EBMCreated has this SEU's own
-    // commence-work-style policy set without a second lookup.
     payload: { seuScopedPolicyIds: ebm.seu_scoped_policy_ids },
   });
 }

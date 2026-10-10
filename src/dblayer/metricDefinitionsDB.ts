@@ -11,8 +11,6 @@ export const metricDefinitionsDB = {
     unitOfMeasure: string;
     aggregationStrategy: MetricDefinitionRow["aggregation_strategy"];
     calculationMethod: string;
-    // author_id/author_badge are NOT NULL on the table -- every caller must
-    // resolve and pass its own real actor + badge, never a default/null.
     authorId: string;
     authorBadge: string;
   }): Promise<DbResult<MetricDefinitionRow>> {

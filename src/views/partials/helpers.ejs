@@ -61,4 +61,11 @@ sortLink = function(label, key, list, basePath) {
   const href = basePath + listQueryString(list, { sort: key, dir: nextDir, page: 1 });
   return '<a href="' + href + '" class="text-decoration-none text-reset">' + label + arrow + "</a>";
 };
+
+// Documentation browser (src/docs) — relative paths carry real "/" separators
+// (one per folder level) plus spaces inside folder/file names; encode each
+// segment on its own so the "/" survives for the *splat route to re-split.
+docPathHref = function(relPath) {
+  return "/aisworg/seu/docs/" + relPath.split("/").map(encodeURIComponent).join("/");
+};
 %>

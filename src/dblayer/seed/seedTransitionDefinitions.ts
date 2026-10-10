@@ -1,25 +1,3 @@
-// CR-006 — wipe + reseed the transition_definitions graph fresh from
-// transitionDefinitions.json. Kept SEPARATE and atomic (owner's request) so
-// db:clean-slate can rebuild the graph instead of preserving it: the live
-// table accumulates hundreds of test-fixture rows (StdFrom-*/PolFrom-*/
-// policy-waiver-from-* etc.), and a reset should land on exactly the seeded
-// set. Runs as a step of cleanSlate.ts, and standalone:
-//   pnpm seed:transition-definitions   (npx tsx src/dblayer/seed/seedTransitionDefinitions.ts)
-//
-// Atomic wipe+reseed in ONE transaction — transition_definitions is app-
-// critical (an empty graph blocks every transition), so it is never left
-// empty between a wipe and the reseed.
-//
-// 2026-08-25 (owner) — dev/test seed data, not production: an unresolvable
-// requiredAuthorityRuleCode/requiredPolicyCodes entry no longer fails the
-// whole seed. The only Pack that ever created most of these codes
-// (core-engineering.pack.json) predates 69 CRs of real design work and
-// isn't the source of truth anymore. Left null/[] instead, and self-heals:
-// core/packs.ts's materializeContributions calls backfillAuthorityRuleCode/
-// backfillPolicyCode right after upserting each real Authority Rule/Policy
-// during any Pack publish — if that Pack's own code happens to be one this
-// file wanted, the transition_definitions row gets wired up then, whichever
-// Pack it comes from.
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -30,7 +8,6 @@ import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// authoredBy is a participants_master.id (ontology_concepts.author_id).
 export interface SeedActor {
   authoredBy: string;
   authorBadge: string;
@@ -42,16 +19,8 @@ interface TransitionDefinitionSeed {
   toState: string;
   requiredAuthorityRuleCode: string | null;
   requiredPolicyCodes?: string[];
-  // CR-072 — trigger defaults to "manual" (the DB column's own default,
-  // accurate for every row unless stated otherwise here); submitVerb stays
-  // undefined/null except on the one row that actually has a real Submit
-  // step defined (badge = entityType + '_' + submitVerb).
   trigger?: "manual" | "governed";
   submitVerb?: string;
-  // Version Feature Plan.md §3 — eventType/versionEvent describe this row's
-  // own to_state transition; submitVersionEvent describes its submitVerb
-  // step, if it has one (a distinct thing — see migration 183's header).
-  // All three default to null/undefined for a pure Revision.
   eventType?: string;
   versionEvent?: string;
   submitVersionEvent?: string;
@@ -66,11 +35,6 @@ function loadSeeds(): TransitionDefinitionSeed[] {
   return cachedSeeds;
 }
 
-// Self-healing backfill — called from core/packs.ts's materializeContributions
-// right after a real Authority Rule/Policy is upserted during any Pack
-// publish. Wires the newly-real id onto whichever transition_definitions
-// row(s) transitionDefinitions.json originally wanted that code for, no
-// matter which Pack ends up being the one that actually declares it.
 export async function backfillAuthorityRuleCode(code: string, authorityRuleId: string): Promise<void> {
   const wanting = loadSeeds().filter((s) => s.requiredAuthorityRuleCode === code);
   for (const seed of wanting) {

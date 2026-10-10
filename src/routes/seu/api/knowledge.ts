@@ -8,7 +8,6 @@ import { logger } from "../../../utils/logger.js";
 import { addKnowledgeValidationNote, createKnowledgeItem, getEngineeringCapital, listKnowledgeItemsBySeu, listKnowledgeValidationNotes, promoteKnowledgeItemScope, transitionKnowledgeItem, updateKnowledgeReferences } from "../core/knowledge.js";
 import type { AcquisitionScope, KnowledgeRelationshipReferences, KnowledgeSelfReferences } from "../../../dblayer/seuTypes.js";
 
-/** POST /knowledge — Ch.16: observe a Knowledge Item against a Deliverable. */
 router.post("/knowledge", async (req: Request, res: Response) => {
   try {
     const { seuId, deliverableId, category, title, description, acquisitionScope, deliverableReferences, evidenceReferences, decisionReferences, knowledgeReferences, confidenceLevel } = req.body ?? {};
@@ -37,7 +36,6 @@ router.post("/knowledge", async (req: Request, res: Response) => {
   }
 });
 
-/** PATCH /knowledge/:id/references — Ch.16 §10: update Related Knowledge (self-referencing; rejects the item's own id). */
 router.patch("/knowledge/:id/references", async (req: Request, res: Response) => {
   try {
     const { knowledgeReferences } = req.body ?? {};
@@ -52,7 +50,6 @@ router.patch("/knowledge/:id/references", async (req: Request, res: Response) =>
   }
 });
 
-/** POST /knowledge/:id/validation-notes — Ch.16 §11/§14: append (never overwrite) a validation/review note. */
 router.post("/knowledge/:id/validation-notes", async (req: Request, res: Response) => {
   try {
     const { noteText } = req.body ?? {};
@@ -68,7 +65,6 @@ router.post("/knowledge/:id/validation-notes", async (req: Request, res: Respons
   }
 });
 
-/** GET /knowledge/:id/validation-notes — the full, append-only note history. */
 router.get("/knowledge/:id/validation-notes", async (req: Request, res: Response) => {
   try {
     res.status(200).json({ notes: await listKnowledgeValidationNotes(String(req.params.id)) });
@@ -78,7 +74,6 @@ router.get("/knowledge/:id/validation-notes", async (req: Request, res: Response
   }
 });
 
-/** GET /knowledge?seuId=... — every Knowledge Item for a given SEU. */
 router.get("/knowledge", async (req: Request, res: Response) => {
   try {
     const seuId = typeof req.query.seuId === "string" ? req.query.seuId : null;
@@ -90,7 +85,6 @@ router.get("/knowledge", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /knowledge/capital — Ch.16 §13 / Book 1 Ch.21 §21.6: Engineering Capital, platform-wide. */
 router.get("/knowledge/capital", async (_req: Request, res: Response) => {
   try {
     res.status(200).json({ engineeringCapital: await getEngineeringCapital() });
@@ -100,7 +94,6 @@ router.get("/knowledge/capital", async (_req: Request, res: Response) => {
   }
 });
 
-/** POST /knowledge/:id/promote-scope — Ch.16 §12: governed Acquisition Scope promotion; raises an Organisational Learning Obligation (Ch.23 §7). */
 router.post("/knowledge/:id/promote-scope", async (req: Request, res: Response) => {
   try {
     const { targetScope } = req.body ?? {};
@@ -123,7 +116,6 @@ router.post("/knowledge/:id/promote-scope", async (req: Request, res: Response) 
   }
 });
 
-/** POST /knowledge/:id/transition — Ch.16 §9 lifecycle: Observed -> ... -> Archived. */
 router.post("/knowledge/:id/transition", async (req: Request, res: Response) => {
   try {
     const { targetState } = req.body ?? {};

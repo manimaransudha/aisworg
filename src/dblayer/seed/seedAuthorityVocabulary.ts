@@ -1,18 +1,3 @@
-// CR-006 — Authority as noun × verb (Stage 1a: config seed).
-//
-// Populates the noun/verb vocabularies + the noun→verb mapping, and back-fills
-// `transition_definitions.verb` for every seeded transition. Kept SEPARATE and
-// idempotent on purpose (owner's request) so db:clean-slate can re-run it —
-// transition_definitions survives clean-slate unreseeded, so re-applying the
-// verb back-fill here is what keeps verbs in place after a reset.
-//
-// Runs as a step of cleanSlate.ts, and standalone:
-//   pnpm seed:authority-vocab   (npx tsx src/dblayer/seed/seedAuthorityVocabulary.ts)
-//
-// Additive only: nothing reads `verb` yet (the enforcement collapse is a later
-// stage). The noun→verb mapping is DERIVED from `transitions` (single source
-// of truth); `define` stays vocabulary-only until creation-as-transition adds
-// birth rows.
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -61,12 +46,8 @@ export async function seedAuthorityVocabulary(actor: SeedActor): Promise<void> {
   try {
     await client.query("BEGIN");
 
-    // Wipe the vocabulary first so a reseed is a clean replace — nothing stale
-    // (a renamed/removed noun or verb) survives. TRUNCATE ... CASCADE clears
-    // the mapping (it FKs both). Atomic with the reseed below.
     await client.query("TRUNCATE TABLE authority_nouns, authority_verbs CASCADE");
 
-    // Nouns (Work outcome) — upsert by code.
     for (const n of vocab.nouns) {
       await client.query(
         `INSERT INTO authority_nouns (code, label, description, author_id, author_badge)
@@ -76,7 +57,6 @@ export async function seedAuthorityVocabulary(actor: SeedActor): Promise<void> {
       );
     }
 
-    // Verbs (Work process) — upsert by code.
     for (const v of vocab.verbs) {
       await client.query(
         `INSERT INTO authority_verbs (code, label, description, author_id, author_badge)
@@ -86,11 +66,6 @@ export async function seedAuthorityVocabulary(actor: SeedActor): Promise<void> {
       );
     }
 
-    // Mapping (noun → allowed verbs) — derived from the transitions (distinct
-    // (entityType, verb) pairs), so the transition list stays the single
-    // source of truth.
-    // noun -> allowed verbs. Built as (noun, verb) tuples (no string-join
-    // delimiter) so it can't be broken by a stray whitespace char.
     const pairs: Array<[string, string]> = [];
     const seen = new Set<string>();
     const addPair = (nounCode: string, verbCode: string): void => {
@@ -112,10 +87,6 @@ export async function seedAuthorityVocabulary(actor: SeedActor): Promise<void> {
       );
     }
 
-    // Back-fill transition_definitions.verb by natural key. Warn (don't fail)
-    // on a transition that has no matching definition row — the definition
-    // table is seeded elsewhere (seedSeu) and may legitimately not be present
-    // in every environment.
     let matched = 0;
     const unmatched: string[] = [];
     for (const t of vocab.transitions) {

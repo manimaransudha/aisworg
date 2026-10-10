@@ -1,16 +1,3 @@
-// CR-077 — renders a Pack contribution's markdown-formatted field (Checklist/
-// Quality Gate/Review Gate/Obligation Definition's own statement/prompt —
-// x-format:"markdown" on the schema, see formGenerator.ts) to safe HTML for
-// view mode. Two-step, always both steps: marked parses markdown to HTML,
-// sanitize-html strips it to an allow-list before it ever reaches a browser.
-// Sanitization is not optional — a Pack is authored by any actor holding the
-// relevant pack_* badge and viewed by every other viewer, so unsanitized
-// markdown-to-HTML here is a stored-XSS surface across tenants.
-//
-// Tables and images are deliberately not in the allow-list (owner: keep them
-// out of scope) — markdown table/image syntax renders as inert text, not a
-// supported feature. Live preview while typing is CR-078, deferred; this
-// function is only ever called on saved content (render-on-read).
 import { marked } from "marked";
 import sanitizeHtml from "sanitize-html";
 
@@ -22,6 +9,27 @@ export function renderMarkdown(raw: string): string {
   return sanitizeHtml(html, {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: { a: ["href"] },
+    allowedSchemes: ["http", "https", "mailto"],
+    transformTags: { a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer", target: "_blank" }) },
+  });
+}
+
+const DOC_ALLOWED_TAGS = [...ALLOWED_TAGS, "table", "thead", "tbody", "tr", "th", "td", "img", "del", "input"];
+
+// Full-document rendering (chapter/spec files under src/docs) needs tables and
+// images that the inline-text renderMarkdown() above deliberately excludes.
+export function renderDocMarkdown(raw: string): string {
+  if (!raw) return "";
+  const html = marked.parse(raw, { async: false, gfm: true });
+  return sanitizeHtml(html, {
+    allowedTags: DOC_ALLOWED_TAGS,
+    allowedAttributes: {
+      a: ["href"],
+      img: ["src", "alt", "title"],
+      th: ["align"],
+      td: ["align"],
+      input: ["type", "checked", "disabled"],
+    },
     allowedSchemes: ["http", "https", "mailto"],
     transformTags: { a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer", target: "_blank" }) },
   });

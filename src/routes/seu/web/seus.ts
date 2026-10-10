@@ -26,7 +26,6 @@ import { createDecision, transitionDecision } from "../core/decisions.js";
 import { createExternalInteraction, transitionExternalInteraction } from "../core/externalInteractions.js";
 import type { AcquisitionScope, InteractionDirection, ParticipantType } from "../../../dblayer/seuTypes.js";
 
-/** GET /aisworg/seu/seus — SEU Runtime: every commissioned SEU. */
 router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "SEUs";
@@ -34,16 +33,8 @@ router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Respon
     const params = parseListParams(req.query, { sortable: ["objective", "state", "created"], defaultSort: "created", defaultDir: "desc" });
     const list = await listSeusPaginated(params, {
       userId: req.session?.user?.id ?? null,
-      // tenant_manage (badges:tenant, migration 256) is the Ontology-registered
-      // successor to the old badge_grants-based tenant_admin — getPlatformBadges
-      // no longer reads badge_grants at all, so both are checked here.
       isAdmin: platformBadges.includes("root") || platformBadges.includes("tenant_admin") || platformBadges.includes("tenant_manage"),
     });
-    // Same badge-filter pass as web/objectives.ts's own hasObjectiveBadge —
-    // core already restricted possibleNextStates to real, manual-triggered
-    // edges; this narrows it further to the ones THIS viewer actually holds
-    // the badge for, so index.ejs never renders a button/link that would
-    // just 403 on click.
     const held = await resolveHeldBadges(req);
     const hasSeuBadge = (verb: string | null): boolean => held.isRoot || (!!verb && held.badgeTypes.has(`seu_${verb}`));
     for (const item of list.items) {
@@ -59,32 +50,6 @@ router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Respon
   }
 });
 
-/** GET /aisworg/seu/seus/new — commissioning entry point.
- * Bug fix (owner: "The commission SEU should get onto the SEU screen and the
- * messages has to be on that screen. Not on the objective screen.") — an
- * optional ?objectiveId= switches this into "commission against an existing
- * Objective" mode. Previously this diagnostic lived on the Objective detail
- * page itself, and the Objective tree/list rows posted the commission action
- * directly from the row — both moved here, onto the SEU screen.
- * Redesigned (owner, 2026-09-05: "Objectives only propose capabilities...
- * capability-name -> templates -> profile And allow the user to choose a
- * profile") — the content is getObjectiveDetail's own commissioningOptions,
- * a capability -> Templates -> Profiles tree to browse and pick from, not an
- * auto-derived single match.
- * Redesigned again (owner, 2026-09-06: "the SEU is commissioned against an
- * objective... If the commissioning happens from SEU, then Objective also
- * has to be picked") — the old freeform path (no ?objectiveId=: type a
- * statement + check Capability boxes, auto-creating an Objective inline via
- * commissionFromForm) is retired from this screen entirely. Arriving here
- * with no Objective chosen yet now shows a picker over
- * listCommissionableObjectives — the same real, already-decomposed
- * Objectives the Objectives tree itself offers a "Commission SEU" action
- * on — rather than minting a new one from a bare statement. Choosing one
- * just links to this same route WITH ?objectiveId=, converging onto the
- * identical tree below. commissionFromForm itself is untouched — it's still
- * real, load-bearing test fixture infrastructure (~35 test files call it
- * directly as a one-shot "give me a commissioned SEU" helper) — only this
- * web page stopped using it. */
 router.get("/seus/new", attachVM("seu/seus/new"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const objectiveId = typeof req.query.objectiveId === "string" && req.query.objectiveId.trim() ? req.query.objectiveId.trim() : null;
@@ -111,7 +76,6 @@ router.get("/seus/new", attachVM("seu/seus/new"), async (req: Request, res: Resp
   }
 });
 
-/** GET /aisworg/seu/seus/:id — full SEU detail: EBM, Capabilities (with Fulfil form), Deliverables (with Transition form), Events. */
 router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const detail = await getSeuDetailView(String(req.params.id));
@@ -129,12 +93,6 @@ router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: R
   }
 });
 
-/** GET /aisworg/seu/seus/:id/ebm — the EBM's own composed content
- * (Metadata/Parameters/Engineering Practices/Quality Gates/Services/
- * Capability codes/Governance/declared Deliverable Catalogue) and its own
- * Validate/Activate transition. design/mvp-build-plan/SEU Composition.md —
- * owner: "There should be a viewEBM button... create a new one. EBM page.
- * We will need this to advance the EBM states." */
 router.get("/seus/:id/ebm", attachVM("seu/seus/ebm"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const ebmView = await getSeuEbmView(String(req.params.id));
@@ -151,10 +109,6 @@ router.get("/seus/:id/ebm", attachVM("seu/seus/ebm"), async (req: Request, res: 
   }
 });
 
-/** POST /aisworg/seu/seus/:id/capabilities/:capabilityId/fulfil — Ch.12 direct assignment.
- * Owner: "The participants dropdown should be multi-select. It chooses as many as it wants
- * as eligible." — a real HTML multi-select submits its field once per selection, so a single
- * pick arrives as a bare string, not an array; normalise before passing it on. */
 router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}?tab=capabilities`;
@@ -167,11 +121,6 @@ router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, 
 
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
   if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Capability Fulfilment's author — log in first.");
-  // req.path alone is router-relative (this router is mounted at /aisworg/seu
-  // — Express strips the mount prefix), so it never matched a route_authority
-  // row and silently fell through to "no held badge" for every non-root
-  // actor. req.baseUrl + req.path reconstructs the full path the gate/
-  // grantRouteBadges already key off.
   const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
   const authorBadge = resolveAuthorBadge(authRow, held);
@@ -193,12 +142,6 @@ router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, 
   }
 });
 
-/**
- * POST /aisworg/seu/seus/:id/capabilities/:capabilityId/participant/:participantId/replace — Ch.13 §13
- * Participant Lifecycle Governance — Plan, Build order step 5: a small manual form calling
- * replaceParticipant directly, explicitly a placeholder adapter for a future Participant-sourcing
- * mechanism (HR system, AI orchestration platform), not the final design — see the plan's own step 5 note.
- */
 router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/replace", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}?tab=capabilities`;
@@ -232,14 +175,6 @@ router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/rep
   }
 });
 
-/** POST /aisworg/seu/seus/:id/capabilities/:capabilityId/release — Ch.12 §7/§13, the detail
- * page's new two-step Replace (owner: "Replace should take it back to unfilled state...
- * Once user picks new participants, Click on assign again to get the status changed to
- * fulfiled"). Releases one or more currently-fulfilling Participants (checked, by type, in
- * the card's own assigned-Participants section) and reverts the Capability to Unfulfilled —
- * picking a replacement is then the ordinary Fulfil/Assign form (.../fulfil above), not part
- * of this same action. Distinct from the older .../participant/:participantId/replace route
- * just above, which stays untouched (still the atomic ad hoc swap the dry-run suite exercises). */
 router.post("/seus/:id/capabilities/:capabilityId/release", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}?tab=capabilities`;
@@ -266,7 +201,6 @@ router.post("/seus/:id/capabilities/:capabilityId/release", async (req: Request,
   }
 });
 
-/** POST /aisworg/seu/seus/:id/deliverables/:deliverableId/transition — Ch.15/Ch.29 gated transition. */
 router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -288,10 +222,6 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
       const reason = result.reason === "dependency_not_satisfied" ? "one or more dependencies aren't Satisfied yet" : "detail" in result ? result.detail : result.reason;
       return flashError(req, res, backTo, `Transition blocked: ${reason}`);
     }
-    // Governance cleared and a Command was requested — dispatch outcome
-    // (assigned / deferred) is decided later, asynchronously, and isn't known
-    // yet at this point. The Deliverable stays put until a Participant
-    // reports a result.
     return flashSuccess(req, res, backTo, `Deliverable "${result.fromState}" → "${result.toState}" requested. It stays in "${result.fromState}" until dispatched and a result is reported.`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/deliverables/:deliverableId/transition error", err as Error);
@@ -299,13 +229,6 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
   }
 });
 
-/** POST /aisworg/seu/seus/:id/ebm/transition — Chapter 3 §15 "Validate Engineering
- * Model"/"Activate" (design/mvp-build-plan/SEU Composition.md, plan step 6).
- * Two separate, independently human-triggered transitions on the SEU's own
- * active EBM (Composed -> Validated -> Active), same shape as every other
- * entity transition on this page. CR-102: activating publishes EBMActivated
- * and returns immediately — finalizeCommissioning now runs asynchronously in
- * ebmActivatedHandler, off the bus, not inside this request. */
 router.post("/seus/:id/ebm/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -342,7 +265,6 @@ router.post("/seus/:id/ebm/transition", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /aisworg/seu/seus/:id/obligations/:obligationId/transition — Ch.23 §9 lifecycle. */
 router.post("/seus/:id/obligations/:obligationId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -371,7 +293,6 @@ router.post("/seus/:id/obligations/:obligationId/transition", async (req: Reques
   }
 });
 
-/** POST /aisworg/seu/seus/:id/obligations/:obligationId/revise — Ch.23, migration 252: a pure Revision (no transition, no event) — the Save button on the Obligation modal. */
 router.post("/seus/:id/obligations/:obligationId/revise", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -398,7 +319,6 @@ router.post("/seus/:id/obligations/:obligationId/revise", async (req: Request, r
   }
 });
 
-/** POST /aisworg/seu/seus/:id/attention-items — Ch.34: create an Attention Item, optionally against a Deliverable. */
 router.post("/seus/:id/attention-items", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -433,7 +353,6 @@ router.post("/seus/:id/attention-items", async (req: Request, res: Response) => 
   }
 });
 
-/** POST /aisworg/seu/seus/:id/attention-items/:attentionItemId/transition — Ch.34 §9 lifecycle. */
 router.post("/seus/:id/attention-items/:attentionItemId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -462,7 +381,6 @@ router.post("/seus/:id/attention-items/:attentionItemId/transition", async (req:
   }
 });
 
-/** POST /aisworg/seu/seus/:id/evidence — Ch.17: collect an Evidence Item against a Deliverable. */
 router.post("/seus/:id/evidence", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -491,9 +409,6 @@ router.post("/seus/:id/evidence", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /aisworg/seu/seus/:id/evidence/:evidenceId/validate — Ch.17 §11/§13:
- *  record one validation-dimension assessment. Append-only — confidence_level
- *  is recomputed from the full history, never overwritten in place. */
 router.post("/seus/:id/evidence/:evidenceId/validate", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -513,7 +428,6 @@ router.post("/seus/:id/evidence/:evidenceId/validate", async (req: Request, res:
   }
 });
 
-/** POST /aisworg/seu/seus/:id/evidence/:evidenceId/transition — Ch.17 §9 lifecycle. */
 router.post("/seus/:id/evidence/:evidenceId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -541,10 +455,6 @@ router.post("/seus/:id/evidence/:evidenceId/transition", async (req: Request, re
   }
 });
 
-/** POST /aisworg/seu/seus/:id/evidence/:evidenceId/link — CR-051 item 1
- *  (Ch.17 §20.2/§20.8): link an existing Evidence Item to another object it
- *  also supports. Deliverable-only from this form for now, same as
- *  collection above — the API route accepts any TransitionEntityType. */
 router.post("/seus/:id/evidence/:evidenceId/link", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -574,7 +484,6 @@ router.post("/seus/:id/evidence/:evidenceId/link", async (req: Request, res: Res
   }
 });
 
-/** POST /aisworg/seu/seus/:id/knowledge — Ch.16: observe a Knowledge Item against a Deliverable. */
 router.post("/seus/:id/knowledge", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -588,9 +497,6 @@ router.post("/seus/:id/knowledge", async (req: Request, res: Response) => {
     const knowledgeItem = await createKnowledgeItem({
       seuId,
       deliverableId,
-      // The form's single "supporting Evidence" picker maps onto the new
-      // §10-shaped evidenceReferences object under the "supports" key —
-      // the literal relationship this field has always meant.
       evidenceReferences: evidenceId ? { supports: [evidenceId] } : undefined,
       category,
       title,
@@ -605,7 +511,6 @@ router.post("/seus/:id/knowledge", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /aisworg/seu/seus/:id/knowledge/:knowledgeItemId/transition — Ch.16 §9 lifecycle. */
 router.post("/seus/:id/knowledge/:knowledgeItemId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -634,7 +539,6 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/transition", async (req: Reque
   }
 });
 
-/** POST /aisworg/seu/seus/:id/knowledge/:knowledgeItemId/promote-scope — Ch.16 §12: governed Acquisition Scope promotion; raises an Organisational Learning Obligation (Ch.23 §7). */
 router.post("/seus/:id/knowledge/:knowledgeItemId/promote-scope", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -668,7 +572,6 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/promote-scope", async (req: Re
   }
 });
 
-/** POST /aisworg/seu/seus/:id/decisions — Ch.19: identify a Decision against a Deliverable. */
 router.post("/seus/:id/decisions", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -688,10 +591,6 @@ router.post("/seus/:id/decisions", async (req: Request, res: Response) => {
       category,
       title,
       engineeringQuestion,
-      // The web form captures one alternative up front (Ch.19 §9's
-      // "Candidate" starting point) — further alternatives are added by
-      // re-identifying, same as any other repeatable-row authoring surface
-      // on this platform; no dedicated multi-alternative form yet.
       alternatives:
         typeof alternativeStatement === "string" && alternativeStatement.trim()
           ? [{ statement: alternativeStatement, assumptions: [], consequences: [], status: "Candidate", rationale: alternativeRationale || null }]
@@ -704,7 +603,6 @@ router.post("/seus/:id/decisions", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /aisworg/seu/seus/:id/decisions/:decisionId/transition — Ch.19 §9 lifecycle. */
 router.post("/seus/:id/decisions/:decisionId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -732,7 +630,6 @@ router.post("/seus/:id/decisions/:decisionId/transition", async (req: Request, r
   }
 });
 
-/** POST /aisworg/seu/seus/:id/external-interactions — Ch.36: record an External Interaction, optionally against a Deliverable. */
 router.post("/seus/:id/external-interactions", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -767,7 +664,6 @@ router.post("/seus/:id/external-interactions", async (req: Request, res: Respons
   }
 });
 
-/** POST /aisworg/seu/seus/:id/external-interactions/:interactionId/transition — Ch.36 §9 lifecycle; a transition to Failed raises an Attention Item (Ch.36 §13). */
 router.post("/seus/:id/external-interactions/:interactionId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;

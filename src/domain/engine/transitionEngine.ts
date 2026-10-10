@@ -1,15 +1,3 @@
-// Ch.29 §10 minimal instance — evaluates a Transition Definition's Authority +
-// Policy prerequisites (Build Plan §5 item 4: Evidence/Knowledge/Decision/Quality
-// Gate prerequisites are never populated in MVP, even though the schema has
-// room for them). Generic over entity type: takes fromState/toState/context,
-// never imports SEU or Deliverable — extending which transitions exist is a
-// transition_definitions row, not a code change here.
-//
-// CR-006: authorisation is noun × verb — the required badge is
-// `entity_type + '_' + verb` (from the transition definition), checked by
-// badgeAuthorityEngine.authorise (root bypass, or the actor holds the badge).
-// The legacy authority_rules lookup + required_badge_type acting-badge path +
-// ROLE_LEVEL role fork have been removed.
 import { policiesDB } from "../../dblayer/policiesDB.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { participantsDB } from "../../dblayer/participantsDB.js";
@@ -22,39 +10,11 @@ import { evaluateCondition, type GoverningCondition } from "./governingCondition
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 export type TransitionOutcome =
-  // createsObligation: the transition_definitions row's own declared value
-  // (an Obligation category, or null) — surfaced for the caller to act on,
-  // not created here (the engine layer never calls back into core, same
-  // boundary raiseAttentionItem already respects). Stored and returned;
-  // not yet consumed by any caller (SDK UI Layer Plan, Transition Definition
-  // section — logged as not yet mechanically enforced).
-  // authorityBadge: the resolved `noun_verb` badge this transition was
-  // authorised under (null when the definition declares no verb — an ungoverned
-  // step). The caller records it, with the real actor, on the transition event
-  // it publishes — the accountability record (who did this, under what authority).
-  // Version Feature Plan.md §3 — eventType/versionEvent are read straight off
-  // the resolved Transition Definition, not derived here or by the caller:
-  // eventType replaces the old hardcoded per-entity *_TRANSITION_EVENT maps;
-  // versionEvent is null for a pure Revision. (A row's own submit_verb step,
-  // if it has one, carries its own submit_version_event — not surfaced here,
-  // since that step is fired by triggerEngine.submit, which never calls
-  // evaluate — see objectives.ts's submitObjective.)
   | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null; authorityBadge: string | null; eventType: string | null; versionEvent: string | null }
   | { allowed: false; reason: "no_transition_definition" }
-  // CR-006: authority_denied carries the required noun_verb badge
-  // (authorityRuleCode) and the reason (badgeDenialReason, e.g. missing_badge).
   | { allowed: false; reason: "authority_denied"; authorityRuleCode: string; badgeDenialReason?: string }
   | { allowed: false; reason: "policy_blocked"; policyCode: string }
-  // CR-072 — a manual transition whose row declares submit_verb is not
-  // attemptable at all until its own from_state has actually been submitted
-  // (triggerEngine) — a real gate here, not just a UI hint filtering the
-  // dropdown (owner: "it should check for the event").
   | { allowed: false; reason: "not_submitted"; submitBadge: string }
-  // SDK UI Layer Plan, Transition Definition section — generic Quality Gate
-  // check, opt-in per row via required_quality_gate_ids (empty for every
-  // pre-existing row, so this reason is unreachable for the 9 entity types
-  // that still run their own separate qualityGateEngine.evaluate call before
-  // ever reaching this function, e.g. Deliverable's).
   | { allowed: false; reason: "quality_gate_blocked"; gateCode: string; gateName: string; detail: string };
 
 export const transitionEngine = {
@@ -62,37 +22,16 @@ export const transitionEngine = {
     entityType: TransitionEntityType;
     fromState: string;
     toState: string;
-    // Retained because routes still pass it, but NOT consulted for
-    // authorisation — CR-006 authorises on the noun_verb badge, not the role.
     actorRole: string;
-    // CR-006 — the acting identity; authorisation is "does this actor hold the
-    // transition's noun_verb badge (or root)". Required for every governed
-    // transition; absent ⇒ denied (the exception).
     actorId: string;
     context?: Record<string, unknown>;
-    // Only required when the resolved Transition Definition declares
-    // required_quality_gate_ids — every pre-existing row has none, so
-    // existing callers that never pass these keep working unchanged.
     entityId?: string;
     seuId?: string;
-    // Additive, optional — every existing caller omits this and behaviour is
-    // unchanged (the transition's single canonical noun_verb badge only).
-    // When given, the actor may hold ANY ONE of these IN ADDITION TO the
-    // canonical badge (owner, 2026-08-30: certain governed edges are
-    // intentionally reachable by more than one badge — see
-    // badgeAuthorityEngine's own comment).
     alternateBadges?: string[];
   }): Promise<TransitionOutcome> {
     const { data: definition } = await transitionDefinitionsDB.find(input.entityType, input.fromState, input.toState);
     if (!definition) return { allowed: false, reason: "no_transition_definition" };
 
-    // CR-006 — authorisation is one check: root bypass OR the actor holds the
-    // transition's `noun_verb` badge (from the definition's verb) OR one of
-    // this specific transition's own declared alternates. No role, no scope
-    // (that is a separate gate, not this layer), no acting-badge declaration,
-    // no governed_entity_type. Every governed transition requires its badge
-    // (or an alternate); a non-root actor without either is denied (the
-    // exception).
     let authorityBadge: string | null = null;
     if (definition.verb) {
       const canonicalBadge = `${input.entityType.toLowerCase()}_${definition.verb}`;
@@ -101,20 +40,9 @@ export const transitionEngine = {
       if (!auth.allowed) {
         return { allowed: false, reason: "authority_denied", authorityRuleCode: canonicalBadge, badgeDenialReason: auth.reason };
       }
-      // The accountability record: which badge THIS actor actually used, not
-      // blindly the canonical one — an author who moved their own Pack out
-      // of Draft under pack_define genuinely did so under pack_define, not
-      // pack_validate. Root bypass still records the canonical requirement
-      // (there's no "matched badge" to report for a bypass).
       authorityBadge = auth.via === "badge" ? (auth.matchedBadge ?? canonicalBadge) : canonicalBadge;
     }
 
-    // CR-072 — a real gate, not a UI-only filter: a transition whose row
-    // declares submit_verb cannot be attempted until its own from_state has
-    // actually been submitted (triggerEngine), regardless of whether the
-    // acting actor holds this transition's own badge. entityId is required
-    // to check this — a row with submit_verb set but no entityId given fails
-    // closed rather than silently skipping the check.
     if (definition.submit_verb) {
       const submitBadge = `${input.entityType.toLowerCase()}_${definition.submit_verb}`;
       const hasBeenSubmitted = input.entityId ? await triggerEngine.hasBeenSubmitted(input.entityType, input.entityId, input.fromState) : false;
@@ -128,11 +56,6 @@ export const transitionEngine = {
       for (const policy of policies ?? []) {
         const satisfied = evaluateCondition(policy.condition as GoverningCondition, input.context ?? {});
         const payload = { policyCode: policy.code, entityType: input.entityType, fromState: input.fromState, toState: input.toState };
-        // Ch.24 §15 — PolicyApplied/PolicyViolated, the platform's own
-        // generic vocabulary for "a policy was checked as part of a
-        // governed transition," alongside (not instead of)
-        // StandardPolicyDeviation below, which telemetry.ts already reads
-        // specifically for sustained-pattern detection.
         if (satisfied) {
           await eventBus.publish({
             eventType: "PolicyApplied",
@@ -159,15 +82,6 @@ export const transitionEngine = {
         if (policy.constraint_type === "Policy") {
           return { allowed: false, reason: "policy_blocked", policyCode: policy.code };
         }
-        // Standard (non-blocking) deviations proceed — Ch.24 §11: they surface
-        // through Engineering Telemetry. Engineering Telemetry — Plan, Build
-        // order step 5's own prerequisite: record the discarded value as an
-        // event, same eventBus every other engine module already publishes
-        // to (qualityGateEngine's QualityGatePassed/Blocked) — not a core-layer
-        // call, so the engine-never-calls-back-into-core boundary holds. What
-        // actually happens with sustained repeats of this event (raising an
-        // Obligation) is core/telemetry.ts's job, checked from the Telemetry
-        // dashboard/API itself, not threaded through every caller of evaluate.
         await eventBus.publish({
           eventType: "StandardPolicyDeviation",
           originatingObjectType: "Policy",
@@ -182,13 +96,6 @@ export const transitionEngine = {
     }
 
     if (definition.required_quality_gate_ids.length > 0 && input.entityId && input.seuId) {
-      // quality_gate_evaluations.author_id/author_badge are NOT NULL — this
-      // transition already authorised under `authorityBadge` above (or is
-      // ungoverned, in which case there is no real badge to record and this
-      // must fail rather than invent one). author_id is a FK to
-      // participants(id), the SEU-scoped engagement row for the acting
-      // user's participants_master identity — same two-hop resolution
-      // resolveAuthor (routes/seu/core/attentionItems.ts) already uses.
       if (!authorityBadge) {
         throw new Error(`Quality Gate evaluation for ${input.entityType} ${input.fromState}->${input.toState} requires a resolved authority badge, but this transition is ungoverned (no verb declared).`);
       }

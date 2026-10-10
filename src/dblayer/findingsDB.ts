@@ -2,8 +2,6 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, FindingRow, TransitionEntityType } from "./seuTypes.js";
 
-// Review Model — Plan (Phase 14, Ch.25 §12). Findings are independent, traceable
-// observations from a Review. Same governed-entity shape as the rest.
 export const findingsDB = {
   async create(input: {
     reviewId: string;

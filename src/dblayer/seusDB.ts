@@ -7,12 +7,6 @@ export interface SeuWithObjectiveStatement extends SeuRow {
   objective_statement: string;
 }
 
-// design/mvp-build-plan/SEU Composition.md, "Retry after a failed commission"
-// — "at most one SEU per Objective" is at most one *active* one (owner: "so
-// uniqueness has to be on an active seu... not on any other previous
-// state"), matching the partial unique index (migration 179) exactly. A
-// Failed/Retired/Archived SEU doesn't block a fresh commission, and
-// shouldn't show as "Commissioned" on the Objectives list either.
 const ACTIVE_LIFECYCLE_STATES: SeuLifecycleState[] = ["Pending", "Commissioned", "Configured", "Activated", "Operational", "Suspended"];
 
 export const seusDB = {
@@ -47,12 +41,6 @@ export const seusDB = {
     }
   },
 
-  // CR-003: which Objectives already have an SEU, and which one — lets the
-  // Objectives list mark which are commissioned (hide the Commission action)
-  // AND link straight to the real SEU (owner, 2026-09-06: "Link the seu id
-  // on the Commissioned status on the Objectives page"). One row per
-  // Objective — the UNIQUE constraint on seus.objective_id guarantees at
-  // most one SEU each, so no DISTINCT/grouping is needed.
   async commissionedObjectiveSeuIds(): Promise<DbResult<Array<{ objectiveId: string; seuId: string }>>> {
     try {
       const { rows } = await query<{ objective_id: string; id: string }>(
@@ -66,12 +54,6 @@ export const seusDB = {
     }
   },
 
-  // CR-002: the active SEU (if any) commissioned against a given Objective.
-  // The partial UNIQUE index (migration 179) guarantees at most one *active*
-  // row; commissioning uses this for a friendly "already assigned" rejection
-  // ahead of that DB constraint — must stay scoped the same way the index
-  // is, or a Failed/Retired/Archived SEU would wrongly block a fresh retry
-  // the schema itself now allows.
   async findByObjectiveId(objectiveId: string): Promise<DbResult<SeuRow | null>> {
     try {
       const { rows } = await query<SeuRow>(
@@ -98,9 +80,6 @@ export const seusDB = {
     }
   },
 
-  // migration 180 — Compose EBM's own real output, written by
-  // ebmComposerHandler and by every "Apply & re-validate" round trip; read
-  // by the Validation screen's GET.
   async setCompositionReport(seuId: string, report: Record<string, unknown>): Promise<DbResult<SeuRow>> {
     try {
       const { rows } = await query<SeuRow>(
@@ -140,12 +119,6 @@ export const seusDB = {
     }
   },
 
-  // SDK UI Layer Plan ("SEU Registry visibility") — a viewer sees a SEU if
-  // they requested it or are a Participant on it, not every SEU. Platform/
-  // Tenant Admin badge holders bypass the filter (viewerId undefined),
-  // same exception pattern as Identity Management.
-  // Paginated / searchable / sortable variant for the SEUs list view (List UI
-  // Requirements). Same viewer scoping as listWithObjectiveStatement.
   async listWithObjectiveStatementPaginated(params: ListParams, viewerId?: string): Promise<{ items: SeuWithObjectiveStatement[]; total: number }> {
     return runPaginatedQuery<SeuWithObjectiveStatement>(
       {

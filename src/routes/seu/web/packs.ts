@@ -11,19 +11,8 @@ import { logger } from "../../../utils/logger.js";
 import { listPacksWithNextStates } from "../core/packs.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 
-// CR-080 — Deprecated dropped from Pack's own lifecycle (never actually
-// distinguished from Retired at runtime; migration 137).
 const PACK_STATES = ["Draft", "Validated", "Published", "Active", "Retired", "Archived"];
 
-/** GET /aisworg/seu/packs — Ch.38 §10 Pack Registry: every published Version of every Pack. */
-// Pack ownership visibility (owner: "Platform packs will be available to all
-// users of the platform. Tenant packs are visible only to the tenant
-// users."): root still sees the whole Registry (every tenant); everyone else
-// sees Platform-owned Packs plus their own tenant's.
-// Registry category tabs (owner, 2026-08-19: "Page registry also should
-// change to be a tabbed one") — every category actually present among the
-// Packs this viewer can see, plus an "All" tab; ?category= scopes the list
-// before pagination, same as `q` already does.
 router.get("/packs", attachVM("seu/packs/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Packs";
@@ -33,8 +22,6 @@ router.get("/packs", attachVM("seu/packs/index"), async (req: Request, res: Resp
     const packs = await listPacksWithNextStates(viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null);
     const categories = [...new Set(packs.map((p) => p.pack.category))].sort();
     const activeCategory = typeof req.query.category === "string" && categories.includes(req.query.category) ? req.query.category : "";
-    // Registry state filter (owner: "Include filters to filter by state:
-    // Active, Deprecated etc.") — composes with the category tab above.
     const activeStatus = typeof req.query.status === "string" && PACK_STATES.includes(req.query.status) ? req.query.status : "";
     let scoped = activeCategory ? packs.filter((p) => p.pack.category === activeCategory) : packs;
     if (activeStatus) scoped = scoped.filter((p) => p.pack.status === activeStatus);

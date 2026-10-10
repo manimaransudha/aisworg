@@ -11,7 +11,6 @@ import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { getEngineeringCapital } from "../core/knowledge.js";
 
-/** GET /aisworg/seu/knowledge/capital — Ch.16 §13 / Book 1 Ch.21 §21.6: Engineering Capital, platform-wide. */
 router.get("/knowledge/capital", attachVM("seu/knowledge/capital"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Engineering Capital";

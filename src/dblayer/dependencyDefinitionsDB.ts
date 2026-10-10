@@ -2,18 +2,12 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, DependencyDefinitionOwnerType, DependencyDefinitionRow, DependencyRelationshipKind } from "./seuTypes.js";
 
-// CR-043 — the full set of scopes one SEU's rules can be authored under: its
-// own Template, every Pack actually composed into its active EBM, and its
-// Profile. Evaluation gathers from all three; authoring (create/findByOwner/
-// deleteByOwner below) always targets exactly one.
 export interface DependencyOwningScope {
   templateId: string;
   profileId: string;
   packIds: string[];
 }
 
-// $1 = templateId, $2 = profileId, $3 = packIds — every scope-gathering
-// query below binds these three first, then its own filter params after.
 const OWNER_SCOPE_WHERE = `(
   (owning_entity_type = 'Template' AND owning_entity_id = $1)
   OR (owning_entity_type = 'Profile' AND owning_entity_id = $2)
@@ -21,15 +15,6 @@ const OWNER_SCOPE_WHERE = `(
 )`;
 
 export const dependencyDefinitionsDB = {
-  // ON CONFLICT DO NOTHING against the natural-key constraint (migration 075)
-  // — deriveDependencyDefinitionsFromCatalogue's delete-then-insert isn't
-  // atomic against another process doing the same thing concurrently for
-  // the same owner (found running the test suite: 16+ files each derive via
-  // their own node --test process against the shared dev database, and two
-  // DELETEs can both see "nothing to remove" before either INSERT commits).
-  // A conflict here means the row already exists — data is undefined, not
-  // an error; callers that collect created rows for a return value simply
-  // don't get this one back, which is correct since it already exists.
   async create(input: {
     owningEntityType: DependencyDefinitionOwnerType;
     owningEntityId: string;
@@ -58,9 +43,6 @@ export const dependencyDefinitionsDB = {
     }
   },
 
-  // Authoring shape — everything owned by exactly one scope (a Template's own
-  // bridge-derived rows today; a Pack's or Profile's own rows once something
-  // authors them).
   async findByOwner(owningEntityType: DependencyDefinitionOwnerType, owningEntityId: string): Promise<DbResult<DependencyDefinitionRow[]>> {
     try {
       const { rows } = await query<DependencyDefinitionRow>(
@@ -84,9 +66,6 @@ export const dependencyDefinitionsDB = {
     }
   },
 
-  // "What does reaching (to_entity_type, to_name, to_state) require?" — the
-  // gating-check shape, gathered across every scope relevant to one SEU (its
-  // Template, every composed Pack, its Profile) — not one owner alone.
   async findByTarget(scope: DependencyOwningScope, toEntityType: string, toName: string, toState: string): Promise<DbResult<DependencyDefinitionRow[]>> {
     try {
       const { rows } = await query<DependencyDefinitionRow>(
@@ -102,11 +81,6 @@ export const dependencyDefinitionsDB = {
     }
   },
 
-  // "This (entity_type, name?, state) was just reached — what might it
-  // unlock?" — the push-evaluation shape. name is nullable: a null-name row
-  // means this from_entity_type is unnamed everywhere (Decision/Obligation/
-  // Evidence/Knowledge/ExternalInteraction dependencies never carry a name),
-  // so lookups for those types pass name: null and match on IS NULL.
   async findBySource(scope: DependencyOwningScope, fromEntityType: string, fromName: string | null, fromState: string): Promise<DbResult<DependencyDefinitionRow[]>> {
     try {
       const { rows } = await query<DependencyDefinitionRow>(
@@ -123,9 +97,6 @@ export const dependencyDefinitionsDB = {
     }
   },
 
-  // "Everything that gates this name, in any target state" — the display
-  // shape (SEU detail page), which shows a Deliverable's dependencies
-  // regardless of which specific transition they gate.
   async findByTargetName(scope: DependencyOwningScope, toEntityType: string, toName: string): Promise<DbResult<DependencyDefinitionRow[]>> {
     try {
       const { rows } = await query<DependencyDefinitionRow>(
@@ -141,11 +112,6 @@ export const dependencyDefinitionsDB = {
     }
   },
 
-  // "Everything this name is a prerequisite for, in any state" — the
-  // traceability shape (forward navigation / impact analysis): unlike
-  // findBySource, not scoped to one specific fromState, since impact
-  // analysis asks "what depends on this Deliverable at all," not "what does
-  // this exact state transition unlock."
   async findBySourceName(scope: DependencyOwningScope, fromEntityType: string, fromName: string): Promise<DbResult<DependencyDefinitionRow[]>> {
     try {
       const { rows } = await query<DependencyDefinitionRow>(

@@ -6,33 +6,7 @@ import type { CapabilityRow, DbResult, TemplateDeliverableSeed, TemplateRow } fr
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "./constants.js";
 import { userDB } from "./userDB.js";
  
-// Also owns template_capabilities (required Capabilities) and template_packs
-// (mandatory Packs only — see Build Plan §5 item 6 for the Template/Profile split).
 export const templatesDB = {
-  // CR-024: (code, template_version) is the unique identity now, not code
-  // alone (migration 059) — the ON CONFLICT target moved to match. templateVersion
-  // defaults to "1.0.0" so every existing seed-script caller (which never
-  // knew versions existed) keeps its exact same idempotent-reseed behaviour:
-  // re-running the same seed still upserts the same (code, "1.0.0") row.
-  // CR-026: (code, template_version, tenant_id) is the real identity now
-  // (migration 062) — the ON CONFLICT target moved to match again.
-  // tenantId defaults to Platform (packsDB.create's own pattern) — every
-  // seed-script caller predates tenant ownership and gets exactly the same
-  // idempotent-reseed row it always has.
-  // `status` defaults to 'Active' HERE, explicitly — not by relying on the
-  // column's own DEFAULT (which is 'Draft' as of migration 185b, matching
-  // Pack). This is the raw "already-published catalog entry" DB-layer
-  // helper — direct test fixtures across the suite (pack-sdk.test.ts,
-  // governance-ebm-sharpening.test.ts, etc.) call it expecting an
-  // immediately-usable Active row with no lifecycle walk, and that stays
-  // true. publishTemplate (core/templates.ts) no longer calls this at all —
-  // it creates a real Draft (createDraft) and walks it forward for real.
-  // authored_by/author_badge are NOT NULL (templates_schema_recovery.sql)
-  // but this raw direct-fixture path (see this function's own header
-  // comment) has no real actor flowing through it — same stopgap as
-  // participantsDB.create: resolves the SUPERUSER_EMAIL superuser
-  // (userDB.getSuperuserId()) as author until a real actor is threaded
-  // through every caller.
   async upsert(input: {
     code: string;
     name: string;
@@ -58,29 +32,6 @@ export const templatesDB = {
     }
   },
 
-  // Entity-direct authoring (bug fix correcting CR-014): a Draft Template row is
-  // the authoring document. draft_content holds the raw authored form content
-  // (materialised into the real columns/join tables at publish). authored_by is
-  // the real author.
-  // CR-024: templateVersion defaults to "1.0.0" (the column's own DB
-  // DEFAULT covers callers that don't pass one, e.g. existing tests) —
-  // explicit here so reactivateAsNewVersion (core/templates.ts) can create a
-  // row at a specific bumped version, the same way packsDB.create always
-  // takes packVersion explicitly.
-  // CR-026: tenantId — the real author's own tenant (Platform for a Platform
-  // author), same pattern as packsDB.create; defaults to Platform for
-  // callers with no author context (mirrors upsert above). parentTemplateId
-  // (Ch.6 §9 Template Inheritance) is set once at Draft creation via the
-  // "Inherit" control and never revisited by Save — an inherited Draft's
-  // identity (code locked to its parent's, tenant its own) is fixed from
-  // the moment it's chosen.
-  // CR-114 follow-on — schemaDefinitionId is mandatory (owner: "Otherwise all
-  // this build is of no use"); every caller must resolve and pass a real
-  // schema_definition_id, no silent findLatest fallback.
-  // authored_by/author_badge are NOT NULL, participants_master-scoped (same
-  // discipline as capabilityDefinitionsDB/serviceDefinitionsDB.createDraft) —
-  // every caller must resolve and pass its own real actor (participants_master.id)
-  // + badge, never a default/null.
   async createDraft(input: { code: string; name: string; templateVersion?: string; authoredBy: string; authorBadge: string; draftContent?: Record<string, unknown>; tenantId?: string; parentTemplateId?: string | null; schemaDefinitionId: string }): Promise<DbResult<TemplateRow>> {
     try {
       const templateVersion = input.templateVersion ?? "1.0.0";
@@ -112,13 +63,6 @@ export const templatesDB = {
     }
   },
 
-  // CR-021: `code` is now a real, editable form field (template-categories
-  // Ontology, not a hidden UUID) — a Draft's code needs to be correctable on
-  // Save the same way Pack's category/packVersion already are (VM-002's
-  // immutability applies once a version leaves Draft, not to the working
-  // draft). Previously this only ever touched name/draft_content; a code
-  // edit on the form was silently dropped. CR-024: templateVersion is now
-  // correctable on Save the same way, for the same reason.
   async updateDraftContent(id: string, input: { code: string; name: string; templateVersion: string; draftContent: Record<string, unknown> }): Promise<DbResult<TemplateRow>> {
     try {
       const { rows: existingRows } = await query<{ schema_definition_id: string | null; tenant_id: string }>(
@@ -147,24 +91,6 @@ export const templatesDB = {
     }
   },
 
-  // Bug fix (same root cause as profilesDB.setDraftContent, found the same
-  // way: publishTemplate()'s own upsert() never writes draft_content, and
-  // updateDraftContent above is scoped to `WHERE status = 'Draft'` (upsert's
-  // INSERT defaults status to 'Active' per its own DDL default) — so
-  // exposedParameters (and anything else draft_content-only, e.g. `purpose`)
-  // set through the seed pipeline never actually persisted. Status-agnostic
-  // for the same reason materialisePackSelectionsAndCapabilities's join-table
-  // writes already are.
-  //
-  // design/design whiteboards.md/schema_implementation.md — this is a real,
-  // unconditional write to draft_content (no `status = 'Draft'` guard, unlike
-  // updateDraftContent above), and it's the actual write path publishTemplate/
-  // seed scripts use to materialise deliverableCatalogue etc. (via
-  // materialiseTemplateDraft -> materialisePackSelectionsAndCapabilities) —
-  // validated the same way createDraft/updateDraftContent are, not skipped
-  // just because its name doesn't say "create"/"update". code/name/
-  // templateVersion aren't passed here (only draftContent is) — read off the
-  // row's own real columns, since this call never changes them.
   async setDraftContent(id: string, draftContent: Record<string, unknown>): Promise<DbResult<TemplateRow>> {
     try {
       const { rows: existingRows } = await query<{ code: string; name: string; template_version: string; schema_definition_id: string | null; tenant_id: string }>(
@@ -192,10 +118,6 @@ export const templatesDB = {
     }
   },
 
-  // Publish-time materialisation of a Draft's authored deliverable catalogue
-  // onto its real column (the join tables are set separately). Status-agnostic:
-  // called while the row is still Draft, just before the governed Draft->Active
-  // transition.
   async setDeliverableCatalogue(id: string, deliverableCatalogue: TemplateDeliverableSeed[]): Promise<DbResult<TemplateRow>> {
     try {
       const { rows } = await query<TemplateRow>(
@@ -219,9 +141,6 @@ export const templatesDB = {
     }
   },
 
-  // Authoring surface, per-verb tabs — see packsDB.findByStatusActedBy for the
-  // full rationale (Templates only have `define` + `publish`, so this is
-  // reached for the `publish` verb only, but generic for future growth).
   async findByStatusActedBy(status: TemplateRow["status"], authorityBadge: string, actorId: number | null): Promise<DbResult<TemplateRow[]>> {
     try {
       const { rows } = actorId == null
@@ -268,12 +187,6 @@ export const templatesDB = {
     }
   },
 
-  // CR-024: code alone is no longer unique (multiple versions can share it)
-  // — "latest published" by created_at, same convention and same caveat
-  // packsDB.findByCode already documents ("this MVP publishes versions in
-  // order and doesn't need out-of-order backfill"). Before this migration a
-  // bare `code` really was unique, so this returned the same single row
-  // either way; now it matters.
   async findByCode(code: string): Promise<DbResult<TemplateRow | null>> {
     try {
       const { rows } = await query<TemplateRow>("SELECT * FROM templates WHERE code = $1 ORDER BY created_at DESC LIMIT 1", [code]);
@@ -284,10 +197,6 @@ export const templatesDB = {
     }
   },
 
-  // CR-026: scoped to a tenant when given (packsDB.findByCodeAndVersion's own
-  // pattern) — (code, template_version) alone stopped being unique the
-  // moment a second tenant could own a row of the same code+version.
-  // Omitted = unscoped (Profile's baseTemplateCode-style legacy callers).
   async findByCodeAndVersion(code: string, templateVersion: string, tenantId?: string): Promise<DbResult<TemplateRow | null>> {
     try {
       const { rows } = tenantId == null
@@ -300,13 +209,6 @@ export const templatesDB = {
     }
   },
 
-  // The one row (if any) currently Active for a code — reactivateAsNewVersion's
-  // supersede step (core/templates.ts) uses this to find what a newly-activated
-  // version replaces, same as packsDB.findActiveByCode. CR-026: "one Active per
-  // code" is now per (code, tenant_id) — a tenant's own inherited Template and
-  // its Platform parent (same code, different tenant_id) don't supersede each
-  // other. tenantId omitted = unscoped (findCandidateTemplates/compositionEngine
-  // predate any tenant concept here and keep their original behaviour).
   async findActiveByCode(code: string, tenantId?: string): Promise<DbResult<TemplateRow | null>> {
     try {
       const { rows } = tenantId == null
@@ -329,17 +231,8 @@ export const templatesDB = {
     }
   },
 
-  // Template ownership visibility (CR-026, mirroring packsDB.findAllVisibleTo/
-  // findActiveVisibleTo exactly): every Version of every Template this viewer
-  // Template Registry listing (owner, 2026-08-19), mirroring packsDB.findAll
-  // exactly — every Version of every Template, unscoped by tenant. Root/admin
-  // "see everything" view; callers needing visibility scoping use
-  // findAllVisibleTo below.
   async findAll(): Promise<DbResult<TemplateRow[]>> {
     try {
-      // No separate `category` column on templates — `code` IS the category
-      // (CR-021's own shortcut, Ch.6 §20.1/§20.14), so this orders by that
-      // instead of Pack's own findAll's `category, code`.
       const { rows } = await query<TemplateRow>("SELECT * FROM templates ORDER BY code, created_at DESC");
       return { data: rows };
     } catch (err) {
@@ -348,8 +241,6 @@ export const templatesDB = {
     }
   },
 
-  // is allowed to see — Platform's own plus this viewer's own tenant's. Feeds
-  // the Template Inheritance dropdown (Platform published + tenant published).
   async findAllVisibleTo(viewerTenantId: string): Promise<DbResult<TemplateRow[]>> {
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
@@ -378,14 +269,6 @@ export const templatesDB = {
     }
   },
 
-  // Authoring surface, the "Queue" tabs (owner: "add a tab to show what is
-  // the queue applicable to the badge you hold") — every Template currently
-  // sitting in an arbitrary `status`, full stop. Added 2026-08-18 alongside
-  // Template's six-hop lifecycle seed change: findDrafts (Draft/Validated
-  // only) stopped being able to answer "what's waiting in Published /
-  // Deprecated / Retired" once those states became reachable. CR-026: now that
-  // Template has Pack's tenant-ownership model, scoped the same way
-  // packsDB.findByStatus is — viewerTenantId null = unscoped (root).
   async findByStatus(status: TemplateRow["status"], viewerTenantId: string | null): Promise<DbResult<TemplateRow[]>> {
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
@@ -408,14 +291,6 @@ export const templatesDB = {
       if (capabilityIds.length > 0 && (!authorId || !authorBadge)) {
         throw new Error("setRequiredCapabilities: authorId/authorBadge are required when capabilityIds is non-empty");
       }
-      // ON CONFLICT DO NOTHING — real, observed race: this DELETE+loop-INSERT
-      // isn't atomic, and testFixtures.ts's shared fixture can be reached by
-      // many concurrent `node --test` processes racing to write the exact
-      // same target rows the very first time (its own "check existing first"
-      // guard only closes the window for calls AFTER one process has already
-      // succeeded). Since every concurrent writer computes the identical
-      // target set from the same seed data, a duplicate-key insert here means
-      // another process already wrote this exact row — safe to skip.
       for (const capabilityId of capabilityIds) {
         await query(
           `INSERT INTO template_capabilities (template_id, capability_id, author_id, author_badge)
@@ -447,17 +322,6 @@ export const templatesDB = {
     }
   },
 
-  // Stores the Pack's *code*, not a specific row id — bug fix, see
-  // 013_template_profile_pack_by_code.sql. A Template names which Pack
-  // codes it requires; which Version that resolves to is decided fresh at
-  // every commissioning (compositionEngine.compose), not frozen here.
-  //
-  // CR-038 — a thin wrapper over setPackSelection's own 'mandatory' slot
-  // (mirrors profilesDB.setOptionalPacks's identical relationship to its own
-  // setPackSelection), not a separate unfiltered-delete implementation —
-  // scoping the delete to list_kind='mandatory' is what stops this from
-  // wiping out the six category-specific slots below when both are ever
-  // touched for the same Template.
   async setMandatoryPacks(templateId: string, packCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     return templatesDB.setPackSelection(templateId, "mandatory", packCodes, authorId, authorBadge);
   },
@@ -475,19 +339,9 @@ export const templatesDB = {
     }
   },
 
-  // CR-038 — Template's mandatory Packs get the same category-scoped slots
-  // Profile's own Pack selections already have (profilesDB.setPackSelection/
-  // getPackSelection, migration 067) — same join table, disambiguated by
-  // list_kind (migration 077) rather than six new tables. Scoped writes/reads
-  // — unlike setMandatoryPacks/getMandatoryPackCodes above (still real,
-  // still used by callers that only care about the flat "every mandatory
-  // Pack regardless of category" set, e.g. compositionEngine), these only
-  // touch their own list_kind slot.
   async setPackSelection(templateId: string, listKind: string, packCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM template_packs WHERE template_id = $1 AND list_kind = $2", [templateId, listKind]);
-      // ON CONFLICT DO NOTHING — same concurrent-writer race as
-      // setRequiredCapabilities above (see its own comment).
       for (const packCode of packCodes) {
         await query(
           "INSERT INTO template_packs (template_id, pack_code, list_kind, author_id, author_badge) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (template_id, pack_code, list_kind) DO NOTHING",

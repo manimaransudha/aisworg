@@ -60,9 +60,6 @@ export const attentionItemsDB = {
     }
   },
 
-  // Platform-wide inbox (Ch.34's own framing: human attention is a scarce
-  // resource allocated deliberately — worth seeing across every SEU at once,
-  // same "platform-wide screen" choice as Engineering Capital/Telemetry).
   async findAll(): Promise<DbResult<AttentionItemRow[]>> {
     try {
       const { rows } = await query<AttentionItemRow>("SELECT * FROM attention_items ORDER BY created_at DESC");
@@ -73,9 +70,6 @@ export const attentionItemsDB = {
     }
   },
 
-  // Ch.34 AM-002 "Attention shall be minimised" — the dedup check
-  // checkSustainedQualityGateBlocking-style callers use before creating a
-  // new item for a situation that already has an open one.
   async findOpenByRelatedObject(seuId: string, category: string, relatedObjectType: string, relatedObjectId: string): Promise<DbResult<AttentionItemRow | null>> {
     try {
       const { rows } = await query<AttentionItemRow>(
@@ -92,10 +86,6 @@ export const attentionItemsDB = {
     }
   },
 
-  // CR-109 §6.1 — Governance Evaluation Outcome's open_attention_item_ids:
-  // every still-open AttentionItem against an entity, regardless of
-  // category (unlike findOpenByRelatedObject's dedup-check use, which
-  // narrows to one category on purpose).
   async findOpenByRelatedObjectAny(relatedObjectType: string, relatedObjectId: string): Promise<DbResult<AttentionItemRow[]>> {
     try {
       const { rows } = await query<AttentionItemRow>(

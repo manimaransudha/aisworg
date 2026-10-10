@@ -1,10 +1,6 @@
 import { viewModels } from "../viewModels/viewRegistry.js";
 import {logger} from "../utils/logger.js";
 
-/**
- * Middleware to attach and validate ViewModel
- * @param {string} viewName - Name of the view (e.g., "dashboard")
- */
 export function attachVM(viewName) {
   return (req, res, next) => {
     const validator = viewModels[viewName];
@@ -13,25 +9,20 @@ export function attachVM(viewName) {
       throw new Error(`No ViewModel found for view: ${viewName}`);
     }
 
-    // Initialize structured ViewModel
     req.vm = { req: {}, opt: {} };
 
-    // Override res.render to validate and render
     const originalRender = res.render.bind(res);
     res.render = (view, data, callback) => {
       try {
         const renderData = data || req.vm;
         
-        // Create flattened version ONLY for validation
         let validationData = renderData;
         if (renderData.req || renderData.opt) {
           validationData = { ...renderData.opt, ...renderData.req };
         }
 
-        // Validate using the flattened data
         validator(validationData);
 
-        // Automatic activePage detection for navbar highlighting
         const url = req.originalUrl || '';
         let activePage = 'home';
 
@@ -46,6 +37,7 @@ export function attachVM(viewName) {
         else if (url.includes('/seu/profiles')) activePage = 'seu-profiles';
         else if (url.includes('/seu/tenant-admin/users')) activePage = 'seu-tenant-admin-users';
         else if (url.includes('/seu/data-migrations')) activePage = 'seu-data-migrations';
+        else if (url.includes('/seu/docs')) activePage = 'seu-docs';
         else if (url.includes('/seu/identity')) activePage = 'seu-identity';
         else if (url.includes('/seu/sdk/pack-authoring')) activePage = 'seu-sdk-pack-authoring';
         else if (url.includes('/seu/sdk/template-authoring')) activePage = 'seu-sdk-template-authoring';
@@ -91,15 +83,11 @@ export function attachVM(viewName) {
         else if (url.includes('/portfolio'))   activePage = 'portfolio';
         else if (url === '/aisworg' || url === '/aisworg/') activePage = 'seu-dashboard';
 
-        // Render using a hybrid object: both flat keys AND structured req/opt
         const viewData = {
           activePage,
-          // 1. If it's a flat object, spread all its keys
           ...(!(renderData.req || renderData.opt) ? renderData : {}),
-          // 2. If it's structured, spread req and opt
           ...(renderData.opt || {}),
           ...(renderData.req || {}),
-          // 3. Always provide the structured keys for templates that need them
           req: renderData.req || {},
           opt: renderData.opt || {},
           vm: renderData, 

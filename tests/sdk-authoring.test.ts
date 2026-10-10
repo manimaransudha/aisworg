@@ -109,9 +109,15 @@ after(async () => {
   // separation-of-duties test's "author") can't be deleted either — and
   // neither can that participant's own user row (participants_master.user_id
   // -> users). Keep exactly those two rows; delete everything else as usual.
+  // CR-117: version_events.actor_id FKs into participants_master too — a
+  // participant who authored a surviving Pack's transition (e.g. Activate)
+  // now also can't be deleted, same reasoning as the Pack authored_by check.
   const { rows: stillReferenced } = createdParticipantMasterIds.length
     ? await pool.query<{ id: string; user_id: string }>(
-        "SELECT id, user_id FROM participants_master WHERE id = ANY($1::uuid[]) AND id IN (SELECT authored_by FROM packs WHERE authored_by = ANY($1::uuid[]))",
+        `SELECT id, user_id FROM participants_master WHERE id = ANY($1::uuid[]) AND (
+           id IN (SELECT authored_by FROM packs WHERE authored_by = ANY($1::uuid[]))
+           OR id IN (SELECT actor_id FROM version_events WHERE actor_id = ANY($1::uuid[]))
+         )`,
         [createdParticipantMasterIds]
       )
     : { rows: [] };
@@ -128,6 +134,7 @@ after(async () => {
   }
   if (createdDeliverableDefinitionIds.length) {
     await pool.query("UPDATE deliverable_definitions SET parent_deliverable_definition_id = NULL WHERE id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);
+    await pool.query("DELETE FROM version_events WHERE entity_type = 'DeliverableDefinition' AND entity_id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);
     await pool.query("DELETE FROM events WHERE originating_object_type = 'DeliverableDefinition' AND originating_object_id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);
     await pool.query("DELETE FROM deliverable_definitions WHERE id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);
   }
@@ -142,12 +149,14 @@ after(async () => {
     // child (inheritance) would otherwise violate the self-FK.
     await pool.query("UPDATE profiles SET parent_profile_id = NULL WHERE id = ANY($1::uuid[])", [createdProfileIds]);
     await pool.query("DELETE FROM profile_packs WHERE profile_id = ANY($1::uuid[])", [createdProfileIds]);
+    await pool.query("DELETE FROM version_events WHERE entity_type = 'Profile' AND entity_id = ANY($1::uuid[])", [createdProfileIds]);
     await pool.query("DELETE FROM events WHERE originating_object_type = 'Profile' AND originating_object_id = ANY($1::uuid[])", [createdProfileIds]);
     await pool.query("DELETE FROM profiles WHERE id = ANY($1::uuid[])", [createdProfileIds]);
   }
   if (createdTemplateIds.length) {
     await pool.query("DELETE FROM template_packs WHERE template_id = ANY($1::uuid[])", [createdTemplateIds]);
     await pool.query("DELETE FROM template_capabilities WHERE template_id = ANY($1::uuid[])", [createdTemplateIds]);
+    await pool.query("DELETE FROM version_events WHERE entity_type = 'Template' AND entity_id = ANY($1::uuid[])", [createdTemplateIds]);
     await pool.query("DELETE FROM events WHERE originating_object_type = 'Template' AND originating_object_id = ANY($1::uuid[])", [createdTemplateIds]);
     await pool.query("DELETE FROM templates WHERE id = ANY($1::uuid[])", [createdTemplateIds]);
   }

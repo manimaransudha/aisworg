@@ -1,8 +1,3 @@
-// Participant Integration & Attestation — Plan step 5/6. Resolves the execution
-// target for the (tenant, Capability) a Work Item is dispatched under. The same
-// pack-global Capability can resolve to a different target per tenant (step 6).
-// A Capability with no configured target defaults to human-on-UI — nothing is
-// ever undeliverable.
 import { executionTargetsDB } from "../dblayer/executionTargetsDB.js";
 import { tenantsDB } from "../dblayer/tenantsDB.js";
 import type { ResolvedExecutionTarget } from "./participantAdapter.js";

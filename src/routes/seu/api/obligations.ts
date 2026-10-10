@@ -9,16 +9,11 @@ import { createObligation, listObligationsBySeu, transitionObligation, reviseObl
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import type { TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
-// route_authority declares no badge/role requirement for POST /obligations
-// (an Obligation may be raised against any governed entity by anyone with a
-// session) — authorBadge here is attribution, whichever real badge this
-// actor actually holds, not a second authorization gate.
 async function resolveObligationAuthorBadge(actorId: string): Promise<string> {
   const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(actorId);
   return isRoot ? "root" : [...badgeTypes][0] ?? "general";
 }
 
-/** POST /obligations — Ch.23: create an Obligation against any governed entity (relatedObjectType/relatedObjectId — polymorphic, Open Design Questions.md #3). */
 router.post("/obligations", async (req: Request, res: Response) => {
   try {
     const { relatedObjectType, relatedObjectId, category, title, description, severity } = req.body ?? {};
@@ -36,7 +31,6 @@ router.post("/obligations", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /obligations?seuId=... — every Obligation for a given SEU. */
 router.get("/obligations", async (req: Request, res: Response) => {
   try {
     const seuId = typeof req.query.seuId === "string" ? req.query.seuId : null;
@@ -48,7 +42,6 @@ router.get("/obligations", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /obligations/:id/transition — Ch.23 §9 lifecycle: Identified -> ... -> Archived. */
 router.post("/obligations/:id/transition", async (req: Request, res: Response) => {
   try {
     const { targetState } = req.body ?? {};
@@ -71,7 +64,6 @@ router.post("/obligations/:id/transition", async (req: Request, res: Response) =
   }
 });
 
-/** PATCH /obligations/:id — migration 252: a pure Revision (no transition, no event); appends the diff to revision_history. */
 router.patch("/obligations/:id", async (req: Request, res: Response) => {
   try {
     const { title, description, category, severity, priority, completionCriteria, assignedEntityType, assignedEntityId } = req.body ?? {};

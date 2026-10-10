@@ -1,22 +1,3 @@
-// SDLC Templates — Standard Platform Templates (owner, 2026-08-19): "There
-// are template categories in Ontology. For each of these create a parent
-// template with the appropriate packs." One Template per real
-// `template-categories` Ontology concept (migration 053), each drawing its
-// `mandatoryPackCodes` from the 16 SDLC-phase Packs (seedSdlcPhasePacks.ts)
-// appropriate to that category, plus `development` (the real OpenUP
-// capability-pattern Pack, seedCapabilityPatternPacks.ts). Publishing
-// through the real, validated publishTemplate/publishProfile entry points
-// (templates.ts/profiles.ts — the same ones the interactive SDK authoring
-// flow uses, previously dead code with no real caller) rather than a raw
-// upsert — Platform-owned, so any tenant (including "demo") can commission an
-// SEU from these once seeded; nothing here creates an SEU itself (owner:
-// "just make it commissionable").
-//
-// Depends on seedSdlcPhasePacks.ts/seedCapabilityPatternPacks.ts having
-// already published their real Packs — run standalone only after:
-//   npx tsx src/dblayer/seed/seedCapabilityPatternPacks.ts
-//   npx tsx src/dblayer/seed/seedSdlcPhasePacks.ts
-//   npx tsx src/dblayer/seed/seedSdlcStandardTemplates.ts
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -48,19 +29,7 @@ interface TemplateSeed {
   mandatoryPackCodes: string[];
   deliverableCatalogue: TemplateDeliverableSeed[];
   dependencyGraph?: TemplateDependencyGraphEntry[];
-  // CR-088's own Template-side mechanism (owner, 2026-09-06, the TCS
-  // analogy: "org standard says 100% milestone meet, project can relax it
-  // to 90%") — which of this Template's own selected Packs' configurable
-  // parameters (Service Level metric / Policy constraintType / Checklist
-  // configurableKey) a Profile may go on to override. Never wired through
-  // from these seed files before now — same gap as Profile's own
-  // Configuration Parameters had.
   exposedParameters?: ExposedParameter[];
-  // CR-023 — required by schema_definitions since migration 058/061; never
-  // wired through from these seed files before now (design/design
-  // whiteboards.md/schema_implementation.md, "Deepdive on templates" build
-  // pass — write-time schema validation started enforcing `required` for
-  // real and caught the gap).
   purpose: string;
 }
 
@@ -70,11 +39,6 @@ interface ProfileSeed {
   baseTemplateCode: string;
   environment: string;
   optionalPackCodes?: string[];
-  // Bug fix (owner, 2026-09-06: "Pack categories are [used]... they should
-  // be persisted") — compositionEngine.compose() now reads all six of
-  // these (getProfilePackSelections, core/profiles.ts), not just
-  // optionalPackCodes; wired through here so a *.profile.json can actually
-  // populate them, not just optionalPackCodes.
   technologyPackCodes?: string[];
   domainPackCodes?: string[];
   compliancePackCodes?: string[];
@@ -82,14 +46,6 @@ interface ProfileSeed {
   engineeringPackCodes?: string[];
   organisationPackCodes?: string[];
   description?: string;
-  // CR-091 Part 2 — mandatory on the Platform tenant (development-methodology/
-  // primary-programming-language/source-control-provider); every one of
-  // these *.profile.json files needs a real value or publishProfile's own
-  // validateProfileSeed rejects it. The other five are optional but real,
-  // Ontology-validated Configuration Parameters too (owner: "There has to be
-  // real prod grade data") — previously only the three mandatory ones were
-  // ever wired through from these seed files, even when a *.profile.json set
-  // more.
   developmentMethodology?: string;
   primaryProgrammingLanguage?: string;
   sourceControlProvider?: string;
@@ -98,22 +54,11 @@ interface ProfileSeed {
   aiProviderPreference?: string;
   defaultRepositoryStructure?: string;
   documentationLevel?: string;
-  // CR-088's own Profile-side completion (owner, 2026-09-06, the TCS
-  // analogy: "org standard says 100% milestone meet, project can relax it
-  // to 90%") — this Profile's own override value for whichever of its base
-  // Template's exposedParameters it chooses to override. Never wired
-  // through from these seed files before now.
   exposedParameterOverrides?: Array<{ sourceType: "service" | "policy" | "checklist" | "dependency"; sourceCode: string; parameterName: string; value: string }>;
 }
 
-// One (Template, Profile) file pair per real template-categories concept.
 const STANDARD_TEMPLATE_FILES: Array<{ template: string; profile: string }> = [
   { template: "saas-product.template.json", profile: "saas-product-development.profile.json" },
-  // CR-087 — re-enabled (owner, 2026-09-04): the diagnostic disable (see
-  // Step 2a) confirmed what broke; "enterprise-web-application" being also
-  // ebook-library.template.json's own code (CR-087 finding 4) stays a latent,
-  // not live, collision — ebook-library.template.json is still only loaded by
-  // the standalone, unwired seedEbookLibraryPilot.ts, never this array.
   { template: "enterprise-web-application-parent.template.json", profile: "enterprise-web-application-parent-development.profile.json" },
   { template: "api-platform.template.json", profile: "api-platform-development.profile.json" },
   { template: "data-platform.template.json", profile: "data-platform-development.profile.json" },
@@ -133,13 +78,8 @@ const ALL_TEMPLATES: Array<{ template: string; profile: string }> = [
 async function seedOne(templateFile: string, profileFile: string, actor: SeedActor): Promise<void> {
   const templateSeed = loadJson<TemplateSeed>(templateFile);
   const profileSeed = loadJson<ProfileSeed>(profileFile);
-  // get platform tenant id
   const PLATFORM_TENANT_ID = await getPlatformTenantId();  
     
-  // publishTemplate's own TemplateSeedInput (CR-038) buckets mandatory Packs
-  // into six category-scoped fields, not one flat list — bucket the JSON
-  // file's own unchanged mandatoryPackCodes by each Pack's real category. A
-  // pure derivation at seed time, not a change to the authored file shape.
   type PackSelectionField = "compliancePackCodes" | "domainPackCodes" | "engineeringPackCodes" | "integrationPackCodes" | "organisationPackCodes" | "technologyPackCodes";
   const packSelections: Partial<Record<PackSelectionField, string[]>> = {};
   for (const code of templateSeed.mandatoryPackCodes) {
@@ -151,17 +91,6 @@ async function seedOne(templateFile: string, profileFile: string, actor: SeedAct
     (packSelections[field] ??= []).push(code);
   }
 
-  // publishTemplate (templates.ts) — the same validated, event-firing entry
-  // point the interactive SDK authoring flow uses (validateTemplateSeed,
-  // materialisePackSelectionsAndCapabilities, materialiseDependencyGraph) —
-  // replaces the old raw templatesDB.upsert + manual setMandatoryPacks/
-  // setRequiredCapabilities/materialiseDependencyGraph calls. None of the 9
-  // *.template.json files set templateVersion today — first version for all.
-  // publishTemplate now walks a real Draft through the governed lifecycle
-  // (owner: "templates.status defaults to 'Active' - this should be draft;
-  // similar to pack") — needs a real actor for those transitions, same
-  // actorRole/actorId convention every Pack seed script already uses
-  // (actorId "1" holds `root`, which bypasses every badge check).
   const templateResult = await publishTemplate({
     seed: {
       code: templateSeed.code,
@@ -180,9 +109,6 @@ async function seedOne(templateFile: string, profileFile: string, actor: SeedAct
   if (!templateResult.ok) throw new Error(`[seed:sdlc-standard-templates] failed to publish template "${templateSeed.code}": ${templateResult.errors.join("; ")}`);
   logger.info(`[seed:sdlc-standard-templates] template ${templateSeed.code} -> ${templateResult.templateId}`);
 
-  // publishProfile (profiles.ts) — same treatment. CR-091 Part 3 retired
-  // `category` (and Part 2 retired `configParameters`) from Profile
-  // entirely — neither is a real field any more.
   const profileResult = await publishProfile({
     seed: {
       code: profileSeed.code,

@@ -7,12 +7,6 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { listAttentionItems, listAttentionItemsBySeu, transitionAttentionItem } from "../core/attentionItems.js";
 
-/**
- * GET /attention-items — Ch.34: platform-wide inbox by default (?seuId=
- * scopes to one SEU). No POST create endpoint — Attention Items are derived
- * from engineering events and runtime state (Ch.34 §4), not manually
- * authored the way Obligations/Evidence/Knowledge/Decisions are.
- */
 router.get("/attention-items", async (req: Request, res: Response) => {
   try {
     const seuId = typeof req.query.seuId === "string" ? req.query.seuId : null;
@@ -24,7 +18,6 @@ router.get("/attention-items", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /attention-items/:id/transition — Ch.34 §9 lifecycle: Created -> ... -> Closed. */
 router.post("/attention-items/:id/transition", async (req: Request, res: Response) => {
   try {
     const { targetState } = req.body ?? {};

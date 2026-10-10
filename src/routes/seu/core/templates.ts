@@ -29,34 +29,6 @@ export interface TemplateCandidate {
   requiredCapabilityCount: number;
 }
 
-// Ch.6 §11 — a Template is a candidate only if it supports every Capability
-// the Objective requires (its required-Capability set is a superset of the
-// requested codes) — a Template offering more than requested is a valid,
-// intentional match, not a mismatch.
-//
-// Bug fix: with only one Template ever seeded, the first satisfying
-// candidate was always the only correct one, so picking .find(c =>
-// c.satisfies) off an alphabetically-ordered list never mattered. Once a
-// second, legitimately-satisfying Template existed (one requiring more
-// Capabilities than asked for), alphabetical order could pick the loosest
-// match over the tightest one. The superset filter above is correct and
-// unchanged — the fix is choosing among multiple satisfying candidates by
-// ascending required-Capability count (tightest fit first), not by code.
-//
-// Bug fix (owner, 2026-08-19 — traced via a reproducible full-suite failure):
-// this used to call templatesDB.findAllActive(), unscoped by tenant. CR-026's
-// own Template Inheritance model lets a tenant author a Derived Template that
-// keeps its parent's exact code (Ch.6 §20.4/§20.14) — while such a Derived
-// Template is briefly Active (e.g. a test walking a same-required-capabilities
-// clone through its lifecycle), it satisfied this same superset check for
-// ANY caller, not just the tenant that owns it — handing a completely
-// unrelated caller a candidate that's actually another tenant's private
-// Template. Scoped to Platform + the caller's own tenant now
-// (templatesDB.findActiveVisibleTo), matching the visibility model already
-// established for Packs/Templates elsewhere (Ch.7 §19.7). No viewerTenantId
-// given (root/system context, no real caller tenant) narrows to Platform only
-// — never "see every tenant's Templates," which findAllActive's own removal
-// makes structurally unreachable from here now.
 export async function findCandidateTemplates(capabilityCodes: string[], viewerTenantId?: string | null): Promise<TemplateCandidate[]> {
   const { data: templates, error } = await templatesDB.findActiveVisibleTo(viewerTenantId ?? (await getPlatformTenantId()));
   if (error) throw error;
@@ -78,27 +50,10 @@ export async function findCandidateTemplates(capabilityCodes: string[], viewerTe
   return candidates.sort((a, b) => a.requiredCapabilityCount - b.requiredCapabilityCount);
 }
 
-// SDK UI Layer Plan — the SDK's own "structural + referential" check for
-// Template, same reasoning as validatePackSeed (core/packs.ts). Ch.6
-// grounding: requiredCapabilityCodes/mandatoryPackCodes/deliverableCatalogue
-// are the grammar implemented now (see the plan's Template section).
 export interface TemplateSeedInput {
   code: string;
   name: string;
-  // CR-024 — versioning/immutability, mirroring Pack (Ch.41 VM-002) exactly.
   templateVersion: string;
-  // CR-038 — requiredCapabilityCodes is no longer authored input at all
-  // (owner: "The Required Capability codes need not be an UI field. It is
-  // derived from the selections the user makes") — computed by
-  // deriveCapabilityCodesFromPackCodes from whichever Packs are selected
-  // below, always, not read from anywhere. mandatoryPackCodes is likewise
-  // replaced by six category-scoped slots — the real category:pack
-  // vocabulary in full (Compliance/Domain/Engineering/Integration/
-  // Organisation/Technology) — mirroring Profile's own four-slot
-  // technologyPackCodes/domainPackCodes/compliancePackCodes/
-  // integrationPackCodes model (migration 067) exactly, extended to all six
-  // since a Template's mandatory Packs (unlike Profile's optional
-  // supplements) can span any category.
   compliancePackCodes?: string[];
   domainPackCodes?: string[];
   engineeringPackCodes?: string[];
@@ -106,42 +61,10 @@ export interface TemplateSeedInput {
   organisationPackCodes?: string[];
   technologyPackCodes?: string[];
   deliverableCatalogue: TemplateDeliverableSeed[];
-  // CR-041 — the dependency graph, authored explicitly (not embedded per
-  // deliverableCatalogue entry). Optional: a catalogue with no dependencies
-  // (e.g. a single-Deliverable Template) has nothing to declare here.
   dependencyGraph?: TemplateDependencyGraphEntry[];
-  // CR-026 — Template ownership, mirroring PackSeedInput.tenantId. Optional:
-  // seed scripts/the CLI publishing with no human author default to Platform
-  // (templatesDB.upsert's own default); interactive authoring always sets it
-  // from the real author's own tenant.
   tenantId?: string;
-  // CR-026 — Template Inheritance (Ch.6 §9/§20.4). Set only when this
-  // Template was started via the "Inherit" control; a Derived Template's
-  // mandatoryPackCodes must remain a superset of its parent's (validated
-  // below) and its code is locked to the parent's own (enforced at Draft
-  // creation — core/sdkAuthoring.ts — not re-checked on every save, since
-  // code becomes read-only once a parent is chosen).
   parentTemplateId?: string | null;
-  // CR-088 — Template's own "Exposable Parameters" tab: for each configurable
-  // parameter its selected Packs actually carry (see
-  // deriveExposableParameterCandidates below), whether a Profile may
-  // override it, and — for the value-bearing ones (Service Level metrics,
-  // Policy's constraintType) — Template's own overriding value. Non-sparse:
-  // one row per candidate at time of save, always, defaulted server-side
-  // (materialiseTemplateDraft) from whatever the underlying Service/Policy
-  // Definition/Checklist already carries when the author never touched a
-  // row — "by default all of the parameters are checked" (overridable=true).
   exposedParameters?: ExposedParameter[];
-  // CR-023 — required by schema_definitions (migration 058/061) since the
-  // field was added, but never actually part of this interface — every
-  // seed-script Template published via `publishTemplate` (as opposed to
-  // interactive SDK authoring, which always had it) has had no `purpose` at
-  // all, a gap only surfaced once write-time schema validation started
-  // enforcing `required` for real (design/design whiteboards.md/
-  // schema_implementation.md). Optional here (not every non-seed caller of
-  // publishTemplate necessarily sets it, e.g. reactivateAsNewVersion/
-  // copyTemplateAsNewDraft carry it forward from draft_content directly) —
-  // the schema's own `required` is what actually gates a real submission.
   purpose?: string;
 }
 
@@ -153,79 +76,25 @@ export interface ExposedParameter {
   overridable: boolean;
 }
 
-// CR-088 — every configurable parameter a Template's currently-selected Packs
-// actually carry, across the three owners that have one: Service Level
-// metrics, Policy's constraintType + three applicability dimensions (both
-// live on the canonical Policy Definition, not the per-Pack materialised row
-// — a Pack only adopts a Definition by code), and Checklist's own
-// configurableKey tag (CR-088 prerequisite, migration 171). Capability/Review
-// Gate/Quality Gate/Authority Rules need nothing here — CR-088's own settled
-// design. Deduplicated by (sourceType, sourceCode, parameterName): the same
-// Service/Policy/Checklist reached through more than one selected Pack (a
-// shared Capability, or the same canonical Policy adopted by two Packs)
-// appears once, not once per Pack.
-//
-// Extension (owner, 2026-09-06: "this is exposable and a profile should be
-// able to modify it") — Template's own dependencyGraph (CR-041, §the
-// Deliverable Catalogue tab) is a fourth source, added the same way: one
-// candidate per edge, keyed by (toCode, fromType, fromCode/fromCapabilityCode)
-// since an edge has no code of its own, with `requiredState` as its one
-// Service-Level-shaped tunable value (default "Approved", same schema
-// default the authoring widget already shows) — the TCS analogy applies
-// here exactly as it did for Service Level: the Template's own baseline gate
-// ("must reach Approved") is what a specific Profile may relax or tighten
-// for its own project, same override-or-default resolution
-// (resolveEffectiveParameters, core/profiles.ts). Unlike Service/Policy/
-// Checklist, this source is NOT Pack-derived — it's the Template's own
-// authored content — so it's threaded through as its own parameter rather
-// than resolved from packCodes.
 export interface ExposableParameterCandidate {
   sourceType: "service" | "policy" | "checklist" | "dependency";
-  sourceCode: string; // service code / policy-definition code / checklist id / dependency edge key
+  sourceCode: string;
   sourceName: string;
-  parameterName: string; // metric code / "constraintType" | one of the three applicability field names / configurableKey
+  parameterName: string;
   parameterLabel: string;
-  // Service Level metrics and Policy's constraintType are single-value
-  // parameters — Template may both set the value AND flag whether a Profile
-  // may override it (CR-088's "Service-Level-shaped" case). Policy's three
-  // applicability dimensions and Checklist's configurableKey are list/filter
-  // parameters — Template only flags whether a Profile may filter by them at
-  // all, never sets a value itself ("Checklist-shaped").
   valueBearing: boolean;
-  defaultValue?: string; // only present when valueBearing
-  valueOptions?: string[]; // only present when valueBearing and a closed enum (constraintType)
+  defaultValue?: string;
+  valueOptions?: string[];
 }
 
-// CR-088 — exposedParameters lives only in draft_content (same non-column
-// treatment as `purpose`); reactivateAsNewVersion and copyTemplateAsNewDraft
-// both need to carry it forward explicitly the same way they already do for
-// purpose, or it would silently vanish on Version bump / Copy. Exported —
-// Profile's own override mechanism (deriveOverridableParameterCandidates,
-// below) reads it off an arbitrary (possibly Active, not Draft) Template row.
 export function extractExposedParameters(draftContent: Record<string, unknown> | null): ExposedParameter[] | undefined {
   return Array.isArray(draftContent?.exposedParameters) ? (draftContent!.exposedParameters as ExposedParameter[]) : undefined;
 }
 
-// Migration 214 (owner: "Add only deliverable name and allow multiple
-// transitions. And add a +Add another deliverable") — applicabilityDeliverables
-// replaced the two flat dimensions this list used to name
-// (applicabilityDeliverableNames/applicabilityDeliverableLifecycle) with a
-// real referential-list (Array<{name, transitions}>), which this
-// mechanism's own flat-value-per-candidate shape can't represent — a
-// Profile override needs one scalar value per candidate, not a list of
-// {name, transitions} rows. Dropped from CR-088's own Exposable Parameters
-// candidates for now (a real, not-yet-designed follow-up, not silently
-// papered over); applicabilityEnvironments is unaffected and stays.
 const POLICY_APPLICABILITY_PARAMETERS: Array<{ name: string; label: string }> = [
   { name: "applicabilityEnvironments", label: "Applicable Environments" },
 ];
 
-// dependencyGraph is Template's OWN authored content (CR-041), not derived
-// from packCodes the way Service/Policy/Checklist are — passed in directly
-// by each caller from whichever source has the right one at hand (a Draft's
-// own seed.dependencyGraph while authoring/validating; the Template's own
-// materialised dependency_definitions, via getDependencyGraphContent, once
-// resolving against an already-published Template for Profile's own side).
 export async function deriveExposableParameterCandidates(
   packCodes: string[],
   viewerTenantId: string,
@@ -240,11 +109,6 @@ export async function deriveExposableParameterCandidates(
     candidates.push(c);
   };
 
-  // Deliverable dependency graph (owner, 2026-09-06: "this is exposable and
-  // a profile should be able to modify it") — one candidate per edge, keyed
-  // by the edge itself (no code of its own): requiredState is the one
-  // Service-Level-shaped tunable value, same "Template sets the baseline,
-  // Profile may relax/tighten it" cascade.
   for (const entry of dependencyGraph) {
     const fromName = entry.fromType === "Capability" ? entry.fromCapabilityCode : entry.fromCode;
     const sourceCode = `${entry.toCode}::${entry.fromType}::${fromName ?? ""}`;
@@ -259,9 +123,6 @@ export async function deriveExposableParameterCandidates(
     });
   }
 
-  // Service Level metrics — reached the same way Template's own required
-  // Capabilities are (deriveDedupedCapabilitiesFromPackCodes above), then
-  // every Service that Capability realises.
   const capabilities = await deriveDedupedCapabilitiesFromPackCodes(packCodes);
   for (const capability of capabilities) {
     const { data: services } = await servicesDB.findByCapabilityId(capability.id);
@@ -272,19 +133,6 @@ export async function deriveExposableParameterCandidates(
     }
   }
 
-  // Policy — policiesDB.findByPackCode gives the set of codes this Pack
-  // actually adopted (the per-Pack materialised row shares the Definition's
-  // own code, CR-089); the configurable fields themselves are read off the
-  // Definition, since that's where they're actually authored.
-  //
-  // CR-088 closing (owner: "Profile should allow override of everything that
-  // is configurable") — applicabilityEnvironments is filter-shaped
-  // (valueBearing: false) but still needs a real, closed `valueOptions` set
-  // for Profile's own picker to offer (and for validateProfileSeed's existing
-  // generic "must be one of valueOptions" check to enforce) — the same real
-  // category:environment Ontology vocabulary its own canonical Policy
-  // Definition authoring form already uses. Computed once — identical for
-  // every Policy this Template resolves.
   const policyApplicabilityValueOptions: Record<string, string[]> = {
     applicabilityEnvironments: Object.keys(await resolveLabels(viewerTenantId, "category:environment")),
   };
@@ -297,21 +145,6 @@ export async function deriveExposableParameterCandidates(
       for (const dim of POLICY_APPLICABILITY_PARAMETERS) {
         add({ sourceType: "policy", sourceCode: definition.code, sourceName: definition.name, parameterName: dim.name, parameterLabel: dim.label, valueBearing: false, valueOptions: policyApplicabilityValueOptions[dim.name] });
       }
-      // Owner: "Profile should just flatten it out" — applicabilityDeliverables
-      // is Array<{name, transitions}>, the same "list of rows, each becoming
-      // its own candidate" shape the Deliverable dependency graph above
-      // already uses: the row's own `name` is its fixed identity (composite
-      // sourceCode, same convention dependencyGraph's own edge-keyed
-      // sourceCode uses), `transitions` is the one overridable, filter-shaped
-      // attribute — valueOptions scoped to THIS row's own real entity type
-      // (the named noun under scope=Eligibility, else the constant
-      // "Deliverable"), same rule governedTransitionsFor (packs.ts) uses.
-      // Migration 216 — applicabilityDeliverables moved onto each condition
-      // (owner: "I am inclined to move the applicability inside the
-      // condition"); flattened across every condition here since a Profile
-      // overriding "transitions" for a given name doesn't care which
-      // condition originally declared it — `add()`'s own sourceCode dedup
-      // already collapses the same name declared by more than one condition.
       for (const cond of definition.conditions) {
         for (const row of cond.applicabilityDeliverables ?? []) {
           const entityType = definition.scope === "Eligibility" ? row.name : "Deliverable";
@@ -329,14 +162,6 @@ export async function deriveExposableParameterCandidates(
     }
   }
 
-  // Checklist — one exposable parameter per distinct configurableKey
-  // dimension actually used across a Checklist's own items (most Checklists
-  // tag nothing at all, contributing no candidates).
-  //
-  // CR-088 closing — configurableKey is filter-shaped too; its own real
-  // value vocabulary is the checklist-configurable-value Ontology concept
-  // type (migration 171) — one flat, shared set across every dimension a
-  // Pack author names, not scoped per-key.
   const dimensionLabelByCode = await resolveLabels(viewerTenantId, "checklist-configurable-dimension");
   const configurableValueOptions = Object.keys(await resolveLabels(viewerTenantId, "checklist-configurable-value"));
   for (const packCode of packCodes) {
@@ -352,28 +177,6 @@ export async function deriveExposableParameterCandidates(
   return candidates;
 }
 
-// CR-088 Profile-side completion (owner, 2026-09-05: "the overrides have to
-// be saved in the profile" — deferred at CR-088's own Template-only pass,
-// picked up here rather than on the Profile CR that should have caught it).
-// A Profile's own "Parameter Overrides" tab candidates: whichever of its base
-// Template's SAVED exposedParameters rows are flagged overridable, resolved
-// against the Template's own currently-materialised Pack selections (not the
-// Profile's own — the candidate universe is whatever the Template computed
-// it against at Template-save time) for label/valueOptions.
-//
-// CR-088 closing (owner, 2026-09-06: "Profile should allow override of
-// everything that is configurable") — this used to also require
-// `c.valueBearing`, silently dropping every filter-shaped candidate (Policy's
-// three applicability dimensions, Checklist's configurableKey) even when the
-// Template itself flagged one overridable. There was never a technical
-// reason for this — deriveExposableParameterCandidates now gives every
-// filter-shaped candidate a real, closed valueOptions set too (above), and
-// ExposedParameterOverride's own storage shape ({sourceType, sourceCode,
-// parameterName, value}) already works identically for a filter selection as
-// for a value override — nothing downstream (validateProfileSeed's own
-// "must be one of valueOptions" check, reconstructProfileParameterOverrides)
-// assumed valueBearing either. The only real gate is whether the Template
-// flagged this specific candidate overridable at all.
 export async function deriveOverridableParameterCandidates(baseTemplateCode: string, viewerTenantId: string): Promise<ExposableParameterCandidate[]> {
   const { data: template } = await templatesDB.findActiveByCode(baseTemplateCode, viewerTenantId);
   if (!template) return [];
@@ -391,11 +194,6 @@ export type TemplateValidationResult = { ok: true } | { ok: false; errors: strin
 
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 
-// CR-038 — the real category:pack vocabulary in full. Each slot's Pack
-// codes are cross-checked against that Pack's OWN category (mirrors
-// Profile's PACK_SELECTION_SLOTS, core/profiles.ts, exactly) — a code
-// resolving to *some* Pack isn't enough; it must actually be categorised the
-// way the slot it was put in claims.
 export const PACK_SELECTION_SLOTS: Array<{ field: keyof TemplateSeedInput; listKind: string; packCategory: string }> = [
   { field: "compliancePackCodes", listKind: "compliance", packCategory: "Compliance" },
   { field: "domainPackCodes", listKind: "domain", packCategory: "Domain" },
@@ -405,20 +203,10 @@ export const PACK_SELECTION_SLOTS: Array<{ field: keyof TemplateSeedInput; listK
   { field: "technologyPackCodes", listKind: "technology", packCategory: "Technology" },
 ];
 
-// Every Pack code selected across all six category slots, deduplicated —
-// the set whose contributed Capabilities become requiredCapabilityCodes,
-// and whose union is what Template Inheritance's superset rule checks.
 function collectAllPackCodes(seed: TemplateSeedInput): string[] {
   return [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => (seed[slot.field] as string[] | undefined) ?? []))];
 }
 
-// CR-038 — "The Required Capability codes need not be a UI field. It is
-// derived from the selections the user makes." Resolves each selected Pack
-// code to its currently-Active row, then every Capability that Pack
-// contributed (originating_pack_id) — never read from anywhere, always
-// computed fresh from the live selection, at both publish time and
-// (separately, in the web route) render time for producingCapabilityCode's
-// own options.
 export async function deriveCapabilityCodesFromPackCodes(packCodes: string[]): Promise<string[]> {
   const packIds: string[] = [];
   for (const code of packCodes) {
@@ -430,12 +218,6 @@ export async function deriveCapabilityCodesFromPackCodes(packCodes: string[]): P
   return [...new Set((capabilities ?? []).map((c) => c.code))];
 }
 
-// Owner: "Producing Capability Code as a link to the pack" — the Deliverable
-// Catalogue view's own read-mode needs to resolve a derived capability code
-// back to the real Pack that contributes it, not just the flat code list
-// deriveCapabilityCodesFromPackCodes returns. Same packId resolution as that
-// function; kept separate rather than widening its own return shape, since
-// every other caller only ever wants the flat code list.
 export interface CapabilityProducingPack { id: string; code: string; name: string; category: string }
 export async function deriveCapabilityProducingPacksFromPackCodes(packCodes: string[]): Promise<Record<string, CapabilityProducingPack>> {
   const packById = new Map<string, CapabilityProducingPack>();
@@ -453,14 +235,6 @@ export async function deriveCapabilityProducingPacksFromPackCodes(packCodes: str
   return result;
 }
 
-// Ch.15 §12 (CR-049 Phase 2) — is `childName` either identical to
-// `parentName`, or a legitimate "rename" of it: a Deliverable Definition the
-// child's own tenant derived (however many hops), whose lineage
-// (parent_deliverable_definition_id) eventually reaches a Definition sharing
-// `parentName`'s code? Confirmed by the owner's own worked example — the
-// match is purely by walking the child's resolved Definition's own ancestor
-// chain and comparing codes; no cross-referencing back into the PARENT
-// Template's own tenant is needed.
 const MAX_LINEAGE_HOPS = 20;
 async function isRenameOf(childName: string, parentName: string, tenantId: string): Promise<boolean> {
   if (childName === parentName) return true;
@@ -475,14 +249,6 @@ async function isRenameOf(childName: string, parentName: string, tenantId: strin
   return false;
 }
 
-// Ch.9 §11 Constraint Detection — standard three-colour DFS cycle check over
-// the Deliverable-to-Deliverable subgraph (fromType: "Deliverable" edges
-// only; Capability-type edges have no toCode/fromCode pair to form a cycle
-// with). Returns the cycle as an ordered list of codes (the repeated node
-// first and last) for a readable error message, or null if the graph is
-// acyclic. Runs on the raw authored entries, not validated/deduped first —
-// safe either way, since an edge naming an unknown code just never matches
-// anything in the adjacency walk.
 function findDeliverableDependencyCycle(dependencyGraph: TemplateDependencyGraphEntry[]): string[] | null {
   const adjacency = new Map<string, string[]>();
   for (const entry of dependencyGraph) {
@@ -523,12 +289,6 @@ function findDeliverableDependencyCycle(dependencyGraph: TemplateDependencyGraph
   return null;
 }
 
-// `skipComposableChecks` — same schema-driven split as validatePackSeed
-// (core/packs.ts): whichever field the Template schema (schema_definitions)
-// currently marks `x-ontology-composable` gets skipped here and deferred to
-// validateComposableFieldsAgainstSchema at the Validated->Published hop
-// (sdkAuthoring.ts) instead. `code`'s concept type (template-categories) is
-// schema-declared (x-referential-source, migration 054), not hardcoded here.
 export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { skipComposableChecks?: boolean }): Promise<TemplateValidationResult> {
   const errors: string[] = [];
   if (!seed.name?.trim()) errors.push("name is required");
@@ -537,11 +297,6 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
   const { data: templateSchemaRow } = await schemaDefinitionsDB.findLatest("Template");
   if (templateSchemaRow) {
     const templateSchema = templateSchemaRow.schema as JsonSchemaDocument;
-    // deliverableCatalogue[].code is x-ontology-composable too (migration
-    // 276) — folded in here so the schema-driven walker (core/ontology.ts,
-    // recurses into array items) covers it, same as code above. Its own
-    // hand-coded assertCanonicalCategory check further down is gone; this is
-    // now its only check.
     const ontologyContent = { code: seed.code, deliverableCatalogue: seed.deliverableCatalogue };
     errors.push(...(await validateOntologyFieldsAgainstSchema(templateSchema, ontologyContent, templateOntologyViewer)));
     if (!options?.skipComposableChecks) {
@@ -560,16 +315,6 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
 
   const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(collectAllPackCodes(seed));
 
-  // CR-088 — each exposedParameters row must resolve against a real
-  // candidate the selected Packs actually carry today (same "must intersect
-  // what's actually there" discipline validatePolicyCodes/validateChecklistIds
-  // already established) — a row surviving from a Pack selection that's
-  // since changed (the Pack that carried it was deselected, or the
-  // underlying Service/Policy/Checklist changed shape) is stale, not silently
-  // kept. A value-bearing row's own value is checked against valueOptions
-  // when the candidate declares a closed enum (constraintType); otherwise any
-  // non-blank value is accepted (a Service Level metric's target has no
-  // fixed vocabulary).
   const exposableCandidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()), seed.dependencyGraph ?? []);
   for (const row of seed.exposedParameters ?? []) {
     const candidate = exposableCandidates.find((c) => c.sourceType === row.sourceType && c.sourceCode === row.sourceCode && c.parameterName === row.parameterName);
@@ -580,9 +325,6 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
     }
   }
 
-  // CR-087 — entry.code must be a real, active deliverable-name Ontology
-  // concept — checked generically above via deliverableCatalogue in
-  // ontologyContent (x-ontology-composable, migration 276), not here.
   const seenDeliverableCodes = new Set<string>();
   for (const entry of seed.deliverableCatalogue ?? []) {
     if (!entry.code?.trim()) { errors.push("deliverableCatalogue entry is missing a code"); continue; }
@@ -590,11 +332,6 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
     seenDeliverableCodes.add(entry.code);
   }
 
-  // CR-041 — referential checks the schema itself can't express: toCode/
-  // fromCode must resolve to a real catalogue entry (by code — CR-087
-  // renamed these off default_label text, see TemplateDependencyGraphEntry's
-  // own comment, seuTypes.ts); fromCapabilityCode must resolve to a real,
-  // derived Capability.
   for (const entry of seed.dependencyGraph ?? []) {
     if (!seenDeliverableCodes.has(entry.toCode)) {
       errors.push(`dependencyGraph entry toCode "${entry.toCode}" does not match a deliverableCatalogue entry`);
@@ -612,25 +349,11 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
     }
   }
 
-  // Ch.9 §11 Constraint Detection — a Deliverable-type edge chain that loops
-  // back on itself could never be satisfied (nothing could ever reach the
-  // gated state, since every candidate "first" step is itself waiting on
-  // something downstream). Capability-type edges never participate — they
-  // don't name another deliverableCatalogue entry, so they can't be part of
-  // a Deliverable-to-Deliverable cycle.
   const cycle = findDeliverableDependencyCycle(seed.dependencyGraph ?? []);
   if (cycle) {
     errors.push(`dependencyGraph has a circular dependency: ${cycle.join(" → ")}`);
   }
 
-  // CR-026 Template Inheritance (Ch.6 §9, owner: "All mandatory packs in the
-  // parent template have to remain mandatory in the inherited one also"): a
-  // Derived Template's identity is locked to its parent's code (enforced at
-  // Draft creation, not re-litigated here) and its mandatory Packs (union
-  // across all six category slots now, CR-038) must stay a superset of the
-  // parent's CURRENT mandatory set — checked live, not frozen at inheritance
-  // time, so a parent that later adds a mandatory Pack still binds its
-  // existing children.
   if (seed.parentTemplateId) {
     const { data: parent } = await templatesDB.findById(seed.parentTemplateId);
     if (!parent) {
@@ -646,14 +369,6 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
         errors.push(`an inherited Template must keep all of its parent's mandatory Packs — missing: ${missing.join(", ")}`);
       }
 
-      // Ch.15 §12 (CR-049 Phase 2, owner: "For a derivation dependency graph
-      // change is allowed. For the other two it is not") — Implementation/
-      // Decomposition edges must survive inheritance unaltered; Derivation
-      // is exempt entirely, freely editable, no check at all. "Unaltered"
-      // allows a rename of either end (isRenameOf, above) but not a change
-      // to which state gates it or a drop/addition relative to the parent's
-      // CURRENT set — checked live, same discipline as the mandatory-Pack
-      // check just above, not frozen at the moment of inheriting.
       const LOCKED_RELATIONSHIP_KINDS = new Set(["implementation", "decomposition"]);
       const parentGraph = await getDependencyGraphContent(parent.id, parent.tenant_id);
       const lockedParentEdges = parentGraph.filter((e) => LOCKED_RELATIONSHIP_KINDS.has(e.relationshipKind ?? "dependency"));
@@ -687,20 +402,6 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
 
 export type PackSelectionsByCategory = Pick<TemplateSeedInput, "compliancePackCodes" | "domainPackCodes" | "engineeringPackCodes" | "integrationPackCodes" | "organisationPackCodes" | "technologyPackCodes">;
 
-// CR-038 — for reactivateAsNewVersion/copyTemplateAsNewDraft/
-// inheritedTemplateContent (sdkAuthoring.ts) carrying a Template's current
-// Pack selections forward into a new Draft, bucketed by category for
-// display. Deliberately reads via getMandatoryPackCodes (every row for this
-// Template, regardless of list_kind) and resolves each code's own REAL
-// category (packsDB.findByCode) rather than trusting which list_kind slot
-// it happens to be stored under — every seed script (and the pre-CR-038
-// data they've already written) stores mandatory Packs under the flat
-// 'mandatory' list_kind, not the six new category-specific ones, so reading
-// only the new slots would see nothing at all for any seed-created Template
-// (breaking inheritance/copy of every one of them). Resolving by the Pack's
-// own real category makes this correct regardless of which list_kind wrote
-// the row — old flat writes and new category-scoped writes both land in the
-// right bucket.
 export async function getPackSelectionsByCategory(templateId: string): Promise<PackSelectionsByCategory> {
   const { data: allCodes } = await templatesDB.getMandatoryPackCodes(templateId);
   const result: PackSelectionsByCategory = {};
@@ -713,28 +414,6 @@ export async function getPackSelectionsByCategory(templateId: string): Promise<P
   return result;
 }
 
-// CR-045 follow-up — the view page's own read source for a Template that
-// isn't a Draft (owner: "Why is the seed data not populating a dependency
-// graph for the templates?" — it was: dependency_definitions rows are real
-// and correctly materialised by every seed path, but getAuthoringDraft only
-// ever read draft_content, which stays empty for any Template created
-// outside the authoring form itself, e.g. seedSdlcStandardTemplates.ts).
-// Reconstructs the real, currently-materialised graph — not the originally
-// AUTHORED seed shape: a Capability-type row's own fromCapabilityCode isn't
-// stored anywhere once materialised (dependency_definitions is Service-code
-// keyed, one row per Service that Capability provides — CR-042's own note on
-// the same expansion), so this surfaces the real Service code(s) in fromCode
-// instead, which is accurate information, just not round-trippable back into
-// a single authored fromCapabilityCode row.
-//
-// CR-087 — dependency_definitions itself stays label-keyed (to_name/from_name
-// hold the deliverable-name concept's default_label, not its code — see
-// materialiseDependencyGraph.ts), but this function's own return shape is the
-// authoring one (toCode/fromCode), so a Deliverable-type row's to_name/
-// from_name get reverse-resolved back to their code here — the one place
-// that reversal needs to happen, for the edit-form round-trip and the
-// isRenameOf locked-edge check above. A Capability-type row's from_name is a
-// Service code, never a deliverable-name label — passed through unresolved.
 export async function getDependencyGraphContent(templateId: string, tenantId: string): Promise<TemplateDependencyGraphEntry[]> {
   const { data: rows } = await dependencyDefinitionsDB.findByOwner("Template", templateId);
   const labelByCode = await resolveLabels(tenantId, "deliverable-name");
@@ -749,22 +428,6 @@ export async function getDependencyGraphContent(templateId: string, tenantId: st
   }));
 }
 
-// CR-079 bug fix — deriveCapabilityCodesFromPackCodes above already resolves
-// this precisely (selected pack codes -> their real pack ids ->
-// findByOriginatingPackIds, genuinely Pack-scoped), but
-// materialisePackSelectionsAndCapabilities used to throw that precision away
-// down to bare code strings and re-resolve via capabilitiesDB.findByCodes,
-// which has NO Pack scoping at all — so once contributionCapabilities[].code
-// became a real, shared Ontology vocabulary (capability-name), any OTHER
-// Active Pack anywhere sharing that code (never selected on this Template)
-// got silently pulled in as an additional required Capability. Owner:
-// "template should pull all and de-dupe. So if i have a project that needs
-// technology-nodejs and technology-go, both are going to pull anything
-// associated with development" — i.e. scoped to the Template's own SELECTED
-// packs only, collapsed to one row when more than one of them shares a
-// code (the same competency, not a duplicate requirement). This keeps the
-// real rows from the same Pack-scoped resolution instead of round-tripping
-// through codes at all.
 export async function deriveDedupedCapabilitiesFromPackCodes(packCodes: string[]): Promise<CapabilityRow[]> {
   const packIds: string[] = [];
   for (const code of packCodes) {
@@ -780,38 +443,12 @@ export async function deriveDedupedCapabilitiesFromPackCodes(packCodes: string[]
   return [...byCode.values()];
 }
 
-// CR-038 — shared by publishTemplate and materialiseTemplateDraft: write the
-// six category-scoped Pack selections, then derive and store
-// requiredCapabilityCodes fresh from that same selection (never read from
-// the seed itself — there's nothing to read, it's not an input any more).
 async function materialisePackSelectionsAndCapabilities(templateId: string, seed: TemplateSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   for (const slot of PACK_SELECTION_SLOTS) {
     await templatesDB.setPackSelection(templateId, slot.listKind, (seed[slot.field] as string[] | undefined) ?? [], authorId, authorBadge);
   }
   const capabilities = await deriveDedupedCapabilitiesFromPackCodes(collectAllPackCodes(seed));
   await templatesDB.setRequiredCapabilities(templateId, capabilities.map((c) => c.id), authorId, authorBadge);
-  // Bug fix (owner, 2026-09-06: same root cause as Profile's own — "publishTemplate's
-  // own upsert() never writes draft_content") — exposedParameters (and `purpose`)
-  // never persisted through publishTemplate/seedSdlcStandardTemplates.ts, only
-  // through interactive authoring's createDraft/updateDraftContent.
-  //
-  // Bug fix (owner: "Template should have persisted all the applicable
-  // service levels... otherwise this information is not available for
-  // composing") — that earlier fix only carried forward whatever exposedParameters
-  // the seed itself already had; it never DEFAULTED one. loadExposableParameterRows
-  // (web/sdkAuthoring.ts) computes the same non-sparse "one row per real
-  // candidate" set, but only for the SDK Authoring form's own display — it's
-  // never persisted unless a human opens that Template's Exposable Parameters
-  // tab and saves. Every JSON-seeded Template (all of them predate CR-088)
-  // never had a human do that, so its exposedParameters stayed empty forever
-  // — permanently hiding every Service Level metric its own composed Services
-  // actually declare from composition (resolveEffectiveParameters only ever
-  // reads a Template's own SAVED rows, never re-derives from the canonical
-  // Service Definition). Same non-sparse default now applies here, the one
-  // shared path every Template-creation route funnels through — one row per
-  // real candidate, value/overridable from whatever the seed already
-  // explicitly set for that exact key, else the candidate's own current
-  // default (mirrors loadExposableParameterRows's own merge exactly).
   const candidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()), seed.dependencyGraph ?? []);
   const existingByKey = new Map((seed.exposedParameters ?? []).map((e) => [`${e.sourceType}::${e.sourceCode}::${e.parameterName}`, e]));
   const exposedParameters: ExposedParameter[] = candidates.map((c) => {
@@ -825,26 +462,6 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
 
 export type PublishTemplateResult = { ok: true; templateId: string; alreadyExists?: boolean } | { ok: false; errors: string[] };
 
-// CR-024 — immutably versioned the way Pack is (Ch.41 VM-002): identity is
-// (code, template_version, tenant_id), so a second call with the same code
-// but a different templateVersion creates a new row rather than overwriting.
-//
-// Rebuilt (owner: "templates.status defaults to 'Active' - this should be
-// draft; similar to pack") — this used to call templatesDB.upsert(), which
-// relied on that default to land the new row directly at Active, skipping
-// the governed lifecycle (and its VersionValidated/VersionPublished/
-// VersionActivated events) entirely in one step. Pack has no such shortcut
-// anywhere — packsDB has no upsert() at all; createPackDraft always creates
-// a real Draft (hardcoded in its own INSERT, never relying on any default),
-// and publishPack walks it forward through real transitionPack calls. This
-// now mirrors that exactly: create a real Draft, materialise it, fire
-// TemplateCreated (unchanged — still the "birth" event, still not fired from
-// interactive authoring's createAuthoringDraft, the same asymmetry Pack's
-// own PackRegistered has), then advance through Validated -> Published ->
-// Active via the SAME advanceTemplateOneStep the authoring UI itself uses —
-// CR-024/026's own supersede-previous-Active logic on the Published ->
-// Active hop comes along for free. Requires a real actor now, since every
-// hop is genuinely governed (mirrors publishPack's own actorRole/actorId).
 export async function publishTemplate(input: { seed: TemplateSeedInput; actorRole: string; actorId: string }): Promise<PublishTemplateResult> {
   const { seed, actorRole, actorId } = input;
   const validation = await validateTemplateSeed(seed);
@@ -852,12 +469,6 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
 
   const tenantId = seed.tenantId ?? (await getPlatformTenantId());
 
-  // templates.authored_by/author_badge (and dependency_definitions.author_id/
-  // author_badge, materialised alongside) are participants_master-scoped and
-  // NOT NULL — a bootstrap/seed-facing publish needs a real actor the same
-  // way the interactive SDK authoring path does (sdkAuthoring.ts), never a
-  // default/null. Resolved once, up front, so both the idempotent-reseed
-  // branch below and the fresh-Draft branch share the same real actor/badge.
   if (!actorId) return { ok: false, errors: ["publishTemplate requires a real actorId to author the Draft"] };
   const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "template_define" });
   if (!auth.allowed) return { ok: false, errors: [`actor "${actorId}" does not hold template_define`] };
@@ -865,11 +476,6 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
   if (!templateMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "template_define");
 
-  // Idempotent reseed (mirrors createPackDraft's own findByCodeAndVersion
-  // check exactly): a second publish under the same (code, templateVersion,
-  // tenantId) re-materialises the existing row's content instead of erroring
-  // or minting a duplicate — the same real need upsert()'s own ON CONFLICT
-  // used to serve, without landing a brand-new version anywhere but Draft.
   const { data: existing } = await templatesDB.findByCodeAndVersion(seed.code, seed.templateVersion, tenantId);
   if (existing) {
     const materialiseResult = await materialiseTemplateDraft(existing.id, seed, templateMaster.id, authorBadge);
@@ -877,9 +483,6 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
     return { ok: true, templateId: existing.id, alreadyExists: true };
   }
 
-  // CR-114 follow-on — templatesDB.createDraft's schemaDefinitionId is now
-  // mandatory; a bootstrap/seed-facing publish (as opposed to real SDK
-  // authoring, which lets an author pick) always pins to whatever's latest.
   const { data: templateSchema } = await schemaDefinitionsDB.findLatest("Template");
   if (!templateSchema) return { ok: false, errors: [`no schema_definitions grammar for Template`] };
   const { data: draft, error } = await templatesDB.createDraft({
@@ -890,10 +493,6 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
     authorBadge,
     tenantId,
     parentTemplateId: seed.parentTemplateId,
-    // `purpose` is schema-required (CR-023); materialiseTemplateDraft below
-    // overwrites draft_content in full moments later, but the validated
-    // createDraft write itself needs it present too, not just the eventual
-    // setDraftContent write.
     draftContent: { purpose: seed.purpose },
     schemaDefinitionId: templateSchema.id,
   });
@@ -902,16 +501,11 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
   const materialiseResult = await materialiseTemplateDraft(draft.id, seed, templateMaster.id, authorBadge);
   if (!materialiseResult.ok) return materialiseResult;
 
-  // CR-025 — real named events (Ch.6 §16), mirroring PackRegistered
-  // (core/packs.ts's createPackDraft) exactly, including the same asymmetry:
-  // this fires from the "proper" publish entry point, not from interactive
-  // authoring's createAuthoringDraft (core/sdkAuthoring.ts) — Pack's own
-  // PackRegistered doesn't fire from there either.
   await eventBus.publish({
     eventType: "TemplateCreated",
     originatingObjectType: "Template",
     originatingObjectId: draft.id,
-    seuId: null, // platform catalog entity, not SEU-scoped
+    seuId: null,
     correlationId: eventBus.newCorrelationId(),
     actorId: templateMaster.id,
     authorityBadge: authorBadge,
@@ -919,7 +513,7 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
   });
 
   let current = draft;
-  for (let i = 0; i < 3; i++) { // Draft -> Validated -> Published -> Active
+  for (let i = 0; i < 3; i++) {
     const result = await advanceTemplateOneStep(current, actorRole, actorId);
     if (!result.ok) return { ok: false, errors: [`advancing Template "${current.code}" from "${current.status}" failed: ${result.reason}${result.detail ? ` (${result.detail})` : ""}`] };
     current = result.template;
@@ -928,39 +522,14 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
   return { ok: true, templateId: current.id };
 }
 
-// Entity-direct authoring (bug fix correcting CR-014): a governed status
-// transition on a Template, authorised on its own noun × verb (Draft -> Active
-// is verb `publish` → template_publish) under the REAL actor, with the actor +
-// badge captured on the event. Mirrors transitionPack — no Deliverable
-// indirection, no system actor.
 export type TransitionTemplateResult = { ok: true; template: TemplateRow } | { ok: false; reason: string; detail?: string };
 
-// Ch.41 VM-002 "Versions are immutable" (CR-024, mirroring transitionPack
-// exactly) — reactivating a Deprecated/Retired/Archived Template back to
-// Active must never resurrect the old row in place; that would mutate a
-// published Version after the fact. A terminal-state row transitioning to
-// Active instead publishes a brand new Version carrying the same content,
-// auto-bumping the patch number until an unused (code, template_version) is
-// found, then walks it through Draft -> Validated -> Published -> Active —
-// which also supersedes whatever else is currently Active for this code, the
-// same as any other activation. The old row itself is untouched and stays at
-// its old status forever.
 const TERMINAL_REACTIVATABLE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
 
-// Version Feature Plan.md §3/§4 (Ch.6, migration 185) — event_type is now
-// read straight off the resolved Transition Definition (transitionEngine's
-// TransitionOutcome), replacing the hardcoded EVENT_BY_TARGET_STATE map this
-// used to carry (CR-025's own per-state-named events are unchanged in
-// substance, just relocated from code to data — mirrors how Pack's identical
-// map was replaced, migration 184).
 export async function transitionTemplate(input: { templateId: string; targetState: TemplateRow["status"]; actorRole: string; actorId: string }): Promise<TransitionTemplateResult> {
   const { data: template } = await templatesDB.findById(input.templateId);
   if (!template) return { ok: false, reason: "not_found" };
   const fromState = template.status;
-  // entityId passed so a Template row ever declaring submit_verb (none do
-  // today) would have its triggerEngine.hasBeenSubmitted check actually work
-  // — was missing, the same latent gap Pack's own transitionPack had before
-  // its fix (Events and Lifecycles.md Ch.5 Implementation row 3).
   const gate = await transitionEngine.evaluate({ entityType: "Template", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: template.id, context: { template } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
@@ -979,12 +548,11 @@ export async function transitionTemplate(input: { templateId: string; targetStat
     eventType: gate.eventType ?? "TemplateTransitioned",
     originatingObjectType: "Template",
     originatingObjectId: template.id,
-    seuId: null, // platform catalog entity, not SEU-scoped
+    seuId: null,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: template.code },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge ?? "root",
-    // CR-117
     versionEvent: gate.versionEvent,
     fromState,
     toState: input.targetState,
@@ -993,9 +561,6 @@ export async function transitionTemplate(input: { templateId: string; targetStat
   return { ok: true, template: updated };
 }
 
-// CR-026: scoped to the reactivating Template's own tenant — a bumped
-// version only needs to dodge THIS tenant's own existing rows (mirrors
-// core/packs.ts's nextAvailablePatchVersion exactly).
 async function nextAvailablePatchVersion(code: string, fromVersion: string, tenantId: string): Promise<string> {
   const [major, minor, startingPatch] = fromVersion.split(".").map(Number);
   let patch = startingPatch ?? 0;
@@ -1008,13 +573,6 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
   throw new Error(`could not find an unused version for Template ${code} after bumping from ${fromVersion}`);
 }
 
-// Clones an existing (terminal) Template row's full authored content into a
-// brand-new Draft at the next available patch version, then drives it
-// straight through Draft -> Validated -> Published -> Active under the same
-// actor — mirroring reactivateAsNewVersion in core/packs.ts exactly. `purpose`
-// (CR-023) lives only in draft_content, not a real column, so it's carried
-// through explicitly rather than via templatesDB.getRequiredCapabilities-style
-// column reads.
 async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, actorId: string, authorBadge: string | null): Promise<TransitionTemplateResult> {
   const nextVersion = await nextAvailablePatchVersion(template.code, template.template_version, template.tenant_id);
   const packSelections = await getPackSelectionsByCategory(template.id);
@@ -1024,31 +582,14 @@ async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, 
     templateVersion: nextVersion,
     ...packSelections,
     deliverableCatalogue: template.deliverable_catalogue,
-    // Reactivation is versioning, not a change of ownership or lineage — the
-    // new Version stays owned by the same tenant and keeps the same parent
-    // (or lack of one), mirroring reactivateAsNewVersion in core/packs.ts's
-    // own tenantId treatment exactly.
     tenantId: template.tenant_id,
     parentTemplateId: template.parent_template_id,
-    // CR-088 — exposedParameters lives only in draft_content (same as
-    // purpose, just below); carried forward explicitly the same way, or a
-    // reactivated Version would silently lose every Exposable Parameters
-    // override the previous Version had.
     exposedParameters: extractExposedParameters(template.draft_content as Record<string, unknown> | null),
   };
   const purpose = typeof (template.draft_content as Record<string, unknown> | null)?.purpose === "string" ? (template.draft_content as Record<string, unknown>).purpose : undefined;
 
-  // CR-114 follow-on — reactivation carries the SAME schema_definition_id
-  // forward (same lineage/pin reasoning as tenantId/parentTemplateId above),
-  // not a fresh findLatest resolution; falls back to latest only for a
-  // pre-CR-114 row that somehow has none.
   const { data: reactivationSchema } = template.schema_definition_id ? { data: { id: template.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Template");
   if (!reactivationSchema) return { ok: false, reason: "policy_blocked", detail: `no schema_definitions grammar for Template` };
-  // templates.authored_by/author_badge are participants_master-scoped and NOT
-  // NULL — the new Version's Draft is authored by the real actor performing
-  // this reactivation, under the real badge transitionEngine.evaluate (above)
-  // just authorised this hop under (gate.authorityBadge), never carried
-  // forward from the terminal row's own original author.
   if (!actorId) return { ok: false, reason: "policy_blocked", detail: "reactivation requires a real actorId to author the new Version's Draft" };
   if (!authorBadge) return { ok: false, reason: "policy_blocked", detail: "no authority badge resolved for this Template reactivation" };
   const { data: reactivateMaster } = await participantsMasterDB.findById(actorId);
@@ -1084,17 +625,6 @@ async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, 
   return { ok: true, template: current };
 }
 
-// Registry "Copy" action (owner, 2026-08-19: "Add a Copy button... enabled
-// for users that have *_define badge. It should create a copy and bump up
-// the version"). Same content reconstruction as reactivateAsNewVersion above,
-// but stops at Draft instead of driving straight through to Active — a real,
-// editable starting point, not an instant republish. Unlike reactivation
-// (which only ever fires on a terminal row being brought back), Copy works
-// from ANY status including Active itself, so it deliberately does not
-// require the source to be terminal. No new lineage — parentTemplateId
-// carries through unchanged from the source (a copy of a Derived Template is
-// still Derived from the same parent; a copy is not itself a new Inheritance
-// edge).
 export async function copyTemplateAsNewDraft(templateId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await templatesDB.findById(templateId);
   if (!source) return { ok: false, errors: ["Template not found"] };
@@ -1105,26 +635,12 @@ export async function copyTemplateAsNewDraft(templateId: string, actorId: string
     code: source.code,
     name: source.name,
     purpose,
-    // CR-088 — same carry-forward as reactivateAsNewVersion above.
     exposedParameters: extractExposedParameters(source.draft_content as Record<string, unknown> | null),
-    // CR-038 — form-posted row shape ({packCode} objects), matching how
-    // parseFormBody reconstructs a referential-list field from a real POST —
-    // this draftContent is what re-opening the copied Draft in the form
-    // renders from, same convention this function already used for Packs
-    // before requiredCapabilityCodes/mandatoryPackCodes existed as a flat
-    // pair. requiredCapabilityCodes is omitted entirely — it's derived, not
-    // stored content, so there's nothing to copy forward.
     ...Object.fromEntries(PACK_SELECTION_SLOTS.map((slot) => [slot.field, ((packSelections[slot.field as keyof PackSelectionsByCategory] as string[] | undefined) ?? []).map((packCode) => ({ packCode }))])),
     deliverableCatalogue: source.deliverable_catalogue,
   };
-  // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
-  // reactivateAsNewVersion above.
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Template");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Template`] };
-  // templates.authored_by/author_badge are participants_master-scoped and NOT
-  // NULL — resolve the real participant + the real badge the caller already
-  // verified (web/templateRegistry.ts's own badgeAuthorityEngine check),
-  // mirroring copyServiceDefinitionAsNewDraft exactly.
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
   if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const { data: newDraft, error } = await templatesDB.createDraft({
@@ -1142,15 +658,6 @@ export async function copyTemplateAsNewDraft(templateId: string, actorId: string
   return { ok: true, draftId: newDraft.id };
 }
 
-// Entity-direct authoring, one hop at a time (mirrors advancePackOneStep,
-// Ch.5 §19.13 / Ch.6 §20.2) — added 2026-08-18 alongside the seed change that
-// gave Template the same six-hop lifecycle Pack already has
-// (transitionDefinitions.json / authorityVocabulary.json: Draft -> Validated
-// -> Published -> Active -> Deprecated -> Retired -> Archived). Runs exactly
-// the NEXT governed hop off the entity's current status, authorised on only
-// that hop's own badge — real separation of duties, not a blanket "publish."
-// Replaces the old publishTemplateDraft, which hardcoded a direct jump to
-// "Active" — the only target state that existed before this seed change.
 const AUTHORING_NEXT_STATE: Partial<Record<TemplateRow["status"], TemplateRow["status"]>> = {
   Draft: "Validated",
   Validated: "Published",
@@ -1164,10 +671,6 @@ export async function advanceTemplateOneStep(template: TemplateRow, actorRole: s
   const targetState = AUTHORING_NEXT_STATE[template.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Template is already ${template.status} — no further authoring step` };
 
-  // CR-024, mirroring advancePackOneStep exactly: Published -> Active also
-  // supersedes whatever else is currently Active for this code (Active ->
-  // Deprecated on the previous holder), now that a code can have more than
-  // one version.
   if (targetState === "Active") {
     const { data: previousActive } = await templatesDB.findActiveByCode(template.code, template.tenant_id);
     const activateResult = await transitionTemplate({ templateId: template.id, targetState: "Active", actorRole, actorId });
@@ -1181,12 +684,6 @@ export async function advanceTemplateOneStep(template: TemplateRow, actorRole: s
   return transitionTemplate({ templateId: template.id, targetState, actorRole, actorId });
 }
 
-// Materialise a Draft's authored seed onto the entity's real columns/join
-// tables. Was previously bundled inside a one-shot "jump straight to Active";
-// now runs once, gating the FIRST governed hop out of Draft only —
-// advanceTemplateOneStep above handles every hop after that, trusting the
-// content is already real (same discipline Pack's own Draft-only validation
-// gate uses — core/sdkAuthoring.ts's publishAuthoringDraft calls both).
 export async function materialiseTemplateDraft(templateId: string, seed: TemplateSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   await templatesDB.setDeliverableCatalogue(templateId, seed.deliverableCatalogue ?? []);
   const result = await materialisePackSelectionsAndCapabilities(templateId, seed, authorId, authorBadge);
@@ -1209,13 +706,6 @@ export interface TemplateWithNextStates {
   possibleNextStates: string[];
 }
 
-// Template Registry (owner, 2026-08-19: "Build the template and profile
-// registry") — every Version of every Template, with its own governed next
-// states, mirroring listPacksWithNextStates (core/packs.ts) exactly. This is
-// also the UI trigger CR-024 flagged as missing for Template reactivation
-// (Ch.6 §20.3's own "no UI trigger... a Template Registry page... is the
-// natural follow-up") — the same generic transition form Pack's Registry
-// already has covers it here too, no special-casing needed.
 export async function listTemplatesWithNextStates(viewer?: { isRoot: boolean; tenantId: string } | null): Promise<TemplateWithNextStates[]> {
   const { data: templates } = viewer && !viewer.isRoot ? await templatesDB.findAllVisibleTo(viewer.tenantId) : await templatesDB.findAll();
   return Promise.all(

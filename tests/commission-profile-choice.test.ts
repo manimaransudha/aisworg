@@ -72,6 +72,7 @@ async function cleanupPriorRuns(): Promise<void> {
     // reviews (findings.review_id -> reviews.id), same discipline the events
     // comment above already established for this chain.
     await pool.query("DELETE FROM findings WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM version_events WHERE event_id IN (SELECT id FROM events WHERE seu_id = ANY($1::uuid[]))", [seuIds]);
     await pool.query("DELETE FROM events WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM quality_gate_evaluations WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM quality_gate_waivers WHERE seu_id = ANY($1::uuid[])", [seuIds]);

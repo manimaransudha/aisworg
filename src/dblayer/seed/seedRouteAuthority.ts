@@ -1,23 +1,3 @@
-// route_authority recovery seed — restores the 247 baseline rows (extracted
-// from src/dblayer/recovery/route_authority_data_recovery.sql, folding in
-// its own per-migration INSERT/ON-CONFLICT/DELETE replays) as JSON in
-// data/routeAuthority.json.
-//
-// Unlike capability_definitions/service_definitions, route_authority is a
-// flat admin-config table, not a lifecycle-governed entity (no
-// Defined/Published/Active states) -- routeAuthorityDB.ts's header is
-// explicit: routeAuthorityDB is "the one real write path for the
-// route_authority table", so this seed goes through routeAuthorityDB.create
-// for every missing (method, path) row rather than a raw bulk INSERT (the
-// parallel-mechanism gap CLAUDE.md rules out), same discipline as every
-// other authored table's seed, just without the extra transition hops this
-// table's rows don't have.
-//
-// NOT wired into cleanSlate.ts (route_authority is INSERT-only, populated by
-// migrations today, same reasoning as capability_definitions/
-// service_definitions). Runnable from the Data Migrations admin UI
-// (DATA_MIGRATION_TARGETS, core/dataMigrations.ts), and standalone:
-//   npx tsx src/dblayer/seed/seedRouteAuthority.ts
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -42,7 +22,6 @@ function loadSeeds(): RouteAuthoritySeed[] {
   return JSON.parse(raw) as RouteAuthoritySeed[];
 }
 
-// authoredBy is a participants_master.id 
 export interface SeedActor {
   authoredBy: string;
   authorBadge: string;
@@ -62,8 +41,6 @@ export async function seedRouteAuthority(actor: SeedActor): Promise<void> {
   }
   logger.info(`[seedRouteAuthority] ${missing.length} of ${seeds.length} baseline rows missing -- creating now`);
 
-  // author_id is participants_master-scoped and NOT NULL -- resolve once,
-  // not a default.
   const { userId, actorId, actorBadge } = await userDB.getSuperuserId();
   if (!actorId) throw new Error(`No participants_master row for user_id ${actorId} -- log in as root first.`);
   
@@ -81,7 +58,6 @@ export async function seedRouteAuthority(actor: SeedActor): Promise<void> {
       authorBadge: actorBadge,
     });
     if (error) throw new Error(`[seedRouteAuthority] failed to create row for ${seed.method} ${seed.path}: ${error.message}`);
-    // logger.info(`[seedRouteAuthority] (${i}/${missing.length}) ${seed.method} ${seed.path} -- created`);
   }
 
   await refreshRouteAuthorityCache();

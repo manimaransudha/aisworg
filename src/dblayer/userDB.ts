@@ -34,8 +34,6 @@ export const userDB = {
     }
   },
 
-  // users.id of the SUPERUSER_EMAIL user. Throws when the env var is unset
-  // or no users row matches — no silent fallback.
   async getSuperuserId(): Promise<{ userId: string; actorId: string; actorBadge: string }> {
     const email = (process.env.SUPERUSER_EMAIL || '').toLowerCase();
     if (!email) throw new Error('[userDB] getSuperuserId: SUPERUSER_EMAIL is not set');
@@ -76,8 +74,7 @@ export const userDB = {
     }
   },
 
-  // CR-004: type ('Platform'|'Tenant') + tenant_id are now required columns.
-  async create({ email, name, avatar_url, /* role, */ auth_provider, provider_id, is_active = true, type, tenant_id }: {
+  async create({ email, name, avatar_url, auth_provider, provider_id, is_active = true, type, tenant_id }: {
     email: string;
     name: string;
     avatar_url?: string | null;
@@ -101,7 +98,7 @@ export const userDB = {
     }
   },
 
-  async createLocalPending({ email, name, /* role, */ verification_token, verification_expires, type, tenant_id }: {
+  async createLocalPending({ email, name, verification_token, verification_expires, type, tenant_id }: {
     email: string;
     name: string;
     verification_token: string;
@@ -160,20 +157,6 @@ export const userDB = {
     }
   },
 
-  // role column removed (CR: role != authority). Kept commented out pending removal of callers.
-  // async updateRole(email, role) {
-  //   try {
-  //     const { rows } = await query(
-  //       'UPDATE users SET role = $1 WHERE email = $2 RETURNING *',
-  //       [role, email.toLowerCase()]
-  //     );
-  //     return rows[0] || null;
-  //   } catch (err) {
-  //     logger.error('[userDB] updateRole error:', err);
-  //     throw err;
-  //   }
-  // },
-
   async setActive(email: string, is_active: boolean): Promise<UserRow | null> {
     try {
       const { rows } = await query<UserRow>(
@@ -187,7 +170,6 @@ export const userDB = {
     }
   },
 
-  /** List all users except the env-protected superuser. */
   async listManaged(superuserEmail: string): Promise<UserRow[]> {
     try {
       const { rows } = await query<UserRow>(

@@ -1,16 +1,6 @@
-// Mirrors heldBadges.ts's own consolidation reasoning (CR-076), for roles:
-// one shared "which authorised_role entries does this holder currently
-// hold" primitive, instead of requireRole.ts and the navbar's own
-// route_authority-driven link-visibility check (CR-110) each re-deriving the
-// same participants_master.authorised_role query + expiry/scope filter
-// independently.
 import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
 
 export interface HeldRoles {
-  // Owner: "superuser will have access to everything. atleast for now" — an
-  // unscoped-or-not, unexpired `superuser` grant bypasses every requireRole
-  // check, production included. `has()` short-circuits on it first, so no
-  // caller needs `roles` to include it separately.
   isSuperuser: boolean;
   roles: Set<string>;
   has: (role: string) => boolean;

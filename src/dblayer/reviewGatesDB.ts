@@ -2,27 +2,12 @@ import pool, { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, ReviewGateRow, TransitionEntityType } from "./seuTypes.js";
 
-// CR-059 — a Review Gate's identity is (entity_type, from_state, to_state,
-// code), `code` being the deliverable type it's for (owner: "the review
-// gate's key collapses to (deliverable-type code, entity_type, from_state,
-// to_state) — the same materialization key everything else uses"). No
-// category, no criteria — unlike Quality Gate, there's nothing to
-// union-compose across Packs (a Review is one reviewer's verdict on one
-// deliverable version, not several competing kinds of it). version starts
-// at "1.0" and bumps the minor component on every real content change, same
-// discipline qualityGatesDB.upsert already established.
 function bumpVersion(version: string): string {
   const [major, minor] = version.split(".").map((n) => parseInt(n, 10) || 0);
   return `${major}.${minor + 1}`;
 }
 
 export const reviewGatesDB = {
-  // Transactional: reads the current active row for this exact slot
-  // (entity_type, from_state, to_state, code), decides whether anything
-  // actually changed, and either no-ops, inserts the first version, or
-  // deactivates the old row + inserts the next version — all in one commit,
-  // same shape as qualityGatesDB.upsert. The partial unique index
-  // review_gates_active_scope_key is what makes this lookup unambiguous.
   async upsert(input: {
     code: string;
     name: string;
@@ -30,10 +15,7 @@ export const reviewGatesDB = {
     fromState: string;
     toState: string;
     originatingPackId: string;
-    // CR-060 — see qualityGatesDB.upsert's own checklistIds comment.
     checklistIds?: string[];
-    // CR-060, revised same day — see qualityGatesDB.upsert's own
-    // recommendedChecklistIds comment.
     recommendedChecklistIds?: string[];
     authorId: string;
     authorBadge: string;

@@ -3,29 +3,16 @@ import { logger } from "../utils/logger.js";
 import type { ConstraintType, DbResult, PolicyRow, PolicyScope } from "./seuTypes.js";
 
 export const policiesDB = {
-  // CR-061 — Policy's definition is tied to its own Pack, not global (owner:
-  // "it is not global so no versioning required similar to checklist") —
-  // identity is (originating_pack_id, code), not a bare globally-unique
-  // code (migration 106). Upsert keeps a Policy's id stable across every
-  // republish of its own Pack, same mechanism checklistsDB.upsert uses.
   async upsert(input: {
     code: string;
     name: string;
     category?: string;
     constraintType?: ConstraintType;
-    // CR-104 — "Transition" (default, unchanged) governs a real state hop and
-    // requires governedTransition. "Eligibility" governs Capability
-    // Fulfilment participant selection instead — no transition involved,
-    // governedTransition stays null/omitted for it.
     scope?: PolicyScope;
     governedTransition?: string | null;
     condition?: Record<string, unknown>;
     severity?: string;
     originatingPackId: string;
-    // Migration 211 — real runtime enforcement of Applicability Deliverable
-    // Names (owner: "the policy can be available to any number of
-    // deliverables as well"), reusing quality_gates' own mechanism: empty =
-    // matches every Deliverable name.
     applicabilityDeliverableNames?: string[];
     authorId: string;
     authorBadge: string;
@@ -62,15 +49,6 @@ export const policiesDB = {
     }
   },
 
-  // SDK UI Layer Plan — Transition Definition authoring resolves policy
-  // codes to ids at publish time, same pattern as requiredAuthorityRuleCode.
-  // CR-061 note, not fixed here (definition-side CR; this call site is
-  // execution/authoring-adjacent, out of scope — owner: "we are not
-  // addressing this here"): `code` is no longer globally unique
-  // (migration 106), so this can now match the wrong row if more than one
-  // Pack happens to share the same Policy code. Real, latent risk; left
-  // alone deliberately rather than expanded into scope this CR didn't ask
-  // for.
   async findByCode(code: string): Promise<DbResult<PolicyRow | null>> {
     try {
       const { rows } = await query<PolicyRow>("SELECT * FROM policies WHERE code = $1", [code]);
@@ -92,11 +70,6 @@ export const policiesDB = {
     }
   },
 
-  // CR-104 — every Policy originating from any of these Pack ids, run once
-  // at EBM creation (compositionCompleted.ts) to fill
-  // ebms.applicable_policy_ids. Policy has no is_active concept (migration
-  // 106's own "not global so no versioning required") — every row for a
-  // composed Pack applies, no active-flag filter needed.
   async findByPackIds(packIds: string[]): Promise<DbResult<PolicyRow[]>> {
     if (packIds.length === 0) return { data: [] };
     try {
@@ -108,10 +81,6 @@ export const policiesDB = {
     }
   },
 
-  // CR-061 — cross-Pack picker source, scoped to Policies belonging to a
-  // Pack sharing the given Pack `code` (owner: "Similar to checklist, if
-  // the pack code matches, that policy has to be visible to all other
-  // packs") — same shape as checklistsDB.findByPackCode.
   async findByPackCode(packCode: string): Promise<DbResult<Array<PolicyRow & { pack_name: string; pack_code: string }>>> {
     try {
       const { rows } = await query<PolicyRow & { pack_name: string; pack_code: string }>(
@@ -129,8 +98,6 @@ export const policiesDB = {
     }
   },
 
-  // CR-058 — the policy-code referential source for Quality Gate's new
-  // requires_active_policy criteria type picker.
   async findAll(): Promise<DbResult<PolicyRow[]>> {
     try {
       const { rows } = await query<PolicyRow>("SELECT * FROM policies ORDER BY code");

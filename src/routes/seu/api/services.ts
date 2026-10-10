@@ -7,7 +7,6 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { listServices } from "../core/services.js";
 
-/** GET /services — Ch.11: every declared Service and its Service Level. */
 router.get("/services", async (_req: Request, res: Response) => {
   try {
     res.status(200).json({ services: await listServices() });

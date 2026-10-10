@@ -1,7 +1,3 @@
-// Ch.19 Decision Model — Post-MVP Phase 5. Lifecycle transitions reuse the
-// same generic transitionEngine every other entity type already uses
-// (Ch.29 §10), extended to a seventh entity type. Restructured this session
-// (Ch.19 model cleanup, migration 231) — see that migration's own header.
 import { decisionsDB } from "../../../dblayer/decisionsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
@@ -14,12 +10,6 @@ import { assertCanonicalCategory } from "./ontology.js";
 import { resolveAuthor, resolveSystemActor } from "./attentionItems.js";
 import type { DecisionAlternative, DecisionRelatedObjectGroup, DecisionRow } from "../../../dblayer/seuTypes.js";
 
-// participant_id on decisions.* points at the per-SEU engagement
-// (participants.id), not users.id directly — same resolution
-// core/participantHome.ts's completeMyWorkItem already does. Returns null
-// for an actor with no Participant identity on this SEU (e.g. an
-// admin/root user acting directly) — participant_id then stays unset,
-// which is honest, not an error.
 async function resolveParticipantId(userId: string, seuId: string): Promise<string | null> {
   const { data: master } = await participantsMasterDB.findById(userId);
   if (!master) return null;
@@ -71,10 +61,6 @@ export async function createDecision(input: {
     engineeringQuestion: input.engineeringQuestion,
     alternatives: input.alternatives ?? [],
     participantId,
-    // Creation is ungoverned (no transition_definitions row produces
-    // "Identified" — same as every other entity's own row-1 creation), so
-    // there is no badge to record here; authority_badge starts real once
-    // the first governed transition runs.
     authorityBadge: null,
   });
   if (error || !decision) throw error ?? new Error("failed to create decision");
@@ -127,10 +113,6 @@ export async function transitionDecision(input: { decisionId: string; targetStat
   const fromState = decision.status;
 
   if (!input.actorId) throw new Error("actorId is required to transition a Decision");
-  // entityId now passed — was missing, the same latent submit_verb gap
-  // every other entity's Version Feature Plan pass found and fixed (no
-  // Decision row declares submit_verb today, but the gate would silently
-  // no-op without it if one ever does).
   const gate = await transitionEngine.evaluate({
     entityType: "Decision",
     fromState,
@@ -148,9 +130,6 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 
-  // Post-completion fix (Open Design Questions.md #3): Quality Gates used to
-  // apply to Deliverable transitions only — same check obligations.ts's own
-  // transitionObligation runs, generalised to every SEU-scoped entity type.
   if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Decision ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
   const { authorId } = await resolveAuthor(decision.seu_id, input.actorId);
   const qualityGateResult = await qualityGateEngine.evaluate({
@@ -166,9 +145,6 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
   }
 
-  // participant_id/authority_badge updated on every governed transition —
-  // the row always reflects the most recent actor; full per-hop history
-  // stays in events (actorId/authorityBadge on the publish below).
   const participantId = await resolveParticipantId(input.actorId, decision.seu_id);
 
   const { data: updated, error } = await decisionsDB.updateStatus(decision.id, input.targetState, { participantId, authorityBadge: gate.authorityBadge });

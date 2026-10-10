@@ -7,11 +7,9 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { commissionSeu } from "../core/commissioning.js";
 import { getSeuStatus } from "../core/seus.js";
-// import { fulfilCapability } from "../core/capabilities.js"; // only used by the commented-out ad-hoc fulfil route below
 import { getSeuEvents } from "../core/events.js";
 import { getEffectiveGovernanceModel } from "../core/governanceModel.js";
 
-/** POST /commission — Ch.8 full pipeline; this endpoint's response is the acceptance test's core assertion. */
 router.post("/commission", async (req: Request, res: Response) => {
   try {
     const { objectiveId, templateId, profileId, tenantId } = req.body ?? {};
@@ -28,12 +26,6 @@ router.post("/commission", async (req: Request, res: Response) => {
     if (!result.ok) {
       return res.status(422).json({ stage: result.stage, reason: result.reason, seuId: result.seuId });
     }
-    // Design/mvp-build-plan/SEU Composition.md — commissionSeu itself only
-    // gets through the shallow "Validate Request" gate now; Compose EBM runs
-    // asynchronously off the CommissionValidated event it just published, and
-    // "Validate Engineering Model"/Activate are separate, later manual
-    // actions (see the SEU detail page). No CommissioningReport exists yet at
-    // this point — lifecycleState stays 'Pending' until Activate succeeds.
     res.status(201).json({ seuId: result.seu.id, lifecycleState: result.seu.lifecycle_state, ebmId: result.seu.active_ebm_id });
   } catch (err) {
     logger.error("[api/seu/seus] POST /commission error", err as Error);
@@ -41,7 +33,6 @@ router.post("/commission", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /seus/:id — Ch.2 status view: SEU + required Capabilities + Deliverables. */
 router.get("/seus/:id", async (req: Request, res: Response) => {
   try {
     const status = await getSeuStatus(String(req.params.id));
@@ -53,41 +44,6 @@ router.get("/seus/:id", async (req: Request, res: Response) => {
   }
 });
 
-// POST /seus/:id/capabilities/:capabilityId/fulfil — commented out (not deleted):
-// this route only ever fulfilled with an ad-hoc {type, displayName} Participant
-// (no participants_master reference), which dispatchEngine.dispatch's own
-// loadAvailableCandidates (dispatchStrategies.ts) can never select — it
-// requires a real participant_id master reference by design. The web form
-// route (web/seus.ts, participantMasterIds) is the real, documented
-// Capability Fulfilment path (Integration Test Handoff Brief.md) and already
-// supports a real Participant; this JSON route had no such option and was
-// only ever called by tests/dry-run-suite, never the product UI or a real
-// integration. Re-enable only if a real caller needs a JSON fulfil endpoint —
-// and give it participantMasterId support first.
-// router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, res: Response) => {
-//   try {
-//     const { participant } = req.body ?? {};
-//     if (!participant?.type || !participant?.displayName) {
-//       return res.status(400).json({ error: "participant.type and participant.displayName are required" });
-//     }
-//     const result = await fulfilCapability({
-//       seuId: String(req.params.id),
-//       capabilityId: String(req.params.capabilityId),
-//       participantType: participant.type,
-//       displayName: participant.displayName,
-//     });
-//     res.status(200).json({
-//       capabilityFulfilment: result.fulfilment,
-//       participant: result.participant,
-//       seuCapability: { id: result.seuCapabilityId, capabilityCode: result.capabilityCode, status: "Fulfilled" },
-//     });
-//   } catch (err) {
-//     logger.error("[api/seu/seus] POST /:id/capabilities/:capabilityId/fulfil error", err as Error);
-//     res.status(400).json({ error: (err as Error).message });
-//   }
-// });
-
-/** GET /seus/:id/events — Ch.30: the event log produced by the commissioning + execution flow. */
 router.get("/seus/:id/events", async (req: Request, res: Response) => {
   try {
     const events = await getSeuEvents(String(req.params.id));
@@ -98,7 +54,6 @@ router.get("/seus/:id/events", async (req: Request, res: Response) => {
   }
 });
 
-/** GET /seus/:id/governance-model — Ch.21 FR-21.1: this SEU's one effective Governance Model, derived from its EBM. */
 router.get("/seus/:id/governance-model", async (req: Request, res: Response) => {
   try {
     const model = await getEffectiveGovernanceModel(String(req.params.id));

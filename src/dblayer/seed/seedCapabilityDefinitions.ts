@@ -1,22 +1,3 @@
-// capability_definitions recovery seed — restores the 63 baseline rows
-// (extracted from migration 265's own INSERT, via a rolled-back temp-table
-// query, never committed) as JSON in data/capabilityDefinitions.json.
-//
-// Unlike schema_definitions/transition_definitions/authority vocab,
-// capability_definitions is a GOVERNED lifecycle entity (migration 273 --
-// CR-111/CR-114): a row starts life via capabilityDefinitionsDB.createDraft
-// (status 'Defined') and only becomes usable through the real governed
-// transitions (transitionCapabilityDefinition, core/capabilityDefinitions.ts)
-// -- Defined -> Published -> Active. A raw bulk INSERT of the old flat rows
-// would bypass that lifecycle entirely (the parallel-mechanism gap CLAUDE.md
-// rules out), so this seed goes through createDraft + the two real governed
-// hops for every missing row, same as a human author would.
-//
-// NOT wired into cleanSlate.ts (capability_definitions is INSERT-only /
-// lifecycle-governed at the application layer, same reasoning as
-// schema_definitions). Runnable from the Data Migrations admin UI
-// (DATA_MIGRATION_TARGETS, core/dataMigrations.ts), and standalone:
-//   npx tsx src/dblayer/seed/seedCapabilityDefinitions.ts
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -46,14 +27,6 @@ function loadSeeds(): CapabilityDefinitionSeed[] {
   return JSON.parse(raw) as CapabilityDefinitionSeed[];
 }
 
-// This entity's own real actor shape (capabilityDefinitionsDB.createDraft's
-// authoredBy and transitionCapabilityDefinition's actorId are both the raw
-// users.id, bigint column -- never a resolved participants_master.id, unlike
-// every other seed function's SeedActor). userId comes from the same
-// logged-in session id the Data Migrations UI already resolves before
-// calling this.
-
-// authoredBy is a participants_master.id 
 export interface SeedActor {
   authoredBy: string;
   authorBadge: string;
@@ -75,7 +48,6 @@ export async function seedCapabilityDefinitions(actor: SeedActor): Promise<void>
   const { data: capabilitySchema } = await schemaDefinitionsDB.findLatest("Capability");
   if (!capabilitySchema) throw new Error("no schema_definitions grammar for Capability -- run the schema-definitions data migration first");
 
-  // get platform tenant id
   const PLATFORM_TENANT_ID = await getPlatformTenantId();
   for (const seed of missing) {
     const { data: created, error } = await capabilityDefinitionsDB.createDraft({

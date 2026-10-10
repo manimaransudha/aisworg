@@ -31,6 +31,7 @@ import { router as devActAsRouter } from "./devActAs.js";
 import { router as eventsRouter } from "./events.js";
 import { router as versionEventsRouter } from "./versionEvents.js";
 import { router as dataMigrationsRouter } from "./dataMigrations.js";
+import { router as docsRouter } from "./docs.js";
 
 router.use(dashboardRouter);
 router.use(objectivesRouter);
@@ -60,5 +61,6 @@ router.use(devActAsRouter);
 router.use(eventsRouter);
 router.use(versionEventsRouter);
 router.use(dataMigrationsRouter);
+router.use(docsRouter);
 
 export { router };

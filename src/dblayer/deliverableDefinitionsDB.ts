@@ -5,26 +5,16 @@ import { validateDeliverableDefinitionWriteAgainstSchema } from "../routes/seu/c
 import type { DbResult, DeliverableDefinitionRow } from "./seuTypes.js";
 import { getPlatformTenantId } from "./constants.js";
  
-// CR-049 Phase 1 — Deliverable Definition, a first-class authored entity.
-// Own table (081_deliverable_definitions.sql), mirroring templatesDB.ts's own
-// shape column-for-column — no join-table functions needed here (no Pack
-// selections, no capabilities; a Definition has neither).
 export const deliverableDefinitionsDB = {
   async createDraft(input: {
     code: string;
     description?: string | null;
     version?: string;
-    // deliverable_definitions.authored_by/author_badge are NOT NULL,
-    // participants_master-scoped (same discipline as templates.ts/profiles.ts
-    // above) — every caller must resolve and pass the real participant id +
-    // the real badge requireBadge already verified upstream, never a default.
     authoredBy: string;
     authorBadge: string;
     draftContent?: Record<string, unknown>;
     tenantId?: string;
     parentDeliverableDefinitionId?: string | null;
-    // CR-114 follow-on — mandatory (owner: "Otherwise all this build is of no
-    // use"); every caller must resolve and pass a real schema_definition_id.
     schemaDefinitionId: string;
   }): Promise<DbResult<DeliverableDefinitionRow>> {
     try {
@@ -127,9 +117,6 @@ export const deliverableDefinitionsDB = {
     }
   },
 
-  // The one row (if any) currently Active for a code+tenant — reactivation's
-  // supersede step (core/deliverableDefinitions.ts) uses this, mirrors
-  // templatesDB.findActiveByCode exactly.
   async findActiveByCode(code: string, tenantId: string): Promise<DbResult<DeliverableDefinitionRow | null>> {
     try {
       const { rows } = await query<DeliverableDefinitionRow>(
@@ -167,9 +154,6 @@ export const deliverableDefinitionsDB = {
     }
   },
 
-  // Every Active row Platform-owns — feeds the Inherit dropdown (CR-049 only
-  // describes inheriting from Platform's own canonical Definition, not from
-  // another tenant's).
   async findActivePlatformOwned(): Promise<DbResult<DeliverableDefinitionRow[]>> {
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {

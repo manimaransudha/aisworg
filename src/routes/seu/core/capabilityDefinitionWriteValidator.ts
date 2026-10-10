@@ -1,8 +1,3 @@
-// CR-111 — write-time schema validation for Capability Definition. Lives
-// outside capabilityDefinitions.ts (not inside it) specifically so
-// capabilityDefinitionsDB.ts can import it without importing
-// capabilityDefinitions.ts, which itself imports capabilityDefinitionsDB.ts
-// — mirrors core/serviceDefinitionWriteValidator.ts exactly.
 import { query } from "../../../utils/db.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { validateAgainstSchema, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
@@ -23,13 +18,6 @@ export interface CapabilityDefinitionWriteInput {
   schemaDefinitionId?: string | null;
 }
 
-// Runs at every Capability Definition write path (capabilityDefinitionsDB.createDraft/
-// updateDraftContent), same discipline as Service/Policy's own write
-// validators. Pins to the row's own schemaDefinitionId when given (an
-// update), else the latest Capability schema (a create). `code`/
-// `defaultLabel`/`description`/`roles` are real columns AND schema
-// properties — draftContent alone doesn't carry them, so they're merged in
-// here to validate what the row will actually be written with.
 export async function validateCapabilityDefinitionWriteAgainstSchema(input: CapabilityDefinitionWriteInput): Promise<string[]> {
   const tenantId = input.tenantId ?? (await getPlatformTenantId());
 

@@ -1,10 +1,3 @@
-// CR-110 — Route Authority: which badge(s)/role(s) a route requires, as data
-// instead of a literal baked into the route file. See
-// design/change-requests/CR-110-route-authority-table.md.
-//
-// This module is the one real write path for the route_authority table
-// (the CRUD screen in web/routeAuthorityRegistry.ts is its only caller) —
-// no other code should write to this table directly.
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 
@@ -45,11 +38,6 @@ export const routeAuthorityDB = {
     }
   },
 
-  // author_id/author_badge are NOT NULL, participants_master-scoped -- every
-  // caller must resolve and pass its own real actor + badge, never a
-  // default/null (same discipline as capabilityDefinitionsDB.ts). Set once
-  // at creation only -- update() never touches them, same as every other
-  // flat-authored table's authored_by.
   async create(input: { method: string; path: string; badges: string[]; roles: string[]; matchMode: "all" | "any"; description: string | null; authorId: string; authorBadge: string }): Promise<DbResult<RouteAuthorityRow>> {
     try {
       const { rows } = await query<RouteAuthorityRow>(

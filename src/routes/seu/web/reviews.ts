@@ -16,11 +16,6 @@ import { listReviewsWithNextStates, createReview, transitionReview } from "../co
 import { listFindingsByReview, createFinding, transitionFinding, convertFindingToObligation } from "../core/findings.js";
 import type { ReviewOutcome } from "../../../dblayer/seuTypes.js";
 
-// Review Model — Plan (Phase 14, Ch.25). The web surface: plan a Review against a
-// Deliverable, walk its lifecycle (Completed requires an outcome), raise Findings,
-// and resolve/waive/convert them — the same governed flow the API exposes.
-
-/** GET /aisworg/seu/seus/:id/reviews — the Reviews + Findings for a SEU. */
 router.get("/seus/:id/reviews", attachVM("seu/reviews/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const seuId = String(req.params.id);
@@ -48,7 +43,6 @@ router.get("/seus/:id/reviews", attachVM("seu/reviews/index"), async (req: Reque
   }
 });
 
-/** POST /aisworg/seu/seus/:id/reviews — plan a Review against a Deliverable. */
 router.post("/seus/:id/reviews", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
@@ -72,7 +66,6 @@ router.post("/seus/:id/reviews", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /aisworg/seu/seus/:id/reviews/:reviewId/transition — walk the lifecycle. */
 router.post("/seus/:id/reviews/:reviewId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
@@ -98,7 +91,6 @@ router.post("/seus/:id/reviews/:reviewId/transition", async (req: Request, res: 
   }
 });
 
-/** POST /aisworg/seu/seus/:id/reviews/:reviewId/findings — raise a Finding. */
 router.post("/seus/:id/reviews/:reviewId/findings", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
@@ -127,7 +119,6 @@ router.post("/seus/:id/reviews/:reviewId/findings", async (req: Request, res: Re
   }
 });
 
-/** POST /aisworg/seu/seus/:id/findings/:findingId/transition — Open -> Resolved/Waived. */
 router.post("/seus/:id/findings/:findingId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
@@ -146,7 +137,6 @@ router.post("/seus/:id/findings/:findingId/transition", async (req: Request, res
   }
 });
 
-/** POST /aisworg/seu/seus/:id/findings/:findingId/convert — Finding -> Obligation. */
 router.post("/seus/:id/findings/:findingId/convert", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}/reviews`;

@@ -1,8 +1,3 @@
-// design/design whiteboards.md/schema_implementation.md — write-time schema
-// validation for Service Definition. Lives outside serviceDefinitions.ts (not
-// inside it) specifically so serviceDefinitionsDB.ts can import it without
-// importing serviceDefinitions.ts, which itself imports serviceDefinitionsDB.ts
-// — mirrors core/policyDefinitionWriteValidator.ts exactly.
 import { query } from "../../../utils/db.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { validateAgainstSchema, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
@@ -28,17 +23,6 @@ export interface ServiceDefinitionWriteInput {
   schemaDefinitionId?: string | null;
 }
 
-// Runs at every Service Definition write path (serviceDefinitionsDB.createDraft/
-// updateDraftContent), not just the sdkAuthoring.ts call site (which already
-// calls validateServiceDefinitionSeed first, unlike Pack/Template/Profile's own
-// pre-fix advisory-only web layer — but that's a caller-side gate, not
-// DB-layer enforcement; anything bypassing sdkAuthoring.ts writes ungoverned
-// today, including copyServiceDefinitionAsNewDraft). Pins to the row's own
-// schemaDefinitionId when given (an update), else the latest Service schema
-// (a create). `code`/`name`/`capabilityCode`/`purpose`/`inputs`/`outputs`/
-// `serviceLevel`/`governance`/`success`/`consumers` are real columns AND
-// schema properties — draftContent alone doesn't carry them, so they're
-// merged in here to validate what the row will actually be written with.
 export async function validateServiceDefinitionWriteAgainstSchema(input: ServiceDefinitionWriteInput): Promise<string[]> {
   const tenantId = input.tenantId ?? (await getPlatformTenantId());
 

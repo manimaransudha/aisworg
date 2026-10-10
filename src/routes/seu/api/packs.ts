@@ -13,19 +13,7 @@ import type { PackStatus } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
  
-// CR-076 follow-up (Pack) — same two gap shapes already found and fixed on
-// api/objectives.ts: an unfiltered list route, and a single multi-target
-// transition route with no route-level badge check at all.
 
-/**
- * GET /packs — Ch.38 §10 Pack Registry: every published Version of every
- * Pack, newest first within each code. No POST create endpoint — SDK-001
- * ("Every production Pack shall be created using the SDK") means Packs are
- * created via `pnpm pack:publish`, not a web/API form.
- */
-// CR-076 follow-up — was calling listPacksWithNextStates() with no viewer at
-// all, returning every Pack across every tenant unfiltered (the exact same
-// gap "GET /objectives should have a requireTenant" closed there).
 router.get("/packs", requireTenant(), async (req: Request, res: Response) => {
   try {
     const { isRoot, tenantId } = req.tenantScope!;
@@ -37,13 +25,6 @@ router.get("/packs", requireTenant(), async (req: Request, res: Response) => {
   }
 });
 
-// CR-076 follow-up — tenant reach on the route's own :id, same check and
-// reasoning as web/packs.ts's own router.param("id", ...): badge_grants
-// carries no tenant_id, so holding a pack_<verb> badge alone never stopped a
-// tenant actor reaching a DIFFERENT tenant's (or Platform's) Pack by id.
-// platformTenantId: a Platform-owned Pack stays reachable by every tenant
-// (web/packs.ts's own "Platform packs will be available to all users"),
-// unlike Objective, which has no such universally-shared row.
 router.param(
   "id",
   requireTenantScope.forParam("id", packsDB.findById, (p) => p.tenant_id, {
@@ -53,15 +34,6 @@ router.param(
   })
 );
 
-// CR-076 follow-up — was one route dispatching on a body-supplied
-// targetState across all 6 Pack badges, with NO route-level badge check at
-// all (relied entirely on transitionPack's own internal
-// transitionEngine.evaluate). Per CR-076's settled rule ("a route needing
-// different badges per request is split, not accommodated"), split into one
-// route per verb, mirroring api/objectives.ts's own transition split
-// exactly. comment is only actually required by transitionPack itself for
-// Validated -> Draft (Reject); harmless to accept unused on every other
-// route.
 function postPackTransition(targetState: PackStatus) {
   return async (req: Request, res: Response): Promise<void> => {
     try {
@@ -83,15 +55,8 @@ function postPackTransition(targetState: PackStatus) {
   };
 }
 
-// Owner (2026-08-30): Draft->Validated and Validated->Draft are each
-// reachable by more than one badge — alternateBadgesForPackTransition
-// (core/packs.ts) is the ONE definition, also read by transitionPack's own
-// transitionEngine.evaluate call (the actual enforcement) and by
-// web/sdkAuthoring.ts's equivalent route gate, so this list can never drift
-// from what's actually enforced.
 router.post("/packs/:id/transition/validate", postPackTransition("Validated"));
 router.post("/packs/:id/transition/publish", postPackTransition("Published"));
-/** Reject requires a genuinely new, non-empty comment every time — enforced in transitionPack itself, not here. */
 router.post("/packs/:id/transition/reject", postPackTransition("Draft"));
 router.post("/packs/:id/transition/activate", postPackTransition("Active"));
 router.post("/packs/:id/transition/retire", postPackTransition("Retired"));

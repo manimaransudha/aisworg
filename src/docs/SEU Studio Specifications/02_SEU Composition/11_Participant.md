@@ -1,4 +1,4 @@
-#  Chapter 13 – Participant Model
+#  Chapter 11 – Participant Model
 
 ##  1. Purpose
 
@@ -79,29 +79,29 @@ Participants are transient. Knowledge remains permanent.
 
 ##  5. Architectural Principles
 
-### PM-001
+##### PM-001
 
 Participants are replaceable.
 
-### PM-002
+##### PM-002
 
 Participants possess identity.
 
-### PM-003
+##### PM-003
 
 Participants shall not own engineering knowledge.
 
-### PM-004
+##### PM-004
 
 Participants execute behaviour. They do not define behaviour.
 
 
-### PM-005
+##### PM-005
 
 Participants fulfil Capabilities. They do not own Capabilities.
 
 
-### PM-006
+##### PM-006
 
 Participants shall remain independent of AI technologies.
 
@@ -109,31 +109,31 @@ Participants shall remain independent of AI technologies.
 
 ##  6. Functional Requirements
 
-### FR-13.1
+##### FR-13.1
 
 Every Participant shall possess a globally unique identifier.
 
-### FR-13.2
+##### FR-13.2
 
 Every Participant shall belong to exactly one active SEU.
 
-### FR-13.3
+##### FR-13.3
 
 Participants may fulfil multiple Capabilities.
 
-### FR-13.4
+##### FR-13.4
 
 Multiple Participants may jointly fulfil one Capability.
 
-### FR-13.5
+##### FR-13.5
 
 Participants shall support replacement.
 
-### FR-13.6
+##### FR-13.6
 
 Replacement shall preserve engineering continuity.
 
-### FR-13.7
+##### FR-13.7
 
 Participant activities shall remain fully traceable.
 
@@ -143,7 +143,7 @@ Participant activities shall remain fully traceable.
 
 The platform recognises four Participant Types.
 
-### AI Participant
+##### AI Participant
 
 Represents an autonomous software engineering entity.
 
@@ -159,7 +159,7 @@ The implementation technology is outside the scope of this specification.
 
 ---
 
-### Human Participant
+##### Human Participant
 
 Represents a human engineering contributor.
 
@@ -174,7 +174,7 @@ The platform models engineering participation only. Human resource management re
 
 ---
 
-### External Participant
+##### External Participant
 
 Represents outside oversight/authority parties
 
@@ -184,7 +184,7 @@ Examples:
 - Certifying Authorities
 
 
-### Automated Participant
+##### Automated Participant
 
 Represents internal deterministic tooling/systems
 
@@ -253,9 +253,9 @@ Participants may transition repeatedly between **Assigned**, **Executing** and *
 
 ##  10. Participant Assignment
 
-A Participant becomes eligible for a Capability only through Capability Fulfilment (Chapter 12).
+A Participant becomes eligible for a Capability only through Capability Fulfilment.
 
-A Participant is assigned to a specific Deliverable or Work Item only through the Dispatch Engine (Chapter 33), which selects among Participants that Capability Fulfilment has already established as eligible.
+A Participant is assigned to a specific Deliverable or Work Item only through the Dispatch Engine, which selects among Participants that Capability Fulfilment has already established as eligible.
 
 Assignment establishes runtime relationships between:
 
@@ -319,27 +319,27 @@ Replacement shall not require recommissioning of the SEU.
 
 Participants operate within several contexts simultaneously.
 
-### Engineering Context
+##### Engineering Context
 
 The Deliverables currently being progressed.
  
-### Behaviour Context
+##### Behaviour Context
 
 The Engineering Behavior Model governing execution.
  
-### Capability Context
+##### Capability Context
 
 The Capabilities currently being fulfilled.
  
-### Authority Context
+##### Authority Context
 
 The decision rights applicable at the current stage of execution.
  
-### Knowledge Context
+##### Knowledge Context
 
 The engineering knowledge available to the Participant.
  
-### Obligation Context
+##### Obligation Context
 
 Outstanding obligations affecting assigned Deliverables.
 
@@ -416,3 +416,5 @@ Implementation of this chapter shall produce:
 - Participant state management
 - Participant APIs
 - Participant events
+
+---

@@ -1,44 +1,3 @@
-// Eclipse Process Framework (EPF/OpenUP) capability patterns, modelled as
-// Packs — owner's request (2026-08-17). Each of OpenUP's six disciplines
-// (Requirements, Architecture, Development, Test, Project Management,
-// Configuration & Change Management) is a reusable EPF "Capability Pattern":
-// a named Role, its work products, and the tasks that produce/review them.
-// This seed publishes one Pack per pattern, mapping EPF vocabulary onto the
-// existing Pack contribution model (no new mechanism, no Pack-specific code —
-// same discipline as every other Pack):
-//   - Role            -> Capability (the ability the pattern's practitioner brings)
-//   - Work Product     -> Service (contractDescription = what the work product is)
-//   - Task (execution)  -> Checklist item (§20 verifiable-item fields)
-//   - Task (review/verification) -> Review Gate item
-// Each pattern declares its OWN capability code. Requirements/Architecture/
-// Development were originally given distinct codes (requirements-management,
-// architecture-design, solution-development) specifically to avoid
-// colliding with platform-core-engineering's own requirements-analysis/
-// architecture/development — capabilities.code was globally unique at the
-// time, so redeclaring an existing code would have silently reassigned its
-// originating_pack_id away from core-engineering (breaking PM-005
-// traceability). 2026-08-25 — renamed back to requirements-analysis/
-// architecture/development: CR-065 made capabilities.code Pack-scoped
-// (originating_pack_id, code), not globally unique, and
-// core-engineering.pack.json is now confirmed permanently unpublishable (no
-// working bootstrap path, superseded by 69 CRs of real design work) — so
-// the collision this avoided can no longer happen, and 28+ test files plus
-// every real Template's own dependencyGraph (fromCapabilityCode) already
-// hardcoded these exact codes rather than the ones this file used to
-// generate. No dependency on any other
-// Pack: self-contained, so this seed has no ordering requirement.
-//
-// Content recalled from EPF/OpenUP's published process content (Eclipse
-// Process Framework Composer + the OpenUP practice library) — a faithful
-// paraphrase of the standard discipline/role/task/work-product structure, not
-// a verbatim EPF Composer export. Treat exact task/work-product wording as
-// this platform's own restatement of the pattern, not a quoted EPF source.
-//
-// Usage: pnpm seed:capability-pattern-packs — also runs as a step of
-// cleanSlate.ts, after the identity baseline (the actor these publish as,
-// root holder "1", needs to exist first) and the schema/authority-vocab
-// reseed (Pack's own transition_definitions must be in place for
-// transitionEngine to drive Draft -> Validated -> Published -> Active).
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -60,7 +19,6 @@ export interface SeedActor {
   authorBadge: string;
 }
 
-// One file per EPF/OpenUP capability pattern (discipline).
 const CAPABILITY_PATTERN_PACK_FILES = [
   "openup-requirements.pack.json",
   "openup-architecture.pack.json",
@@ -69,7 +27,6 @@ const CAPABILITY_PATTERN_PACK_FILES = [
   "openup-project-management.pack.json",
   "openup-configuration-and-change-management.pack.json",
 ];
-// Compliance pack files
 const COMPLIANCE_PACK_FILES = [
   "compliance-accessibility-ada-508.pack.json",
   "compliance-aml-kyc.pack.json",
@@ -105,7 +62,6 @@ const COMPLIANCE_PACK_FILES = [
   "compliance-uk-gdpr-dpa.pack.json",
   "compliance-us-state-privacy.pack.json",
 ];
-// Domain packs
 const DOMAIN_PACK_FILES = [
   "domain-accounting-finance.pack.json",
   "domain-banking-payments-markets.pack.json",
@@ -132,7 +88,6 @@ const DOMAIN_PACK_FILES = [
   "domain-supply-chain-wms.pack.json",
   "domain-telecom-media-publishing.pack.json",
 ];
-// Integration packs
 const INTEGRATION_PACK_FILES = [
   "integration-aws.pack.json",
   "integration-azure-devops.pack.json",
@@ -155,7 +110,6 @@ const INTEGRATION_PACK_FILES = [
   "integration-sonarqube.pack.json",
   "integration-terraform.pack.json",
 ];
-// SDLC Phase packs
 const SDLC_PHASE_PACK_FILES = [
   "sdlc-phase-00-vision-opportunity.pack.json",
   "sdlc-phase-01-product-discovery.pack.json",
@@ -174,16 +128,13 @@ const SDLC_PHASE_PACK_FILES = [
   "sdlc-phase-14-internationalization-localization.pack.json",
   "sdlc-phase-15-ongoing-operations-governance.pack.json",
 ];
-// Legacy modernisation packs
 const LEGACY_MODERN_PACK_FILES = [
 "legacy-knowledge-recovery.pack.json"];
-// Domain specialisation pack files
 const DOMAIN_SPECIALISATION_PACK_FILES = [
   "ai-model-engineering.pack.json",
   "embedded-firmware-engineering.pack.json",
   "data-pipeline-engineering.pack.json",
 ];
-// Technology packs
 const DOMAIN_TECHNOLOGY_PACK_FILES = [
   "domain-ebook-library.pack.json",
   "technology-nodejs.pack.json",
@@ -228,38 +179,12 @@ const ALL_PACK_FILES = [
   ...(process.env.NODE_ENV !== "production" ? TEST_PACKS: [])
 ];
 export async function seedCapabilityPatternPacks(actor: SeedActor): Promise<void> {
-  // Published concurrently, not one at a time: none of these 6 Packs
-  // reference each other (this file's own header comment already established
-  // "no dependency on any other Pack: self-contained, no ordering
-  // requirement"), each publishes through its own row-scoped
-  // transitionPack/eventBus calls, and publishPack/createPackDraft are
-  // rerun-safe — so there's no shared mutable state or ordering constraint
-  // between them, only network round-trip time to overlap.
-  // That said, a real cross-Pack `required` dependency DOES exist today
-  // (technology-nodejs -> development), so one publish can still lose a
-  // dependency-resolution race against another in this same batch — a
-  // caller may legitimately want to retry the whole call. Promise.allSettled
-  // (not Promise.all) is required for that to be safe: Promise.all rejects
-  // on the FIRST failure while every other still-in-flight publishPack call
-  // keeps running, unawaited, in the background — a caller that retries
-  // immediately then starts a second overlapping batch, racing its own
-  // orphaned first-attempt calls for the same Pack (observed: "no Transition
-  // Definition for Pack Active -> Active", two concurrent advancePackLifecycle
-  // calls both trying to activate the same already-Active row). allSettled
-  // guarantees every publish has actually finished, one way or another,
-  // before this function returns or throws — nothing left in flight for a
-  // retry to collide with.
 
-  // get platform tenant id
   const PLATFORM_TENANT_ID = await getPlatformTenantId();
   const settled = await Promise.allSettled(
     ALL_PACK_FILES.map(async (file) => {
       const seed = loadJson<PackSeedInput>(file);
       seed.tenantId = PLATFORM_TENANT_ID;
-      // System context (seed script): runs as root holder "1", same convention
-      // seedSeu.ts uses for the bootstrap Pack (CR-006 — root bypasses noun×verb
-      // authority; there is no human author for a platform-seeded capability
-      // pattern).
       const result = await publishPack({ seed, actorRole: actor.authorBadge, actorId: actor.authoredBy, activate: true });
       if (!result.ok) {
         throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);

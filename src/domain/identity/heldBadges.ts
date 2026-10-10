@@ -1,32 +1,9 @@
-// CR-076 — the one shared "which badges does this request's actor hold"
-// primitive. Before this, ontology.ts/objectives.ts/sdkAuthoring.ts each
-// hand-rolled an identical copy: query badgeGrantsDB.findActiveForHolder,
-// build a Set, special-case root. requireBadge (middleware/requireBadge.ts)
-// and requireTenantScope both use this; a page needing several
-// page-specific booleans (canRetireObjective, canProposeObjective, ...)
-// still derives them locally from the Set this returns, same as before —
-// only the query + root-check is centralized, not the per-page meaning.
-//
-// Owner (2026-09-22): "requireBadge is the only place this should change.
-// Everything else should include requireBadge" — consolidated onto
-// badgeAuthorityEngine.getHeldBadges, the SAME live badge_grants query
-// domain/engine code (executionEngine.ts, transitionEngine.ts, ...) already
-// uses directly (those callers have no req/session at all — event-bus
-// subscribers, not HTTP requests — so they can't go through this file or
-// requireBadge; this file goes through their shared primitive instead, so
-// there's one query, not two independently-drifting copies of it). Root is
-// no longer read off the session-cached platformBadges — it's the same live
-// check every other actor's badges get, so a revoked root grant takes
-// effect on the very next request instead of surviving until re-login.
 import type { Request } from "express";
 import { badgeAuthorityEngine } from "../engine/badgeAuthorityEngine.js";
 import type { RouteAuthorityMatch } from "./routeAuthorityCache.js";
 
 export interface HeldBadges {
   isRoot: boolean;
-  // Every Active badge_type the actor holds, root included (unlike the old
-  // "empty for root" shape) — `.has()` below short-circuits on isRoot first,
-  // so no caller needs badgeTypes to exclude it.
   badgeTypes: Set<string>;
   has: (badgeType: string) => boolean;
 }
@@ -38,17 +15,6 @@ export async function resolveHeldBadges(req: Request): Promise<HeldBadges> {
   return { isRoot, badgeTypes, has: (badgeType: string) => isRoot || badgeTypes.has(badgeType) };
 }
 
-// The one shared "which badge do we stamp as this action's author" rule —
-// every web/api route that records an author badge (capability_fulfilments,
-// attention_items, ...) was re-deriving this inline (held.isRoot ? "root" :
-// authRow?.badges.find(...)), which breaks for any route_authority row with
-// no badges declared: route_authority is still incomplete platform-wide, so
-// an empty badges[] means "nothing gates this yet", not "no one may do
-// this" — there is no real badge to find in that case, so it is recorded as
-// "system" (same literal resolveSystemActor already uses for an
-// unauthorised/ungoverned acting context) rather than denying the action
-// outright. A row that DOES declare badges is unchanged: the actor must
-// hold one of them, or there is no author badge and the caller should deny.
 export function resolveAuthorBadge(authRow: RouteAuthorityMatch | undefined, held: HeldBadges): string | undefined {
   if (held.isRoot) return "root";
   if (!authRow || authRow.badges.length === 0) return "system";

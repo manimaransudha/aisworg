@@ -1,8 +1,3 @@
-// CR-109 §6.1 — Governance Evaluation Outcome. Written exactly once, by
-// executionEngine.execute(), for the passing evaluation that is about to
-// become a Command (see migration 233's header, and
-// GovernanceEvaluationOutcomeInput in seuTypes.ts). Read back by the Work
-// Item Generator via commands.governance_outcome_id (§6.3).
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, GovernanceEvaluationOutcomeInput, GovernanceEvaluationOutcomeRow } from "./seuTypes.js";

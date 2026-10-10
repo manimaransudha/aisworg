@@ -3,10 +3,8 @@ import { tenantsDB } from "./tenantsDB";
 import { userDB } from "./userDB";
 import { participantsMasterDB } from "./participantsMasterDB";
 
-// Fixed names for the reserved tenants 
 export const PLATFORM_TENANT_NAME = "Platform";
 export const DEMO_TENANT_NAME = "Demo";
-// const DEFAULT_TENANT_NAME = "Default Tenant";
 export const ATHENS_TENANT_NAME = "Athens AI-Native";
 export const BABYLON_TENANT_NAME = "Babylon AI-Native";
 export const CAMBODIA_TENANT_NAME = "Cambodia AI-Native";

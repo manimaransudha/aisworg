@@ -1,64 +1,4 @@
-// Test-only Pack twins — mirrors of every real seed Pack (every
-// src/dblayer/seed/data/*.pack.json file except the confirmed-dead
-// core-engineering.pack.json and the unloaded technology-tmp.pack.json —
-// owner 2026-09-01: "yes, build the test fixtures also," covering the 33
-// real Compliance Packs and the technology Packs added alongside them, none
-// of which had a twin before), each republished under a `test-` prefixed
-// code (data/test-fixtures/; migration 146 registers the compliance-name/
-// technology-name Pack-identity concepts this batch needs — capability-name
-// itself needs no test-twin registration, since every test-fixture Pack's
-// own contributions.capabilities[].code reuses the same shared canonical
-// terms the real Packs do, never a `test-`-prefixed variant; migration 119's
-// old `test-<code>` capability-name rows were dead weight, removed by
-// migration 151). Exists so tests that need "a real, Ontology-valid Pack
-// code" to author throwaway Pack-lifecycle fixtures against (e.g.
-// tests/sdk-authoring.test.ts, previously reusing the literal code
-// "development") never again collide with — and silently deprecate, since
-// only one Pack version per code can be Active — the real, production-seeded
-// Pack of the same name.
-//
-// Called both from cleanSlate.ts (step 7b, owner's own call — every test
-// twin is part of the guaranteed post-reset baseline, same as the real
-// Packs) and lazily/idempotently from tests via testFixtures.ts's
-// ensureTestFixturePacks, for a DB that hasn't had a fresh clean-slate run
-// recently. publishPack no-ops safely either way.
-//
-// data/test-fixtures/*.pack.json strip `contributions.reviewGates` (and,
-// since nothing then needs them, `checklists`) from the real files they
-// mirror — real bug found 2026-08-25: review_gates_active_scope_key
-// (migration 097) is UNIQUE on (entity_type, from_state, to_state, code)
-// PLATFORM-WIDE, not Pack-scoped ("one active Review Gate per deliverable
-// type per transition," by design — unlike capabilities/services/policies,
-// which are all Pack-scoped, CR-065/112/106). A twin that copied the same
-// reviewGates contribution verbatim always collided with the real Pack's own
-// gate for that transition the moment both were Active — not a naming issue,
-// a genuine structural conflict, so the fix is omission, not renaming.
-//
-// test-openup-development/test-openup-requirements/test-openup-architecture
-// (test-development/test-requirements-analysis/test-architecture-solution-
-// design) are deliberately EXCLUDED from TEST_FIXTURE_PACK_FILES below, even
-// though their JSON files exist under data/test-fixtures/ like every other
-// twin's. Second real bug found 2026-08-25, same day: their capability CODES
-// (development/requirements-analysis/architecture) are the exact 3 codes
-// ~30 test files hardcode as requiredCapabilityCodes for every commissioned
-// SEU. capabilitiesDB.findByCodes (used by createObjective wherever that's
-// passed) has no Pack scoping — it matches ANY row sharing a code, platform-
-// wide — so publishing these 3 twins alongside the real Packs of the same
-// capability codes silently doubled every commissioned Objective's resolved
-// capabilities (6 rows instead of 3) for the ENTIRE suite, not just tests
-// that touch the twins directly. Every other twin's capability codes are
-// unique to it (nothing else hardcodes them), so they don't have this
-// problem. Consumers that just need "a real, resolvable Engineering-category
-// Pack" (pack-sdk.test.ts, dependency-graph-relationship-kind.test.ts) use
-// test-testing-qa instead — safe, since "testing-qa" isn't hardcoded
-// anywhere as a requiredCapabilityCode.
-//
 
-// Not a standalone package.json script (owner: all seed data population
-// belongs in db:clean-slate) — run via `pnpm db:clean-slate` (step 7b), or
-// call seedAllTestFixturePacks() directly (testFixtures.ts does this, not a
-// subprocess). `tsx src/dblayer/seed/seedTestFixturePacks.ts` still works
-// standalone if ever needed.
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -75,16 +15,6 @@ function loadJson<T>(fileName: string): T {
   return JSON.parse(readFileSync(path.join(dataDir, fileName), "utf8")) as T;
 }
 
-// 19 of the 21 test-fixture twins have no dependency on any other Pack in
-// this file, so they publish concurrently. test-domain-ebook-library and
-// test-technology-nodejs are the real exception — both declare a dependency
-// on test-testing-qa (see their own dependencies[]) — publishPack requires a
-// declared dependency to already be Active in the Registry, not just
-// published later in the same batch, so test-openup-test.pack.json (which
-// provides test-testing-qa, published concurrently in the first batch) must
-// fully commit before either of these two starts. Same ordering discipline
-// the real domain-ebook-library/technology-nodejs pipeline
-// (seedDomainTechnologyPacks.ts) already follows for its own dependency.
 const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
   "test-openup-configuration-and-change-management.pack.json",
   "test-openup-project-management.pack.json",
@@ -105,13 +35,6 @@ const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
   "test-sdlc-phase-13-growth-optimization.pack.json",
   "test-sdlc-phase-14-internationalization-localization.pack.json",
   "test-sdlc-phase-15-ongoing-operations-governance.pack.json",
-  // 2026-09-01 — the 33 real Compliance Packs (none declares any
-  // `dependencies`, confirmed directly) plus the technology Packs added
-  // alongside them (each depends only on `development`, already Active from
-  // seedCapabilityPatternPacks — step 6 — well before this step runs, same
-  // as domain-ebook-library/technology-nodejs's own `development` dependency
-  // above; neither needs the two-phase split DEPENDENT_TEST_FIXTURE_PACK_FILES
-  // exists for).
   "test-compliance-accessibility-ada-508.pack.json",
   "test-compliance-aml-kyc.pack.json",
   "test-compliance-automotive-wp29.pack.json",
@@ -177,11 +100,6 @@ async function publishBatch(files: string[], actorId: string): Promise<PromiseSe
   return Promise.allSettled(
     files.map(async (file) => {
       const seed = loadJson<PackSeedInput>(file);
-      // Runs as the real SUPERUSER_EMAIL-provisioned participants_master row
-      // (holds `root`, which bypasses noun×verb authority — CR-006), resolved
-      // once by the caller via userDB.getSuperuserId() — publishPack/
-      // createPackDraft are rerun-safe (VM-002), so this is safe on every
-      // test process start.
       const result = await publishPack({ seed, actorRole: "super", actorId, activate: true });
       if (!result.ok) {
         throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
@@ -199,9 +117,6 @@ export async function seedAllTestFixturePacks(): Promise<void> {
     throw new Error(`[seed:test-fixture-packs] ${independentFailures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${independentFailures.join(" | ")}`);
   }
 
-  // Only started once every independent Pack (including test-openup-test,
-  // which provides test-testing-qa) has fully committed — these 2 depend on
-  // it being Active already, not just published earlier in this call.
   const dependentResults = await publishBatch(DEPENDENT_TEST_FIXTURE_PACK_FILES, actorId);
   const dependentFailures = dependentResults.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
   if (dependentFailures.length > 0) {

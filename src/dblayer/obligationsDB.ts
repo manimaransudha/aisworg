@@ -75,10 +75,6 @@ export const obligationsDB = {
     }
   },
 
-  // Platform-wide, not SEU-scoped — for dedup checks against a genuinely
-  // cross-SEU pattern (Ch.35 §11 capability shortage), where no single SEU
-  // id is stable enough to search by. See telemetry.ts's
-  // raiseSustainedPatternObligation dedupScope: "platform".
   async findByCategory(category: string): Promise<DbResult<ObligationRow[]>> {
     try {
       const { rows } = await query<ObligationRow>("SELECT * FROM obligations WHERE category = $1 ORDER BY created_at", [category]);
@@ -102,16 +98,6 @@ export const obligationsDB = {
     }
   },
 
-  // Migration 252 (owner: "any number of revisions can happen on the
-  // record" unless a transition is made explicitly; "the save will only
-  // append the history column"). A pure Revision — never touches `status` or
-  // the version-significant `version` counter (those only move via
-  // updateStatus, on a real governed transition), and publishes no event
-  // (core/obligations.ts's reviseObligation, not this function, would be
-  // where an event could be added, and it deliberately adds none). The
-  // caller (core/obligations.ts) has already diffed old vs new and built
-  // `historyEntry`; this is the one atomic write of both the new field
-  // values and the appended history row.
   async update(id: string, fields: Partial<Pick<ObligationRow, "title" | "description" | "category" | "severity" | "priority" | "completion_criteria" | "assigned_entity_type" | "assigned_entity_id">>, historyEntry: Record<string, unknown>): Promise<DbResult<ObligationRow>> {
     try {
       const columns = Object.keys(fields);
