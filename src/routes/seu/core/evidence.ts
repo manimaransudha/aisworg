@@ -3,11 +3,9 @@ import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
+import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
-import { resolveAuthor } from "./attentionItems.js";
 import type { EvidenceRow, EvidenceRelationshipRow, EvidenceValidationAssessment, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
 async function assertRelatedObjectExists(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<void> {
@@ -208,7 +206,8 @@ export async function transitionEvidence(input: { evidenceId: string; targetStat
 
   const fromState = evidence.status;
 
-  const gate = await transitionEngine.evaluate({
+  if (!seuId) throw new Error(`Evidence ${evidence.id} has no SEU relationship — cannot resolve a governed author for its Quality Gate evaluation`);
+  const gate = await transitionEngine.evaluateGoverned({
     entityType: "Evidence",
     fromState,
     toState: input.targetState,
@@ -216,31 +215,10 @@ export async function transitionEvidence(input: { evidenceId: string; targetStat
     actorId: input.actorId,
     entityId: evidence.id,
     context: { evidence },
+    gateEntityId: evidence.id,
+    gateSeuId: seuId,
   });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Evidence ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-
-  if (!input.actorId) throw new Error("actorId is required to transition Evidence");
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Evidence ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
-  if (!seuId) throw new Error(`Evidence ${evidence.id} has no SEU relationship — cannot resolve a governed author for its Quality Gate evaluation`);
-  const { authorId } = await resolveAuthor(seuId, input.actorId);
-  const qualityGateResult = await qualityGateEngine.evaluate({
-    entityType: "Evidence",
-    entityId: evidence.id,
-    seuId,
-    fromState,
-    toState: input.targetState,
-    authorId,
-    authorBadge: gate.authorityBadge,
-  });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
+  if (!gate.allowed) return gateRejection(gate, "Evidence", fromState, input.targetState);
 
   const { data: updated, error } = await evidenceDB.updateStatus(evidence.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update evidence status");

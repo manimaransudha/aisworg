@@ -3,10 +3,10 @@ import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
+import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import type { AttentionItemRow } from "../../../dblayer/seuTypes.js";
+import { getSystemActor } from "../../../dblayer/constants.js";
 
 export async function resolveAuthor(seuId: string, actorId: string): Promise<{ authorId: string }> {
   const { data: master } = await participantsMasterDB.findById(actorId);
@@ -14,13 +14,6 @@ export async function resolveAuthor(seuId: string, actorId: string): Promise<{ a
   const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, master.id);
   if (!participant) throw new Error(`No participants row for participants_master ${master.id} in SEU ${seuId}.`);
   return { authorId: participant.id };
-}
-
-export async function resolveSystemActor(seuId: string): Promise<{ actorId: string; authorBadge: "system" }> {
-  const { data: seu } = await seusDB.findById(seuId);
-  if (!seu) throw new Error(`SEU not found: ${seuId}`);
-  if (seu.requested_by == null) throw new Error(`SEU ${seuId} has no requested_by — cannot author a system-raised Attention Item`);
-  return { actorId: String(seu.requested_by), authorBadge: "system" };
 }
 
 export async function createAttentionItem(input: {
@@ -108,37 +101,17 @@ export async function transitionAttentionItem(input: { attentionItemId: string; 
 
   const fromState = attentionItem.status;
 
-  const gate = await transitionEngine.evaluate({
+  const gate = await transitionEngine.evaluateGoverned({
     entityType: "AttentionItem",
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
     actorId: input.actorId,
     context: { attentionItem },
+    gateEntityId: attentionItem.id,
+    gateSeuId: attentionItem.seu_id,
   });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for AttentionItem ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-
-  if (!input.actorId) throw new Error("actorId is required to transition an Attention Item");
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for AttentionItem ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
-  const { authorId } = await resolveAuthor(attentionItem.seu_id, input.actorId);
-  const qualityGateResult = await qualityGateEngine.evaluate({
-    entityType: "AttentionItem",
-    entityId: attentionItem.id,
-    seuId: attentionItem.seu_id,
-    fromState,
-    toState: input.targetState,
-    authorId,
-    authorBadge: gate.authorityBadge,
-  });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
+  if (!gate.allowed) return gateRejection(gate, "AttentionItem", fromState, input.targetState);
 
   const { data: updated, error } = await attentionItemsDB.updateStatus(attentionItem.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update attention item status");

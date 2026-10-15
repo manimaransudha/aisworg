@@ -8,7 +8,7 @@ const bcrypt          = require('bcryptjs');
 import { userDB }  from '../../dblayer/userDB.js';
 import { tenantsDB } from '../../dblayer/tenantsDB.js';
 import {participantsMasterDB} from '../../dblayer/participantsMasterDB.js';
-import {DEMO_TENANT_NAME} from '../../dblayer/constants.js';
+import {DEMO_TENANT_NAME, ensurePlatformSystemActor} from '../../dblayer/constants.js';
 import { logger }  from '../../utils/logger.js';
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || '').toLowerCase();
@@ -97,6 +97,10 @@ export function configurePassport() {
               userId: user.id,
             });
             if (participantCreateErr) return done(participantCreateErr);
+          }
+
+          if (SUPERUSER_EMAIL && user.email.toLowerCase() === SUPERUSER_EMAIL) {
+            await ensurePlatformSystemActor();
           }
 
           if (!user.is_active) {

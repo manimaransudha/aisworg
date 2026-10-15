@@ -6,8 +6,9 @@ import { evidenceDB } from "../../../dblayer/evidenceDB.js";
 import { decisionsDB } from "../../../dblayer/decisionsDB.js";
 import { reviewsDB } from "../../../dblayer/reviewsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { resolveAuthor, resolveSystemActor } from "./attentionItems.js";
+import { resolveAuthor } from "./attentionItems.js";
 import type { ComplianceRequirementRow, ComplianceStatus } from "../../../dblayer/seuTypes.js";
+import { getSystemActor } from "../../../dblayer/constants.js";
 
 const RESOLVED_OBLIGATION_STATUSES = new Set(["Verified", "Closed", "Archived"]);
 const QUALIFYING_EVIDENCE_STATUSES = new Set(["Accepted", "Referenced"]);
@@ -147,7 +148,7 @@ export async function evaluateCompliance(seuId: string, opts?: { persist?: boole
   const { data: previous } = await complianceDB.findLatestEvaluation(seuId);
 
   if (opts?.persist !== false) {
-    const systemActor = await resolveSystemActor(seuId);
+    const systemActor = await getSystemActor(seuId);
     const { authorId } = await resolveAuthor(seuId, systemActor.actorId);
     await complianceDB.recordEvaluation({ seuId, status, rationale: { counts, frameworks: frameworkCodes, conflicts }, results, authorId, authorBadge: systemActor.authorBadge });
     await eventBus.publish({ eventType: "ComplianceEvaluated", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, authorityBadge: systemActor.authorBadge, payload: { status, counts } });
@@ -176,7 +177,7 @@ export async function grantWaiver(input: { seuId: string; requirementCode: strin
 export async function generateComplianceReport(seuId: string) {
   const evaluation = await evaluateCompliance(seuId, { persist: true });
   const { data: waivers } = await complianceDB.findActiveWaivers(seuId);
-  const reportSystemActor = await resolveSystemActor(seuId);
+  const reportSystemActor = await getSystemActor(seuId);
   await eventBus.publish({ eventType: "ComplianceReportGenerated", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: reportSystemActor.actorId, authorityBadge: reportSystemActor.authorBadge, payload: { status: evaluation.status } });
   return {
     seuId,

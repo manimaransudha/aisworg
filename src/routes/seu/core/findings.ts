@@ -5,9 +5,10 @@ import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { raiseAttentionItem, resolveSystemActor } from "./attentionItems.js";
+import { raiseAttentionItem } from "./attentionItems.js";
 import { createObligation } from "./obligations.js";
 import type { FindingRow } from "../../../dblayer/seuTypes.js";
+import { getSystemActor } from "../../../dblayer/constants.js";
 
 const BLOCKING_SEVERITIES = new Set(["High", "Critical"]);
 
@@ -65,7 +66,7 @@ export async function createFinding(input: {
       description: input.description ?? `A ${input.severity} finding was raised by review "${review.name}".`,
       relatedObjectType: review.related_object_type,
       relatedObjectId: review.related_object_id,
-      ...(await resolveSystemActor(review.seu_id)),
+      ...(await getSystemActor(review.seu_id)),
     });
   }
 

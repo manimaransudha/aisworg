@@ -2,8 +2,7 @@ import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
+import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { createObligation } from "./obligations.js";
@@ -106,7 +105,7 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
 
   const fromState = knowledgeItem.status;
 
-  const gate = await transitionEngine.evaluate({
+  const gate = await transitionEngine.evaluateGoverned({
     entityType: "Knowledge",
     fromState,
     toState: input.targetState,
@@ -115,29 +114,11 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
     entityId: knowledgeItem.id,
     seuId: knowledgeItem.seu_id,
     context: { knowledgeItem },
+    gateEntityId: knowledgeItem.id,
+    gateSeuId: knowledgeItem.seu_id,
   });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Knowledge ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Knowledge ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
-  const { authorId: qualityGateAuthorId } = await resolveAuthor(knowledgeItem.seu_id, input.actorId);
-  const qualityGateResult = await qualityGateEngine.evaluate({
-    entityType: "Knowledge",
-    entityId: knowledgeItem.id,
-    seuId: knowledgeItem.seu_id,
-    fromState,
-    toState: input.targetState,
-    authorId: qualityGateAuthorId,
-    authorBadge: gate.authorityBadge,
-  });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
+  if (!gate.allowed) return gateRejection(gate, "Knowledge", fromState, input.targetState);
+  const { authorId: qualityGateAuthorId } = gate;
 
   const { data: updated, error } = await knowledgeItemsDB.updateStatus(knowledgeItem.id, input.targetState, qualityGateAuthorId, gate.authorityBadge);
   if (error || !updated) throw error ?? new Error("failed to update knowledge item status");

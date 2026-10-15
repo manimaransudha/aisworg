@@ -18,19 +18,67 @@ export type TransitionOutcome =
   | { allowed: false; reason: "not_submitted"; submitBadge: string }
   | { allowed: false; reason: "quality_gate_blocked"; gateCode: string; gateName: string; detail: string };
 
+export interface EvaluateInput {
+  entityType: TransitionEntityType;
+  fromState: string;
+  toState: string;
+  actorRole: string;
+  actorId: string;
+  context?: Record<string, unknown>;
+  entityId?: string;
+  seuId?: string;
+  currentVersion?: string;
+  alternateBadges?: string[];
+}
+
+export type RejectedOutcome = Exclude<TransitionOutcome, { allowed: true }>;
+export type AllowedOutcome = Extract<TransitionOutcome, { allowed: true }>;
+export type GovernedOutcome = RejectedOutcome | (Omit<AllowedOutcome, "authorityBadge"> & { authorityBadge: string; authorId: string });
+
+export interface GateRejectionResult {
+  ok: false;
+  reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked";
+  detail: string;
+}
+
+// One mapping from a rejected governed outcome to the result every transition function returns.
+export function gateRejection(gate: RejectedOutcome, entityLabel: string, fromState: string, toState: string): GateRejectionResult {
+  if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for ${entityLabel} ${fromState} -> ${toState}` };
+  if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
+  if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
+  if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
+  return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
+}
+
 export const transitionEngine = {
-  async evaluate(input: {
-    entityType: TransitionEntityType;
-    fromState: string;
-    toState: string;
-    actorRole: string;
-    actorId: string;
-    context?: Record<string, unknown>;
-    entityId?: string;
-    seuId?: string;
-    currentVersion?: string;
-    alternateBadges?: string[];
-  }): Promise<TransitionOutcome> {
+  // Governed evaluation (CR-121): authority, submission, policies and pinned gates through `evaluate`, then the
+  // authority-badge requirement, author resolution and the category-matched Quality Gates. It changes no state and
+  // publishes nothing; the caller updates the entity and publishes its own events afterwards.
+  async evaluateGoverned(input: EvaluateInput & { gateEntityId: string; gateSeuId: string }): Promise<GovernedOutcome> {
+    const { gateEntityId, gateSeuId, ...evaluateInput } = input;
+    const outcome = await this.evaluate(evaluateInput);
+    if (!outcome.allowed) return outcome;
+    if (!outcome.authorityBadge) throw new Error(`no authority badge resolved for ${input.entityType} ${input.fromState} -> ${input.toState} — the Transition Definition declares no verb`);
+    const { data: master } = await participantsMasterDB.findById(input.actorId);
+    if (!master) throw new Error(`No superuser provisioned.`);
+    const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(gateSeuId, master.id);
+    if (!participant) throw new Error(`No participants row for participants_master ${master.id} in SEU ${gateSeuId}.`);
+    const qualityGateResult = await qualityGateEngine.evaluate({
+      entityType: input.entityType,
+      entityId: gateEntityId,
+      seuId: gateSeuId,
+      fromState: input.fromState,
+      toState: input.toState,
+      authorId: participant.id,
+      authorBadge: outcome.authorityBadge,
+    });
+    if (qualityGateResult.outcome === "Blocked") {
+      return { allowed: false, reason: "quality_gate_blocked", gateCode: qualityGateResult.gate.code, gateName: qualityGateResult.gate.name, detail: qualityGateResult.reason };
+    }
+    return { ...outcome, authorityBadge: outcome.authorityBadge, authorId: participant.id };
+  },
+
+  async evaluate(input: EvaluateInput): Promise<TransitionOutcome> {
     const { data: definition } = await transitionDefinitionsDB.find(input.entityType, input.fromState, input.toState);
     if (!definition) return { allowed: false, reason: "no_transition_definition" };
 

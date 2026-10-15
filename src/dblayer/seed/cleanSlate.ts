@@ -13,7 +13,7 @@ import { seedRouteAuthority } from "./seedRouteAuthority.js";
 import { seedOntologyConcepts } from "./seedOntologyConcepts.js";
 import { userDB } from "../userDB.js";
 import { DEMO_PARTICIPANT_DISPLAY_NAME } from "./demo/demoBadges.js";
-import { RESERVED_TENANT_CODES } from "../constants.js";
+import { RESERVED_TENANT_CODES, SYSTEM_ACTOR_NAME, ensurePlatformSystemActor } from "../constants.js";
 import { seedTransitionDefinitions } from "./seedTransitionDefinitions.js";
 import { seedEventSubscriptions } from "./seedEventSubscriptions.js";
 import { seedCapabilityDefinitions } from "./seedCapabilityDefinitions.js";
@@ -22,6 +22,7 @@ import { seedServiceDefinitions } from "./seedServiceDefinitions.js";
 import { seedMetricDefinitions } from "./seedMetricDefinitions.js";
  
 const { userId, actorId, actorBadge } = await userDB.getSuperuserId();
+await ensurePlatformSystemActor();
 console.log('User id', userId, 'Actor Id', actorId, 'Actor badge', actorBadge);
 
 async function seedCapabilityPatternPacksWithRetry(actor: PackSeedActor, attempts = 3): Promise<void> {
@@ -90,8 +91,9 @@ async function run(): Promise<void> {
     await client.query(
     `DELETE FROM participants_master
     WHERE user_id IS DISTINCT FROM $1
-      AND display_name <> $2`,
-    [userId, DEMO_PARTICIPANT_DISPLAY_NAME]
+      AND display_name <> $2
+      AND display_name <> $3`,
+    [userId, DEMO_PARTICIPANT_DISPLAY_NAME, SYSTEM_ACTOR_NAME]
     );
     await client.query(
     `DELETE FROM users

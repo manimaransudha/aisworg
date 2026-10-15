@@ -5,9 +5,10 @@ import { commandsDB } from "../../dblayer/commandsDB.js";
 import { servicesDB } from "../../dblayer/servicesDB.js";
 import { eventBus } from "./eventBus.js";
 import { createObligation } from "../../routes/seu/core/obligations.js";
-import { raiseAttentionItem, resolveSystemActor } from "../../routes/seu/core/attentionItems.js";
+import { raiseAttentionItem } from "../../routes/seu/core/attentionItems.js";
 import { loadAvailableCandidates, selectParticipant } from "./dispatchStrategies.js";
 import type { CommandRow, ServiceRow, WorkItemRow } from "../../dblayer/seuTypes.js";
+import { getSystemActor } from "../../dblayer/constants.js";
 
 function resolveTurnaroundSeconds(services: ServiceRow[]): number | null {
   for (const service of services) {
@@ -22,7 +23,7 @@ function resolveTurnaroundSeconds(services: ServiceRow[]): number | null {
 async function rejectDispatch(input: { workItem: WorkItemRow; command: CommandRow | null; seuId: string; correlationId: string }, eventType: "DispatchRejected" | "ParticipantUnavailable", reason: string): Promise<void> {
   console.log(`[dispatchEngine] rejectDispatch seuId=${input.seuId} entityType=${input.command?.entity_type} entityId=${input.command?.entity_id} fromState=${input.command?.from_state} toState=${input.command?.to_state} reason=${reason} workItemId=${input.workItem.id}`);
   await workItemsDB.updateStatus(input.workItem.id, "Disposed");
-  const systemActor = await resolveSystemActor(input.seuId);
+  const systemActor = await getSystemActor(input.seuId);
   if (input.command) {
     await commandsDB.updateStatus(input.command.id, "Failed");
     await createObligation({
@@ -69,7 +70,7 @@ export const dispatchEngine = {
     strategies?: Array<{ strategy: string; order: number }>;
   }): Promise<void> {
     const command = (await commandsDB.findById(input.workItem.command_id)).data ?? null;
-    const systemActor = await resolveSystemActor(input.seuId);
+    const systemActor = await getSystemActor(input.seuId);
 
     if (!input.producingCapabilityId) {
       await rejectDispatch({ ...input, command }, "DispatchRejected", "no_producing_capability_declared");

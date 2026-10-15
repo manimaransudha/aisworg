@@ -21,14 +21,14 @@ import { policyEngine } from "../../../domain/engine/policyEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { logger } from "../../../utils/logger.js";
 import { createObjective, ensureOneShotContainer } from "./objectives.js";
-import { raiseAttentionItem, resolveAuthor, resolveSystemActor } from "./attentionItems.js";
+import { raiseAttentionItem, resolveAuthor } from "./attentionItems.js";
 import { raiseObligationForBlockedTransition, raiseObligationsForPackDefinitions } from "./obligations.js";
 import { findCandidateTemplates } from "./templates.js";
 import { extractProfileDetails, getProfilePackSelections, extractExposedParameterOverrides, listRealProfilesForTemplate } from "./profiles.js";
 import type { ProfileDetail } from "./profiles.js";
 import { resolveLabels } from "./ontology.js";
 import type { CommissioningReport, SeuLifecycleState, SeuRow, TemplateRow, ProfileRow, ObjectiveRow, CapabilityRow, TemplateDeliverableSeed, EbmCompositionReport, EbmComposedPack, EbmRow } from "../../../dblayer/seuTypes.js";
-import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { getPlatformTenantId, getSystemActor, ensureSeuSystemParticipant } from "../../../dblayer/constants.js";
  
 export type CommissionResult =
   | { ok: true; seu: SeuRow }
@@ -255,9 +255,9 @@ export async function finalizeCommissioning(input: {
     for (const c of caps ?? []) requiredCapabilitiesById.set(c.id, c);
   }
   const requiredCapabilities = [...requiredCapabilitiesById.values()];
-  const systemActor = await resolveSystemActor(seu.id);
-  const { authorId: capabilityAuthorId } = await resolveAuthor(seu.id, systemActor.actorId);
-  await seuCapabilitiesDB.createMany(seu.id, requiredCapabilities.map((c) => c.id), capabilityAuthorId, systemActor.authorBadge);
+  await ensureSeuSystemParticipant(seu.id);
+  const systemActor = await getSystemActor(seu.id);
+  await seuCapabilitiesDB.createMany(seu.id, requiredCapabilities.map((c) => c.id), systemActor.authorId, systemActor.authorBadge);
 
   const deliverableLabelByCode = await resolveLabels(tenantId, "deliverable-name");
   const { data: serviceDefinitions } = await serviceDefinitionsDB.findAllVisibleTo(tenantId ?? (await getPlatformTenantId()));
@@ -275,7 +275,7 @@ export async function finalizeCommissioning(input: {
   for (const t of templates) {
     for (const seed of t.deliverable_catalogue) deliverableCatalogueByCode.set(seed.code, seed);
   }
-  const deliverableAuthorId = capabilityAuthorId;
+  const deliverableAuthorId = systemActor.authorId;
   const deliverableIdByName = new Map<string, string>();
   for (const seed of deliverableCatalogueByCode.values()) {
     const producingCapability = producingCapabilityByDeliverableCode.get(seed.code);

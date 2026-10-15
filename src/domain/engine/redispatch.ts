@@ -5,11 +5,12 @@ import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { dispatchEngine } from "./dispatchEngine.js";
 import { createObligation } from "../../routes/seu/core/obligations.js";
-import { raiseAttentionItem, resolveSystemActor } from "../../routes/seu/core/attentionItems.js";
+import { raiseAttentionItem } from "../../routes/seu/core/attentionItems.js";
 import { eventBus } from "./eventBus.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
 import type { EventRow } from "../../dblayer/seuTypes.js";
+import { getSystemActor } from "../../dblayer/constants.js";
 
 async function resolveEbmPool(seuId: string): Promise<Array<{ propertyName: string; value: unknown }>> {
   const { data: seu } = await seusDB.findById(seuId);
@@ -53,7 +54,7 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
   if (maxAttempts != null && attempts >= maxAttempts) {
     await workItemsDB.updateStatus(workItem.id, "Disposed");
     await commandsDB.updateStatus(command.id, "Failed");
-    const systemActor = await resolveSystemActor(command.seu_id);
+    const systemActor = await getSystemActor(command.seu_id);
     await createObligation({
       relatedObjectType: command.entity_type,
       relatedObjectId: command.entity_id,
@@ -95,7 +96,7 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
       description: `Command ${command.id} (${command.from_state} -> ${command.to_state}) is still waiting for an available Participant. Redispatch continues (limit ${maxAttempts ?? "none configured"}).`,
       relatedObjectType: command.entity_type,
       relatedObjectId: command.entity_id,
-      ...(await resolveSystemActor(command.seu_id)),
+      ...(await getSystemActor(command.seu_id)),
     });
   }
 

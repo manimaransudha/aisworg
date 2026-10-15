@@ -7,14 +7,14 @@ import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { evaluateCondition, type GoverningCondition } from "../../../domain/engine/governingCondition.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { qualityGateEngine, RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGateEngine.js";
+import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
+import { RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
-import { raiseAttentionItem, resolveAuthor, resolveSystemActor } from "./attentionItems.js";
+import { raiseAttentionItem, resolveAuthor } from "./attentionItems.js";
 import type { AttentionItemRow, ObligationDefinition, ObligationRow, PolicyApplicabilityDeliverable, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { getPlatformTenantId, getSystemActor } from "../../../dblayer/constants.js";
  
 export async function resolveSeuIdFromRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<string> {
   if (relatedObjectType === "SEU") return relatedObjectId;
@@ -120,7 +120,7 @@ export async function raiseObligationForBlockedTransition(input: {
   toState: string;
   policyCode: string;
 }): Promise<{ obligations: ObligationRow[]; attentionItems: AttentionItemRow[] }> {
-  const systemActor = await resolveSystemActor(input.seuId);
+  const systemActor = await getSystemActor(input.seuId);
   const { data: policy } = await policiesDB.findByCode(input.policyCode);
   if (!policy) throw new Error(`policy "${input.policyCode}" not found while raising a blocked-transition Obligation`);
 
@@ -185,7 +185,7 @@ export async function raiseObligationsForPackDefinitions(input: {
   toState: string;
   context?: Record<string, unknown>;
 }): Promise<{ obligations: ObligationRow[]; attentionItems: AttentionItemRow[] }> {
-  const systemActor = await resolveSystemActor(input.seuId);
+  const systemActor = await getSystemActor(input.seuId);
   const { data: ebm } = await ebmsDB.findById(input.ebmId);
   const pool = (ebm?.behaviors as { pool?: Array<{ propertyName: string; value: unknown; source?: { id?: string } }> } | null)?.pool ?? [];
   const governedTransition = `${input.relatedObjectType}|${input.fromState}|${input.toState}`;
@@ -336,37 +336,17 @@ export async function transitionObligation(input: { obligationId: string; target
 
   const fromState = obligation.status;
 
-  const gate = await transitionEngine.evaluate({
+  const gate = await transitionEngine.evaluateGoverned({
     entityType: "Obligation",
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
     actorId: input.actorId,
     context: { obligation },
+    gateEntityId: obligation.id,
+    gateSeuId: obligation.seu_id,
   });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Obligation ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-
-  if (!input.actorId) throw new Error("actorId is required to transition an Obligation");
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Obligation ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
-  const { authorId } = await resolveAuthor(obligation.seu_id, input.actorId);
-  const qualityGateResult = await qualityGateEngine.evaluate({
-    entityType: "Obligation",
-    entityId: obligation.id,
-    seuId: obligation.seu_id,
-    fromState,
-    toState: input.targetState,
-    authorId,
-    authorBadge: gate.authorityBadge,
-  });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
+  if (!gate.allowed) return gateRejection(gate, "Obligation", fromState, input.targetState);
 
   const { data: updated, error } = await obligationsDB.updateStatus(obligation.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update obligation status");

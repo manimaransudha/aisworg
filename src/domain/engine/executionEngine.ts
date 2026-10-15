@@ -14,11 +14,12 @@ import { obligationsDB } from "../../dblayer/obligationsDB.js";
 import { decisionsDB } from "../../dblayer/decisionsDB.js";
 import { deliverableReferencesDB } from "../../dblayer/deliverableReferencesDB.js";
 import { checkSustainedQualityGateBlocking } from "../../routes/seu/core/telemetry.js";
-import { raiseAttentionItem, resolveAuthor, resolveSystemActor } from "../../routes/seu/core/attentionItems.js";
+import { raiseAttentionItem, resolveAuthor } from "../../routes/seu/core/attentionItems.js";
 import { raiseObligationForBlockedTransition } from "../../routes/seu/core/obligations.js";
 import { attentionItemsDB } from "../../dblayer/attentionItemsDB.js";
 import { authorityRulesDB } from "../../dblayer/authorityRulesDB.js";
 import type { CommandRow, DeliverableRow, DependencyDefinitionRow, GovernanceEvaluationOutcomeDraft, TransitionEntityType } from "../../dblayer/seuTypes.js";
+import { getSystemActor } from "../../dblayer/constants.js";
 
 export type DeliverableGovernanceResult =
   | { ok: true; fromState: string; governanceOutcome: GovernanceEvaluationOutcomeDraft; actingBadgeType: string }
@@ -36,7 +37,7 @@ export const executionEngine = {
     const readiness = await dependencyDefinitionEngine.isTargetReady(deliverable.seu_id, "Deliverable", deliverable.name, targetState);
     if (!readiness.ready) {
       const reason = `${readiness.rows.length} governing dependency row(s) not yet satisfied (${readiness.rows.map((r) => `${r.from_entity_type}${r.from_name ? ` "${r.from_name}"` : ""} -> ${r.from_state}`).join(", ")})`;
-      const blockedSystemActor = await resolveSystemActor(deliverable.seu_id);
+      const blockedSystemActor = await getSystemActor(deliverable.seu_id);
       await eventBus.publish({
         eventType: "DeliverableBlocked",
         originatingObjectType: "Deliverable",
@@ -104,7 +105,7 @@ export const executionEngine = {
     });
     if (qualityGateResult.outcome === "Blocked") {
       await checkSustainedQualityGateBlocking({ qualityGateId: qualityGateResult.gate.id, gateName: qualityGateResult.gate.name, seuId: deliverable.seu_id, deliverableId: deliverable.id });
-      const systemActor = await resolveSystemActor(deliverable.seu_id);
+      const systemActor = await getSystemActor(deliverable.seu_id);
       await raiseAttentionItem({
         seuId: deliverable.seu_id,
         category: "Action Required",

@@ -23,6 +23,7 @@ Source: `tests/testFixtures.ts`. Read the helper you need there before writing a
 - Those create functions resolve their badge themselves (`knowledge_observe`, `decision_identify`, `knowledge_validate`). A non-root actor needs it through `grantBadge`. `ROOT_ACTOR_ID` and `ROOT_ACTOR_BADGE` cover root.
 - Direct DB-layer writes in a test (`decisionsDB.create`, `knowledgeItemsDB.create`) take the SEU-scoped `participants.id` of the actor, not the `participants_master` id, plus a badge.
 - A test that builds an ad-hoc transition definition with policies through `transitionDefinitionsDB.upsert` declares a `verb`. The engine throws when a transition needs a badge and the definition has none. Use a verb whose `<entity>_<verb>` badge the actor holds.
+- Engine-raised rows (work items, Attention Items, Obligations, the SEU capabilities and Deliverables) are authored by the SEU's system participant, which commissioning creates when the SEU is Commissioned. A test that creates an SEU with `seusDB.create` calls `ensureSeuSystemParticipant(seuId)` before anything engine-driven runs. `getSystemActor(seuId)` throws when it is missing.
 - `createDraft` and `upsert` require `tenantId` (`PLATFORM_TENANT_ID` in fixtures). Nothing defaults it.
 - A created row records the author's badge. Assert `"root"` for a root actor, not `null`.
 

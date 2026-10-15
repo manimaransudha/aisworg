@@ -1,8 +1,7 @@
 import { externalInteractionsDB } from "../../../dblayer/externalInteractionsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
+import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { raiseAttentionItem, resolveAuthor } from "./attentionItems.js";
 import type { ExternalInteractionRow, InteractionDirection } from "../../../dblayer/seuTypes.js";
@@ -75,7 +74,7 @@ export async function transitionExternalInteraction(input: { interactionId: stri
   const fromState = interaction.status;
 
   if (!input.actorId) throw new Error("actorId is required to transition an ExternalInteraction");
-  const gate = await transitionEngine.evaluate({
+  const gate = await transitionEngine.evaluateGoverned({
     entityType: "ExternalInteraction",
     fromState,
     toState: input.targetState,
@@ -83,29 +82,10 @@ export async function transitionExternalInteraction(input: { interactionId: stri
     actorId: input.actorId,
     entityId: interaction.id,
     context: { interaction },
+    gateEntityId: interaction.id,
+    gateSeuId: interaction.seu_id,
   });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for ExternalInteraction ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ExternalInteraction ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
-  const { authorId } = await resolveAuthor(interaction.seu_id, input.actorId);
-  const qualityGateResult = await qualityGateEngine.evaluate({
-    entityType: "ExternalInteraction",
-    entityId: interaction.id,
-    seuId: interaction.seu_id,
-    fromState,
-    toState: input.targetState,
-    authorId,
-    authorBadge: gate.authorityBadge,
-  });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
+  if (!gate.allowed) return gateRejection(gate, "ExternalInteraction", fromState, input.targetState);
 
   const { data: updated, error } = await externalInteractionsDB.updateStatus(interaction.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update external interaction status");

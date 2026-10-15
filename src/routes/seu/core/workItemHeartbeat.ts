@@ -3,7 +3,8 @@ import { commandsDB } from "../../../dblayer/commandsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { raiseAttentionItem, resolveSystemActor } from "./attentionItems.js";
+import { raiseAttentionItem } from "./attentionItems.js";
+import { getSystemActor } from "../../../dblayer/constants.js";
 
 export interface StallSweepResult {
   scanned: number;
@@ -28,7 +29,7 @@ export async function sweepStalledWorkItems(input?: { now?: Date; seuId?: string
     if (existing) continue;
 
     const overdueBy = Math.round((now.getTime() - new Date(workItem.target_completion_at!).getTime()) / 1000);
-    const stallSystemActor = await resolveSystemActor(command.seu_id);
+    const stallSystemActor = await getSystemActor(command.seu_id);
     await raiseAttentionItem({
       seuId: command.seu_id,
       category: "Escalation",

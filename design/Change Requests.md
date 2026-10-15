@@ -4,6 +4,8 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-122](design/change-requests/CR-122-platform-system-actor.md) | A platform system actor provisioned with the Platform tenant; rule-based evaluations (Quality Gate, governance) are authored by the system, not the requesting user | 🟡 Built pending verification |
+| [CR-121](design/change-requests/CR-121-governed-transition-evaluation.md) | One governed transition evaluation (authority, policy, Quality Gate) shared by every transition function; event publishing stays in each entity function | 🟡 Built (first pass) pending verification |
 | [CR-120](design/change-requests/CR-120-not-null-columns-no-code-fallback.md) | NOT NULL columns carry no optional type and no fallback in code: actor, author and badge columns, strict Row types, Knowledge and Decision creation badges, required `tenantId` | 🟡 Built pending verification |
 | [CR-119](design/change-requests/CR-119-shared-version-helper.md) | Shared version helper (`src/utils/version.ts`), single `INITIAL_VERSION`, and the nullable `version_hop` transition flag; duplicate-version checks and publish idempotency removed | 🟡 Built pending verification |
 | [CR-118](design/change-requests/CR-118-restructuing-specs.md) | Restructure the specifications (Part 1 and Part 2) and baseline the implementation specifics in the docs folder | ✅ Built 2026-10-05 |

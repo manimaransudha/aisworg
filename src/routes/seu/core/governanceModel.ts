@@ -3,7 +3,7 @@ import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { resolveSystemActor } from "./attentionItems.js";
+import { getSystemActor } from "../../../dblayer/constants.js";
 
 export interface EffectiveGovernanceModel {
   seuId: string;
@@ -50,7 +50,7 @@ export async function getEffectiveGovernanceModel(seuId: string): Promise<Effect
     }
   }
 
-  const governanceSystemActor = await resolveSystemActor(seuId);
+  const governanceSystemActor = await getSystemActor(seuId);
   await eventBus.publish({
     eventType: "GovernanceModelInspected",
     originatingObjectType: "SEU",

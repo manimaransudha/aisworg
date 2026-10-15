@@ -3,8 +3,7 @@ import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
+import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import type { ReviewOutcome, ReviewRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
@@ -107,22 +106,12 @@ export async function transitionReview(input: {
   const fromState = review.status;
 
   if (!input.actorId) throw new Error("actorId is required to transition a Review");
-  const gate = await transitionEngine.evaluate({ entityType: "Review", fromState, toState: input.targetState, actorRole: input.actorRole,
-    actorId: input.actorId, entityId: review.id, context: { review } });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Review ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Review ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
-  const authorId = await resolveAuthorId(review.seu_id, input.actorId);
-  const qualityGateResult = await qualityGateEngine.evaluate({ entityType: "Review", entityId: review.id, seuId: review.seu_id, fromState, toState: input.targetState, authorId, authorBadge: gate.authorityBadge });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
+  const gate = await transitionEngine.evaluateGoverned({ entityType: "Review", fromState, toState: input.targetState, actorRole: input.actorRole,
+    actorId: input.actorId, entityId: review.id, context: { review },
+    gateEntityId: review.id,
+    gateSeuId: review.seu_id,
+  });
+  if (!gate.allowed) return gateRejection(gate, "Review", fromState, input.targetState);
 
   let updated: ReviewRow;
   if (input.targetState === "Completed") {

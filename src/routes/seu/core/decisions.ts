@@ -1,8 +1,7 @@
 import { decisionsDB } from "../../../dblayer/decisionsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
+import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { assertCanonicalCategory } from "./ontology.js";
@@ -104,7 +103,7 @@ export async function transitionDecision(input: { decisionId: string; targetStat
 
   const fromState = decision.status;
 
-  const gate = await transitionEngine.evaluate({
+  const gate = await transitionEngine.evaluateGoverned({
     entityType: "Decision",
     fromState,
     toState: input.targetState,
@@ -112,29 +111,11 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     actorId: input.actorId,
     entityId: decision.id,
     context: { decision },
+    gateEntityId: decision.id,
+    gateSeuId: decision.seu_id,
   });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Decision ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Decision ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
-  const { authorId } = await resolveAuthor(decision.seu_id, input.actorId);
-  const qualityGateResult = await qualityGateEngine.evaluate({
-    entityType: "Decision",
-    entityId: decision.id,
-    seuId: decision.seu_id,
-    fromState,
-    toState: input.targetState,
-    authorId,
-    authorBadge: gate.authorityBadge,
-  });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
+  if (!gate.allowed) return gateRejection(gate, "Decision", fromState, input.targetState);
+  const { authorId } = gate;
 
   const { data: updated, error } = await decisionsDB.updateStatus(decision.id, input.targetState, { participantId: authorId, authorityBadge: gate.authorityBadge });
   if (error || !updated) throw error ?? new Error("failed to update decision status");

@@ -15,7 +15,7 @@ import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
 import { reviewsDB } from "../../../dblayer/reviewsDB.js";
 import { findingsDB } from "../../../dblayer/findingsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { resolveSystemActor } from "./attentionItems.js";
+import { getSystemActor } from "../../../dblayer/constants.js";
 
 export interface ProvenanceEntry {
   fromState: string;
@@ -137,7 +137,7 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
     }
   }
 
-  const explainSystemActor = await resolveSystemActor(deliverable.seu_id);
+  const explainSystemActor = await getSystemActor(deliverable.seu_id);
   await eventBus.publish({
     eventType: "TraceabilityQueryExecuted",
     originatingObjectType: "Deliverable",
@@ -196,7 +196,7 @@ export async function impactOfDeliverable(deliverableId: string): Promise<Delive
     }
   }
 
-  const impactSystemActor = await resolveSystemActor(deliverable.seu_id);
+  const impactSystemActor = await getSystemActor(deliverable.seu_id);
   await eventBus.publish({
     eventType: "TraceabilityQueryExecuted",
     originatingObjectType: "Deliverable",

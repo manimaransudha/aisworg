@@ -37,7 +37,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
+import { getPlatformTenantId, ensureSeuSystemParticipant } from "../src/dblayer/constants.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
 import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
@@ -204,6 +204,7 @@ test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directl
   // EBM" design point concretely, not just by omission.
   const { objective } = await createObjective({ statement: `cr104-eligibility-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
   const { data: seu } = await seusDB.create({ authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective.id, templateId: template!.id, profileId: profile!.id, tenantId: PLATFORM_TENANT_ID, requestedBy: TESTER_ALL_ID });
+  await ensureSeuSystemParticipant(seu!.id);
   assert.ok(seu);
   assert.equal(seu!.active_ebm_id, null, "sanity check: this SEU genuinely has no EBM yet");
 
