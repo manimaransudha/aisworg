@@ -22,7 +22,7 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { qualityGateEvaluationsDB } from "../src/dblayer/qualityGateEvaluationsDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture, ensureStaleTestPackConcepts, uniqueTestPackVersion, commissionFromFormSync, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureStaleTestPackConcepts, uniqueTestPackVersion, commissionFromFormSync, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, PLATFORM_TENANT_ID } from "./testFixtures.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import type { EventRow, SeuRow } from "../src/dblayer/seuTypes.js";
 
@@ -57,7 +57,7 @@ test("FR-21.1: an SEU exposes one effective Governance Model derived from its EB
   // sensitive to — a different Template being picked broke this test's own
   // assumptions about exactly which Packs get composed.
   const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
-  const { data: profile } = await profilesDB.upsert({ code: `gov-model-profile-${randomUUID()}`, name: "Gov Model Profile", baseTemplateId: fixtureTemplate.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: profile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `gov-model-profile-${randomUUID()}`, name: "Gov Model Profile", baseTemplateId: fixtureTemplate.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   const { objective: govRoot } = await createObjective({ statement: `gov-model-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
   const { objective } = await createObjective({ statement: `gov-model-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: govRoot.id, requestedBy: TESTER_ALL_ID, status: "Proposed" });
   await submitObjective(objective.id, TESTER_ALL_ID);
@@ -98,10 +98,10 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
   assert.ok(pubA.ok && pubB.ok, "both packs publish");
 
   // A template that composes BOTH conflicting packs.
-  const { data: template } = await templatesDB.upsert({ code: `conflict-tpl-${run}`, name: "Conflict Template", deliverableCatalogue: [] });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `conflict-tpl-${run}`, name: "Conflict Template", deliverableCatalogue: [] });
   await templatesDB.setMandatoryPacks(template!.id, [packA.code, packB.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(template!.id, []);
-  const { data: profile } = await profilesDB.upsert({ code: `conflict-prof-${run}`, name: "Conflict Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  const { data: profile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `conflict-prof-${run}`, name: "Conflict Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   // CR-009: Engineering Objectives need a Strategic parent (only Strategic may be a root).
   // CR-075 — createObjective now requires the parent to be Proposed when adding a child under it.
   const { objective: conflictRoot } = await createObjective({ statement: `conflict-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed",});
@@ -163,14 +163,14 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
   // "does a prior Failed SEU block retry" from "did the second attempt
   // genuinely resolve anything" — it never had the stale reference to begin
   // with.
-  const { data: conflictTemplate } = await templatesDB.upsert({ code: `retry-conflict-tpl-${run}`, name: "Retry Conflict Template", deliverableCatalogue: [] });
+  const { data: conflictTemplate } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `retry-conflict-tpl-${run}`, name: "Retry Conflict Template", deliverableCatalogue: [] });
   await templatesDB.setMandatoryPacks(conflictTemplate!.id, [stalePack.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(conflictTemplate!.id, []);
-  const { data: conflictProfile } = await profilesDB.upsert({ code: `retry-conflict-prof-${run}`, name: "Retry Conflict Profile", baseTemplateId: conflictTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  await templatesDB.setRequiredCapabilities(conflictTemplate!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  const { data: conflictProfile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `retry-conflict-prof-${run}`, name: "Retry Conflict Profile", baseTemplateId: conflictTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
 
-  const { data: cleanTemplate } = await templatesDB.upsert({ code: `retry-clean-tpl-${run}`, name: "Retry Clean Template", deliverableCatalogue: [] });
-  await templatesDB.setRequiredCapabilities(cleanTemplate!.id, []);
-  const { data: cleanProfile } = await profilesDB.upsert({ code: `retry-clean-prof-${run}`, name: "Retry Clean Profile", baseTemplateId: cleanTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: cleanTemplate } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `retry-clean-tpl-${run}`, name: "Retry Clean Template", deliverableCatalogue: [] });
+  await templatesDB.setRequiredCapabilities(cleanTemplate!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  const { data: cleanProfile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `retry-clean-prof-${run}`, name: "Retry Clean Profile", baseTemplateId: cleanTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
 
   const { objective: retryRoot } = await createObjective({ statement: `retry-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
   const { objective } = await createObjective({ statement: `retry-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: retryRoot.id, requestedBy: TESTER_ALL_ID });
@@ -241,10 +241,10 @@ test("Validate Request: a Template mandating a since-Retired Pack fails commissi
   // abstraction" gap Validate Request exists to close.
   await packsDB.updateStatus(activePack!.id, "Retired");
 
-  const { data: template } = await templatesDB.upsert({ code: `stale-pack-tpl-${run}`, name: "Stale Pack Template", deliverableCatalogue: [] });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `stale-pack-tpl-${run}`, name: "Stale Pack Template", deliverableCatalogue: [] });
   await templatesDB.setMandatoryPacks(template!.id, [stalePack.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(template!.id, []);
-  const { data: profile } = await profilesDB.upsert({ code: `stale-pack-prof-${run}`, name: "Stale Pack Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  const { data: profile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `stale-pack-prof-${run}`, name: "Stale Pack Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   const { objective: staleRoot } = await createObjective({ statement: `stale-pack-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
   const { objective } = await createObjective({ statement: `stale-pack-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: staleRoot.id, requestedBy: TESTER_ALL_ID });
 

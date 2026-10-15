@@ -4,7 +4,7 @@ import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateServiceDefinitionWriteAgainstSchema } from "../routes/seu/core/serviceDefinitionWriteValidator.js";
 import type { DbResult, ServiceDefinitionRow, ServiceLevelExpectation } from "./seuTypes.js";
 import { tenantsDB } from "./tenantsDB.js";
-import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "./constants.js";
+import { getPlatformTenantId, PLATFORM_TENANT_NAME, INITIAL_VERSION } from "./constants.js";
  
 export const serviceDefinitionsDB = {
   async createDraft(input: {
@@ -22,22 +22,17 @@ export const serviceDefinitionsDB = {
     authoredBy: string;
     authorBadge: string;
     draftContent?: Record<string, unknown>;
-    tenantId?: string;
+    tenantId: string;
     parentServiceDefinitionId?: string | null;
     schemaDefinitionId: string;
   }): Promise<DbResult<ServiceDefinitionRow>> {
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
       
     try {
-      const version = input.version ?? "1.0.0";
+      const version = input.version ?? INITIAL_VERSION;
       const draftContent = input.draftContent ?? {};
-      const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+      const tenantId = input.tenantId;
 
-      const { rows: dupRows } = await query<{ id: string }>(
-        "SELECT id FROM service_definitions WHERE code = $1 AND version = $2 AND tenant_id = $3",
-        [input.code, version, tenantId]
-      );
-      if (dupRows.length > 0) return { data: undefined } as DbResult<ServiceDefinitionRow>;
 
       const errors = await validateServiceDefinitionWriteAgainstSchema({
         code: input.code,
@@ -63,7 +58,6 @@ export const serviceDefinitionsDB = {
       const { rows } = await query<ServiceDefinitionRow>(
         `INSERT INTO service_definitions (code, name, capability_code, purpose, inputs, outputs, service_level, governance, success, consumers, version, status, authored_by, author_badge, draft_content, tenant_id, parent_service_definition_id, schema_definition_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Defined', $12, $13, $14, $15, $16, $17)
-         ON CONFLICT (code, version, tenant_id) DO NOTHING
          RETURNING *`,
         [
           input.code,

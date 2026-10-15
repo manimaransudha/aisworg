@@ -40,6 +40,7 @@ import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
  
 const CHILD_TIERS: Record<ObjectiveTier, ObjectiveTier[]> = {
   Strategic: ["Operational", "Engineering"],
@@ -47,7 +48,7 @@ const CHILD_TIERS: Record<ObjectiveTier, ObjectiveTier[]> = {
   Engineering: [],
 };
 
-async function getObjectiveViewerContext(req: Request): Promise<{ isRoot: boolean; tenantId: string | null; canRetireObjective: boolean; canProposeObjective: boolean; canComment: boolean; hasObjectiveBadge: (verb: string | null) => boolean }> {
+async function getObjectiveViewerContext(req: Request): Promise<{ isRoot: boolean; tenantId: string | null; canRetireObjective: boolean; canProposeObjective: boolean; canComment: boolean; commentBadge: string | null; hasObjectiveBadge: (verb: string | null) => boolean }> {
   const held = await resolveHeldBadges(req);
   const hasObjectiveBadge = (verb: string | null): boolean => held.isRoot || (!!verb && held.badgeTypes.has(`objective_${verb}`));
   return {
@@ -56,6 +57,7 @@ async function getObjectiveViewerContext(req: Request): Promise<{ isRoot: boolea
     canRetireObjective: hasObjectiveBadge("retire"),
     canProposeObjective: held.has("objective_propose"),
     canComment: held.isRoot || [...held.badgeTypes].some((b) => b.startsWith("objective_")),
+    commentBadge: held.isRoot ? "root" : ([...held.badgeTypes].find((b) => b.startsWith("objective_")) ?? null),
     hasObjectiveBadge,
   };
 }
@@ -329,12 +331,16 @@ router.post("/objectives/:id/update", async (req: Request, res: Response) => {
     stashFormInput(req, { statement: typeof statement === "string" ? statement : "", requiredCapabilityCodes: codes });
     return flashError(req, res, backTo, "At least one required Capability is required.");
   }
+  if (typeof statement !== "string" || !statement.trim()) {
+    stashFormInput(req, { statement: "", requiredCapabilityCodes: codes });
+    return flashError(req, res, backTo, "Statement is required.");
+  }
   if (req.session?.user?.id == null) {
     return flashError(req, res, backTo, "You must be logged in to create an Objective.");
   }
   try {
     const updated = await updateObjective(objectiveId, {
-      statement: typeof statement === "string" && statement.trim() ? statement : undefined,
+      statement,
       requiredCapabilityCodes: codes,
       requestedBy: String(req.session.user.id),
       bumpVersion,
@@ -540,6 +546,7 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
       templateId: selection.templateId,
       profileId,
       requestedBy: String(req.session.user.id),
+      authorBadge: await badgeAuthorityEngine.resolveAuthorBadge(String(req.session.user.id), "seu_commission"),
       tenantId: seuTenantId,
     });
     if (seuErr || !newSeu) return flashError(req, res, backTo, (seuErr ?? new Error("failed to create SEU")).message);
@@ -749,11 +756,11 @@ router.post("/objectives/:id/comments", async (req: Request, res: Response) => {
     return flashError(req, res, backTo, "You must be logged in to create an Objective.");
   }
   try {
-    const { canComment } = await getObjectiveViewerContext(req);
-    if (!canComment) return flashError(req, res, backTo, "You don't hold a badge for this Objective.");
+    const { commentBadge } = await getObjectiveViewerContext(req);
+    if (!commentBadge) return flashError(req, res, backTo, "You don't hold a badge for this Objective.");
     if (typeof comment !== "string" || !comment.trim()) return flashError(req, res, backTo, "Comment text is required.");
 
-    const { error } = await objectivesDB.addComment(objectiveId, String(req.session.user.id), comment.trim());
+    const { error } = await objectivesDB.addComment(objectiveId, String(req.session.user.id), commentBadge, comment.trim());
     if (error) throw error;
     return flashSuccess(req, res, backTo, "Comment added.");
   } catch (err) {

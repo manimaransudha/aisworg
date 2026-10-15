@@ -1,0 +1,590 @@
+[
+  {
+    "code": "technology-react-native",
+    "name": "Riverbend React Native Standards",
+    "category": "Technology",
+    "packVersion": "1.0.0",
+    "installationClassification": "Optional",
+    "description": "Riverbend IT's existing React Native coding standards, brought into the platform as grouped checklists in place of a free-standing document.",
+    "owner": "Riverbend IT",
+    "publisher": "Riverbend Public Library",
+    "dependencies": [
+      {
+        "packCode": "development",
+        "version": "1.0.0",
+        "type": "required"
+      }
+    ],
+    "contributions": {
+      "capabilities": [
+        {
+          "code": "software-construction"
+        },
+        {
+          "code": "engineering-work-review"
+        }
+      ],
+      "services": [],
+      "checklists": [
+        {
+          "name": "Riverbend React Native — Project Structure and Naming",
+          "description": "Riverbend IT mobile standard: project structure and naming.",
+          "items": [
+            {
+              "statement": "All the components, globals, images, redux etc.. Should be written inside the src folder",
+              "group": "Folder Structure"
+            },
+            {
+              "statement": "Images should be there in the images folder under the src folder.",
+              "group": "Folder Structure"
+            },
+            {
+              "statement": "Redux files should be written inside the store folder under the src folder",
+              "group": "Folder Structure"
+            },
+            {
+              "statement": "You can create stack navigator file inside navigation folder under src",
+              "group": "Folder Structure"
+            },
+            {
+              "statement": "A folder and sub folder name should always start with small letters and the files belongs the folders is always in pascal case.",
+              "group": "Naming Conventions"
+            },
+            {
+              "statement": "Object and variable declaration should always in camel case statement.",
+              "group": "Naming Conventions"
+            },
+            {
+              "statement": "Divide The Components (split the React Native components into two individual directories: container and plain components)",
+              "group": "Component Structure"
+            },
+            {
+              "statement": "Create aliases using babel-plugin-module-resolver to avoid nested imports",
+              "group": "Project Configuration"
+            }
+          ]
+        },
+        {
+          "name": "Riverbend React Native — Component and State Standards",
+          "description": "Riverbend IT mobile standard: component and state standards.",
+          "items": [
+            {
+              "statement": "Declare The Types: It can either be Flow or Typescript",
+              "group": "Type Safety"
+            },
+            {
+              "statement": "Separate the styles from the components.",
+              "group": "Styling"
+            },
+            {
+              "statement": "Use Hooks (avoid class based component)",
+              "group": "Component Design"
+            },
+            {
+              "statement": "Use Redux for for the store state (Avoid unnecessary use of redux)",
+              "group": "State Management"
+            },
+            {
+              "statement": "Alway assign unique key to each element.",
+              "group": "Component Rendering"
+            },
+            {
+              "statement": "create class component when we have to use state otherwise we should use functional component",
+              "group": "Component Design"
+            },
+            {
+              "statement": "Use spread operator. It can make your React code much more beautiful and clean",
+              "group": "JavaScript Coding Standards"
+            },
+            {
+              "statement": "write your api calls within the useEffect for hooks / write your api calls withing the componentDidMount for class component.",
+              "group": "API & Lifecycle Management"
+            }
+          ]
+        },
+        {
+          "name": "Riverbend React Native — Platform and Experience Standards",
+          "description": "Riverbend IT mobile standard: platform and experience standards.",
+          "items": [
+            {
+              "statement": "Use Platform specific styles.",
+              "group": "Platform-Specific Development"
+            },
+            {
+              "statement": "Always implement as much client validation as possible at front end level",
+              "group": "Input Validation"
+            },
+            {
+              "statement": "make sure that the app you are building is responsive",
+              "group": "Responsive Design"
+            },
+            {
+              "statement": "DO use Safe Area View to look good on every iOS device",
+              "group": "Platform-Specific Development"
+            },
+            {
+              "statement": "Check internet connectivity for a better user experience",
+              "group": "Network & Connectivity"
+            }
+          ]
+        },
+        {
+          "name": "Riverbend React Native — Quality and Release Standards",
+          "description": "Riverbend IT mobile standard: quality and release standards.",
+          "items": [
+            {
+              "statement": "Remove console.log() after debugging, It will make app slower.",
+              "group": "Code Quality & Performance"
+            },
+            {
+              "statement": "Add fastlane set up for automate development and build release process",
+              "group": "Build & Release"
+            },
+            {
+              "statement": "Use a linter to make your code easier to review.",
+              "group": "Code Quality & Standards"
+            },
+            {
+              "statement": "Lock Dependencies(remove the ^ character in order to lock the dependency on that specific version)",
+              "group": "Dependency Management"
+            },
+            {
+              "statement": "Review your code at least once before creating a pull or merge request",
+              "group": "Code Review"
+            }
+          ]
+        }
+      ],
+      "policies": [
+        "cr104-demo-background-check"
+      ],
+      "competencies": [
+        {
+          "dimension": "Technology",
+          "value": "react-native"
+        }
+      ],
+      "obligationDefinitions": [
+        {
+          "code": "native-sdk-deprecation-tracking",
+          "category": "Engineering",
+          "title": "Deprecated native iOS and Android APIs must be tracked and migrated before the platform removes them",
+          "description": "The app bridges into native APIs that the platforms deprecate on their own release cycles. Deprecated usage is migrated before removal.",
+          "origin": "Quality Gates",
+          "priority": "Medium",
+          "severity": "High",
+          "completionCriteria": "Every deprecated native API usage is migrated or tracked to remediation before the platform removal deadline.",
+          "requiredEvidence": {
+            "title": "SDK deprecation scan",
+            "category": "Validation Evidence",
+            "description": "SDK deprecation scan.",
+            "collectionMethod": "Native build and lint output."
+          },
+          "classification": "machine-verifiable",
+          "prompt": "",
+          "participant": "AI",
+          "outputContract": "passed-failed-notes",
+          "assurance": "Automated native build check.",
+          "externalEvidence": false
+        },
+        {
+          "code": "dependency-upgrade-regression-run",
+          "category": "Engineering",
+          "title": "Every dependency upgrade is followed by a regression run on both iOS and Android builds",
+          "description": "A dependency upgrade can change behaviour on one platform only. A regression run on both builds follows each upgrade.",
+          "origin": "Quality Gates",
+          "priority": "Medium",
+          "severity": "High",
+          "completionCriteria": "A regression run on both iOS and Android builds passes after each dependency upgrade.",
+          "requiredEvidence": {
+            "title": "Dual-platform regression report",
+            "category": "Validation Evidence",
+            "description": "Dual-platform regression report.",
+            "collectionMethod": "Regression run output for the iOS and Android builds."
+          },
+          "classification": "machine-verifiable",
+          "prompt": "",
+          "participant": "AI",
+          "outputContract": "passed-failed-notes",
+          "assurance": "Automated regression run.",
+          "externalEvidence": false
+        }
+      ]
+    }
+  },
+  {
+    "code": "domain-ebook-library",
+    "name": "Riverbend Library Catalogue Domain",
+    "category": "Domain",
+    "packVersion": "1.0.0",
+    "installationClassification": "Optional",
+    "description": "Catalogue management for the library: bibliographic records (title, author, ISBN, subject) and the catalogue vocabulary.",
+    "owner": "Riverbend IT",
+    "publisher": "Riverbend Public Library",
+    "dependencies": [
+      {
+        "packCode": "development",
+        "version": "1.0.0",
+        "type": "required"
+      }
+    ],
+    "contributions": {
+      "capabilities": [
+        {
+          "code": "understanding-business-domain"
+        },
+        {
+          "code": "requirements-elicitation"
+        },
+        {
+          "code": "engineering-documentation"
+        }
+      ],
+      "services": [
+        {
+          "code": "domain-model-service"
+        },
+        {
+          "code": "requirements-discovery-service"
+        },
+        {
+          "code": "technical-documentation-service"
+        }
+      ],
+      "competencies": [
+        {
+          "dimension": "Domain",
+          "value": "ebook-library"
+        }
+      ],
+      "obligationDefinitions": [
+        {
+          "code": "catalogue-schema-migration-plan",
+          "category": "Engineering",
+          "title": "A change to the catalogue data model carries a data-migration plan before it is built",
+          "description": "Existing bibliographic records must survive a change to the catalogue model. The migration plan is agreed before construction starts.",
+          "origin": "Quality Gates",
+          "priority": "Medium",
+          "severity": "High",
+          "completionCriteria": "A data-migration plan exists and is reviewed before the catalogue model change is built.",
+          "requiredEvidence": {
+            "title": "Catalogue migration plan",
+            "category": "Analytical Evidence",
+            "description": "Catalogue migration plan.",
+            "collectionMethod": "Migration plan document attached to the change."
+          },
+          "classification": "judgment",
+          "prompt": "",
+          "participant": "AI+human",
+          "outputContract": "passed-failed-notes",
+          "assurance": "Reviewer confirms the plan covers existing records.",
+          "externalEvidence": false
+        },
+        {
+          "code": "search-index-rebuild-verification",
+          "category": "Engineering",
+          "title": "The search index is rebuilt and verified after a catalogue metadata change",
+          "description": "Search results depend on the index matching the catalogue. The index is rebuilt and sampled after each metadata change.",
+          "origin": "Quality Gates",
+          "priority": "Medium",
+          "severity": "High",
+          "completionCriteria": "The search index is rebuilt and a sample of queries returns the changed records.",
+          "requiredEvidence": {
+            "title": "Search index verification report",
+            "category": "Validation Evidence",
+            "description": "Search index verification report.",
+            "collectionMethod": "Index rebuild log and sample query results."
+          },
+          "classification": "machine-verifiable",
+          "prompt": "",
+          "participant": "AI",
+          "outputContract": "passed-failed-notes",
+          "assurance": "Automated index verification.",
+          "externalEvidence": false
+        }
+      ]
+    }
+  },
+  {
+    "code": "product-discovery",
+    "name": "Riverbend Lean Delivery",
+    "category": "Organisation",
+    "packVersion": "1.0.0",
+    "installationClassification": "Optional",
+    "description": "Riverbend's lean delivery practice for requirements, design, construction and test flows.",
+    "owner": "Riverbend IT",
+    "publisher": "Riverbend Public Library",
+    "dependencies": [
+      {
+        "packCode": "development",
+        "version": "1.0.0",
+        "type": "required"
+      }
+    ],
+    "contributions": {
+      "capabilities": [
+        {
+          "code": "software-construction"
+        },
+        {
+          "code": "software-design"
+        }
+      ],
+      "services": [],
+      "policies": [
+        "coding-standards",
+        "code-review-required",
+        "design-completeness-and-review",
+        "requirements-traceability-required"
+      ],
+      "obligationDefinitions": [
+        {
+          "code": "requirement-to-test-trace-check",
+          "category": "Engineering",
+          "title": "Every accepted requirement traces to at least one test",
+          "description": "Untested requirements are found late. The trace from requirement to test is checked before a build is accepted.",
+          "origin": "Policies",
+          "priority": "Medium",
+          "severity": "Medium",
+          "completionCriteria": "Every accepted requirement has a linked test.",
+          "requiredEvidence": {
+            "title": "Requirement-to-test trace report",
+            "category": "Analytical Evidence",
+            "description": "Requirement-to-test trace report.",
+            "collectionMethod": "Traceability export."
+          },
+          "classification": "machine-verifiable",
+          "prompt": "",
+          "participant": "AI",
+          "outputContract": "passed-failed-notes",
+          "assurance": "Automated trace check.",
+          "externalEvidence": false
+        }
+      ]
+    }
+  },
+  {
+    "code": "beta-early-access-management",
+    "name": "Riverbend Quality Gates",
+    "category": "Organisation",
+    "packVersion": "1.0.0",
+    "installationClassification": "Optional",
+    "description": "Quality gates for features with business rules or data.",
+    "owner": "Riverbend IT",
+    "publisher": "Riverbend Public Library",
+    "dependencies": [
+      {
+        "packCode": "development",
+        "version": "1.0.0",
+        "type": "required"
+      }
+    ],
+    "contributions": {
+      "capabilities": [
+        {
+          "code": "software-construction"
+        }
+      ],
+      "services": [],
+      "policies": [
+        "test-coverage-threshold",
+        "static-analysis-required",
+        "dependency-vulnerability-threshold"
+      ],
+      "obligationDefinitions": [
+        {
+          "code": "business-rule-test-evidence",
+          "category": "Engineering",
+          "title": "A feature with business rules carries test evidence for each rule",
+          "description": "Loan periods, hold queues and renewal limits are business rules. Each rule has a test result on record.",
+          "origin": "Quality Gates",
+          "priority": "Medium",
+          "severity": "High",
+          "completionCriteria": "Each business rule has a passing test recorded as evidence.",
+          "requiredEvidence": {
+            "title": "Business rule test results",
+            "category": "Validation Evidence",
+            "description": "Business rule test results.",
+            "collectionMethod": "Test run output grouped by rule."
+          },
+          "classification": "machine-verifiable",
+          "prompt": "",
+          "participant": "AI",
+          "outputContract": "passed-failed-notes",
+          "assurance": "Automated test run.",
+          "externalEvidence": false
+        }
+      ]
+    }
+  },
+  {
+    "code": "backlog-release-planning",
+    "name": "Riverbend Release Governance",
+    "category": "Organisation",
+    "packVersion": "1.0.0",
+    "installationClassification": "Optional",
+    "description": "Release governance for delivery to production.",
+    "owner": "Riverbend IT",
+    "publisher": "Riverbend Public Library",
+    "dependencies": [
+      {
+        "packCode": "development",
+        "version": "1.0.0",
+        "type": "required"
+      }
+    ],
+    "contributions": {
+      "capabilities": [
+        {
+          "code": "software-construction"
+        }
+      ],
+      "services": [],
+      "policies": [
+        "change-approval-required",
+        "secrets-management"
+      ],
+      "obligationDefinitions": [
+        {
+          "code": "store-submission-readiness-check",
+          "category": "Engineering",
+          "title": "An app store submission follows a readiness check",
+          "description": "Store review rejections cost days. A checklist of store requirements is confirmed before submission.",
+          "origin": "Quality Gates",
+          "priority": "Medium",
+          "severity": "High",
+          "completionCriteria": "The readiness check passes before the submission is made.",
+          "requiredEvidence": {
+            "title": "Store readiness check record",
+            "category": "Validation Evidence",
+            "description": "Store readiness check record.",
+            "collectionMethod": "Readiness checklist result."
+          },
+          "classification": "judgment",
+          "prompt": "",
+          "participant": "AI+human",
+          "outputContract": "passed-failed-notes",
+          "assurance": "Release manager confirms the result.",
+          "externalEvidence": false
+        }
+      ]
+    }
+  },
+  {
+    "code": "integration-slack",
+    "name": "Riverbend Push Integration",
+    "category": "Integration",
+    "packVersion": "1.0.0",
+    "installationClassification": "Optional",
+    "description": "Practices for notification features that call external push providers.",
+    "owner": "Riverbend IT",
+    "publisher": "Riverbend Public Library",
+    "dependencies": [
+      {
+        "packCode": "development",
+        "version": "1.0.0",
+        "type": "required"
+      }
+    ],
+    "contributions": {
+      "capabilities": [
+        {
+          "code": "software-construction"
+        }
+      ],
+      "services": [],
+      "policies": [
+        "adr-required",
+        "secrets-management"
+      ],
+      "obligationDefinitions": [
+        {
+          "code": "push-provider-contract-check",
+          "category": "Engineering",
+          "title": "Calls to a push provider are checked against the provider's current API contract",
+          "description": "Providers change their API terms. The integration is checked against the current contract before each release.",
+          "origin": "External systems",
+          "priority": "Medium",
+          "severity": "High",
+          "completionCriteria": "The integration passes a contract check against the provider's current API.",
+          "requiredEvidence": {
+            "title": "Push provider contract check",
+            "category": "Validation Evidence",
+            "description": "Push provider contract check.",
+            "collectionMethod": "Contract test output."
+          },
+          "classification": "machine-verifiable",
+          "prompt": "",
+          "participant": "AI",
+          "outputContract": "passed-failed-notes",
+          "assurance": "Automated contract test.",
+          "externalEvidence": true
+        }
+      ]
+    }
+  },
+  {
+    "code": "compliance-riverbend-reader-privacy",
+    "name": "Riverbend Reader Privacy",
+    "category": "Compliance",
+    "packVersion": "1.0.0",
+    "installationClassification": "Optional",
+    "description": "Reader privacy requirements for borrowing history and device identifiers.",
+    "owner": "Riverbend IT",
+    "publisher": "Riverbend Public Library",
+    "dependencies": [],
+    "contributions": {
+      "capabilities": [],
+      "services": [],
+      "policies": [],
+      "checklists": [
+        {
+          "name": "Reader Privacy Verification",
+          "description": "Verification of how borrowing history and device identifiers are handled.",
+          "items": [
+            {
+              "statement": "Borrowing history is kept only for as long as the member keeps it enabled.",
+              "group": "Borrowing History"
+            },
+            {
+              "statement": "A member can delete their borrowing history at any time.",
+              "group": "Borrowing History"
+            },
+            {
+              "statement": "Device identifiers are stored only to deliver push notifications.",
+              "group": "Device Identifiers"
+            },
+            {
+              "statement": "A device identifier is removed when the member signs out of that device.",
+              "group": "Device Identifiers"
+            }
+          ]
+        }
+      ],
+      "obligationDefinitions": [
+        {
+          "code": "reader-privacy-data-retention-review",
+          "category": "Compliance",
+          "title": "Retention of borrowing history and device identifiers is reviewed each release",
+          "description": "Each release confirms that retention of borrowing history and device identifiers matches the reader privacy requirements.",
+          "origin": "Compliance Packs",
+          "priority": "High",
+          "severity": "High",
+          "completionCriteria": "The retention review is recorded and no retained item exceeds its stated period.",
+          "requiredEvidence": {
+            "title": "Retention review record",
+            "category": "Review Evidence",
+            "description": "Record of the retention review for the release.",
+            "collectionMethod": "Privacy reviewer attestation."
+          },
+          "classification": "human-attested",
+          "prompt": "",
+          "participant": "human",
+          "outputContract": "assessment-acceptance",
+          "assurance": "Privacy reviewer attests the review.",
+          "externalEvidence": false
+        }
+      ]
+    }
+  }
+]

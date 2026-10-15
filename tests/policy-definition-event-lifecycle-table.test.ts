@@ -26,7 +26,7 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { transitionPolicyDefinition } from "../src/routes/seu/core/policyDefinitions.js";
 import type { PolicyDefinitionRow } from "../src/dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
-import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 async function freshPolicyDefinitionDraft(): Promise<{ id: string }> {
   // CR-114 follow-on — policyDefinitionsDB.createDraft's schemaDefinitionId
@@ -35,7 +35,7 @@ async function freshPolicyDefinitionDraft(): Promise<{ id: string }> {
   if (!policySchema) throw new Error("no schema_definitions grammar for Policy");
   const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
   if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("freshPolicyDefinitionDraft(): no participants_master row for user_id 1 — is db:clean-slate seeded?");
-  const { data: draft, error } = await policyDefinitionsDB.createDraft({
+  const { data: draft, error } = await policyDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
     code: `test-policy-lifecycle-${randomUUID()}`,
     name: "Test Policy Definition",
     category: "Engineering",

@@ -5,12 +5,12 @@ CREATE TABLE attestations (
   seu_id                UUID NOT NULL REFERENCES seus(id),
   deliverable_id        UUID NOT NULL REFERENCES deliverables(id),
   work_item_id          UUID NOT NULL REFERENCES work_items(id),
-  participant_id        UUID REFERENCES participants(id),
+  participant_id        UUID NOT NULL REFERENCES participants(id),
   from_state            TEXT NOT NULL,
   to_state              TEXT NOT NULL,
   reference             TEXT,
-  acting_badge_type     TEXT,
-  requested_by          UUID REFERENCES participants_master(id),
+  acting_badge_type     TEXT NOT NULL,
+  requested_by          UUID NOT NULL REFERENCES participants_master(id),
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_attestations_deliverable ON attestations (deliverable_id);

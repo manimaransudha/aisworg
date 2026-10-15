@@ -33,8 +33,8 @@ export const deliverableKickoffHandler: EventHandler = async (event: EventRow) =
       await transitionDeliverable({
         deliverableId: deliverable.id,
         targetState: next.toState,
-        actorId: event.actor_id ?? undefined,
-        requestedBy: null,
+        actorId: event.actor_id,
+        requestedBy: event.actor_id,
       });
     }
   }

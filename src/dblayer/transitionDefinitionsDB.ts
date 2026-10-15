@@ -1,4 +1,4 @@
-import { query } from "../utils/db.js";
+import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { userDB } from "./userDB.js";
 import type { DbResult, TransitionDefinitionRow, TransitionEntityType } from "./seuTypes.js";
@@ -40,6 +40,47 @@ export const transitionDefinitionsDB = {
     }
   },
 
+  async replaceAll(inputs: Array<{
+    entityType: string;
+    fromState: string;
+    toState: string;
+    verb: string | null;
+    requiredAuthorityRuleId: string | null;
+    requiredPolicyIds: string[];
+    requiredQualityGateIds: string[];
+    createsObligation: string | null;
+    category: string | null;
+    trigger: "manual" | "governed";
+    submitVerb: string | null;
+    eventType: string | null;
+    versionEvent: string | null;
+    versionHop: boolean | null;
+    submitVersionEvent: string | null;
+    isActive: boolean;
+    retiredAt: string | null;
+    authorId: string;
+    authorBadge: string;
+  }>): Promise<DbResult<number>> {
+    try {
+      await query("DELETE FROM transition_definitions");
+      const { rows } = await bulkInsert(
+        "transition_definitions",
+        [
+          "entity_type", "from_state", "to_state", "verb", "required_authority_rule_id", "required_policy_ids", "required_quality_gate_ids", "creates_obligation", "category",
+          "trigger", "submit_verb", "event_type", "version_event", "version_hop", "submit_version_event", "is_active", "retired_at", "author_id", "author_badge",
+        ],
+        inputs.map((i) => [
+          i.entityType, i.fromState, i.toState, i.verb, i.requiredAuthorityRuleId, i.requiredPolicyIds, i.requiredQualityGateIds, i.createsObligation, i.category,
+          i.trigger, i.submitVerb, i.eventType, i.versionEvent, i.versionHop, i.submitVersionEvent, i.isActive, i.retiredAt, i.authorId, i.authorBadge,
+        ])
+      );
+      return { data: rows.length };
+    } catch (err) {
+      logger.error("[transitionDefinitionsDB] replaceAll error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async upsert(input: {
     entityType: TransitionEntityType;
     fromState: string;
@@ -52,12 +93,13 @@ export const transitionDefinitionsDB = {
     eventType?: string | null;
     versionEvent?: string | null;
     submitVersionEvent?: string | null;
+    verb?: string | null;
   }): Promise<DbResult<TransitionDefinitionRow>> {
     try {
       const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<TransitionDefinitionRow>(
-        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, required_quality_gate_ids, creates_obligation, category, event_type, version_event, submit_version_event, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, required_quality_gate_ids, creates_obligation, category, event_type, version_event, submit_version_event, verb, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          ON CONFLICT (entity_type, from_state, to_state) DO UPDATE
            SET required_authority_rule_id = EXCLUDED.required_authority_rule_id,
                required_policy_ids = EXCLUDED.required_policy_ids,
@@ -66,7 +108,8 @@ export const transitionDefinitionsDB = {
                category = EXCLUDED.category,
                event_type = EXCLUDED.event_type,
                version_event = EXCLUDED.version_event,
-               submit_version_event = EXCLUDED.submit_version_event
+               submit_version_event = EXCLUDED.submit_version_event,
+               verb = COALESCE(EXCLUDED.verb, transition_definitions.verb)
          RETURNING *`,
         [
           input.entityType,
@@ -80,6 +123,7 @@ export const transitionDefinitionsDB = {
           input.eventType ?? null,
           input.versionEvent ?? null,
           input.submitVersionEvent ?? null,
+          input.verb ?? null,
           actorId,
           actorBadge,
         ]

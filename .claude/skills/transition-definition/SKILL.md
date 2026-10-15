@@ -14,6 +14,7 @@ One row = one hop inside exactly one entity's own state machine, scoped `UNIQUE(
 - `verb` (the **verb**) — bound explicitly on this row, never derived from the state name (two entities can both land on a state called "In Progress" via different verbs)
 - `trigger` — `"manual"` for a user-initiated hop the UI should surface as a button; anything else does not get a button
 - `event_type` / `version_event` / `submit_version_event` — see Event/version wiring below
+- `version_hop` — nullable boolean (`versionHop` in the JSON seed). Null means the hop bumps the version, `false` suppresses the bump, and a hop needs `version_event` to be set. See Event/version wiring below
 
 **Creation, in this codebase, is not modeled as a transition.** Check `creation-authority-not-a-transition` memory / precedent (Ontology, Pack, Template, Profile, Service, Policy, Capability all skip the birth row) before wiring one: the initial state is set directly at INSERT time by the entity-direct authoring code, and the creation badge (e.g. `pack_define`) is granted, not bound to a `∅ → <initial state>` row. Only wire a real birth transition if the entity you're working on already has one as its own established pattern — don't default to it.
 
@@ -38,6 +39,7 @@ A migration may additionally do a raw `INSERT ... ON CONFLICT DO NOTHING` agains
 Per CLAUDE.md's standing rule, `event_type`/`version_event`/`submit_version_event` must be wired in at build time for new entities/transitions — do not defer this to a later Version Feature Plan retrofit pass. Decide per hop:
 - Is this a **definition/authoring** lifecycle hop (Draft→Validated→Published→Active, a reusable catalog entry)? It can carry a `version_event` from Chapter 41 §15's fixed vocabulary (`VersionCreated`, `VersionValidated`, `VersionPublished`, `VersionActivated`, `VersionDeprecated`, `VersionSuperseded`, `VersionArchived`), chosen by the hop's **position** in this entity's own real lifecycle — never by matching the target state's name to a vocabulary term.
 - Is this a **runtime/execution** hop (an instance progressing, not a catalog entry versioning)? `event_type` only, never `version_event`.
+- Does this hop carry a `version_event` but need no new version number (for example Deprecate or Archive)? Set `version_hop: false` on the row. `transitionEngine.evaluate` takes the row's `currentVersion` and returns `nextVersion` through `src/utils/version.ts`. Callers never update the version of an existing row in place, because each new version is a new row.
 - A missing generic Chapter 41 stage (e.g. no "Validated" state) is not a gap to fill — don't invent a state to complete the chain.
 
 Wire `core/<entity>.ts`'s transition function to read `gate.eventType`/`versionEvent` off `transitionEngine.evaluate()`'s outcome (pass `entityId` into `evaluate()`) rather than a hardcoded per-status map.

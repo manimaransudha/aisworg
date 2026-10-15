@@ -294,7 +294,7 @@ export async function reviseObligation(input: {
   }
   if (Object.keys(changes).length === 0) return obligation;
 
-  const historyEntry = { occurred_at: new Date().toISOString(), actor_id: input.actorId ?? null, changes };
+  const historyEntry = { occurred_at: new Date().toISOString(), actor_id: input.actorId, changes };
   const { data: updated, error } = await obligationsDB.update(
     input.obligationId,
     fields as Partial<Pick<ObligationRow, "title" | "description" | "category" | "severity" | "priority" | "completion_criteria" | "assigned_entity_type" | "assigned_entity_id">>,
@@ -380,7 +380,7 @@ export async function transitionObligation(input: { obligationId: string; target
       seuId: obligation.seu_id,
       correlationId,
       payload: { fromState, toState: input.targetState },
-      actorId: input.actorId ?? null,
+      actorId: input.actorId,
       authorityBadge: gate.authorityBadge,
     });
   }
@@ -391,7 +391,7 @@ export async function transitionObligation(input: { obligationId: string; target
     seuId: obligation.seu_id,
     correlationId,
     payload: { fromState, toState: input.targetState },
-    actorId: input.actorId ?? null,
+    actorId: input.actorId,
     authorityBadge: gate.authorityBadge,
   });
 

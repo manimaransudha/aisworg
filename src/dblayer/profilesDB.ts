@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateProfileWriteAgainstSchema } from "../routes/seu/core/profileWriteValidator.js";
 import type { DbResult, ProfileRow } from "./seuTypes.js";
-import { getPlatformTenantId  } from "./constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "./constants.js";
  
 
 export const profilesDB = {
@@ -15,7 +15,7 @@ export const profilesDB = {
     authorBadge: string;
     environment?: string;
     profileVersion?: string;
-    tenantId?: string;
+    tenantId: string;
     status?: ProfileRow["status"];
   }): Promise<DbResult<ProfileRow>> {
     try {
@@ -33,8 +33,8 @@ export const profilesDB = {
           input.authoredBy,
           input.authorBadge,
           input.environment ?? "development",
-          input.profileVersion ?? "1.0.0",
-          input.tenantId ?? (await getPlatformTenantId()),
+          input.profileVersion ?? INITIAL_VERSION,
+          input.tenantId,
           input.status ?? "Active",
         ]
       );
@@ -56,7 +56,7 @@ export const profilesDB = {
       const code = `profile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const name = `Custom profile for ${input.baseTemplateId}`;
       const environment = input.environment ?? "development";
-      const profileVersion = "1.0.0";
+      const profileVersion = INITIAL_VERSION;
 
       const errors = await validateProfileWriteAgainstSchema({
         code,
@@ -91,13 +91,13 @@ export const profilesDB = {
     authorBadge: string;
     draftContent?: Record<string, unknown>;
     profileVersion?: string;
-    tenantId?: string;
+    tenantId: string;
     parentProfileId?: string | null;
     schemaDefinitionId: string;
   }): Promise<DbResult<ProfileRow>> {
     try {
       const environment = input.environment ?? "development";
-      const profileVersion = input.profileVersion ?? "1.0.0";
+      const profileVersion = input.profileVersion ?? INITIAL_VERSION;
       const draftContent = input.draftContent ?? {};
 
       const errors = await validateProfileWriteAgainstSchema({
@@ -127,7 +127,7 @@ export const profilesDB = {
           input.authorBadge,
           JSON.stringify(draftContent),
           profileVersion,
-          input.tenantId ?? (await getPlatformTenantId()),
+          input.tenantId,
           input.parentProfileId ?? null,
           schemaRow?.id ?? null,
         ]
@@ -275,7 +275,7 @@ export const profilesDB = {
     }
   },
 
-  async findByStatusActedBy(status: ProfileRow["status"], authorityBadge: string, actorId: number | null): Promise<DbResult<ProfileRow[]>> {
+  async findByStatusActedBy(status: ProfileRow["status"], authorityBadge: string, actorId: string | null): Promise<DbResult<ProfileRow[]>> {
     try {
       const { rows } = actorId == null
         ? await query<ProfileRow>(

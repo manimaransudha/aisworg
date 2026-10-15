@@ -54,6 +54,7 @@ router.get("/reviews", async (req: Request, res: Response) => {
 });
 
 router.post("/reviews/:id/transition", async (req: Request, res: Response) => {
+  if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
   try {
     const { targetState, outcome } = req.body ?? {};
     if (typeof targetState !== "string" || !targetState.trim()) return res.status(400).json({ error: "targetState is required" });
@@ -61,7 +62,7 @@ router.post("/reviews/:id/transition", async (req: Request, res: Response) => {
       reviewId: String(req.params.id),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
       outcome: typeof outcome === "string" ? (outcome as ReviewOutcome) : undefined,
     });
     if (!result.ok) {
@@ -111,10 +112,11 @@ router.get("/reviews/:id/findings", async (req: Request, res: Response) => {
 });
 
 router.post("/findings/:id/transition", async (req: Request, res: Response) => {
+  if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
   try {
     const { targetState } = req.body ?? {};
     if (typeof targetState !== "string" || !targetState.trim()) return res.status(400).json({ error: "targetState is required" });
-    const result = await transitionFinding({ findingId: String(req.params.id), targetState, actorRole: req.session?.user?.role ?? "general", actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined });
+    const result = await transitionFinding({ findingId: String(req.params.id), targetState, actorRole: req.session?.user?.role ?? "general", actorId: String(req.session.user.id) });
     if (!result.ok) {
       const status = result.reason === "not_found" ? 404 : 409;
       return res.status(status).json({ reason: result.reason, ...("detail" in result ? { detail: result.detail } : {}) });

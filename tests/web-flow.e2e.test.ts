@@ -27,7 +27,6 @@ import fetchCookie from "fetch-cookie";
 
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
-import { appConfig } from "../src/config/appconfig.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
@@ -56,7 +55,6 @@ before(async () => {
   // Must run before this file's own first commissionSeu call — see
   // ensureEventSubscriptionsLoaded's own header comment (testFixtures.ts).
   await ensureEventSubscriptionsLoaded();
-  await appConfig.init();
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", () => resolve()));
   const address = server.address();
@@ -921,7 +919,7 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
   const published = await publishPack({ seed: packSeed as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `isolated Phase8 pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
 
-  const { data: template } = await templatesDB.upsert({
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
     code: `webflow-phase8-isolated-template-${randomUUID().slice(0, 8)}`,
     name: "WebFlow Phase8 Isolated Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],

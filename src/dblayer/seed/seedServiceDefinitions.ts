@@ -47,7 +47,8 @@ export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
   );
   const existingKeys = new Set(existing.map((r) => `${r.code}|${r.tenant_id}`));
 
-  const missing = seeds.filter((s) => !existingKeys.has(`${s.code}|${s.tenant_id}`));
+  const platformTenantId = await getPlatformTenantId();
+  const missing = seeds.filter((s) => !existingKeys.has(`${s.code}|${platformTenantId}`));
   if (missing.length === 0) {
     logger.info("[seedServiceDefinitions] every baseline row already present, nothing to do");
     return;
@@ -58,7 +59,7 @@ export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
   if (!serviceSchema) throw new Error("no schema_definitions grammar for Service -- run the schema-definitions data migration first");
 
   let i = 0;
-  const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  const PLATFORM_TENANT_ID = platformTenantId;
   for (const seed of missing) {
     i++;
     logger.info(`[seedServiceDefinitions] (${i}/${missing.length}) ${seed.code} -- creating draft...`);

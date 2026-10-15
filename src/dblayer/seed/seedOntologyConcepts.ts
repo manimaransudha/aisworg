@@ -2,9 +2,10 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { ontologyDB } from "../ontologyDB.js";
+import { tenantsDB } from "../tenantsDB.js";
+import type { OntologyConceptRow } from "../seuTypes.js";
 import { userDB } from "../userDB.js";
 import { getPlatformTenantId } from "../constants.js";
 
@@ -23,6 +24,12 @@ interface OntologyConceptSeed {
   is_mandatory: boolean | null;
   text_type: "text" | "markdown";
   ui_grouping: string | null;
+  tenant?: string;
+  contributed_by_pack?: string | null;
+  version?: string;
+  status?: OntologyConceptRow["status"];
+  composition_strategy?: OntologyConceptRow["composition_strategy"];
+  composition_sources?: OntologyConceptRow["composition_sources"];
 }
  
 function loadSeeds(): OntologyConceptSeed[] {
@@ -33,27 +40,31 @@ function loadSeeds(): OntologyConceptSeed[] {
 export async function seedOntologyConcepts(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
 
-  const { rows: existing } = await query<{ concept_type: string; code: string; tenant_id: string }>(
-    "SELECT concept_type, code, tenant_id FROM ontology_concepts"
-  );
-  const existingKeys = new Set(existing.map((r) => `${r.concept_type}|${r.code}`));
-
-  const missing = seeds.filter((s) => !existingKeys.has(`${s.concept_type}|${s.code}`));
-  if (missing.length === 0) {
-    logger.info("[seedOntologyConcepts] every baseline row already present, nothing to do");
-    return;
-  }
-
   const PLATFORM_TENANT_ID = await getPlatformTenantId();
-  const { error } = await ontologyDB.bulkInsertConceptVersions(
-    missing.map((s) => ({
-      conceptType: s.concept_type, code: s.code, defaultLabel: s.default_label, description: s.description,
-      tenantId: PLATFORM_TENANT_ID, isMandatory: s.is_mandatory, textType: s.text_type, uiGrouping: s.ui_grouping,
-      authorId: actor.authoredBy, authorBadge: actor.authorBadge,
-    }))
-  );
+  const { data: tenants, error: tenantsError } = await tenantsDB.findAll();
+  if (tenantsError) throw new Error(`[seedOntologyConcepts] tenant lookup failed: ${tenantsError.message}`);
+  const tenantIdByName = new Map((tenants ?? []).map((t) => [t.name, t.id]));
+
+  const seen = new Set<string>();
+  const duplicates: string[] = [];
+  const rows = seeds.map((s) => {
+      const tenantId = s.tenant === undefined ? PLATFORM_TENANT_ID : tenantIdByName.get(s.tenant);
+      if (!tenantId) throw new Error(`[seedOntologyConcepts] ${s.concept_type}|${s.code}: unknown tenant "${s.tenant}"`);
+      const key = `${s.concept_type}|${s.code}|${tenantId}|${s.version ?? "1.0.0"}`;
+      if (seen.has(key)) duplicates.push(`${s.concept_type}|${s.code}|${s.tenant ?? "(platform)"}|${s.version ?? "1.0.0"}`);
+      seen.add(key);
+      return {
+        conceptType: s.concept_type, code: s.code, defaultLabel: s.default_label, description: s.description,
+        tenantId, isMandatory: s.is_mandatory, textType: s.text_type, uiGrouping: s.ui_grouping,
+        contributedByPack: s.contributed_by_pack, version: s.version, status: s.status, compositionStrategy: s.composition_strategy, compositionSources: s.composition_sources,
+        authorId: actor.authoredBy, authorBadge: actor.authorBadge,
+      };
+  });
+  if (duplicates.length) throw new Error(`[seedOntologyConcepts] ontologyConcepts.json has duplicate entries (concept_type|code|tenant|version): ${duplicates.join(", ")}`);
+
+  const { error } = await ontologyDB.bulkInsertConceptVersions(rows);
   if (error) throw new Error(`[seedOntologyConcepts] bulk insert failed: ${error.message}`);
-  logger.info(`[seedOntologyConcepts] inserted ${missing.length} baseline rows`);
+  logger.info(`[seedOntologyConcepts] upserted ${seeds.length} baseline rows`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

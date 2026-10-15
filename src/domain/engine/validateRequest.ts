@@ -62,7 +62,7 @@ async function runValidation(seu: SeuRow, objective: ObjectiveRow, template: Tem
     context: { profile, objective },
   });
   const authorityCheck: LivenessCheck = gate.allowed
-    ? { item: "Authority (badge seu_commission)", status: "live", detail: `authorised via ${gate.authorityBadge ?? "system"}` }
+    ? { item: "Authority (badge seu_commission)", status: "live", detail: `authorised via ${gate.authorityBadge}` }
     : {
         item: "Authority (badge seu_commission)",
         status: "dead",
@@ -103,6 +103,7 @@ async function runValidation(seu: SeuRow, objective: ObjectiveRow, template: Tem
     return;
   }
 
+  if (!gate.authorityBadge) throw new Error("SEU Pending -> Commissioned resolved no authority badge — the Transition Definition declares no verb");
   await eventBus.publish({
     eventType: "CommissionValidated",
     originatingObjectType: "SEU",
@@ -111,7 +112,7 @@ async function runValidation(seu: SeuRow, objective: ObjectiveRow, template: Tem
     correlationId: event.correlation_id,
     causationId: event.id,
     actorId: event.actor_id,
-    authorityBadge: gate.authorityBadge ?? "system",
+    authorityBadge: gate.authorityBadge,
     payload: {
       objectiveId: seu.objective_id,
       templateIds: [seu.template_id],

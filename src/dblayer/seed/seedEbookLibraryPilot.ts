@@ -12,6 +12,7 @@ import { packsDB } from "../packsDB.js";
 import { materialiseDependencyGraph } from "../../domain/engine/materialiseDependencyGraph.js";
 import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../seuTypes.js";
 import { userDB } from "../userDB.js";
+import { getPlatformTenantId } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -47,7 +48,9 @@ async function run(actor: SeedActor): Promise<void> {
     const templateSeed = loadJson<TemplateSeed>("ebook-library.template.json");
     const profileSeed = loadJson<ProfileSeed>("ebook-library-development.profile.json");
 
+    const platformTenantId = await getPlatformTenantId();
     const { data: template, error: templateErr } = await templatesDB.upsert({
+      tenantId: platformTenantId,
       code: templateSeed.code,
       templateVersion: templateSeed.templateVersion,
       name: templateSeed.name,
@@ -83,6 +86,7 @@ async function run(actor: SeedActor): Promise<void> {
     logger.info(`[seed:ebook-library-pilot] template ${template.code} -> ${template.id}`);
 
     const { data: profile, error: profileErr } = await profilesDB.upsert({
+      tenantId: platformTenantId,
       code: profileSeed.code,
       name: profileSeed.name,
       baseTemplateId: template.id,

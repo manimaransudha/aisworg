@@ -21,6 +21,7 @@ interface SchemaDefinitionSeed {
   schema: Record<string, unknown>;
   compatible_versions?: number[];
   incompatible_versions?: number[];
+  lifecycle_state?: "Created" | "Validated" | "Tested" | "Packaged" | "Published" | "PublicationRejected";
 }
 
 function loadSeeds(): SchemaDefinitionSeed[] {
@@ -30,6 +31,15 @@ function loadSeeds(): SchemaDefinitionSeed[] {
 
 export async function seedSchemaDefinitions(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
+
+  const seenKeys = new Set<string>();
+  const duplicateKeys = new Set<string>();
+  for (const s of seeds) {
+    const key = `${s.entity_kind}|${s.version}`;
+    if (seenKeys.has(key)) duplicateKeys.add(key);
+    seenKeys.add(key);
+  }
+  if (duplicateKeys.size) throw new Error(`[seedSchemaDefinitions] duplicate entity_kind|version in schemaDefinitions.json: ${[...duplicateKeys].join(", ")}`);
 
   const { rows: existing } = await query<{ entity_kind: string; version: number }>(
     "SELECT entity_kind, version FROM schema_definitions"
@@ -49,6 +59,7 @@ export async function seedSchemaDefinitions(actor: SeedActor): Promise<void> {
       schema: seed.schema,
       compatibleVersions: seed.compatible_versions ?? [],
       incompatibleVersions: seed.incompatible_versions ?? [],
+      lifecycleState: seed.lifecycle_state,
       authorId: actor.authoredBy,
       authorBadge: actor.authorBadge,
     });

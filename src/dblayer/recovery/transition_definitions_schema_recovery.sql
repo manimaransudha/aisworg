@@ -22,6 +22,7 @@ ALTER TABLE transition_definitions ADD COLUMN IF NOT EXISTS event_type TEXT;
 ALTER TABLE transition_definitions ADD COLUMN IF NOT EXISTS version_event TEXT
   CHECK (version_event IS NULL OR version_event IN
     ('VersionCreated', 'VersionValidated', 'VersionPublished', 'VersionActivated', 'VersionDeprecated', 'VersionSuperseded', 'VersionArchived'));
+ALTER TABLE transition_definitions ADD COLUMN IF NOT EXISTS version_hop BOOLEAN;
 ALTER TABLE transition_definitions ADD COLUMN IF NOT EXISTS submit_version_event TEXT
   CHECK (submit_version_event IS NULL OR submit_version_event IN
     ('VersionCreated', 'VersionValidated', 'VersionPublished', 'VersionActivated', 'VersionDeprecated', 'VersionSuperseded', 'VersionArchived'));

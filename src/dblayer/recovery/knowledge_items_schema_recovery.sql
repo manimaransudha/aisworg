@@ -24,7 +24,7 @@ ALTER TABLE knowledge_items
   ADD COLUMN IF NOT EXISTS knowledge_references JSONB NOT NULL DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS version TEXT NOT NULL DEFAULT '1.0.0',
   ADD COLUMN IF NOT EXISTS confidence_level TEXT,
-  ADD COLUMN IF NOT EXISTS author_id UUID REFERENCES participants(id),
-  ADD COLUMN IF NOT EXISTS authority_badge TEXT;
+  ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants(id),
+  ADD COLUMN IF NOT EXISTS authority_badge TEXT NOT NULL;
 GRANT ALL PRIVILEGES ON TABLE knowledge_items TO weirdo;
 COMMIT;

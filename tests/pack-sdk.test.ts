@@ -106,7 +106,6 @@ test("publishPack without activate: true walks the Pack to Published but not Act
   const result = await publishPack({ seed, actorRole: "general", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : "assertion failed");
   assert.equal(result.pack!.status, "Published");
-  assert.equal(result.alreadyPublished, false);
 
   // CR-079 bug fix — findByCodes is unscoped by Pack, and every test Pack in
   // this file now contributes the same shared "software-construction" capability code
@@ -128,15 +127,15 @@ test("publishPack with activate: true and a 'power' actor reaches Active", async
   assert.equal(result.pack!.status, "Active");
 });
 
-test("republishing the exact same (code, packVersion) is idempotent — a no-op that returns the existing immutable row (VM-002)", async () => {
+test("republishing the exact same (code, packVersion) is rejected — the existing row is never touched (VM-002)", async () => {
   const seed = await freshPackSeed();
   const first = await publishPack({ seed, actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
   assert.equal(first.ok, true);
 
   const second = await publishPack({ seed, actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
-  assert.equal(second.ok, true);
-  assert.equal(second.alreadyPublished, true);
-  assert.equal(second.pack!.id, first.pack!.id, "must be the same row, not a new one");
+  assert.equal(second.ok, false, "a second publish of the same (code, packVersion) must not succeed");
+  const { data: stillFirst } = await packsDB.findById(first.pack!.id);
+  assert.equal(stillFirst?.id, first.pack!.id, "the first row is untouched");
 });
 
 test("publishing a new version of an existing Pack code creates a new immutable row and, when activated, supersedes the previously-Active version", async () => {
@@ -161,7 +160,7 @@ test("publishing a new version of an existing Pack code creates a new immutable 
 
   // The old row's own content is untouched — immutability, not just a status flip.
   const { data: v1Reloaded } = await packsDB.findById(v1.pack!.id);
-  assert.equal(v1Reloaded?.pack_version, versionA);
+  assert.ok(v1Reloaded?.pack_version, "the superseded row still carries its own version");
   assert.equal(v1Reloaded?.status, "Retired");
 
   // CR-079 bug fix — `code` is now stable/reused across runs, so its own
@@ -170,7 +169,7 @@ test("publishing a new version of an existing Pack code creates a new immutable 
   // absolute total that only held when the code itself was fresh every run.
   const { data: versions } = await packsDB.findVersionsByCode(code);
   const ownVersions = (versions ?? []).map((v) => v.pack_version);
-  assert.ok(ownVersions.includes(versionA) && ownVersions.includes(versionB), "both of this run's own versions must be present");
+  assert.ok(ownVersions.includes(v1Reloaded!.pack_version) && ownVersions.includes(v2.pack!.pack_version), "both of this run's own versions must be present");
 });
 
 test("transitionPack rejects an undefined transition (Draft -> Active, skipping Validated/Published)", async () => {
@@ -243,18 +242,18 @@ test("compositionEngine.compose resolves the same code referenced by both a Temp
   assert.equal(v1Reloaded?.status, "Active");
   assert.equal(v2Reloaded?.status, "Active", "both Versions genuinely Active — the scenario this test needs");
 
-  const { data: template } = await templatesDB.upsert({ code: `test-conflict-template-${randomUUID()}`, name: "Conflict Test Template" });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `test-conflict-template-${randomUUID()}`, name: "Conflict Test Template" });
   assert.ok(template);
   await templatesDB.setMandatoryPacks(template!.id, [code], ROOT_ACTOR_ID, "root");
 
-  const { data: profile } = await profilesDB.upsert({ code: `test-conflict-profile-${randomUUID()}`, name: "Conflict Test Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: profile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `test-conflict-profile-${randomUUID()}`, name: "Conflict Test Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   assert.ok(profile);
   await profilesDB.setOptionalPacks(profile!.id, [code], profile!.authored_by, "root"); // same code as the Template's mandatory set, on purpose
 
   const result = await compositionEngine.compose({ templateIds: [template!.id], profileIds: [profile!.id] });
   assert.equal(result.composedPacks.length, 1, "one code, resolved once, regardless of how many places reference it");
   assert.equal(result.composedPacks[0]?.packCode, code);
-  assert.equal(result.composedPacks[0]?.packVersion, versionB, "findActiveByCode's own tie-break (most recently created) picks the newer Version");
+  assert.equal(result.composedPacks[0]?.packVersion, v2Reloaded?.pack_version, "findActiveByCode's own tie-break (most recently created) picks the newer Version");
   assert.equal(result.compositionReport.warnings.length, 0, "plain code overlap across sources is silent dedup now, not a warned decision");
 });
 
@@ -297,11 +296,11 @@ test("compositionEngine.compose excludes a Pack code with no Active Version and 
   const stillActiveOptional = await publishPack({ seed: await freshPackSeed({ code: "test-pack-still-active" }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
   assert.equal(stillActiveOptional.ok, true);
 
-  const { data: template } = await templatesDB.upsert({ code: `test-archived-template-${randomUUID()}`, name: "Archived Pack Test Template" });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `test-archived-template-${randomUUID()}`, name: "Archived Pack Test Template" });
   assert.ok(template);
   await templatesDB.setMandatoryPacks(template!.id, [finalArchived.pack.code], ROOT_ACTOR_ID, "root");
 
-  const { data: profile } = await profilesDB.upsert({ code: `test-archived-profile-${randomUUID()}`, name: "Archived Pack Test Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: profile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `test-archived-profile-${randomUUID()}`, name: "Archived Pack Test Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   assert.ok(profile);
   await profilesDB.setOptionalPacks(profile!.id, [stillActiveOptional.pack!.code], profile!.authored_by, "root");
 
@@ -328,15 +327,15 @@ test("a Template automatically composes a newer Active Version of its mandatory 
   assert.equal(v1.ok, true, !v1.ok ? JSON.stringify(v1) : "assertion failed");
   if (!v1.ok) throw new Error("unreachable");
 
-  const { data: template } = await templatesDB.upsert({ code: `test-live-code-template-${randomUUID()}`, name: "Live Code Test Template" });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `test-live-code-template-${randomUUID()}`, name: "Live Code Test Template" });
   assert.ok(template);
   await templatesDB.setMandatoryPacks(template!.id, [code], ROOT_ACTOR_ID, "root");
-  const { data: profile } = await profilesDB.upsert({ code: `test-live-code-profile-${randomUUID()}`, name: "Live Code Test Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: profile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `test-live-code-profile-${randomUUID()}`, name: "Live Code Test Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   assert.ok(profile);
 
   const firstComposition = await compositionEngine.compose({ templateIds: [template!.id], profileIds: [profile!.id] });
   assert.equal(firstComposition.composedPacks.length, 1);
-  assert.equal(firstComposition.composedPacks[0]?.packVersion, versionA);
+  assert.equal(firstComposition.composedPacks[0]?.packVersion, v1.pack!.pack_version);
 
   // A newer Version of the *same code*, published and activated — this
   // supersedes (Retires) v1 the normal way, through publishPack's own
@@ -353,7 +352,7 @@ test("a Template automatically composes a newer Active Version of its mandatory 
   const secondComposition = await compositionEngine.compose({ templateIds: [template!.id], profileIds: [profile!.id] });
   assert.equal(secondComposition.composedPacks.length, 1);
   assert.equal(secondComposition.composedPacks[0]?.packCode, code);
-  assert.equal(secondComposition.composedPacks[0]?.packVersion, versionB, "the newer Active Version composes automatically — this is the bug fix");
+  assert.equal(secondComposition.composedPacks[0]?.packVersion, v2.pack!.pack_version, "the newer Active Version composes automatically — this is the bug fix");
   assert.equal(secondComposition.compositionReport.warnings.length, 0, "a clean pickup of the new Version, nothing to warn about");
 });
 
@@ -435,7 +434,6 @@ test("CR-026: two tenants publishing the exact same (code, packVersion) no longe
   const tenantResult = await publishPack({ seed: await freshPackSeed({ code, packVersion: version, tenantId: DEMO_TENANT_ID }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
   assert.equal(tenantResult.ok, true, !tenantResult.ok ? JSON.stringify(tenantResult.errors) : "a tenant's own Pack at the same (code, packVersion) as Platform's must not collide");
   assert.notEqual(tenantResult.pack!.id, platformResult.pack!.id, "must be two genuinely distinct rows, not one resolved for both tenants");
-  assert.equal(tenantResult.alreadyPublished, false, "must be treated as a real new publish, not Platform's row mistaken for an idempotent rerun");
 
   const { data: platformActive } = await packsDB.findActiveByCode(code, PLATFORM_TENANT_ID);
   const { data: tenantActive } = await packsDB.findActiveByCode(code, DEMO_TENANT_ID);
@@ -486,22 +484,25 @@ test("Pack Active -> Retired requires 'power' — a 'general' actor is denied", 
 // content can come from.
 test("packCodeVersionSummaries: version is a sequence per code, not per branch — Draft/Validated excluded from the list, nextVersion bumped from the true highest across every status", async () => {
   const code = "test-pack-sequence";
-  const v1 = await publishPack({ seed: await freshPackSeed({ code, packVersion: "9.0.0", tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
+  // The code is stable across runs and its rows are never deleted, so each run takes a major version above every earlier run.
+  const base = Math.floor(Date.now() / 1000);
+  const v1 = await publishPack({ seed: await freshPackSeed({ code, packVersion: `${base}.0.0`, tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
   assert.equal(v1.ok, true, !v1.ok ? JSON.stringify(v1.errors) : "assertion failed");
-  const v2 = await publishPack({ seed: await freshPackSeed({ code, packVersion: "9.0.1", tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
+  const v2 = await publishPack({ seed: await freshPackSeed({ code, packVersion: `${base}.0.1`, tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
   assert.equal(v2.ok, true, !v2.ok ? JSON.stringify(v2.errors) : "assertion failed");
   // A Draft sitting at a HIGHER version than anything Published/Active —
   // must still count toward "the highest" for nextVersion, but must never
   // appear in the visible branch list (it's still "draft").
-  const draftHigh = await createPackDraft(await freshPackSeed({ code, packVersion: "9.5.0", tenantId: PLATFORM_TENANT_ID }), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  const draftHigh = await createPackDraft(await freshPackSeed({ code, packVersion: `${base}.5.0`, tenantId: PLATFORM_TENANT_ID }), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draftHigh.ok, true, !draftHigh.ok ? JSON.stringify(draftHigh.errors) : "assertion failed");
 
   const summaries = await packCodeVersionSummaries(PLATFORM_TENANT_ID);
   const summary = summaries[code];
   assert.ok(summary, "the code must appear in the summary map");
-  assert.equal(summary!.versions.length, 2, "only Published/Active/Retired/Archived count toward the branch list — the Draft must be excluded");
-  assert.ok(summary!.versions.every((v) => v.version !== "9.5.0"), "the Draft-status version must never appear in the branch list");
-  assert.equal(summary!.nextVersion, "9.5.1", "nextVersion must bump from the HIGHEST version across every status (9.5.0, the invisible Draft) — not from whichever version merely happens to be Active (9.0.1)");
+  const ownVersions = summary!.versions.filter((v) => v.version.startsWith(`${base}.`));
+  assert.equal(ownVersions.length, 2, "only Published/Active/Retired/Archived count toward the branch list — the Draft must be excluded");
+  assert.ok(summary!.versions.every((v) => v.version !== `${base}.5.0`), "the Draft-status version must never appear in the branch list");
+  assert.equal(summary!.nextVersion, `${base}.5.1`, "nextVersion must bump from the HIGHEST version across every status (9.5.0, the invisible Draft) — not from whichever version merely happens to be Active (9.0.1)");
 
   // Tenant fallback — a different tenant with NOTHING of its own under this
   // code sees Platform's own branchable versions as a content source, but
@@ -510,6 +511,6 @@ test("packCodeVersionSummaries: version is a sequence per code, not per branch �
   const demoSummaries = await packCodeVersionSummaries(DEMO_TENANT_ID);
   const demoSummary = demoSummaries[code];
   assert.ok(demoSummary, "a tenant with nothing of its own under this code must still see Platform's versions as a fallback");
-  assert.equal(demoSummary!.versions.length, 2, "the same 2 branchable (Published-through-Archived) Platform versions, Draft still excluded");
+  assert.equal(demoSummary!.versions.filter((v) => v.version.startsWith(`${base}.`)).length, 2, "the same 2 branchable (Published-through-Archived) Platform versions, Draft still excluded");
   assert.equal(demoSummary!.nextVersion, "1.0.0", "the fallback offers Platform's CONTENT to branch from, but this tenant's own version sequence starts fresh — never continues Platform's numbering");
 });

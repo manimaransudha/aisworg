@@ -1,25 +1,17 @@
 import { decisionsDB } from "../../../dblayer/decisionsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
-import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { assertCanonicalCategory } from "./ontology.js";
-import { resolveAuthor, resolveSystemActor } from "./attentionItems.js";
+import { resolveAuthor } from "./attentionItems.js";
 import type { DecisionAlternative, DecisionRelatedObjectGroup, DecisionRow } from "../../../dblayer/seuTypes.js";
-
-async function resolveParticipantId(userId: string, seuId: string): Promise<string | null> {
-  const { data: master } = await participantsMasterDB.findById(userId);
-  if (!master) return null;
-  const { data: engagements } = await participantsDB.findByParticipantMasterId(master.id);
-  return (engagements ?? []).find((p) => p.seu_id === seuId)?.id ?? null;
-}
 
 export async function createDecision(input: {
   seuId: string;
-  userId?: string | null;
+  actorId: string;
   originatingType?: string | null;
   originatingId?: string | null;
   relatedObjects: DecisionRelatedObjectGroup[];
@@ -46,7 +38,8 @@ export async function createDecision(input: {
     await assertCanonicalCategory("decision-alternative-status", alternative.status);
   }
 
-  const participantId = input.userId != null ? await resolveParticipantId(input.userId, input.seuId) : null;
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, "decision_identify");
+  const { authorId } = await resolveAuthor(input.seuId, input.actorId);
 
   const { data: decision, error } = await decisionsDB.create({
     seuId: input.seuId,
@@ -60,12 +53,11 @@ export async function createDecision(input: {
     title: input.title,
     engineeringQuestion: input.engineeringQuestion,
     alternatives: input.alternatives ?? [],
-    participantId,
-    authorityBadge: null,
+    participantId: authorId,
+    authorityBadge: authorBadge,
   });
   if (error || !decision) throw error ?? new Error("failed to create decision");
 
-  const decisionSystemActor = input.userId == null ? await resolveSystemActor(input.seuId) : null;
   await eventBus.publish({
     eventType: "DecisionIdentified",
     originatingObjectType: "Decision",
@@ -73,8 +65,8 @@ export async function createDecision(input: {
     seuId: decision.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { originatingType: input.originatingType ?? null, originatingId: input.originatingId ?? null, relatedObjects: input.relatedObjects, category: input.category },
-    actorId: input.userId != null ? String(input.userId) : decisionSystemActor!.actorId,
-    authorityBadge: decisionSystemActor?.authorBadge ?? "system",
+    actorId: input.actorId,
+    authorityBadge: authorBadge,
   });
 
   return decision;
@@ -106,13 +98,12 @@ export type TransitionDecisionResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-export async function transitionDecision(input: { decisionId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionDecisionResult> {
+export async function transitionDecision(input: { decisionId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionDecisionResult> {
   const { data: decision } = await decisionsDB.findById(input.decisionId);
   if (!decision) return { ok: false, reason: "not_found" };
 
   const fromState = decision.status;
 
-  if (!input.actorId) throw new Error("actorId is required to transition a Decision");
   const gate = await transitionEngine.evaluate({
     entityType: "Decision",
     fromState,
@@ -145,9 +136,7 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
   }
 
-  const participantId = await resolveParticipantId(input.actorId, decision.seu_id);
-
-  const { data: updated, error } = await decisionsDB.updateStatus(decision.id, input.targetState, { participantId, authorityBadge: gate.authorityBadge });
+  const { data: updated, error } = await decisionsDB.updateStatus(decision.id, input.targetState, { participantId: authorId, authorityBadge: gate.authorityBadge });
   if (error || !updated) throw error ?? new Error("failed to update decision status");
 
   await eventBus.publish({

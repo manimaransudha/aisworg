@@ -70,7 +70,7 @@ const { data: demoTenant, error: demoTenantErr } = await tenantsDB.findByCode("d
 if (demoTenantErr) throw demoTenantErr;
 if (!demoTenant) throw new Error("demo tenant not provisioned");
 const DEMO_TENANT_ID = demoTenant.id;
-const REAL_TEMPLATE_CODE = "mobile-application"; // real, seeded template-categories concept
+const REAL_TEMPLATE_CODE = "test-dependency-graph-template"; // test-only template-categories concept, so activating a new version never supersedes a seeded Template
 
 // Real deliverable-name Ontology codes (migration 048) standing in for this
 // file's own "Architecture"/"Data Architecture" fixture pair.

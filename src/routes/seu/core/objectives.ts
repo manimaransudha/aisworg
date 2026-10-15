@@ -430,7 +430,7 @@ export async function isObjectiveEditLocked(id: string): Promise<boolean> {
 
 export async function updateObjective(
   id: string,
-  input: { statement?: string; requiredCapabilityCodes?: string[]; requestedBy: string; bumpVersion?: boolean }
+  input: { statement: string; requiredCapabilityCodes?: string[]; requestedBy: string; bumpVersion?: boolean }
 ): Promise<ObjectiveRow> {
   const { data: current } = await objectivesDB.findById(id);
   if (!current) throw new Error(`Objective not found: ${id}`);
@@ -443,12 +443,7 @@ export async function updateObjective(
 
   if (input.requiredCapabilityCodes) {
     const requiredCapabilities = await resolveRequiredCapabilities(input.requiredCapabilityCodes);
-    let authorId: string | undefined;
-    let authorBadge: string | undefined;
-    if (requiredCapabilities.length > 0) {
-      if (input.requestedBy == null) throw new Error("no acting user to record as this Objective's capability author — log in first");
-      ({ authorId, authorBadge } = await resolveCapabilityAuthor(input.requestedBy));
-    }
+    const { authorId, authorBadge } = await resolveCapabilityAuthor(input.requestedBy);
     const { error: setErr } = await objectivesDB.setRequiredCapabilities(id, requiredCapabilities.map((c) => c.code), authorId, authorBadge);
     if (setErr) throw setErr;
   }
@@ -693,6 +688,7 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
     if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
 
   const trimmedComment = input.comment?.trim() ?? "";
   if (fromState === "Active" && input.targetState === "Reject") {
@@ -713,7 +709,7 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
       supersedingId: input.supersedingObjectiveId,
       comment: input.comment,
       actorId: input.actorId,
-      authorityBadge: gate.authorityBadge ?? "root",
+      authorityBadge: gate.authorityBadge,
       findCandidate: async (candidateId) => (await objectivesDB.findById(candidateId)).data ?? null,
     });
     if (!check.ok) return { ok: false, reason: check.reason, detail: check.detail };
@@ -730,7 +726,7 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
   if (error || !updated) throw error ?? new Error("failed to update objective status");
 
   if (trimmedComment) {
-    await objectivesDB.addComment(objective.id, input.actorId, trimmedComment);
+    await objectivesDB.addComment(objective.id, input.actorId, gate.authorityBadge, trimmedComment);
   }
 
   await eventBus.publish({
@@ -741,7 +737,7 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
     versionEvent: gate.versionEvent,
     fromState,
     toState: input.targetState,

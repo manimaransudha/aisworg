@@ -77,7 +77,7 @@ async function commissionAgainstTemplate(templateId: string, statementPrefix: st
   await ensureEventSubscriptionsLoaded();
   const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
   const { objective } = await createObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
-  const { data: profile } = await profilesDB.upsert({ code: `${statementPrefix}-profile-${randomUUID()}`, name: statementPrefix, baseTemplateId: templateId, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: profile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `${statementPrefix}-profile-${randomUUID()}`, name: statementPrefix, baseTemplateId: templateId, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [templateId], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
@@ -146,11 +146,11 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   assert.equal(gateRow?.length, 1, "the scoped pack's own gate exists, attributed to it");
 
   // Template A mandates the scoped Pack; Template B mandates nothing.
-  const { data: templateWithPack } = await templatesDB.upsert({ code: `cr104-tpl-with-pack-${run}`, name: "CR-104 With Pack", deliverableCatalogue: [] });
+  const { data: templateWithPack } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-tpl-with-pack-${run}`, name: "CR-104 With Pack", deliverableCatalogue: [] });
   await templatesDB.setMandatoryPacks(templateWithPack!.id, [scopedPack.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(templateWithPack!.id, []);
-  const { data: templateWithoutPack } = await templatesDB.upsert({ code: `cr104-tpl-without-pack-${run}`, name: "CR-104 Without Pack", deliverableCatalogue: [] });
-  await templatesDB.setRequiredCapabilities(templateWithoutPack!.id, []);
+  await templatesDB.setRequiredCapabilities(templateWithPack!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  const { data: templateWithoutPack } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-tpl-without-pack-${run}`, name: "CR-104 Without Pack", deliverableCatalogue: [] });
+  await templatesDB.setRequiredCapabilities(templateWithoutPack!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
 
   const seuWith = await commissionAgainstTemplate(templateWithPack!.id, `cr104-with-${run}`);
   const seuWithout = await commissionAgainstTemplate(templateWithoutPack!.id, `cr104-without-${run}`);
@@ -208,9 +208,9 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
     authorId: standardPackRow!.authored_by, authorBadge: standardPackRow!.author_badge,
   });
   assert.ok(standardPolicy);
-  const { data: standardTemplate } = await templatesDB.upsert({ code: `cr104-standard-tpl-${run}`, name: "CR-104 Standard Template", deliverableCatalogue: [] });
+  const { data: standardTemplate } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-standard-tpl-${run}`, name: "CR-104 Standard Template", deliverableCatalogue: [] });
   await templatesDB.setMandatoryPacks(standardTemplate!.id, [standardPack.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(standardTemplate!.id, []);
+  await templatesDB.setRequiredCapabilities(standardTemplate!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const standardSeu = await commissionAgainstTemplate(standardTemplate!.id, `cr104-standard-${run}`);
 
   // Pack 2: a real, blocking Policy constraint.
@@ -224,9 +224,9 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
     authorId: blockingPackRow!.authored_by, authorBadge: blockingPackRow!.author_badge,
   });
   assert.ok(blockingPolicy);
-  const { data: blockingTemplate } = await templatesDB.upsert({ code: `cr104-blocking-tpl-${run}`, name: "CR-104 Blocking Template", deliverableCatalogue: [] });
+  const { data: blockingTemplate } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-blocking-tpl-${run}`, name: "CR-104 Blocking Template", deliverableCatalogue: [] });
   await templatesDB.setMandatoryPacks(blockingTemplate!.id, [blockingPack.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(blockingTemplate!.id, []);
+  await templatesDB.setRequiredCapabilities(blockingTemplate!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const blockingSeu = await commissionAgainstTemplate(blockingTemplate!.id, `cr104-blocking-${run}`);
 
   const standardResult = await policyEngine.evaluate({ entityType: "Deliverable", seuId: standardSeu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
@@ -263,9 +263,9 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
   // (commissioning.ts) falls back to the bare code as the label when no
   // Ontology concept resolves one, so an unregistered code still works
   // mechanically here.
-  const { data: template } = await templatesDB.upsert({ code: `cr104-named-tpl-${run}`, name: "CR-104 Named Template", deliverableCatalogue: [{ code: targetedName }, { code: otherName }] });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-named-tpl-${run}`, name: "CR-104 Named Template", deliverableCatalogue: [{ code: targetedName }, { code: otherName }] });
   await templatesDB.setMandatoryPacks(template!.id, [namedPack.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(template!.id, []);
+  await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const seu = await commissionAgainstTemplate(template!.id, `cr104-named-${run}`);
 
   const detail = await getSeuDetailView(seu.id);

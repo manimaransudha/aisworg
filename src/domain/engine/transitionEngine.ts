@@ -7,10 +7,11 @@ import { qualityGateEngine } from "./qualityGateEngine.js";
 import { eventBus } from "./eventBus.js";
 import { triggerEngine } from "./triggerEngine.js";
 import { evaluateCondition, type GoverningCondition } from "./governingCondition.js";
+import { bumpPatch } from "../../utils/version.js";
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 export type TransitionOutcome =
-  | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null; authorityBadge: string | null; eventType: string | null; versionEvent: string | null }
+  | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null; authorityBadge: string | null; eventType: string | null; versionEvent: string | null; nextVersion: string | null }
   | { allowed: false; reason: "no_transition_definition" }
   | { allowed: false; reason: "authority_denied"; authorityRuleCode: string; badgeDenialReason?: string }
   | { allowed: false; reason: "policy_blocked"; policyCode: string }
@@ -27,6 +28,7 @@ export const transitionEngine = {
     context?: Record<string, unknown>;
     entityId?: string;
     seuId?: string;
+    currentVersion?: string;
     alternateBadges?: string[];
   }): Promise<TransitionOutcome> {
     const { data: definition } = await transitionDefinitionsDB.find(input.entityType, input.fromState, input.toState);
@@ -52,6 +54,7 @@ export const transitionEngine = {
     }
 
     if (definition.required_policy_ids.length > 0) {
+      if (!authorityBadge) throw new Error(`${input.entityType} ${input.fromState} -> ${input.toState} requires policies but declares no verb — no authority badge can be resolved for the policy events`);
       const { data: policies } = await policiesDB.findByIds(definition.required_policy_ids);
       for (const policy of policies ?? []) {
         const satisfied = evaluateCondition(policy.condition as GoverningCondition, input.context ?? {});
@@ -64,7 +67,7 @@ export const transitionEngine = {
             seuId: input.seuId ?? null,
             correlationId: eventBus.newCorrelationId(),
             actorId: input.actorId,
-            authorityBadge: authorityBadge ?? "system",
+            authorityBadge,
             payload,
           });
           continue;
@@ -76,7 +79,7 @@ export const transitionEngine = {
           seuId: input.seuId ?? null,
           correlationId: eventBus.newCorrelationId(),
           actorId: input.actorId,
-          authorityBadge: authorityBadge ?? "system",
+          authorityBadge,
           payload: { ...payload, constraintType: policy.constraint_type },
         });
         if (policy.constraint_type === "Policy") {
@@ -89,7 +92,7 @@ export const transitionEngine = {
           seuId: input.seuId ?? null,
           correlationId: eventBus.newCorrelationId(),
           actorId: input.actorId,
-          authorityBadge: authorityBadge ?? "system",
+          authorityBadge,
           payload,
         });
       }
@@ -124,6 +127,7 @@ export const transitionEngine = {
       authorityBadge,
       eventType: definition.event_type,
       versionEvent: definition.version_event,
+      nextVersion: definition.version_event && definition.version_hop !== false && input.currentVersion ? bumpPatch(input.currentVersion) : null,
     };
   },
 };

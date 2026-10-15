@@ -8,8 +8,7 @@ import { attachVM } from "../../middleware/attachVM.js";
 import { renderView } from "../../utils/viewModel.js";
 import { getFlash } from "../../utils/flash.js";
 import { logger } from "../../utils/logger.js";
-import { parseListParams, paginateList } from "../../utils/listQuery.js";
-import { appConfig } from "../../config/appconfig.js";
+import {parseListParams, paginateList} from "../../utils/listQuery.js";
 import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";
 import { getSeuQuickview } from "../seu/core/seus.js";
 import { getParticipantHomeView, completeMyWorkItem, raiseMyObligation } from "../seu/core/participantHome.js";
@@ -27,58 +26,6 @@ router.get("/", attachVM("seu/dashboard"), async (req, res, next) => {
   } catch (err) {
     logger.error("[Home] GET / error:", err);
     next(err);
-  }
-});
-
-router.get("/settings", attachVM("settings/index"), async (req, res, next) => {
-  try {
-    const configData = await appConfig.getAll();
-
-    const grouped = {};
-    for (const row of configData) {
-      if (!grouped[row.category]) {
-        grouped[row.category] = [];
-      }
-      grouped[row.category].push(row);
-    }
-
-    req.vm.req.title = "App Settings";
-    req.vm.req.grouped = grouped;
-    req.vm.opt.saved = req.session?.flash?.saved || null;
-    req.vm.opt.error = req.session?.flash?.error || null;
-    if (req.session?.flash) {
-      delete req.session.flash;
-    }
-
-    return renderView(req, res, "settings/index", req.vm);
-  } catch (err) {
-    logger.error("[Settings] GET error:", err);
-    next(err);
-  }
-});
-
-router.post("/settings/:key", async (req, res, next) => {
-  try {
-    const { key } = req.params;
-    const { value } = req.body;
-
-    if (value === undefined) {
-      if (!req.session.flash) req.session.flash = {};
-      req.session.flash.error = "Value is required.";
-      return res.redirect("/aisworg/settings");
-    }
-
-    await appConfig.set(key, value);
-    await appConfig.reload();
-
-    if (!req.session.flash) req.session.flash = {};
-    req.session.flash.saved = key;
-    return res.redirect("/aisworg/settings");
-  } catch (err) {
-    logger.error(`[Settings] POST error for key=${req.params.key}:`, err);
-    if (!req.session.flash) req.session.flash = {};
-    req.session.flash.error = err.message;
-    return res.redirect("/aisworg/settings");
   }
 });
 

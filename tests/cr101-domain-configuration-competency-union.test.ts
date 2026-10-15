@@ -45,7 +45,7 @@ async function createPack(contributions: PackContributions = {}): Promise<string
 
 async function createTemplate(mandatoryPackCodes: string[]): Promise<{ id: string; code: string }> {
   const templateCode = `test-cr101-template-${randomUUID()}`;
-  const { data: template, error } = await templatesDB.upsert({ code: templateCode, name: "CR-101 fixture Template", deliverableCatalogue: [] });
+  const { data: template, error } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: templateCode, name: "CR-101 fixture Template", deliverableCatalogue: [] });
   assert.ok(!error && template, error?.message ?? "assertion failed");
   await templatesDB.setMandatoryPacks(template!.id, mandatoryPackCodes, ROOT_ACTOR_ID, "root");
   return { id: template!.id, code: template!.code };
@@ -53,7 +53,7 @@ async function createTemplate(mandatoryPackCodes: string[]): Promise<{ id: strin
 
 async function createProfile(template: { id: string; code: string }, draftContent: Record<string, unknown>): Promise<string> {
   const profileCode = `test-cr101-profile-${randomUUID()}`;
-  const { data: profile, error } = await profilesDB.upsert({ code: profileCode, name: "CR-101 fixture Profile", baseTemplateId: template.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: profile, error } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: profileCode, name: "CR-101 fixture Profile", baseTemplateId: template.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   assert.ok(!error && profile, error?.message ?? "assertion failed");
   const { error: draftContentError } = await profilesDB.setDraftContent(profile!.id, { baseTemplateCode: template.code, ...draftContent });
   assert.ok(!draftContentError, draftContentError?.message ?? "assertion failed");
@@ -129,7 +129,7 @@ function baseTemplateAndProfileSeed(templateCode: string, overrides: Partial<Pro
 
 test("validateProfileSeed: domain must resolve to a real domain concept", async () => {
   const templateCode = `test-cr101-validate-template-${randomUUID()}`;
-  const { data: template } = await templatesDB.upsert({ code: templateCode, name: "CR-101 fixture Template", deliverableCatalogue: [] });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: templateCode, name: "CR-101 fixture Template", deliverableCatalogue: [] });
   assert.ok(template);
 
   const badSeed = baseTemplateAndProfileSeed(templateCode, { domain: `not-a-real-domain-${randomUUID()}` });
@@ -153,7 +153,7 @@ test("validateProfileSeed: primaryProgrammingLanguage is rejected when it has no
   await addConcept({ conceptType: "primary-programming-language", code: orphanLanguage, defaultLabel: "CR-101 orphan fixture language" }, ACTOR);
 
   const templateCode = `test-cr101-validate-template-${randomUUID()}`;
-  const { data: template } = await templatesDB.upsert({ code: templateCode, name: "CR-101 fixture Template", deliverableCatalogue: [] });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: templateCode, name: "CR-101 fixture Template", deliverableCatalogue: [] });
   assert.ok(template);
 
   const seed = baseTemplateAndProfileSeed(templateCode, { primaryProgrammingLanguage: orphanLanguage });
@@ -165,7 +165,7 @@ test("validateProfileSeed: primaryProgrammingLanguage is rejected when it has no
 
 test("validateProfileSeed: a real primaryProgrammingLanguage value with a matching technology concept (\"python\") is accepted", async () => {
   const templateCode = `test-cr101-validate-template-${randomUUID()}`;
-  const { data: template } = await templatesDB.upsert({ code: templateCode, name: "CR-101 fixture Template", deliverableCatalogue: [] });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: templateCode, name: "CR-101 fixture Template", deliverableCatalogue: [] });
   assert.ok(template);
 
   const seed = baseTemplateAndProfileSeed(templateCode, { primaryProgrammingLanguage: "python" });

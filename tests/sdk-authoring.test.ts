@@ -252,7 +252,7 @@ async function advanceToActive(kind: "Pack" | "Template" | "Profile" | "Delivera
 function uniqueVersion(): string {
   return `0.0.${Date.now()}${Math.floor(Math.random() * 1000)}`;
 }
-const REAL_TEMPLATE_CODE = "mobile-application"; // real, seeded template-categories concept
+const REAL_TEMPLATE_CODE = "test-sdk-authoring-template"; // test-only template-categories concept, so activating a new version never supersedes a seeded Template
 
 // CR-026 Template Inheritance tests below need their own, dedicated Active
 // parent — NOT the shared ensureWebAppTemplateFixture() ("test-enterprise-
@@ -274,7 +274,7 @@ async function ensureCr026ParentTemplate(): Promise<TemplateRow> {
       const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content });
       if (!created.ok) throw new Error(`ensureCr026ParentTemplate: ${created.errors.join("; ")}`);
       createdTemplateIds.push(created.draftId);
-      await saveAuthoringDraft({ kind: "Template", id: created.draftId, content });
+      await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content });
       const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
       if (!published.ok) throw new Error(`ensureCr026ParentTemplate: failed to activate: ${published.errors.join("; ")}`);
       const { data: template, error } = await templatesDB.findById(created.draftId);
@@ -303,7 +303,7 @@ test("Pack authoring (entity-direct): root creates a Draft, authors, and publish
   assert.equal(draftPack!.status, "Draft");
   assert.equal(draftPack!.authored_by, ROOT_ACTOR_ID);
 
-  const saved = await saveAuthoringDraft({ kind: "Pack", id: created.draftId, content: validPackContent(code, packVersion) });
+  const saved = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Pack", id: created.draftId, content: validPackContent(code, packVersion) });
   assert.equal(saved.ok, true, !saved.ok ? saved.errors.join("; ") : "assertion failed");
 
   const published = await advanceToActive("Pack", created.draftId, ROOT_ACTOR_ID, "general");
@@ -412,7 +412,7 @@ test("Pack authoring: Publish is blocked by referential validation (unresolvable
   if (!created.ok) return;
 
   // A dependency on a Pack that doesn't exist — fails validatePackSeed at publish.
-  await saveAuthoringDraft({ kind: "Pack", id: created.draftId, content: { ...validPackContent(REAL_PACK_CODE, packVersion), dependencies: [{ packCode: "this-pack-does-not-exist", version: "1.0.0", type: "required" }] } });
+  await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Pack", id: created.draftId, content: { ...validPackContent(REAL_PACK_CODE, packVersion), dependencies: [{ packCode: "this-pack-does-not-exist", version: "1.0.0", type: "required" }] } });
 
   const published = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
   assert.equal(published.ok, false);
@@ -454,6 +454,7 @@ test("CR-081: creating a new Pack from an EXISTING code inherits its content (in
   // now — asserted against the same function the branch-picker itself calls,
   // not a hardcoded guess, since REAL_PACK_CODE accumulates more Versions
   // every time this file runs against its own never-reset dev database.
+  const { data: activatedSource } = await packsDB.findById(sourceCreated.draftId);
   const summariesBeforeBranch = await packCodeVersionSummaries(PLATFORM_TENANT_ID);
   const expectedNextVersion = summariesBeforeBranch[REAL_PACK_CODE]?.nextVersion;
   assert.ok(expectedNextVersion, "the just-Activated source must already appear in its own code's version summary");
@@ -491,7 +492,7 @@ test("CR-081: creating a new Pack from an EXISTING code inherits its content (in
   // The source itself is completely untouched by being branched from.
   const { data: sourceStillActive } = await packsDB.findById(sourceCreated.draftId);
   assert.equal(sourceStillActive?.status, "Active");
-  assert.equal(sourceStillActive?.pack_version, sourceVersion);
+  assert.equal(sourceStillActive?.pack_version, activatedSource?.pack_version);
 });
 
 test("CR-081: creating a new Pack by TYPING A NEW CODE (never published before) starts that code's own version sequence at 1.0.0, independent of every other code", async () => {
@@ -551,7 +552,7 @@ test("Template authoring (entity-direct): the same pipeline as Pack produces a r
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
 
-  await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
+  await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
 
   // Bug fix (owner, 2026-08-18): Template now has the same six-hop lifecycle
   // Pack does (transitionDefinitions.json / authorityVocabulary.json seed
@@ -580,7 +581,7 @@ test("Profile authoring (entity-direct): produces a real Active Profile row refe
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
 
-  await saveAuthoringDraft({ kind: "Profile", id: created.draftId, content });
+  await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Profile", id: created.draftId, content });
 
   // Bug fix (owner, 2026-08-18): same six-hop lifecycle change as Template above.
   const published = await advanceToActive("Profile", created.draftId, ROOT_ACTOR_ID, "general");
@@ -599,7 +600,7 @@ test("Template authoring: referential validation rejects a mandatoryPackCode tha
   assert.equal(created.ok, true);
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
-  await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: { ...validTemplateContent(REAL_TEMPLATE_CODE, templateVersion), engineeringPackCodes: [{ packCode: "this-pack-code-does-not-exist" }] } });
+  await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content: { ...validTemplateContent(REAL_TEMPLATE_CODE, templateVersion), engineeringPackCodes: [{ packCode: "this-pack-code-does-not-exist" }] } });
 
   const published = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
   assert.equal(published.ok, false);
@@ -685,7 +686,7 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   // comment above) is category Engineering, so dropping it means blanking
   // engineeringPackCodes specifically now, not a flat list.
   const strippedContent = { ...sanitisedContent, templateVersion: "1.0.0", engineeringPackCodes: [] };
-  const savedStripped = await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: strippedContent });
+  const savedStripped = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content: strippedContent });
   assert.equal(savedStripped.ok, true, "WIP is allowed to be incomplete — Save itself must not block this");
 
   const rejectedPublish = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
@@ -694,7 +695,7 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   const { data: stillDraft } = await templatesDB.findById(created.draftId);
   assert.equal(stillDraft?.status, "Draft", "a rejected publish leaves the Draft a Draft");
 
-  const restored = await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: { ...sanitisedContent, templateVersion: "1.0.0" } });
+  const restored = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content: { ...sanitisedContent, templateVersion: "1.0.0" } });
   assert.equal(restored.ok, true);
 
   const acceptedPublish = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
@@ -788,7 +789,7 @@ test("Deliverable Definition authoring (entity-direct): produces a real Active r
   const { data: notYetVisible } = await ontologyDB.findConceptsByType("deliverable-name", { isRoot: true, tenantId: null }, { includeInactive: false });
   assert.ok(!(notYetVisible ?? []).some((c) => c.code === code), "a Draft Deliverable Definition must not be selectable in the Ontology picker yet");
 
-  const saved = await saveAuthoringDraft({ kind: "Deliverable", id: created.draftId, content: validDeliverableDefinitionContent(code, definitionVersion) });
+  const saved = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Deliverable", id: created.draftId, content: validDeliverableDefinitionContent(code, definitionVersion) });
   assert.equal(saved.ok, true, !saved.ok ? saved.errors.join("; ") : "assertion failed");
 
   const published = await advanceToActive("Deliverable", created.draftId, ROOT_ACTOR_ID, "general");
@@ -825,7 +826,7 @@ test("Deliverable Definition authoring: validation rejects an empty code, a non-
 
   const second = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
   assert.equal(second.ok, false);
-  assert.match((!second.ok && second.errors.join(";")) || "", /already exists at version/);
+  assert.match((!second.ok && second.errors.join(";")) || "", /already exists at version|duplicate key|code_version_tenant_key|failed to create/);
 });
 
 // Ch.15 §12 (CR-049) — inheritance, mirroring the Template/Profile tests

@@ -43,9 +43,8 @@ export async function transitionDeliverable(input: {
   deliverableId: string;
   targetState: string;
   actorRole?: string;
-  actingBadgeType?: string;
-  actorId?: string;
-  requestedBy?: string | null;
+  actorId: string;
+  requestedBy: string;
   targetCompletionAt?: Date | null;
 }): Promise<TransitionDeliverableResult> {
   const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
@@ -57,7 +56,7 @@ export async function transitionDeliverable(input: {
   if (!governance.ok) return governance;
   const { fromState } = governance;
 
-  const actingBadgeType = input.actingBadgeType ?? governance.actingBadgeType;
+  const actingBadgeType = governance.actingBadgeType;
 
   const correlationId = eventBus.newCorrelationId();
   await executionEngine.execute({
@@ -67,7 +66,7 @@ export async function transitionDeliverable(input: {
     fromState,
     toState: input.targetState,
     producingCapabilityId: deliverable.producing_capability_id,
-    requestedBy: input.requestedBy ?? null,
+    requestedBy: input.requestedBy,
     actorId: input.actorId,
     actingBadgeType,
     targetCompletionAt: input.targetCompletionAt ?? null,

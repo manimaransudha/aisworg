@@ -238,7 +238,8 @@
     "method": "POST",
     "path": "/aisworg/api/seu/objectives",
     "badges": [
-      "objective_propose","objective_all"
+      "objective_propose",
+      "objective_all"
     ],
     "roles": [],
     "match_mode": "any"
@@ -748,14 +749,18 @@
     "method": "POST",
     "path": "/aisworg/demo/tts",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo"
+    ],
     "match_mode": "all"
   },
   {
     "method": "GET",
     "path": "/aisworg/demo/voice-config",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo"
+    ],
     "match_mode": "all"
   },
   {
@@ -791,24 +796,6 @@
     "path": "/aisworg/quickview/work-items/:workItemId/complete",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
-  },
-  {
-    "method": "GET",
-    "path": "/aisworg/settings",
-    "badges": [],
-    "roles": [
-      "superuser"
-    ],
-    "match_mode": "all"
-  },
-  {
-    "method": "POST",
-    "path": "/aisworg/settings/:key",
-    "badges": [],
-    "roles": [
-      "superuser"
-    ],
     "match_mode": "all"
   },
   {
@@ -1420,63 +1407,81 @@
     "method": "GET",
     "path": "/aisworg/seu/sdk/:slug",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/sdk/:slug",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/sdk/:slug/:draftId",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/sdk/:slug/:draftId/compose",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/sdk/:slug/:draftId/import",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/sdk/:slug/:draftId/publish",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/sdk/:slug/:draftId/save",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/sdk/:slug/:draftId/transition",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/sdk/:slug/new",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
@@ -1486,7 +1491,9 @@
       "ontology_define",
       "ontology_manage"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "any"
   },
   {
@@ -1496,7 +1503,9 @@
       "ontology_define",
       "ontology_manage"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "any"
   },
   {
@@ -1505,7 +1514,9 @@
     "badges": [
       "ontology_approve"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
@@ -1514,7 +1525,9 @@
     "badges": [
       "ontology_approve"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
@@ -1523,7 +1536,9 @@
     "badges": [
       "ontology_approve"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
@@ -1533,7 +1548,9 @@
       "ontology_define",
       "ontology_manage"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "any"
   },
   {
@@ -1543,7 +1560,9 @@
       "ontology_define",
       "ontology_manage"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "any"
   },
   {
@@ -1553,7 +1572,9 @@
       "ontology_define",
       "ontology_manage"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "any"
   },
   {
@@ -1563,7 +1584,9 @@
       "ontology_define",
       "ontology_manage"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "any"
   },
   {
@@ -1573,7 +1596,9 @@
       "ontology_define",
       "ontology_manage"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "any"
   },
   {
@@ -1583,7 +1608,9 @@
       "ontology_define",
       "ontology_manage"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "any"
   },
   {
@@ -1593,7 +1620,9 @@
       "ontology_define",
       "ontology_manage"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "any"
   },
   {
@@ -1602,7 +1631,9 @@
     "badges": [
       "root"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
@@ -1611,7 +1642,9 @@
     "badges": [
       "root"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
@@ -1620,7 +1653,9 @@
     "badges": [
       "root"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
@@ -1628,7 +1663,7 @@
     "path": "/aisworg/seu/sdk/schema-registry/:id/publish",
     "badges": [],
     "roles": [
-      "root"
+      "sdk_author"
     ],
     "match_mode": "all"
   },
@@ -1637,7 +1672,7 @@
     "path": "/aisworg/seu/sdk/schema-registry/:id/reject",
     "badges": [],
     "roles": [
-      "root"
+      "sdk_author"
     ],
     "match_mode": "all"
   },
@@ -1647,7 +1682,9 @@
     "badges": [
       "root"
     ],
-    "roles": [],
+    "roles": [
+      "sdk_author"
+    ],
     "match_mode": "all"
   },
   {
@@ -1655,7 +1692,7 @@
     "path": "/aisworg/seu/sdk/schema-registry/publish",
     "badges": [],
     "roles": [
-      "root"
+      "sdk_author"
     ],
     "match_mode": "all"
   },
@@ -1675,13 +1712,6 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
-  },
-  {
-    "method": "GET",
-    "path": "/aisworg/seu/services",
-    "badges": [],
-    "roles": [],
     "match_mode": "all"
   },
   {
@@ -1973,13 +2003,80 @@
     "method": "GET",
     "path": "/aisworg/seu/docs",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "superuser"
+    ],
     "match_mode": "all"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/docs/*splat",
     "badges": [],
+    "roles": [
+      "superuser"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/dashboard/demo",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/demo",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/reset",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/scenarios/:code/run",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/playbooks/:code/step",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/demo/root",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/root/scenarios/:code/enabled",
+    "badges": [
+      "root"
+    ],
     "roles": [],
     "match_mode": "all"
   }

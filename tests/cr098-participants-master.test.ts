@@ -17,6 +17,7 @@ import { createParticipantMaster } from "../src/routes/seu/core/participantsMast
 import { findEligibleParticipants } from "../src/routes/seu/core/participantEligibility.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { listRegisteredOnboardingTypes, resolveOnboardingAdapter } from "../src/adapters/participantOnboardingRegistry.js";
+import { loadOnboardingOntology } from "../src/adapters/mockOnboardingData.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
 
@@ -179,7 +180,7 @@ test("onboarding registry: the 4 built-in Participant Types are registered, and 
 for (const type of ["AI", "Human", "Automated", "External"] as const) {
   test(`onboarding adapter "${type}": onboard() output round-trips cleanly through createParticipantMaster's own Ontology validation`, async () => {
     const adapter = resolveOnboardingAdapter(type);
-    const onboarded = await adapter.onboard({ tenantId: tenantId(), tenantLabel: "CR-098 fixture tenant", seed: 1 });
+    const onboarded = await adapter.onboard({ tenantId: tenantId(), tenantLabel: "CR-098 fixture tenant", seed: 1, ontology: await loadOnboardingOntology({ isRoot: false, tenantId: tenantId() }) });
     assert.ok(onboarded.displayName?.trim());
 
     const created = await createParticipantMaster({
@@ -197,12 +198,12 @@ for (const type of ["AI", "Human", "Automated", "External"] as const) {
 
 test('onboarding adapter "Automated": declares Technology competency only, never Domain', async () => {
   const adapter = resolveOnboardingAdapter("Automated");
-  const onboarded = await adapter.onboard({ tenantId: tenantId(), tenantLabel: "CR-098 fixture tenant", seed: 2 });
+  const onboarded = await adapter.onboard({ tenantId: tenantId(), tenantLabel: "CR-098 fixture tenant", seed: 2, ontology: await loadOnboardingOntology({ isRoot: false, tenantId: tenantId() }) });
   assert.ok(!("Domain" in onboarded.competency) || onboarded.competency.Domain.length === 0, "Automated Participants declare supported tech stack only, not a Domain competency");
 });
 
 test('onboarding adapter "External": declares Domain competency only, never Technology', async () => {
   const adapter = resolveOnboardingAdapter("External");
-  const onboarded = await adapter.onboard({ tenantId: tenantId(), tenantLabel: "CR-098 fixture tenant", seed: 3 });
+  const onboarded = await adapter.onboard({ tenantId: tenantId(), tenantLabel: "CR-098 fixture tenant", seed: 3, ontology: await loadOnboardingOntology({ isRoot: false, tenantId: tenantId() }) });
   assert.ok(!("Technology" in onboarded.competency) || onboarded.competency.Technology.length === 0, "External Participants declare accredited domain only, not a Technology competency");
 });

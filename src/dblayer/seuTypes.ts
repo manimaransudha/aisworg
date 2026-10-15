@@ -29,7 +29,8 @@ export interface ObjectiveCommentRow {
   id: string;
   objective_id: string;
   comment_text: string;
-  actor_id: number | null;
+  actor_id: string;
+  authority_badge: string;
   created_at: string;
 }
 
@@ -75,7 +76,8 @@ export interface PackCommentRow {
   id: string;
   pack_id: string;
   comment_text: string;
-  actor_id: number | null;
+  actor_id: string;
+  authority_badge: string;
   created_at: string;
 }
 
@@ -399,7 +401,8 @@ export interface SeuRow {
   tenant_id: string | null;
   active_ebm_id: string | null;
   lifecycle_state: SeuLifecycleState;
-  requested_by: string | null;
+  requested_by: string;
+  author_badge: string;
   commissioning_report: CommissioningReport | Record<string, never>;
   composition_report: Record<string, unknown> | null;
   created_at: string;
@@ -567,6 +570,7 @@ export interface TransitionDefinitionRow {
   submit_verb: string | null;
   event_type: string | null;
   version_event: string | null;
+  version_hop: boolean | null;
   submit_version_event: string | null;
 }
 
@@ -613,7 +617,7 @@ export interface CommandRow {
   to_state: string;
   status: CommandStatus;
   requested_by: string;
-  acting_badge_type: string | null;
+  acting_badge_type: string;
   correlation_id: string;
   governance_outcome_id: string | null;
   eligible_participant_pool_id: string | null;
@@ -696,7 +700,8 @@ export interface OntologyConceptCommentRow {
   id: string;
   concept_id: string;
   comment_text: string;
-  actor_id: number | null;
+  actor_id: string;
+  authority_badge: string;
   created_at: string;
 }
 
@@ -739,7 +744,7 @@ export interface ComplianceWaiverRow {
   seu_id: string;
   requirement_code: string;
   rationale: string;
-  granted_by: number | null;
+  granted_by: string;
   status: string;
   expires_at: string | null;
   created_at: string;
@@ -812,12 +817,12 @@ export interface AttestationRow {
   seu_id: string;
   deliverable_id: string;
   work_item_id: string;
-  participant_id: string | null;
+  participant_id: string;
   from_state: string;
   to_state: string;
   reference: string | null;
-  acting_badge_type: string | null;
-  requested_by: string | null;
+  acting_badge_type: string;
+  requested_by: string;
   created_at: string;
 }
 
@@ -895,7 +900,7 @@ export interface VersionEventRow {
   version_event: string;
   occurred_at: string;
   actor_id: string;
-  authority_badge: string | null;
+  authority_badge: string;
 }
 
 export interface EventSubscriptionRow {
@@ -995,7 +1000,7 @@ export interface QualityGateWaiverRow {
   entity_type: string;
   entity_id: string;
   rationale: string;
-  granted_by: number | null;
+  granted_by: string;
   authority_badge: string;
   status: "Active" | "Expired" | "Revoked";
   expires_at: string | null;
@@ -1062,8 +1067,8 @@ export interface KnowledgeItemRow {
   status: string;
   version: string;
   confidence_level: string | null;
-  author_id: string | null;
-  authority_badge: string | null;
+  author_id: string;
+  authority_badge: string;
   created_at: string;
   updated_at: string;
 }
@@ -1072,7 +1077,8 @@ export interface KnowledgeValidationNoteRow {
   id: string;
   knowledge_item_id: string;
   note_text: string;
-  actor_id: number | null;
+  actor_id: string;
+  authority_badge: string;
   created_at: string;
 }
 
@@ -1106,8 +1112,8 @@ export interface DecisionRow {
   knowledge_ids: string[];
   evidence_ids: string[];
   alternatives: DecisionAlternative[];
-  participant_id: string | null;
-  authority_badge: string | null;
+  participant_id: string;
+  authority_badge: string;
   category: string;
   title: string;
   engineering_question: string | null;
@@ -1218,8 +1224,8 @@ export interface SchemaDefinitionRow {
   incompatible_versions: number[];
   created_at: string;
   lifecycle_state: "Created" | "Validated" | "Tested" | "Packaged" | "Published" | "PublicationRejected";
-  author_id: string | null;
-  author_badge: string | null;
+  author_id: string;
+  author_badge: string;
 }
 
 export interface DeliverableAuthoringContentRow {

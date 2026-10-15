@@ -5,7 +5,7 @@ CREATE TABLE compliance_waivers (
   seu_id            UUID NOT NULL REFERENCES seus(id),
   requirement_code  TEXT NOT NULL REFERENCES compliance_requirements(code),
   rationale         TEXT NOT NULL,
-  granted_by        UUID REFERENCES participants_master(id),
+  granted_by        UUID NOT NULL REFERENCES participants_master(id),
   status            TEXT NOT NULL DEFAULT 'Active',
   expires_at        TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()

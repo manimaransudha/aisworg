@@ -58,7 +58,7 @@ async function dispatchAndComplete(deliverableId: string, targetState: string, r
   const { data: deliverable } = await deliverablesDB.findById(deliverableId);
   const fromState = deliverable!.lifecycle_state;
   console.log(`[dispatchAndComplete] START ${deliverableId} ${fromState} -> ${targetState}`);
-  const dispatched = await transitionDeliverable({ deliverableId, targetState, actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState, actorRole: "super", actorId: ROOT_ACTOR_ID });
   console.log(`[dispatchAndComplete] transitionDeliverable returned`, dispatched);
   // deliverableKickoffHandler (off SEUOperational) may already have this
   // exact hop in flight from its own automatic rescan, now that fulfilment
@@ -110,7 +110,7 @@ test("empty-centre: an approval cannot be dispatched unless a real reference was
   // Produce with NO reference — the "empty centre" the platform must not certify.
   await dispatchAndComplete(deliverableId, "In Progress", null);
 
-  const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blocked = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false, "approving an empty Deliverable must be blocked");
   if (!blocked.ok) assert.equal(blocked.reason, "empty_centre");
 
@@ -125,6 +125,6 @@ test("empty-centre clears once a real reference is produced: the same Deliverabl
   // A real production reference this time — the presence check is satisfied.
   await dispatchAndComplete(deliverableId, "In Progress", "vcs://attest/req-spec@real");
 
-  const approved = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const approved = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(approved.ok, true, !approved.ok ? JSON.stringify(approved) : "assertion failed");
 });

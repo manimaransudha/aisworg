@@ -123,7 +123,7 @@ export const packsDB = {
     }
   },
 
-  async findByStatusActedBy(status: PackStatus, authorityBadge: string, actorId: number | null): Promise<DbResult<PackRow[]>> {
+  async findByStatusActedBy(status: PackStatus, authorityBadge: string, actorId: string | null): Promise<DbResult<PackRow[]>> {
     try {
       const { rows } = actorId == null
         ? await query<PackRow>(
@@ -163,7 +163,7 @@ export const packsDB = {
     }
   },
 
-  async findDrafts(authoredBy?: number | null): Promise<DbResult<PackRow[]>> {
+  async findDrafts(authoredBy?: string | null): Promise<DbResult<PackRow[]>> {
     try {
       const { rows } = authoredBy == null
         ? await query<PackRow>("SELECT * FROM packs WHERE status IN ('Draft', 'Validated') ORDER BY created_at DESC")
@@ -321,13 +321,13 @@ export const packsDB = {
     }
   },
 
-  async addComment(packId: string, actorId: string, commentText: string): Promise<DbResult<PackCommentRow>> {
+  async addComment(packId: string, actorId: string, authorityBadge: string, commentText: string): Promise<DbResult<PackCommentRow>> {
     try {
       const { rows } = await query<PackCommentRow>(
-        `INSERT INTO pack_comments (pack_id, actor_id, comment_text)
-         VALUES ($1, $2, $3)
+        `INSERT INTO pack_comments (pack_id, actor_id, authority_badge, comment_text)
+         VALUES ($1, $2, $3, $4)
          RETURNING *`,
-        [packId, actorId, commentText]
+        [packId, actorId, authorityBadge, commentText]
       );
       return { data: rows[0] };
     } catch (err) {

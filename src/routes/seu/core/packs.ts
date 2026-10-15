@@ -9,7 +9,7 @@ import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
-import { backfillAuthorityRuleCode, backfillPolicyCode } from "../../../dblayer/seed/seedTransitionDefinitions.js";
+import { backfillPolicyCode } from "../../../dblayer/seed/seedTransitionDefinitions.js";
 import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
 import { reviewGatesDB } from "../../../dblayer/reviewGatesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
@@ -22,7 +22,9 @@ import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import type { PackCategory, PackClassification, PackContributions, PackRow, PolicyCondition, PolicyDefinitionRow, PolicyScope, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
-import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "../../../dblayer/constants.js";
+import { compareSemver, nextUnusedPatchVersion, semverError } from "../../../utils/version.js";
+
  
 
 function parseGovernedTransition(value: string | undefined): { entityType: TransitionEntityType; fromState: string; toState: string } | null {
@@ -145,7 +147,6 @@ export async function findActiveCompositionSource(code: string, tenantId: string
 
 const PACK_DEPENDENCY_TYPES: PackDependencyType[] = ["required", "optional", "conditional", "incompatible"];
 
-const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 
 export type PackValidationResult = { ok: true } | { ok: false; errors: string[] };
 
@@ -168,7 +169,8 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
       errors.push(...(await validateComposableFieldsAgainstSchema(packSchema, ontologyContent, ontologyViewer)));
     }
   }
-  if (!SEMVER_RE.test(seed.packVersion ?? "")) errors.push(`packVersion must be semver (x.y.z), got: "${seed.packVersion}"`);
+  const packVersionError = semverError("packVersion", seed.packVersion);
+  if (packVersionError) errors.push(packVersionError);
   try {
     await assertCanonicalCategory("installation-classification", seed.installationClassification ?? "", ontologyViewer);
   } catch (err) {
@@ -418,20 +420,13 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
 export interface PublishPackResult {
   ok: boolean;
   pack?: PackRow;
-  alreadyPublished?: boolean;
   supersededPack?: PackRow | null;
   errors?: string[];
 }
 
-export async function createPackDraft(seed: PackSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true; pack: PackRow; alreadyExists: boolean } | { ok: false; errors: string[] }> {
+export async function createPackDraft(seed: PackSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true; pack: PackRow } | { ok: false; errors: string[] }> {
   const validation = await validatePackSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
-
-  const { data: existing } = await packsDB.findByCodeAndVersion(seed.code, seed.packVersion, seed.tenantId ?? (await getPlatformTenantId()));
-  if (existing) {
-    await materializeContributions(existing, seed);
-    return { ok: true, pack: existing, alreadyExists: true };
-  }
 
   const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
   if (!packSchema) return { ok: false, errors: [`no schema_definitions grammar for Pack`] };
@@ -451,7 +446,7 @@ export async function createPackDraft(seed: PackSeedInput, authorId: string, aut
     payload: { code: pack.code, packVersion: pack.pack_version },
   });
 
-  return { ok: true, pack, alreadyExists: false };
+  return { ok: true, pack };
 }
 
 export async function advancePackLifecycle(pack: PackRow, actorRole: string, actorId: string, options?: { activate?: boolean }): Promise<PublishPackResult> {
@@ -519,7 +514,7 @@ export async function publishPack(input: { seed: PackSeedInput; actorRole: strin
   if (!draft.ok) return { ok: false, errors: draft.errors };
 
   const advanced = await advancePackLifecycle(draft.pack, input.actorRole, input.actorId, { activate: input.activate });
-  return { ...advanced, alreadyPublished: draft.alreadyExists };
+  return advanced;
 }
 
 async function materializeContributions(pack: PackRow, seed: PackSeedInput): Promise<void> {
@@ -573,7 +568,6 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
       authorBadge: pack.author_badge,
     });
     if (error || !createdRule) throw error ?? new Error(`authority rule upsert failed: ${rule.code}`);
-    await backfillAuthorityRuleCode(rule.code, createdRule.id);
   }
 
   const policyIdByCode = new Map<string, string[]>();
@@ -711,6 +705,7 @@ export async function transitionPack(input: { packId: string; targetState: strin
     if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
 
   const trimmedComment = input.comment?.trim() ?? "";
   if (fromState === "Validated" && input.targetState === "Draft") {
@@ -728,7 +723,7 @@ export async function transitionPack(input: { packId: string; targetState: strin
   if (error || !updated) throw error ?? new Error("failed to update pack status");
 
   if (trimmedComment) {
-    await packsDB.addComment(pack.id, input.actorId, trimmedComment);
+    await packsDB.addComment(pack.id, input.actorId, gate.authorityBadge, trimmedComment);
   }
 
   await eventBus.publish({
@@ -739,7 +734,7 @@ export async function transitionPack(input: { packId: string; targetState: strin
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: pack.code, packVersion: pack.pack_version },
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
     versionEvent: gate.versionEvent,
     fromState,
     toState: input.targetState,
@@ -749,32 +744,11 @@ export async function transitionPack(input: { packId: string; targetState: strin
   return { ok: true, pack: updated, appliedTransition: { fromState, toState: input.targetState } };
 }
 
-function compareSemver(a: string, b: string): number {
-  const pa = a.split(".").map(Number);
-  const pb = b.split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
-    if (diff !== 0) return diff;
-  }
-  return 0;
-}
-
 export interface PackCodeVersionSummary {
   versions: Array<{ id: string; version: string; status: PackRow["status"] }>;
   nextVersion: string;
 }
 const BRANCHABLE_STATUSES = new Set<PackRow["status"]>(["Published", "Active", "Retired", "Archived"]);
-
-function nextAvailablePatchVersionInMemory(fromVersion: string, takenVersions: ReadonlySet<string>): string {
-  const [major, minor, startingPatch] = fromVersion.split(".").map(Number);
-  let patch = startingPatch ?? 0;
-  for (let attempts = 0; attempts < 1000; attempts++) {
-    patch += 1;
-    const candidate = `${major}.${minor}.${patch}`;
-    if (!takenVersions.has(candidate)) return candidate;
-  }
-  throw new Error(`could not find an unused version after bumping from ${fromVersion}`);
-}
 
 function groupByCode(rows: PackRow[]): Map<string, PackRow[]> {
   const byCode = new Map<string, PackRow[]>();
@@ -799,7 +773,7 @@ export async function packCodeVersionSummaries(tenantId: string): Promise<Record
     const ownRows = byCode.get(code) ?? [];
     if (ownRows.length > 0) {
       const highest = ownRows.reduce((max, r) => (compareSemver(r.pack_version, max) > 0 ? r.pack_version : max), ownRows[0]!.pack_version);
-      const nextVersion = nextAvailablePatchVersionInMemory(highest, new Set(ownRows.map((r) => r.pack_version)));
+      const nextVersion = nextUnusedPatchVersion(highest, new Set(ownRows.map((r) => r.pack_version)));
       const versions = ownRows
         .filter((r) => BRANCHABLE_STATUSES.has(r.status))
         .map((r) => ({ id: r.id, version: r.pack_version, status: r.status }))
@@ -813,7 +787,7 @@ export async function packCodeVersionSummaries(tenantId: string): Promise<Record
       .filter((r) => BRANCHABLE_STATUSES.has(r.status))
       .map((r) => ({ id: r.id, version: r.pack_version, status: r.status }))
       .sort((a, b) => compareSemver(b.version, a.version));
-    result[code] = { versions, nextVersion: "1.0.0" };
+    result[code] = { versions, nextVersion: INITIAL_VERSION };
   }
   return result;
 }

@@ -15,7 +15,7 @@ import { createParticipantMaster } from "./participantsMaster.js";
 import type { BadgeTypeRow, TenantRow } from "../../../dblayer/seuTypes.js";
 
 export interface PlatformUserView {
-  id: number;
+  id: string;
   email: string;
   name: string | null;
   role: string;
@@ -43,16 +43,16 @@ export async function listTenantsForManagement(): Promise<TenantRow[]> {
 export async function getIdentityDashboardView(): Promise<IdentityDashboardView> {
   const [{ data: tenants }, badgeTypesResult] = await Promise.all([tenantsDB.findAll(), query<BadgeTypeRow>("SELECT * FROM badge_types ORDER BY tenant_id NULLS FIRST, code")]);
 
-  const { rows: userRows } = await query<{ id: number; email: string; name: string | null; is_active: boolean; created_at: string; tenant_id: string | null }>(
+  const { rows: userRows } = await query<{ id: string; email: string; name: string | null; is_active: boolean; created_at: string; tenant_id: string | null }>(
     "SELECT id, email, name, is_active, created_at, tenant_id FROM users ORDER BY created_at DESC"
   );
   const tenantNameById = new Map<string, string>((tenants ?? []).map((t) => [t.id, t.name]));
 
-  const { rows: masterRows } = await query<{ user_id: number; authorised_role: Array<{ role: string; effective_till: string; seu_ids: string[] }> }>(
+  const { rows: masterRows } = await query<{ user_id: string; authorised_role: Array<{ role: string; effective_till: string; seu_ids: string[] }> }>(
     "SELECT user_id, authorised_role FROM participants_master WHERE user_id IS NOT NULL"
   );
   const now = new Date();
-  const authorisedRolesByUserId = new Map<number, string[]>(
+  const authorisedRolesByUserId = new Map<string, string[]>(
     masterRows.map((m) => [
       m.user_id,
       m.authorised_role.filter((e) => e.seu_ids.length === 0 && new Date(e.effective_till).getTime() >= now.getTime()).map((e) => e.role),
@@ -62,10 +62,10 @@ export async function getIdentityDashboardView(): Promise<IdentityDashboardView>
   const { data: authorisedRoleConcepts } = await ontologyDB.findConceptsByType("authorised-role", { isRoot: true, tenantId: null });
   const authorisedRoleCodes = (authorisedRoleConcepts ?? []).map((c) => c.code);
 
-  const { rows: masterBadgeRows } = await query<{ user_id: number; authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }> }>(
+  const { rows: masterBadgeRows } = await query<{ user_id: string; authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }> }>(
     "SELECT user_id, authorised_badges FROM participants_master WHERE user_id IS NOT NULL"
   );
-  const authorisedBadgesByUserId = new Map<number, string[]>(
+  const authorisedBadgesByUserId = new Map<string, string[]>(
     masterBadgeRows.map((m) => [
       m.user_id,
       m.authorised_badges.filter((e) => e.seu_ids.length === 0 && new Date(e.effective_till).getTime() >= now.getTime()).map((e) => e.badge),
@@ -203,7 +203,7 @@ export async function createTenant(input: { code: string; name: string; authorId
 export type TenantUserView = PlatformUserView;
 
 export async function listUsersForTenant(tenantId: string): Promise<TenantUserView[]> {
-  const { rows: userRows } = await query<{ id: number; email: string; name: string | null; is_active: boolean; created_at: string }>(
+  const { rows: userRows } = await query<{ id: string; email: string; name: string | null; is_active: boolean; created_at: string }>(
     "SELECT id, email, name, is_active, created_at FROM users WHERE tenant_id = $1 ORDER BY created_at DESC",
     [tenantId]
   );
@@ -211,20 +211,20 @@ export async function listUsersForTenant(tenantId: string): Promise<TenantUserVi
 
   const now = new Date();
   const { rows: masterRows } = await query<{
-    user_id: number;
+    user_id: string;
     authorised_role: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
     authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }>;
   }>(
-    "SELECT user_id, authorised_role, authorised_badges FROM participants_master WHERE user_id = ANY($1::int[])",
+    "SELECT user_id, authorised_role, authorised_badges FROM participants_master WHERE user_id = ANY($1::uuid[])",
     [userRows.map((u) => u.id)]
   );
-  const authorisedRolesByUserId = new Map<number, string[]>(
+  const authorisedRolesByUserId = new Map<string, string[]>(
     masterRows.map((m) => [
       m.user_id,
       m.authorised_role.filter((e) => e.seu_ids.length === 0 && new Date(e.effective_till).getTime() >= now.getTime()).map((e) => e.role),
     ])
   );
-  const authorisedBadgesByUserId = new Map<number, string[]>(
+  const authorisedBadgesByUserId = new Map<string, string[]>(
     masterRows.map((m) => [
       m.user_id,
       m.authorised_badges.filter((e) => e.seu_ids.length === 0 && new Date(e.effective_till).getTime() >= now.getTime()).map((e) => e.badge),

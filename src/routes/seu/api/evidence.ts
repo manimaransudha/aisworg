@@ -67,7 +67,8 @@ router.post("/evidence/:id/transition", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "targetState is required" });
     }
     const actorRole = req.session?.user?.role ?? "general";
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
+    const actorId = String(req.session.user.id);
     const result = await transitionEvidence({ evidenceId: String(req.params.id), targetState, actorRole, actorId });
 
     if (!result.ok) {

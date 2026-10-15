@@ -38,6 +38,8 @@ export function attachVM(viewName) {
         else if (url.includes('/seu/tenant-admin/users')) activePage = 'seu-tenant-admin-users';
         else if (url.includes('/seu/data-migrations')) activePage = 'seu-data-migrations';
         else if (url.includes('/seu/docs')) activePage = 'seu-docs';
+        else if (url.includes('/seu/demo/root')) activePage = 'seu-demo-root';
+        else if (url.includes('/seu/demo')) activePage = 'seu-demo';
         else if (url.includes('/seu/identity')) activePage = 'seu-identity';
         else if (url.includes('/seu/sdk/pack-authoring')) activePage = 'seu-sdk-pack-authoring';
         else if (url.includes('/seu/sdk/template-authoring')) activePage = 'seu-sdk-template-authoring';
@@ -47,7 +49,6 @@ export function attachVM(viewName) {
         else if (url.includes('/seu/sdk/ontology')) activePage = 'seu-sdk-ontology';
         else if (url.includes('/seu/capability-definitions')) activePage = 'seu-capability-definitions';
         else if (url.includes('/seu/participants')) activePage = 'seu-participants';
-        else if (url.includes('/seu/services')) activePage = 'seu-services';
         else if (url.includes('/seu/knowledge/capital')) activePage = 'seu-knowledge-capital';
         else if (url.includes('/seu/telemetry')) activePage = 'seu-telemetry';
         else if (url.includes('/seu/attention')) activePage = 'seu-attention';

@@ -22,7 +22,7 @@ import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishProfile, transitionProfile, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
-import { uniqueTestPackVersion, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { uniqueTestPackVersion, ROOT_ACTOR_ID, TESTER_ALL_ID, PLATFORM_TENANT_ID } from "./testFixtures.js";
 import { randomUUID } from "node:crypto";
 
 // A Profile always needs a real base Template to point at — created here via
@@ -32,7 +32,7 @@ import { randomUUID } from "node:crypto";
 // already uses for this exact purpose.
 async function freshBaseTemplateCode(): Promise<string> {
   const code = `test-profile-lifecycle-template-${randomUUID()}`;
-  const { data: template, error } = await templatesDB.upsert({ code, name: "Profile Lifecycle Test Template", deliverableCatalogue: [] });
+  const { data: template, error } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code, name: "Profile Lifecycle Test Template", deliverableCatalogue: [] });
   if (error || !template) throw error ?? new Error("failed to create base Template fixture");
   return template.code;
 }
@@ -69,7 +69,7 @@ async function freshProfileDraft(): Promise<{ id: string }> {
   if (!profileSchema) throw new Error("no schema_definitions grammar for Profile");
   const { data: root } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
   if (!root) throw new Error("No participants_master row for user_id 1 -- log in as root first.");
-  const { data: draft, error } = await profilesDB.createDraft({
+  const { data: draft, error } = await profilesDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
     code: `test-profile-lifecycle-draft-${randomUUID()}`,
     name: "Test Profile Draft",
     baseTemplateId: template!.id,

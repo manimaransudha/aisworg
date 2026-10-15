@@ -18,7 +18,7 @@
 
 - treat the working tree as-is as the baseline; don't diff against git HEAD to separate "pre-existing" from "mine" or flag that distinction unprompted.
 
-- There should be no hard-coded constants used in the code. Everything should be Ontology driven. And Ontology changes are data changes and should not warrant a code change unless approved by user explicitly.
+- There should be no hard-coded constants used in the code, except in src/dblayer/constants.ts. Everything else should be Ontology driven. And Ontology changes are data changes and should not warrant a code change unless approved by user explicitly.
 
 - Data seed scripts should load Ontology once and not do a live-query. Data seed scripts should do a batch dbwrite. If you are using assertCanoncicalCategory, you are deviating. If you are not using utils/db/bulkInsert, you are deviating.
 

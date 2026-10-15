@@ -178,30 +178,37 @@ const ALL_PACK_FILES = [
   ...DOMAIN_TECHNOLOGY_PACK_FILES,
   ...(process.env.NODE_ENV !== "production" ? TEST_PACKS: [])
 ];
+const PUBLISH_CONCURRENCY = 8;
+
 export async function seedCapabilityPatternPacks(actor: SeedActor): Promise<void> {
 
   const PLATFORM_TENANT_ID = await getPlatformTenantId();
-  const settled = await Promise.allSettled(
-    ALL_PACK_FILES.map(async (file) => {
-      const seed = loadJson<PackSeedInput>(file);
-      seed.tenantId = PLATFORM_TENANT_ID;
-      const result = await publishPack({ seed, actorRole: actor.authorBadge, actorId: actor.authoredBy, activate: true });
-      if (!result.ok) {
-        throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
+  const settled: PromiseSettledResult<void>[] = new Array(ALL_PACK_FILES.length);
+  let next = 0;
+  async function runOne(): Promise<void> {
+    while (next < ALL_PACK_FILES.length) {
+      const idx = next++;
+      try {
+        const seed = loadJson<PackSeedInput>(ALL_PACK_FILES[idx]);
+        seed.tenantId = PLATFORM_TENANT_ID;
+        const result = await publishPack({ seed, actorRole: actor.authorBadge, actorId: actor.authoredBy, activate: true });
+        if (!result.ok) {
+          throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
+        }
+        settled[idx] = { status: "fulfilled", value: undefined };
+      } catch (reason) {
+        settled[idx] = { status: "rejected", reason };
       }
-      return result.alreadyPublished;
-    })
-  );
+    }
+  }
+  await Promise.all(Array.from({ length: PUBLISH_CONCURRENCY }, runOne));
 
   const failures = settled.filter((s): s is PromiseRejectedResult => s.status === "rejected");
   if (failures.length > 0) {
     throw new Error(failures.map((f) => (f.reason instanceof Error ? f.reason.message : String(f.reason))).join("; "));
   }
 
-  const results = (settled as PromiseFulfilledResult<boolean>[]).map((s) => s.value);
-  const alreadyCount = results.filter(Boolean).length;
-  const publishedCount = results.length - alreadyCount;
-  logger.info(`[seed:capability-pattern-packs] ${publishedCount} published, ${alreadyCount} already present — ${ALL_PACK_FILES.length} Packs total.`);
+  logger.info(`[seed:capability-pattern-packs] ${settled.length} published — ${ALL_PACK_FILES.length} Packs total.`);
 }
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;

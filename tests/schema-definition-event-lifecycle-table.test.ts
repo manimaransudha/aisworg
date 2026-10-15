@@ -1,9 +1,9 @@
 // CR-115 — Version Feature Plan.md, point 1 discipline: an executable check
 // of Ch.39 §15's SchemaDefinition table, same shape as
 // policy-definition-event-lifecycle-table.test.ts / objective-event-lifecycle-table.test.ts.
-// SchemaDefinition's own five hops: three 'governed'/verb-null auto-advance
-// steps (Created->Validated->Tested->Packaged, no badge, no button) fired by
-// createSchemaVersion's autoAdvanceToPackaged, plus two real 'manual',
+// SchemaDefinition's own five hops: three 'governed' auto-advance steps
+// (Created->Validated->Tested->Packaged, each carrying its own verb and badge, no button)
+// fired by createSchemaVersion's autoAdvanceToPackaged, plus two real 'manual',
 // badge-gated decisions (Packaged->Published / Packaged->PublicationRejected)
 // fired by publishSchemaVersion/rejectSchemaVersion. No version_event on any
 // row — SchemaDefinition's own version/schema columns are the versioning
@@ -20,7 +20,7 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { createSchemaVersion, publishSchemaVersion, rejectSchemaVersion } from "../src/routes/seu/core/schemaRegistry.js";
-import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
 
 // This file reuses the real "Capability" entity_kind as its fixture (see
 // freshCreatedSchema below), which otherwise permanently pollutes
@@ -53,9 +53,9 @@ interface SchemaDefinitionTableRow {
 }
 
 const SCHEMA_DEFINITION_TABLE: SchemaDefinitionTableRow[] = [
-  { row: 1, description: "Validate", fromState: "Created", toState: "Validated", trigger: "governed", verb: null, eventType: "SDKElementSchemaValidated" },
-  { row: 2, description: "Test", fromState: "Validated", toState: "Tested", trigger: "governed", verb: null, eventType: "SDKElementSchemaTested" },
-  { row: 3, description: "Package", fromState: "Tested", toState: "Packaged", trigger: "governed", verb: null, eventType: "SDKElementSchemaPackaged" },
+  { row: 1, description: "Validate", fromState: "Created", toState: "Validated", trigger: "governed", verb: "validate", eventType: "SDKElementSchemaValidated" },
+  { row: 2, description: "Test", fromState: "Validated", toState: "Tested", trigger: "governed", verb: "test", eventType: "SDKElementSchemaTested" },
+  { row: 3, description: "Package", fromState: "Tested", toState: "Packaged", trigger: "governed", verb: "package", eventType: "SDKElementSchemaPackaged" },
   { row: 4, description: "Publish", fromState: "Packaged", toState: "Published", trigger: "manual", verb: "publish", eventType: "SDKElementSchemaPublished" },
   { row: 5, description: "Reject", fromState: "Packaged", toState: "PublicationRejected", trigger: "manual", verb: "reject", eventType: "SDKElementSchemaPublicationRejected" },
 ];
@@ -96,12 +96,12 @@ test("DEFINITION: every SchemaDefinition transition_definitions row matches Ch.3
   }
 });
 
-test("DEFINITION: route_authority (CR-110) gates both publish/reject routes root-only", async () => {
+test("DEFINITION: route_authority (CR-110) gates both publish/reject routes to the sdk_author role", async () => {
   const { data: rows } = await routeAuthorityDB.findAll();
   for (const path of ["/aisworg/seu/sdk/schema-registry/:id/publish", "/aisworg/seu/sdk/schema-registry/:id/reject"]) {
     const match = (rows ?? []).find((r) => r.method === "POST" && r.path === path);
     assert.ok(match, `no route_authority row for POST ${path}`);
-    assert.deepEqual(match!.roles, ["root"], `POST ${path}: roles`);
+    assert.deepEqual(match!.roles, ["sdk_author"], `POST ${path}: roles`);
     assert.deepEqual(match!.badges, [], `POST ${path}: badges`);
     assert.equal(match!.match_mode, "all", `POST ${path}: match_mode`);
   }
@@ -113,10 +113,8 @@ test("DRIVEN: createSchemaVersion auto-advances a new row Created -> Validated -
   if (!result.ok) return;
 
   assert.equal(result.schema.lifecycle_state, "Packaged");
-  // Created is entity-direct authoring, but this whole router is root-only
-  // (route_authority) — the real resolved badge for it is ROOT_ACTOR_BADGE
-  // itself (schemaRegistry.ts's createSchemaVersion), not null.
-  assert.equal(result.schema.author_badge, ROOT_ACTOR_BADGE);
+  // The last auto-advance hop (Tested -> Packaged, verb "package") stamps its own badge.
+  assert.equal(result.schema.author_badge, "schemadefinition_package");
 
   const { data: events } = await eventsDB.findByOriginatingObject("SchemaDefinition", result.schema.id);
   const eventTypes = (events ?? []).map((e) => e.event_type);
@@ -179,15 +177,16 @@ test("AUTHORITY: an actor without schemadefinition_publish/_reject is denied, an
   assert.equal(packaged.ok, true);
   if (!packaged.ok) return;
 
+  const stampBeforeDenial = packaged.schema.author_badge;
   const denied = await publishSchemaVersion(packaged.schema.id, NO_BADGE_ACTOR_ID);
   assert.equal(denied.ok, false);
   assert.match(denied.ok ? "" : denied.error, /requires badge schemadefinition_publish/);
 
   const { data: stillPackaged } = await schemaDefinitionsDB.findById(packaged.schema.id);
   assert.equal(stillPackaged!.lifecycle_state, "Packaged");
-  // Unchanged from Created's own stamp (ROOT_ACTOR_BADGE) — a denied
+  // Unchanged from the stamp the Packaged row already carried — a denied
   // publish attempt must not overwrite it.
-  assert.equal(stillPackaged!.author_badge, ROOT_ACTOR_BADGE);
+  assert.equal(stillPackaged!.author_badge, stampBeforeDenial);
 });
 
 test("AUTHORITY: an unknown schema id is rejected before any authority check", async () => {

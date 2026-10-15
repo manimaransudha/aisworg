@@ -50,11 +50,11 @@ test("compositionEngine.compose resolves a Template's mandatory Pack plus a Prof
   assert.equal(mandatory.ok, true);
   assert.equal(optional.ok, true);
 
-  const { data: template } = await templatesDB.upsert({ code: `test-compose-template-${randomUUID()}`, name: "Compose Test Template" });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `test-compose-template-${randomUUID()}`, name: "Compose Test Template" });
   assert.ok(template);
   await templatesDB.setMandatoryPacks(template!.id, [mandatory.pack!.code], ROOT_ACTOR_ID, "root");
 
-  const { data: profile } = await profilesDB.upsert({ code: `test-compose-profile-${randomUUID()}`, name: "Compose Test Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: profile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `test-compose-profile-${randomUUID()}`, name: "Compose Test Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   assert.ok(profile);
   await profilesDB.setOptionalPacks(profile!.id, [optional.pack!.code], profile!.authored_by, "root");
 

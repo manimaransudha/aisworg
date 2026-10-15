@@ -1,7 +1,7 @@
 import {auth_loginVM} from "./auth_login.js";
-import {settings_indexVM} from "./settings_index.js";
 import {quickview_indexVM} from "./quickview_index.js";
 import {seu_dashboardVM} from "./seu_dashboard.js";
+import {seu_dashboardDemoVM} from "./seu_dashboardDemo.js";
 import {seu_seus_indexVM} from "./seu_seus_index.js";
 import {seu_seus_newVM} from "./seu_seus_new.js";
 import {seu_seus_validateVM} from "./seu_seus_validate.js";
@@ -20,7 +20,6 @@ import {seu_objectives_indexVM} from "./seu_objectives_index.js";
 import {seu_objectives_detailVM} from "./seu_objectives_detail.js";
 import {seu_objectives_newVM} from "./seu_objectives_new.js";
 import {seu_objectives_editVM} from "./seu_objectives_edit.js";
-import {seu_services_indexVM} from "./seu_services_index.js";
 import {seu_knowledge_capitalVM} from "./seu_knowledge_capital.js";
 import {seu_telemetry_indexVM} from "./seu_telemetry_index.js";
 import {seu_attention_indexVM} from "./seu_attention_index.js";
@@ -51,12 +50,13 @@ import {seu_compliance_indexVM} from "./seu_compliance_index.js";
 import {seu_events_indexVM} from "./seu_events_index.js";
 import {seu_versionEvents_indexVM} from "./seu_versionEvents_index.js";
 import {seu_data_migrations_indexVM} from "./seu_data_migrations_index.js";
+import {seu_demo_indexVM} from "./seu_demo_index.js";
 
 export const viewModels = {
   "auth/login": auth_loginVM,
-  "settings/index": settings_indexVM,
   "quickview/index": quickview_indexVM,
   "seu/dashboard": seu_dashboardVM,
+  "seu/dashboardDemo": seu_dashboardDemoVM,
   "seu/seus/index": seu_seus_indexVM,
   "seu/seus/new": seu_seus_newVM,
   "seu/seus/validate": seu_seus_validateVM,
@@ -75,7 +75,6 @@ export const viewModels = {
   "seu/objectives/detail": seu_objectives_detailVM,
   "seu/objectives/new": seu_objectives_newVM,
   "seu/objectives/edit": seu_objectives_editVM,
-  "seu/services/index": seu_services_indexVM,
   "seu/knowledge/capital": seu_knowledge_capitalVM,
   "seu/telemetry/index": seu_telemetry_indexVM,
   "seu/attention/index": seu_attention_indexVM,
@@ -105,5 +104,6 @@ export const viewModels = {
   "seu/reviews/index": seu_reviews_indexVM,
   "seu/compliance/index": seu_compliance_indexVM,
   "seu/events/index": seu_events_indexVM,
-  "seu/versionEvents/index": seu_versionEvents_indexVM
+  "seu/versionEvents/index": seu_versionEvents_indexVM,
+  "seu/demo/index": seu_demo_indexVM
 };

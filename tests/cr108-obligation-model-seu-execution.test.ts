@@ -97,12 +97,12 @@ async function commissionSeuBlockedByPackObligation(run: string) {
   assert.ok(published.ok, `pack obligation pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(pack.code);
 
-  const { data: template } = await templatesDB.upsert({
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
     code: `cr108-tpl-${run}`, name: "CR-108 Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
   await templatesDB.setMandatoryPacks(template!.id, [pack.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(template!.id, []);
+  await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
 
   await ensureEventSubscriptionsLoaded();
   const { objective: root } = await createObjective({ statement: `cr108-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
@@ -206,12 +206,12 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   // a relatedObligations[] entry.
   await ensurePolicyDefinitionWithObligation({ code: policyCode, name: `CR-108 commence-work policy ${run}`, category: "Compliance", title: `CR-108 attention blocker ${run}` });
 
-  const { data: template } = await templatesDB.upsert({
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
     code: `cr108-attn-tpl-${run}`, name: "CR-108 Attention Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
   await templatesDB.setMandatoryPacks(template!.id, [pack.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(template!.id, []);
+  await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
 
   await ensureEventSubscriptionsLoaded();
   const { objective: root } = await createObjective({ statement: `cr108-attn-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
@@ -339,7 +339,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   // Drive the Deliverable to a real dispatched Work Item against this exact
   // Participant — myDeliverableIds (raiseMyObligation's own ownership check)
   // is derived from a real commands/work_items row, never assumed.
-  await transitionDeliverable({ deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
+  await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
   await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
 
   const raised = await raiseMyObligation({
@@ -399,7 +399,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
   assert.ok(published.ok, `execution-context pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
 
   const { data: requiredCapabilities } = await capabilitiesDB.findByOriginatingPackIds([published.pack!.id]);
-  const { data: template } = await templatesDB.upsert({
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
     code: `cr108-ec-tpl-${run}`, name: "CR-108 Execution Context Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
@@ -467,7 +467,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  await transitionDeliverable({ deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
+  await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
   const { workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
   const ec = workItem!.execution_context!;
 

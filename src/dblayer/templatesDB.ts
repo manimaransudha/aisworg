@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateTemplateWriteAgainstSchema } from "../routes/seu/core/templateWriteValidator.js";
 import type { CapabilityRow, DbResult, TemplateDeliverableSeed, TemplateRow } from "./seuTypes.js";
-import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "./constants.js";
+import { getPlatformTenantId, PLATFORM_TENANT_NAME, INITIAL_VERSION } from "./constants.js";
 import { userDB } from "./userDB.js";
  
 export const templatesDB = {
@@ -12,7 +12,7 @@ export const templatesDB = {
     name: string;
     templateVersion?: string;
     deliverableCatalogue?: TemplateDeliverableSeed[];
-    tenantId?: string;
+    tenantId: string;
     status?: TemplateRow["status"];
   }): Promise<DbResult<TemplateRow>> {
     try {
@@ -23,7 +23,7 @@ export const templatesDB = {
          ON CONFLICT (code, template_version, tenant_id) DO UPDATE
            SET name = EXCLUDED.name, deliverable_catalogue = EXCLUDED.deliverable_catalogue
          RETURNING *`,
-        [input.code, input.name, input.templateVersion ?? "1.0.0", JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId ?? (await getPlatformTenantId()), input.status ?? "Active", actorId, actorBadge]
+        [input.code, input.name, input.templateVersion ?? INITIAL_VERSION, JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId, input.status ?? "Active", actorId, actorBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -32,9 +32,9 @@ export const templatesDB = {
     }
   },
 
-  async createDraft(input: { code: string; name: string; templateVersion?: string; authoredBy: string; authorBadge: string; draftContent?: Record<string, unknown>; tenantId?: string; parentTemplateId?: string | null; schemaDefinitionId: string }): Promise<DbResult<TemplateRow>> {
+  async createDraft(input: { code: string; name: string; templateVersion?: string; authoredBy: string; authorBadge: string; draftContent?: Record<string, unknown>; tenantId: string; parentTemplateId?: string | null; schemaDefinitionId: string }): Promise<DbResult<TemplateRow>> {
     try {
-      const templateVersion = input.templateVersion ?? "1.0.0";
+      const templateVersion = input.templateVersion ?? INITIAL_VERSION;
       const draftContent = input.draftContent ?? {};
 
       const errors = await validateTemplateWriteAgainstSchema({
@@ -54,7 +54,7 @@ export const templatesDB = {
         `INSERT INTO templates (code, name, template_version, status, deliverable_catalogue, authored_by, author_badge, draft_content, tenant_id, parent_template_id, schema_definition_id)
          VALUES ($1, $2, $3, 'Draft', '[]', $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [input.code, input.name, templateVersion, input.authoredBy, input.authorBadge, JSON.stringify(draftContent), input.tenantId ?? (await getPlatformTenantId()), input.parentTemplateId ?? null, schemaRow?.id ?? null]
+        [input.code, input.name, templateVersion, input.authoredBy, input.authorBadge, JSON.stringify(draftContent), input.tenantId, input.parentTemplateId ?? null, schemaRow?.id ?? null]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -141,7 +141,7 @@ export const templatesDB = {
     }
   },
 
-  async findByStatusActedBy(status: TemplateRow["status"], authorityBadge: string, actorId: number | null): Promise<DbResult<TemplateRow[]>> {
+  async findByStatusActedBy(status: TemplateRow["status"], authorityBadge: string, actorId: string | null): Promise<DbResult<TemplateRow[]>> {
     try {
       const { rows } = actorId == null
         ? await query<TemplateRow>(
@@ -165,7 +165,7 @@ export const templatesDB = {
     }
   },
 
-  async findDrafts(authoredBy?: number | null): Promise<DbResult<TemplateRow[]>> {
+  async findDrafts(authoredBy?: string | null): Promise<DbResult<TemplateRow[]>> {
     try {
       const { rows } = authoredBy == null
         ? await query<TemplateRow>("SELECT * FROM templates WHERE status IN ('Draft', 'Validated') ORDER BY created_at DESC")
@@ -285,12 +285,9 @@ export const templatesDB = {
     }
   },
 
-  async setRequiredCapabilities(templateId: string, capabilityIds: string[], authorId?: string, authorBadge?: string): Promise<DbResult<void>> {
+  async setRequiredCapabilities(templateId: string, capabilityIds: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM template_capabilities WHERE template_id = $1", [templateId]);
-      if (capabilityIds.length > 0 && (!authorId || !authorBadge)) {
-        throw new Error("setRequiredCapabilities: authorId/authorBadge are required when capabilityIds is non-empty");
-      }
       for (const capabilityId of capabilityIds) {
         await query(
           `INSERT INTO template_capabilities (template_id, capability_id, author_id, author_badge)

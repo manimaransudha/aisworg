@@ -15,6 +15,7 @@ interface RouteAuthoritySeed {
   badges: string[];
   roles: string[];
   match_mode: "all" | "any";
+  description?: string | null;
 }
 
 function loadSeeds(): RouteAuthoritySeed[] {
@@ -30,35 +31,32 @@ export interface SeedActor {
 export async function seedRouteAuthority(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
 
-  const { data: existing, error: findAllError } = await routeAuthorityDB.findAll();
-  if (findAllError) throw findAllError;
-  const existingKeys = new Set((existing ?? []).map((r) => `${r.method}|${r.path}`));
+  const seen = new Set<string>();
+  const duplicates = seeds.filter((s) => {
+    const key = `${s.method}|${s.path}`;
+    const repeated = seen.has(key);
+    seen.add(key);
+    return repeated;
+  });
+  if (duplicates.length) throw new Error(`[seedRouteAuthority] routeAuthority.json has duplicate entries (method|path): ${duplicates.map((d) => `${d.method} ${d.path}`).join(", ")}`);
 
-  const missing = seeds.filter((s) => !existingKeys.has(`${s.method}|${s.path}`));
-  if (missing.length === 0) {
-    logger.info("[seedRouteAuthority] every baseline row already present, nothing to do");
-    return;
-  }
-  logger.info(`[seedRouteAuthority] ${missing.length} of ${seeds.length} baseline rows missing -- creating now`);
-
-  const { userId, actorId, actorBadge } = await userDB.getSuperuserId();
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
   if (!actorId) throw new Error(`No participants_master row for user_id ${actorId} -- log in as root first.`);
-  
-  let i = 0;
-  for (const seed of missing) {
-    i++;
-    const { error } = await routeAuthorityDB.create({
+
+  const { error } = await routeAuthorityDB.bulkUpsert(
+    seeds.map((seed) => ({
       method: seed.method,
       path: seed.path,
       badges: seed.badges,
       roles: seed.roles,
       matchMode: seed.match_mode,
-      description: null,
+      description: seed.description ?? null,
       authorId: actorId,
       authorBadge: actorBadge,
-    });
-    if (error) throw new Error(`[seedRouteAuthority] failed to create row for ${seed.method} ${seed.path}: ${error.message}`);
-  }
+    }))
+  );
+  if (error) throw new Error(`[seedRouteAuthority] bulk upsert failed: ${error.message}`);
+  logger.info(`[seedRouteAuthority] upserted ${seeds.length} baseline rows`);
 
   await refreshRouteAuthorityCache();
 }

@@ -150,7 +150,7 @@ export async function transitionAttentionItem(input: { attentionItemId: string; 
     seuId: attentionItem.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
-    actorId: input.actorId ?? null,
+    actorId: input.actorId,
     authorityBadge: gate.authorityBadge,
   });
 

@@ -1,6 +1,5 @@
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { seedTransitionDefinitions } from "../../../dblayer/seed/seedTransitionDefinitions.js";
-import { seedAuthorityVocabulary } from "../../../dblayer/seed/seedAuthorityVocabulary.js";
 import { seedEventSubscriptions } from "../../../dblayer/seed/seedEventSubscriptions.js";
 import { seedSchemaDefinitions } from "../../../dblayer/seed/seedSchemaDefinitions.js";
 import { seedCapabilityDefinitions } from "../../../dblayer/seed/seedCapabilityDefinitions.js";
@@ -20,8 +19,7 @@ export interface SeedActor {
 }
 
 export const DATA_MIGRATION_TARGETS: DataMigrationTarget[] = [
-  { code: "transition-definitions", label: "Transition definitions", tables: ["transition_definitions"] },
-  { code: "authority-vocabulary", label: "Authority vocabulary", tables: ["authority_noun_verbs"] },
+  { code: "transition-definitions", label: "Transition definitions + authority vocabulary", tables: ["authority_nouns", "authority_verbs", "authority_noun_verbs", "transition_definitions"] },
   { code: "event-subscriptions", label: "Event registry + subscriptions", tables: ["event_registry", "event_subscriptions"] },
   { code: "schema-definitions", label: "Schema definitions", tables: ["schema_definitions"] },
   { code: "capability-definitions", label: "Capability definitions", tables: ["capability_definitions"] },
@@ -39,7 +37,6 @@ export async function resolveRootActor(userId: string): Promise<SeedActor> {
 export async function runDataMigrations(actor: SeedActor, userId: string, codes?: string[]): Promise<{ code: string; ok: boolean; error?: string }[]> {
   const steps: Array<[string, () => Promise<void>]> = [
     ["transition-definitions", () => seedTransitionDefinitions(actor)],
-    ["authority-vocabulary", () => seedAuthorityVocabulary(actor)],
     ["event-subscriptions", () => seedEventSubscriptions(actor)],
     ["schema-definitions", () => seedSchemaDefinitions(actor)],
     ["capability-definitions", () => seedCapabilityDefinitions(actor)],

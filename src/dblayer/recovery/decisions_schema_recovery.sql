@@ -24,8 +24,8 @@ ALTER TABLE decisions
   ADD COLUMN IF NOT EXISTS knowledge_ids UUID[] NOT NULL DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS evidence_ids UUID[] NOT NULL DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS alternatives JSONB NOT NULL DEFAULT '[]',
-  ADD COLUMN IF NOT EXISTS participant_id UUID REFERENCES participants(id),
-  ADD COLUMN IF NOT EXISTS authority_badge TEXT;
+  ADD COLUMN IF NOT EXISTS participant_id UUID NOT NULL REFERENCES participants(id),
+  ADD COLUMN IF NOT EXISTS authority_badge TEXT NOT NULL;
 ALTER TABLE decisions
   DROP COLUMN IF EXISTS related_object_type,
   DROP COLUMN IF EXISTS related_object_id,

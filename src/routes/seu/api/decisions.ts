@@ -13,9 +13,11 @@ router.post("/decisions", async (req: Request, res: Response) => {
     if (typeof seuId !== "string" || !Array.isArray(relatedObjects) || relatedObjects.length === 0 || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ error: "seuId, relatedObjects (non-empty array), category and title are required" });
     }
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
+    const actorId = String(req.session.user.id);
     const decision = await createDecision({
       seuId,
-      userId: req.session?.user?.id,
+      actorId,
       originatingType,
       originatingId,
       relatedObjects,
@@ -52,7 +54,8 @@ router.post("/decisions/:id/transition", async (req: Request, res: Response) => 
       return res.status(400).json({ error: "targetState is required" });
     }
     const actorRole = req.session?.user?.role ?? "general";
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
+    const actorId = String(req.session.user.id);
     const result = await transitionDecision({ decisionId: String(req.params.id), targetState, actorRole, actorId });
 
     if (!result.ok) {

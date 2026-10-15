@@ -14,7 +14,6 @@ import { router as policyDefinitionRegistryRouter } from "./policyDefinitionRegi
 import { router as capabilityDefinitionRegistryRouter } from "./capabilityDefinitionRegistry.js";
 import { router as participantRegistryRouter } from "./participantRegistry.js";
 import { router as objectivesRouter } from "./objectives.js";
-import { router as servicesRouter } from "./services.js";
 import { router as knowledgeRouter } from "./knowledge.js";
 import { router as telemetryRouter } from "./telemetry.js";
 import { router as attentionRouter } from "./attention.js";
@@ -32,6 +31,7 @@ import { router as eventsRouter } from "./events.js";
 import { router as versionEventsRouter } from "./versionEvents.js";
 import { router as dataMigrationsRouter } from "./dataMigrations.js";
 import { router as docsRouter } from "./docs.js";
+import { router as demoRouter } from "./demo.js";
 
 router.use(dashboardRouter);
 router.use(objectivesRouter);
@@ -44,7 +44,6 @@ router.use(serviceDefinitionRegistryRouter);
 router.use(policyDefinitionRegistryRouter);
 router.use(capabilityDefinitionRegistryRouter);
 router.use(participantRegistryRouter);
-router.use(servicesRouter);
 router.use(knowledgeRouter);
 router.use(telemetryRouter);
 router.use(attentionRouter);
@@ -62,5 +61,6 @@ router.use(eventsRouter);
 router.use(versionEventsRouter);
 router.use(dataMigrationsRouter);
 router.use(docsRouter);
+router.use(demoRouter);
 
 export { router };

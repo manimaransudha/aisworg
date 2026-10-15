@@ -14,7 +14,8 @@ router.post("/knowledge", async (req: Request, res: Response) => {
     if (typeof seuId !== "string" || typeof deliverableId !== "string" || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ error: "seuId, deliverableId, category and title are required" });
     }
-    const userId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
+    const actorId = String(req.session.user.id);
     const knowledgeItem = await createKnowledgeItem({
       seuId,
       deliverableId,
@@ -27,7 +28,7 @@ router.post("/knowledge", async (req: Request, res: Response) => {
       decisionReferences: decisionReferences as KnowledgeRelationshipReferences | undefined,
       knowledgeReferences: knowledgeReferences as KnowledgeSelfReferences | undefined,
       confidenceLevel,
-      userId,
+      actorId,
     });
     res.status(201).json({ knowledgeItem });
   } catch (err) {
@@ -56,8 +57,9 @@ router.post("/knowledge/:id/validation-notes", async (req: Request, res: Respons
     if (typeof noteText !== "string" || !noteText.trim()) {
       return res.status(400).json({ error: "noteText is required" });
     }
-    const actorUserId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-    const note = await addKnowledgeValidationNote({ knowledgeItemId: String(req.params.id), noteText, actorUserId });
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
+    const actorId = String(req.session.user.id);
+    const note = await addKnowledgeValidationNote({ knowledgeItemId: String(req.params.id), noteText, actorId });
     res.status(201).json({ note });
   } catch (err) {
     logger.error("[api/seu/knowledge] POST /:id/validation-notes error", err as Error);
@@ -101,9 +103,9 @@ router.post("/knowledge/:id/promote-scope", async (req: Request, res: Response) 
       return res.status(400).json({ error: "targetScope is required" });
     }
     const actorRole = req.session?.user?.role ?? "general";
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-    const userId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-    const result = await promoteKnowledgeItemScope({ knowledgeItemId: String(req.params.id), targetScope: targetScope as AcquisitionScope, actorRole, actorId, userId });
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
+    const actorId = String(req.session.user.id);
+    const result = await promoteKnowledgeItemScope({ knowledgeItemId: String(req.params.id), targetScope: targetScope as AcquisitionScope, actorRole, actorId });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "Knowledge Item not found" });
@@ -123,9 +125,9 @@ router.post("/knowledge/:id/transition", async (req: Request, res: Response) => 
       return res.status(400).json({ error: "targetState is required" });
     }
     const actorRole = req.session?.user?.role ?? "general";
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-    const userId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-    const result = await transitionKnowledgeItem({ knowledgeItemId: String(req.params.id), targetState, actorRole, actorId, userId });
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
+    const actorId = String(req.session.user.id);
+    const result = await transitionKnowledgeItem({ knowledgeItemId: String(req.params.id), targetState, actorRole, actorId });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "Knowledge Item not found" });

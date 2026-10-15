@@ -43,7 +43,7 @@ import { listCurrentTransitionDefinitions } from "./transitionDefinitions.js";
 import type { CapabilityRole, EvidenceDefinition, PackContributions, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "../../../dblayer/constants.js";
  
 
 export function toPackSeedInput(content: Record<string, unknown>): PackSeedInput {
@@ -149,7 +149,7 @@ export function toDeliverableDefinitionSeedInput(content: Record<string, unknown
   return {
     code: typeof content.code === "string" ? content.code : "",
     description: typeof content.description === "string" ? content.description : undefined,
-    definitionVersion: typeof content.definitionVersion === "string" && content.definitionVersion.trim() ? content.definitionVersion.trim() : "1.0.0",
+    definitionVersion: typeof content.definitionVersion === "string" && content.definitionVersion.trim() ? content.definitionVersion.trim() : INITIAL_VERSION,
   };
 }
 
@@ -183,7 +183,7 @@ export function toServiceDefinitionSeedInput(content: Record<string, unknown>): 
     governance: typeof content.governance === "string" ? content.governance : undefined,
     success: typeof content.success === "string" ? content.success : undefined,
     consumers: toStringArray(content.consumers),
-    version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : "1.0.0",
+    version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : INITIAL_VERSION,
   };
 }
 
@@ -291,7 +291,7 @@ export function toPolicyDefinitionSeedInput(content: Record<string, unknown>): P
     applicabilityEnvironments: Array.isArray(content.applicabilityEnvironments) ? content.applicabilityEnvironments.filter((c): c is string => typeof c === "string") : [],
     conditions: toPolicyConditions(typeof content.conditions === "string" ? safeJsonParse(content.conditions) : content.conditions),
     scope: content.scope === "Eligibility" ? "Eligibility" : content.scope === "Transition" ? "Transition" : undefined,
-    version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : "1.0.0",
+    version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : INITIAL_VERSION,
   };
 }
 
@@ -320,7 +320,7 @@ export function toCapabilityDefinitionSeedInput(content: Record<string, unknown>
     defaultLabel: typeof content.defaultLabel === "string" ? content.defaultLabel : "",
     description: typeof content.description === "string" ? content.description : undefined,
     roles: toCapabilityRoles(typeof content.roles === "string" ? safeJsonParse(content.roles) : content.roles),
-    version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : "1.0.0",
+    version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : INITIAL_VERSION,
   };
 }
 
@@ -576,22 +576,6 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
   return null;
 }
 
-async function assertPackCodeVersionFree(code: string, packVersion: string, tenantId: string, excludeId?: string): Promise<string | null> {
-  const { data: existing } = await packsDB.findByCodeAndVersion(code, packVersion, tenantId);
-  if (existing && existing.id !== excludeId) {
-    return `A Pack with code "${code}" already exists at version ${packVersion}. Pick a different starting version, or continue authoring that existing Pack instead of starting a new one.`;
-  }
-  return null;
-}
-
-async function assertTemplateCodeVersionFree(code: string, templateVersion: string, tenantId: string, excludeId?: string): Promise<string | null> {
-  const { data: existing } = await templatesDB.findByCodeAndVersion(code, templateVersion, tenantId);
-  if (existing && existing.id !== excludeId) {
-    return `A Template with code "${code}" already exists at version ${templateVersion} ("${existing.name}"). Pick a different starting version, or continue authoring that existing Template instead of starting a new one.`;
-  }
-  return null;
-}
-
 export async function listInheritableTemplates(viewerTenantId: string): Promise<Array<{ id: string; code: string; name: string; templateVersion: string }>> {
   const { data: templates } = await templatesDB.findActiveVisibleTo(viewerTenantId);
   return (templates ?? []).map((t) => ({ id: t.id, code: t.code, name: t.name, templateVersion: t.template_version })).sort((a, b) => a.name.localeCompare(b.name));
@@ -634,7 +618,7 @@ export async function inheritedPackVersionContent(fromPackId: string, viewerTena
       code: source.code,
       name: source.name,
       category: source.category,
-      packVersion: summaries[source.code]?.nextVersion ?? "1.0.0",
+      packVersion: summaries[source.code]?.nextVersion ?? INITIAL_VERSION,
       installationClassification: source.installation_classification,
       contributionCapabilities: c.capabilities ?? [],
       contributionServices: c.services ?? [],
@@ -650,14 +634,6 @@ export async function inheritedPackVersionContent(fromPackId: string, viewerTena
       compositionSources: source.composition_sources,
     },
   };
-}
-
-async function assertProfileCodeVersionFree(code: string, profileVersion: string, tenantId: string, excludeId?: string): Promise<string | null> {
-  const { data: existing } = await profilesDB.findByCodeAndVersion(code, profileVersion, tenantId);
-  if (existing && existing.id !== excludeId) {
-    return `A Profile with code "${code}" already exists at version ${profileVersion} ("${existing.name}"). Pick a different starting version, or continue authoring that existing Profile instead of starting a new one.`;
-  }
-  return null;
 }
 
 export async function listInheritableProfiles(viewerTenantId: string): Promise<Array<{ id: string; code: string; name: string; profileVersion: string }>> {
@@ -730,8 +706,6 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
   const authoredBy = input.actorId;
   if (input.kind === "Pack") {
     const seed = toPackSeedInput(input.content);
-    const collision = await assertPackCodeVersionFree(seed.code, seed.packVersion, input.tenantId ?? (await getPlatformTenantId()));
-    if (collision) return { ok: false, errors: [collision] };
     const { data: packMaster } = await participantsMasterDB.findById(authoredBy);
     if (!packMaster) return { ok: false, errors: [`No superuser provisioned.`] };
     if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Pack write"] };
@@ -777,10 +751,8 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       else code = inherited.content.code as string;
     }
     if (parentTenantCheckError) return { ok: false, errors: [parentTenantCheckError] };
-    const templateVersion = typeof input.content.templateVersion === "string" && input.content.templateVersion.trim() ? input.content.templateVersion.trim() : "1.0.0";
+    const templateVersion = typeof input.content.templateVersion === "string" && input.content.templateVersion.trim() ? input.content.templateVersion.trim() : INITIAL_VERSION;
     const tenantId = input.tenantId ?? (await getPlatformTenantId());
-    const collision = await assertTemplateCodeVersionFree(code, templateVersion, tenantId);
-    if (collision) return { ok: false, errors: [collision] };
     const draftContent = await withDefaultTemplatePurpose({ ...input.content, code }, code, tenantId);
     const { data: templateMaster } = await participantsMasterDB.findById(authoredBy);
     if (!templateMaster) return { ok: false, errors: [`No superuser provisioned.`] };
@@ -809,9 +781,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     const { data: template } = await templatesDB.findByCode(baseTemplateCode);
     if (!template) return { ok: false, errors: [`baseTemplateCode "${baseTemplateCode}" not found`] };
 
-    const profileVersion = typeof input.content.profileVersion === "string" && input.content.profileVersion.trim() ? input.content.profileVersion.trim() : "1.0.0";
-    const collision = await assertProfileCodeVersionFree(code, profileVersion, tenantId);
-    if (collision) return { ok: false, errors: [collision] };
+    const profileVersion = typeof input.content.profileVersion === "string" && input.content.profileVersion.trim() ? input.content.profileVersion.trim() : INITIAL_VERSION;
 
     const { data: profileMaster } = await participantsMasterDB.findById(authoredBy);
     if (!profileMaster) return { ok: false, errors: [`No superuser provisioned.`] };
@@ -974,13 +944,11 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
 }
 
-export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; id: string; content: Record<string, unknown>; actorId?: string }): Promise<AuthoringActionResult> {
+export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; id: string; content: Record<string, unknown>; actorId: string }): Promise<AuthoringActionResult> {
   if (input.kind === "Pack") {
     const { data: existingPack } = await packsDB.findById(input.id);
     if (!existingPack) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
     const seed = toPackSeedInput({ ...input.content });
-    const collision = await assertPackCodeVersionFree(seed.code, seed.packVersion, existingPack.tenant_id, input.id);
-    if (collision) return { ok: false, errors: [collision] };
     const { data, error } = await packsDB.updateDraftContent(input.id, {
       code: seed.code,
       name: (seed.name as string) || "(untitled Pack)",
@@ -995,12 +963,10 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
     const { data: packSchema } = existingPack.schema_definition_id ? await schemaDefinitionsDB.findById(existingPack.schema_definition_id) : await schemaDefinitionsDB.findLatest("Pack");
-    if (packSchema && input.actorId) {
+    if (packSchema) {
       await proposeComposableOntologyValues(packSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Pack", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "pack_define", tenantId: existingPack.tenant_id });
     }
-    if (input.actorId) {
-      await emitConceptCreatedForCompetencies(input.id, seed.code, seed.contributions.competencies, { actorId: input.actorId, badge: "pack_define", tenantId: existingPack.tenant_id });
-    }
+    await emitConceptCreatedForCompetencies(input.id, seed.code, seed.contributions.competencies, { actorId: input.actorId, badge: "pack_define", tenantId: existingPack.tenant_id });
     return { ok: true };
   }
   if (input.kind === "Template") {
@@ -1008,14 +974,12 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     if (!existingTemplate) return { ok: false, errors: ["draft not found or no longer editable"] };
     const seed = toTemplateSeedInput({ ...input.content });
     if (existingTemplate.parent_template_id) seed.code = existingTemplate.code;
-    const collision = await assertTemplateCodeVersionFree(seed.code, seed.templateVersion, existingTemplate.tenant_id, input.id);
-    if (collision) return { ok: false, errors: [collision] };
     const draftContent = await withDefaultTemplatePurpose({ ...input.content, code: seed.code, templateVersion: seed.templateVersion }, seed.code, existingTemplate.tenant_id);
     const { data, error } = await templatesDB.updateDraftContent(input.id, { code: seed.code, name: (draftContent.name as string) || "(untitled Template)", templateVersion: seed.templateVersion, draftContent });
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable"] };
     const { data: templateSchema } = existingTemplate.schema_definition_id ? await schemaDefinitionsDB.findById(existingTemplate.schema_definition_id) : await schemaDefinitionsDB.findLatest("Template");
-    if (templateSchema && input.actorId) {
+    if (templateSchema) {
       await proposeComposableOntologyValues(templateSchema.schema as JsonSchemaDocument, draftContent, { originatingObjectType: "Template", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "template_define", tenantId: existingTemplate.tenant_id });
     }
     return { ok: true };
@@ -1031,8 +995,6 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
 
     const seed = toProfileSeedInput({ ...input.content });
     if (existingProfile.parent_profile_id) seed.code = existingProfile.code;
-    const collision = await assertProfileCodeVersionFree(seed.code, seed.profileVersion, existingProfile.tenant_id, input.id);
-    if (collision) return { ok: false, errors: [collision] };
 
     const { data, error } = await profilesDB.updateDraftContent(input.id, {
       name: (input.content.name as string) || "(untitled Profile)",
@@ -1044,7 +1006,7 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable"] };
     const { data: profileSchema } = existingProfile.schema_definition_id ? await schemaDefinitionsDB.findById(existingProfile.schema_definition_id) : await schemaDefinitionsDB.findLatest("Profile");
-    if (profileSchema && input.actorId) {
+    if (profileSchema) {
       await proposeComposableOntologyValues(profileSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Profile", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "profile_define", tenantId: existingProfile.tenant_id });
     }
     return { ok: true };
@@ -1091,7 +1053,7 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
     const { data: policySchema } = existing.schema_definition_id ? await schemaDefinitionsDB.findById(existing.schema_definition_id) : await schemaDefinitionsDB.findLatest("Policy");
-    if (policySchema && input.actorId) {
+    if (policySchema) {
       await proposeComposableOntologyValues(policySchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Policy", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "policy_define", tenantId: existing.tenant_id });
     }
     return { ok: true };
@@ -1255,7 +1217,7 @@ export type ComposeAuthoringDraftResult =
   | { ok: true; composedFrom: string[]; conflicts: string[]; note?: string }
   | { ok: false; errors: string[] };
 
-export async function composeAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; id: string }): Promise<ComposeAuthoringDraftResult> {
+export async function composeAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; id: string; actorId: string }): Promise<ComposeAuthoringDraftResult> {
   if (input.kind !== "Pack") return { ok: false, errors: [`composition is not yet available for "${input.kind}"`] };
 
   const { data: draftPack } = await packsDB.findById(input.id);
@@ -1330,7 +1292,7 @@ export async function composeAuthoringDraft(input: { kind: SchemaDefinitionEntit
   }
 
   const newContent = { ...packRowToContent(draftPack), ...composedFields };
-  const saved = await saveAuthoringDraft({ kind: "Pack", id: input.id, content: newContent });
+  const saved = await saveAuthoringDraft({ kind: "Pack", id: input.id, content: newContent, actorId: input.actorId });
   if (!saved.ok) return { ok: false, errors: saved.errors };
   return { ok: true, composedFrom: sourceCodes, conflicts };
 }

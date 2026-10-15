@@ -66,12 +66,12 @@ async function createPack(input: { contributions?: PackContributions; dependenci
 
 async function createTemplateAndProfile(mandatoryPackCodes: string[]): Promise<{ templateId: string; profileId: string }> {
   const templateCode = `test-unravel-template-${randomUUID()}`;
-  const { data: template, error: templateError } = await templatesDB.upsert({ code: templateCode, name: "Fixture Template", deliverableCatalogue: [] });
+  const { data: template, error: templateError } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: templateCode, name: "Fixture Template", deliverableCatalogue: [] });
   assert.ok(!templateError && template, templateError?.message ?? "assertion failed");
   await templatesDB.setMandatoryPacks(template!.id, mandatoryPackCodes, ROOT_ACTOR_ID, "root");
 
   const profileCode = `test-unravel-profile-${randomUUID()}`;
-  const { data: profile, error: profileError } = await profilesDB.upsert({ code: profileCode, name: "Fixture Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: profile, error: profileError } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: profileCode, name: "Fixture Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   assert.ok(!profileError && profile, profileError?.message ?? "assertion failed");
 
   return { templateId: template!.id, profileId: profile!.id };

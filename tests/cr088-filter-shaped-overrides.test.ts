@@ -118,7 +118,7 @@ const CR088_TEMPLATE_CODE = "test-cr088-overridable-template";
 
 async function buildFixtureTemplate(input: { packCode: string; checklistId: string; flagOverridable: boolean }): Promise<string> {
   const templateCode = CR088_TEMPLATE_CODE;
-  const { data: template, error } = await templatesDB.upsert({ code: templateCode, name: "CR-088 fixture Template", templateVersion: uniqueTestPackVersion(), deliverableCatalogue: [] });
+  const { data: template, error } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: templateCode, name: "CR-088 fixture Template", templateVersion: uniqueTestPackVersion(), deliverableCatalogue: [] });
   assert.ok(!error && template, error?.message ?? "assertion failed");
   await templatesDB.setMandatoryPacks(template!.id, [input.packCode], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const { error: draftContentError } = await templatesDB.setDraftContent(template!.id, {

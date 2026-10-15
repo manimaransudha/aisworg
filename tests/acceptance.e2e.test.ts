@@ -15,7 +15,6 @@ import fetchCookie from "fetch-cookie";
 
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
-import { appConfig } from "../src/config/appconfig.js";
 import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
@@ -65,7 +64,6 @@ before(async () => {
   // ensureEventSubscriptionsLoaded's own header comment (testFixtures.ts).
   await ensureEventSubscriptionsLoaded();
   await ensureWebAppTemplateFixture();
-  await appConfig.init();
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", () => resolve()));
   const address = server.address();

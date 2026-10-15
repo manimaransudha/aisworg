@@ -30,11 +30,8 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
       return res.status(400).json({ error: "targetState is required" });
     }
     const actorRole = req.session?.user?.role ?? "general";
-    const requestedBy = req.session?.user?.id ?? null;
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-    const actingBadgeType = typeof req.body?.actingBadgeType === "string" ? req.body.actingBadgeType : undefined;
-
-    const effectiveActorId = actorId;
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
+    const actorId = String(req.session.user.id);
 
     let targetCompletionAt: Date | undefined;
     if (typeof req.body?.targetCompletionAt === "string" && req.body.targetCompletionAt.trim() !== "") {
@@ -43,7 +40,7 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
       targetCompletionAt = parsed;
     }
 
-    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, actorId: effectiveActorId, actingBadgeType, requestedBy, targetCompletionAt });
+    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, actorId, requestedBy: actorId, targetCompletionAt });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "deliverable not found" });

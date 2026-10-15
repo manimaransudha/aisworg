@@ -87,7 +87,8 @@ async function autoAdvanceToPackaged(schema: SchemaDefinitionRow, actorId: strin
   for (const [from, to] of hops) {
     const gate = await transitionEngine.evaluate({ entityType: "SchemaDefinition", fromState: from, toState: to, actorRole: "", actorId, entityId: current.id });
     if (!gate.allowed) throw new Error(`cannot advance ${current.entity_kind} schema v${current.version} from ${from} to ${to}`);
-    const { data: updated, error } = await schemaDefinitionsDB.advanceLifecycle(current.id, to, gate.authorityBadge);
+    if (!gate.authorityBadge) throw new Error(`no authority badge resolved for SchemaDefinition ${from} -> ${to} — the Transition Definition declares no verb`);
+    const { data: updated, error } = await schemaDefinitionsDB.advanceLifecycle(current.id, to, gate.authorityBadge, actorId);
     if (error || !updated) throw error ?? new Error(`failed to advance schema ${current.id} to ${to}`);
     current = updated;
     await eventBus.publish({
@@ -98,7 +99,7 @@ async function autoAdvanceToPackaged(schema: SchemaDefinitionRow, actorId: strin
       correlationId: eventBus.newCorrelationId(),
       payload: { entityKind: current.entity_kind, version: current.version, fromState: from, toState: to },
       actorId,
-      authorityBadge: gate.authorityBadge ?? "root",
+      authorityBadge: gate.authorityBadge,
       versionEvent: gate.versionEvent,
       fromState: from,
       toState: to,

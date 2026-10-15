@@ -7,6 +7,7 @@ import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import type { DeliverableDefinitionRow } from "../../../dblayer/seuTypes.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "../../../utils/version.js";
 
 export interface DeliverableDefinitionSeedInput {
   code: string;
@@ -18,26 +19,14 @@ export interface DeliverableDefinitionSeedInput {
 
 export type DeliverableDefinitionValidationResult = { ok: true } | { ok: false; errors: string[] };
 
-const SEMVER_RE = /^\d+\.\d+\.\d+$/;
-
-async function assertDeliverableDefinitionCodeVersionFree(code: string, version: string, tenantId: string, excludeId?: string): Promise<string | null> {
-  const { data: existing } = await deliverableDefinitionsDB.findByCodeAndVersion(code, version, tenantId);
-  if (existing && existing.id !== excludeId) {
-    return `A Deliverable Definition with code "${code}" already exists at version ${version}. Pick a different starting version, or continue authoring that existing Definition instead of starting a new one.`;
-  }
-  return null;
-}
 
 export async function validateDeliverableDefinitionSeed(seed: DeliverableDefinitionSeedInput, excludeId?: string): Promise<DeliverableDefinitionValidationResult> {
   const errors: string[] = [];
   if (!seed.code?.trim()) errors.push("code is required");
-  if (!SEMVER_RE.test(seed.definitionVersion ?? "")) errors.push(`definitionVersion must be semver (x.y.z), got: "${seed.definitionVersion}"`);
+  const definitionVersionError = semverError("definitionVersion", seed.definitionVersion);
+  if (definitionVersionError) errors.push(definitionVersionError);
 
   const tenantId = seed.tenantId ?? (await getPlatformTenantId());
-  if (seed.code?.trim() && SEMVER_RE.test(seed.definitionVersion ?? "")) {
-    const collision = await assertDeliverableDefinitionCodeVersionFree(seed.code, seed.definitionVersion, tenantId, excludeId);
-    if (collision) errors.push(collision);
-  }
 
   const PLATFORM_TENANT_ID = await getPlatformTenantId();
   if (seed.parentDeliverableDefinitionId) {
@@ -125,22 +114,14 @@ export async function transitionDeliverableDefinition(input: { deliverableDefini
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: updated.code },
-    actorId: input.actorId ?? null,
+    actorId: input.actorId,
     authorityBadge: gate.authorityBadge,
   });
   return { ok: true, deliverableDefinition: updated };
 }
 
 async function nextAvailablePatchVersion(code: string, fromVersion: string, tenantId: string): Promise<string> {
-  const [major, minor, startingPatch] = fromVersion.split(".").map(Number);
-  let patch = startingPatch ?? 0;
-  for (let attempts = 0; attempts < 1000; attempts++) {
-    patch += 1;
-    const candidate = `${major}.${minor}.${patch}`;
-    const { data: existing } = await deliverableDefinitionsDB.findByCodeAndVersion(code, candidate, tenantId);
-    if (!existing) return candidate;
-  }
-  throw new Error(`could not find an unused version for Deliverable Definition ${code} after bumping from ${fromVersion}`);
+  return nextAvailableVersion(fromVersion, async (candidate) => !!(await deliverableDefinitionsDB.findByCodeAndVersion(code, candidate, tenantId)).data);
 }
 
 async function reactivateAsNewVersion(concept: DeliverableDefinitionRow, actorRole: string, actorId: string, authorBadge: string): Promise<TransitionDeliverableDefinitionResult> {

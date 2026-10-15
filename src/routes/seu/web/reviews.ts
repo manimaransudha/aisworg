@@ -71,12 +71,13 @@ router.post("/seus/:id/reviews/:reviewId/transition", async (req: Request, res: 
   const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
   const { targetState, outcome } = req.body ?? {};
   if (typeof targetState !== "string" || !targetState.trim()) return flashError(req, res, backTo, "Target state is required.");
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
     const result = await transitionReview({
       reviewId: String(req.params.reviewId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
       outcome: typeof outcome === "string" && outcome.trim() ? (outcome as ReviewOutcome) : undefined,
     });
     if (!result.ok) {
@@ -124,8 +125,9 @@ router.post("/seus/:id/findings/:findingId/transition", async (req: Request, res
   const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
   const { targetState } = req.body ?? {};
   if (typeof targetState !== "string" || !targetState.trim()) return flashError(req, res, backTo, "Target state is required.");
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
-    const result = await transitionFinding({ findingId: String(req.params.findingId), targetState, actorRole: req.session?.user?.role ?? "general", actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined });
+    const result = await transitionFinding({ findingId: String(req.params.findingId), targetState, actorRole: req.session?.user?.role ?? "general", actorId: String(req.session.user.id) });
     if (!result.ok) {
       const detail = "detail" in result ? result.detail : result.reason;
       return flashError(req, res, backTo, `Finding transition blocked: ${detail}`);

@@ -1,4 +1,4 @@
-import { query } from "../utils/db.js";
+import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 
 export interface RouteAuthorityRow {
@@ -48,6 +48,25 @@ export const routeAuthorityDB = {
       return { data: rows[0] };
     } catch (err) {
       logger.error("[routeAuthorityDB] create error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async bulkUpsert(inputs: Array<{ method: string; path: string; badges: string[]; roles: string[]; matchMode: "all" | "any"; description: string | null; authorId: string; authorBadge: string }>): Promise<DbResult<RouteAuthorityRow[]>> {
+    try {
+      const { rows } = await bulkInsert<RouteAuthorityRow>(
+        "route_authority",
+        ["method", "path", "badges", "roles", "match_mode", "description", "author_id", "author_badge"],
+        inputs.map((i) => [i.method, i.path, i.badges, i.roles, i.matchMode, i.description, i.authorId, i.authorBadge]),
+        {
+          onConflict: `ON CONFLICT (method, path) DO UPDATE SET
+            badges = EXCLUDED.badges, roles = EXCLUDED.roles, match_mode = EXCLUDED.match_mode, description = EXCLUDED.description,
+            author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge, updated_at = NOW()`,
+        }
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[routeAuthorityDB] bulkUpsert error", err as Error);
       return { error: err as Error };
     }
   },

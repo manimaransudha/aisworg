@@ -98,7 +98,7 @@ export async function transitionReview(input: {
   reviewId: string;
   targetState: string;
   actorRole: string;
-  actorId?: string;
+  actorId: string;
   outcome?: ReviewOutcome;
 }): Promise<TransitionReviewResult> {
   const { data: review } = await reviewsDB.findById(input.reviewId);

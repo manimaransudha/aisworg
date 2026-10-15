@@ -3,15 +3,15 @@ const require = createRequire(import.meta.url);
 const express = require('express');
 const router  = express.Router();
 
-import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
-import { appConfig } from '../../config/appconfig.js';
+import {MsEdgeTTS, OUTPUT_FORMAT} from 'msedge-tts';
 import { logger }    from '../../utils/logger.js';
+import { DEMO_VOICE_PROVIDER, DEMO_EDGETTS_VOICE } from '../../dblayer/constants.js';
 
 router.get('/voice-config', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({
-    provider: appConfig.get('demo.voice_provider', 'webspeech'),
-    voice:    appConfig.get('demo.edgetts_voice',  'en-IN-NeerjaNeural'),
+    provider: DEMO_VOICE_PROVIDER,
+    voice:    DEMO_EDGETTS_VOICE,
   });
 });
 
@@ -19,7 +19,7 @@ router.post('/tts', async (req, res) => {
   const { text } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'text is required' });
 
-  const voice = appConfig.get('demo.edgetts_voice', 'en-IN-NeerjaNeural');
+  const voice = DEMO_EDGETTS_VOICE;
 
   try {
     const tts = new MsEdgeTTS();

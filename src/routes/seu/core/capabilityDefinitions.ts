@@ -8,6 +8,7 @@ import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { CapabilityDefinitionRow, CapabilityRole } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { nextAvailablePatchVersion, semverError } from "../../../utils/version.js";
  
 
 export interface CapabilityDefinitionSeedInput {
@@ -22,15 +23,6 @@ export interface CapabilityDefinitionSeedInput {
 
 export type CapabilityDefinitionValidationResult = { ok: true } | { ok: false; errors: string[] };
 
-const SEMVER_RE = /^\d+\.\d+\.\d+$/;
-
-async function assertCapabilityDefinitionCodeVersionFree(code: string, version: string, tenantId: string, excludeId?: string): Promise<string | null> {
-  const { data: existing } = await capabilityDefinitionsDB.findByCodeAndVersion(code, version, tenantId);
-  if (existing && existing.id !== excludeId) {
-    return `A Capability Definition with code "${code}" already exists at version ${version}. Pick a different starting version, or continue authoring that existing Definition instead of starting a new one.`;
-  }
-  return null;
-}
 
 async function validateRoles(roles: CapabilityRole[] | undefined): Promise<string[]> {
   const errors: string[] = [];
@@ -60,13 +52,10 @@ export async function validateCapabilityDefinitionSeed(seed: CapabilityDefinitio
   const errors: string[] = [];
   if (!seed.code?.trim()) errors.push("code is required");
   if (!seed.defaultLabel?.trim()) errors.push("defaultLabel is required");
-  if (!SEMVER_RE.test(seed.version ?? "")) errors.push(`version must be semver (x.y.z), got: "${seed.version}"`);
+  const versionError = semverError("version", seed.version);
+  if (versionError) errors.push(versionError);
 
   const tenantId = seed.tenantId ?? (await getPlatformTenantId());
-  if (seed.code?.trim() && SEMVER_RE.test(seed.version ?? "")) {
-    const collision = await assertCapabilityDefinitionCodeVersionFree(seed.code, seed.version, tenantId, excludeId);
-    if (collision) errors.push(collision);
-  }
   if (seed.code?.trim()) {
     try {
       await assertCanonicalCategory("capability-name", seed.code.trim());
@@ -119,6 +108,7 @@ export async function transitionCapabilityDefinition(input: { capabilityDefiniti
     if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
     return { ok: false, reason: gate.reason };
   }
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
 
   if (!input.actorId) return { ok: false, reason: "no_actor", detail: "no actorId supplied for this transition" };
   const { data: transitionMaster } = await participantsMasterDB.findById(input.actorId);
@@ -135,7 +125,7 @@ export async function transitionCapabilityDefinition(input: { capabilityDefiniti
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: updated.code },
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
     versionEvent: gate.versionEvent,
     fromState,
     toState: input.targetState,
@@ -170,7 +160,7 @@ export async function copyCapabilityDefinitionAsNewDraft(capabilityDefinitionId:
     defaultLabel: source.default_label,
     description: source.description,
     roles: source.roles,
-    version: source.version,
+    version: await nextAvailablePatchVersion(source.version, async (candidate) => !!(await capabilityDefinitionsDB.findByCodeAndVersion(source.code, candidate, source.tenant_id)).data),
     authoredBy: copyMaster.id,
     authorBadge,
     draftContent: { code: source.code, defaultLabel: source.default_label, description: source.description ?? "", roles: source.roles },

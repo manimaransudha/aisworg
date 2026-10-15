@@ -36,6 +36,14 @@ import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilment
 import { driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
+import { participantsDB } from "../src/dblayer/participantsDB.js";
+
+async function rootParticipantId(seuId: string): Promise<string> {
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const { data } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, ROOT_ACTOR_ID);
+  return data!.id;
+}
+
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
 
 
@@ -142,13 +150,13 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
 // Work Item ids in case a caller wants to inspect either one's Execution
 // Context.
 async function driveDeliverableToApproved(deliverableId: string, tag: string): Promise<{ productionWorkItemId: string; acceptanceWorkItemId: string }> {
-  const toInProgress = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const toInProgress = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(toInProgress);
   const { workItem: productionWorkItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
   const produced = await completeWorkItem({ workItemId: productionWorkItem.id, outcome: "done", reference: `vcs://${tag}/produced@1` });
   assert.equal(produced.ok, true, !produced.ok ? JSON.stringify(produced) : "assertion failed");
 
-  const toApproved = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const toApproved = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(toApproved);
   const { workItem: acceptanceWorkItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "Approved");
   const accepted = await completeWorkItem({ workItemId: acceptanceWorkItem.id, outcome: "done", reference: `vcs://${tag}/accepted@1` });
@@ -181,7 +189,7 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
 
   if (beforeCommission) await beforeCommission(packRow!.id);
 
-  const { data: template } = await templatesDB.upsert({
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
     code: `cr109-tpl-${run}`, name: "CR-109 Isolated Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
@@ -258,25 +266,25 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
 
   await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
 
-  const { data: decision } = await decisionsDB.create({
+  const { data: decision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId,
     relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [requirementsSpec!.id] }],
     category: "Engineering Decisions",
     title: "Scope: which backlog items does this Deliverable cover",
   });
-  await decisionsDB.updateStatus(decision!.id, "Approved");
+  await decisionsDB.updateStatus(decision!.id, "Approved", { participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE });
 
   const evidence = await createEvidenceAsRoot({
     relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec!.id, seuId,
     category: "Validation Evidence", title: "Stakeholder sign-off on backlog scope",
   });
 
-  const { data: knowledge } = await knowledgeItemsDB.create({
+  const { data: knowledge } = await knowledgeItemsDB.create({ authorId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId, deliverableId: requirementsSpec!.id, category: "Domain Knowledge",
     title: "Domain glossary for this backlog", acquisitionScope: "SEU",
   });
 
-  const dispatched = await transitionDeliverable({ deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 
   const { workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
@@ -295,7 +303,7 @@ test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Co
 
   const { participant } = await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
 
-  const dispatched = await transitionDeliverable({ deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 
   const { command, workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
@@ -325,7 +333,7 @@ test("Ch.12 §9 / CR-109 §6.2: no producing Capability declared means no pool a
   // reports "Command requested" regardless, and an empty pool is Dispatch's
   // own case 1 (DispatchRejected, Command marked Failed), not a deferral.
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const requested = await transitionDeliverable({ deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const requested = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(requested);
 
   let command: CommandRow | null = null;
@@ -379,7 +387,7 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
   const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
   await fulfilCapability({ seuId, capabilityId: deliverable!.producing_capability_id!, participantMasterId });
 
-  const dispatched = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 
   const { data: rawCommand } = await commandsDB.findBySeuId(seuId);
@@ -405,7 +413,7 @@ test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model 
 
   await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
 
-  const { data: decision } = await decisionsDB.create({
+  const { data: decision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId,
     relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [requirementsSpec!.id] }],
     category: "Engineering Decisions",
@@ -413,7 +421,7 @@ test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model 
   });
   assert.ok(decision);
 
-  const blockedDirect = await transitionDeliverable({ deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blockedDirect = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blockedDirect.ok, false);
   if (blockedDirect.ok) throw new Error("unreachable");
   assert.equal(blockedDirect.reason, "decision_blocked");
@@ -423,7 +431,7 @@ test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model 
   // never advanced at all (still Defined), so Source Code's own attempt
   // must fail on dependency readiness — not because of any new graph edge
   // for the Decision, purely because Requirements never moved.
-  const blockedTransitively = await transitionDeliverable({ deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blockedTransitively = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blockedTransitively.ok, false);
   if (blockedTransitively.ok) throw new Error("unreachable");
   assert.equal(blockedTransitively.reason, "dependency_not_satisfied", "Source Code is blocked purely because Requirements Analysis Model never reached Approved, no new edge involved");
@@ -450,18 +458,18 @@ test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation 
 
   // Content attached to Requirements Analysis Model ONLY — must never appear
   // in Source Code's own Execution Context.
-  const { data: reqDecision } = await decisionsDB.create({
+  const { data: reqDecision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [requirementsSpec!.id] }],
     category: "Engineering Decisions", title: "Requirements-only decision — must not leak into Source Code",
   });
-  await decisionsDB.updateStatus(reqDecision!.id, "Approved");
+  await decisionsDB.updateStatus(reqDecision!.id, "Approved", { participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE });
   await createEvidenceAsRoot({ relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec!.id, seuId, category: "Validation Evidence", title: "Requirements-only evidence" });
-  await knowledgeItemsDB.create({ seuId, deliverableId: requirementsSpec!.id, category: "Domain Knowledge", title: "Requirements-only knowledge", acquisitionScope: "SEU" });
+  await knowledgeItemsDB.create({ authorId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE, seuId, deliverableId: requirementsSpec!.id, category: "Domain Knowledge", title: "Requirements-only knowledge", acquisitionScope: "SEU" });
 
   await driveDeliverableToApproved(requirementsSpec!.id, `cr109-source-code-scoping-${seuId}`);
 
   await fulfilCapability({ seuId, capabilityId: constructionCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["software-construction"]) });
-  const dispatched = await transitionDeliverable({ deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 
   const { workItem } = await waitForDispatchedWorkItem(sourceCode!.id, "Defined", "In Progress");
@@ -491,23 +499,23 @@ test("CR-109 Source Code §5a: decision_blocked triggers even when only ONE of s
   await driveDeliverableToApproved(requirementsSpec!.id, `cr109-source-code-partial-block-${seuId}`);
   await fulfilCapability({ seuId, capabilityId: constructionCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["software-construction"]) });
 
-  const { data: approvedDecision } = await decisionsDB.create({
+  const { data: approvedDecision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [sourceCode!.id] }],
     category: "Engineering Decisions", title: "Source Code decision 1 (already Approved)",
   });
-  await decisionsDB.updateStatus(approvedDecision!.id, "Approved");
+  await decisionsDB.updateStatus(approvedDecision!.id, "Approved", { participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE });
 
-  const { data: openDecision } = await decisionsDB.create({
+  const { data: openDecision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [sourceCode!.id] }],
     category: "Engineering Decisions", title: "Source Code decision 2 (still open)",
   });
 
-  const blocked = await transitionDeliverable({ deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blocked = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
   if (blocked.ok) throw new Error("unreachable");
   assert.equal(blocked.reason, "decision_blocked", "one Approved Decision is not enough — the second, still-open Decision must still block");
 
-  await decisionsDB.updateStatus(openDecision!.id, "Approved");
-  const dispatched = await transitionDeliverable({ deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await decisionsDB.updateStatus(openDecision!.id, "Approved", { participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 });

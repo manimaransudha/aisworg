@@ -16,12 +16,10 @@ const TENANTS = [PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, ATHENS_TENANT_NAME, BAB
 
 function allNounVerbBadges(): Array<{ badge: string; effective_till: string; seu_ids: string[] }> {
   const raw = readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8");
-  const vocab = JSON.parse(raw) as {
-    transitions: Array<{ entityType: string; verb: string }>;
-    authoringMappings?: Array<{ noun: string; verbs: string[] }>;
-  };
+  const vocab = JSON.parse(raw) as { authoringMappings?: Array<{ noun: string; verbs: string[] }> };
+  const transitions = JSON.parse(readFileSync(path.join(__dirname, "data", "transitionDefinitions.json"), "utf8")) as Array<{ entityType: string; verb?: string }>;
   const pairs = new Set<string>();
-  for (const t of vocab.transitions) pairs.add(`${t.entityType.toLowerCase()}_${t.verb}`);
+  for (const t of transitions) if (t.verb) pairs.add(`${t.entityType.toLowerCase()}_${t.verb}`);
   for (const m of vocab.authoringMappings ?? []) for (const v of m.verbs) pairs.add(`${m.noun.toLowerCase()}_${v}`);
   return [...pairs].sort().map((badge) => ({ badge, effective_till: "9999-12-31", seu_ids: [] }));
 }

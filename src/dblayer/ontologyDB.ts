@@ -201,17 +201,26 @@ export const ontologyDB = {
     rows: Array<{
       conceptType: string; code: string; defaultLabel: string; description: string | null; tenantId: string;
       isMandatory: boolean | null; textType: "text" | "markdown"; uiGrouping: string | null;
+      contributedByPack?: string | null; version?: string; status?: OntologyConceptRow["status"];
+      compositionStrategy?: OntologyConceptRow["composition_strategy"]; compositionSources?: OntologyConceptRow["composition_sources"];
       authorId: string; authorBadge: string;
     }>
   ): Promise<DbResult<OntologyConceptRow[]>> {
     try {
       const { rows: inserted } = await bulkInsert<OntologyConceptRow>(
         "ontology_concepts",
-        ["concept_type", "code", "default_label", "description", "tenant_id", "is_mandatory", "text_type", "ui_grouping", "version", "status", "author_id", "author_badge"],
+        ["concept_type", "code", "default_label", "description", "tenant_id", "is_mandatory", "text_type", "ui_grouping", "contributed_by_pack", "version", "status", "composition_strategy", "composition_sources", "author_id", "author_badge"],
         rows.map((r) => [
           r.conceptType, r.code, r.defaultLabel, r.description, r.tenantId, r.isMandatory, r.textType, r.uiGrouping,
-          "1.0.0", "Active", r.authorId, r.authorBadge,
-        ])
+          r.contributedByPack ?? null, r.version ?? "1.0.0", r.status ?? "Active", r.compositionStrategy ?? null, JSON.stringify(r.compositionSources ?? []), r.authorId, r.authorBadge,
+        ]),
+        {
+          onConflict: `ON CONFLICT (concept_type, code, tenant_id, version) DO UPDATE SET
+            default_label = EXCLUDED.default_label, description = EXCLUDED.description, is_mandatory = EXCLUDED.is_mandatory,
+            text_type = EXCLUDED.text_type, ui_grouping = EXCLUDED.ui_grouping, contributed_by_pack = EXCLUDED.contributed_by_pack, status = EXCLUDED.status,
+            composition_strategy = EXCLUDED.composition_strategy, composition_sources = EXCLUDED.composition_sources,
+            author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge`,
+        }
       );
       return { data: inserted };
     } catch (err) {
@@ -302,12 +311,12 @@ export const ontologyDB = {
     }
   },
 
-  async addConceptComment(conceptId: string, actorId: string, commentText: string): Promise<DbResult<OntologyConceptCommentRow>> {
+  async addConceptComment(conceptId: string, actorId: string, authorityBadge: string, commentText: string): Promise<DbResult<OntologyConceptCommentRow>> {
     try {
       const { rows } = await query<OntologyConceptCommentRow>(
-        `INSERT INTO ontology_concept_comments (concept_id, actor_id, comment_text)
-         VALUES ($1, $2, $3) RETURNING *`,
-        [conceptId, actorId, commentText]
+        `INSERT INTO ontology_concept_comments (concept_id, actor_id, authority_badge, comment_text)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [conceptId, actorId, authorityBadge, commentText]
       );
       return { data: rows[0] };
     } catch (err) {

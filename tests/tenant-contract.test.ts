@@ -150,7 +150,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
   // transition. So this hop can legitimately already have a Command in
   // flight from that automatic rescan (already_in_flight) before this call
   // lands — a real Command either way, just differing in who got there first.
-  const dispatched = await transitionDeliverable({ deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
   const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "Defined", "In Progress");
   return workItem.id;

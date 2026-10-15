@@ -1,23 +1,15 @@
 import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
-import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { createObligation } from "./obligations.js";
 import { assertCanonicalCategory } from "./ontology.js";
-import { resolveSystemActor } from "./attentionItems.js";
 import { resolveAuthor } from "./attentionItems.js";
 import type { AcquisitionScope, EngineeringCapitalRow, KnowledgeItemRow, KnowledgeRelationshipReferences, KnowledgeSelfReferences, KnowledgeValidationNoteRow, ObligationRow } from "../../../dblayer/seuTypes.js";
-
-async function resolveParticipantId(userId: string, seuId: string): Promise<string | null> {
-  const { data: master } = await participantsMasterDB.findById(userId);
-  if (!master) return null;
-  const { data: engagements } = await participantsDB.findByParticipantMasterId(master.id);
-  return (engagements ?? []).find((p) => p.seu_id === seuId)?.id ?? null;
-}
 
 function assertNoSelfReference(knowledgeItemId: string, references: KnowledgeSelfReferences): void {
   for (const ids of Object.values(references)) {
@@ -37,14 +29,15 @@ export async function createKnowledgeItem(input: {
   decisionReferences?: KnowledgeRelationshipReferences;
   knowledgeReferences?: KnowledgeSelfReferences;
   confidenceLevel?: string | null;
-  userId?: string | null;
+  actorId: string;
 }): Promise<KnowledgeItemRow> {
   await assertCanonicalCategory("category:knowledge", input.category);
   const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
   if (!deliverable) throw new Error(`deliverable not found: ${input.deliverableId}`);
   if (deliverable.seu_id !== input.seuId) throw new Error(`deliverable ${input.deliverableId} does not belong to SEU ${input.seuId}`);
 
-  const authorId = input.userId != null ? await resolveParticipantId(input.userId, input.seuId) : null;
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, "knowledge_observe");
+  const { authorId } = await resolveAuthor(input.seuId, input.actorId);
 
   const { data: knowledgeItem, error } = await knowledgeItemsDB.create({
     seuId: input.seuId,
@@ -59,18 +52,18 @@ export async function createKnowledgeItem(input: {
     knowledgeReferences: input.knowledgeReferences,
     confidenceLevel: input.confidenceLevel,
     authorId,
+    authorityBadge: authorBadge,
   });
   if (error || !knowledgeItem) throw error ?? new Error("failed to create knowledge item");
 
-  const knowledgeSystemActor = await resolveSystemActor(input.seuId);
   await eventBus.publish({
     eventType: "KnowledgeObserved",
     originatingObjectType: "Knowledge",
     originatingObjectId: knowledgeItem.id,
     seuId: knowledgeItem.seu_id,
     correlationId: eventBus.newCorrelationId(),
-    actorId: input.userId ?? knowledgeSystemActor.actorId,
-    authorityBadge: knowledgeSystemActor.authorBadge,
+    actorId: input.actorId,
+    authorityBadge: authorBadge,
     payload: { deliverableId: input.deliverableId, category: input.category, acquisitionScope: knowledgeItem.acquisition_scope },
   });
 
@@ -107,13 +100,12 @@ export type TransitionKnowledgeItemResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-export async function transitionKnowledgeItem(input: { knowledgeItemId: string; targetState: string; actorRole: string; actorId?: string; userId?: string | null }): Promise<TransitionKnowledgeItemResult> {
+export async function transitionKnowledgeItem(input: { knowledgeItemId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionKnowledgeItemResult> {
   const { data: knowledgeItem } = await knowledgeItemsDB.findById(input.knowledgeItemId);
   if (!knowledgeItem) return { ok: false, reason: "not_found" };
 
   const fromState = knowledgeItem.status;
 
-  if (!input.actorId) throw new Error("actorId is required to transition a Knowledge Item");
   const gate = await transitionEngine.evaluate({
     entityType: "Knowledge",
     fromState,
@@ -147,8 +139,7 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
     return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
   }
 
-  const authorId = input.userId != null ? await resolveParticipantId(input.userId, knowledgeItem.seu_id) : null;
-  const { data: updated, error } = await knowledgeItemsDB.updateStatus(knowledgeItem.id, input.targetState, authorId, gate.authorityBadge);
+  const { data: updated, error } = await knowledgeItemsDB.updateStatus(knowledgeItem.id, input.targetState, qualityGateAuthorId, gate.authorityBadge);
   if (error || !updated) throw error ?? new Error("failed to update knowledge item status");
 
   await eventBus.publish({
@@ -159,7 +150,7 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
   });
 
   return { ok: true, knowledgeItem: updated, appliedTransition: { fromState, toState: input.targetState } };
@@ -174,7 +165,7 @@ export type PromoteKnowledgeItemScopeResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string; targetScope: AcquisitionScope; actorRole: string; actorId?: string; userId?: string | null }): Promise<PromoteKnowledgeItemScopeResult> {
+export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string; targetScope: AcquisitionScope; actorRole: string; actorId: string }): Promise<PromoteKnowledgeItemScopeResult> {
   const { data: knowledgeItem } = await knowledgeItemsDB.findById(input.knowledgeItemId);
   if (!knowledgeItem) return { ok: false, reason: "not_found" };
 
@@ -183,7 +174,6 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
   }
 
   const fromScope = knowledgeItem.acquisition_scope;
-  if (!input.actorId) throw new Error("promoteKnowledgeItemScope requires a real actorId");
   const gate = await transitionEngine.evaluate({
     entityType: "KnowledgeScope",
     fromState: fromScope,
@@ -204,7 +194,8 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 
-  const authorId = input.userId != null ? await resolveParticipantId(input.userId, knowledgeItem.seu_id) : null;
+  if (!gate.authorityBadge) throw new Error("promoteKnowledgeItemScope: no resolved authority badge for this scope promotion");
+  const { authorId } = await resolveAuthor(knowledgeItem.seu_id, input.actorId);
   const { data: updated, error } = await knowledgeItemsDB.updateAcquisitionScope(knowledgeItem.id, input.targetScope, authorId, gate.authorityBadge);
   if (error || !updated) throw error ?? new Error("failed to promote knowledge item acquisition scope");
 
@@ -216,10 +207,9 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
     correlationId: eventBus.newCorrelationId(),
     payload: { fromScope, toScope: input.targetScope },
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
   });
 
-  if (!gate.authorityBadge) throw new Error("promoteKnowledgeItemScope: no resolved authority badge to author the resulting Obligation");
   const obligation = await createObligation({
     relatedObjectType: "Deliverable",
     relatedObjectId: knowledgeItem.deliverable_id,
@@ -242,14 +232,11 @@ export async function getEngineeringCapital(): Promise<EngineeringCapitalRow[]> 
   return data ?? [];
 }
 
-export async function addKnowledgeValidationNote(input: { knowledgeItemId: string; noteText: string; actorUserId?: string | null }): Promise<KnowledgeValidationNoteRow> {
-  let authorId: string | null = null;
-  if (input.actorUserId != null) {
-    const { data: master } = await participantsMasterDB.findById(input.actorUserId);
-    if (!master) throw new Error(`No superuser provisioned.`);
-    authorId = master.id;
-  }
-  const { data: note, error } = await knowledgeItemsDB.addValidationNote({ knowledgeItemId: input.knowledgeItemId, noteText: input.noteText, actorId: authorId });
+export async function addKnowledgeValidationNote(input: { knowledgeItemId: string; noteText: string; actorId: string }): Promise<KnowledgeValidationNoteRow> {
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, "knowledge_validate");
+  const { data: master } = await participantsMasterDB.findById(input.actorId);
+  if (!master) throw new Error(`No superuser provisioned.`);
+  const { data: note, error } = await knowledgeItemsDB.addValidationNote({ knowledgeItemId: input.knowledgeItemId, noteText: input.noteText, actorId: master.id, authorityBadge: authorBadge });
   if (error || !note) throw error ?? new Error("failed to add knowledge validation note");
   return note;
 }

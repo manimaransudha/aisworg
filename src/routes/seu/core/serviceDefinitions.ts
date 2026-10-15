@@ -7,6 +7,7 @@ import { assertCanonicalCategory, syncConceptFromEntity, retireConceptForEntity 
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { nextAvailablePatchVersion, semverError } from "../../../utils/version.js";
  
 
 export interface ServiceDefinitionSeedInput {
@@ -27,28 +28,16 @@ export interface ServiceDefinitionSeedInput {
 
 export type ServiceDefinitionValidationResult = { ok: true } | { ok: false; errors: string[] };
 
-const SEMVER_RE = /^\d+\.\d+\.\d+$/;
-
-async function assertServiceDefinitionCodeVersionFree(code: string, version: string, tenantId: string, excludeId?: string): Promise<string | null> {
-  const { data: existing } = await serviceDefinitionsDB.findByCodeAndVersion(code, version, tenantId);
-  if (existing && existing.id !== excludeId) {
-    return `A Service Definition with code "${code}" already exists at version ${version}. Pick a different starting version, or continue authoring that existing Definition instead of starting a new one.`;
-  }
-  return null;
-}
 
 export async function validateServiceDefinitionSeed(seed: ServiceDefinitionSeedInput, excludeId?: string): Promise<ServiceDefinitionValidationResult> {
   const errors: string[] = [];
   if (!seed.code?.trim()) errors.push("code is required");
   if (!seed.name?.trim()) errors.push("name is required");
   if (!seed.capabilityCode?.trim()) errors.push("capabilityCode is required");
-  if (!SEMVER_RE.test(seed.version ?? "")) errors.push(`version must be semver (x.y.z), got: "${seed.version}"`);
+  const versionError = semverError("version", seed.version);
+  if (versionError) errors.push(versionError);
 
   const tenantId = seed.tenantId ?? (await getPlatformTenantId());
-  if (seed.code?.trim() && SEMVER_RE.test(seed.version ?? "")) {
-    const collision = await assertServiceDefinitionCodeVersionFree(seed.code, seed.version, tenantId, excludeId);
-    if (collision) errors.push(collision);
-  }
   if (seed.code?.trim()) {
     try {
       await assertCanonicalCategory("service-name", seed.code.trim());
@@ -142,6 +131,7 @@ export async function transitionServiceDefinition(input: { serviceDefinitionId: 
     return { ok: false, reason: gate.reason };
   }
 
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
   const { data: updated, error } = await serviceDefinitionsDB.updateStatus(serviceDefinition.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update Service Definition status");
 
@@ -149,7 +139,6 @@ export async function transitionServiceDefinition(input: { serviceDefinitionId: 
     if (!input.actorId) throw new Error("a real actorId is required to sync the service-name Ontology concept");
     if (input.targetState === "Active") await syncOntologyOnActivate(updated, input.actorId);
     else {
-      if (!gate.authorityBadge) throw new Error("no resolved authority badge for this transition — cannot record the service-name Ontology concept's retirement");
       await demoteOntologyIfNoOtherActive(updated, input.actorId, gate.authorityBadge);
     }
   }
@@ -162,7 +151,7 @@ export async function transitionServiceDefinition(input: { serviceDefinitionId: 
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: updated.code },
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
     versionEvent: gate.versionEvent,
     fromState,
     toState: input.targetState,
@@ -203,7 +192,7 @@ export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: strin
     governance: source.governance,
     success: source.success,
     consumers: source.consumers,
-    version: source.version,
+    version: await nextAvailablePatchVersion(source.version, async (candidate) => !!(await serviceDefinitionsDB.findByCodeAndVersion(source.code, candidate, source.tenant_id)).data),
     authoredBy: copyMaster.id,
     authorBadge,
     draftContent: {

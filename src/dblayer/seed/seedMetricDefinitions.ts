@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { metricDefinitionsDB } from "../metricDefinitionsDB.js";
 import type { MetricDefinitionRow } from "../seuTypes.js";
@@ -17,11 +16,13 @@ export interface SeedActor {
 interface MetricDefinitionSeed {
   identifier: string;
   name: string;
-  description: string | null;
+  description?: string | null;
   category: MetricDefinitionRow["category"];
   unit_of_measure: string;
   aggregation_strategy: MetricDefinitionRow["aggregation_strategy"];
   calculation_method: string;
+  version?: number;
+  originating_pack_id?: string | null;
 }
 
 function loadSeeds(): MetricDefinitionSeed[] {
@@ -32,30 +33,31 @@ function loadSeeds(): MetricDefinitionSeed[] {
 export async function seedMetricDefinitions(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
 
-  const { rows: existing } = await query<{ identifier: string }>("SELECT identifier FROM metric_definitions");
-  const existingIdentifiers = new Set(existing.map((r) => r.identifier));
-
-  const missing = seeds.filter((s) => !existingIdentifiers.has(s.identifier));
-  if (missing.length === 0) {
-    logger.info("[seedMetricDefinitions] every baseline row already present, nothing to do");
-    return;
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const seed of seeds) {
+    if (seen.has(seed.identifier)) duplicates.add(seed.identifier);
+    seen.add(seed.identifier);
   }
+  if (duplicates.size) throw new Error(`[seedMetricDefinitions] duplicate identifier in metricDefinitions.json: ${[...duplicates].join(", ")}`);
 
-  for (const seed of missing) {
-    const { error } = await metricDefinitionsDB.create({
+  for (const seed of seeds) {
+    const { error } = await metricDefinitionsDB.upsert({
       identifier: seed.identifier,
       name: seed.name,
-      description: seed.description,
+      description: seed.description ?? null,
       category: seed.category,
       unitOfMeasure: seed.unit_of_measure,
       aggregationStrategy: seed.aggregation_strategy,
       calculationMethod: seed.calculation_method,
+      version: seed.version ?? 1,
+      originatingPackId: seed.originating_pack_id ?? null,
       authorId: actor.authoredBy,
       authorBadge: actor.authorBadge,
     });
-    if (error) throw new Error(`[seedMetricDefinitions] failed to create "${seed.identifier}": ${error.message}`);
-    logger.info(`[seedMetricDefinitions] created "${seed.identifier}"`);
+    if (error) throw new Error(`[seedMetricDefinitions] failed to upsert "${seed.identifier}": ${error.message}`);
   }
+  logger.info(`[seedMetricDefinitions] upserted ${seeds.length} baseline rows`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

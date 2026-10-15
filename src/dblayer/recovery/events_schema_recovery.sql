@@ -11,8 +11,8 @@ CREATE TABLE events (
   occurred_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   sequence                  BIGSERIAL
 );
-ALTER TABLE events ADD COLUMN IF NOT EXISTS actor_id        TEXT;
-ALTER TABLE events ADD COLUMN IF NOT EXISTS authority_badge TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS actor_id        UUID NOT NULL;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS authority_badge TEXT NOT NULL;
 ALTER TABLE events
   ADD COLUMN IF NOT EXISTS seu_id UUID REFERENCES seus(id),
   ADD COLUMN IF NOT EXISTS consumption_state JSONB NOT NULL DEFAULT '{}'::jsonb;

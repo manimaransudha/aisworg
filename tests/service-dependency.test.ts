@@ -24,7 +24,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import { listServices } from "../src/routes/seu/core/services.js";
+import { listServiceDefinitionsWithNextStates } from "../src/routes/seu/core/serviceDefinitions.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 import { TESTER_ALL_ID } from "./testFixtures.js";
 
@@ -80,19 +80,19 @@ test("a Deliverable-type edge resolves Satisfied once the real SEU's upstream De
   assert.equal(edgeAfter?.readinessState, "Satisfied");
 });
 
-test("listServices exposes each Service's declared Service Level and providing Capability (Ch.11 §7-§8)", async () => {
-  const services = await listServices();
+test("Service Registry exposes each Service Definition's declared Service Level and providing Capability (Ch.11 §7-§8)", async () => {
+  const services = (await listServiceDefinitionsWithNextStates()).map((r) => r.serviceDefinition);
   // Bug fix (owner: "check service-dependency.test.ts as well") — this
   // Service was renamed to "Domain Model Service" at some point (a seed-data
   // rename, unrelated to the Capability-edge retirement above); "Approved
   // Catalog Metadata Design" no longer exists under any name.
   const domainModelService = services.find((s) => s.name === "Domain Model Service");
   assert.ok(domainModelService);
-  assert.equal(domainModelService.providingCapabilityCode, "understanding-business-domain");
+  assert.equal(domainModelService.capability_code, "understanding-business-domain");
   // CR-064 — service_level is a {label, target}[] list, not a flat object.
-  assert.ok(Array.isArray(domainModelService.serviceLevel) && domainModelService.serviceLevel.length > 0);
+  assert.ok(Array.isArray(domainModelService.service_level) && domainModelService.service_level.length > 0);
   assert.ok(
-    domainModelService.serviceLevel.some((item) => item.label === "Consistency"),
-    `expected a "Consistency" entry in Service Level, got: ${JSON.stringify(domainModelService.serviceLevel)}`
+    domainModelService.service_level.some((item) => item.label === "Consistency"),
+    `expected a "Consistency" entry in Service Level, got: ${JSON.stringify(domainModelService.service_level)}`
   );
 });

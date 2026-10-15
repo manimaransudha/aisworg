@@ -7,7 +7,8 @@ CREATE TABLE seus (
   profile_id            UUID NOT NULL REFERENCES profiles(id),
   active_ebm_id         UUID,
   lifecycle_state       TEXT NOT NULL DEFAULT 'Pending',
-  requested_by          UUID REFERENCES participants_master(id),
+  requested_by          UUID NOT NULL REFERENCES participants_master(id),
+  author_badge          TEXT NOT NULL,
   commissioning_report  JSONB NOT NULL DEFAULT '{}',
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()

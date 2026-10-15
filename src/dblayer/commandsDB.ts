@@ -10,8 +10,8 @@ export const commandsDB = {
     commandType: string;
     fromState: string;
     toState: string;
-    requestedBy: string | null;
-    actingBadgeType?: string | null;
+    requestedBy: string;
+    actingBadgeType: string;
     correlationId: string;
     governanceOutcomeId?: string | null;
     eligibleParticipantPoolId?: string | null;
@@ -21,7 +21,7 @@ export const commandsDB = {
         `INSERT INTO commands (seu_id, entity_type, entity_id, command_type, from_state, to_state, requested_by, acting_badge_type, correlation_id, governance_outcome_id, eligible_participant_pool_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
-        [input.seuId, input.entityType, input.entityId, input.commandType, input.fromState, input.toState, input.requestedBy, input.actingBadgeType ?? null, input.correlationId, input.governanceOutcomeId ?? null, input.eligibleParticipantPoolId ?? null]
+        [input.seuId, input.entityType, input.entityId, input.commandType, input.fromState, input.toState, input.requestedBy, input.actingBadgeType, input.correlationId, input.governanceOutcomeId ?? null, input.eligibleParticipantPoolId ?? null]
       );
       return { data: rows[0] };
     } catch (err) {

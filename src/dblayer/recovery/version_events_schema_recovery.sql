@@ -11,7 +11,7 @@ CREATE TABLE version_events (
   version_event    TEXT NOT NULL,
   occurred_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   actor_id         UUID NOT NULL  REFERENCES participants_master(id),
-  authority_badge  TEXT
+  authority_badge  TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_version_events_entity ON version_events (entity_type, entity_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_version_events_tenant ON version_events (tenant_id);

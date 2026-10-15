@@ -25,6 +25,9 @@ const pool = new Pool({
     max: parseInt(process.env.MAX_CONNECTIONS) || 10,
     connectionTimeoutMillis: parseInt(process.env.DB_TIMEOUT) || 60000,
     idleTimeoutMillis: 20000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: parseInt(process.env.DB_KEEPALIVE_DELAY) || 10000,
+    query_timeout: parseInt(process.env.DB_QUERY_TIMEOUT) || 60000,
     allowExitOnIdle: true
 });
 
@@ -35,7 +38,7 @@ pool.on("error", (err) => {
 export default pool;
 export const query = (text, params) => pool.query(text, params);
 
-export function bulkInsert(table, columns, rows) {
+export function bulkInsert(table, columns, rows, options = {}) {
     if (rows.length === 0) {
         return Promise.resolve({ rows: [] });
     }
@@ -46,7 +49,7 @@ export function bulkInsert(table, columns, rows) {
         values.push(...row);
         return `(${ph.join(", ")})`;
     });
-    const text = `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${placeholders.join(", ")} RETURNING *`;
+    const text = `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${placeholders.join(", ")}${options.onConflict ? ` ${options.onConflict}` : ""} RETURNING *`;
     return pool.query(text, values);
 }
 

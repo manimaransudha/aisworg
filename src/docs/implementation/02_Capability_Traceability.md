@@ -1,8 +1,15 @@
-# Chapter 10 – Capability Model: Implementation Traceability
+# Chapter 2 – Capability Model (SEU Studio Specifications): Implementation Traceability
 
-**Date of report: 4-10-2026**
+**Date of report: 14-10-2026**
 
-Fresh code-verification pass against the current working tree (not the chapter's own §18 audit text, though findings are cross-checked against it). Core files read directly: `src/dblayer/capabilitiesDB.ts`, `src/dblayer/recovery/capabilities_schema_recovery.sql`, `src/routes/seu/core/capabilities.ts`, `src/dblayer/seuCapabilitiesDB.ts`, `src/dblayer/objectivesDB.ts:413-424`, `src/routes/seu/core/packs.ts` (dependency validation, lines ~694-705), `src/domain/engine/compositionEngine.ts`.
+[Specification](../SEU%20Studio%20Specifications/01_Engineering%20Definition/02_Capability.md)
+
+The **Capability Definition** is `<code>capability_definitions</code>` (authored, versioned, lifecycle-governed). 
+
+The services provided by the capability are in 
+`service_definitions`.
+
+A **Pack contributes to a Capability** as an extension: `capabilities` rows are materialised from a Pack's `contributions.capabilities` and are what Templates, commissioning, Services, Deliverables and fulfilment bind to.
 
 <!-- multiline -->
 **Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
@@ -25,193 +32,201 @@ Fresh code-verification pass against the current working tree (not the chapter's
   <tbody>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability defines what engineering function must be performed, independent of who performs it<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capabilities</code> table has no Participant FK of any kind; definition is Participant-independent.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform maintains a Capability Catalogue.<br> Ref: §6 FR-2.1; §16; §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/capabilityDefinitionsDB.ts:123-194</code><br><code>src/routes/seu/web/capabilityDefinitionRegistry.ts:18-45</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"> <code><code>capability_definitions</code></code> is the catalogue. The registry page lists Definitions tenant-scoped with status filter, search and sort, and the DB layer finds them by id, code and version, active code and visibility.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities are fulfilled by Participants (AI, human, or external service)<br> Ref: §1 Purpose, §10</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:153-174, 185-204</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilCapability</code>/<code>fulfilCapabilityWithParticipants</code> create <code>participants</code> rows typed <code>AI</code>/<code>Human</code>/<code>External</code> via <code>participants.type</code>, bound through <code>capability_fulfilments</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability is a platform concept, independent of Participants, Organisations, Technologies and AI providers.<br> Ref: §4; §5 CM-001, CM-002</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/recovery/<code>capability_definitions</code>_schema_recovery.sql:3-12</code><br><code>src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Neither the definition nor a Pack's extension row carries a Participant, provider or technology column. Participants link to a Capability only through <code>capability_fulfilments</code> and <code>participants_master.capabilities </code>. Platform-tenant definitions are visible to all tenants <code>(findAllVisibleTo)</code>.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Model separates engineering competence from execution, allowing independent evolution<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilitiesDB.ts:5-82<br>src/domain/engine/dependencyDefinitionEngine.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability rows carry no execution logic; <code>dependencyDefinitionEngine.evaluateAndPublishFromTransition</code> is invoked on fulfilment but is a separate, reusable engine, not Capability-embedded behaviour.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities contain no runtime state (CM-005).<br> Ref: §5 CM-005</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</code><br><code>src/dblayer/recovery/<code>seu_capabilities</code>_schema_recovery.sql:3-10</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The definition rows (<code>capabilities, <code>capability_definitions</code></code>) hold only identity, label, description, roles and lifecycle status. Fulfilled/Unfulfilled status lives on the SEU-scoped <code>seu_capabilities</code> row, not on the Capability.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities remain independent of engineering behaviour (CM-006).<br> Ref: §5 CM-006; §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</code><br><code>src/routes/seu/core/capabilityDefinitions.ts:111-145</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Neither the definition nor a Pack's extension row holds behaviour fields. Definition transitions go through the Transition Engine and carry no EBM reference.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Capability has a globally unique identifier.<br> Ref: §6 FR-2.3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/recovery/<code>capability_definitions</code>_schema_recovery.sql:4,30</code><br><code>src/dblayer/recovery/capabilities_schema_recovery.sql:4,16-18</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Both the definition and each Pack extension row have a UUID primary key. The code is the shared name: UNIQUE (code, version, tenant_id) on <code>capability_definitions</code> and <code>UNIQUE (originating_pack_id, code)</code> on capabilities so each Pack contributes at most one extension per code.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities support versioning.<br> Ref: §6 FR-2.4; §13 new versions</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/capabilityDefinitionsDB.ts:9-72</code><br><code>src/dblayer/recovery/<code>capability_definitions</code>_schema_recovery.sql:14-16,30</code><br><code>src/dblayer/seed/data/transitionDefinitions.json:1207-1251</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Definitions carry a semver version, a copy-as-new-draft operation, and a lifecycle Defined, Published, Active, Deprecated, Retired, Archived with versionEvent wired on every transition. Activation of a newer Definition version is handled by the same lifecycle.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities are independently extensible.<br> Ref: §6 FR-2.5; §9 specialise/extend</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilityDefinitions.ts:79-107</code><br><code>src/dblayer/recovery/<code>capability_definitions</code>_schema_recovery.sql:19</code><br><code>src/routes/seu/core/packs.ts:525-540</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Definition can specialise an Active parent through parent_capability_definition_id (content copied at draft time). A Pack extends a Capability by contributing a capabilities row, which is independent of the Definition and of other Packs.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Chapter scope: Capability abstraction, lifecycle, fulfilment, relationships, discovery, composition (§2)<br> Ref: §2 Scope</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(see individual rows below)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Abstraction/fulfilment/discovery have real implementation; lifecycle is deliberately borrowed from the owning Pack (see CM-001 row); relationships/composition are partially built.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Deliverable requires one or more Capabilities.<br> Ref: §6 FR-2.2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/recovery/deliverables_schema_recovery.sql:12</code><br><code>src/routes/seu/core/commissioning.ts:250-258</code><br><code>src/domain/engine/dispatchEngine.ts:74-79</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Deliverable carries producing_capability_id (a capabilities row). Commissioning derives the SEU's required Capabilities from the Templates and writes <code>seu_capabilities</code>. Dispatch rejects a Deliverable with no producing Capability (no_producing_capability_declared).<br>Gap:<br>The column is nullable, so one Capability at most is recorded, not one or more. The rule is enforced at dispatch, not at Deliverable creation.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability is a reusable engineering competency, independent of Participants, Organisations, Technologies, AI providers<br> Ref: §4 Definition</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No Organisation/technology/AI-provider coupling exists on <code>capabilities</code>; <code>originating_pack_id</code> ties it only to the declaring Pack, not to any execution concept.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CM-001: Capabilities are stable<br> Ref: §5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts (SDK authoring <code>canEdit</code> gate, Draft-status check)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The only write path into <code>capabilitiesDB.upsertFromPack</code> is gated to a Pack still in Draft status; a Published/Active Pack's Capabilities render view-only. Stability is enforced at the authoring-UI layer, not as a DB-level invariant on <code>capabilities</code> itself.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CM-002: Participants are replaceable<br> Ref: §5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:220-253</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>releaseParticipants</code> releases/archives a Participant and reverts the SEU Capability to Unfulfilled; a new Participant can then be assigned via the ordinary fulfil path. No 1:1 permanent binding exists.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CM-003: Multiple Participants may fulfil the same Capability<br> Ref: §5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:185-204<br>src/dblayer/seuCapabilitiesDB.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilCapabilityWithParticipants</code> accepts multiple <code>participantMasterIds</code> and creates one <code>capability_fulfilments</code> row per selection, recording <code>fulfilmentStrategy: "Composite"</code> when more than one is chosen.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CM-004: One Participant may fulfil multiple Capabilities<br> Ref: §5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilityFulfilmentsDB.ts (no uniqueness constraint on <code>participant_id</code> referenced by capabilities.ts:91-98)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capability_fulfilments.participant_id</code> carries no uniqueness constraint; nothing prevents the same <code>participants_master</code> resource being selected as eligible for a different Capability's own fulfilment call.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CM-005: Capabilities shall not contain runtime state<br> Ref: §5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No status/state column exists on <code>capabilities</code>. True, but because the table has no lifecycle concept of its own at all (state lives on <code>packs</code>/<code>seu_capabilities</code> instead), not because of a deliberate stateless-by-design split within the Capability entity itself.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CM-006: Capabilities remain independent of engineering behaviour (EBM supplies it)<br> Ref: §5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No EBM coupling (no FK, no behaviour column) exists on <code>capabilities</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-10.1: platform maintains a Capability Catalogue<br> Ref: §6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilitiesDB.ts:73-81</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>findAll</code> returns every <code>capabilities</code> row ordered by <code>code</code> — a real, minimal catalogue query.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-10.2: every Work Item shall require one or more Capabilities<br> Ref: §6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuCapabilitiesDB.ts:59-74</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>seu_capabilities</code> ties a SEU's required Capabilities together, joined for Work Item/Dispatch consumption via <code>findBySeuId</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities support fulfilment by multiple Participant types.<br> Ref: §6 FR-2.6; §8 Supported Participant Types; §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilities.ts:33-49</code><br><code>src/routes/seu/core/capabilities.ts:115-136</code><br><code>src/dblayer/participantsMasterDB.ts:177-190</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">fulfilCapability accepts any Participant type from participants_master (AI, Human, External) after an eligibility check. fulfilment_strategy records the type or Composite. Eligibility combines the Participant's capabilities code list with Pack-contributed competency requirements and Eligibility-scope Policies (src/routes/seu/core/participantEligibility.ts:28-60).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-10.3: every Capability shall possess a globally unique identifier<br> Ref: §6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/capabilities_schema_recovery.sql:16-18</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>id</code> (UUID) is globally unique. <code>code</code> is explicitly **not** globally unique — its uniqueness constraint is <code>UNIQUE (originating_pack_id, code)</code>, Pack-scoped by design, so the same <code>code</code> string can exist under two different Packs.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability fulfilment remains traceable.<br> Ref: §6 FR-2.7; §15; §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilities.ts:51-113</code><br><code>src/dblayer/recovery/<code>capability_fulfilments</code>_schema_recovery.sql:3-12</code><br><code>src/dblayer/capabilityDefinitionsDB.ts:110-121</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Each fulfilment writes <code>capability_fulfilments</code> with seu_capability_id, participant_id, author_id, author_badge, established_at and revoked_at, and publishes ParticipantCreated and CapabilityFulfilled with actor and badge.<br>Gap:<br>updateStatus overwrites authored_by and author_badge on the Definition row at every transition, so the original author is lost and only the latest actor is retained. The event stream holds the history.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-10.4: Capabilities shall support versioning<br> Ref: §6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilitiesDB.ts:13-37<br>src/dblayer/recovery/capabilities_schema_recovery.sql:14-15</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capabilities.version</code> (TEXT) is written on every <code>upsertFromPack</code> call as a passed-through copy of the caller-supplied Pack version string. It is not independently incremented by any Capability-level operation; versioning is real but entirely borrowed from the owning Pack's own version identity.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability has Identifier, Name, Description, Category, Inputs, Outputs, Required Knowledge, Expected Deliverables, Success Criteria and Supported Participant Types.<br> Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/recovery/<code>capability_definitions</code>_schema_recovery.sql:3-12</code><br><code>src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</code><br><code>src/dblayer/seed/data/schemaDefinitions.json (entity_kind Capability)</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capability_definitions</code> holds id, code, default_label, description and roles[] with worktypes. The Service Definition bound to the Capability through capability_code holds Inputs (inputs), Outputs (outputs, which name the Expected Deliverables), Success Criteria (success), purpose, consumers, governance and service level. Packs supply Required Knowledge through contributions.competencies and contributions.engineeringCapital (src/routes/seu/core/packs.ts:365-382), composed into the SEU's competency requirements (src/domain/engine/profileCompositionUnravel.ts:66). Packs supply Supported Participant Types through Eligibility-scope Policies, applied with the competency match in src/routes/seu/core/participantEligibility.ts:28-60. The Pack extension row holds id, code, name, description, category and version.<br>Gap:<br>The extension row's category column is never written (upsertFromPack omits it), and the Definition has no category property. service_definitions.capability_code is indexed but not unique, so the 1:1 binding is not enforced by the database.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability can depend on, specialise, compose or extend other Capabilities.<br> Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilityDefinitions.ts:79-92</code><br><code>src/dblayer/recovery/<code>capability_definitions</code>_schema_recovery.sql:19</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Specialise/extend is modelled as a single parent pointer.<br>Gap:<br>No dependency or composition relation exists between Capabilities. No relation table or column covers depends-on or composes. A Pack's extension row has no relationship fields.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability relationships shall not create circular dependencies.<br> Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilityDefinitions.ts:79-92</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No cycle check exists. A parent must already be Active, which prevents a new draft from pointing at itself, but no traversal of the parent chain is made and no check exists for other relation types because none exist.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-10.5: Capabilities shall be independently extensible<br> Ref: §6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilitiesDB.ts:13-37 (ON CONFLICT (originating_pack_id, code))</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Any Pack can introduce new Capability rows through <code>upsertFromPack</code>; the Pack-scoped <code>code</code> uniqueness means two unrelated Packs can each extend the catalogue with a same-named Capability without collision.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability follows a lifecycle, including deprecation.<br> Ref: §2 Capability lifecycle; §13 deprecation</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilityDefinitions.ts:111-153</code><br><code>src/dblayer/seed/data/transitionDefinitions.json:1207-1251</code><br><code>src/dblayer/capabilityDefinitionsDB.ts:74-108</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Definitions move Defined, Published, Active, Deprecated, Retired, Archived through transitionEngine.evaluate with badge authority, policy gate and an event published with real actor and badge. A draft is editable only while Defined. Pack extension rows carry no status of their own.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Backward compatibility is preserved when Capabilities evolve.<br> Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilityDefinitions.ts:161-183</code><br><code>src/dblayer/capabilitiesDB.ts:17-24</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A new Definition version is a new row. Older versions stay until retired.<br>Gap:<br>No compatibility check compares a new version with the prior one. For a Pack extension, ON CONFLICT (originating_pack_id, code) DO UPDATE replaces name, description and version in place with no check.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability can evolve by resolution of an Organisational Learning Obligation raised by Engineering Telemetry.<br> Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/obligationsDB.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>An obligations table exists, but no code path ties an Obligation to a Capability Definition revision or raises one from telemetry about a Capability. No Capability code reads or writes obligations.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-10.6: Capabilities shall support fulfilment by multiple Participant types<br> Ref: §6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:74-143</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilOne</code> accepts <code>type: ParticipantType</code> resolved per Participant (AI/Human/External), with no restriction tying a Capability to one specific type.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Pack contributes to a Capability as an extension, and new Capabilities can be introduced through Packs.<br> Ref: §7 last line; §9 extend; §13 Pack contributions; §15; §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/packs.ts:209-215</code><br><code>src/routes/seu/core/packs.ts:525-540</code><br><code>src/dblayer/capabilitiesDB.ts:6-30</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Pack declares contributions.capabilities[]. Validation checks that each code is a canonical capability-name Ontology concept and unique within the Pack. On activation materializeContributions upserts one capabilities row per code, with name and description from the Ontology concept, the Pack version, and the Pack's author and badge. Services, Templates and Deliverables then bind to that row.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-10.7: Capability fulfilment shall remain traceable<br> Ref: §6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:91-98, 119-140</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Each fulfilment creates a <code>capability_fulfilments</code> row and publishes a <code>CapabilityFulfilled</code> event carrying <code>capabilityId</code>/<code>participantId</code>/<code>actorId</code>/<code>authorityBadge</code>, giving a durable, attributable trace.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Pack&#x27;s extension refers to the Capability Definition it extends.<br> Ref: §4; §8 last line; §9 extend; §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/packs.ts:525-540</code><br><code>src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Definition validates its code against the capability-name Ontology concept (src/routes/seu/core/capabilityDefinitions.ts:70-76) and the Pack contribution validates against the same concept (src/routes/seu/core/packs.ts:209-215). Both are tied by that shared concept identity.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Categories are illustrative; additional capabilities may be introduced through Packs (§7)<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/capabilities_schema_recovery.sql:7 (<code>category</code> column)<br>src/routes/seu/core/packs.ts (SDK authoring schema, <code>code</code>/<code>name</code>/<code>description</code> only)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>category</code> still exists as a live DB column (nullable, untouched by the current migration) but the SDK authoring form for <code>contributionCapabilities[]</code> no longer surfaces it — new Capabilities are authored with no category value. Extension through Packs itself (the chapter's actual normative point here) is real.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities are discoverable by identifier, category, engineering objective, Deliverable, Pack contribution and supported Participant type.<br> Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/capabilitiesDB.ts:32-60</code><br><code>src/routes/seu/api/objectives.ts:62-68</code><br><code>src/routes/seu/web/capabilityDefinitionRegistry.ts:18-45</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">By identifier: findById and findByCodes. By Pack contribution (extensions): findByOriginatingPackIds. By engineering objective: suggest-capabilities endpoint. By Deliverable: producing_capability_id. The Definition registry supports code and label search and a status filter.<br>Gap:<br>No discovery by category (column never populated) or by supported Participant type. No Capability discovery service or API exists as a single surface.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Capability shall define Identifier, Name, Description, Category, Inputs, Outputs, Required Knowledge, Expected Deliverables, Success Criteria, Supported Participant Types<br> Ref: §8</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Live schema and authoring path provide only Identifier (<code>id</code>/<code>code</code>), Name, Description. <code>category</code> exists as a dead/unauthored column. Inputs, Outputs, Required Knowledge, Expected Deliverables, Success Criteria, Supported Participant Types have no column or field anywhere on <code>capabilities</code> or its authoring schema.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities may depend upon, specialise, compose, or extend other/Pack Capabilities, with no circular dependencies<br> Ref: §9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:700-705<br>src/domain/engine/compositionEngine.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability's relationships are expressed indirectly through its owning Pack's own <code>dependencies[]</code> array (<code>dep.type</code>). Only <code>dep.type === "required"</code> has real validated behaviour (must resolve to an Active Pack); <code>optional</code>/<code>conditional</code>/<code>incompatible</code> are validated for shape only, with no differentiated runtime behaviour anywhere. <code>compositionEngine.ts</code> contains no circular-dependency detection of any kind — grep for "circular" across both files returns no match. "Specialise" and "compose" as relationship kinds distinct from plain dependency have no implementation.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability can be fulfilled by AI, Human, External or Hybrid teams.<br> Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilities.ts:138-157</code><br><code>src/dblayer/capabilityFulfilmentPoolsDB.ts:1-37</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">fulfilCapabilityWithParticipants assigns several Participants and sets strategy Composite when more than one is given. Pools are stored in capability_fulfilment_pools.<br>Gap:<br>Hybrid is modelled only as Composite over Participants. No separate Hybrid team construct exists.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability fulfilment is the process of assigning one or more Participants (AI/Human/External/Hybrid) to provide a required Capability, with fulfilment strategies free to evolve<br> Ref: §10</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:153-204</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilCapability</code> and <code>fulfilCapabilityWithParticipants</code> implement single- and multi-Participant assignment for AI/Human/External types; <code>fulfilmentStrategy</code> is a free-form field with no schema coupling back to <code>capabilities</code>, allowing strategies to evolve independently. "Hybrid teams" has no dedicated type value but is expressed as <code>fulfilmentStrategy: "Composite"</code> when multiple Participants are jointly assigned.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Multiple Participants can fulfil the same Capability.<br> Ref: §5 CM-003; §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilities.ts:138-157</code><br><code>src/dblayer/capabilityFulfilmentsDB.ts:44-55</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capability_fulfilments</code> has no uniqueness on seu_capability_id, fulfilCapabilityWithParticipants loops over Participants, and findActiveManyBySeuCapabilityId returns all active ones.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Platform shall support discovery of Capabilities by identifier, category, engineering objective, Deliverable, Pack contribution, supported Participant type<br> Ref: §11</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilitiesDB.ts:49-57 (by id)<br>src/dblayer/objectivesDB.ts:413-424 (by objective)<br>src/dblayer/capabilitiesDB.ts:63-71 (by Pack contribution)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">By identifier: real (<code>findById</code>). By engineering objective: real, working join (<code>getRequiredCapabilities</code> via <code>objective_capabilities</code>). By Pack contribution: real (<code>findByOriginatingPackIds</code>). By category: no dedicated query exists; <code>category</code> is not even populated via the current authoring path (see §7/§8 rows), so this axis is unreachable in practice. By Deliverable: no direct "Capabilities required by this Deliverable" query exists. By supported Participant type: no such field exists on <code>capabilities</code> at all. 3 of 6 discovery axes are real.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">One Participant can fulfil multiple Capabilities.<br> Ref: §5 CM-004; §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/participantsMasterDB.ts:177-190</code><br><code>src/routes/seu/core/capabilities.ts:51-70</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A participants_master row lists several capability codes, and the same master Participant can be used in different SEU Capabilities.<br>Gap:<br>Each fulfilment creates a new SEU-scoped participants row, and findActiveByParticipantId returns one active fulfilment per such row. Releasing uses that single row, so one SEU Participant row holds one Capability.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment strategies can change without changing the Capability Model.<br> Ref: §10; §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilities.ts:51-70</code><br><code>src/dblayer/recovery/<code>capability_fulfilments</code>_schema_recovery.sql:8</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">fulfilment_strategy is free text with the CHECK constraint dropped, and the Capability tables carry no strategy field.<br>Gap:<br>The value is set to the Participant type or Composite in code, and the strategy list is not Ontology-backed in the files read.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">When a Deliverable becomes Ready the platform identifies required Capabilities, determines fulfilment, invokes the fulfilment service, assigns Participants and authorises execution.<br> Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/dispatchEngine.ts:64-117</code><br><code>src/domain/engine/workItemGenerator.ts:90-131</code><br><code>src/routes/seu/core/commissioning.ts:250-258</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Required Capabilities are fixed at commissioning (<code>seu_capabilities</code>). Dispatch reads the producing Capability of the Deliverable and selects from a stored fulfilment pool.<br>Gap:<br>Fulfilment (assigning Participants to Capabilities) is a separate manual or web action, not invoked when a Deliverable becomes Ready. No Capability Fulfilment service step runs at Ready. Dispatch rejects when no pool is present.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability selection is independent of the Engineering Behavior Model.<br> Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/dispatchEngine.ts:74-117</code><br><code>src/routes/seu/core/commissioning.ts:250-258</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Selection reads the producing Capability and the fulfilment pool and uses no EBM data in these paths.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Capability subsystem publishes CapabilityRegistered, CapabilityUpdated, CapabilityDeprecated, CapabilityRequested, CapabilityFulfilled, CapabilityUnavailable and CapabilityReleased.<br> Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilities.ts:101-110</code><br><code>src/routes/seu/core/capabilityDefinitions.ts:130-143</code><br><code>src/dblayer/seed/data/transitionDefinitions.json:1207-1251</code><br><code>src/routes/seu/core/capabilities.ts:159-192</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">CapabilityFulfilled is published on fulfilment (actor and badge present). Definition transitions publish CapabilityDefinitionPublished, Activated, Deprecated, Retired and Archived.<br>Gap:<br>CapabilityRegistered and CapabilityUpdated are not published (upsertFromPack and updateDraftContent publish nothing). CapabilityRequested and CapabilityUnavailable are not published anywhere. releaseParticipants publishes no CapabilityReleased. CapabilityDeprecated is named CapabilityDefinitionDeprecated. CapabilityFulfilled has originatingObjectType SEU, not Capability, and no subscriber or event registry entry for it was found in the seed data.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability evolution does not require Runtime Kernel modification.<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seed/data/capabilityDefinitions.json</code><br><code>src/routes/seu/core/sdkAuthoring.ts:945-975</code><br><code>src/routes/seu/core/packs.ts:525-540</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Definitions are seed data and authoring-path data. Pack Capabilities are Pack content. A new Capability code needs an Ontology concept (data) and no code change.<br>Gap:<br>Evolution of the Definition roles and worktypes also needs Ontology rows (data). No kernel-independence test exists for Capabilities.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">On Deliverable Ready: identify required Capabilities, determine fulfilment requirements, invoke Capability Fulfilment, assign Participants, authorise execution — independent of EBM<br> Ref: §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuCapabilitiesDB.ts:59-74<br>src/routes/seu/core/capabilities.ts:153-204</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>seu_capabilities</code> records required Capabilities; <code>fulfilCapability</code>/<code>fulfilCapabilityWithParticipants</code> is the Fulfilment invocation; Participant assignment and the subsequent <code>dependencyDefinitionEngine</code> push-evaluation (capabilities.ts:106-114) stand in for "authorise execution." No EBM coupling found anywhere in this path.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability authoring is gated by badge and tenant scope.<br> Ref: §17 Capability APIs; project rules</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seed/data/routeAuthority.json:979-996</code><br><code>src/routes/seu/web/capabilityDefinitionRegistry.ts:36-56</code><br><code>src/routes/seu/web/sdkAuthoring.ts:159</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Registry and copy routes have route_authority rows (role participant). The copy action requires the capability_define badge via badgeAuthorityEngine. Authoring draft routes use requireTenantScope.forParam.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities may evolve through new versions, Pack contributions, specialisations, deprecation, or resolution of an Organisational Learning Obligation<br> Ref: §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilitiesDB.ts:13-37 (new versions/Pack contributions)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">New versions and Pack contributions are real (copied Pack version, Pack-scoped <code>upsertFromPack</code>). Specialisation: no mechanism (same gap as §9 relationships). Deprecation: no Capability-specific status column; relies entirely on the owning Pack's own deprecation state, with no direct <code>capabilities</code>-level signal. Obligation-driven revision: no code reference connects a resolved Organisational Learning Obligation to any Capability/Pack version change — <code>compositionEngine.ts</code> and <code>capabilitiesDB.ts</code> have zero such references.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability subsystem shall publish CapabilityRegistered/Updated/Deprecated/Requested/Fulfilled/Unavailable/Released<br> Ref: §14</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:131-140 (<code>CapabilityFulfilled</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Only <code>CapabilityFulfilled</code> is published, and only from the fulfilment path. <code>CapabilityRegistered</code>, <code>CapabilityUpdated</code>, <code>CapabilityDeprecated</code>, <code>CapabilityRequested</code>, <code>CapabilityUnavailable</code>, <code>CapabilityReleased</code> are not published anywhere in <code>src/routes/seu/core/capabilities.ts</code> or <code>capabilitiesDB.ts</code> under those exact event names; a search for each string found no match. Capability-definition lifecycle events are instead expressed as the owning Pack's own <code>PackRegistered</code>/<code>PackPublished</code>/<code>PackActivated</code>/<code>PackDeprecated</code> events, which is a deliberate substitution, not a 1:1 implementation of this section's named event list.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability APIs and a Capability registry service exist.<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/web/capabilityDefinitionRegistry.ts:18-65</code><br><code>src/routes/seu/core/capabilityDefinitions.ts:185-198</code><br><code>src/routes/seu/api/objectives.ts:62-68</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A registry UI and core functions exist for Definitions. The only API touching Capabilities is suggest-capabilities and the execution-targets API keyed by capabilityId.<br>Gap:<br>No JSON API lists, reads or authors Capabilities, either Definitions or Pack extensions.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: independent of Participant implementation, concurrent fulfilment, multiple fulfilment strategies, fully traceable, extensible through Packs<br> Ref: §15</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(see CM-002/003/004, FR-10.5, FR-10.7 rows)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All five NFRs are backed by the same evidence already cited above.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: Capability Catalogue exists; multiple/one-to-many fulfilment; fulfilment traceable; new Capabilities via Packs; evolution without Kernel change<br> Ref: §16</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(see FR-10.1, CM-003/004, FR-10.7, FR-10.5 rows)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All six acceptance criteria are satisfied by evidence already cited; new-Pack-version Capability changes require no Runtime Kernel modification (<code>upsertFromPack</code> is a plain data write).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: domain model, catalogue, registry, discovery service, fulfilment interfaces, APIs, events<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilitiesDB.ts<br>src/routes/seu/core/capabilities.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Domain model, catalogue, registry (via Pack-borrowed lifecycle/versioning), and fulfilment interfaces are real. Discovery service is partial (3 of 6 axes, see §11 row). Capability events are partial — only <code>CapabilityFulfilled</code> plus substituted Pack-level events (see §14 row); <code>CapabilityRequested</code>/<code>CapabilityUnavailable</code>/<code>CapabilityReleased</code> remain unbuilt.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability fulfilment interfaces exist.<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/capabilities.ts:115-192</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">fulfilCapability, fulfilCapabilityWithParticipants and releaseParticipants cover assignment and release with eligibility, tenant and transition checks. The API route for fulfil is intentionally commented out and the web route is the live entry.</td>
     </tr>
   </tbody>
 </table>
+
 ## Summary
 
-- Total intents analysed: 26
-- Fully met: 15
-- Partially met: 11
-- Not met: 0
+- Total intents analysed: 30
+- Fully met: 14
+- Partially met: 14
+- Not met: 2
 - Not verifiable: 0
 
-## Major gaps (not previously flagged, or newer than the chapter's own §18 audit)
+**Major implementation gaps**
 
-1. **Capability Structure (§8) is more incomplete than three of its ten named fields surviving** — the DB still physically carries a dead `category` column that the current SDK authoring schema does not even populate, so §7/§8's "by category" path is not merely unimplemented, it is unreachable (no code writes a category value for any newly-authored Capability).
-2. **Events (§14) deviate further from the chapter's literal list than "Pack events cover the rest" implies** — a direct search for `CapabilityRegistered`, `CapabilityUpdated`, `CapabilityDeprecated`, `CapabilityRequested`, `CapabilityUnavailable`, `CapabilityReleased` found zero matches anywhere in the Capability route/DB layer. Only `CapabilityFulfilled` is real.
-3. **Capability Relationships (§9) circular-dependency requirement has no implementation anywhere in the composition path** — confirmed by direct grep of both `packs.ts` and `compositionEngine.ts`; this is the specification's own explicit normative requirement ("Capability relationships shall not create circular dependencies"), not a soft expectation.
-4. **FR-10.3's "globally unique identifier" for `code` is a specification/implementation deviation, not a gap** — the implementation deliberately scopes `code` uniqueness to `(originating_pack_id, code)`, which contradicts a literal reading of "globally unique" even though `id` itself is.
+- §8 structure: the Category of a Capability is not carried by the Definition, and the extension row's category column is never written.
+- §9 relationships: only a parent pointer exists. Dependency and composition relations and the circular-dependency rule are absent.
+- §13: the Organisational Learning Obligation path is absent. A Pack's extension row is overwritten in place on republish.
+- §14 events: CapabilityRegistered, CapabilityUpdated, CapabilityRequested, CapabilityUnavailable and CapabilityReleased are not published.
+- §12: fulfilment is not triggered when a Deliverable becomes Ready.
+- §11 discovery: no category or Participant type discovery and no single discovery service or API.
 
-This traceability pass was performed directly (no sub-agents) against the current working tree. It supersedes none of §18's existing text in the chapter file; it is a fresh, independent verification exercise per the implementation-traceability skill.

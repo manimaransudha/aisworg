@@ -161,7 +161,7 @@ export async function releaseParticipants(input: {
   capabilityId: string;
   participantIds: string[];
   actorRole: string;
-  actorId?: string;
+  actorId: string;
 }): Promise<ParticipantRow[]> {
   if (input.participantIds.length === 0) throw new Error("at least one Participant is required");
   const { seuCapability } = await loadContext(input.seuId, input.capabilityId);

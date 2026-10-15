@@ -10,7 +10,7 @@ import { participantsMasterDB } from "../participantsMasterDB.js";
 import { userDB } from "../userDB.js";
 import { transitionCapabilityDefinition } from "../../routes/seu/core/capabilityDefinitions.js";
 import type { CapabilityRole } from "../seuTypes.js";
-import { getPlatformTenantId } from "../constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -55,7 +55,7 @@ export async function seedCapabilityDefinitions(actor: SeedActor): Promise<void>
       defaultLabel: seed.default_label,
       description: seed.description,
       roles: seed.roles,
-      version: "1.0.0",
+      version: INITIAL_VERSION,
       authoredBy: actor.authoredBy,
       authorBadge: actor.authorBadge,
       draftContent: { code: seed.code, defaultLabel: seed.default_label, description: seed.description ?? "", roles: seed.roles },

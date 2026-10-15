@@ -88,6 +88,7 @@ No existing table changes, so no existing fixture needs an update. The two new t
 6. Scenario and playbook data files, then demoSimulator.ts.
 7. Web routes, views, route_authority rows.
 8. README rewrite.
+9. Add the urls to the navbar. 
 
 ## 5. Risks to check at build time
 

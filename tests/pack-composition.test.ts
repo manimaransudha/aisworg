@@ -80,7 +80,7 @@ test("composeAuthoringDraft — specialization pre-fills a new Draft from an Act
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  const result = await composeAuthoringDraft({ kind: "Pack", id: draft.pack.id });
+  const result = await composeAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Pack", id: draft.pack.id });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.deepEqual(result.composedFrom, [parentCode]);
@@ -121,7 +121,7 @@ test("composeAuthoringDraft — union combines two distinct Active Packs' fields
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  const result = await composeAuthoringDraft({ kind: "Pack", id: draft.pack.id });
+  const result = await composeAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Pack", id: draft.pack.id });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.deepEqual(result.composedFrom.slice().sort(), [codeA, codeB].sort());
@@ -168,7 +168,7 @@ test("composeAuthoringDraft — merge with a code entered twice self-merges clea
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  const result = await composeAuthoringDraft({ kind: "Pack", id: draft.pack.id });
+  const result = await composeAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Pack", id: draft.pack.id });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.deepEqual(result.conflicts, []);
@@ -204,7 +204,7 @@ test("composeAuthoringDraft — intersection keeps only unanimous fields, drops 
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  const result = await composeAuthoringDraft({ kind: "Pack", id: draft.pack.id });
+  const result = await composeAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Pack", id: draft.pack.id });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   // Intersection never flags anything — disagreement is simply dropped, not escalated.
@@ -244,7 +244,7 @@ test("composeAuthoringDraft — supplement adds only what the base lacks, reject
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  const result = await composeAuthoringDraft({ kind: "Pack", id: draft.pack.id });
+  const result = await composeAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Pack", id: draft.pack.id });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.conflicts.length, 1);
@@ -276,7 +276,7 @@ test("composeAuthoringDraft — override points the author at the existing versi
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  const result = await composeAuthoringDraft({ kind: "Pack", id: draft.pack.id });
+  const result = await composeAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Pack", id: draft.pack.id });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.deepEqual(result.composedFrom, []);
@@ -296,7 +296,7 @@ test("composeAuthoringDraft — rejects composing a Pack that hasn't reached (or
   assert.equal(published.ok, true);
   if (!published.ok || !published.pack) return;
 
-  const result = await composeAuthoringDraft({ kind: "Pack", id: published.pack.id });
+  const result = await composeAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Pack", id: published.pack.id });
   assert.equal(result.ok, false);
   if (result.ok) return;
   assert.ok(result.errors.some((e) => /only a Draft/.test(e)));

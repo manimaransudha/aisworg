@@ -1,16 +1,11 @@
 import type { OnboardParticipantRequest, OnboardedParticipant, ParticipantOnboardingAdapter } from "./participantOnboardingAdapter.js";
-import { mockCapabilityCodes, mockDomainValues, mockProficiencyLevels, mockDefaultAuthorisedRole } from "./mockOnboardingData.js";
+import { mockDefaultAuthorisedRole } from "./mockOnboardingData.js";
 
 export const externalOnboardingAdapter: ParticipantOnboardingAdapter = {
   type: "External",
   async onboard(request: OnboardParticipantRequest): Promise<OnboardedParticipant> {
     const i = request.seed;
-    const viewer = { isRoot: false, tenantId: request.tenantId };
-    const [capabilityCodes, domainValues, proficiencyLevels] = await Promise.all([
-      mockCapabilityCodes(viewer),
-      mockDomainValues(viewer),
-      mockProficiencyLevels(viewer),
-    ]);
+    const { capabilityCodes, domainValues, proficiencyLevels } = request.ontology;
     const capability = capabilityCodes[i % capabilityCodes.length];
     return {
       displayName: `${request.tenantLabel} Ext_${i + 1} (${capability})`,

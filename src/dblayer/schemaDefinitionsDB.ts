@@ -9,13 +9,14 @@ export const schemaDefinitionsDB = {
     schema: Record<string, unknown>;
     compatibleVersions?: number[];
     incompatibleVersions?: number[];
+    lifecycleState?: SchemaDefinitionRow["lifecycle_state"];
     authorId: string;
     authorBadge: string;
   }): Promise<DbResult<SchemaDefinitionRow>> {
     try {
       const { rows } = await query<SchemaDefinitionRow>(
-        `INSERT INTO schema_definitions (entity_kind, version, schema, compatible_versions, incompatible_versions, author_id, author_badge) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [input.entityKind, input.version, JSON.stringify(input.schema), input.compatibleVersions ?? [], input.incompatibleVersions ?? [], input.authorId, input.authorBadge]
+        `INSERT INTO schema_definitions (entity_kind, version, schema, compatible_versions, incompatible_versions, lifecycle_state, author_id, author_badge) VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'Created'), $7, $8) RETURNING *`,
+        [input.entityKind, input.version, JSON.stringify(input.schema), input.compatibleVersions ?? [], input.incompatibleVersions ?? [], input.lifecycleState ?? null, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -24,11 +25,11 @@ export const schemaDefinitionsDB = {
     }
   },
 
-  async advanceLifecycle(id: string, toState: SchemaDefinitionRow["lifecycle_state"], authorityBadge: string | null, authorId?: string | null): Promise<DbResult<SchemaDefinitionRow>> {
+  async advanceLifecycle(id: string, toState: SchemaDefinitionRow["lifecycle_state"], authorityBadge: string, authorId: string): Promise<DbResult<SchemaDefinitionRow>> {
     try {
       const { rows } = await query<SchemaDefinitionRow>(
-        `UPDATE schema_definitions SET lifecycle_state = $2, author_badge = COALESCE($3, author_badge), author_id = COALESCE($4, author_id) WHERE id = $1 RETURNING *`,
-        [id, toState, authorityBadge, authorId ?? null]
+        `UPDATE schema_definitions SET lifecycle_state = $2, author_badge = $3, author_id = $4 WHERE id = $1 RETURNING *`,
+        [id, toState, authorityBadge, authorId]
       );
       if (!rows[0]) return { error: new Error(`no schema_definitions row ${id}`) };
       return { data: rows[0] };

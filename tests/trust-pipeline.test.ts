@@ -12,7 +12,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
+import { fulfilCapabilityAsRoot as fulfilCapability, ensureActorParticipant } from "./testFixtures.js";
 import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
 import { transitionEvidence, linkEvidenceToObject, listEvidenceRelationships, listEvidenceLinkedToSeu } from "../src/routes/seu/core/evidence.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
@@ -103,7 +103,8 @@ test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, 
 test("Quality Gate also accepts an Approved Decision as satisfying the same precondition (the 'or' in Evidence-or-Decision)", async () => {
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-decision-gate");
 
-  const decision = await createDecision({ seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Engineering Decisions", title: "Phase5 test: baseline readiness" });
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const decision = await createDecision({ actorId: ROOT_ACTOR_ID, seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Engineering Decisions", title: "Phase5 test: baseline readiness" });
   assert.equal(decision.status, "Identified");
 
   for (const targetState of ["Analysed", "Proposed", "Reviewed", "Approved"]) {
@@ -123,12 +124,14 @@ test("Evidence, Knowledge and Decision each run their own governed lifecycle and
   assert.equal(evidenceInvalid.ok, false);
   if (!evidenceInvalid.ok) assert.equal(evidenceInvalid.reason, "no_transition_definition");
 
-  const knowledgeItem = await createKnowledgeItem({ seuId, deliverableId, category: "Technical Knowledge", title: "Phase5 lifecycle test knowledge" });
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "Phase5 lifecycle test knowledge" });
   const knowledgeInvalid = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Published", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(knowledgeInvalid.ok, false);
   if (!knowledgeInvalid.ok) assert.equal(knowledgeInvalid.reason, "no_transition_definition");
 
-  const decision = await createDecision({ seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 lifecycle test decision" });
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const decision = await createDecision({ actorId: ROOT_ACTOR_ID, seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 lifecycle test decision" });
   const decisionInvalid = await transitionDecision({ decisionId: decision.id, targetState: "Approved", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(decisionInvalid.ok, false);
   if (!decisionInvalid.ok) assert.equal(decisionInvalid.reason, "no_transition_definition");
@@ -168,10 +171,12 @@ test("Knowledge Item inherits Acquisition Scope from its producing Deliverable b
   assert.ok(requirementsSpec);
   assert.equal(requirementsSpec.acquisitionScope, "SEU", "seeded Deliverables default to SEU scope");
 
-  const inherited = await createKnowledgeItem({ seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 scope inheritance test" });
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const inherited = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 scope inheritance test" });
   assert.equal(inherited.acquisition_scope, "SEU");
 
-  const overridden = await createKnowledgeItem({ seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 scope override test", acquisitionScope: "Capability" });
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const overridden = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 scope override test", acquisitionScope: "Capability" });
   assert.equal(overridden.acquisition_scope, "Capability");
 });
 
@@ -188,9 +193,12 @@ test("Knowledge Item captures §8/§10/§14 structure: structured references, ve
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-knowledge-structure");
 
   const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Phase5 structure test evidence" });
-  const decision = await createDecision({ seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 structure test decision" });
-  const otherKnowledge = await createKnowledgeItem({ seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 structure test - other knowledge item" });
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const decision = await createDecision({ actorId: ROOT_ACTOR_ID, seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 structure test decision" });
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const otherKnowledge = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 structure test - other knowledge item" });
 
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   const knowledgeItem = await createKnowledgeItem({
     seuId,
     deliverableId,
@@ -201,7 +209,7 @@ test("Knowledge Item captures §8/§10/§14 structure: structured references, ve
     decisionReferences: { supports: [decision.id] },
     knowledgeReferences: { "derives from": [otherKnowledge.id] },
     confidenceLevel: "Medium",
-    userId: TESTER_ALL_ID,
+    actorId: ROOT_ACTOR_ID,
   });
 
   // §8/§10: each reference field lands exactly as given, in its own §10-shaped object.
@@ -214,8 +222,8 @@ test("Knowledge Item captures §8/§10/§14 structure: structured references, ve
   // §15/FR-41.1: version starts at 1.0.0 — no bump logic yet, since no Edit path exists.
   assert.equal(knowledgeItem.version, "1.0.0");
 
-  // Creation is ungoverned — no badge yet (mirrors decisions.authority_badge's own treatment).
-  assert.equal(knowledgeItem.authority_badge, null);
+  // Creation records the badge the author acted under (root for the superuser).
+  assert.equal(knowledgeItem.authority_badge, "root");
 
   // §10: Related Knowledge must never refer to itself.
   await assert.rejects(() => updateKnowledgeReferences(knowledgeItem.id, { supports: [knowledgeItem.id] }), /own id/);
@@ -226,14 +234,14 @@ test("Knowledge Item captures §8/§10/§14 structure: structured references, ve
 
   // author_id/authority_badge update on every governed transition thereafter
   // — the row always reflects the most recent actor, full history stays in `events`.
-  const toProposed = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Proposed", actorRole: "super", actorId: TESTER_ALL_ID, userId: TESTER_ALL_ID });
+  const toProposed = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Proposed", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(toProposed.ok, true, !toProposed.ok ? JSON.stringify(toProposed) : "assertion failed");
   if (toProposed.ok) assert.equal(toProposed.knowledgeItem.authority_badge, "knowledge_propose");
 
   // §11 Validation / §14 "validation history" — aggregates, never overwrites
   // (owner: "no forced gate" — addable at any point, not tied to one hop).
-  await addKnowledgeValidationNote({ knowledgeItemId: knowledgeItem.id, noteText: "First pass: terminology confirmed against domain glossary." });
-  await addKnowledgeValidationNote({ knowledgeItemId: knowledgeItem.id, noteText: "Second pass: cross-checked against Requirements Analysis Model." });
+  await addKnowledgeValidationNote({ actorId: ROOT_ACTOR_ID, knowledgeItemId: knowledgeItem.id, noteText: "First pass: terminology confirmed against domain glossary." });
+  await addKnowledgeValidationNote({ actorId: ROOT_ACTOR_ID, knowledgeItemId: knowledgeItem.id, noteText: "Second pass: cross-checked against Requirements Analysis Model." });
   const notes = await listKnowledgeValidationNotes(knowledgeItem.id);
   assert.deepEqual(
     notes.map((n) => n.note_text),
@@ -309,7 +317,8 @@ test("Evidence preserves its full provenance as evidence_relationships rows — 
     seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]),
   });
 
-  const decision = await createDecision({
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const decision = await createDecision({ actorId: ROOT_ACTOR_ID,
     seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [requirementsSpec.id] }],
     category: "Engineering Decisions", title: "Phase5 provenance test decision",
   });

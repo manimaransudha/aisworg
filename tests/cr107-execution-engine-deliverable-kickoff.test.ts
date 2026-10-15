@@ -68,12 +68,12 @@ async function commissionBlockedSeu(run: string) {
   // rely on a since-removed generic fallback.
   await ensurePolicyDefinitionWithObligation({ code: policyCode, name: `CR-107 commence-work policy ${run}`, category: "Compliance", title: `CR-107 commence-work blocker ${run}` });
 
-  const { data: template } = await templatesDB.upsert({
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
     code: `cr107-tpl-${run}`, name: "CR-107 Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
   await templatesDB.setMandatoryPacks(template!.id, [pack.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(template!.id, []);
+  await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
 
   await ensureEventSubscriptionsLoaded();
   const { objective: root } = await createObjective({ statement: `cr107-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
@@ -142,7 +142,7 @@ test("CR-107: a Deliverable cannot start while its owning SEU is blocked by an o
   // The actual bug this CR was raised over: before the fix, nothing checked
   // the owning SEU's own state here, so this call would succeed (dispatched)
   // despite the SEU sitting blocked.
-  const transitionResult = await transitionDeliverable({ deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
+  const transitionResult = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(transitionResult.ok, false, "a head-of-chain Deliverable must not be able to start while its owning SEU is blocked");
   if (!transitionResult.ok) {
     assert.equal(transitionResult.reason, "seu_blocked");
@@ -162,7 +162,7 @@ test("CR-107: once the blocking commence-work Obligation resolves, the Execution
   // Confirmed blocked at the Deliverable level too, same as the test above —
   // establishing the "before" state this test's own resolution is judged
   // against.
-  const beforeResolve = await transitionDeliverable({ deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
+  const beforeResolve = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(beforeResolve.ok, false);
 
   // The blocking Policy's own condition ({field_in: neverSet}) never becomes
@@ -213,6 +213,6 @@ test("CR-107: once the blocking commence-work Obligation resolves, the Execution
   // And the Deliverable-level block (item 6/CR-107's own fix) must have
   // cleared too — the same fifth check that refused it above now finds no
   // open blocking Obligation on the SEU.
-  const afterResolve = await transitionDeliverable({ deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
+  const afterResolve = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.notEqual((afterResolve as { reason?: string }).reason, "seu_blocked", "the Deliverable-level SEU-blocked check must clear once the SEU itself reaches Operational");
 });

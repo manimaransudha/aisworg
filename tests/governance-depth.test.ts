@@ -172,8 +172,8 @@ test("Constraint Type (Ch.24): a Standard-type Policy violation doesn't block a 
   });
   assert.ok(standardPolicy && blockingPolicy);
 
-  await transitionDefinitionsDB.upsert({ entityType: "Deliverable", fromState: `StdFrom-${unique}`, toState: `StdTo-${unique}`, requiredPolicyIds: [standardPolicy.id] });
-  await transitionDefinitionsDB.upsert({ entityType: "Deliverable", fromState: `PolFrom-${unique}`, toState: `PolTo-${unique}`, requiredPolicyIds: [blockingPolicy.id] });
+  await transitionDefinitionsDB.upsert({ entityType: "Deliverable", fromState: `StdFrom-${unique}`, toState: `StdTo-${unique}`, requiredPolicyIds: [standardPolicy.id], verb: "approve" });
+  await transitionDefinitionsDB.upsert({ entityType: "Deliverable", fromState: `PolFrom-${unique}`, toState: `PolTo-${unique}`, requiredPolicyIds: [blockingPolicy.id], verb: "approve" });
 
   const standardOutcome = await transitionEngine.evaluate({ entityType: "Deliverable", fromState: `StdFrom-${unique}`, toState: `StdTo-${unique}`, actorRole: "general", actorId: TESTER_ALL_ID, context: {} });
   assert.equal(standardOutcome.allowed, true, "a Standard deviation must proceed, not block");

@@ -19,6 +19,7 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import type { CapabilityRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "../../../utils/version.js";
 
 export interface TemplateCandidate {
   id: string;
@@ -192,7 +193,6 @@ export async function deriveOverridableParameterCandidates(baseTemplateCode: str
 
 export type TemplateValidationResult = { ok: true } | { ok: false; errors: string[] };
 
-const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 
 export const PACK_SELECTION_SLOTS: Array<{ field: keyof TemplateSeedInput; listKind: string; packCategory: string }> = [
   { field: "compliancePackCodes", listKind: "compliance", packCategory: "Compliance" },
@@ -292,7 +292,8 @@ function findDeliverableDependencyCycle(dependencyGraph: TemplateDependencyGraph
 export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { skipComposableChecks?: boolean }): Promise<TemplateValidationResult> {
   const errors: string[] = [];
   if (!seed.name?.trim()) errors.push("name is required");
-  if (!SEMVER_RE.test(seed.templateVersion ?? "")) errors.push(`templateVersion must be semver (x.y.z), got: "${seed.templateVersion}"`);
+  const templateVersionError = semverError("templateVersion", seed.templateVersion);
+  if (templateVersionError) errors.push(templateVersionError);
   const templateOntologyViewer = { isRoot: false, tenantId: seed.tenantId ?? (await getPlatformTenantId()) };
   const { data: templateSchemaRow } = await schemaDefinitionsDB.findLatest("Template");
   if (templateSchemaRow) {
@@ -460,7 +461,7 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
   return { ok: true };
 }
 
-export type PublishTemplateResult = { ok: true; templateId: string; alreadyExists?: boolean } | { ok: false; errors: string[] };
+export type PublishTemplateResult = { ok: true; templateId: string } | { ok: false; errors: string[] };
 
 export async function publishTemplate(input: { seed: TemplateSeedInput; actorRole: string; actorId: string }): Promise<PublishTemplateResult> {
   const { seed, actorRole, actorId } = input;
@@ -476,12 +477,6 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
   if (!templateMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "template_define");
 
-  const { data: existing } = await templatesDB.findByCodeAndVersion(seed.code, seed.templateVersion, tenantId);
-  if (existing) {
-    const materialiseResult = await materialiseTemplateDraft(existing.id, seed, templateMaster.id, authorBadge);
-    if (!materialiseResult.ok) return materialiseResult;
-    return { ok: true, templateId: existing.id, alreadyExists: true };
-  }
 
   const { data: templateSchema } = await schemaDefinitionsDB.findLatest("Template");
   if (!templateSchema) return { ok: false, errors: [`no schema_definitions grammar for Template`] };
@@ -537,6 +532,7 @@ export async function transitionTemplate(input: { templateId: string; targetStat
     if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
     return { ok: false, reason: gate.reason };
   }
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
 
   if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
     return reactivateAsNewVersion(template, input.actorRole, input.actorId, gate.authorityBadge);
@@ -552,7 +548,7 @@ export async function transitionTemplate(input: { templateId: string; targetStat
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: template.code },
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
     versionEvent: gate.versionEvent,
     fromState,
     toState: input.targetState,
@@ -562,15 +558,7 @@ export async function transitionTemplate(input: { templateId: string; targetStat
 }
 
 async function nextAvailablePatchVersion(code: string, fromVersion: string, tenantId: string): Promise<string> {
-  const [major, minor, startingPatch] = fromVersion.split(".").map(Number);
-  let patch = startingPatch ?? 0;
-  for (let attempts = 0; attempts < 1000; attempts++) {
-    patch += 1;
-    const candidate = `${major}.${minor}.${patch}`;
-    const { data: existing } = await templatesDB.findByCodeAndVersion(code, candidate, tenantId);
-    if (!existing) return candidate;
-  }
-  throw new Error(`could not find an unused version for Template ${code} after bumping from ${fromVersion}`);
+  return nextAvailableVersion(fromVersion, async (candidate) => !!(await templatesDB.findByCodeAndVersion(code, candidate, tenantId)).data);
 }
 
 async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, actorId: string, authorBadge: string | null): Promise<TransitionTemplateResult> {

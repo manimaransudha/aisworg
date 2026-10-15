@@ -52,7 +52,7 @@ import {
 } from "../core/authorityVocabulary.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import type { SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateDependencyGraphEntry } from "../../../dblayer/seuTypes.js";
-import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "../../../dblayer/constants.js";
  
 const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "pack-authoring": "Pack",
@@ -698,8 +698,8 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   req.vm.req.possibleNextStates = possibleNextStates;
   req.vm.req.draft = draft ? { id: draft.id, code: draft.code, name: draft.name, status: draft.status, purpose: typeof draft.content.purpose === "string" ? draft.content.purpose : "" } : null;
   const contentForForm = {
-    templateVersion: "1.0.0", profileVersion: "1.0.0", definitionVersion: "1.0.0",
-    ...(kind !== "Pack" ? { packVersion: "1.0.0" } : {}),
+    templateVersion: INITIAL_VERSION, profileVersion: INITIAL_VERSION, definitionVersion: INITIAL_VERSION,
+    ...(kind !== "Pack" ? { packVersion: INITIAL_VERSION } : {}),
     ...(draft?.content ?? prefill?.content ?? {}),
   };
   const viewer = { isRoot, tenantId: req.session?.user?.tenant_id ?? null };
@@ -904,7 +904,8 @@ router.post("/sdk/:slug/:draftId/save", requireDraftTenantScope(), requireDefine
     if (kind === "Template") reconstructExposedParameters(req.body ?? {});
     if (kind === "Profile") reconstructProfileParameterOverrides(req.body ?? {});
     const content = parseFormBody(schema, req.body ?? {});
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    if (req.session?.user?.id == null) return flashError(req, res, backTo(slug, draftId), "You must be logged in.");
+    const actorId = String(req.session.user.id);
     const saved = await saveAuthoringDraft({ kind, id: draftId, content, actorId });
     if (!saved.ok) return flashError(req, res, backTo(slug, draftId), saved.errors.join("; "));
     const errors = validateAgainstSchema(schema, content);
@@ -921,8 +922,9 @@ router.post("/sdk/:slug/:draftId/compose", requireDraftTenantScope(), requireDef
   const kind = resolveKind(slug);
   if (!kind) return next();
   const draftId = String(req.params.draftId);
+  if (req.session?.user?.id == null) return flashError(req, res, backTo(slug, draftId), "You must be logged in.");
   try {
-    const result = await composeAuthoringDraft({ kind, id: draftId });
+    const result = await composeAuthoringDraft({ kind, id: draftId, actorId: String(req.session.user.id) });
     if (!result.ok) return flashError(req, res, backTo(slug, draftId), result.errors.join("; "));
     if (result.note) return flashSuccess(req, res, backTo(slug, draftId), result.note);
     const from = result.composedFrom.join(", ");
@@ -950,7 +952,8 @@ router.post("/sdk/:slug/:draftId/import", requireDraftTenantScope(), requireDefi
     if (!schema) return flashError(req, res, backTo(slug, draftId), `No schema_definitions grammar for ${kind}.`);
     const errors = validateAgainstSchema(schema, parsed);
     if (errors.length) return flashError(req, res, backTo(slug, draftId), `Import rejected — invalid against the ${kind} schema: ${errors.join("; ")}`);
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    if (req.session?.user?.id == null) return flashError(req, res, backTo(slug, draftId), "You must be logged in.");
+    const actorId = String(req.session.user.id);
     const saved = await saveAuthoringDraft({ kind, id: draftId, content: parsed, actorId });
     if (!saved.ok) return flashError(req, res, backTo(slug, draftId), saved.errors.join("; "));
     return flashSuccess(req, res, backTo(slug, draftId), "Imported.");

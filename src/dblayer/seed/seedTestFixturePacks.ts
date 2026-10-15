@@ -7,6 +7,8 @@ import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js";
 import { userDB } from "../userDB.js";
+import { packsDB } from "../packsDB.js";
+import { getPlatformTenantId } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data", "test-fixtures");
@@ -96,15 +98,15 @@ const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
 const DEPENDENT_TEST_FIXTURE_PACK_FILES = ["test-domain-ebook-library.pack.json", "test-technology-nodejs.pack.json"];
 const TEST_FIXTURE_PACK_FILES = [...INDEPENDENT_TEST_FIXTURE_PACK_FILES, ...DEPENDENT_TEST_FIXTURE_PACK_FILES];
 
-async function publishBatch(files: string[], actorId: string): Promise<PromiseSettledResult<boolean | undefined>[]> {
+async function publishBatch(files: string[], actorId: string): Promise<PromiseSettledResult<void>[]> {
   return Promise.allSettled(
     files.map(async (file) => {
       const seed = loadJson<PackSeedInput>(file);
+      if ((await packsDB.findActiveByCode(seed.code, seed.tenantId ?? (await getPlatformTenantId()))).data) return;
       const result = await publishPack({ seed, actorRole: "super", actorId, activate: true });
       if (!result.ok) {
         throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
       }
-      return result.alreadyPublished;
     })
   );
 }
@@ -123,10 +125,7 @@ export async function seedAllTestFixturePacks(): Promise<void> {
     throw new Error(`[seed:test-fixture-packs] ${dependentFailures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${dependentFailures.join(" | ")}`);
   }
 
-  const allResults = [...independentResults, ...dependentResults];
-  const alreadyCount = allResults.filter((r) => r.status === "fulfilled" && r.value).length;
-  const publishedCount = allResults.length - alreadyCount;
-  logger.info(`[seed:test-fixture-packs] ${publishedCount} published, ${alreadyCount} already present — ${TEST_FIXTURE_PACK_FILES.length} test-fixture Packs total.`);
+  logger.info(`[seed:test-fixture-packs] ${independentResults.length + dependentResults.length} published — ${TEST_FIXTURE_PACK_FILES.length} test-fixture Packs total.`);
 }
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;

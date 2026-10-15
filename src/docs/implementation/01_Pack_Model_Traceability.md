@@ -4,23 +4,6 @@
 
 [Specification](../SEU%20Studio%20Specifications/01_Engineering%20Definition/01_Pack.md)
 
-
-Source code: 
-
-`src/dblayer/packsDB.ts`
-
-`src/routes/seu/core/packs.ts`
-
-`src/routes/seu/core/packWriteValidator.ts`
-
-`src/dblayer/packCategoriesDB.ts`
-
-`src/domain/engine/compositionEngine.ts`
-
-`src/dblayer/templatesDB.ts`
-
-`src/dblayer/profilesDB.ts`
-
 <!-- multiline -->
 **Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
 

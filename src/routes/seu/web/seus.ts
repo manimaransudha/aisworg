@@ -156,13 +156,14 @@ router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/rep
   const authorBadge = resolveAuthorBadge(authRow, held);
   if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
 
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
     const result = await replaceParticipant({
       oldParticipantId: String(req.params.participantId),
       newParticipantType: participantType as ParticipantType,
       newDisplayName: displayName,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
       authorBadge,
     });
     if (!result.ok) {
@@ -185,13 +186,14 @@ router.post("/seus/:id/capabilities/:capabilityId/release", async (req: Request,
     return flashError(req, res, backTo, "At least one Participant is required.");
   }
 
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
     const released = await releaseParticipants({
       seuId,
       capabilityId: String(req.params.capabilityId),
       participantIds,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     const names = released.map((p) => p.display_name).join(", ");
     return flashSuccess(req, res, backTo, `Released: ${names}. Capability is Unfulfilled again — pick a replacement below.`);
@@ -210,13 +212,14 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
     return flashError(req, res, backTo, "Target state is required.");
   }
 
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
     const result = await transitionDeliverable({
       deliverableId: String(req.params.deliverableId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
-      requestedBy: req.session?.user?.id != null ? String(req.session.user.id) : null,
+      actorId: String(req.session.user.id),
+      requestedBy: String(req.session.user.id),
     });
     if (!result.ok) {
       const reason = result.reason === "dependency_not_satisfied" ? "one or more dependencies aren't Satisfied yet" : "detail" in result ? result.detail : result.reason;
@@ -437,12 +440,13 @@ router.post("/seus/:id/evidence/:evidenceId/transition", async (req: Request, re
     return flashError(req, res, backTo, "Target state is required.");
   }
 
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
     const result = await transitionEvidence({
       evidenceId: String(req.params.evidenceId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -493,6 +497,7 @@ router.post("/seus/:id/knowledge", async (req: Request, res: Response) => {
     return flashError(req, res, backTo, "Deliverable, category and title are required.");
   }
 
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
     const knowledgeItem = await createKnowledgeItem({
       seuId,
@@ -502,7 +507,7 @@ router.post("/seus/:id/knowledge", async (req: Request, res: Response) => {
       title,
       description,
       acquisitionScope: acquisitionScope as AcquisitionScope | undefined,
-      userId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     return flashSuccess(req, res, backTo, `Knowledge Item "${knowledgeItem.title}" observed (${knowledgeItem.category}, ${knowledgeItem.acquisition_scope} scope).`);
   } catch (err) {
@@ -520,13 +525,13 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/transition", async (req: Reque
     return flashError(req, res, backTo, "Target state is required.");
   }
 
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
     const result = await transitionKnowledgeItem({
       knowledgeItemId: String(req.params.knowledgeItemId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
-      userId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -548,13 +553,13 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/promote-scope", async (req: Re
     return flashError(req, res, backTo, "Target scope is required.");
   }
 
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
     const result = await promoteKnowledgeItemScope({
       knowledgeItemId: String(req.params.knowledgeItemId),
       targetScope: targetScope as AcquisitionScope,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
-      userId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -581,10 +586,11 @@ router.post("/seus/:id/decisions", async (req: Request, res: Response) => {
     return flashError(req, res, backTo, "Deliverable, category and title are required.");
   }
 
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
     const decision = await createDecision({
       seuId,
-      userId: req.session?.user?.id,
+      actorId: String(req.session.user.id),
       relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }],
       knowledgeIds: knowledgeId ? [knowledgeId] : [],
       evidenceIds: evidenceId ? [evidenceId] : [],
@@ -612,12 +618,13 @@ router.post("/seus/:id/decisions/:decisionId/transition", async (req: Request, r
     return flashError(req, res, backTo, "Target state is required.");
   }
 
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
     const result = await transitionDecision({
       decisionId: String(req.params.decisionId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -673,12 +680,13 @@ router.post("/seus/:id/external-interactions/:interactionId/transition", async (
     return flashError(req, res, backTo, "Target state is required.");
   }
 
+  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
   try {
     const result = await transitionExternalInteraction({
       interactionId: String(req.params.interactionId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;

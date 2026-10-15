@@ -17,7 +17,7 @@ import { commissionSeu, commissionFromExistingObjective } from "../src/routes/se
 import { findCandidateTemplates } from "../src/routes/seu/core/templates.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
-import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, TESTER_OBJECTIVE_BABYLON, ROOT_ACTOR_ID } from "./testFixtures.js";
 
 before(async () => {
@@ -224,7 +224,7 @@ test("only a Proposed Objective can have its own fields/lineage edited — Activ
   assert.equal(grandchild.parent_objective_id, child.id);
 
   // Comments are a separate, status-independent rule — still work.
-  const { error: commentErr } = await objectivesDB.addComment(child.id, TESTER_ALL_ID, "still commentable while Active");
+  const { error: commentErr } = await objectivesDB.addComment(child.id, TESTER_ALL_ID, ROOT_ACTOR_BADGE, "still commentable while Active");
   assert.equal(commentErr, undefined);
   const { data: comments } = await objectivesDB.getComments(child.id);
   assert.ok(comments?.some((c) => c.comment_text === "still commentable while Active"));
@@ -384,7 +384,7 @@ test("transitionObjective Active -> Reject requires new feedback every time and 
   // rejecting with that exact same text must still be refused, since a
   // reject needs genuinely new feedback, not just a non-empty field.
   const staleText = "needs more detail on the fraud-detection scope";
-  await objectivesDB.addComment(objective.id, TESTER_ALL_ID, staleText);
+  await objectivesDB.addComment(objective.id, TESTER_ALL_ID, ROOT_ACTOR_BADGE, staleText);
   const staleComment = await transitionObjective({ objectiveId: objective.id, targetState: "Reject", actorRole: "general", actorId: TESTER_ALL_ID, comment: staleText });
   assert.equal(staleComment.ok, false);
   if (!staleComment.ok) assert.equal(staleComment.reason, "comment_required");

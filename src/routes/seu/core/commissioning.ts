@@ -192,6 +192,7 @@ export async function commissionSeu(input: {
       templateId: template.id,
       profileId: profile.id,
       requestedBy: input.requestedBy,
+      authorBadge: await badgeAuthorityEngine.resolveAuthorBadge(input.requestedBy, "seu_commission"),
       tenantId,
     });
     if (seuErr || !created) return { ok: false, stage: "allocate_runtime", reason: (seuErr ?? new Error("failed to create SEU")).message };
@@ -240,10 +241,11 @@ export async function finalizeCommissioning(input: {
     if (!step.allowed) {
       return { ok: false, stage: `transition_${from}_to_${to}`, reason: describeRejection(step), seuId: seu.id };
     }
+    if (!step.authorityBadge) throw new Error(`no authority badge resolved for SEU ${from} -> ${to} — the Transition Definition declares no verb`);
     await seusDB.updateLifecycleState(seu.id, to);
     previousStepEvent = await eventBus.publish({
       eventType: step.eventType ?? `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
-      causationId: previousStepEvent.id, actorId: input.actorId, authorityBadge: step.authorityBadge ?? "system",
+      causationId: previousStepEvent.id, actorId: input.actorId, authorityBadge: step.authorityBadge,
     });
   }
 
@@ -304,13 +306,14 @@ export async function finalizeCommissioning(input: {
   if (!finalStep.allowed) {
     return { ok: false, stage: "transition_Commissioned_to_Activated", reason: describeRejection(finalStep), seuId: seu.id };
   }
+  if (!finalStep.authorityBadge) throw new Error("no authority badge resolved for SEU Commissioned -> Activated — the Transition Definition declares no verb");
   const { data: activatedSeu, error: activateErr } = await seusDB.updateLifecycleState(seu.id, "Activated");
   if (activateErr || !activatedSeu) {
     return { ok: false, stage: "transition_Commissioned_to_Activated", reason: "failed to persist Activated lifecycle_state", seuId: seu.id };
   }
   await eventBus.publish({
     eventType: finalStep.eventType ?? "SEUActivated", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
-    causationId: previousStepEvent.id, actorId: input.actorId, authorityBadge: finalStep.authorityBadge ?? "system",
+    causationId: previousStepEvent.id, actorId: input.actorId, authorityBadge: finalStep.authorityBadge,
   });
   return { ok: true, seu: activatedSeu, report };
 }
@@ -397,6 +400,7 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "policy_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for EBM ${fromState} -> ${input.targetState} — the Transition Definition declares no verb`);
 
   if (input.targetState === "Validated") {
     const deadReferences = await checkEbmLiveness(ebm);
@@ -404,7 +408,6 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
       const { data: retired, error: retireErr } = await ebmsDB.updateStatus(ebm.id, "Retired");
       if (retireErr || !retired) throw retireErr ?? new Error("failed to set EBM to Retired");
       if (!input.actorId) throw new Error(`EBM ${ebm.id} retirement has no acting user to record as this Attention Item's author`);
-      if (!gate.authorityBadge) throw new Error(`EBM ${ebm.id} retirement has no resolved authority badge to record as this Attention Item's author badge`);
       const retiredCorrelationId = eventBus.newCorrelationId();
       const retiredEvent = await eventBus.publish({
         eventType: "EBMRetired",
@@ -444,7 +447,7 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
     correlationId,
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
     versionEvent: gate.versionEvent,
     fromState,
     toState: input.targetState,

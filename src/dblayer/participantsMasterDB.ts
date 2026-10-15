@@ -76,6 +76,38 @@ export const participantsMasterDB = {
     }
   },
 
+  // Rewrites the profile fields of existing rows in one statement. Badges and the login user are left as they are.
+  async updateProfiles(inputs: Array<{ id: string } & Omit<ParticipantMasterInput, "tenantId" | "authorisedBadges" | "userId">>): Promise<DbResult<ParticipantMasterRow[]>> {
+    if (inputs.length === 0) return { data: [] };
+    try {
+      const payload = inputs.map((i) => ({
+        id: i.id,
+        type: i.type,
+        capabilities: i.capabilities ?? [],
+        competency: i.competency ?? {},
+        cost: i.cost ?? null,
+        behaviour_context: i.behaviourContext ?? [],
+        authorised_role: i.authorisedRole ?? [],
+        is_active: i.isActive ?? true,
+      }));
+      const { rows } = await query<ParticipantMasterRow>(
+        `UPDATE participants_master pm
+            SET type = u.type, capabilities = u.capabilities, competency = u.competency, cost = u.cost,
+                behaviour_context = u.behaviour_context, authorised_role = u.authorised_role,
+                is_active = u.is_active, updated_at = NOW()
+           FROM jsonb_to_recordset($1::jsonb) AS u(id uuid, type text, capabilities jsonb, competency jsonb, cost numeric,
+                                                   behaviour_context jsonb, authorised_role jsonb, is_active boolean)
+          WHERE pm.id = u.id
+          RETURNING pm.*`,
+        [JSON.stringify(payload)]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[participantsMasterDB] updateProfiles error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findById(id: string): Promise<DbResult<ParticipantMasterRow | null>> {
     try {
       const { rows } = await query<ParticipantMasterRow>("SELECT * FROM participants_master WHERE id = $1", [id]);

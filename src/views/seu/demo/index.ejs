@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <% const _from = root ? 'root' : 'landing'; %>
+    <% const _base = locals.listBasePath || '/aisworg/seu/demo'; %>
+
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div>
+        <h2 class="h3 mb-1 text-dark fw-bold"><%= root ? 'Demo Root' : 'Demo' %></h2>
+        <p class="text-muted small mb-0">
+          <%= root
+            ? 'Everything on the demo page, plus enabling or disabling each scenario for the demo participant.'
+            : 'Run scenarios as the shared Demo User and watch the platform respond.' %>
+        </p>
+      </div>
+      <form method="POST" action="/aisworg/seu/demo/reset" class="mb-0">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="from" value="<%= _from %>">
+        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reset the Demo tenant to its seeded base state?');">Reset demo data</button>
+      </form>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#demoAbout" aria-expanded="true" aria-controls="demoAbout">
+        <span>About the demo</span>
+        <i class="bi bi-chevron-down"></i>
+      </div>
+      <div id="demoAbout" class="collapse show">
+        <div class="p-3 small"><%- about %></div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">Playbooks</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Playbook</th><th>Steps</th><th>Step</th></tr>
+          </thead>
+          <tbody>
+            <% if (playbooks.length === 0) { %>
+              <tr><td colspan="3" class="text-muted small">No playbooks are enabled.</td></tr>
+            <% } %>
+            <% playbooks.forEach(function(pb) { %>
+              <tr>
+                <td class="small fw-semibold"><%= pb.title %></td>
+                <td class="small text-muted"><%= pb.steps.join(' → ') %></td>
+                <td>
+                  <form method="POST" action="/aisworg/seu/demo/playbooks/<%= pb.code %>/step" class="d-flex align-items-center gap-2 mb-0">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="from" value="<%= _from %>">
+                    <input type="number" name="index" value="0" min="0" max="<%= pb.steps.length - 1 %>" class="form-control form-control-sm" style="width: 5rem;" aria-label="Step index, starting at 0">
+                    <button type="submit" class="btn btn-sm btn-primary">Run step</button>
+                  </form>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search code / title / kind' }) %>
+
+    <div class="section-card">
+      <div class="section-header">Scenarios</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th><%- sortLink('Order', 'sortOrder', list, _base) %></th>
+              <th><%- sortLink('Kind', 'kind', list, _base) %></th>
+              <th><%- sortLink('Title', 'title', list, _base) %></th>
+              <th><%- sortLink('Severity', 'severity', list, _base) %></th>
+              <th>Run</th>
+              <% if (root) { %><th>Enabled</th><% } %>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (list.total === 0) { %>
+              <tr><td colspan="<%= root ? 6 : 5 %>" class="text-muted small"><%= list.q ? 'No scenarios match your search.' : 'No scenarios are available. Reset the demo data to load them.' %></td></tr>
+            <% } %>
+            <% list.items.forEach(function(s) { %>
+              <tr>
+                <td class="small text-muted"><%= s.sort_order %></td>
+                <td class="small"><%= s.kind %></td>
+                <td class="small">
+                  <div class="fw-semibold"><%= s.title %></div>
+                  <% if (s.description) { %><div class="text-muted"><%= s.description %></div><% } %>
+                </td>
+                <td class="small"><%= s.severity || '—' %></td>
+                <td>
+                  <form method="POST" action="/aisworg/seu/demo/scenarios/<%= s.code %>/run" class="mb-0">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="from" value="<%= _from %>">
+                    <button type="submit" class="btn btn-sm btn-primary">Run</button>
+                  </form>
+                </td>
+                <% if (root) { %>
+                  <td>
+                    <form method="POST" action="/aisworg/seu/demo/root/scenarios/<%= s.code %>/enabled" class="mb-0">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="enabled" value="<%= s.enabled ? 'false' : 'true' %>">
+                      <button type="submit" class="btn btn-sm btn-outline-secondary"><%= s.enabled ? 'Disable' : 'Enable' %></button>
+                    </form>
+                  </td>
+                <% } %>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

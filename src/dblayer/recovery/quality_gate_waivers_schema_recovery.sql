@@ -7,7 +7,7 @@ CREATE TABLE quality_gate_waivers (
   entity_type TEXT NOT NULL,
   entity_id UUID NOT NULL,
   rationale TEXT NOT NULL,
-  granted_by UUID REFERENCES participants_master(id),
+  granted_by UUID NOT NULL REFERENCES participants_master(id),
   authority_badge TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'Active',
   expires_at TIMESTAMPTZ,

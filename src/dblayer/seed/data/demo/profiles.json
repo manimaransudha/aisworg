@@ -1,0 +1,102 @@
+[
+  {
+    "code": "riverbend-catalogue-build",
+    "name": "Riverbend Catalogue Build",
+    "baseTemplateCode": "mobile-application",
+    "environment": "development",
+    "profileVersion": "1.0.0",
+    "description": "Catalogue work for Riverbend Digital Shelf.",
+    "developmentMethodology": "scrum",
+    "primaryProgrammingLanguage": "typescript",
+    "sourceControlProvider": "github",
+    "dispatchStrategyPreference": [
+      {
+        "strategy": "capability-match",
+        "order": 1
+      }
+    ],
+    "redispatchMaxAttempts": 5,
+    "redispatchAttentionThreshold": 2,
+    "optionalPackCodes": [
+      "technology-react-native",
+      "domain-ebook-library",
+      "product-discovery"
+    ]
+  },
+  {
+    "code": "riverbend-lending-build",
+    "name": "Riverbend Lending Build",
+    "baseTemplateCode": "mobile-application",
+    "environment": "development",
+    "profileVersion": "1.0.0",
+    "description": "Lending work (checkout, return, holds, renewal) for Riverbend Digital Shelf.",
+    "developmentMethodology": "scrum",
+    "primaryProgrammingLanguage": "typescript",
+    "sourceControlProvider": "github",
+    "dispatchStrategyPreference": [
+      {
+        "strategy": "capability-match",
+        "order": 1
+      }
+    ],
+    "redispatchMaxAttempts": 5,
+    "redispatchAttentionThreshold": 2,
+    "optionalPackCodes": [
+      "technology-react-native",
+      "domain-ebook-library",
+      "product-discovery",
+      "beta-early-access-management"
+    ]
+  },
+  {
+    "code": "riverbend-notifications-build",
+    "name": "Riverbend Notifications Build",
+    "baseTemplateCode": "mobile-application",
+    "environment": "development",
+    "profileVersion": "1.0.0",
+    "description": "Push notification work for Riverbend Digital Shelf.",
+    "developmentMethodology": "scrum",
+    "primaryProgrammingLanguage": "typescript",
+    "sourceControlProvider": "github",
+    "dispatchStrategyPreference": [
+      {
+        "strategy": "capability-match",
+        "order": 1
+      }
+    ],
+    "redispatchMaxAttempts": 5,
+    "redispatchAttentionThreshold": 2,
+    "optionalPackCodes": [
+      "technology-react-native",
+      "domain-ebook-library",
+      "product-discovery",
+      "beta-early-access-management",
+      "integration-slack"
+    ]
+  },
+  {
+    "code": "riverbend-release",
+    "name": "Riverbend Release",
+    "baseTemplateCode": "mobile-application",
+    "environment": "production",
+    "profileVersion": "1.0.0",
+    "description": "Delivery of Riverbend Digital Shelf to production and the app stores.",
+    "developmentMethodology": "scrum",
+    "primaryProgrammingLanguage": "typescript",
+    "sourceControlProvider": "github",
+    "dispatchStrategyPreference": [
+      {
+        "strategy": "capability-match",
+        "order": 1
+      }
+    ],
+    "redispatchMaxAttempts": 5,
+    "redispatchAttentionThreshold": 2,
+    "optionalPackCodes": [
+      "technology-react-native",
+      "domain-ebook-library",
+      "backlog-release-planning",
+      "beta-early-access-management"
+    ]
+  }
+]

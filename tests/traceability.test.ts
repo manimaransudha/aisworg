@@ -23,7 +23,7 @@ import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 async function dispatchAndComplete(deliverableId: string, targetState: string, reference: string | null) {
   const { data: deliverable } = await deliverablesDB.findById(deliverableId);
   const fromState = deliverable!.lifecycle_state;
-  const dispatched = await transitionDeliverable({ deliverableId, targetState, actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState, actorRole: "super", actorId: ROOT_ACTOR_ID });
   // deliverableKickoffHandler (off SEUOperational) may already have this
   // exact hop in flight from its own automatic rescan, now that fulfilment
   // happens before commence-work.

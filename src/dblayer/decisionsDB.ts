@@ -15,8 +15,8 @@ export const decisionsDB = {
     title: string;
     engineeringQuestion?: string | null;
     alternatives?: DecisionAlternative[];
-    participantId?: string | null;
-    authorityBadge?: string | null;
+    participantId: string;
+    authorityBadge: string;
   }): Promise<DbResult<DecisionRow>> {
     try {
       const { rows } = await query<DecisionRow>(
@@ -35,8 +35,8 @@ export const decisionsDB = {
           input.title,
           input.engineeringQuestion ?? null,
           JSON.stringify(input.alternatives ?? []),
-          input.participantId ?? null,
-          input.authorityBadge ?? null,
+          input.participantId,
+          input.authorityBadge,
         ]
       );
       return { data: rows[0] };
@@ -84,17 +84,17 @@ export const decisionsDB = {
     }
   },
 
-  async updateStatus(id: string, status: string, actor?: { participantId?: string | null; authorityBadge?: string | null }): Promise<DbResult<DecisionRow>> {
+  async updateStatus(id: string, status: string, actor: { participantId: string; authorityBadge: string }): Promise<DbResult<DecisionRow>> {
     try {
       const { rows } = await query<DecisionRow>(
         `UPDATE decisions
             SET status = $1,
-                participant_id = COALESCE($2, participant_id),
-                authority_badge = COALESCE($3, authority_badge),
+                participant_id = $2,
+                authority_badge = $3,
                 updated_at = NOW()
           WHERE id = $4
           RETURNING *`,
-        [status, actor?.participantId ?? null, actor?.authorityBadge ?? null, id]
+        [status, actor.participantId, actor.authorityBadge, id]
       );
       return { data: rows[0] };
     } catch (err) {

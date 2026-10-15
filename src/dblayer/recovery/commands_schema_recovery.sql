@@ -10,12 +10,12 @@ CREATE TABLE commands (
   to_state       TEXT NOT NULL,
   status         TEXT NOT NULL DEFAULT 'Generated'
                     CHECK (status IN ('Generated', 'Dispatched', 'Completed', 'Deferred', 'Cancelled', 'Failed')),
-  requested_by   UUID REFERENCES participants_master(id),
+  requested_by   UUID NOT NULL REFERENCES participants_master(id),
   correlation_id UUID NOT NULL,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-ALTER TABLE commands ADD COLUMN IF NOT EXISTS acting_badge_type TEXT;
+ALTER TABLE commands ADD COLUMN IF NOT EXISTS acting_badge_type TEXT NOT NULL;
 ALTER TABLE commands
   ADD COLUMN IF NOT EXISTS governance_outcome_id UUID REFERENCES governance_evaluation_outcomes(id);
 ALTER TABLE commands

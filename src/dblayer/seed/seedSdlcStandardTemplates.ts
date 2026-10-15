@@ -9,7 +9,7 @@ import { publishTemplate, PACK_SELECTION_SLOTS } from "../../routes/seu/core/tem
 import { publishProfile } from "../../routes/seu/core/profiles.js";
 import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../seuTypes.js";
 import type { ExposedParameter } from "../../routes/seu/core/templates.js";
-import { getPlatformTenantId } from "../constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "../constants.js";
 import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -95,7 +95,7 @@ async function seedOne(templateFile: string, profileFile: string, actor: SeedAct
     seed: {
       code: templateSeed.code,
       name: templateSeed.name,
-      templateVersion: templateSeed.templateVersion ?? "1.0.0",
+      templateVersion: templateSeed.templateVersion ?? INITIAL_VERSION,
       deliverableCatalogue: templateSeed.deliverableCatalogue,
       dependencyGraph: templateSeed.dependencyGraph,
       exposedParameters: templateSeed.exposedParameters,
@@ -123,7 +123,7 @@ async function seedOne(templateFile: string, profileFile: string, actor: SeedAct
       integrationPackCodes: profileSeed.integrationPackCodes ?? [],
       engineeringPackCodes: profileSeed.engineeringPackCodes ?? [],
       organisationPackCodes: profileSeed.organisationPackCodes ?? [],
-      profileVersion: "1.0.0",
+      profileVersion: INITIAL_VERSION,
       description: profileSeed.description,
       developmentMethodology: profileSeed.developmentMethodology,
       primaryProgrammingLanguage: profileSeed.primaryProgrammingLanguage,

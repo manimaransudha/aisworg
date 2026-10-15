@@ -26,7 +26,7 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { createKnowledgeItem, transitionKnowledgeItem, promoteKnowledgeItemScope } from "../src/routes/seu/core/knowledge.js";
-import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ROOT_ACTOR_ID, ensureActorParticipant } from "./testFixtures.js";
 import { TESTER_ALL_ID } from "./testFixtures.js";
 import type { AcquisitionScope, KnowledgeItemRow } from "../src/dblayer/seuTypes.js";
 
@@ -100,13 +100,14 @@ test("DEFINITION: every KnowledgeScope transition_definitions row has event_type
 
 test("DRIVEN: every Knowledge lifecycle hop publishes its matching event, in order, and authority_badge tracks the most recent hop (version stays unbumped — no Edit path yet)", async () => {
   const { seuId, deliverableId } = await commissionTestSeuAndDeliverable();
-  const knowledgeItem = await createKnowledgeItem({ seuId, deliverableId, category: "Technical Knowledge", title: "Knowledge lifecycle-table test item" });
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "Knowledge lifecycle-table test item" });
   assert.equal(knowledgeItem.version, "1.0.0");
-  assert.equal(knowledgeItem.authority_badge, null, "creation is ungoverned — no badge yet");
+  assert.equal(knowledgeItem.authority_badge, "root", "creation records the badge the author acted under");
 
   let last: KnowledgeItemRow = knowledgeItem;
   for (const row of KNOWLEDGE_TABLE) {
-    const result = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: row.toState, actorRole: "super", actorId: TESTER_ALL_ID, userId: TESTER_ALL_ID });
+    const result = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: row.toState, actorRole: "super", actorId: TESTER_ALL_ID });
     assert.equal(result.ok, true, result.ok ? "" : `row ${row.row} (${row.description}): ${result.reason}: ${JSON.stringify(result)}`);
     if (result.ok) {
       // Ch.5 §19.13's own noun_verb badge convention: entityType_verb.
@@ -125,7 +126,8 @@ test("DRIVEN: every Knowledge lifecycle hop publishes its matching event, in ord
 
 test("DRIVEN: every KnowledgeScope promotion hop publishes KnowledgeScopePromoted, in order", async () => {
   const { seuId, deliverableId } = await commissionTestSeuAndDeliverable();
-  const knowledgeItem = await createKnowledgeItem({ seuId, deliverableId, category: "Technical Knowledge", title: "Knowledge scope lifecycle-table test item" });
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "Knowledge scope lifecycle-table test item" });
 
   // Scope promotion requires "Published" (Ch.16 §9) — walk only as far as
   // row 4 (Publish), not the whole table through to Archived, or every

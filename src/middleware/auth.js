@@ -1,5 +1,5 @@
 import { logger } from '../utils/logger.js';
-import { effectivePlatformBadges } from '../dev/actAs.js';
+import { effectivePlatformBadges, isGodUser } from '../dev/actAs.js';
 import { safeBack } from './safeBack.js';
 import { participantsMasterDB } from '../dblayer/participantsMasterDB.js';
 import { createParticipantMaster } from '../routes/seu/core/participantsMaster.js';
@@ -40,8 +40,11 @@ async function getOrCreateDemoParticipantId() {
 }
 
 async function resolveParticipantId(user) {
-  const demoTenantId = await getDemoTenantId();
-  if (user.tenant_id === demoTenantId) return getOrCreateDemoParticipantId();
+  // The env superuser belongs to the Platform tenant. The Demo tenant is only consulted for other sign-ins.
+  if (!isGodUser(user)) {
+    const demoTenantId = await getDemoTenantId();
+    if (user.tenant_id === demoTenantId) return getOrCreateDemoParticipantId();
+  }
 
   const { data: existing, error } = await participantsMasterDB.findByUserId(user.id);
   if (error) throw error;

@@ -1,0 +1,156 @@
+[
+  {
+    "key": "O1",
+    "tier": "Strategic",
+    "parentKey": null,
+    "statement": "Let Riverbend members borrow ebooks from home, so loan volume grows without new branch hours.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O2",
+    "tier": "Strategic",
+    "parentKey": null,
+    "statement": "Offer a web-only reader on the library website.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O3",
+    "tier": "Operational",
+    "parentKey": "O1",
+    "statement": "Let members find ebooks through a searchable catalogue.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O4",
+    "tier": "Operational",
+    "parentKey": "O1",
+    "statement": "Let members borrow an ebook for a fixed loan period.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O5",
+    "tier": "Operational",
+    "parentKey": "O1",
+    "statement": "Let members return a borrowed ebook before the loan period ends.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O6",
+    "tier": "Operational",
+    "parentKey": "O1",
+    "statement": "Let members place a hold on a title that is unavailable.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O7",
+    "tier": "Operational",
+    "parentKey": "O1",
+    "statement": "Let members renew a loan once.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O8",
+    "tier": "Operational",
+    "parentKey": "O1",
+    "statement": "Notify members on their phone when a held title becomes available.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O9",
+    "tier": "Operational",
+    "parentKey": "O1",
+    "statement": "Offer a printed-book renewal kiosk.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O10",
+    "tier": "Engineering",
+    "parentKey": "O3",
+    "statement": "Build the catalogue metadata model.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O11",
+    "tier": "Engineering",
+    "parentKey": "O3",
+    "statement": "Build the catalogue search index.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O12",
+    "tier": "Engineering",
+    "parentKey": "O4",
+    "statement": "Build the checkout service.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O13",
+    "tier": "Engineering",
+    "parentKey": "O5",
+    "statement": "Build the return service.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O14",
+    "tier": "Engineering",
+    "parentKey": "O6",
+    "statement": "Build the hold waitlist queue.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O15",
+    "tier": "Engineering",
+    "parentKey": "O7",
+    "statement": "Build the loan renewal rule.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O16",
+    "tier": "Engineering",
+    "parentKey": "O8",
+    "statement": "Build push notification dispatch.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O17",
+    "tier": "Engineering",
+    "parentKey": "O8",
+    "statement": "Build member device registration for push notifications.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O18",
+    "tier": "Operational",
+    "parentKey": "O1",
+    "statement": "Decide how the app is deployed to members.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O19",
+    "tier": "Engineering",
+    "parentKey": "O18",
+    "statement": "Conduct integration testing of the app against the library lending service.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O20",
+    "tier": "Engineering",
+    "parentKey": "O18",
+    "statement": "Prepare the production deployment manifest.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O21",
+    "tier": "Engineering",
+    "parentKey": "O18",
+    "statement": "Submit the app to the Apple App Store.",
+    "requiredCapabilityCodes": []
+  },
+  {
+    "key": "O22",
+    "tier": "Engineering",
+    "parentKey": "O18",
+    "statement": "Submit the app to Google Play.",
+    "requiredCapabilityCodes": []
+  }
+]

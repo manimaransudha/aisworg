@@ -5,7 +5,7 @@ import { ontologyDB, type OntologyViewer } from "../ontologyDB.js";
 import { bulkInsert } from "../../utils/db.js";
 import { resolveOnboardingAdapter, listRegisteredOnboardingTypes } from "../../adapters/participantOnboardingRegistry.js";
 import { logger } from "../../utils/logger.js";
-import type { OnboardedParticipant } from "../../adapters/participantOnboardingAdapter.js";
+import type { OnboardedParticipant, OnboardingOntology } from "../../adapters/participantOnboardingAdapter.js";
 
 const require = createRequire(import.meta.url);
 const bcrypt = require("bcryptjs");
@@ -27,7 +27,7 @@ interface CanonicalSets {
 
 async function codesOf(conceptType: string, viewer: OntologyViewer): Promise<Set<string>> {
   const { data, error } = await ontologyDB.findConceptsByType(conceptType, viewer);
-  console.log(`[codesOf] conceptType=${conceptType} viewer=${JSON.stringify(viewer)} error=${error ? String(error) : "none"} rows=${data?.length ?? "undefined"}`);
+  logger.info(`[codesOf] conceptType=${conceptType} viewer=${JSON.stringify(viewer)} error=${error ? String(error) : "none"} rows=${data?.length ?? "undefined"}`);
   return new Set((data ?? []).map((c) => c.code));
 }
 
@@ -70,6 +70,9 @@ function validateOnboarded(type: string, onboarded: OnboardedParticipant, canon:
   for (const entry of onboarded.authorisedRole) assertCanonicalLocal("authorised-role", entry.role, canon.authorisedRoles);
 }
 
+// Every seeded participant holds this role in addition to whatever its adapter returns.
+const DEFAULT_PARTICIPANT_ROLE = "participant";
+
 async function runWithConcurrency<T>(items: T[], worker: (item: T) => Promise<void>): Promise<void> {
   let next = 0;
   async function runOne(): Promise<void> {
@@ -96,16 +99,27 @@ export async function seedParticipantsMaster(): Promise<void> {
 
     const viewer: OntologyViewer = { isRoot: false, tenantId: tenant.id };
     const canon = await loadCanonicalSets(viewer);
+    const usable = (codes: Set<string> | undefined): string[] => [...(codes ?? [])].filter((c) => !c.startsWith("test-"));
+    const ontology: OnboardingOntology = {
+      capabilityCodes: usable(canon.capabilityCodes),
+      domainValues: usable(canon.dimensionValues.get("domain")),
+      technologyValues: usable(canon.dimensionValues.get("technology")),
+      proficiencyLevels: usable(canon.proficiencyLevels),
+    };
 
     for (const type of types) {
+      logger.info(`[seedParticipantsMaster] type=${type} onboarding start`);
       const adapter = resolveOnboardingAdapter(type);
       const seeds = Array.from({ length: PARTICIPANTS_PER_TENANT_PER_TYPE }, (_, i) => i);
       const rows: Parameters<typeof participantsMasterDB.createMany>[0] = [];
       const humanEmails: (string | null)[] = [];
 
       await runWithConcurrency(seeds, async (i) => {
-        const onboarded = await adapter.onboard({ tenantId: tenant.id, tenantLabel: tenant.name, seed: i });
-        validateOnboarded(type, onboarded, canon);
+        const onboarded = await adapter.onboard({ tenantId: tenant.id, tenantLabel: tenant.name, seed: i, ontology });
+        const authorisedRole = onboarded.authorisedRole.some((e) => e.role === DEFAULT_PARTICIPANT_ROLE)
+          ? onboarded.authorisedRole
+          : [...onboarded.authorisedRole, { role: DEFAULT_PARTICIPANT_ROLE, effective_till: "9999-12-31", seu_ids: [] }];
+        validateOnboarded(type, { ...onboarded, authorisedRole }, canon);
 
         rows.push({
           tenantId: tenant.id,
@@ -115,13 +129,14 @@ export async function seedParticipantsMaster(): Promise<void> {
           competency: onboarded.competency,
           cost: onboarded.cost,
           behaviourContext: onboarded.behaviourContext,
-          authorisedRole: onboarded.authorisedRole,
+          authorisedRole,
           isActive: true,
           userId: onboarded.userId ?? null,
         });
         humanEmails.push(type === "Human" ? `human-${i + 1}@${code.toLowerCase()}.com` : null);
       });
 
+      logger.info(`[seedParticipantsMaster] type=${type} onboarded rows=${rows.length}`);
       if (type === "Human") {
         const userRows = rows.map((row, idx) => [
           humanEmails[idx],
@@ -138,6 +153,7 @@ export async function seedParticipantsMaster(): Promise<void> {
           ["email", "name", "auth_provider", "is_active", "is_protected", "type", "tenant_id", "password_hash"],
           userRows
         );
+        logger.info(`[seedParticipantsMaster] type=${type} users inserted=${insertedUsers.length}`);
         const createdUsers = insertedUsers as unknown as Array<{ email: string; id: string }>;
         usersCreated += createdUsers.length;
         const userIdByEmail = new Map<string, string>(createdUsers.map((u) => [u.email, u.id]));
@@ -146,7 +162,9 @@ export async function seedParticipantsMaster(): Promise<void> {
         });
       }
 
+      logger.info(`[seedParticipantsMaster] type=${type} createMany start`);
       const { data, error } = await participantsMasterDB.createMany(rows);
+      logger.info(`[seedParticipantsMaster] type=${type} createMany done error=${error ? String(error) : "none"}`);
       if (error) throw error;
       created += data.length;
     }

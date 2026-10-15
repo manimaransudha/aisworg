@@ -17,3 +17,18 @@ ALTER TABLE route_authority
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
 GRANT ALL PRIVILEGES ON TABLE route_authority TO weirdo;
 COMMIT;
+
+-- INSERT INTO route_authority (method, path, badges, roles, match_mode, author_id, author_badge)
+-- SELECT v.method, v.path, v.badges, v.roles, 'all', pm.id, 'root'
+--   FROM (VALUES
+--     ('GET',  '/aisworg/seu/demo',                                  ARRAY[]::text[],       ARRAY['participant']::text[]),
+--     ('POST', '/aisworg/seu/demo/reset',                            ARRAY[]::text[],       ARRAY['participant']::text[]),
+--     ('POST', '/aisworg/seu/demo/scenarios/:code/run',              ARRAY[]::text[],       ARRAY['participant']::text[]),
+--     ('POST', '/aisworg/seu/demo/playbooks/:code/step',             ARRAY[]::text[],       ARRAY['participant']::text[]),
+--     ('GET',  '/aisworg/seu/demo/root',                             ARRAY['root']::text[], ARRAY[]::text[]),
+--     ('POST', '/aisworg/seu/demo/root/scenarios/:code/enabled',     ARRAY['root']::text[], ARRAY[]::text[])
+--   ) AS v(method, path, badges, roles)
+--   JOIN users u ON lower(u.email) = lower('manimaransudha@gmail.com')
+--   JOIN participants_master pm ON pm.user_id = u.id
+-- ON CONFLICT (method, path) DO NOTHING;
+

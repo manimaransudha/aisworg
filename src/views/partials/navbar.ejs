@@ -20,20 +20,23 @@
           // "is there a logged-in session" — not an authorization check.
           const _navRouteVisible = locals.navRouteVisible || {};
           const _nrv = (m, p) => !!_navRouteVisible[m + ' ' + p];
-          const _seuPlatformVisible = _nrv('GET','/aisworg') || _nrv('GET','/aisworg/quickview') || _nrv('GET','/aisworg/seu/objectives') || _nrv('GET','/aisworg/seu/seus') || _nrv('GET','/aisworg/seu/services');
+          const _seuPlatformVisible = _nrv('GET','/aisworg') || _nrv('GET','/aisworg/quickview') || _nrv('GET','/aisworg/seu/objectives') || _nrv('GET','/aisworg/seu/seus');
           const _governanceVisible = _nrv('GET','/aisworg/seu/attention') || _nrv('GET','/aisworg/seu/telemetry') || _nrv('GET','/aisworg/seu/knowledge/capital');
           const _registryVisible = _nrv('GET','/aisworg/seu/capability-definitions') || _nrv('GET','/aisworg/seu/participants') || _nrv('GET','/aisworg/seu/packs') || _nrv('GET','/aisworg/seu/templates') || _nrv('GET','/aisworg/seu/profiles') || _nrv('GET','/aisworg/seu/deliverable-definitions') || _nrv('GET','/aisworg/seu/service-definitions') || _nrv('GET','/aisworg/seu/policy-definitions') || _nrv('GET','/aisworg/seu/sdk/schema-registry');
           const _authoringVisible = _nrv('GET','/aisworg/seu/sdk/pack-authoring') || _nrv('GET','/aisworg/seu/sdk/template-authoring') || _nrv('GET','/aisworg/seu/sdk/profile-authoring') || _nrv('GET','/aisworg/seu/sdk/transition-definition-authoring') || _nrv('GET','/aisworg/seu/sdk/deliverable-authoring') || _nrv('GET','/aisworg/seu/sdk/service-authoring') || _nrv('GET','/aisworg/seu/sdk/policy-authoring') || _nrv('GET','/aisworg/seu/sdk/capability-authoring');
           const _ontologyVisible = _nrv('GET','/aisworg/seu/sdk/ontology');
+          const _dashboardDemoVisible = _nrv('GET','/aisworg/seu/dashboard/demo');
+          const _demoVisible = _nrv('GET','/aisworg/seu/demo');
+          const _demoRootVisible = _nrv('GET','/aisworg/seu/demo/root');
           const _docsVisible = _nrv('GET','/aisworg/seu/docs');
           const _docFolders = locals.docFolders || [];
         %>
 
         <% if (_isAuthenticated) { %>
-          <!-- SEU Platform dropdown — day-to-day engineering runtime: Objectives, SEUs, Services -->
+          <!-- SEU Platform dropdown — day-to-day engineering runtime: Objectives, SEUs -->
           <% if (_seuPlatformVisible) { %>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','quickview','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail','seu-services'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','quickview','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               SEU Platform
             </a>
@@ -41,9 +44,16 @@
             <ul class="dropdown-menu dropdown-menu-dark">
             %>
             <ul class="dropdown-menu shadow-sm border">
-              <% if (_nrv('GET','/aisworg')) { %>
+              <%# Role decides the Dashboard link; a holder of the root badge (the demo-root route's badge) sees every dashboard. %>
+              <% const _showGenericDashboard = _nrv('GET','/aisworg') && (!_dashboardDemoVisible || _demoRootVisible); %>
+              <% if (_showGenericDashboard) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-dashboard' ? 'active' : '' %>" href="/aisworg">
                 <i class="bi bi-speedometer2 me-2"></i>Dashboard
+              </a></li>
+              <% } %>
+              <% if (_dashboardDemoVisible) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-dashboard' ? 'active' : '' %>" href="/aisworg/seu/dashboard/demo">
+                <i class="bi bi-speedometer2 me-2"></i><%= _showGenericDashboard ? 'Demo Dashboard' : 'Dashboard' %>
               </a></li>
               <% } %>
               <% if (_nrv('GET','/aisworg/quickview')) { %>
@@ -65,11 +75,6 @@
               </a></li>
               <% } %>
               <%# CR-003: SEU commissioning is initiated from the Objectives screen (Commission SEU per Engineering, un-commissioned Objective), not a global navbar action. %>
-              <% if (_nrv('GET','/aisworg/seu/services')) { %>
-              <li><a class="dropdown-item <%= currentPage === 'seu-services' ? 'active' : '' %>" href="/aisworg/seu/services">
-                <i class="bi bi-hand-index-thumb me-2"></i>Services
-              </a></li>
-              <% } %>
             </ul>
           </li>
           <% } %>
@@ -267,6 +272,25 @@
                    same "separate entry" precedent as Metadata above. -->
               <li><a class="dropdown-item <%= locals.currentPath === '/aisworg/seu/sdk/ontology/approvals' ? 'active' : '' %>" href="/aisworg/seu/sdk/ontology/approvals">
                 <i class="bi bi-check2-square me-2"></i>Approvals
+              </a></li>
+              <% } %>
+            </ul>
+          </li>
+          <% } %>
+
+          <% if (_demoVisible) { %>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle <%= ['seu-demo','seu-demo-root'].includes(currentPage) ? 'active' : '' %>"
+               href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-play-circle me-2"></i>Demo
+            </a>
+            <ul class="dropdown-menu shadow-sm border">
+              <li><a class="dropdown-item <%= currentPage === 'seu-demo' ? 'active' : '' %>" href="/aisworg/seu/demo">
+                <i class="bi bi-collection-play me-2"></i>Riverbend Demo
+              </a></li>
+              <% if (_demoRootVisible) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-demo-root' ? 'active' : '' %>" href="/aisworg/seu/demo/root">
+                <i class="bi bi-sliders me-2"></i>Demo Administration
               </a></li>
               <% } %>
             </ul>

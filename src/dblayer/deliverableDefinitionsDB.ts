@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateDeliverableDefinitionWriteAgainstSchema } from "../routes/seu/core/deliverableDefinitionWriteValidator.js";
 import type { DbResult, DeliverableDefinitionRow } from "./seuTypes.js";
-import { getPlatformTenantId } from "./constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "./constants.js";
  
 export const deliverableDefinitionsDB = {
   async createDraft(input: {
@@ -13,12 +13,12 @@ export const deliverableDefinitionsDB = {
     authoredBy: string;
     authorBadge: string;
     draftContent?: Record<string, unknown>;
-    tenantId?: string;
+    tenantId: string;
     parentDeliverableDefinitionId?: string | null;
     schemaDefinitionId: string;
   }): Promise<DbResult<DeliverableDefinitionRow>> {
     try {
-      const version = input.version ?? "1.0.0";
+      const version = input.version ?? INITIAL_VERSION;
       const draftContent = input.draftContent ?? {};
 
       const errors = await validateDeliverableDefinitionWriteAgainstSchema({
@@ -45,7 +45,7 @@ export const deliverableDefinitionsDB = {
           input.authoredBy,
           input.authorBadge,
           JSON.stringify(draftContent),
-          input.tenantId ?? (await getPlatformTenantId()),
+          input.tenantId,
           input.parentDeliverableDefinitionId ?? null,
           schemaRow?.id ?? null,
         ]

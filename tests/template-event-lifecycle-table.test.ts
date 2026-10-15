@@ -22,10 +22,11 @@ import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishTemplate, transitionTemplate, type TemplateSeedInput } from "../src/routes/seu/core/templates.js";
-import { uniqueTestPackVersion, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { uniqueTestPackVersion, ROOT_ACTOR_ID, TESTER_ALL_ID, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
-// "api-platform" — a real, platform-seeded template-categories Ontology
-// concept (migration 053) — Template's `code` must resolve to one of these,
+// "test-template-lifecycle-template" — a test-only template-categories Ontology
+// concept, so activating a new version never supersedes a seeded Template —
+// Template's `code` must resolve to one of these,
 // not a hand-typed string (validateTemplateSeed -> assertCanonicalCategory).
 // "source-code" — a real, platform-seeded deliverable-name Ontology concept
 // (migration 134-ish set) for the same reason on deliverableCatalogue's own
@@ -34,7 +35,7 @@ import { uniqueTestPackVersion, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtu
 // (uniqueTestPackVersion — generic, not Pack-specific despite the name).
 async function freshTemplateSeed(overrides: Partial<TemplateSeedInput> = {}): Promise<TemplateSeedInput> {
   return {
-    code: "api-platform",
+    code: "test-template-lifecycle-template",
     name: "Test Template",
     purpose: "Test Template fixture for the Ch.6 event/lifecycle table check.",
     templateVersion: uniqueTestPackVersion(),
@@ -55,8 +56,8 @@ async function freshTemplateDraft(): Promise<{ id: string }> {
   if (!templateSchema) throw new Error("no schema_definitions grammar for Template");
   const { data: root } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
   if (!root) throw new Error("No participants_master row for user_id 1 -- log in as root first.");
-  const { data: draft, error } = await templatesDB.createDraft({
-    code: "api-platform",
+  const { data: draft, error } = await templatesDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
+    code: "test-template-lifecycle-template",
     name: "Test Template Draft",
     templateVersion: uniqueTestPackVersion(),
     authoredBy: root.id,

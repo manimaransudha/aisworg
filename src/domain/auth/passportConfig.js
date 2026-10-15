@@ -90,7 +90,9 @@ export function configurePassport() {
               tenantId: participantTenantId,
               type: 'Human',
               displayName: user.name || user.email,
-              authorisedRole: isSuper ? [{role: 'superuser', effective_till: '9999-12-31', seu_ids: []}] : [],
+              authorisedRole: isSuper
+                ? [{role: 'superuser', effective_till: '9999-12-31', seu_ids: []}]
+                : [{role: 'general', effective_till: '9999-12-31', seu_ids: []}, {role: 'demo', effective_till: '9999-12-31', seu_ids: []}],
               authorisedBadges: isSuper ? [{badge: 'root', effective_till: '9999-12-31', seu_ids: []}] : [],
               userId: user.id,
             });

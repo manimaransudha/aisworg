@@ -73,9 +73,9 @@ test("CR-104: a Pack marked installation_classification 'Mandatory' composes int
   const { data: platformPackRow } = await packsDB.findActiveByCode(platformMandatory.code);
 
   // A Template with NO explicit mandatoryPackCodes at all, Platform tenant.
-  const { data: platformTemplate } = await templatesDB.upsert({ code: `cr104-mandatory-tpl-${run}`, name: "CR-104 Mandatory Template", deliverableCatalogue: [] });
-  await templatesDB.setRequiredCapabilities(platformTemplate!.id, []);
-  const { data: platformProfile } = await profilesDB.upsert({ code: `cr104-mandatory-profile-${run}`, name: "CR-104 Mandatory Profile", baseTemplateId: platformTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: platformTemplate } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-mandatory-tpl-${run}`, name: "CR-104 Mandatory Template", deliverableCatalogue: [] });
+  await templatesDB.setRequiredCapabilities(platformTemplate!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  const { data: platformProfile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-mandatory-profile-${run}`, name: "CR-104 Mandatory Profile", baseTemplateId: platformTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
 
   const platformUnraveled = await unravelComposition({ templateIds: [platformTemplate!.id], profileIds: [platformProfile!.id] }, PLATFORM_TENANT_ID);
   assert.ok(
@@ -94,8 +94,8 @@ test("CR-104: a Pack marked installation_classification 'Mandatory' composes int
   const { data: tenantPackRow } = await packsDB.findActiveByCode(tenantMandatory.code);
 
   const { data: sameTenantTemplate } = await templatesDB.upsert({ code: `cr104-same-tenant-tpl-${run}`, name: "CR-104 Same Tenant Template", deliverableCatalogue: [], tenantId });
-  await templatesDB.setRequiredCapabilities(sameTenantTemplate!.id, []);
-  const { data: sameTenantProfile } = await profilesDB.upsert({ code: `cr104-same-tenant-profile-${run}`, name: "CR-104 Same Tenant Profile", baseTemplateId: sameTenantTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  await templatesDB.setRequiredCapabilities(sameTenantTemplate!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  const { data: sameTenantProfile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-same-tenant-profile-${run}`, name: "CR-104 Same Tenant Profile", baseTemplateId: sameTenantTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   const sameTenantUnraveled = await unravelComposition({ templateIds: [sameTenantTemplate!.id], profileIds: [sameTenantProfile!.id] }, tenantId);
   assert.ok(
     sameTenantUnraveled.composedPacks.some((p) => p.packId === tenantPackRow!.id),
@@ -130,14 +130,14 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
   assert.ok(seuPolicy);
   await ensurePolicyDefinitionWithObligation({ code: `cr104-seu-commence-work-${run}`, name: `CR-104 commence-work policy ${run}`, category: "Compliance", title: `CR-104 commence-work blocker ${run}` });
 
-  const { data: template } = await templatesDB.upsert({ code: `cr104-seu-policy-tpl-${run}`, name: "CR-104 SEU Policy Template", deliverableCatalogue: [] });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-seu-policy-tpl-${run}`, name: "CR-104 SEU Policy Template", deliverableCatalogue: [] });
   await templatesDB.setMandatoryPacks(template!.id, [seuPolicyPack.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(template!.id, []);
+  await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
 
   await ensureEventSubscriptionsLoaded();
   const { objective: root } = await createObjective({ statement: `cr104-seu-policy-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
   const { objective } = await createObjective({ statement: `cr104-seu-policy-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
-  const { data: profile } = await profilesDB.upsert({ code: `cr104-seu-policy-profile-${run}`, name: "CR-104 SEU Policy Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: profile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-seu-policy-profile-${run}`, name: "CR-104 SEU Policy Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
@@ -193,17 +193,17 @@ test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directl
   assert.equal(policy!.governed_transition, null, "an Eligibility-scoped Policy carries no governed_transition at all");
 
   const capabilityCode = "requirements-analysis";
-  const { data: template } = await templatesDB.upsert({ code: `cr104-eligibility-tpl-${run}`, name: "CR-104 Eligibility Template", deliverableCatalogue: [] });
+  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-eligibility-tpl-${run}`, name: "CR-104 Eligibility Template", deliverableCatalogue: [] });
   await templatesDB.setMandatoryPacks(template!.id, [eligibilityPack.code], ROOT_ACTOR_ID, "root");
-  await templatesDB.setRequiredCapabilities(template!.id, []);
-  const { data: profile } = await profilesDB.upsert({ code: `cr104-eligibility-profile-${run}`, name: "CR-104 Eligibility Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  const { data: profile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `cr104-eligibility-profile-${run}`, name: "CR-104 Eligibility Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
 
   // A plain SEU row, deliberately not commissioned through the full async
   // pipeline — resolveEligibilityPolicies works off template_id/profile_id
   // directly, with no active_ebm_id at all, proving the "never through the
   // EBM" design point concretely, not just by omission.
   const { objective } = await createObjective({ statement: `cr104-eligibility-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
-  const { data: seu } = await seusDB.create({ objectiveId: objective.id, templateId: template!.id, profileId: profile!.id, tenantId: PLATFORM_TENANT_ID, requestedBy: TESTER_ALL_ID });
+  const { data: seu } = await seusDB.create({ authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective.id, templateId: template!.id, profileId: profile!.id, tenantId: PLATFORM_TENANT_ID, requestedBy: TESTER_ALL_ID });
   assert.ok(seu);
   assert.equal(seu!.active_ebm_id, null, "sanity check: this SEU genuinely has no EBM yet");
 

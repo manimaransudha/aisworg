@@ -21,7 +21,7 @@ import { authorityRulesDB } from "../../dblayer/authorityRulesDB.js";
 import type { CommandRow, DeliverableRow, DependencyDefinitionRow, GovernanceEvaluationOutcomeDraft, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 export type DeliverableGovernanceResult =
-  | { ok: true; fromState: string; governanceOutcome: GovernanceEvaluationOutcomeDraft; actingBadgeType: string | null }
+  | { ok: true; fromState: string; governanceOutcome: GovernanceEvaluationOutcomeDraft; actingBadgeType: string }
   | { ok: false; reason: "dependency_not_satisfied"; rows: DependencyDefinitionRow[] }
   | { ok: false; reason: "seu_blocked" | "obligation_blocked" | "decision_blocked"; detail: string }
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
@@ -30,7 +30,7 @@ export type DeliverableGovernanceResult =
   | { ok: false; reason: "already_in_flight"; detail: string };
 
 export const executionEngine = {
-  async evaluateDeliverableTransition(input: { deliverable: DeliverableRow; targetState: string; actorId?: string }): Promise<DeliverableGovernanceResult> {
+  async evaluateDeliverableTransition(input: { deliverable: DeliverableRow; targetState: string; actorId: string }): Promise<DeliverableGovernanceResult> {
     const { deliverable, targetState } = input;
 
     const readiness = await dependencyDefinitionEngine.isTargetReady(deliverable.seu_id, "Deliverable", deliverable.name, targetState);
@@ -80,27 +80,18 @@ export const executionEngine = {
     if (!definition) {
       return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Deliverable ${fromState} -> ${targetState}` };
     }
-    let applicableAuthorityRuleId: string | null = null;
-    let actingBadgeType: string | null = null;
-    let requiredBadge: string | null = null;
-    if (definition.verb) {
-      requiredBadge = `deliverable_${definition.verb}`;
-      const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId ?? "", requiredBadge });
-      if (!auth.allowed) {
-        return { ok: false, reason: "authority_denied", detail: `acting badge check failed: ${auth.reason}` };
-      }
-      actingBadgeType = auth.via === "root" ? "root" : (auth.matchedBadge ?? requiredBadge);
-      const { data: authorityRule } = await authorityRulesDB.findByCode(requiredBadge);
-      applicableAuthorityRuleId = authorityRule?.id ?? null;
+    if (!definition.verb) throw new Error(`Deliverable ${fromState} -> ${targetState} declares no verb — no authority badge can be resolved`);
+    const requiredBadge = `deliverable_${definition.verb}`;
+    const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId, requiredBadge });
+    if (!auth.allowed) {
+      return { ok: false, reason: "authority_denied", detail: `acting badge check failed: ${auth.reason}` };
     }
+    const actingBadgeType = auth.via === "root" ? "root" : requiredBadge;
+    const { data: authorityRule } = await authorityRulesDB.findByCode(requiredBadge);
+    const applicableAuthorityRuleId = authorityRule?.id ?? null;
 
-    const { authorId: qualityGateAuthorId, authorBadge: qualityGateAuthorBadge } = input.actorId
-      ? { authorId: (await resolveAuthor(deliverable.seu_id, input.actorId)).authorId, authorBadge: actingBadgeType ?? requiredBadge ?? "system" }
-      : await (async () => {
-          const systemActor = await resolveSystemActor(deliverable.seu_id);
-          const { authorId } = await resolveAuthor(deliverable.seu_id, systemActor.actorId);
-          return { authorId, authorBadge: systemActor.authorBadge };
-        })();
+    const { authorId: qualityGateAuthorId } = await resolveAuthor(deliverable.seu_id, input.actorId);
+    const qualityGateAuthorBadge = actingBadgeType;
 
     const qualityGateResult = await qualityGateEngine.evaluate({
       entityType: "Deliverable",
@@ -126,7 +117,6 @@ export const executionEngine = {
       return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
     }
 
-    const policySystemActor = input.actorId ? null : await resolveSystemActor(deliverable.seu_id);
     const policyResult = await policyEngine.evaluate({
       entityType: "Deliverable",
       seuId: deliverable.seu_id,
@@ -134,8 +124,8 @@ export const executionEngine = {
       fromState,
       toState: targetState,
       context: { deliverable },
-      authorId: input.actorId ?? policySystemActor!.actorId,
-      authorBadge: actingBadgeType ?? policySystemActor?.authorBadge ?? "system",
+      authorId: input.actorId,
+      authorBadge: actingBadgeType,
     });
     if (policyResult.outcome === "Blocked") {
       await raiseObligationForBlockedTransition({
@@ -206,17 +196,15 @@ export const executionEngine = {
     fromState: string;
     toState: string;
     producingCapabilityId: string | null;
-    requestedBy: string | null;
-    actorId?: string;
-    actingBadgeType?: string | null;
+    requestedBy: string;
+    actorId: string;
+    actingBadgeType: string;
     targetCompletionAt?: Date | null;
     correlationId: string;
     governanceOutcome?: GovernanceEvaluationOutcomeDraft | null;
   }): Promise<void> {
     let governanceOutcomeId: string | null = null;
     if (input.governanceOutcome) {
-      if (!input.actorId) throw new Error("cannot record governance evaluation outcome without a real actorId");
-      if (!input.actingBadgeType) throw new Error("cannot record governance evaluation outcome without a resolved acting badge");
       const { authorId } = await resolveAuthor(input.seuId, input.actorId);
       const { data: outcome, error: outcomeError } = await governanceEvaluationOutcomesDB.create({
         ...input.governanceOutcome,
@@ -248,10 +236,6 @@ export const executionEngine = {
       eligibleParticipantPoolId = pool.id;
     }
 
-    const commandSystemActor = input.actorId ? null : await resolveSystemActor(input.seuId);
-    const commandActorId = input.actorId ?? commandSystemActor!.actorId;
-    const commandAuthorityBadge = input.actingBadgeType ?? commandSystemActor!.authorBadge;
-
     const { data: command, error } = await commandsDB.create({
       seuId: input.seuId,
       entityType: input.entityType,
@@ -259,8 +243,8 @@ export const executionEngine = {
       commandType: `${input.entityType}.Transition`,
       fromState: input.fromState,
       toState: input.toState,
-      requestedBy: input.requestedBy ?? commandActorId,
-      actingBadgeType: input.actingBadgeType ?? commandAuthorityBadge,
+      requestedBy: input.requestedBy,
+      actingBadgeType: input.actingBadgeType,
       correlationId: input.correlationId,
       governanceOutcomeId,
       eligibleParticipantPoolId,
@@ -273,8 +257,8 @@ export const executionEngine = {
       originatingObjectId: command.id,
       seuId: input.seuId,
       correlationId: input.correlationId,
-      actorId: commandActorId,
-      authorityBadge: commandAuthorityBadge,
+      actorId: input.actorId,
+      authorityBadge: input.actingBadgeType,
       payload: {
         entityType: input.entityType,
         entityId: input.entityId,

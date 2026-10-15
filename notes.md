@@ -101,9 +101,37 @@ NODE_ENV=test node --import tsx --test tests/web-flow.e2e.test.ts > output.txt 2
 NODE_ENV=test node --import tsx --test tests/attestation.test.ts > output.txt 2>&1 
 
 
+------
+
+pgrep -fl autossh
+pkill -f "ssh -N vps-db"; sleep 2; lsof -i:5433
+
+psql "postgresql://weirdo:b3%40conf2026@127.0.0.1:5433/aisworg" -c "select 1"
 
 
+psql "postgresql://weirdo:b3%40conf2026@127.0.0.1:5433/aisworg" -c "select pid,state,wait_event_type,left(query,60) from pg_stat_activity where datname=current_database() and pid<>pg_backend_pid()"
+
+
+psql "postgresql://weirdo:b3%40conf2026@127.0.0.1:5433/aisworg" -c "select pg_terminate_backend(p) from unnest(array[1436428,1436503,1436536,1436789]) p"
+
+
+----------
+msudha@SudhaM aisworg % pkill autossh                        
+msudha@SudhaM aisworg % ps aux | grep -E "autossh|ssh .*vps-db" | grep -v grep
+
+--------
+
+TAILSPACE
+https://console.tailscale.com/admin/machines GMAIL
 
 ---------
+
+pnpm exec tsx src/dblayer/seed/seedRouteAuthority.ts
+
+----------
+
 Keep the responses short, relevant and non-repetitive. I understand English. You do not have to restate it different ways - understood ?
+
+
+
 

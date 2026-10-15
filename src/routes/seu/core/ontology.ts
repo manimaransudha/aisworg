@@ -15,10 +15,9 @@ export interface OntologyActor extends OntologyViewer {
 }
 
 async function resolveAuthor(actor: OntologyActor): Promise<{ authorId: string; authorBadge: string }> {
-  if (!actor.actorId) throw new Error("no acting user to record as this concept's author");
   const { data: master } = await participantsMasterDB.findById(actor.actorId);
   if (!master) throw new Error(`No participants_master row for id ${actor.actorId} — log in first.`);
-  return { authorId: master.id, authorBadge: actor.isRoot ? "root" : "ontology_define" };
+  return { authorId: master.id, authorBadge: actor.actorBadge };
 }
 
 export const CATEGORY_CONCEPT_TYPE: Record<string, string> = {
@@ -425,7 +424,7 @@ async function transitionConcept(
   const fromState = concept.status;
 
   const gate = await transitionEngine.evaluate({
-    entityType: "Ontology", fromState, toState, actorRole: "", actorId: actor.actorId ?? undefined,
+    entityType: "Ontology", fromState, toState, actorRole: "", actorId: actor.actorId,
     entityId: concept.id, alternateBadges: ["ontology_define"],
   });
   if (!gate.allowed) {
@@ -433,6 +432,7 @@ async function transitionConcept(
     if (gate.reason === "no_transition_definition") throw new Error(`cannot move ${conceptType}/${code} from ${fromState} to ${toState}`);
     throw new Error(gate.reason);
   }
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
 
   const trimmedComment = opts?.comment?.trim() ?? "";
   if (fromState === "Draft" && toState === "Draft") {
@@ -450,7 +450,7 @@ async function transitionConcept(
   if (error || !updated) throw error ?? new Error("failed to update concept status");
 
   if (fromState === "Draft" && toState === "Draft") {
-    await ontologyDB.addConceptComment(concept.id, actor.actorId, trimmedComment);
+    await ontologyDB.addConceptComment(concept.id, actor.actorId, gate.authorityBadge, trimmedComment);
   }
 
   const { authorId } = await resolveAuthor(actor);
@@ -462,7 +462,7 @@ async function transitionConcept(
     correlationId: eventBus.newCorrelationId(),
     payload: { conceptType, code, fromState, toState, version: concept.version },
     actorId: authorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
     versionEvent: gate.versionEvent,
     fromState,
     toState,

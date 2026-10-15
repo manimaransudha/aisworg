@@ -9,6 +9,7 @@ import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { listActiveNouns, activeMappingByNoun } from "./authorityVocabulary.js";
 import type { EvidenceDefinition, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "../../../dblayer/seuTypes.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { nextAvailablePatchVersion, semverError } from "../../../utils/version.js";
 
 export interface PolicyDefinitionSeedInput {
   code: string;
@@ -26,7 +27,6 @@ export interface PolicyDefinitionSeedInput {
 
 export type PolicyDefinitionValidationResult = { ok: true } | { ok: false; errors: string[] };
 
-const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 
 export async function listTransitionsForEntityType(entityType: string): Promise<string[]> {
   const { data } = await transitionDefinitionsDB.listAll();
@@ -36,14 +36,6 @@ export async function listTransitionsForEntityType(entityType: string): Promise<
     transitions.add(`${entityType}|${row.from_state}|${row.to_state}`);
   }
   return [...transitions].sort();
-}
-
-async function assertPolicyDefinitionCodeVersionFree(code: string, version: string, tenantId: string, excludeId?: string): Promise<string | null> {
-  const { data: existing } = await policyDefinitionsDB.findByCodeAndVersion(code, version, tenantId);
-  if (existing && existing.id !== excludeId) {
-    return `A Policy Definition with code "${code}" already exists at version ${version}. Pick a different starting version, or continue authoring that existing Definition instead of starting a new one.`;
-  }
-  return null;
 }
 
 const EXCEPTION_COMPOSITIONS = new Set(["all", "any"]);
@@ -186,13 +178,10 @@ export async function validatePolicyDefinitionSeed(seed: PolicyDefinitionSeedInp
   if (!seed.code?.trim()) errors.push("code is required");
   if (!seed.name?.trim()) errors.push("name is required");
   if (!seed.category?.trim()) errors.push("category is required");
-  if (!SEMVER_RE.test(seed.version ?? "")) errors.push(`version must be semver (x.y.z), got: "${seed.version}"`);
+  const versionError = semverError("version", seed.version);
+  if (versionError) errors.push(versionError);
 
   const tenantId = seed.tenantId ?? (await getPlatformTenantId());
-  if (seed.code?.trim() && SEMVER_RE.test(seed.version ?? "")) {
-    const collision = await assertPolicyDefinitionCodeVersionFree(seed.code, seed.version, tenantId, excludeId);
-    if (collision) errors.push(collision);
-  }
   if (!skipComposableChecks) {
     const { data: policySchemaRow } = await schemaDefinitionsDB.findLatest("Policy");
     if (policySchemaRow) {
@@ -306,7 +295,7 @@ export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string,
     applicabilityEnvironments: source.applicability_environments,
     conditions: source.conditions,
     scope: source.scope,
-    version: source.version,
+    version: await nextAvailablePatchVersion(source.version, async (candidate) => !!(await policyDefinitionsDB.findByCodeAndVersion(source.code, candidate, source.tenant_id)).data),
     authoredBy: copyMaster.id,
     authorBadge,
     draftContent: {

@@ -19,7 +19,7 @@ const CH13_EVENT_BY_TRANSITION: Record<string, string> = {
   "Released->Archived": "ParticipantArchived",
 };
 
-export async function transitionParticipant(input: { participantId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionParticipantResult> {
+export async function transitionParticipant(input: { participantId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionParticipantResult> {
   const { data: participant } = await participantsDB.findById(input.participantId);
   if (!participant) return { ok: false, reason: "not_found", detail: `Participant not found: ${input.participantId}` };
 
@@ -43,6 +43,7 @@ export async function transitionParticipant(input: { participantId: string; targ
     if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
 
   const { data: updated, error } = await participantsDB.updateStatus(participant.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update participant state");
@@ -57,7 +58,7 @@ export async function transitionParticipant(input: { participantId: string; targ
       correlationId: eventBus.newCorrelationId(),
       payload: { fromState, toState: input.targetState },
       actorId: input.actorId,
-      authorityBadge: gate.authorityBadge ?? "root",
+      authorityBadge: gate.authorityBadge,
     });
   }
 
@@ -75,7 +76,7 @@ export async function replaceParticipant(input: {
   newDisplayName: string;
   newParticipantMasterId?: string | null;
   actorRole: string;
-  actorId?: string;
+  actorId: string;
   authorBadge: string;
 }): Promise<ReplaceParticipantResult> {
   const { data: oldParticipant } = await participantsDB.findById(input.oldParticipantId);

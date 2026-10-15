@@ -1,0 +1,42 @@
+[
+  {
+    "code": "catalogue-first-sprint",
+    "title": "Catalogue first sprint",
+    "steps": [
+      "commission-o10",
+      "complete-requirements-specification-o10",
+      "complete-architecture-decision-record-o10",
+      "blocker-design-approval-pending",
+      "release-blocker-o10",
+      "complete-detailed-design-specification-o10"
+    ]
+  },
+  {
+    "code": "review-finding-to-obligation",
+    "title": "Review Finding to Obligation",
+    "steps": [
+      "commission-o10",
+      "finding-critical-dependency-vulnerability",
+      "convert-dependency-finding"
+    ]
+  },
+  {
+    "code": "release-readiness",
+    "title": "Release readiness",
+    "steps": [
+      "commission-o19",
+      "blocker-lending-api-not-ready",
+      "release-blocker-o19",
+      "commission-o21",
+      "blocker-app-store-rejects-build",
+      "release-blocker-o21"
+    ]
+  },
+  {
+    "code": "reader-privacy-compliance",
+    "title": "Reader privacy compliance",
+    "steps": [
+      "accept-reader-privacy-code"
+    ]
+  }
+]

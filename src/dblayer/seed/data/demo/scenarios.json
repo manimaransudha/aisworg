@@ -1,0 +1,485 @@
+[
+  {
+    "code": "commission-o10",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O10",
+    "description": "Commission an SEU against Objective O10 with Profile riverbend-catalogue-build.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O10"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-catalogue-build"
+    },
+    "sortOrder": 1
+  },
+  {
+    "code": "commission-o11",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O11",
+    "description": "Commission an SEU against Objective O11 with Profile riverbend-catalogue-build.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O11"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-catalogue-build"
+    },
+    "sortOrder": 2
+  },
+  {
+    "code": "commission-o12",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O12",
+    "description": "Commission an SEU against Objective O12 with Profile riverbend-lending-build.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O12"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-lending-build"
+    },
+    "sortOrder": 3
+  },
+  {
+    "code": "commission-o13",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O13",
+    "description": "Commission an SEU against Objective O13 with Profile riverbend-lending-build.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O13"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-lending-build"
+    },
+    "sortOrder": 4
+  },
+  {
+    "code": "commission-o14",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O14",
+    "description": "Commission an SEU against Objective O14 with Profile riverbend-lending-build.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O14"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-lending-build"
+    },
+    "sortOrder": 5
+  },
+  {
+    "code": "commission-o15",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O15",
+    "description": "Commission an SEU against Objective O15 with Profile riverbend-lending-build.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O15"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-lending-build"
+    },
+    "sortOrder": 6
+  },
+  {
+    "code": "commission-o16",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O16",
+    "description": "Commission an SEU against Objective O16 with Profile riverbend-notifications-build.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O16"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-notifications-build"
+    },
+    "sortOrder": 7
+  },
+  {
+    "code": "commission-o17",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O17",
+    "description": "Commission an SEU against Objective O17 with Profile riverbend-notifications-build.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O17"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-notifications-build"
+    },
+    "sortOrder": 8
+  },
+  {
+    "code": "commission-o19",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O19",
+    "description": "Commission an SEU against Objective O19 with Profile riverbend-release.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O19"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-release"
+    },
+    "sortOrder": 9
+  },
+  {
+    "code": "commission-o20",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O20",
+    "description": "Commission an SEU against Objective O20 with Profile riverbend-release.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O20"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-release"
+    },
+    "sortOrder": 10
+  },
+  {
+    "code": "commission-o21",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O21",
+    "description": "Commission an SEU against Objective O21 with Profile riverbend-release.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O21"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-release"
+    },
+    "sortOrder": 11
+  },
+  {
+    "code": "commission-o22",
+    "kind": "commission-objective",
+    "title": "Commission an SEU for O22",
+    "description": "Commission an SEU against Objective O22 with Profile riverbend-release.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O22"
+    },
+    "payload": {
+      "templateCode": "mobile-application",
+      "profileCode": "riverbend-release"
+    },
+    "sortOrder": 12
+  },
+  {
+    "code": "complete-requirements-specification-o10",
+    "kind": "complete-deliverable",
+    "title": "Complete requirements-specification on O10",
+    "description": "The assigned Participant reports the requirements-specification work as done for the O10 SEU.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O10",
+      "deliverableCode": "requirements-specification"
+    },
+    "payload": {},
+    "sortOrder": 13
+  },
+  {
+    "code": "complete-architecture-decision-record-o10",
+    "kind": "complete-deliverable",
+    "title": "Complete architecture-decision-record on O10",
+    "description": "The assigned Participant reports the architecture-decision-record work as done for the O10 SEU.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O10",
+      "deliverableCode": "architecture-decision-record"
+    },
+    "payload": {},
+    "sortOrder": 14
+  },
+  {
+    "code": "complete-detailed-design-specification-o10",
+    "kind": "complete-deliverable",
+    "title": "Complete detailed-design-specification on O10",
+    "description": "The assigned Participant reports the detailed-design-specification work as done for the O10 SEU.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O10",
+      "deliverableCode": "detailed-design-specification"
+    },
+    "payload": {},
+    "sortOrder": 15
+  },
+  {
+    "code": "blocker-test-environment-unavailable",
+    "kind": "raise-blocker",
+    "title": "Test environment is unavailable",
+    "description": "The Participant cannot continue because the test environment is down.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O12"
+    },
+    "payload": {
+      "outcome": "blocked"
+    },
+    "sortOrder": 16
+  },
+  {
+    "code": "blocker-lending-api-not-ready",
+    "kind": "raise-blocker",
+    "title": "Lending service API is not ready for integration",
+    "description": "Integration testing cannot start until the lending service API is available.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O19"
+    },
+    "payload": {
+      "outcome": "blocked"
+    },
+    "sortOrder": 17
+  },
+  {
+    "code": "blocker-app-store-rejects-build",
+    "kind": "raise-blocker",
+    "title": "App store review rejects the build",
+    "description": "The store review rejected the submitted build.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O21"
+    },
+    "payload": {
+      "outcome": "failed"
+    },
+    "sortOrder": 18
+  },
+  {
+    "code": "blocker-design-approval-pending",
+    "kind": "raise-blocker",
+    "title": "Design approval is pending",
+    "description": "Design work waits on an approval that has not been given.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O10"
+    },
+    "payload": {
+      "outcome": "blocked"
+    },
+    "sortOrder": 19
+  },
+  {
+    "code": "release-blocker-o10",
+    "kind": "release-blocker",
+    "title": "Release the open blocker on O10",
+    "description": "Work the oldest open Attention Item on the O10 SEU through Acknowledged, In Progress and Resolved.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O10"
+    },
+    "payload": {},
+    "sortOrder": 20
+  },
+  {
+    "code": "release-blocker-o12",
+    "kind": "release-blocker",
+    "title": "Release the open blocker on O12",
+    "description": "Work the oldest open Attention Item on the O12 SEU through Acknowledged, In Progress and Resolved.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O12"
+    },
+    "payload": {},
+    "sortOrder": 21
+  },
+  {
+    "code": "release-blocker-o19",
+    "kind": "release-blocker",
+    "title": "Release the open blocker on O19",
+    "description": "Work the oldest open Attention Item on the O19 SEU through Acknowledged, In Progress and Resolved.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O19"
+    },
+    "payload": {},
+    "sortOrder": 22
+  },
+  {
+    "code": "release-blocker-o21",
+    "kind": "release-blocker",
+    "title": "Release the open blocker on O21",
+    "description": "Work the oldest open Attention Item on the O21 SEU through Acknowledged, In Progress and Resolved.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O21"
+    },
+    "payload": {},
+    "sortOrder": 23
+  },
+  {
+    "code": "risk-lead-reviewer-unavailable",
+    "kind": "raise-risk",
+    "title": "Lead reviewer unavailable for the next two weeks",
+    "description": "Review capacity drops for two weeks.",
+    "category": "Risk",
+    "severity": "High",
+    "priority": "High",
+    "target": {
+      "objectiveKey": "O10"
+    },
+    "payload": {
+      "origin": "Participants"
+    },
+    "sortOrder": 24
+  },
+  {
+    "code": "risk-push-provider-terms-change",
+    "kind": "raise-risk",
+    "title": "Push provider changes its API terms",
+    "description": "The provider announces new API terms that affect push delivery.",
+    "category": "Risk",
+    "severity": "Medium",
+    "priority": "Medium",
+    "target": {
+      "objectiveKey": "O16"
+    },
+    "payload": {
+      "origin": "External systems"
+    },
+    "sortOrder": 25
+  },
+  {
+    "code": "risk-scope-change-requested",
+    "kind": "raise-risk",
+    "title": "Library board requests a scope change",
+    "description": "The board asks for a change to the agreed scope.",
+    "category": "Risk",
+    "severity": "Medium",
+    "priority": "High",
+    "target": {
+      "objectiveKey": "O12"
+    },
+    "payload": {
+      "origin": "Customer requests"
+    },
+    "sortOrder": 26
+  },
+  {
+    "code": "finding-critical-dependency-vulnerability",
+    "kind": "raise-finding",
+    "title": "Critical vulnerability in a dependency",
+    "description": "A review of the source code finds a critical vulnerability in a dependency.",
+    "category": null,
+    "severity": "High",
+    "priority": null,
+    "target": {
+      "objectiveKey": "O10",
+      "deliverableCode": "source-code"
+    },
+    "payload": {
+      "reviewName": "Dependency Security Review",
+      "reviewCategory": "Security Review"
+    },
+    "sortOrder": 27
+  },
+  {
+    "code": "convert-dependency-finding",
+    "kind": "convert-finding",
+    "title": "Convert the Finding to an Obligation",
+    "description": "Convert the open dependency Finding into an Obligation.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O10",
+      "findingTitle": "Critical vulnerability in a dependency"
+    },
+    "payload": {
+      "category": "Review Finding"
+    },
+    "sortOrder": 28
+  },
+  {
+    "code": "waive-dependency-finding",
+    "kind": "waive-blocker",
+    "title": "Waive the dependency Finding",
+    "description": "Waive the open dependency Finding.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {
+      "objectiveKey": "O10",
+      "findingTitle": "Critical vulnerability in a dependency"
+    },
+    "payload": {},
+    "sortOrder": 29
+  },
+  {
+    "code": "accept-reader-privacy-code",
+    "kind": "accept-ontology-code",
+    "title": "Accept the new compliance code",
+    "description": "Accept the reader privacy compliance code in the Ontology so the Pack can be activated.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {},
+    "payload": {
+      "conceptType": "compliance-name",
+      "code": "compliance-riverbend-reader-privacy",
+      "packCode": "compliance-riverbend-reader-privacy"
+    },
+    "sortOrder": 30
+  }
+]

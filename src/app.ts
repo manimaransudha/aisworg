@@ -11,11 +11,11 @@ const cookieParser = require("cookie-parser");
 import type { Request, Response, NextFunction } from "express";
 
 import { logger } from "./utils/logger.js";
+import pool from "./utils/db.js";
 import { requestLogger } from "./middleware/requestLogger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { gatekeeper } from "./middleware/gatekeeper.js";
 import { buildSessionUser } from "./middleware/auth.js";
-import { appConfig } from "./config/appconfig.js";
 import { configurePassport, passport } from "./domain/auth/passportConfig.js";
 import { doubleCsrf } from "csrf-csrf";
 
@@ -134,10 +134,10 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
         if (req.session?.user) {
             res.locals.navRouteVisible = await resolveNavRouteVisibility(req, [
                 { method: "GET", path: "/aisworg" },
+                { method: "GET", path: "/aisworg/seu/dashboard/demo" },
                 { method: "GET", path: "/aisworg/quickview" },
                 { method: "GET", path: "/aisworg/seu/objectives" },
                 { method: "GET", path: "/aisworg/seu/seus" },
-                { method: "GET", path: "/aisworg/seu/services" },
                 { method: "GET", path: "/aisworg/seu/attention" },
                 { method: "GET", path: "/aisworg/seu/telemetry" },
                 { method: "GET", path: "/aisworg/seu/knowledge/capital" },
@@ -166,6 +166,8 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
                 { method: "GET", path: "/aisworg/seu/tenant-admin/users" },
                 { method: "GET", path: "/aisworg/seu/data-migrations" },
                 { method: "GET", path: "/aisworg/seu/docs" },
+                { method: "GET", path: "/aisworg/seu/demo" },
+                { method: "GET", path: "/aisworg/seu/demo/root" },
             ]);
         }
     } catch (err) {
@@ -231,7 +233,6 @@ app.use(errorHandler);
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const server = app.listen(PORT, async () => {
-        await appConfig.init();
         logger.info(`AI SEU running on ${PORT}`);
         logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
         logger.info(`Log Level: ${process.env.LOG_LEVEL || "info"}`);
@@ -245,8 +246,20 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         throw err;
     });
 
-    process.on("SIGTERM", () => { logger.info("SIGTERM"); process.exit(0); });
-    process.on("SIGINT", () => { logger.info("SIGINT"); process.exit(0); });
+    let shuttingDown = false;
+    const shutdown = (signal: string): void => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        logger.info(signal);
+        const force = setTimeout(() => process.exit(0), 5000);
+        force.unref();
+        server.close(() => {
+            pool.end().catch((err: Error) => logger.error("Pool shutdown error", err)).finally(() => process.exit(0));
+        });
+        server.closeAllConnections();
+    };
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 export default app;

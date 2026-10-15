@@ -84,6 +84,7 @@ test("Policy waiver: transitionEngine.evaluate records the deviation, and checkS
     fromState,
     toState,
     requiredPolicyIds: [policy!.id],
+    verb: "resolve",
   });
   assert.equal(definitionError, undefined);
 

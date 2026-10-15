@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateCapabilityDefinitionWriteAgainstSchema } from "../routes/seu/core/capabilityDefinitionWriteValidator.js";
 import type { DbResult, CapabilityDefinitionRow, CapabilityRole } from "./seuTypes.js";
-import { getPlatformTenantId } from "./constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "./constants.js";
  
 export const capabilityDefinitionsDB = {
   async createDraft(input: {
@@ -15,20 +15,15 @@ export const capabilityDefinitionsDB = {
     authoredBy: string;
     authorBadge: string;
     draftContent?: Record<string, unknown>;
-    tenantId?: string;
+    tenantId: string;
     parentCapabilityDefinitionId?: string | null;
     schemaDefinitionId: string;
   }): Promise<DbResult<CapabilityDefinitionRow>> {
     try {
-      const version = input.version ?? "1.0.0";
+      const version = input.version ?? INITIAL_VERSION;
       const draftContent = input.draftContent ?? {};
-      const tenantId = input.tenantId ?? (await getPlatformTenantId());
+      const tenantId = input.tenantId;
 
-      const { rows: dupRows } = await query<{ id: string }>(
-        "SELECT id FROM capability_definitions WHERE code = $1 AND version = $2 AND tenant_id = $3",
-        [input.code, version, tenantId]
-      );
-      if (dupRows.length > 0) return { data: undefined } as DbResult<CapabilityDefinitionRow>;
 
       const errors = await validateCapabilityDefinitionWriteAgainstSchema({
         code: input.code,
@@ -48,7 +43,6 @@ export const capabilityDefinitionsDB = {
       const { rows } = await query<CapabilityDefinitionRow>(
         `INSERT INTO capability_definitions (code, default_label, description, roles, version, status, authored_by, author_badge, draft_content, tenant_id, parent_capability_definition_id, schema_definition_id)
          VALUES ($1, $2, $3, $4, $5, 'Defined', $6, $7, $8, $9, $10, $11)
-         ON CONFLICT (code, version, tenant_id) DO NOTHING
          RETURNING *`,
         [
           input.code,

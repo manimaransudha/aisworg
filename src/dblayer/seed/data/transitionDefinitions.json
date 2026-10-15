@@ -3,21 +3,21 @@
     "entityType": "SEU",
     "fromState": "Pending",
     "toState": "Commissioned",
-    "requiredAuthorityRuleCode": null,
+    "verb": "commission",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "Pending",
     "toState": "Failed",
-    "requiredAuthorityRuleCode": null,
+    "verb": "reject",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "EBM",
     "fromState": "Composed",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "validate",
     "requiredPolicyCodes": [],
     "eventType": "EBMValidated"
   },
@@ -25,7 +25,7 @@
     "entityType": "EBM",
     "fromState": "Validated",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": [],
     "eventType": "EBMActivated"
   },
@@ -33,70 +33,70 @@
     "entityType": "EBM",
     "fromState": "Composed",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": null,
+    "verb": "retire",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "Pending",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "validate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "Validated",
     "toState": "Composed",
-    "requiredAuthorityRuleCode": null,
+    "verb": "compose",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "Composed",
     "toState": "RuntimeAllocated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "allocate_runtime",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "RuntimeAllocated",
     "toState": "KnowledgeInitialised",
-    "requiredAuthorityRuleCode": null,
+    "verb": "initialise_knowledge",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "KnowledgeInitialised",
     "toState": "ParticipantsRecruited",
-    "requiredAuthorityRuleCode": null,
+    "verb": "recruit_participants",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "ParticipantsRecruited",
     "toState": "Commissioned",
-    "requiredAuthorityRuleCode": null,
+    "verb": "commission",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "Commissioned",
     "toState": "Configured",
-    "requiredAuthorityRuleCode": null,
+    "verb": "configure",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "Configured",
     "toState": "Activated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "Pending",
     "toState": "Configured",
-    "requiredAuthorityRuleCode": null,
+    "verb": "configure",
     "requiredPolicyCodes": [],
     "eventType": "SEUConfigured"
   },
@@ -104,7 +104,7 @@
     "entityType": "SEU",
     "fromState": "Configured",
     "toState": "Commissioned",
-    "requiredAuthorityRuleCode": null,
+    "verb": "commission",
     "requiredPolicyCodes": [],
     "eventType": "SEUCommissioned"
   },
@@ -112,7 +112,7 @@
     "entityType": "SEU",
     "fromState": "Commissioned",
     "toState": "Activated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": [],
     "eventType": "SEUActivated"
   },
@@ -120,7 +120,7 @@
     "entityType": "SEU",
     "fromState": "Activated",
     "toState": "Operational",
-    "requiredAuthorityRuleCode": null,
+    "verb": "operationalise",
     "requiredPolicyCodes": [],
     "trigger": "governed",
     "eventType": "SEUOperational"
@@ -129,42 +129,42 @@
     "entityType": "SEU",
     "fromState": "Operational",
     "toState": "Suspended",
-    "requiredAuthorityRuleCode": null,
+    "verb": "suspend",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "Suspended",
     "toState": "Operational",
-    "requiredAuthorityRuleCode": null,
+    "verb": "resume",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "Operational",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": null,
+    "verb": "retire",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "Suspended",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": null,
+    "verb": "retire",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
     "fromState": "Retired",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "archive",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Deliverable",
     "fromState": "Defined",
     "toState": "In Progress",
-    "requiredAuthorityRuleCode": "authority-deliverable-creator",
+    "verb": "create",
     "requiredPolicyCodes": [
       "policy-deliverable-transition-baseline"
     ]
@@ -173,7 +173,7 @@
     "entityType": "Deliverable",
     "fromState": "In Progress",
     "toState": "Approved",
-    "requiredAuthorityRuleCode": "authority-deliverable-approver",
+    "verb": "approve",
     "requiredPolicyCodes": [
       "policy-deliverable-transition-baseline"
     ]
@@ -182,7 +182,7 @@
     "entityType": "Deliverable",
     "fromState": "Approved",
     "toState": "Baselined",
-    "requiredAuthorityRuleCode": "authority-deliverable-approver",
+    "verb": "baseline",
     "requiredPolicyCodes": [
       "policy-deliverable-transition-baseline"
     ]
@@ -191,7 +191,7 @@
     "entityType": "Objective",
     "fromState": "Proposed",
     "toState": "Active",
-    "requiredAuthorityRuleCode": "authority-transition-objective",
+    "verb": "activate",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -204,7 +204,7 @@
     "entityType": "Objective",
     "fromState": "Active",
     "toState": "Achieved",
-    "requiredAuthorityRuleCode": "authority-transition-objective",
+    "verb": "achieve",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -216,7 +216,7 @@
     "entityType": "Objective",
     "fromState": "Active",
     "toState": "Reject",
-    "requiredAuthorityRuleCode": "authority-transition-objective",
+    "verb": "reject",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -226,7 +226,7 @@
     "entityType": "Objective",
     "fromState": "Active",
     "toState": "Superseded",
-    "requiredAuthorityRuleCode": "authority-transition-objective",
+    "verb": "supersede",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -237,7 +237,7 @@
     "entityType": "Objective",
     "fromState": "Active",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": "authority-transition-objective",
+    "verb": "retire",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -248,7 +248,7 @@
     "entityType": "Objective",
     "fromState": "Achieved",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": "authority-transition-objective",
+    "verb": "archive",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -259,7 +259,7 @@
     "entityType": "Objective",
     "fromState": "Superseded",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": "authority-transition-objective",
+    "verb": "archive",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -270,7 +270,7 @@
     "entityType": "Objective",
     "fromState": "Retired",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": "authority-transition-objective",
+    "verb": "archive",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -281,9 +281,9 @@
     "entityType": "Obligation",
     "fromState": "Identified",
     "toState": "Analysed",
+    "verb": "analyse",
     "eventType": "ObligationUpdated",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -292,9 +292,9 @@
     "entityType": "Obligation",
     "fromState": "Analysed",
     "toState": "Assigned",
+    "verb": "assign",
     "eventType": "ObligationAssigned",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -303,9 +303,9 @@
     "entityType": "Obligation",
     "fromState": "Assigned",
     "toState": "In Progress",
+    "verb": "start",
     "eventType": "ObligationProcessing",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -314,9 +314,9 @@
     "entityType": "Obligation",
     "fromState": "In Progress",
     "toState": "Resolved",
+    "verb": "resolve",
     "eventType": "ObligationResolved",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -325,9 +325,9 @@
     "entityType": "Obligation",
     "fromState": "Resolved",
     "toState": "Verified",
+    "verb": "verify",
     "eventType": "ObligationVerified",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -336,9 +336,9 @@
     "entityType": "Obligation",
     "fromState": "Verified",
     "toState": "Closed",
+    "verb": "close",
     "eventType": "ObligationClosed",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -347,9 +347,9 @@
     "entityType": "Obligation",
     "fromState": "Closed",
     "toState": "Archived",
+    "verb": "archive",
     "eventType": "ObligationArchived",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -358,9 +358,9 @@
     "entityType": "Obligation",
     "fromState": "Closed",
     "toState": "Reopened",
+    "verb": "reopen",
     "eventType": "ObligationReopened",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -369,9 +369,9 @@
     "entityType": "Obligation",
     "fromState": "Reopened",
     "toState": "In Progress",
+    "verb": "start",
     "eventType": "ObligationProcessing",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -380,9 +380,9 @@
     "entityType": "Obligation",
     "fromState": "Identified",
     "toState": "Escalated",
+    "verb": "escalate",
     "eventType": "ObligationEscalated",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -391,9 +391,9 @@
     "entityType": "Obligation",
     "fromState": "Analysed",
     "toState": "Escalated",
+    "verb": "escalate",
     "eventType": "ObligationEscalated",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -402,9 +402,9 @@
     "entityType": "Obligation",
     "fromState": "Assigned",
     "toState": "Escalated",
+    "verb": "escalate",
     "eventType": "ObligationEscalated",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -413,9 +413,9 @@
     "entityType": "Obligation",
     "fromState": "In Progress",
     "toState": "Escalated",
+    "verb": "escalate",
     "eventType": "ObligationEscalated",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -424,9 +424,9 @@
     "entityType": "Obligation",
     "fromState": "Resolved",
     "toState": "Escalated",
+    "verb": "escalate",
     "eventType": "ObligationEscalated",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -435,9 +435,9 @@
     "entityType": "Obligation",
     "fromState": "Verified",
     "toState": "Escalated",
+    "verb": "escalate",
     "eventType": "ObligationEscalated",
     "versionEvent": "VersionCreated",
-    "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
     ]
@@ -446,7 +446,7 @@
     "entityType": "Evidence",
     "fromState": "Collected",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": "authority-transition-evidence",
+    "verb": "validate",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
     ],
@@ -457,7 +457,7 @@
     "entityType": "Evidence",
     "fromState": "Validated",
     "toState": "Accepted",
-    "requiredAuthorityRuleCode": "authority-transition-evidence",
+    "verb": "accept",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
     ],
@@ -467,7 +467,7 @@
     "entityType": "Evidence",
     "fromState": "Accepted",
     "toState": "Referenced",
-    "requiredAuthorityRuleCode": "authority-transition-evidence",
+    "verb": "reference",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
     ],
@@ -477,7 +477,7 @@
     "entityType": "Evidence",
     "fromState": "Referenced",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": "authority-transition-evidence",
+    "verb": "archive",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
     ],
@@ -487,7 +487,7 @@
     "entityType": "Evidence",
     "fromState": "Collected",
     "toState": "Rejected",
-    "requiredAuthorityRuleCode": "authority-transition-evidence",
+    "verb": "reject",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
     ],
@@ -497,7 +497,7 @@
     "entityType": "Evidence",
     "fromState": "Validated",
     "toState": "Rejected",
-    "requiredAuthorityRuleCode": "authority-transition-evidence",
+    "verb": "reject",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
     ],
@@ -507,7 +507,7 @@
     "entityType": "Knowledge",
     "fromState": "Observed",
     "toState": "Proposed",
-    "requiredAuthorityRuleCode": null,
+    "verb": "propose",
     "requiredPolicyCodes": [],
     "eventType": "KnowledgeProposed",
     "versionEvent": "VersionCreated"
@@ -516,7 +516,7 @@
     "entityType": "Knowledge",
     "fromState": "Proposed",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "validate",
     "requiredPolicyCodes": [],
     "eventType": "KnowledgeValidated",
     "versionEvent": "VersionValidated"
@@ -525,7 +525,7 @@
     "entityType": "Knowledge",
     "fromState": "Validated",
     "toState": "Accepted",
-    "requiredAuthorityRuleCode": null,
+    "verb": "accept",
     "requiredPolicyCodes": [],
     "eventType": "KnowledgeAccepted",
     "versionEvent": "VersionActivated"
@@ -534,7 +534,7 @@
     "entityType": "Knowledge",
     "fromState": "Accepted",
     "toState": "Published",
-    "requiredAuthorityRuleCode": null,
+    "verb": "publish",
     "requiredPolicyCodes": [],
     "eventType": "KnowledgePublished",
     "versionEvent": "VersionPublished"
@@ -543,7 +543,7 @@
     "entityType": "Knowledge",
     "fromState": "Published",
     "toState": "Deprecated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "deprecate",
     "requiredPolicyCodes": [],
     "eventType": "KnowledgeDeprecated",
     "versionEvent": "VersionDeprecated"
@@ -552,7 +552,7 @@
     "entityType": "Knowledge",
     "fromState": "Deprecated",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "archive",
     "requiredPolicyCodes": [],
     "eventType": "KnowledgeArchived",
     "versionEvent": "VersionArchived"
@@ -561,7 +561,7 @@
     "entityType": "Decision",
     "fromState": "Identified",
     "toState": "Analysed",
-    "requiredAuthorityRuleCode": null,
+    "verb": "analyse",
     "requiredPolicyCodes": [],
     "eventType": "DecisionAnalysed"
   },
@@ -569,7 +569,7 @@
     "entityType": "Decision",
     "fromState": "Analysed",
     "toState": "Proposed",
-    "requiredAuthorityRuleCode": null,
+    "verb": "propose",
     "requiredPolicyCodes": [],
     "eventType": "DecisionProposed",
     "versionEvent": "VersionCreated"
@@ -578,7 +578,7 @@
     "entityType": "Decision",
     "fromState": "Proposed",
     "toState": "Reviewed",
-    "requiredAuthorityRuleCode": null,
+    "verb": "review",
     "requiredPolicyCodes": [],
     "eventType": "DecisionReviewed",
     "versionEvent": "VersionValidated"
@@ -587,7 +587,7 @@
     "entityType": "Decision",
     "fromState": "Reviewed",
     "toState": "Approved",
-    "requiredAuthorityRuleCode": null,
+    "verb": "approve",
     "requiredPolicyCodes": [],
     "eventType": "DecisionApproved",
     "versionEvent": "VersionPublished"
@@ -596,7 +596,7 @@
     "entityType": "Decision",
     "fromState": "Approved",
     "toState": "Applied",
-    "requiredAuthorityRuleCode": null,
+    "verb": "apply",
     "requiredPolicyCodes": [],
     "eventType": "DecisionApplied",
     "versionEvent": "VersionActivated"
@@ -605,7 +605,7 @@
     "entityType": "Decision",
     "fromState": "Applied",
     "toState": "Superseded",
-    "requiredAuthorityRuleCode": null,
+    "verb": "supersede",
     "requiredPolicyCodes": [],
     "eventType": "DecisionSuperseded",
     "versionEvent": "VersionSuperseded"
@@ -614,7 +614,7 @@
     "entityType": "Decision",
     "fromState": "Superseded",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "archive",
     "requiredPolicyCodes": [],
     "eventType": "DecisionArchived",
     "versionEvent": "VersionArchived"
@@ -623,7 +623,7 @@
     "entityType": "KnowledgeScope",
     "fromState": "SEU",
     "toState": "Capability",
-    "requiredAuthorityRuleCode": null,
+    "verb": "promote_to_capability",
     "requiredPolicyCodes": [],
     "eventType": "KnowledgeScopePromoted"
   },
@@ -631,7 +631,7 @@
     "entityType": "KnowledgeScope",
     "fromState": "Capability",
     "toState": "Enterprise",
-    "requiredAuthorityRuleCode": null,
+    "verb": "promote_to_enterprise",
     "requiredPolicyCodes": [],
     "eventType": "KnowledgeScopePromoted"
   },
@@ -639,7 +639,7 @@
     "entityType": "KnowledgeScope",
     "fromState": "Enterprise",
     "toState": "Platform",
-    "requiredAuthorityRuleCode": null,
+    "verb": "promote_to_platform",
     "requiredPolicyCodes": [],
     "eventType": "KnowledgeScopePromoted"
   },
@@ -647,7 +647,7 @@
     "entityType": "AttentionItem",
     "fromState": "Created",
     "toState": "Delivered",
-    "requiredAuthorityRuleCode": "authority-transition-attentionitem",
+    "verb": "deliver",
     "requiredPolicyCodes": [
       "policy-attentionitem-transition-baseline"
     ]
@@ -656,7 +656,7 @@
     "entityType": "AttentionItem",
     "fromState": "Delivered",
     "toState": "Acknowledged",
-    "requiredAuthorityRuleCode": "authority-transition-attentionitem",
+    "verb": "acknowledge",
     "requiredPolicyCodes": [
       "policy-attentionitem-transition-baseline"
     ]
@@ -665,7 +665,7 @@
     "entityType": "AttentionItem",
     "fromState": "Acknowledged",
     "toState": "In Progress",
-    "requiredAuthorityRuleCode": "authority-transition-attentionitem",
+    "verb": "start",
     "requiredPolicyCodes": [
       "policy-attentionitem-transition-baseline"
     ]
@@ -674,7 +674,7 @@
     "entityType": "AttentionItem",
     "fromState": "In Progress",
     "toState": "Resolved",
-    "requiredAuthorityRuleCode": "authority-transition-attentionitem",
+    "verb": "resolve",
     "requiredPolicyCodes": [
       "policy-attentionitem-transition-baseline"
     ]
@@ -683,7 +683,7 @@
     "entityType": "AttentionItem",
     "fromState": "Resolved",
     "toState": "Closed",
-    "requiredAuthorityRuleCode": "authority-transition-attentionitem",
+    "verb": "close",
     "requiredPolicyCodes": [
       "policy-attentionitem-transition-baseline"
     ]
@@ -692,7 +692,7 @@
     "entityType": "ExternalInteraction",
     "fromState": "Created",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": "authority-transition-externalinteraction",
+    "verb": "validate",
     "requiredPolicyCodes": [
       "policy-externalinteraction-transition-baseline"
     ]
@@ -701,7 +701,7 @@
     "entityType": "ExternalInteraction",
     "fromState": "Validated",
     "toState": "Dispatched",
-    "requiredAuthorityRuleCode": "authority-transition-externalinteraction",
+    "verb": "dispatch",
     "requiredPolicyCodes": [
       "policy-externalinteraction-transition-baseline"
     ]
@@ -710,7 +710,7 @@
     "entityType": "ExternalInteraction",
     "fromState": "Dispatched",
     "toState": "Acknowledged",
-    "requiredAuthorityRuleCode": "authority-transition-externalinteraction",
+    "verb": "acknowledge",
     "requiredPolicyCodes": [
       "policy-externalinteraction-transition-baseline"
     ]
@@ -719,7 +719,7 @@
     "entityType": "ExternalInteraction",
     "fromState": "Dispatched",
     "toState": "Failed",
-    "requiredAuthorityRuleCode": "authority-transition-externalinteraction",
+    "verb": "fail",
     "requiredPolicyCodes": [
       "policy-externalinteraction-transition-baseline"
     ]
@@ -728,7 +728,7 @@
     "entityType": "ExternalInteraction",
     "fromState": "Acknowledged",
     "toState": "Completed",
-    "requiredAuthorityRuleCode": "authority-transition-externalinteraction",
+    "verb": "complete",
     "requiredPolicyCodes": [
       "policy-externalinteraction-transition-baseline"
     ]
@@ -737,7 +737,7 @@
     "entityType": "ExternalInteraction",
     "fromState": "Completed",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": "authority-transition-externalinteraction",
+    "verb": "archive",
     "requiredPolicyCodes": [
       "policy-externalinteraction-transition-baseline"
     ]
@@ -746,7 +746,7 @@
     "entityType": "Pack",
     "fromState": "Draft",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": "authority-transition-pack",
+    "verb": "validate",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
     ],
@@ -757,7 +757,7 @@
     "entityType": "Pack",
     "fromState": "Validated",
     "toState": "Published",
-    "requiredAuthorityRuleCode": "authority-transition-pack",
+    "verb": "publish",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
     ],
@@ -768,7 +768,7 @@
     "entityType": "Pack",
     "fromState": "Published",
     "toState": "Active",
-    "requiredAuthorityRuleCode": "authority-transition-pack-elevated",
+    "verb": "activate",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
     ],
@@ -779,7 +779,7 @@
     "entityType": "Pack",
     "fromState": "Retired",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": "authority-transition-pack-elevated",
+    "verb": "archive",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
     ],
@@ -790,7 +790,7 @@
     "entityType": "Pack",
     "fromState": "Active",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": "authority-transition-pack-elevated",
+    "verb": "retire",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
     ],
@@ -801,7 +801,7 @@
     "entityType": "Pack",
     "fromState": "Validated",
     "toState": "Draft",
-    "requiredAuthorityRuleCode": "authority-transition-pack",
+    "verb": "reject",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
     ],
@@ -811,7 +811,7 @@
     "entityType": "Participant",
     "fromState": "Created",
     "toState": "Available",
-    "requiredAuthorityRuleCode": "authority-transition-participant",
+    "verb": "make_available",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
     ]
@@ -820,7 +820,7 @@
     "entityType": "Participant",
     "fromState": "Available",
     "toState": "Assigned",
-    "requiredAuthorityRuleCode": "authority-transition-participant",
+    "verb": "assign",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
     ]
@@ -829,7 +829,7 @@
     "entityType": "Participant",
     "fromState": "Assigned",
     "toState": "Executing",
-    "requiredAuthorityRuleCode": "authority-transition-participant",
+    "verb": "execute",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
     ]
@@ -838,7 +838,7 @@
     "entityType": "Participant",
     "fromState": "Executing",
     "toState": "Idle",
-    "requiredAuthorityRuleCode": "authority-transition-participant",
+    "verb": "idle",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
     ]
@@ -847,7 +847,7 @@
     "entityType": "Participant",
     "fromState": "Idle",
     "toState": "Assigned",
-    "requiredAuthorityRuleCode": "authority-transition-participant",
+    "verb": "assign",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
     ]
@@ -856,7 +856,7 @@
     "entityType": "Participant",
     "fromState": "Idle",
     "toState": "Released",
-    "requiredAuthorityRuleCode": "authority-transition-participant",
+    "verb": "release",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
     ]
@@ -865,7 +865,7 @@
     "entityType": "Participant",
     "fromState": "Released",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": "authority-transition-participant",
+    "verb": "archive",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
     ]
@@ -874,7 +874,7 @@
     "entityType": "Participant",
     "fromState": "Available",
     "toState": "Released",
-    "requiredAuthorityRuleCode": "authority-transition-participant",
+    "verb": "release",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
     ]
@@ -883,7 +883,7 @@
     "entityType": "Participant",
     "fromState": "Assigned",
     "toState": "Released",
-    "requiredAuthorityRuleCode": "authority-transition-participant",
+    "verb": "release",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
     ]
@@ -892,7 +892,7 @@
     "entityType": "Participant",
     "fromState": "Executing",
     "toState": "Released",
-    "requiredAuthorityRuleCode": "authority-transition-participant",
+    "verb": "release",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
     ]
@@ -901,56 +901,56 @@
     "entityType": "Review",
     "fromState": "Planned",
     "toState": "Prepared",
-    "requiredAuthorityRuleCode": null,
+    "verb": "prepare",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Review",
     "fromState": "Prepared",
     "toState": "In Progress",
-    "requiredAuthorityRuleCode": null,
+    "verb": "start",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Review",
     "fromState": "In Progress",
     "toState": "Completed",
-    "requiredAuthorityRuleCode": null,
+    "verb": "complete",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Review",
     "fromState": "Completed",
     "toState": "Accepted",
-    "requiredAuthorityRuleCode": null,
+    "verb": "accept",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Review",
     "fromState": "Accepted",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "archive",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Finding",
     "fromState": "Open",
     "toState": "Resolved",
-    "requiredAuthorityRuleCode": null,
+    "verb": "resolve",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Finding",
     "fromState": "Open",
     "toState": "Waived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "waive",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Template",
     "fromState": "Draft",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "validate",
     "requiredPolicyCodes": [],
     "eventType": "TemplateValidated",
     "versionEvent": "VersionValidated"
@@ -959,7 +959,7 @@
     "entityType": "Template",
     "fromState": "Validated",
     "toState": "Published",
-    "requiredAuthorityRuleCode": null,
+    "verb": "publish",
     "requiredPolicyCodes": [],
     "eventType": "TemplatePublished",
     "versionEvent": "VersionPublished"
@@ -968,7 +968,7 @@
     "entityType": "Template",
     "fromState": "Published",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": [],
     "eventType": "TemplateActivated",
     "versionEvent": "VersionActivated"
@@ -977,7 +977,7 @@
     "entityType": "Template",
     "fromState": "Active",
     "toState": "Deprecated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "deprecate",
     "requiredPolicyCodes": [],
     "eventType": "TemplateDeprecated",
     "versionEvent": "VersionDeprecated"
@@ -986,7 +986,7 @@
     "entityType": "Template",
     "fromState": "Deprecated",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": null,
+    "verb": "retire",
     "requiredPolicyCodes": [],
     "eventType": "TemplateRetired",
     "versionEvent": "VersionSuperseded"
@@ -995,7 +995,7 @@
     "entityType": "Template",
     "fromState": "Retired",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "archive",
     "requiredPolicyCodes": [],
     "eventType": "TemplateArchived",
     "versionEvent": "VersionArchived"
@@ -1004,91 +1004,91 @@
     "entityType": "Template",
     "fromState": "Deprecated",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Template",
     "fromState": "Retired",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Template",
     "fromState": "Archived",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Deliverable",
     "fromState": "Draft",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "validate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Deliverable",
     "fromState": "Validated",
     "toState": "Published",
-    "requiredAuthorityRuleCode": null,
+    "verb": "publish",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Deliverable",
     "fromState": "Published",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Deliverable",
     "fromState": "Active",
     "toState": "Deprecated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "deprecate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Deliverable",
     "fromState": "Deprecated",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": null,
+    "verb": "retire",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Deliverable",
     "fromState": "Retired",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "archive",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Deliverable",
     "fromState": "Deprecated",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Deliverable",
     "fromState": "Retired",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Deliverable",
     "fromState": "Archived",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Profile",
     "fromState": "Draft",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "validate",
     "requiredPolicyCodes": [],
     "eventType": "ProfileValidated",
     "versionEvent": "VersionValidated"
@@ -1097,7 +1097,7 @@
     "entityType": "Profile",
     "fromState": "Validated",
     "toState": "Published",
-    "requiredAuthorityRuleCode": null,
+    "verb": "publish",
     "requiredPolicyCodes": [],
     "eventType": "ProfilePublished",
     "versionEvent": "VersionPublished"
@@ -1106,7 +1106,7 @@
     "entityType": "Profile",
     "fromState": "Published",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": [],
     "eventType": "ProfileActivated",
     "versionEvent": "VersionActivated"
@@ -1115,7 +1115,7 @@
     "entityType": "Profile",
     "fromState": "Active",
     "toState": "Deprecated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "deprecate",
     "requiredPolicyCodes": [],
     "eventType": "ProfileDeprecated",
     "versionEvent": "VersionDeprecated"
@@ -1124,7 +1124,7 @@
     "entityType": "Profile",
     "fromState": "Deprecated",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": null,
+    "verb": "retire",
     "requiredPolicyCodes": [],
     "eventType": "ProfileRetired",
     "versionEvent": "VersionSuperseded"
@@ -1133,7 +1133,7 @@
     "entityType": "Profile",
     "fromState": "Retired",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "archive",
     "requiredPolicyCodes": [],
     "eventType": "ProfileArchived",
     "versionEvent": "VersionArchived"
@@ -1142,28 +1142,28 @@
     "entityType": "Profile",
     "fromState": "Deprecated",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Profile",
     "fromState": "Retired",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Profile",
     "fromState": "Archived",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "Service",
     "fromState": "Defined",
     "toState": "Published",
-    "requiredAuthorityRuleCode": null,
+    "verb": "publish",
     "requiredPolicyCodes": [],
     "eventType": "ServiceDefinitionPublished",
     "versionEvent": "VersionPublished"
@@ -1172,7 +1172,7 @@
     "entityType": "Service",
     "fromState": "Published",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": [],
     "eventType": "ServiceDefinitionActivated",
     "versionEvent": "VersionActivated"
@@ -1181,7 +1181,7 @@
     "entityType": "Service",
     "fromState": "Active",
     "toState": "Deprecated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "deprecate",
     "requiredPolicyCodes": [],
     "eventType": "ServiceDefinitionDeprecated",
     "versionEvent": "VersionDeprecated"
@@ -1190,7 +1190,7 @@
     "entityType": "Service",
     "fromState": "Deprecated",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": null,
+    "verb": "retire",
     "requiredPolicyCodes": [],
     "eventType": "ServiceDefinitionRetired",
     "versionEvent": "VersionSuperseded"
@@ -1199,7 +1199,7 @@
     "entityType": "Service",
     "fromState": "Retired",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "archive",
     "requiredPolicyCodes": [],
     "eventType": "ServiceDefinitionArchived",
     "versionEvent": "VersionArchived"
@@ -1208,7 +1208,7 @@
     "entityType": "Capability",
     "fromState": "Defined",
     "toState": "Published",
-    "requiredAuthorityRuleCode": null,
+    "verb": "publish",
     "requiredPolicyCodes": [],
     "eventType": "CapabilityDefinitionPublished",
     "versionEvent": "VersionPublished"
@@ -1217,7 +1217,7 @@
     "entityType": "Capability",
     "fromState": "Published",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": [],
     "eventType": "CapabilityDefinitionActivated",
     "versionEvent": "VersionActivated"
@@ -1226,7 +1226,7 @@
     "entityType": "Capability",
     "fromState": "Active",
     "toState": "Deprecated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "deprecate",
     "requiredPolicyCodes": [],
     "eventType": "CapabilityDefinitionDeprecated",
     "versionEvent": "VersionDeprecated"
@@ -1235,7 +1235,7 @@
     "entityType": "Capability",
     "fromState": "Deprecated",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": null,
+    "verb": "retire",
     "requiredPolicyCodes": [],
     "eventType": "CapabilityDefinitionRetired",
     "versionEvent": "VersionSuperseded"
@@ -1244,7 +1244,7 @@
     "entityType": "Capability",
     "fromState": "Retired",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "archive",
     "requiredPolicyCodes": [],
     "eventType": "CapabilityDefinitionArchived",
     "versionEvent": "VersionArchived"
@@ -1253,7 +1253,7 @@
     "entityType": "Policy",
     "fromState": "Draft",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "validate",
     "requiredPolicyCodes": [],
     "eventType": "PolicyDefinitionValidated",
     "versionEvent": "VersionValidated"
@@ -1262,7 +1262,7 @@
     "entityType": "Policy",
     "fromState": "Validated",
     "toState": "Published",
-    "requiredAuthorityRuleCode": null,
+    "verb": "publish",
     "requiredPolicyCodes": [],
     "eventType": "PolicyDefinitionPublished",
     "versionEvent": "VersionPublished"
@@ -1271,7 +1271,7 @@
     "entityType": "Policy",
     "fromState": "Published",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "activate",
     "requiredPolicyCodes": [],
     "eventType": "PolicyDefinitionActivated",
     "versionEvent": "VersionActivated"
@@ -1280,7 +1280,7 @@
     "entityType": "Policy",
     "fromState": "Active",
     "toState": "Deprecated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "deprecate",
     "requiredPolicyCodes": [],
     "eventType": "PolicyDefinitionDeprecated",
     "versionEvent": "VersionDeprecated"
@@ -1289,7 +1289,7 @@
     "entityType": "Policy",
     "fromState": "Deprecated",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": null,
+    "verb": "retire",
     "requiredPolicyCodes": [],
     "eventType": "PolicyDefinitionRetired",
     "versionEvent": "VersionSuperseded"
@@ -1298,7 +1298,7 @@
     "entityType": "Policy",
     "fromState": "Retired",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "archive",
     "requiredPolicyCodes": [],
     "eventType": "PolicyDefinitionArchived",
     "versionEvent": "VersionArchived"
@@ -1307,7 +1307,7 @@
     "entityType": "Ontology",
     "fromState": "Active",
     "toState": "Deprecated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "deprecate",
     "requiredPolicyCodes": [],
     "eventType": "ConceptDeprecated",
     "versionEvent": "VersionDeprecated"
@@ -1316,7 +1316,7 @@
     "entityType": "Ontology",
     "fromState": "Deprecated",
     "toState": "Retired",
-    "requiredAuthorityRuleCode": null,
+    "verb": "retire",
     "requiredPolicyCodes": [],
     "eventType": "OntologyConceptRetired",
     "versionEvent": "VersionSuperseded"
@@ -1325,7 +1325,7 @@
     "entityType": "Ontology",
     "fromState": "Retired",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": null,
+    "verb": "archive",
     "requiredPolicyCodes": [],
     "eventType": "OntologyConceptArchived",
     "versionEvent": "VersionArchived"
@@ -1334,7 +1334,7 @@
     "entityType": "Ontology",
     "fromState": "Draft",
     "toState": "Active",
-    "requiredAuthorityRuleCode": null,
+    "verb": "approve",
     "requiredPolicyCodes": [],
     "eventType": "ConceptApproved",
     "versionEvent": "VersionActivated"
@@ -1343,7 +1343,7 @@
     "entityType": "Ontology",
     "fromState": "Draft",
     "toState": "Draft",
-    "requiredAuthorityRuleCode": null,
+    "verb": "approve",
     "requiredPolicyCodes": [],
     "eventType": "ConceptRejected",
     "versionEvent": null
@@ -1352,7 +1352,7 @@
     "entityType": "SchemaDefinition",
     "fromState": "Created",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": null,
+    "verb": "validate",
     "requiredPolicyCodes": [],
     "trigger": "governed",
     "eventType": "SDKElementSchemaValidated",
@@ -1362,7 +1362,7 @@
     "entityType": "SchemaDefinition",
     "fromState": "Validated",
     "toState": "Tested",
-    "requiredAuthorityRuleCode": null,
+    "verb": "test",
     "requiredPolicyCodes": [],
     "trigger": "governed",
     "eventType": "SDKElementSchemaTested",
@@ -1372,7 +1372,7 @@
     "entityType": "SchemaDefinition",
     "fromState": "Tested",
     "toState": "Packaged",
-    "requiredAuthorityRuleCode": null,
+    "verb": "package",
     "requiredPolicyCodes": [],
     "trigger": "governed",
     "eventType": "SDKElementSchemaPackaged",
@@ -1382,7 +1382,7 @@
     "entityType": "SchemaDefinition",
     "fromState": "Packaged",
     "toState": "Published",
-    "requiredAuthorityRuleCode": null,
+    "verb": "publish",
     "requiredPolicyCodes": [],
     "eventType": "SDKElementSchemaPublished",
     "versionEvent": null
@@ -1391,7 +1391,7 @@
     "entityType": "SchemaDefinition",
     "fromState": "Packaged",
     "toState": "PublicationRejected",
-    "requiredAuthorityRuleCode": null,
+    "verb": "reject",
     "requiredPolicyCodes": [],
     "eventType": "SDKElementSchemaPublicationRejected",
     "versionEvent": null

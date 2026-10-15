@@ -82,7 +82,7 @@ export type TransitionFindingResult =
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked"; detail: string };
 
-export async function transitionFinding(input: { findingId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionFindingResult> {
+export async function transitionFinding(input: { findingId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionFindingResult> {
   const { data: finding } = await findingsDB.findById(input.findingId);
   if (!finding) return { ok: false, reason: "not_found" };
 
@@ -97,6 +97,7 @@ export async function transitionFinding(input: { findingId: string; targetState:
     if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
 
   const { data: updated, error } = await findingsDB.updateStatus(finding.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update finding status");
@@ -109,7 +110,7 @@ export async function transitionFinding(input: { findingId: string; targetState:
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
   });
 
   return { ok: true, finding: updated, appliedTransition: { fromState, toState: input.targetState } };

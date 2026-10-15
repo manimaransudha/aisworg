@@ -31,7 +31,7 @@ import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { transitionServiceDefinition } from "../src/routes/seu/core/serviceDefinitions.js";
-import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 // serviceDefinitionsDB.createDraft is a raw DB-layer insert (no
 // validateServiceDefinitionSeed call — the hand-coded uniqueness/parent
@@ -50,7 +50,7 @@ async function requireServiceSchemaId(): Promise<string> {
 }
 
 async function freshServiceDefinitionDraft(): Promise<{ id: string }> {
-  const { data: draft, error } = await serviceDefinitionsDB.createDraft({
+  const { data: draft, error } = await serviceDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
     code: `test-service-definition-lifecycle-${randomUUID()}`,
     name: "Test Service Definition",
     capabilityCode: "requirements-analysis",
@@ -115,7 +115,7 @@ test("DRIVEN: row 1 (New) is a pure Revision — no event published on creation"
 // actually be saved through the UI. Fixed in the same pass as Ch.11's
 // Version Feature Plan work.
 test("REGRESSION: Service Definition inputs/outputs round-trip as real string arrays, not a bare string", async () => {
-  const { data: draft, error } = await serviceDefinitionsDB.createDraft({
+  const { data: draft, error } = await serviceDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
     code: `test-service-definition-io-${randomUUID()}`,
     name: "Test Service Definition IO",
     capabilityCode: "requirements-analysis",
@@ -131,7 +131,7 @@ test("REGRESSION: Service Definition inputs/outputs round-trip as real string ar
 
   // Omitting them entirely must not violate the NOT NULL constraint (the bug
   // this regression test guards against) — defaults to real empty arrays.
-  const { data: bare, error: bareError } = await serviceDefinitionsDB.createDraft({
+  const { data: bare, error: bareError } = await serviceDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
     code: `test-service-definition-io-bare-${randomUUID()}`,
     name: "Test Service Definition IO Bare",
     capabilityCode: "requirements-analysis",

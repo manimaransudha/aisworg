@@ -93,7 +93,7 @@ test("transitionDeliverable rejects the transition when nobody fulfils the produ
   // call lands — a real already_in_flight, not a governance rejection; either
   // way one real Command exists for this hop and waitForCommandStatus below
   // finds it regardless of which caller created it.
-  const requested = await transitionDeliverable({
+  const requested = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID,
     deliverableId: requirementsSpec.id,
     targetState: "In Progress",
     actorRole: "super", actorId: ROOT_ACTOR_ID,
@@ -112,7 +112,7 @@ test("transitionDeliverable rejects the transition when nobody fulfils the produ
     participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]),
   });
 
-  const dispatched = await transitionDeliverable({
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID,
     deliverableId: requirementsSpec.id,
     targetState: "In Progress",
     actorRole: "super", actorId: ROOT_ACTOR_ID,
@@ -148,7 +148,7 @@ test("a dispatched transition leaves a traceable Command and a Completed/Dispose
   // that automatic rescan can now legitimately win the race and already have
   // a Command in flight (already_in_flight) before this call lands — same
   // tolerance tenant-contract.test.ts's own commissionAndDispatch uses.
-  const result = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const result = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!result.ok) assert.equal(result.reason, "already_in_flight", JSON.stringify(result));
 
   // Outstanding first: Model A leaves the Command and Work Item Dispatched
@@ -200,6 +200,7 @@ test("executionEngine rejects dispatch when no Participant fulfils the producing
   assert.ok(architectureDeliverable, "expected a real, seeded Deliverable producing architecture-design (a real entity id is required — Dispatch's own reject path raises an Obligation against it)");
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
 
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   await executionEngine.execute({
     seuId,
     entityType: "Deliverable",
@@ -207,7 +208,7 @@ test("executionEngine rejects dispatch when no Participant fulfils the producing
     fromState: "Defined",
     toState: "In Progress",
     producingCapabilityId: architectureCapability!.capabilityId,
-    requestedBy: null,
+    requestedBy: ROOT_ACTOR_ID,
     actorId: ROOT_ACTOR_ID,
     actingBadgeType: ROOT_ACTOR_BADGE,
     correlationId: eventBus.newCorrelationId(),
@@ -227,6 +228,7 @@ test("executionEngine rejects dispatch when the entity has no producing Capabili
   // longer a silent, unconditional dispatch; it's Dispatch's own case 1,
   // same Obligation + Action-Required Attention Item + Command-Failed
   // treatment as an empty pool.
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   await executionEngine.execute({
     seuId,
     entityType: "Deliverable",
@@ -234,7 +236,9 @@ test("executionEngine rejects dispatch when the entity has no producing Capabili
     fromState: "Defined",
     toState: "In Progress",
     producingCapabilityId: null,
-    requestedBy: null,
+    requestedBy: ROOT_ACTOR_ID,
+    actorId: ROOT_ACTOR_ID,
+    actingBadgeType: ROOT_ACTOR_BADGE,
     correlationId: eventBus.newCorrelationId(),
   });
 
@@ -252,7 +256,7 @@ test("a Participant reporting 'blocked' fails the Work Item without applying the
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  const dispatched = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
 
   const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
@@ -283,7 +287,7 @@ test("completeWorkItem is idempotent-safe: a second result on an already-complet
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  const dispatched = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
 
   const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");

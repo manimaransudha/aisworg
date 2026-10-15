@@ -1,4 +1,4 @@
-import { query } from "../utils/db.js";
+import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult } from "./seuTypes.js";
 
@@ -36,6 +36,27 @@ export interface CodeLabel {
 }
 
 export const authorityVocabularyDB = {
+  async replaceVocabulary(input: {
+    nouns: Array<{ code: string; label: string; description: string | null; isActive: boolean }>;
+    verbs: Array<{ code: string; label: string; description: string | null; isActive: boolean }>;
+    pairs: Array<{ nounCode: string; verbCode: string; defaultTrigger: "manual" | "governed"; isActive: boolean }>;
+    authorId: string;
+    authorBadge: string;
+  }): Promise<DbResult<{ nouns: number; verbs: number; pairs: number }>> {
+    try {
+      await query("TRUNCATE TABLE authority_nouns, authority_verbs CASCADE");
+      const columns = ["code", "label", "description", "is_active", "author_id", "author_badge"];
+      const toRow = (i: { code: string; label: string; description: string | null; isActive: boolean }): unknown[] => [i.code, i.label, i.description, i.isActive, input.authorId, input.authorBadge];
+      const nouns = await bulkInsert("authority_nouns", columns, input.nouns.map(toRow));
+      const verbs = await bulkInsert("authority_verbs", columns, input.verbs.map(toRow));
+      const pairs = await bulkInsert("authority_noun_verbs", ["noun_code", "verb_code", "default_trigger", "is_active", "author_id", "author_badge"], input.pairs.map((p) => [p.nounCode, p.verbCode, p.defaultTrigger, p.isActive, input.authorId, input.authorBadge]));
+      return { data: { nouns: nouns.rows.length, verbs: verbs.rows.length, pairs: pairs.rows.length } };
+    } catch (err) {
+      logger.error("[authorityVocabularyDB] replaceVocabulary error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async listNouns(): Promise<DbResult<AuthorityNounRow[]>> {
     try {
       const { rows } = await query<AuthorityNounRow>(

@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validatePolicyDefinitionWriteAgainstSchema } from "../routes/seu/core/policyDefinitionWriteValidator.js";
 import type { DbResult, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "./seuTypes.js";
-import { getPlatformTenantId } from "./constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "./constants.js";
  
 export const policyDefinitionsDB = {
   async createDraft(input: {
@@ -19,14 +19,14 @@ export const policyDefinitionsDB = {
     authoredBy: string;
     authorBadge: string;
     draftContent?: Record<string, unknown>;
-    tenantId?: string;
+    tenantId: string;
     parentPolicyDefinitionId?: string | null;
     schemaDefinitionId: string;
   }): Promise<DbResult<PolicyDefinitionRow>> {
     try {
       const constraintType = input.constraintType ?? "Policy";
       const scope = input.scope ?? "Transition";
-      const version = input.version ?? "1.0.0";
+      const version = input.version ?? INITIAL_VERSION;
       const draftContent = input.draftContent ?? {};
 
       const errors = await validatePolicyDefinitionWriteAgainstSchema({
@@ -65,7 +65,7 @@ export const policyDefinitionsDB = {
           input.authoredBy,
           input.authorBadge,
           JSON.stringify(draftContent),
-          input.tenantId ?? (await getPlatformTenantId()),
+          input.tenantId,
           input.parentPolicyDefinitionId ?? null,
           schemaRow?.id ?? null,
         ]

@@ -12,9 +12,9 @@ import { seedCr104Demo } from "./seedCr104Demo.js";
 import { seedRouteAuthority } from "./seedRouteAuthority.js";
 import { seedOntologyConcepts } from "./seedOntologyConcepts.js";
 import { userDB } from "../userDB.js";
+import { DEMO_PARTICIPANT_DISPLAY_NAME } from "./demo/demoBadges.js";
 import { RESERVED_TENANT_CODES } from "../constants.js";
 import { seedTransitionDefinitions } from "./seedTransitionDefinitions.js";
-import { seedAuthorityVocabulary } from "./seedAuthorityVocabulary.js";
 import { seedEventSubscriptions } from "./seedEventSubscriptions.js";
 import { seedCapabilityDefinitions } from "./seedCapabilityDefinitions.js";
 import { seedSchemaDefinitions } from "./seedSchemaDefinitions.js";
@@ -89,8 +89,9 @@ async function run(): Promise<void> {
     const superuserEmail = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
     await client.query(
     `DELETE FROM participants_master
-    WHERE user_id IS DISTINCT FROM $1`,
-    [userId]
+    WHERE user_id IS DISTINCT FROM $1
+      AND display_name <> $2`,
+    [userId, DEMO_PARTICIPANT_DISPLAY_NAME]
     );
     await client.query(
     `DELETE FROM users
@@ -126,7 +127,6 @@ async function run(): Promise<void> {
   await seedRouteAuthority({ authoredBy: actorId, authorBadge: actorBadge});
   await seedEventSubscriptions({ authoredBy: actorId, authorBadge: actorBadge});
   await seedTransitionDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
-  await seedAuthorityVocabulary({ authoredBy: actorId, authorBadge: actorBadge});
   await seedSchemaDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedCapabilityDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedServiceDefinitions({ authoredBy: actorId, authorBadge: actorBadge });

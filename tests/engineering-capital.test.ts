@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { createKnowledgeItem, getEngineeringCapital, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, ROOT_ACTOR_ID, ensureActorParticipant } from "./testFixtures.js";
 import { TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string) {
@@ -34,7 +34,8 @@ async function commissionSeuWithPublishedKnowledge(statementPrefix: string) {
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  const knowledgeItem = await createKnowledgeItem({
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID,
     seuId,
     deliverableId: requirementsSpec.id,
     category: "Domain Knowledge",
@@ -72,7 +73,8 @@ test("Acquisition Scope promotion requires the Knowledge Item to be Published fi
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  const knowledgeItem = await createKnowledgeItem({ seuId, deliverableId: requirementsSpec.id, category: "Technical Knowledge", title: "Phase6 unpublished knowledge" });
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId: requirementsSpec.id, category: "Technical Knowledge", title: "Phase6 unpublished knowledge" });
   assert.equal(knowledgeItem.status, "Observed");
 
   const result = await promoteKnowledgeItemScope({ knowledgeItemId: knowledgeItem.id, targetScope: "Capability", actorRole: "super", actorId: TESTER_ALL_ID });

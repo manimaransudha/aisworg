@@ -11,7 +11,7 @@ async function handleSeuActivated(event: EventRow): Promise<void> {
     seuId: event.originating_object_id,
     correlationId: event.correlation_id,
     causationId: event.id,
-    actorId: event.actor_id ?? undefined,
+    actorId: event.actor_id,
   });
 }
 
@@ -32,7 +32,7 @@ async function handleObligationTransitioned(event: EventRow): Promise<void> {
     seuId: obligation.related_object_id,
     correlationId: event.correlation_id,
     causationId: event.id,
-    actorId: event.actor_id ?? undefined,
+    actorId: event.actor_id,
   });
 }
 
@@ -52,7 +52,7 @@ async function handleAttentionItemTransitioned(event: EventRow): Promise<void> {
     seuId: attentionItem.related_object_id,
     correlationId: event.correlation_id,
     causationId: event.id,
-    actorId: event.actor_id ?? undefined,
+    actorId: event.actor_id,
   });
 }
 

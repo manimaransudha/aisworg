@@ -1,0 +1,456 @@
+[
+  {
+    "type": "Human",
+    "displayName": "Asha Menon (Business Analyst)",
+    "capabilities": [
+      "understanding-business-domain",
+      "requirements-elicitation",
+      "requirements-analysis",
+      "requirements-validation",
+      "requirements-prioritising"
+    ],
+    "competency": {
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Expert"
+        }
+      ]
+    },
+    "cost": 450,
+    "behaviourContext": [
+      {
+        "policy": "background-verification",
+        "payload": {
+          "status": "completed"
+        }
+      }
+    ],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ]
+  },
+  {
+    "type": "Human",
+    "displayName": "Rohan Iyer (Solution Architect)",
+    "capabilities": [
+      "architecture-design",
+      "software-design",
+      "governing-engineering-decisions",
+      "engineering-work-review"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "react-native",
+          "proficiency": "Expert"
+        },
+        {
+          "code": "typescript",
+          "proficiency": "Expert"
+        }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
+      ]
+    },
+    "cost": 600,
+    "behaviourContext": [
+      {
+        "policy": "background-verification",
+        "payload": {
+          "status": "completed"
+        }
+      }
+    ],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ]
+  },
+  {
+    "type": "Human",
+    "displayName": "Meera Nair (Mobile Engineer)",
+    "capabilities": [
+      "software-construction",
+      "software-design",
+      "software-validation",
+      "engineering-work-review"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "react-native",
+          "proficiency": "Expert"
+        },
+        {
+          "code": "typescript",
+          "proficiency": "Expert"
+        },
+        {
+          "code": "git",
+          "proficiency": "Intermediate"
+        }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
+      ]
+    },
+    "cost": 500,
+    "behaviourContext": [
+      {
+        "policy": "background-verification",
+        "payload": {
+          "status": "completed"
+        }
+      }
+    ],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ]
+  },
+  {
+    "type": "Human",
+    "displayName": "Kiran Das (Release Manager)",
+    "capabilities": [
+      "software-release",
+      "operating-production-systems",
+      "governing-engineering-decisions"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "docker",
+          "proficiency": "Intermediate"
+        },
+        {
+          "code": "git",
+          "proficiency": "Expert"
+        }
+      ]
+    },
+    "cost": 480,
+    "behaviourContext": [
+      {
+        "policy": "background-verification",
+        "payload": {
+          "status": "completed"
+        }
+      }
+    ],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ]
+  },
+  {
+    "type": "AI",
+    "displayName": "Riverbend Analysis Agent",
+    "capabilities": [
+      "understanding-business-domain",
+      "requirements-elicitation",
+      "requirements-analysis",
+      "requirements-validation",
+      "requirements-prioritising",
+      "engineering-documentation"
+    ],
+    "competency": {
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
+      ]
+    },
+    "cost": 30,
+    "behaviourContext": [],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ]
+  },
+  {
+    "type": "AI",
+    "displayName": "Riverbend Coding Agent",
+    "capabilities": [
+      "software-construction",
+      "software-design",
+      "engineering-work-review"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "react-native",
+          "proficiency": "Intermediate"
+        },
+        {
+          "code": "typescript",
+          "proficiency": "Expert"
+        },
+        {
+          "code": "javascript",
+          "proficiency": "Expert"
+        }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Novice"
+        }
+      ]
+    },
+    "cost": 40,
+    "behaviourContext": [],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ]
+  },
+  {
+    "type": "AI",
+    "displayName": "Riverbend Assurance Agent",
+    "capabilities": [
+      "software-validation",
+      "protect-organisational-assets",
+      "engineering-work-review",
+      "architecture-design",
+      "engineering-documentation"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "react-native",
+          "proficiency": "Intermediate"
+        },
+        {
+          "code": "typescript",
+          "proficiency": "Intermediate"
+        }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Novice"
+        }
+      ]
+    },
+    "cost": 35,
+    "behaviourContext": [],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ]
+  },
+  {
+    "type": "Automated",
+    "displayName": "Riverbend Build Pipeline",
+    "capabilities": [
+      "software-release",
+      "software-construction",
+      "operating-production-systems"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "docker",
+          "proficiency": "Expert"
+        },
+        {
+          "code": "git",
+          "proficiency": "Expert"
+        },
+        {
+          "code": "nodejs",
+          "proficiency": "Intermediate"
+        }
+      ]
+    },
+    "cost": 8,
+    "behaviourContext": [],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ]
+  },
+  {
+    "type": "Automated",
+    "displayName": "Riverbend Test Runner",
+    "capabilities": [
+      "software-validation"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "typescript",
+          "proficiency": "Expert"
+        },
+        {
+          "code": "javascript",
+          "proficiency": "Expert"
+        }
+      ]
+    },
+    "cost": 6,
+    "behaviourContext": [],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ]
+  },
+  {
+    "type": "External",
+    "displayName": "Harbor Security Consultants",
+    "capabilities": [
+      "protect-organisational-assets",
+      "software-validation",
+      "governing-engineering-decisions",
+      "engineering-documentation"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "typescript",
+          "proficiency": "Intermediate"
+        }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
+      ]
+    },
+    "cost": 700,
+    "behaviourContext": [],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ]
+  },
+  {
+    "type": "External",
+    "displayName": "Lakeside Architecture Studio",
+    "capabilities": [
+      "architecture-design",
+      "software-design",
+      "understanding-business-domain",
+      "requirements-analysis"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "react-native",
+          "proficiency": "Intermediate"
+        }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
+      ]
+    },
+    "cost": 650,
+    "behaviourContext": [],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ]
+  }
+]

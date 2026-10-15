@@ -15,18 +15,19 @@ export const knowledgeItemsDB = {
     decisionReferences?: KnowledgeRelationshipReferences;
     knowledgeReferences?: KnowledgeSelfReferences;
     confidenceLevel?: string | null;
-    authorId?: string | null;
+    authorId: string;
+    authorityBadge: string;
   }): Promise<DbResult<KnowledgeItemRow>> {
     try {
       const { rows } = await query<KnowledgeItemRow>(
-        `INSERT INTO knowledge_items (seu_id, deliverable_id, category, title, description, acquisition_scope, deliverable_references, evidence_references, decision_references, knowledge_references, confidence_level, author_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12)
+        `INSERT INTO knowledge_items (seu_id, deliverable_id, category, title, description, acquisition_scope, deliverable_references, evidence_references, decision_references, knowledge_references, confidence_level, author_id, authority_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, $13)
          RETURNING *`,
         [
           input.seuId, input.deliverableId, input.category, input.title, input.description ?? null, input.acquisitionScope,
           JSON.stringify(input.deliverableReferences ?? {}), JSON.stringify(input.evidenceReferences ?? {}),
           JSON.stringify(input.decisionReferences ?? {}), JSON.stringify(input.knowledgeReferences ?? {}),
-          input.confidenceLevel ?? null, input.authorId ?? null,
+          input.confidenceLevel ?? null, input.authorId, input.authorityBadge,
         ]
       );
       return { data: rows[0] };
@@ -66,14 +67,14 @@ export const knowledgeItemsDB = {
     }
   },
 
-  async updateStatus(id: string, status: string, authorId?: string | null, authorityBadge?: string | null): Promise<DbResult<KnowledgeItemRow>> {
+  async updateStatus(id: string, status: string, authorId: string, authorityBadge: string): Promise<DbResult<KnowledgeItemRow>> {
     try {
       const { rows } = await query<KnowledgeItemRow>(
         `UPDATE knowledge_items
             SET status = $1, updated_at = NOW(),
-                author_id = COALESCE($3, author_id), authority_badge = COALESCE($4, authority_badge)
+                author_id = $3, authority_badge = $4
           WHERE id = $2 RETURNING *`,
-        [status, id, authorId ?? null, authorityBadge ?? null]
+        [status, id, authorId, authorityBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -82,14 +83,14 @@ export const knowledgeItemsDB = {
     }
   },
 
-  async updateAcquisitionScope(id: string, acquisitionScope: AcquisitionScope, authorId?: string | null, authorityBadge?: string | null): Promise<DbResult<KnowledgeItemRow>> {
+  async updateAcquisitionScope(id: string, acquisitionScope: AcquisitionScope, authorId: string, authorityBadge: string): Promise<DbResult<KnowledgeItemRow>> {
     try {
       const { rows } = await query<KnowledgeItemRow>(
         `UPDATE knowledge_items
             SET acquisition_scope = $1, updated_at = NOW(),
-                author_id = COALESCE($3, author_id), authority_badge = COALESCE($4, authority_badge)
+                author_id = $3, authority_badge = $4
           WHERE id = $2 RETURNING *`,
-        [acquisitionScope, id, authorId ?? null, authorityBadge ?? null]
+        [acquisitionScope, id, authorId, authorityBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -111,12 +112,12 @@ export const knowledgeItemsDB = {
     }
   },
 
-  async addValidationNote(input: { knowledgeItemId: string; noteText: string; actorId?: string | null }): Promise<DbResult<KnowledgeValidationNoteRow>> {
+  async addValidationNote(input: { knowledgeItemId: string; noteText: string; actorId: string; authorityBadge: string }): Promise<DbResult<KnowledgeValidationNoteRow>> {
     try {
       const { rows } = await query<KnowledgeValidationNoteRow>(
-        `INSERT INTO knowledge_validation_notes (knowledge_item_id, note_text, actor_id)
-         VALUES ($1, $2, $3) RETURNING *`,
-        [input.knowledgeItemId, input.noteText, input.actorId ?? null]
+        `INSERT INTO knowledge_validation_notes (knowledge_item_id, note_text, actor_id, authority_badge)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [input.knowledgeItemId, input.noteText, input.actorId, input.authorityBadge]
       );
       return { data: rows[0] };
     } catch (err) {

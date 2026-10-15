@@ -2,9 +2,11 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import pool, { query } from "../../utils/db.js";
+import { query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { userDB } from "../userDB.js";
+import { authorityVocabularyDB } from "../authorityVocabularyDB.js";
+import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -17,13 +19,35 @@ interface TransitionDefinitionSeed {
   entityType: string;
   fromState: string;
   toState: string;
-  requiredAuthorityRuleCode: string | null;
+  verb?: string;
+  requiredAuthorityRuleId?: string;
+  requiredPolicyIds?: string[];
   requiredPolicyCodes?: string[];
+  requiredQualityGateIds?: string[];
+  createsObligation?: string;
+  category?: string;
   trigger?: "manual" | "governed";
   submitVerb?: string;
   eventType?: string;
   versionEvent?: string;
+  versionHop?: boolean;
   submitVersionEvent?: string;
+  isActive?: boolean;
+  retiredAt?: string;
+}
+
+interface VocabItem {
+  code: string;
+  label: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+interface AuthorityVocabulary {
+  nouns: VocabItem[];
+  verbs: VocabItem[];
+  authoringMappings?: Array<{ noun: string; verbs: string[] }>;
+  nounVerbs?: Array<{ noun: string; verb: string; defaultTrigger?: "manual" | "governed"; isActive?: boolean }>;
 }
 
 let cachedSeeds: TransitionDefinitionSeed[] | null = null;
@@ -35,15 +59,18 @@ function loadSeeds(): TransitionDefinitionSeed[] {
   return cachedSeeds;
 }
 
-export async function backfillAuthorityRuleCode(code: string, authorityRuleId: string): Promise<void> {
-  const wanting = loadSeeds().filter((s) => s.requiredAuthorityRuleCode === code);
-  for (const seed of wanting) {
-    await query(
-      `UPDATE transition_definitions SET required_authority_rule_id = $4
-       WHERE entity_type = $1 AND from_state = $2 AND to_state = $3`,
-      [seed.entityType, seed.fromState, seed.toState, authorityRuleId]
-    );
+function loadVocabulary(): AuthorityVocabulary {
+  return JSON.parse(readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8")) as AuthorityVocabulary;
+}
+
+function findDuplicates(keys: string[]): string[] {
+  const seen = new Set<string>();
+  const dupes = new Set<string>();
+  for (const key of keys) {
+    if (seen.has(key)) dupes.add(key);
+    seen.add(key);
   }
+  return [...dupes];
 }
 
 export async function backfillPolicyCode(code: string, policyId: string): Promise<void> {
@@ -58,53 +85,75 @@ export async function backfillPolicyCode(code: string, policyId: string): Promis
   }
 }
 
+// Loads the Authority vocabulary (nouns, verbs) and the transition definitions together: each
+// transition carries its own verb, and the noun-verb pairs are derived from the transitions plus
+// the authoring mappings. The vocabulary and the transition definitions are deleted and reloaded.
 export async function seedTransitionDefinitions(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
+  const vocab = loadVocabulary();
 
-    const wiped = await client.query("DELETE FROM transition_definitions");
+  const problems: string[] = [];
+  const nounCodes = new Set(vocab.nouns.map((n) => n.code));
+  const verbCodes = new Set(vocab.verbs.map((v) => v.code));
+  for (const key of findDuplicates(vocab.nouns.map((n) => n.code))) problems.push(`duplicate noun: ${key}`);
+  for (const key of findDuplicates(vocab.verbs.map((v) => v.code))) problems.push(`duplicate verb: ${key}`);
+  for (const key of findDuplicates(seeds.map((s) => `${s.entityType}|${s.fromState}|${s.toState}`))) problems.push(`duplicate transition: ${key}`);
 
-    for (const seed of seeds) {
-      let ruleId: string | null = null;
-      if (seed.requiredAuthorityRuleCode) {
-        const { rows } = await client.query("SELECT id FROM authority_rules WHERE code = $1", [seed.requiredAuthorityRuleCode]);
-        if (rows[0]) ruleId = rows[0].id as string;
-      }
+  for (const key of findDuplicates((vocab.nounVerbs ?? []).map((nv) => `${nv.noun}|${nv.verb}`))) problems.push(`duplicate nounVerbs entry: ${key}`);
+  const overrides = new Map((vocab.nounVerbs ?? []).map((nv) => [`${nv.noun}|${nv.verb}`, nv]));
 
-      const policyIds: string[] = [];
-      for (const code of seed.requiredPolicyCodes ?? []) {
-        const { rows } = await client.query("SELECT id FROM policies WHERE code = $1", [code]);
-        if (rows[0]) policyIds.push(rows[0].id as string);
-      }
+  const pairKeys = new Set<string>();
+  const pairs: Array<{ nounCode: string; verbCode: string; defaultTrigger: "manual" | "governed"; isActive: boolean }> = [];
+  const addPair = (nounCode: string, verbCode: string, source: string): void => {
+    if (!nounCodes.has(nounCode)) problems.push(`${source}: unknown noun ${nounCode}`);
+    if (!verbCodes.has(verbCode)) problems.push(`${source}: unknown verb ${verbCode}`);
+    const key = `${nounCode}|${verbCode}`;
+    if (pairKeys.has(key)) return;
+    pairKeys.add(key);
+    const override = overrides.get(key);
+    pairs.push({ nounCode, verbCode, defaultTrigger: override?.defaultTrigger ?? "manual", isActive: override?.isActive ?? true });
+  };
+  for (const s of seeds) if (s.verb) addPair(s.entityType, s.verb, `transition ${s.entityType}|${s.fromState}|${s.toState}`);
+  for (const m of vocab.authoringMappings ?? []) for (const verb of m.verbs) addPair(m.noun, verb, "authoringMappings");
+  for (const nv of vocab.nounVerbs ?? []) addPair(nv.noun, nv.verb, "nounVerbs");
+  if (problems.length) throw new Error(`[seed:transition-definitions] invalid seed data:\n  ${problems.join("\n  ")}`);
 
-      await client.query(
-        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, trigger, submit_verb, event_type, version_event, submit_version_event, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5::uuid[], $6, $7, $8, $9, $10, $11, $12)
-         ON CONFLICT (entity_type, from_state, to_state)
-         DO UPDATE SET required_authority_rule_id = EXCLUDED.required_authority_rule_id,
-                       required_policy_ids = EXCLUDED.required_policy_ids,
-                       trigger = EXCLUDED.trigger,
-                       submit_verb = EXCLUDED.submit_verb,
-                       event_type = EXCLUDED.event_type,
-                       version_event = EXCLUDED.version_event,
-                       submit_version_event = EXCLUDED.submit_version_event`,
-        [
-          seed.entityType, seed.fromState, seed.toState, ruleId, policyIds, seed.trigger ?? "manual", seed.submitVerb ?? null,
-          seed.eventType ?? null, seed.versionEvent ?? null, seed.submitVersionEvent ?? null, actor.authoredBy, actor.authorBadge,
-        ]
-      );
-    }
+  const vocabulary = await authorityVocabularyDB.replaceVocabulary({
+    nouns: vocab.nouns.map((n) => ({ code: n.code, label: n.label, description: n.description ?? null, isActive: n.isActive ?? true })),
+    verbs: vocab.verbs.map((v) => ({ code: v.code, label: v.label, description: v.description ?? null, isActive: v.isActive ?? true })),
+    pairs,
+    authorId: actor.authoredBy,
+    authorBadge: actor.authorBadge,
+  });
+  if (vocabulary.error || !vocabulary.data) throw vocabulary.error ?? new Error("authority vocabulary reload failed");
 
-    await client.query("COMMIT");
-    logger.info(`[seed:transition-definitions] wiped ${wiped.rowCount} rows, seeded ${seeds.length} fresh transition definitions.`);
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
+  const transitions = await transitionDefinitionsDB.replaceAll(
+    seeds.map((s) => ({
+      entityType: s.entityType,
+      fromState: s.fromState,
+      toState: s.toState,
+      verb: s.verb ?? null,
+      requiredAuthorityRuleId: s.requiredAuthorityRuleId ?? null,
+      requiredPolicyIds: s.requiredPolicyIds ?? [],
+      requiredQualityGateIds: s.requiredQualityGateIds ?? [],
+      createsObligation: s.createsObligation ?? null,
+      category: s.category ?? null,
+      trigger: s.trigger ?? "manual",
+      submitVerb: s.submitVerb ?? null,
+      eventType: s.eventType ?? null,
+      versionEvent: s.versionEvent ?? null,
+      versionHop: s.versionHop ?? null,
+      submitVersionEvent: s.submitVersionEvent ?? null,
+      isActive: s.isActive ?? true,
+      retiredAt: s.retiredAt ?? null,
+      authorId: actor.authoredBy,
+      authorBadge: actor.authorBadge,
+    }))
+  );
+  if (transitions.error || transitions.data === undefined) throw transitions.error ?? new Error("transition definitions reload failed");
+
+  const { nouns, verbs } = vocabulary.data;
+  logger.info(`[seed:transition-definitions] ${nouns} nouns, ${verbs} verbs, ${vocabulary.data.pairs} noun-verb mappings, ${transitions.data} transition definitions reloaded.`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

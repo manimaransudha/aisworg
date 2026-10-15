@@ -66,7 +66,7 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
 
   // Dispatch and DO NOT complete — the Work Item is now genuinely outstanding.
   // The target is the SLA-derived default unless the caller overrides it.
-  const dispatched = await transitionDeliverable({ deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID, targetCompletionAt: opts?.targetCompletionAt ?? null });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID, targetCompletionAt: opts?.targetCompletionAt ?? null });
   assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
   if (!dispatched.ok) throw new Error("unreachable");
 

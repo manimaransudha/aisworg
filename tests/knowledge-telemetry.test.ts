@@ -12,7 +12,7 @@ import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { createKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
 import { getKnowledgeMetrics } from "../src/routes/seu/core/telemetry.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, createEvidenceAsRoot as createEvidence, ROOT_ACTOR_ID, ensureActorParticipant } from "./testFixtures.js";
 import { TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionTestSeuWithDeliverable(statementPrefix: string) {
@@ -37,11 +37,14 @@ test("Knowledge Telemetry: growth and Evidence generation are real counts, broke
 
   const beforeA = await getKnowledgeMetrics(a.seuId);
 
-  await createKnowledgeItem({ seuId: a.seuId, deliverableId: a.deliverableId, category: "Technical Knowledge", title: "Test Knowledge Item (SEU scope)", acquisitionScope: "SEU" });
-  await createKnowledgeItem({ seuId: a.seuId, deliverableId: a.deliverableId, category: "Technical Knowledge", title: "Test Knowledge Item (Platform scope)", acquisitionScope: "Platform" });
+  await ensureActorParticipant(a.seuId, ROOT_ACTOR_ID);
+  await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId: a.seuId, deliverableId: a.deliverableId, category: "Technical Knowledge", title: "Test Knowledge Item (SEU scope)", acquisitionScope: "SEU" });
+  await ensureActorParticipant(a.seuId, ROOT_ACTOR_ID);
+  await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId: a.seuId, deliverableId: a.deliverableId, category: "Technical Knowledge", title: "Test Knowledge Item (Platform scope)", acquisitionScope: "Platform" });
   await createEvidence({ seuId: a.seuId, relatedObjectType: "Deliverable", relatedObjectId: a.deliverableId, category: "Validation Evidence", title: "Test Evidence" });
 
-  await createKnowledgeItem({ seuId: b.seuId, deliverableId: b.deliverableId, category: "Technical Knowledge", title: "SEU B's own Knowledge Item", acquisitionScope: "SEU" });
+  await ensureActorParticipant(b.seuId, ROOT_ACTOR_ID);
+  await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId: b.seuId, deliverableId: b.deliverableId, category: "Technical Knowledge", title: "SEU B's own Knowledge Item", acquisitionScope: "SEU" });
 
   const afterA = await getKnowledgeMetrics(a.seuId);
   assert.equal(afterA.totalKnowledgeItems, beforeA.totalKnowledgeItems + 2);

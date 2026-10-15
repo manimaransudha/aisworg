@@ -12,6 +12,7 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 import type { ProfileRow } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "../../../utils/version.js";
 
 const THROWAWAY_PROFILE_CODE = /^profile-\d+-[a-z0-9]+$/;
 
@@ -182,7 +183,6 @@ export const CONFIGURATION_PARAMETER_FIELDS: Array<{ field: keyof ProfileSeedInp
 
 export type ProfileValidationResult = { ok: true } | { ok: false; errors: string[] };
 
-const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 
 const PACK_SELECTION_SLOTS: Array<{ field: keyof ProfileSeedInput; packCategory: string }> = [
   { field: "technologyPackCodes", packCategory: "Technology" },
@@ -219,7 +219,8 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   if (!seed.code?.trim()) errors.push("code is required");
   if (!seed.name?.trim()) errors.push("name is required");
   if (!seed.environment?.trim()) errors.push("environment is required");
-  if (!SEMVER_RE.test(seed.profileVersion ?? "")) errors.push(`profileVersion must be semver (x.y.z), got: "${seed.profileVersion}"`);
+  const profileVersionError = semverError("profileVersion", seed.profileVersion);
+  if (profileVersionError) errors.push(profileVersionError);
 
   const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? (await getPlatformTenantId()) };
 
@@ -334,7 +335,7 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   return errors.length > 0 ? { ok: false, errors } : { ok: true };
 }
 
-export type PublishProfileResult = { ok: true; profileId: string; alreadyExists?: boolean } | { ok: false; errors: string[] };
+export type PublishProfileResult = { ok: true; profileId: string } | { ok: false; errors: string[] };
 
 export async function publishProfile(input: { seed: ProfileSeedInput; actorRole: string; actorId: string }): Promise<PublishProfileResult> {
   const { seed, actorRole, actorId } = input;
@@ -346,7 +347,6 @@ export async function publishProfile(input: { seed: ProfileSeedInput; actorRole:
   const { data: template } = await templatesDB.findActiveByCode(seed.baseTemplateCode, tenantId);
   if (!template) return { ok: false, errors: [`baseTemplateCode "${seed.baseTemplateCode}" not found`] };
 
-  const { data: existing } = await profilesDB.findByCodeAndVersion(seed.code, seed.profileVersion, tenantId);
   const { data: profileSchema } = await schemaDefinitionsDB.findLatest("Profile");
   if (!profileSchema) return { ok: false, errors: [`no schema_definitions grammar for Profile`] };
   if (!actorId) return { ok: false, errors: ["publishProfile requires a real actorId to author the Draft"] };
@@ -355,11 +355,6 @@ export async function publishProfile(input: { seed: ProfileSeedInput; actorRole:
   const { data: profileMaster } = await participantsMasterDB.findById(actorId);
   if (!profileMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "profile_define");
-  if (existing) {
-    const materialiseResult = await materialiseProfileDraft(existing.id, seed, profileMaster.id, authorBadge);
-    if (!materialiseResult.ok) return materialiseResult;
-    return { ok: true, profileId: existing.id, alreadyExists: true };
-  }
   const { data: draft, error } = await profilesDB.createDraft({
     code: seed.code,
     name: seed.name,
@@ -403,7 +398,7 @@ export type TransitionProfileResult = { ok: true; profile: ProfileRow } | { ok: 
 
 const TERMINAL_REACTIVATABLE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
 
-export async function transitionProfile(input: { profileId: string; targetState: ProfileRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionProfileResult> {
+export async function transitionProfile(input: { profileId: string; targetState: ProfileRow["status"]; actorRole: string; actorId: string }): Promise<TransitionProfileResult> {
   const { data: profile } = await profilesDB.findById(input.profileId);
   if (!profile) return { ok: false, reason: "not_found" };
   const fromState = profile.status;
@@ -416,8 +411,9 @@ export async function transitionProfile(input: { profileId: string; targetState:
     return { ok: false, reason: gate.reason };
   }
 
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
+
   if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    if (!gate.authorityBadge) return { ok: false, reason: "policy_blocked", detail: "no authority badge resolved for this Profile reactivation" };
     return reactivateAsNewVersion(profile, input.actorRole, input.actorId, gate.authorityBadge);
   }
 
@@ -431,7 +427,7 @@ export async function transitionProfile(input: { profileId: string; targetState:
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: profile.code },
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
     versionEvent: gate.versionEvent,
     fromState,
     toState: input.targetState,
@@ -441,15 +437,7 @@ export async function transitionProfile(input: { profileId: string; targetState:
 }
 
 async function nextAvailablePatchVersion(code: string, fromVersion: string, tenantId: string): Promise<string> {
-  const [major, minor, startingPatch] = fromVersion.split(".").map(Number);
-  let patch = startingPatch ?? 0;
-  for (let attempts = 0; attempts < 1000; attempts++) {
-    patch += 1;
-    const candidate = `${major}.${minor}.${patch}`;
-    const { data: existing } = await profilesDB.findByCodeAndVersion(code, candidate, tenantId);
-    if (!existing) return candidate;
-  }
-  throw new Error(`could not find an unused version for Profile ${code} after bumping from ${fromVersion}`);
+  return nextAvailableVersion(fromVersion, async (candidate) => !!(await profilesDB.findByCodeAndVersion(code, candidate, tenantId)).data);
 }
 
 async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, actorId: string, authorBadge: string): Promise<TransitionProfileResult> {

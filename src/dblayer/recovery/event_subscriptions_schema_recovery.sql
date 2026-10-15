@@ -2,7 +2,7 @@ BEGIN;
 DROP TABLE IF EXISTS event_subscriptions CASCADE;
 CREATE TABLE event_subscriptions (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_type    TEXT NOT NULL REFERENCES event_registry(event_type),
+  event_type    TEXT NOT NULL,
   handler_name  TEXT NOT NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT event_subscriptions_unique UNIQUE (event_type, handler_name)

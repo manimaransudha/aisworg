@@ -131,7 +131,7 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  const result = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const result = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!result.ok) assert.equal(result.reason, "already_in_flight", JSON.stringify(result));
 
   // Model A: dispatch alone moves the Participant to Assigned and stops there —

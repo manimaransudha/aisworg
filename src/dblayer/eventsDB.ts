@@ -1,4 +1,4 @@
-import { query } from "../utils/db.js";
+import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, EventConsumptionEntry, EventRow, EventSubscriptionRow } from "./seuTypes.js";
 
@@ -70,6 +70,43 @@ export const eventsDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[eventsDB] findAllSubscriptions error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async bulkUpsertEventTypes(inputs: Array<{ eventType: string; version: string; isActive: boolean; description: string | null; category: string | null; authorId: string; authorBadge: string }>): Promise<DbResult<void>> {
+    try {
+      const incomingActive = inputs.filter((i) => i.isActive);
+      await query(
+        `UPDATE event_registry er SET is_active = FALSE
+          WHERE er.is_active AND er.event_type = ANY($1::text[])
+            AND NOT EXISTS (SELECT 1 FROM unnest($1::text[], $2::text[]) AS a(event_type, version) WHERE a.event_type = er.event_type AND a.version = er.version)`,
+        [incomingActive.map((i) => i.eventType), incomingActive.map((i) => i.version)]
+      );
+      await bulkInsert(
+        "event_registry",
+        ["event_type", "version", "is_active", "description", "category", "author_id", "author_badge"],
+        inputs.map((i) => [i.eventType, i.version, i.isActive, i.description, i.category, i.authorId, i.authorBadge]),
+        { onConflict: "ON CONFLICT (event_type, version) DO UPDATE SET is_active = EXCLUDED.is_active, description = EXCLUDED.description, category = EXCLUDED.category, author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge" }
+      );
+      return { data: undefined };
+    } catch (err) {
+      logger.error("[eventsDB] bulkUpsertEventTypes error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async bulkUpsertSubscriptions(inputs: Array<{ eventType: string; handlerName: string; authorId: string; authorBadge: string }>): Promise<DbResult<void>> {
+    try {
+      await bulkInsert(
+        "event_subscriptions",
+        ["event_type", "handler_name", "author_id", "author_badge"],
+        inputs.map((i) => [i.eventType, i.handlerName, i.authorId, i.authorBadge]),
+        { onConflict: "ON CONFLICT (event_type, handler_name) DO UPDATE SET author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge" }
+      );
+      return { data: undefined };
+    } catch (err) {
+      logger.error("[eventsDB] bulkUpsertSubscriptions error", err as Error);
       return { error: err as Error };
     }
   },

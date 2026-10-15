@@ -4,6 +4,9 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-120](design/change-requests/CR-120-not-null-columns-no-code-fallback.md) | NOT NULL columns carry no optional type and no fallback in code: actor, author and badge columns, strict Row types, Knowledge and Decision creation badges, required `tenantId` | 🟡 Built pending verification |
+| [CR-119](design/change-requests/CR-119-shared-version-helper.md) | Shared version helper (`src/utils/version.ts`), single `INITIAL_VERSION`, and the nullable `version_hop` transition flag; duplicate-version checks and publish idempotency removed | 🟡 Built pending verification |
+| [CR-118](design/change-requests/CR-118-restructuing-specs.md) | Restructure the specifications (Part 1 and Part 2) and baseline the implementation specifics in the docs folder | ✅ Built 2026-10-05 |
 | [CR-117](design/change-requests/CR-117-version-events-table.md) | `version_events` table (Ch.41 §12/§13/§15/§18) — indexes the real published event by its `transition_definitions.version_event` classification, closing Historical Reconstruction (§12), real version traceability (§13), and a queryable Version API (§18), instead of publishing `VersionCreated`/etc. as a second event | 🟡 Raised — design in progress |
 | [CR-116](design/change-requests/CR-116-objective-supersession.md) | Objective supersession — `superseding_objective_id` linkage (Ch.1 §12/§13, OBJ-006), pick-existing-B or create-new-C UI, reusable `supersessionEngine` for future entities | ✅ Built 2026-10-05 |
 | [CR-115](design/change-requests/CR-115-schema-lifecycle-state.md) | Fix Schema definition lifecycle to align to Chapter 39 | 🟡 Raised — design in progress |

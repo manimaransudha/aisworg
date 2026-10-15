@@ -12,7 +12,7 @@ import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
-import { getPlatformTenantId, getTesterId } from "../src/dblayer/constants.js";
+import { getPlatformTenantId, getTesterId, INITIAL_VERSION } from "../src/dblayer/constants.js";
 import { userDB } from "../src/dblayer/userDB.js";
 import { commissionFromForm, transitionEbm, previewCommissioningValidation } from "../src/routes/seu/core/commissioning.js";
 import { publishProfile, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
@@ -291,8 +291,6 @@ export async function transitionDeliverableSync(input: {
   targetState: string;
   actorRole?: string;
   actorId: string;
-  actingBadgeType?: string;
-  requestedBy?: string | null;
 }): Promise<{ ok: true; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } } | Extract<TransitionDeliverableResult, { ok: false }>> {
   // Captured before the request, not read off its own ok:true result — so
   // this still has a real fromState even when deliverableKickoffHandler's
@@ -311,7 +309,7 @@ export async function transitionDeliverableSync(input: {
   // hop is free again and a fresh request should succeed for real.
   let command: CommandRow | null = null;
   for (let attempt = 0; attempt < 5; attempt++) {
-    const requested = await transitionDeliverable({ ...input });
+    const requested = await transitionDeliverable({ ...input, requestedBy: input.actorId });
     if (!requested.ok && requested.reason !== "already_in_flight") return requested;
     const waitingOnSomeoneElse = !requested.ok; // reason === "already_in_flight"
 
@@ -464,6 +462,13 @@ export async function driveCommissioningToActive(input: {
   // Idempotent + cached (coreGatesCached), so calling it unconditionally
   // here is free for every test that doesn't care about these gates.
   await ensureCoreEngineeringQualityGates();
+
+  // finalizeCommissioning (commissioning.ts) runs these SEU hops as this actor, each gated by
+  // the hop's own noun_verb badge — granted here, from the real transition rows, before the
+  // first hop runs.
+  for (const [from, to] of [["Pending", "Configured"], ["Configured", "Commissioned"], ["Commissioned", "Activated"]] as const) {
+    await grantTransitionBadge(input.actorId, "SEU", from, to);
+  }
 
   // design/mvp-build-plan/SEU Composition.md, 2026-09-07 — Validate Request
   // itself is now async too (validateRequestHandler, off CommissionRequested,
@@ -865,7 +870,7 @@ export async function ensurePolicyDefinitionWithObligation(input: {
   if (!policySchema) throw new Error("no schema_definitions grammar for Policy");
   const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
   if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("ensurePolicyDefinitionWithObligation(): no participants_master row for the superuser — is db:clean-slate seeded?");
-  const { data: draft, error } = await policyDefinitionsDB.createDraft({
+  const { data: draft, error } = await policyDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
     code: input.code,
     name: input.name,
     category: input.category,
@@ -974,7 +979,7 @@ const TERMINAL_TEMPLATE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
 async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   const templateSeed = loadJson<TemplateSeed>("web-application.template.json");
   const profileSeed = loadJson<ProfileSeed>("default-development.profile.json");
-  const templateVersion = "1.0.0";
+  const templateVersion = INITIAL_VERSION;
   if (!templateSeed.purpose) throw new Error(`seed(): web-application.template.json is missing "purpose" (required by publishTemplate)`);
 
   const packSelections: Partial<Record<"compliancePackCodes" | "domainPackCodes" | "engineeringPackCodes" | "integrationPackCodes" | "organisationPackCodes" | "technologyPackCodes", string[]>> = {};
@@ -987,7 +992,12 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
     (packSelections[field] ??= []).push(code);
   }
 
-  let template = (await templatesDB.findByCodeAndVersion(templateSeed.code, templateVersion, PLATFORM_TENANT_ID)).data ?? null;
+  // Version Management: each version-hop transition bumps the row's version, so the
+  // Active row no longer sits at the seed's starting version — look it up by code and
+  // Active status first, then fall back to the starting version.
+  let template = (await templatesDB.findActiveByCode(templateSeed.code, PLATFORM_TENANT_ID)).data
+    ?? (await templatesDB.findByCodeAndVersion(templateSeed.code, templateVersion, PLATFORM_TENANT_ID)).data
+    ?? null;
   if (!template) {
     const templateResult = await publishTemplate({
       seed: {
@@ -1089,9 +1099,18 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   // uniqueness SELECT before the INSERT, so the loser of the same race can
   // surface this clean "already exists" message instead of ever reaching the
   // raw profiles_code_version_tenant_key constraint — match both.
-  let profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const activeProfile = (await profilesDB.findActiveByCode(profileSeed.code, PLATFORM_TENANT_ID)).data ?? null;
+  if (activeProfile) return { template, profile: activeProfile };
+  const profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!profileResult.ok && profileResult.errors.some((e) => e.includes("profiles_code_version_tenant_key") || e.includes("already exists at version"))) {
-    profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: ROOT_ACTOR_ID });
+    // Another `node --test` process won the publish race. Publish is not idempotent, so wait for the
+    // winner's own walk to reach Active and use that row.
+    const winner: { profile: ProfileRow | null } = { profile: null };
+    await waitUntilAsync(async () => {
+      winner.profile = (await profilesDB.findActiveByCode(profileSeed.code, PLATFORM_TENANT_ID)).data ?? null;
+      return winner.profile !== null;
+    });
+    if (winner.profile) return { template, profile: winner.profile };
   }
   if (!profileResult.ok) throw new Error(`profile publish failed: ${profileSeed.code}: ${profileResult.errors.join("; ")}`);
   const { data: profile, error: profileErr } = await profilesDB.findById(profileResult.profileId);

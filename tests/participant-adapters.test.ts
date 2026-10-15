@@ -130,7 +130,7 @@ test("external-orchestrator: dispatching delivers the assignment to the tenant e
   await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl, adapterAuthRef: "secret-token" });
 
   const before = captured.length;
-  const dispatched = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
 
   // Dispatch itself is async now (WorkItemGenerated -> dispatchEngine); wait
@@ -156,7 +156,7 @@ test("human-on-UI (default, no execution target): dispatching makes no external 
   await executionTargetsDB.deleteByTenantAndCapability(defaultTenantId, capabilityId);
 
   const before = captured.length;
-  const dispatched = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
 
   const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
@@ -171,11 +171,11 @@ test("the platform-side flow is identical either way: the Deliverable is dispatc
   // Same Capability, both modes, same observable platform result (outstanding).
   const external = await commissionAndFulfil("adapter-invariance-ext");
   await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId: external.capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl });
-  const d1 = await transitionDeliverable({ deliverableId: external.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const d1 = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: external.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!d1.ok) assert.equal(d1.reason, "already_in_flight", JSON.stringify(d1));
 
   const human = await commissionAndFulfil("adapter-invariance-hum");
-  const d2 = await transitionDeliverable({ deliverableId: human.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const d2 = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: human.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!d2.ok) assert.equal(d2.reason, "already_in_flight", JSON.stringify(d2));
 
   // Both dispatched, both requesting the same transition — the platform

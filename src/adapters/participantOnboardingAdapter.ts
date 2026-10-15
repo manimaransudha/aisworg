@@ -1,9 +1,17 @@
 import type { ParticipantType } from "../dblayer/seuTypes.js";
 
+export interface OnboardingOntology {
+  capabilityCodes: string[];
+  domainValues: string[];
+  technologyValues: string[];
+  proficiencyLevels: string[];
+}
+
 export interface OnboardParticipantRequest {
   tenantId: string;
   tenantLabel: string;
   seed: number;
+  ontology: OnboardingOntology;
 }
 
 export interface OnboardedParticipant {

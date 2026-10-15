@@ -237,17 +237,17 @@ export const objectivesDB = {
     }
   },
 
-  async update(id: string, input: { statement?: string; requestedBy: string; bumpVersion?: boolean }): Promise<DbResult<ObjectiveRow>> {
+  async update(id: string, input: { statement: string; requestedBy: string; bumpVersion?: boolean }): Promise<DbResult<ObjectiveRow>> {
     try {
       const { rows } = await query<ObjectiveRow>(
         `UPDATE objectives
-         SET statement = COALESCE($1, statement),
+         SET statement = $1,
              requested_by = COALESCE(requested_by, $2),
              version = ${input.bumpVersion === false ? "version" : BUMP_PATCH_SQL},
              updated_at = NOW()
          WHERE id = $3
          RETURNING *`,
-        [input.statement ?? null, input.requestedBy ?? null, id]
+        [input.statement, input.requestedBy, id]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -269,11 +269,8 @@ export const objectivesDB = {
     }
   },
 
-  async addCapabilities(objectiveId: string, capabilityCodes: string[], authorId?: string, authorBadge?: string): Promise<DbResult<void>> {
+  async addCapabilities(objectiveId: string, capabilityCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
-      if (capabilityCodes.length > 0 && (!authorId || !authorBadge)) {
-        throw new Error("addCapabilities: authorId/authorBadge are required when capabilityCodes is non-empty");
-      }
       for (const code of capabilityCodes) {
         await query(
           `INSERT INTO objective_capabilities (objective_id, capability_code, author_id, author_badge)
@@ -289,12 +286,9 @@ export const objectivesDB = {
     }
   },
 
-  async setRequiredCapabilities(objectiveId: string, capabilityCodes: string[], authorId?: string, authorBadge?: string): Promise<DbResult<void>> {
+  async setRequiredCapabilities(objectiveId: string, capabilityCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM objective_capabilities WHERE objective_id = $1", [objectiveId]);
-      if (capabilityCodes.length > 0 && (!authorId || !authorBadge)) {
-        throw new Error("setRequiredCapabilities: authorId/authorBadge are required when capabilityCodes is non-empty");
-      }
       for (const code of capabilityCodes) {
         await query(
           `INSERT INTO objective_capabilities (objective_id, capability_code, author_id, author_badge)
@@ -334,13 +328,13 @@ export const objectivesDB = {
     }
   },
 
-  async addComment(objectiveId: string, actorId: string, commentText: string): Promise<DbResult<ObjectiveCommentRow>> {
+  async addComment(objectiveId: string, actorId: string, authorityBadge: string, commentText: string): Promise<DbResult<ObjectiveCommentRow>> {
     try {
       const { rows } = await query<ObjectiveCommentRow>(
-        `INSERT INTO objective_comments (objective_id, actor_id, comment_text)
-         VALUES ($1, $2, $3)
+        `INSERT INTO objective_comments (objective_id, actor_id, authority_badge, comment_text)
+         VALUES ($1, $2, $3, $4)
          RETURNING *`,
-        [objectiveId, actorId, commentText]
+        [objectiveId, actorId, authorityBadge, commentText]
       );
       return { data: rows[0] };
     } catch (err) {

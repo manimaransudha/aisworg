@@ -8,7 +8,8 @@ export function query<T extends QueryResultRow = QueryResultRow>(
 export function bulkInsert<T extends QueryResultRow = QueryResultRow>(
   table: string,
   columns: string[],
-  rows: unknown[][]
+  rows: unknown[][],
+  options?: { onConflict?: string }
 ): Promise<QueryResult<T>>;
 
 declare const pool: Pool;
