@@ -49,7 +49,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Dispatch does not imply execution, only initiates it<br> Ref: §4</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts:161-218<br>src/routes/seu/core/workItems.ts:55-114</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Assignment sets Work Item status to <code>Dispatched</code> and returns; <code>completeWorkItem</code> (a separate, later call) is what applies the governed transition.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Assignment sets Work Item status to Dispatched and returns; <code>completeWorkItem</code> (a separate, later call) records the evidence reference and disposes the Work Item. It applies no transition.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -145,7 +145,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Dispatch outputs do not modify engineering state<br> Ref: §8</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts:161-218</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>dispatch()</code> changes Work Item/Command/Participant *dispatch* status (Dispatched/Assigned) but never a Deliverable's lifecycle state; that happens only in <code>completeWorkItem</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>dispatch()</code> changes Work Item/Command/Participant <em>dispatch</em> status (Dispatched/Assigned) but never a Deliverable's lifecycle state; that happens only in <code>executionEngine.applyDeliverableTransition</code>.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -247,7 +247,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Events: DispatchRejected<br> Ref: §14</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts:45-89, 119-130</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Published for both terminal-reject cases (no producing Capability declared; empty eligible pool) and from <code>redispatch.ts:95-104</code> when attempts are exhausted.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Published for both terminal-reject cases (no producing Capability declared; empty eligible pool) with payload <code>{ reason, commandId }</code>. <code>deliverableKickoff</code> consumes it and re-issues the producing Command once the Capability has an active fulfilment. Also published from <code>redispatch.ts:95-104</code> when attempts are exhausted.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>

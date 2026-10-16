@@ -4,7 +4,7 @@ CREATE TABLE attestations (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   seu_id                UUID NOT NULL REFERENCES seus(id),
   deliverable_id        UUID NOT NULL REFERENCES deliverables(id),
-  work_item_id          UUID NOT NULL REFERENCES work_items(id),
+  command_id            UUID NOT NULL REFERENCES commands(id),
   participant_id        UUID NOT NULL REFERENCES participants(id),
   from_state            TEXT NOT NULL,
   to_state              TEXT NOT NULL,

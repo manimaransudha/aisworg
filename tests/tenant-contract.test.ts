@@ -142,17 +142,12 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
   const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(deliverable);
 
-  // deliverableKickoffHandler (SEUOperational / DeliverableTransitioned /
-  // ObligationTransitioned) re-scans every Deliverable in the SEU and
-  // attempts each one's own next governed transition unprompted — the same
-  // governed check this manual call also runs, and the "manual" trigger tag
-  // only controls button visibility, not who/what may attempt the
-  // transition. So this hop can legitimately already have a Command in
-  // flight from that automatic rescan (already_in_flight) before this call
-  // lands — a real Command either way, just differing in who got there first.
+  // Defined -> In Progress is a governed hop: the Execution Engine makes it off the kickoff, so a manual request that
+  // lands after it finds the Deliverable already In Progress (no_transition_definition). The producing Command
+  // (In Progress -> In Progress) is what the test then waits for.
   const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
-  const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "Defined", "In Progress");
+  if (!dispatched.ok) assert.ok(dispatched.reason === "no_transition_definition" || dispatched.reason === "already_in_flight", JSON.stringify(dispatched));
+  const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "In Progress", "In Progress");
   return workItem.id;
 }
 

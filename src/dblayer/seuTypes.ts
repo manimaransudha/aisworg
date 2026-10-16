@@ -640,7 +640,7 @@ export interface DeliverableReferenceRow {
   id: string;
   seu_id: string;
   deliverable_id: string;
-  work_item_id: string;
+  command_id: string;
   participant_id: string | null;
   from_state: string;
   to_state: string;
@@ -816,7 +816,7 @@ export interface AttestationRow {
   id: string;
   seu_id: string;
   deliverable_id: string;
-  work_item_id: string;
+  command_id: string;
   participant_id: string;
   from_state: string;
   to_state: string;

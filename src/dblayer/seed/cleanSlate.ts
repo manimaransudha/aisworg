@@ -128,6 +128,9 @@ async function run(): Promise<void> {
   await seedOntologyConcepts({ authoredBy: actorId, authorBadge: actorBadge });
   await seedRouteAuthority({ authoredBy: actorId, authorBadge: actorBadge});
   await seedEventSubscriptions({ authoredBy: actorId, authorBadge: actorBadge});
+  // Policy Definitions load first: a Transition Definition that requires an attestation stores the UUID of
+  // policy-attestation-required.
+  await seedPolicyDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedTransitionDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedSchemaDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedCapabilityDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
@@ -136,7 +139,6 @@ async function run(): Promise<void> {
 
   await seedParticipantsMaster();
   
-  await seedPolicyDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedCapabilityPatternPacksWithRetry({ authoredBy: actorId, authorBadge: actorBadge });
   await seedSdlcStandardTemplates({ authoredBy: actorId, authorBadge: actorBadge });
   await seedEbookLibraryObjectives();

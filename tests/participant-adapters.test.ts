@@ -16,7 +16,6 @@ import type { AddressInfo } from "node:net";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
@@ -81,7 +80,9 @@ after(async () => {
   await new Promise<void>((resolve) => captureServer.close(() => resolve()));
 });
 
-async function commissionAndFulfil(prefix: string) {
+// The producing Command dispatches as soon as the Capability is fulfilled (the engine makes the hop at Operational),
+// and the adapter is resolved at dispatch, so an execution target has to exist before the fulfilment.
+async function commissionAndFulfil(prefix: string, beforeFulfil?: (capabilityId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
   let capabilityId = "";
   const result = await commissionFromFormSync(
@@ -95,6 +96,7 @@ async function commissionAndFulfil(prefix: string) {
       const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
       assert.ok(capability);
       capabilityId = capability.capabilityId;
+      if (beforeFulfil) await beforeFulfil(capability.capabilityId);
       await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
     }
   );
@@ -126,22 +128,20 @@ test("both adapters implement the one contract; the registry resolves by mode; a
 });
 
 test("external-orchestrator: dispatching delivers the assignment to the tenant endpoint over the adapter", async () => {
-  const { seuId, deliverableId, capabilityId } = await commissionAndFulfil("adapter-external");
-  await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl, adapterAuthRef: "secret-token" });
-
   const before = captured.length;
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
+  const { deliverableId } = await commissionAndFulfil("adapter-external", async (capabilityId) => {
+    await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl, adapterAuthRef: "secret-token" });
+  });
 
   // Dispatch itself is async now (WorkItemGenerated -> dispatchEngine); wait
   // for the real Work Item before also waiting on its delivery.
-  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
   // Ch.30 Event Bus redesign — dispatch is fire-and-forget; poll for delivery
   // rather than assuming it's already landed synchronously.
   await waitUntil(() => captured.slice(before).some((c) => c.workItemId === workItem.id));
   const mine = captured.slice(before).find((c) => c.workItemId === workItem.id);
   assert.ok(mine, "the orchestrator endpoint should have received the assignment");
-  assert.equal(mine!.body.transition.fromState, "Defined");
+  assert.equal(mine!.body.transition.fromState, "In Progress");
   assert.equal(mine!.body.transition.toState, "In Progress");
   assert.equal(mine!.body.deliverable.id, deliverableId);
   assert.ok(Array.isArray(mine!.body.inputReferences), "the assignment carries the §2.2 input references array");
@@ -149,17 +149,14 @@ test("external-orchestrator: dispatching delivers the assignment to the tenant e
 });
 
 test("human-on-UI (default, no execution target): dispatching makes no external call", async () => {
-  const { deliverableId, capabilityId } = await commissionAndFulfil("adapter-human");
-  // Capabilities are pack-global, so the per-Capability execution target is
-  // shared across SEUs (tenant scoping is step 6). Clear any target another
-  // test set for this Capability so this exercises the true default.
-  await executionTargetsDB.deleteByTenantAndCapability(defaultTenantId, capabilityId);
-
+  // Capabilities are pack-global, so the per-Capability execution target is shared across SEUs (tenant scoping is
+  // step 6). Clear any target another test set for this Capability so this exercises the true default.
   const before = captured.length;
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
+  const { deliverableId } = await commissionAndFulfil("adapter-human", async (capabilityId) => {
+    await executionTargetsDB.deleteByTenantAndCapability(defaultTenantId, capabilityId);
+  });
 
-  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
   // Ch.30 Event Bus redesign — dispatch is fire-and-forget; give a
   // (would-be erroneous) delivery a moment to land before asserting absence.
   await new Promise((resolve) => setTimeout(resolve, 200));
@@ -169,17 +166,13 @@ test("human-on-UI (default, no execution target): dispatching makes no external 
 
 test("the platform-side flow is identical either way: the Deliverable is dispatched-and-outstanding regardless of adapter", async () => {
   // Same Capability, both modes, same observable platform result (outstanding).
-  const external = await commissionAndFulfil("adapter-invariance-ext");
-  await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId: external.capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl });
-  const d1 = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: external.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  if (!d1.ok) assert.equal(d1.reason, "already_in_flight", JSON.stringify(d1));
-
+  const external = await commissionAndFulfil("adapter-invariance-ext", async (capabilityId) => {
+    await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl });
+  });
   const human = await commissionAndFulfil("adapter-invariance-hum");
-  const d2 = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: human.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  if (!d2.ok) assert.equal(d2.reason, "already_in_flight", JSON.stringify(d2));
 
   // Both dispatched, both requesting the same transition — the platform
   // behaves identically; only the edge differed.
-  await waitForDispatchedWorkItem(external.deliverableId, "Defined", "In Progress");
-  await waitForDispatchedWorkItem(human.deliverableId, "Defined", "In Progress");
+  await waitForDispatchedWorkItem(external.deliverableId, "In Progress", "In Progress");
+  await waitForDispatchedWorkItem(human.deliverableId, "In Progress", "In Progress");
 });

@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
+import { transitionDeliverableSync as transitionDeliverable, produceDeliverable } from "./testFixtures.js";
 import { getFlowMetrics, getGovernanceMetrics } from "../src/routes/seu/core/telemetry.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
@@ -69,11 +69,11 @@ test("Governance Telemetry scoped to one SEU excludes another SEU's Quality Gate
   const a = await commissionAndFulfilRequirementsSpec("telemetry-per-seu-governance-a");
   const b = await commissionAndFulfilRequirementsSpec("telemetry-per-seu-governance-b");
 
-  await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await produceDeliverable(a.deliverableId, ROOT_ACTOR_ID);
   const approvedA = await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(approvedA.ok, true);
 
-  await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await produceDeliverable(b.deliverableId, ROOT_ACTOR_ID);
   const approvedB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(approvedB.ok, true);
 

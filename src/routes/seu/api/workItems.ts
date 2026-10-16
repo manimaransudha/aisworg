@@ -36,7 +36,6 @@ router.post("/work-items/:id/result", async (req: Request, res: Response) => {
         outcome: "done",
         workItem: result.workItem,
         deliverable: result.deliverable,
-        appliedTransition: result.appliedTransition,
       });
     }
     return res.status(200).json({ outcome: result.outcome, workItem: result.workItem });

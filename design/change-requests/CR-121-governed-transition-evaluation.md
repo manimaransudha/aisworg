@@ -2,7 +2,7 @@
 
 **Raised:** 2026-10-15 · **Origin:** the same rejection mapping, authority-badge guard, author resolution and Quality Gate call are repeated across the transition functions (Ch.21 §6 FR-21.3, Ch.22 §6 FR-22.2, Ch.26 §10, Ch.29 §5 SM-004).
 
-**Status:** 🟡 Built (first pass) pending verification — 2026-10-15
+**Status:** ✅ Built 2026-10-16
 
 ## Specification read before this CR
 
@@ -99,7 +99,62 @@ Proposed design:
 - The Quality Gate evaluation, the governance outcome and the eligible-participant pool are authored by the SEU system participant.
 - The kickoff fires only hops whose `trigger` is `governed` (`Defined -> In Progress`). `In Progress -> Approved` and `Approved -> Baselined` stay `manual`. This closes KI-001.
 
+### Third pass: flow settled with the owner (2026-10-15, after reading Ch.31 and Ch.32)
+
+- All Deliverable transitions are governed by the Execution Engine and follow one path. A Command is issued, the engine governs it, and the engine makes the transition. A participant's button click or the kickoff issues the Command. Governance involves no participant.
+- The engine's governance is the Deliverable governance from the Transition Definition (dependencies, Obligations, Decisions, evidence, policies) followed by the shared Quality Gate. When both pass, the engine calls `transitionEngine.evaluate` for the badge check and changes the state, as the system actor.
+- A record that a hop requires (for example "xyz" for Approve) is declared by the Deliverable Definition and becomes part of the Deliverable governance. The hard-coded `empty_centre` check is replaced by it when the evidence definition is built.
+- A Work Item is generated only for producing work, after the engine has moved the Deliverable to In Progress: Execution Engine, Work Item Generator, Dispatch, Participant. Approve and Baseline create no Work Item.
+- `completeWorkItem` records the evidence reference and disposes the Work Item. It makes no state change (WI-005, FR-32.7). A manual click never calls it.
+- Work Items are transient (WI-001), so no durable record references one. `attestations.work_item_id` is replaced by `command_id` (the Command is the attestation). `deliverable_references.work_item_id` follows the same rule.
+
+## Built (third pass, 2026-10-15)
+
+- Execution Engine (`src/domain/engine/executionEngine.ts`): `evaluateDeliverableTransition` governs the Deliverable Command. `applyDeliverableTransition` records the governance outcome and the Command, changes the state as the SEU system actor after `transitionEngine.authorise`, mints the attestation on an acceptance transition and publishes `DeliverableTransitioned`.
+- Kickoff (`deliverableKickoff.ts`): fires only hops whose `trigger` is `governed`. `transitionDefinitions.json` sets `Defined -> In Progress` to `governed`. KI-001 is closed by this filter.
+- `completeWorkItem` (`src/routes/seu/core/workItems.ts`): records the evidence reference and disposes the Work Item. It makes no state change.
+- `attestations` and `deliverable_references`: `work_item_id` is replaced by `command_id` (recovery SQL, DB layer, types).
+- Quality Gate evaluation, governance outcome and eligible-participant pool are authored by the SEU system participant.
+- `applyDeliverableTransition` runs requests for the same Deliverable one at a time (an in-process turn per Deliverable id). Inside its turn it reads the Deliverable again. When another request has already moved it out of the hop's from-state, it returns `already_in_flight` before any governance outcome or Command is recorded. A Deliverable moves only together with its Command: the outcome and Command are written first, then the state changes. The turn holds within one server process only. The overlapping-kickoff test in `cr121-governed-deliverable-flow.test.ts` covers it and has not been run.
+- A hop that requires an attestation lists the Policy Definition `policy-attestation-required` (`policy-attestation-required.json`, registered in `seedPolicyDefinitions.ts`). `transitionDefinitions.json` sets `attestationRequired: true` on `Deliverable In Progress -> Approved` and `Approved -> Baselined`. `seedTransitionDefinitions` reads the Active Policy Definition's UUID from `policy_definitions` and stores it in the hop's `required_policy_ids`. `cleanSlate` seeds Policy Definitions before Transition Definitions. `transitionRequiresAttestation` (`transitionEngine.ts`) tells whether a hop carries that UUID, and `applyDeliverableTransition` mints the attestation on that basis. `ATTESTATION_REQUIRED_POLICY_CODE` is in `constants.ts`. `dataMigrations.ts` runs a `policy-definitions` step before `transition-definitions`. The hard-coded `ACCEPTANCE_TRANSITIONS` list and `isAcceptanceTransition` are removed.
+- `deliverableKickoffHandler` also consumes `CapabilityFulfilled` (`eventSubscriptions.json`: event type and subscription row). The producing Command is generated once, when a Deliverable reaches In Progress. When the producing Capability was unfulfilled at that moment, the Command fails on the empty pool. Fulfilling the Capability now requests the producing Command again for each In Progress Deliverable of that Capability that has no producing Command in flight or Completed. The retry reuses the governance outcome of the Deliverable's own transition Command.
+
+## Test fixtures updated in the same pass
+
+- `tests/testFixtures.ts`: `transitionDeliverableSync` requests the transition synchronously, treats a hop the engine already made as done, and provisions the requester's participants row before a hop that requires an attestation. `produceDeliverable` moves a Deliverable to In Progress, completes the producing Work Item with a reference and returns, so that a later approval passes the empty-centre check.
+- Tests that approve a Deliverable now call `produceDeliverable` first: `telemetry`, `telemetry-per-seu`, `quality-telemetry`, `governance-depth`, `trust-pipeline`, `attention-and-interaction`, `attestation`, `traceability`.
+- Tests that accepted `already_in_flight` from a manual `Defined -> In Progress` request now accept `no_transition_definition` and `already_in_flight` (the engine's kickoff may have made the hop or still have its Command in flight): `participant-lifecycle`, `participant-adapters`, `tenant-contract`, `cr109-work-item-generator`, `acceptance.e2e`.
+- `command-pipeline`: the two direct `executionEngine.execute` rejection tests request the producing Command. The no-Capability test uses the architecture Deliverable, which the kickoff has not touched.
+- `cr109-work-item-generator`: the Obligation, Decision and fulfilment that a governance evaluation must see are created before commence-work (`beforeCommenceWork`), because the engine makes the hop at Operational. The Execution Context test attaches its Decision, Evidence and Knowledge before it fulfils the Capability, because the fulfilment generates the producing Command.
+- `participant-adapters`: the execution target is set before the Capability is fulfilled, because the adapter is resolved at dispatch. The delivered transition is `In Progress -> In Progress`.
+- `web-flow.e2e`: Phase 3 asserts the engine-made hop, the Failed producing Command and the dispatch after fulfilment. Flow 5 no longer asserts a success flash for a hop the kickoff may already have made.
+- `work-item-stall`: uses `transitionDeliverableSync`.
+- `cr121-governed-deliverable-flow.test.ts` (new): the engine's own hops create no Work Item and each acceptance hop is attested by its Command; the kickoff requests only `governed` hops; the seed stores the attestation Policy Definition's UUID on exactly the hops that require it; overlapping kickoff runs make a governed hop once.
+
+## Verification state (2026-10-15)
+
+- The tests were aligned to the new flow by reading them against the code. They have not been run for the third pass. `tsc`, `db:clean-slate` and the test suite were not run in this review.
+- Known divergences from the design above:
+
+| # | Item |
+|---|---|
+| 1 | `evaluateDeliverableTransition` checks authority for the requesting actor and `applyDeliverableTransition` checks it again for the system actor. Quality Gates and policies run in the engine's own chain, not through `transitionEngine.evaluateGoverned` (third pass design item 2). |
+| 2 | `transitionDeliverableSync` waits a fixed 250 ms before resolving rejection Obligations. |
+
+## Lost producing Command (fourth pass, 2026-10-16)
+
+- Defect: a `CapabilityFulfilled` event that landed while the first producing Command (pool snapshot empty) was in flight was skipped by the in-flight guard. The Command then failed with `empty_eligible_pool` and nothing re-issued it.
+- `dispatchEngine.rejectDispatch` publishes `DispatchRejected` with `{ reason, commandId }`. `deliverableKickoff` subscribes to it (`eventSubscriptions.json`) and re-issues the producing Command once the producing Capability has an active fulfilment. The pool is taken from the fulfilments that exist at that time.
+- `CapabilityFulfilled` and `DispatchRejected` share one re-issue function (`reissueProducingCommand`). It requires the Deliverable In Progress, no non-Failed `In Progress -> In Progress` Command and at least one active fulfilment.
+- The `DeliverableTransitioned` path and the re-issue path run concurrently for one Deliverable, so the in-flight check and the Command insert could interleave and create two producing Commands (the second `Deferred`, its Work Item `Generated`). Both paths now run under a per-Deliverable in-process lock and the `DeliverableTransitioned` path applies the same non-Failed Command check.
+- Tests: `transitionDeliverableSync` accepts `no_transition_definition` or `already_in_flight` when the Deliverable is at the target state. `clickTransitionAfterLag` simulates a person's click after the engine's kickoff, and `produceDeliverable` waits for it. `review-model`, `compliance-model` assert the state is unchanged from the state read beforehand. `acceptance.e2e` and `command-pipeline` accept `Defined` or `In Progress` after commissioning. `web-flow.e2e` Flow 4 accepts the in-flight message for a repeated In Progress click.
+- Open: the lock is per process, like the Deliverable turn above. `cr109` §5a (open Decision keeps the requirements Deliverable `Defined`) is unconfirmed. The fourth-pass changes have not been run.
+
 ## Still open
 
-- Third pass: `executionEngine`, designed together with KI-001 in `design/Known Issues.md`. The decisions above are settled. The build is pending.
+- The Deliverable turn in `applyDeliverableTransition` holds within one server process. Several instances would need a database lock around the outcome, Command and state writes.
+- The producing Command requested on `CapabilityFulfilled` takes its acting badge from the Deliverable's transition Command, while the first request takes it from the `DeliverableTransitioned` event.
+- The `CapabilityFulfilled` event description in `eventSubscriptions.json` cites Ch.12, which is not confirmed.
+- Whether the Execution Engine should use `transitionEngine.evaluateGoverned` for its authority and Quality Gate chain (divergence 1).
+- The evidence definition on the Deliverable Definition, which replaces the hard-coded `empty_centre` check.
 - Whether the Quality Gate result should be returned for traceability (Ch.26 §14) in the allowed outcome.

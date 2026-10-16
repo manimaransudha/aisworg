@@ -21,6 +21,7 @@ import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
+import { transitionRequiresAttestation } from "../src/domain/engine/transitionEngine.js";
 import type { TransitionEntityType } from "../src/dblayer/seuTypes.js";
 import { lookupRouteAuthority } from "../src/domain/identity/routeAuthorityCache.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
@@ -225,36 +226,12 @@ export const TESTER_OBJECTIVE_ACHIEVE_ONLY = await getTesterIdentity("tester-obj
 // allNounVerbBadges()).
 export const TESTER_ACCEPTANCE_JOURNEY = await getTesterIdentity("tester-acceptance-journey@test.local");
 
-// Model A made transitionDeliverable async (Participant Integration Plan): a
-// governed transition is *dispatched*, and the Deliverable only moves when a
-// Participant reports a `done` result to the result-in callback. The many
-// governance/telemetry/badge tests that are about the *outcome* of a
-// transition (was it authorised? did the Quality Gate block? what's the cycle
-// time?) — not about the async mechanics — drive the whole dispatch->complete
-// round-trip in one call through this helper, which restores the old
-// synchronous contract: it returns the moved Deliverable on success, or the
-// governance failure verbatim (failures short-circuit before dispatch, so they
-// never reach completion). Tests that assert the async mechanics themselves
-// (command-pipeline, participant-lifecycle) call transitionDeliverable +
-// completeWorkItem directly instead.
-// Rewritten for the event-driven Execution Engine pipeline (CommandGenerated
-// -> WorkItemGenerated -> Dispatch, all async consumers now — see
-// executionEngine.ts/dispatchEngine.ts's own header comments). transitionDeliverable
-// itself only reports "governance cleared, Command requested" (fromState/
-// toState) — it can no longer report workItemId/dispatched/participantId
-// synchronously, since those facts don't exist yet when it returns. This
-// polls for the real Command this call produced to reach Dispatched
-// (commandsDB.findInFlight already returns exactly one non-terminal Command
-// per (entityType, entityId, fromState, toState) — the duplicate-dispatch
-// guard's own invariant makes this a safe, unambiguous lookup), then
-// completes its Work Item the same way a Participant's real callback would.
-// Lower-level than transitionDeliverableSync: requests the transition and
-// polls for the real Command/Work Item the async pipeline produced, WITHOUT
-// completing it — for tests that need to inspect the Work Item (execution
-// context, dispatch_strategy, pool) before/instead of finishing it.
-// Recognises both a successful dispatch (Dispatched) and a deferred one
-// (Deferred, e.g. an empty eligible-Participant pool) — both leave a real
-// Work Item behind; only a Failed (rejected) Command has none worth finding.
+// Polls for the producing Command and its Work Item that the Execution Engine generates once a Deliverable is In
+// Progress (CommandGenerated -> WorkItemGenerated -> Dispatch, all asynchronous consumers). It does not complete the
+// Work Item, so a test can inspect it (execution context, dispatch_strategy, pool) or complete it with
+// completeWorkItem, which records the reference and changes no state. commandsDB.findInFlight returns exactly one
+// non-terminal Command per (entityType, entityId, fromState, toState), so the lookup is unambiguous. A Dispatched
+// and a Deferred Command both leave a Work Item; a Failed Command leaves none.
 export async function waitForDispatchedWorkItem(deliverableId: string, fromState: string, toState: string): Promise<{ command: CommandRow; workItem: import("../src/dblayer/seuTypes.js").WorkItemRow }> {
   console.log(`[waitForDispatchedWorkItem] stage 1: polling for Command ${deliverableId} ${fromState} -> ${toState} to reach Dispatched/Deferred`);
   let command: CommandRow | null = null;
@@ -286,80 +263,60 @@ export async function waitForDispatchedWorkItem(deliverableId: string, fromState
   return { command: command as CommandRow, workItem };
 }
 
+// The Execution Engine now governs a Deliverable Command and makes the transition itself (CR-121 third pass), so
+// the request is synchronous: it returns the moved Deliverable, or the governance failure verbatim. A hop the
+// engine already made on its own (the governed Defined -> In Progress kickoff) counts as done.
 export async function transitionDeliverableSync(input: {
   deliverableId: string;
   targetState: string;
   actorRole?: string;
   actorId: string;
 }): Promise<{ ok: true; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } } | Extract<TransitionDeliverableResult, { ok: false }>> {
-  // Captured before the request, not read off its own ok:true result — so
-  // this still has a real fromState even when deliverableKickoffHandler's
-  // own automatic rescan (off SEUOperational) already has this exact hop in
-  // flight and this call comes back already_in_flight instead of ok:true.
   const { data: deliverableBefore } = await deliverablesDB.findById(input.deliverableId);
   const fromState = deliverableBefore!.lifecycle_state;
+  // An acceptance transition mints an attestation for the requester, which needs the requester's participants row.
+  const { data: hopDefinition } = await transitionDefinitionsDB.find("Deliverable", fromState, input.targetState);
+  if (hopDefinition && (await transitionRequiresAttestation(hopDefinition))) await ensureActorParticipant(deliverableBefore!.seu_id, input.actorId);
 
-  // already_in_flight only means SOME Command already exists for this hop —
-  // not that it will reach Dispatched. The automatic rescan's own first
-  // attempt reliably hits an empty eligible-Participant pool and goes
-  // Failed (terminal), same as this file's own header comment already
-  // covers — so "in flight" can resolve away with nothing dispatched. Retry
-  // this exact request a few times: once the blocking Command leaves
-  // Generated/Dispatched/Deferred without ever reaching Dispatched, this
-  // hop is free again and a fresh request should succeed for real.
-  let command: CommandRow | null = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const requested = await transitionDeliverable({ ...input, requestedBy: input.actorId });
-    if (!requested.ok && requested.reason !== "already_in_flight") return requested;
-    const waitingOnSomeoneElse = !requested.ok; // reason === "already_in_flight"
+  const requested = await transitionDeliverable({ ...input, requestedBy: input.actorId });
+  if (!requested.ok) {
+    const { data: current } = await deliverablesDB.findById(input.deliverableId);
+    if ((requested.reason === "no_transition_definition" || requested.reason === "already_in_flight") && current?.lifecycle_state === input.targetState) {
+      return { ok: true, deliverable: current, appliedTransition: { fromState, toState: input.targetState } };
+    }
+    return requested as Extract<TransitionDeliverableResult, { ok: false }>;
+  }
 
-    command = null;
-    await waitUntilAsync(async () => {
-      const { data } = await commandsDB.findInFlight("Deliverable", input.deliverableId, fromState, input.targetState);
-      command = data ?? null;
-      if (data?.status === "Dispatched") return true;
-      // Only bail early to retry when we know SOMEONE ELSE's Command is what
-      // we're waiting on — it can resolve away (Failed) with nothing ever
-      // dispatched. Never bail on our own freshly requested Command just
-      // because it briefly reads null before CommandGenerated's own handler
-      // has written the row yet — that's the normal, no-retry-needed path.
-      return waitingOnSomeoneElse && data === null;
-    });
-    if ((command as CommandRow | null)?.status === "Dispatched") break;
-    if (!waitingOnSomeoneElse) break;
-  }
-  if (!command || (command as CommandRow).status !== "Dispatched") {
-    throw new Error(`test transitionDeliverableSync: Command for ${input.deliverableId} ${fromState} -> ${input.targetState} did not reach Dispatched in time (status: ${(command as CommandRow | null)?.status ?? "not found"})`);
-  }
-  // See waitForDispatchedWorkItem's own comment above: the Command's own
-  // status reaches "Dispatched" several awaited writes before its Work
-  // Item's own status does (dispatchEngine.ts:153 vs :187) — wait for the
-  // Work Item itself, not just the Command, before handing it to completeWorkItem.
-  let workItem: import("../src/dblayer/seuTypes.js").WorkItemRow | undefined;
-  await waitUntilAsync(async () => {
-    const { data: workItems } = await workItemsDB.findByCommandIds([(command as CommandRow).id]);
-    workItem = (workItems ?? [])[0];
-    return workItem?.status === "Dispatched";
-  });
-  if (!workItem) throw new Error(`test transitionDeliverableSync: no Work Item found for Command ${(command as CommandRow).id}`);
-
-  const completed = await completeWorkItem({
-    workItemId: workItem.id,
-    outcome: "done",
-    reference: `vcs://test/${input.deliverableId}@${input.targetState}`,
-  });
-  if (!completed.ok || completed.outcome !== "done") {
-    throw new Error(`test transitionDeliverableSync: completion failed: ${completed.ok ? completed.outcome : completed.detail}`);
-  }
-  // completeWorkItem just published DeliverableTransitioned, fire-and-forget
-  // — deliverableKickoffHandler (subscribed to it, same handler SEUOperational
-  // uses) is about to unprompted-attempt whichever next hop this unblocked,
-  // same race every earlier hop already ran. Give it a moment to actually
-  // fire, then sweep whatever stray artifact it left, before this call hands
-  // control back to the test's own next scenario step.
+  const { data: moved } = await deliverablesDB.findById(input.deliverableId);
+  // DeliverableTransitioned is handled asynchronously (the governed-hop rescan and the production Command).
   await new Promise((resolve) => setTimeout(resolve, 250));
-  await resolveDispatchRejectionObligations(completed.deliverable.seu_id);
-  return { ok: true, deliverable: completed.deliverable, appliedTransition: completed.appliedTransition };
+  await resolveDispatchRejectionObligations(moved!.seu_id);
+  return { ok: true, deliverable: moved!, appliedTransition: { fromState, toState: input.targetState } };
+}
+
+// Produces a Deliverable the way the platform does: the Execution Engine moves it to In Progress and generates the
+// producing Command, and the Participant completes that Command's Work Item with the reference. Completing the Work
+// Item records the reference and changes no state. An approval needs this reference (the empty-centre check).
+// Needs the producing Capability to be fulfilled before the Deliverable reaches In Progress, or by CapabilityFulfilled.
+// Simulates a person clicking a transition button some time after the engine's own governed kickoff. If the engine
+// has already made the hop by then, the click finds the Deliverable at the target state and counts as done.
+export async function clickTransitionAfterLag(input: { deliverableId: string; targetState: string; actorId: string; lagMs?: number }): Promise<{ ok: true } | { ok: false; reason: string }> {
+  await new Promise((resolve) => setTimeout(resolve, input.lagMs ?? 1500));
+  const result = await transitionDeliverable({ deliverableId: input.deliverableId, targetState: input.targetState, actorRole: "super", actorId: input.actorId, requestedBy: input.actorId });
+  if (result.ok) return { ok: true };
+  const { data: current } = await deliverablesDB.findById(input.deliverableId);
+  if ((result.reason === "no_transition_definition" || result.reason === "already_in_flight") && current?.lifecycle_state === input.targetState) return { ok: true };
+  return { ok: false, reason: result.reason };
+}
+
+export async function produceDeliverable(deliverableId: string, actorId: string, reference: string | null = "vcs://test/produced@1"): Promise<string> {
+  await new Promise((resolve) => setTimeout(resolve, 1500)); // the person's click lands after the engine's own kickoff
+  const moved = await transitionDeliverableSync({ deliverableId, targetState: "In Progress", actorRole: "super", actorId });
+  if (!moved.ok) throw new Error(`produceDeliverable: could not move ${deliverableId} to In Progress: ${JSON.stringify(moved)}`);
+  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
+  const completed = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference });
+  if (!completed.ok) throw new Error(`produceDeliverable: completing Work Item ${workItem.id} failed: ${JSON.stringify(completed)}`);
+  return workItem.id;
 }
 
 // design/mvp-build-plan/SEU Composition.md — commissionSeu now only gets

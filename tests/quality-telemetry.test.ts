@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
+import { transitionDeliverableSync as transitionDeliverable, produceDeliverable } from "./testFixtures.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { transitionEvidence } from "../src/routes/seu/core/evidence.js";
@@ -48,17 +48,9 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
 test("Quality Telemetry: rework rate distinguishes a first-try pass from a genuinely blocked-then-passed Deliverable", async () => {
   const before = await getQualityMetrics();
 
-  // deliverableKickoffHandler re-scans every Deliverable on every relevant
-  // event and unconditionally attempts its next transition too — so once a
-  // Deliverable reaches "Approved" (however it gets there), the very next
-  // rescan automatically tries Approved -> Baselined as well. That hop is
-  // gated by "Requires Accepted Evidence" (same gate the acceptance-rate test
-  // below satisfies); with no Evidence attached, that automatic attempt gets
-  // a real, permanent QualityGateBlocked recorded against the Deliverable —
-  // contaminating what should be a "genuinely first-try pass" count. Attach
-  // real, Accepted Evidence up front (before either Deliverable reaches
-  // Approved) so that automatic attempt has what it needs and actually
-  // passes, instead of leaving a stray block on the record.
+  // Approved -> Baselined is a manual hop gated by "Requires Accepted Evidence", and the kickoff requests only
+  // governed hops, so nothing attempts it on its own. Real, Accepted Evidence is attached up front so that a later
+  // request for that hop finds what the gate needs.
   async function attachAcceptedEvidence(seuId: string, deliverableId: string): Promise<void> {
     const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Validation Evidence", title: "Quality telemetry rework test evidence" });
     await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "general", actorId: TESTER_ALL_ID });
@@ -67,14 +59,14 @@ test("Quality Telemetry: rework rate distinguishes a first-try pass from a genui
 
   const clean = await commissionAndFulfilRequirementsSpec("quality-telemetry-clean");
   await attachAcceptedEvidence(clean.seuId, clean.deliverableId);
-  await transitionDeliverable({ deliverableId: clean.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await produceDeliverable(clean.deliverableId, ROOT_ACTOR_ID);
   const cleanPass = await transitionDeliverable({ deliverableId: clean.deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(cleanPass.ok, true);
 
   const reworked = await commissionAndFulfilRequirementsSpec("quality-telemetry-reworked");
   await attachAcceptedEvidence(reworked.seuId, reworked.deliverableId);
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: reworked.deliverableId, category: "Engineering", title: "Quality telemetry rework test obligation" });
-  await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await produceDeliverable(reworked.deliverableId, ROOT_ACTOR_ID);
   const blocked = await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
@@ -97,7 +89,7 @@ test("Quality Telemetry: rework rate distinguishes a first-try pass from a genui
 
 test("Quality Telemetry: Deliverable acceptance rate reflects the real lifecycle_state distribution, scoped correctly per SEU", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("quality-telemetry-acceptance");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
   const approved = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(approved.ok, true);
 

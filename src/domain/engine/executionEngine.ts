@@ -19,7 +19,10 @@ import { raiseObligationForBlockedTransition } from "../../routes/seu/core/oblig
 import { attentionItemsDB } from "../../dblayer/attentionItemsDB.js";
 import { authorityRulesDB } from "../../dblayer/authorityRulesDB.js";
 import type { CommandRow, DeliverableRow, DependencyDefinitionRow, GovernanceEvaluationOutcomeDraft, TransitionEntityType } from "../../dblayer/seuTypes.js";
-import { getSystemActor } from "../../dblayer/constants.js";
+import { getSystemActor, commandTypeFor } from "../../dblayer/constants.js";
+import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
+import { attestationsDB } from "../../dblayer/attestationsDB.js";
+import { transitionEngine, gateRejection, transitionRequiresAttestation, type GateRejectionResult } from "./transitionEngine.js";
 
 export type DeliverableGovernanceResult =
   | { ok: true; fromState: string; governanceOutcome: GovernanceEvaluationOutcomeDraft; actingBadgeType: string }
@@ -29,6 +32,21 @@ export type DeliverableGovernanceResult =
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
   | { ok: false; reason: "empty_centre"; detail: string }
   | { ok: false; reason: "already_in_flight"; detail: string };
+
+export type ApplyDeliverableResult = { ok: true } | GateRejectionResult | { ok: false; reason: "already_in_flight"; detail: string };
+
+const deliverableTurns = new Map<string, Promise<unknown>>();
+
+async function withDeliverableTurn<T>(deliverableId: string, work: () => Promise<T>): Promise<T> {
+  const previous = deliverableTurns.get(deliverableId) ?? Promise.resolve();
+  const turn = previous.catch(() => undefined).then(work);
+  deliverableTurns.set(deliverableId, turn);
+  try {
+    return await turn;
+  } finally {
+    if (deliverableTurns.get(deliverableId) === turn) deliverableTurns.delete(deliverableId);
+  }
+}
 
 export const executionEngine = {
   async evaluateDeliverableTransition(input: { deliverable: DeliverableRow; targetState: string; actorId: string }): Promise<DeliverableGovernanceResult> {
@@ -83,6 +101,7 @@ export const executionEngine = {
     }
     if (!definition.verb) throw new Error(`Deliverable ${fromState} -> ${targetState} declares no verb — no authority badge can be resolved`);
     const requiredBadge = `deliverable_${definition.verb}`;
+    const systemActor = await getSystemActor(deliverable.seu_id);
     const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId, requiredBadge });
     if (!auth.allowed) {
       return { ok: false, reason: "authority_denied", detail: `acting badge check failed: ${auth.reason}` };
@@ -91,21 +110,17 @@ export const executionEngine = {
     const { data: authorityRule } = await authorityRulesDB.findByCode(requiredBadge);
     const applicableAuthorityRuleId = authorityRule?.id ?? null;
 
-    const { authorId: qualityGateAuthorId } = await resolveAuthor(deliverable.seu_id, input.actorId);
-    const qualityGateAuthorBadge = actingBadgeType;
-
     const qualityGateResult = await qualityGateEngine.evaluate({
       entityType: "Deliverable",
       entityId: deliverable.id,
       seuId: deliverable.seu_id,
       fromState,
       toState: targetState,
-      authorId: qualityGateAuthorId,
-      authorBadge: qualityGateAuthorBadge,
+      authorId: systemActor.authorId,
+      authorBadge: systemActor.authorBadge,
     });
     if (qualityGateResult.outcome === "Blocked") {
       await checkSustainedQualityGateBlocking({ qualityGateId: qualityGateResult.gate.id, gateName: qualityGateResult.gate.name, seuId: deliverable.seu_id, deliverableId: deliverable.id });
-      const systemActor = await getSystemActor(deliverable.seu_id);
       await raiseAttentionItem({
         seuId: deliverable.seu_id,
         category: "Action Required",
@@ -190,12 +205,122 @@ export const executionEngine = {
     return { ok: true, fromState, governanceOutcome, actingBadgeType };
   },
 
+  // The engine's own transition (CR-121 third pass): the Command is the request, governance has passed, and the
+  // engine changes the state as the SEU system actor after `transitionEngine.evaluate` has checked the badge.
+  // Requests for the same Deliverable are applied one at a time. Inside that turn the Deliverable is read again, so a
+  // request whose governance ran against a state that another request has since changed is refused before any
+  // Command is recorded. A Deliverable only ever moves together with its Command.
+  async applyDeliverableTransition(input: {
+    deliverable: DeliverableRow;
+    fromState: string;
+    toState: string;
+    requestedBy: string;
+    actingBadgeType: string;
+    governanceOutcome: GovernanceEvaluationOutcomeDraft;
+    correlationId: string;
+  }): Promise<ApplyDeliverableResult> {
+    return withDeliverableTurn(input.deliverable.id, async () => {
+      const { data: current } = await deliverablesDB.findById(input.deliverable.id);
+      if (!current || current.lifecycle_state !== input.fromState) {
+        return { ok: false, reason: "already_in_flight", detail: `Deliverable ${input.deliverable.id} is no longer ${input.fromState}; another request has already applied this hop` } as const;
+      }
+      return executionEngine.applyGovernedDeliverableTransition(input);
+    });
+  },
+
+  async applyGovernedDeliverableTransition(input: {
+    deliverable: DeliverableRow;
+    fromState: string;
+    toState: string;
+    requestedBy: string;
+    actingBadgeType: string;
+    governanceOutcome: GovernanceEvaluationOutcomeDraft;
+    correlationId: string;
+  }): Promise<ApplyDeliverableResult> {
+    const { deliverable, fromState, toState } = input;
+    const systemActor = await getSystemActor(deliverable.seu_id);
+
+    const evaluated = await transitionEngine.authorise({
+      entityType: "Deliverable",
+      fromState,
+      toState,
+      actorId: systemActor.actorId,
+    });
+    if (!evaluated.allowed) {
+      return gateRejection(evaluated, "Deliverable", fromState, toState);
+    }
+    const { verb } = evaluated.definition;
+    if (!evaluated.authorityBadge || !verb) throw new Error(`no authority badge resolved for Deliverable ${fromState} -> ${toState}`);
+
+    const { data: outcome, error: outcomeError } = await governanceEvaluationOutcomesDB.create({
+      ...input.governanceOutcome,
+      author_id: systemActor.authorId,
+      author_badge: systemActor.authorBadge,
+    });
+    if (outcomeError || !outcome) throw outcomeError ?? new Error("failed to record governance evaluation outcome");
+
+    const { data: command, error: commandError } = await commandsDB.create({
+      seuId: deliverable.seu_id,
+      entityType: "Deliverable",
+      entityId: deliverable.id,
+      commandType: commandTypeFor("Deliverable", verb),
+      fromState,
+      toState,
+      requestedBy: input.requestedBy,
+      actingBadgeType: input.actingBadgeType,
+      correlationId: input.correlationId,
+      governanceOutcomeId: outcome.id,
+      eligibleParticipantPoolId: null,
+    });
+    if (commandError || !command) throw commandError ?? new Error("failed to record the transition command");
+
+    const { data: updated, error: updateError } = await deliverablesDB.updateLifecycleState(deliverable.id, toState);
+    if (updateError || !updated) throw updateError ?? new Error("failed to apply deliverable transition");
+    await commandsDB.updateStatus(command.id, "Completed");
+
+    await dependencyDefinitionEngine.evaluateAndPublishFromTransition({
+      seuId: deliverable.seu_id,
+      entityType: "Deliverable",
+      name: updated.name,
+      newState: toState,
+      correlationId: input.correlationId,
+    });
+
+    if (await transitionRequiresAttestation(evaluated.definition)) {
+      const { authorId: requesterParticipantId } = await resolveAuthor(deliverable.seu_id, input.requestedBy);
+      await attestationsDB.create({
+        seuId: deliverable.seu_id,
+        deliverableId: deliverable.id,
+        commandId: command.id,
+        participantId: requesterParticipantId,
+        fromState,
+        toState,
+        reference: null,
+        actingBadgeType: input.actingBadgeType,
+        requestedBy: input.requestedBy,
+      });
+    }
+
+    await eventBus.publish({
+      eventType: "DeliverableTransitioned",
+      originatingObjectType: "Deliverable",
+      originatingObjectId: deliverable.id,
+      seuId: deliverable.seu_id,
+      correlationId: input.correlationId,
+      actorId: systemActor.actorId,
+      authorityBadge: evaluated.authorityBadge,
+      payload: { fromState, toState, commandId: command.id },
+    });
+    return { ok: true };
+  },
+
   async execute(input: {
     seuId: string;
     entityType: TransitionEntityType;
     entityId: string;
     fromState: string;
     toState: string;
+    commandType: string;
     producingCapabilityId: string | null;
     requestedBy: string;
     actorId: string;
@@ -203,14 +328,15 @@ export const executionEngine = {
     targetCompletionAt?: Date | null;
     correlationId: string;
     governanceOutcome?: GovernanceEvaluationOutcomeDraft | null;
+    governanceOutcomeId?: string | null;
   }): Promise<void> {
-    let governanceOutcomeId: string | null = null;
+    let governanceOutcomeId: string | null = input.governanceOutcomeId ?? null;
     if (input.governanceOutcome) {
-      const { authorId } = await resolveAuthor(input.seuId, input.actorId);
+      const systemActor = await getSystemActor(input.seuId);
       const { data: outcome, error: outcomeError } = await governanceEvaluationOutcomesDB.create({
         ...input.governanceOutcome,
-        author_id: authorId,
-        author_badge: input.actingBadgeType,
+        author_id: systemActor.authorId,
+        author_badge: systemActor.authorBadge,
       });
       if (outcomeError || !outcome) throw outcomeError ?? new Error("failed to record governance evaluation outcome");
       governanceOutcomeId = outcome.id;
@@ -220,7 +346,7 @@ export const executionEngine = {
     if (input.producingCapabilityId) {
       if (!input.actorId) throw new Error("cannot persist eligible-Participant pool without a real actorId");
       if (!input.actingBadgeType) throw new Error("cannot persist eligible-Participant pool without a resolved acting badge");
-      const { authorId } = await resolveAuthor(input.seuId, input.actorId);
+      const systemActor = await getSystemActor(input.seuId);
       const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(input.seuId, input.producingCapabilityId);
       const { data: fulfilments } = seuCapability
         ? await capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId(seuCapability.id)
@@ -230,8 +356,8 @@ export const executionEngine = {
         seuCapabilityId: seuCapability?.id ?? null,
         capabilityId: input.producingCapabilityId,
         participantIds: (fulfilments ?? []).map((f) => f.participant_id),
-        authorId,
-        authorBadge: input.actingBadgeType,
+        authorId: systemActor.authorId,
+        authorBadge: systemActor.authorBadge,
       });
       if (poolError || !pool) throw poolError ?? new Error("failed to persist eligible-Participant pool");
       eligibleParticipantPoolId = pool.id;
@@ -241,7 +367,7 @@ export const executionEngine = {
       seuId: input.seuId,
       entityType: input.entityType,
       entityId: input.entityId,
-      commandType: `${input.entityType}.Transition`,
+      commandType: input.commandType,
       fromState: input.fromState,
       toState: input.toState,
       requestedBy: input.requestedBy,

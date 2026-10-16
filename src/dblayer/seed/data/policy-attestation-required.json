@@ -1,0 +1,29 @@
+{
+  "code": "policy-attestation-required",
+  "name": "Attestation Required",
+  "description": "A transition that certifies the state of a Deliverable is recorded as an attestation: the Command that requested it, the Participant that requested it and the authority that certified it.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [
+    "Approved",
+    "Baselined"
+  ],
+  "conditions": [
+    {
+      "statement": "Every transition governed by this Policy produces an attestation that names the Command, the requesting Participant and the certifying authority.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Attestation Record",
+        "category": "Validation Evidence",
+        "description": "The attestation recorded by the Execution Engine when the transition is applied.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

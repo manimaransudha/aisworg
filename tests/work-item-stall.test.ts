@@ -12,16 +12,15 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { sweepStalledWorkItems } from "../src/routes/seu/core/workItemHeartbeat.js";
 import { servicesDB } from "../src/dblayer/servicesDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, transitionDeliverableSync } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 const SLA_SECONDS = 60;
 
-async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSeconds?: number; targetCompletionAt?: Date | null }) {
+async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSeconds?: number }) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync({
     statement: `${prefix}-${randomUUID()}`,
@@ -65,12 +64,12 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
   await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
 
   // Dispatch and DO NOT complete — the Work Item is now genuinely outstanding.
-  // The target is the SLA-derived default unless the caller overrides it.
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID, targetCompletionAt: opts?.targetCompletionAt ?? null });
+  // The target is the SLA-derived default.
+  const dispatched = await transitionDeliverableSync({ deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
   if (!dispatched.ok) throw new Error("unreachable");
 
-  const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "Defined", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "In Progress", "In Progress");
   return { seuId, deliverableId: deliverable.id, workItemId: workItem.id };
 }
 
@@ -110,24 +109,10 @@ test("a completed Work Item is no longer outstanding, so the stall sweep never e
   assert.equal(swept.escalatedWorkItemIds.includes(workItemId), false, "a Disposed Work Item is not outstanding and cannot stall");
 });
 
-test("the assigner's explicit target overrides the SLA-derived default", async () => {
-  // Declare a long SLA (24h) so the default target would NOT be overdue now,
-  // then override with a target one minute in the past. Only the override makes
-  // the item stalled at the present moment — proving the override, not the SLA,
-  // set the deadline.
-  const { seuId, workItemId } = await commissionDispatchAndDeclareSla("stall-override", {
-    slaSeconds: 86400,
-    targetCompletionAt: new Date(Date.now() - 60_000),
-  });
-
-  const swept = await sweepStalledWorkItems({ now: new Date(), seuId });
-  assert.equal(swept.escalatedWorkItemIds.includes(workItemId), true, "an explicit past target overrides the 24h SLA default and is immediately stalled");
-});
-
 test("a Participant that responds before the target is processed normally (the deadline never blocks an early result)", async () => {
   const { deliverableId, workItemId } = await commissionDispatchAndDeclareSla("stall-early");
 
-  // Well within the 60s SLA target: completing now must succeed and apply the transition.
+  // Well within the 60s SLA target: completing now must succeed, record the reference and dispose the Work Item.
   const { completeWorkItem } = await import("../src/routes/seu/core/workItems.js");
   const done = await completeWorkItem({ workItemId, outcome: "done", reference: "vcs://stall/req@early" });
   assert.equal(done.ok, true, !done.ok ? JSON.stringify(done) : "assertion failed");

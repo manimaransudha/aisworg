@@ -54,7 +54,7 @@ async function rejectDispatch(input: { workItem: WorkItemRow; command: CommandRo
     correlationId: input.correlationId,
     actorId: systemActor.actorId,
     authorityBadge: systemActor.authorBadge,
-    payload: { reason },
+    payload: { reason, commandId: input.command?.id ?? null },
   });
 }
 

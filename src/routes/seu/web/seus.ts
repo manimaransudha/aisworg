@@ -225,7 +225,7 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
       const reason = result.reason === "dependency_not_satisfied" ? "one or more dependencies aren't Satisfied yet" : "detail" in result ? result.detail : result.reason;
       return flashError(req, res, backTo, `Transition blocked: ${reason}`);
     }
-    return flashSuccess(req, res, backTo, `Deliverable "${result.fromState}" → "${result.toState}" requested. It stays in "${result.fromState}" until dispatched and a result is reported.`);
+    return flashSuccess(req, res, backTo, `Deliverable "${result.fromState}" → "${result.toState}" completed by the Execution Engine.`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/deliverables/:deliverableId/transition error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);

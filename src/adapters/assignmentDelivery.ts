@@ -29,7 +29,7 @@ async function resolveInputReferences(deliverable: DeliverableRow, scope: Depend
     if (row.from_entity_type !== "Deliverable" || !row.from_name) continue;
     const upstream = siblingByName.get(row.from_name);
     if (!upstream) continue;
-    const { data: ref } = await deliverableReferencesDB.findLatestWithReference(upstream.id, row.from_state);
+    const { data: ref } = await deliverableReferencesDB.findLatest(upstream.id);
     inputs.push({
       deliverableId: upstream.id,
       deliverableName: upstream.name,

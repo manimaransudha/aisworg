@@ -79,7 +79,7 @@ router.post("/quickview/work-items/:workItemId/complete", async (req, res) => {
       return flashError(req, res, backTo, `Could not record result: ${result.detail}`);
     }
     if (result.outcome === "done") {
-      return flashSuccess(req, res, backTo, `Result recorded — Deliverable moved "${result.appliedTransition.fromState}" → "${result.appliedTransition.toState}".`);
+      return flashSuccess(req, res, backTo, `Result recorded for Deliverable "${result.deliverable.name}".`);
     }
     return flashSuccess(req, res, backTo, `Reported "${result.outcome}" — the transition was not applied and an Attention Item was raised.`);
   } catch (err) {

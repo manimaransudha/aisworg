@@ -167,7 +167,8 @@
     "verb": "create",
     "requiredPolicyCodes": [
       "policy-deliverable-transition-baseline"
-    ]
+    ],
+    "trigger": "governed"
   },
   {
     "entityType": "Deliverable",
@@ -176,7 +177,8 @@
     "verb": "approve",
     "requiredPolicyCodes": [
       "policy-deliverable-transition-baseline"
-    ]
+    ],
+    "attestationRequired": true
   },
   {
     "entityType": "Deliverable",
@@ -185,7 +187,8 @@
     "verb": "baseline",
     "requiredPolicyCodes": [
       "policy-deliverable-transition-baseline"
-    ]
+    ],
+    "attestationRequired": true
   },
   {
     "entityType": "Objective",

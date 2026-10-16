@@ -36,6 +36,7 @@ const POLICY_DEFINITION_FILES = [
   "policy-coding-standards.json",
   "policy-requirements-traceability-required.json",
   "policy-baseline-integrity.json",
+  "policy-attestation-required.json",
   "policy-requirements-and-discovery-artifact-completeness.json",
   "policy-design-completeness-and-review.json",
   "policy-build-and-configuration-artifact-integrity.json",

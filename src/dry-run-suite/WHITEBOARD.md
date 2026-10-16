@@ -214,6 +214,12 @@ Use cases UC2 to UC12 are produced by the simulator in part 2, not by seeding. T
 | source-code | In Progress | Has a blocked Work Item (UC7) |
 | security-assessment-report | Defined | Not started; visitor starts it |
 
+Constraints from the governed Deliverable flow (CR-121):
+
+- The Execution Engine makes `Defined -> In Progress` itself. A Deliverable stays `Defined` only while a dependency, Obligation or Decision blocks it. The security-assessment-report needs such a blocker, or it moves to In Progress on its own.
+- A Deliverable in In Progress needs its producing Capability fulfilled by a real Participant. Without a fulfilment the first producing Command fails with `empty_eligible_pool`, and the engine re-issues it once the fulfilment exists.
+- Approved and Baselined are reached through the governed path as Commands. The producing Work Item must be completed with a reference first.
+
 ### UC3 Work Items and Participants
 
 | Participant | Type | Role in story |

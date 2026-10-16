@@ -33,14 +33,7 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
     if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
     const actorId = String(req.session.user.id);
 
-    let targetCompletionAt: Date | undefined;
-    if (typeof req.body?.targetCompletionAt === "string" && req.body.targetCompletionAt.trim() !== "") {
-      const parsed = new Date(req.body.targetCompletionAt);
-      if (Number.isNaN(parsed.getTime())) return res.status(400).json({ error: "targetCompletionAt must be a valid ISO date/time" });
-      targetCompletionAt = parsed;
-    }
-
-    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, actorId, requestedBy: actorId, targetCompletionAt });
+    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, actorId, requestedBy: actorId });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "deliverable not found" });

@@ -189,7 +189,8 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   // 7/8 — progress a Deliverable through its lifecycle (Ch.15/Ch.29), gated by dependency readiness + Authority/Policy
   const requirementsSpec = status.deliverables.find((d: { name: string }) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec, "expected the seeded 'Requirements Analysis Model' Deliverable");
-  assert.equal(requirementsSpec.lifecycleState, "Defined");
+  // The engine starts the first Deliverable off the kickoff, so this read may land before or after that hop.
+  assert.ok(["Defined", "In Progress"].includes(requirementsSpec.lifecycleState), requirementsSpec.lifecycleState);
 
   const transitionRes = await request(`${baseUrl}/deliverables/${requirementsSpec.id}/transition`, {
     method: "POST",
@@ -197,33 +198,17 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
     body: JSON.stringify({ targetState: "In Progress" }),
   });
   const transitioned = await transitionRes.json();
-  // Model A (Participant Integration Plan): a successful transition is
-  // "governance cleared, Command requested" (202 Accepted), not an applied
-  // state change — dispatch outcome is decided later, asynchronously
-  // (CommandGenerated -> WorkItemGenerated -> dispatchEngine), so the HTTP
-  // response itself carries no workItemId/dispatched any more; poll for it.
-  //
-  // The "manual" trigger tag on this row only controls whether it renders as
-  // a clickable button — it is not a restriction on who/what may attempt the
-  // transition. The Execution Engine is the sole governance arbiter, and it
-  // re-attempts every Deliverable's own next governed transition on its own
-  // initiative too (deliverableKickoffHandler, off SEUOperational, same
-  // governed check this manual POST runs). For a head-of-chain Deliverable
-  // like this one (no incoming dependency), that automatic attempt can
-  // legitimately win the race and already have a Command in flight before
-  // this call lands — a real 202 ("Command requested" by this call) and a
-  // real 409 already_in_flight ("Command requested" by the platform's own
-  // kickoff) are both a correct outcome of the SAME governed transition,
-  // differing only in who got there first. Any other block reason is a real
-  // failure here.
+  // Defined -> In Progress is a governed hop. The Execution Engine makes it off the kickoff, so this manual request
+  // either makes it (202) or finds the Deliverable already In Progress (409 no_transition_definition). The producing
+  // Command (In Progress -> In Progress) is then polled for.
   if (transitionRes.status === 202) {
     assert.equal(transitioned.fromState, "Defined");
     assert.equal(transitioned.toState, "In Progress");
   } else {
     assert.equal(transitionRes.status, 409, JSON.stringify(transitioned));
-    assert.equal(transitioned.reason, "already_in_flight", JSON.stringify(transitioned));
+    assert.ok(transitioned.reason === "no_transition_definition" || transitioned.reason === "already_in_flight", JSON.stringify(transitioned));
   }
-  const { command: dispatchedCommand, workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
+  const { command: dispatchedCommand, workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
   console.log("[DEBUG dispatched]", JSON.stringify({ commandId: dispatchedCommand.id, commandStatus: dispatchedCommand.status, workItemId: workItem.id, workItemStatus: workItem.status }));
 
   // The Participant reports the result to the result-in callback, which drives

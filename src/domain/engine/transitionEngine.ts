@@ -1,4 +1,6 @@
 import { policiesDB } from "../../dblayer/policiesDB.js";
+import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
+import { ATTESTATION_REQUIRED_POLICY_CODE, getPlatformTenantId } from "../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { participantsDB } from "../../dblayer/participantsDB.js";
 import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
@@ -8,7 +10,7 @@ import { eventBus } from "./eventBus.js";
 import { triggerEngine } from "./triggerEngine.js";
 import { evaluateCondition, type GoverningCondition } from "./governingCondition.js";
 import { bumpPatch } from "../../utils/version.js";
-import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
+import type { TransitionEntityType, TransitionDefinitionRow } from "../../dblayer/seuTypes.js";
 
 export type TransitionOutcome =
   | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null; authorityBadge: string | null; eventType: string | null; versionEvent: string | null; nextVersion: string | null }
@@ -29,6 +31,13 @@ export interface EvaluateInput {
   seuId?: string;
   currentVersion?: string;
   alternateBadges?: string[];
+}
+
+// A Transition Definition requires an attestation when the Policy Definition "policy-attestation-required" is among
+// its required policies. The seed stores that Policy Definition's UUID on the hop.
+export async function transitionRequiresAttestation(definition: Pick<TransitionDefinitionRow, "required_policy_ids">): Promise<boolean> {
+  const { data: policyDefinition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(ATTESTATION_REQUIRED_POLICY_CODE, await getPlatformTenantId());
+  return !!policyDefinition && definition.required_policy_ids.includes(policyDefinition.id);
 }
 
 export type RejectedOutcome = Exclude<TransitionOutcome, { allowed: true }>;
@@ -78,7 +87,10 @@ export const transitionEngine = {
     return { ...outcome, authorityBadge: outcome.authorityBadge, authorId: participant.id };
   },
 
-  async evaluate(input: EvaluateInput): Promise<TransitionOutcome> {
+  // The badge check alone: the Transition Definition's verb, resolved to a badge the actor holds.
+  async authorise(input: Pick<EvaluateInput, "entityType" | "fromState" | "toState" | "actorId" | "alternateBadges">): Promise<
+    { allowed: true; authorityBadge: string | null; definition: TransitionDefinitionRow } | RejectedOutcome
+  > {
     const { data: definition } = await transitionDefinitionsDB.find(input.entityType, input.fromState, input.toState);
     if (!definition) return { allowed: false, reason: "no_transition_definition" };
 
@@ -92,6 +104,13 @@ export const transitionEngine = {
       }
       authorityBadge = auth.via === "badge" ? (auth.matchedBadge ?? canonicalBadge) : canonicalBadge;
     }
+    return { allowed: true, authorityBadge, definition };
+  },
+
+  async evaluate(input: EvaluateInput): Promise<TransitionOutcome> {
+    const authorised = await this.authorise(input);
+    if (!authorised.allowed) return authorised;
+    const { definition, authorityBadge } = authorised;
 
     if (definition.submit_verb) {
       const submitBadge = `${input.entityType.toLowerCase()}_${definition.submit_verb}`;

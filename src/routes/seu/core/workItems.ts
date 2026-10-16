@@ -2,28 +2,15 @@ import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { commandsDB } from "../../../dblayer/commandsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { deliverableReferencesDB } from "../../../dblayer/deliverableReferencesDB.js";
-import { attestationsDB } from "../../../dblayer/attestationsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
-import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
-import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { raiseAttentionItem } from "./attentionItems.js";
 import type { DeliverableRow, WorkItemRow } from "../../../dblayer/seuTypes.js";
 
 export type WorkItemOutcome = "done" | "failed" | "blocked";
 
-export const ACCEPTANCE_TRANSITIONS: ReadonlyArray<{ from: string; to: string }> = [
-  { from: "In Progress", to: "Approved" },
-  { from: "Approved", to: "Baselined" },
-];
-
-export function isAcceptanceTransition(fromState: string, toState: string): boolean {
-  return ACCEPTANCE_TRANSITIONS.some((t) => t.from === fromState && t.to === toState);
-}
-
 export type CompleteWorkItemResult =
-  | { ok: true; outcome: "done"; workItem: WorkItemRow; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } }
+  | { ok: true; outcome: "done"; workItem: WorkItemRow; deliverable: DeliverableRow }
   | { ok: true; outcome: "failed" | "blocked"; workItem: WorkItemRow }
   | { ok: false; reason: "not_found" | "not_outstanding" | "unsupported_entity_type"; detail: string };
 
@@ -72,7 +59,7 @@ export async function completeWorkItem(input: {
       category: "Exception",
       priority: "High",
       title: `Work Item ${input.outcome} on Deliverable "${deliverable?.name ?? command.entity_id}"`,
-      description: `A Participant reported "${input.outcome}" for the ${command.from_state} -> ${command.to_state} transition. The transition was not applied.`,
+      description: `A Participant reported "${input.outcome}" for the ${command.from_state} -> ${command.to_state} transition. The work was not completed.`,
       relatedObjectType: "Deliverable",
       relatedObjectId: command.entity_id,
       actorId: String(command.requested_by),
@@ -82,66 +69,26 @@ export async function completeWorkItem(input: {
     return { ok: true, outcome: input.outcome, workItem: currentWorkItem };
   }
 
-  const { data: updated, error } = await deliverablesDB.updateLifecycleState(command.entity_id, command.to_state);
-  if (error || !updated) throw error ?? new Error("failed to apply deliverable transition on work item completion");
-
-  await dependencyDefinitionEngine.evaluateAndPublishFromTransition({
-    seuId: command.seu_id,
-    entityType: "Deliverable",
-    name: updated.name,
-    newState: command.to_state,
-    correlationId,
-  });
-
-  if (command.requested_by == null) throw new Error(`Command ${command.id} has no requested_by — cannot author the deliverable_references row for its completion`);
-  if (!command.acting_badge_type) throw new Error(`Command ${command.id} has no acting_badge_type — cannot author the deliverable_references row for its completion`);
-  const { data: authorMaster } = await participantsMasterDB.findById(command.requested_by);
-  if (!authorMaster) throw new Error(`No superuser provisioned.`);
-  const { data: authorParticipant } = await participantsDB.findBySeuIdAndParticipantMasterId(command.seu_id, authorMaster.id);
-  if (!authorParticipant) throw new Error(`No participants row for participant master ${authorMaster.id} in SEU ${command.seu_id} — cannot author the deliverable_references row for Command ${command.id}`);
+  if (!workItem.participant_id) throw new Error(`Work Item ${workItem.id} has no assigned Participant — cannot author the deliverable_references row for its completion`);
+  const { data: deliverable } = await deliverablesDB.findById(command.entity_id);
+  if (!deliverable) return { ok: false, reason: "not_found", detail: `Deliverable not found for Work Item ${workItem.id}` };
 
   await deliverableReferencesDB.record({
     seuId: command.seu_id,
     deliverableId: command.entity_id,
-    workItemId: workItem.id,
+    commandId: command.id,
     participantId: workItem.participant_id,
     fromState: command.from_state,
     toState: command.to_state,
     reference: input.reference ?? null,
-    authorId: authorParticipant.id,
+    authorId: workItem.participant_id,
     authorBadge: command.acting_badge_type,
-  });
-
-  if (isAcceptanceTransition(command.from_state, command.to_state)) {
-    await attestationsDB.create({
-      seuId: command.seu_id,
-      deliverableId: command.entity_id,
-      workItemId: workItem.id,
-      participantId: workItem.participant_id,
-      fromState: command.from_state,
-      toState: command.to_state,
-      reference: input.reference ?? null,
-      actingBadgeType: command.acting_badge_type,
-      requestedBy: command.requested_by,
-    });
-  }
-
-  const { data: deliverableTd } = await transitionDefinitionsDB.find("Deliverable", command.from_state, command.to_state);
-  const deliverableTransitionedEvent = await eventBus.publish({
-    eventType: "DeliverableTransitioned",
-    originatingObjectType: "Deliverable",
-    originatingObjectId: command.entity_id,
-    seuId: command.seu_id,
-    correlationId,
-    payload: { fromState: command.from_state, toState: command.to_state, commandId: command.id, workItemId: workItem.id, participantId: workItem.participant_id, reference: input.reference ?? null },
-    actorId: String(command.requested_by),
-    authorityBadge: command.acting_badge_type,
   });
 
   await workItemsDB.updateStatus(workItem.id, "Completed");
   await eventBus.publish({
     eventType: "WorkItemCompleted", originatingObjectType: "WorkItem", originatingObjectId: workItem.id, seuId: command.seu_id,
-    correlationId, causationId: deliverableTransitionedEvent.id, actorId: String(command.requested_by), authorityBadge: command.acting_badge_type, payload: {},
+    correlationId, actorId: String(command.requested_by), authorityBadge: command.acting_badge_type, payload: {},
   });
   await workItemsDB.updateStatus(workItem.id, "Disposed");
   await eventBus.publish({ eventType: "WorkItemDisposed", originatingObjectType: "WorkItem", originatingObjectId: workItem.id, seuId: command.seu_id, correlationId, actorId: String(command.requested_by), authorityBadge: command.acting_badge_type, payload: {} });
@@ -161,5 +108,5 @@ export async function completeWorkItem(input: {
     });
   }
 
-  return { ok: true, outcome: "done", workItem: { ...currentWorkItem, status: "Disposed" }, deliverable: updated, appliedTransition: { fromState: command.from_state, toState: command.to_state } };
+  return { ok: true, outcome: "done", workItem: { ...currentWorkItem, status: "Disposed" }, deliverable };
 }

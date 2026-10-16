@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
+import { transitionDeliverableSync as transitionDeliverable, produceDeliverable } from "./testFixtures.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { getFlowMetrics, getGovernanceMetrics } from "../src/routes/seu/core/telemetry.js";
@@ -79,7 +79,7 @@ test("Flow Telemetry: Deliverable cycle time is a real, non-negative number deri
 
 test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and positive after being blocked first", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-governance-latency");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
 
   // No Obligation attached — passes the "no_unresolved_obligations" gate on the first try.
   const firstTry = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
@@ -103,7 +103,7 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
   // first_blocked_at unset even though this test's own explicit attempt is
   // genuinely blocked afterward.
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId2, category: "Engineering", title: "Phase7 latency test obligation" });
-  await transitionDeliverable({ deliverableId: deliverableId2, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await produceDeliverable(deliverableId2, ROOT_ACTOR_ID);
   const blocked = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
 
@@ -127,7 +127,7 @@ test("a sustained pattern of Quality Gate blocking raises exactly one Organisati
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-sustained-pattern");
 
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 sustained-pattern blocker (left unresolved)" });
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
 
   // Attempt the same blocked transition repeatedly — the Obligation above is
   // deliberately never resolved, so every attempt blocks again.
@@ -149,7 +149,7 @@ test("qualityGateEngine publishes QualityGateBlocked and QualityGatePassed on th
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-quality-gate-events");
 
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 event test obligation" });
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
   const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
   assert.ok((await qualityGateEventTypesForEntity(deliverableId)).includes("QualityGateBlocked"));

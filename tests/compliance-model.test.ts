@@ -55,6 +55,7 @@ test("compliance is evaluated per-SEU from engineering state: a required obligat
   const { seuId, deliverableId } = await commissionSeu("compliance-eval");
 
   // Applies to this SEU (it composed development); nothing outstanding -> this requirement is satisfied.
+  const stateBeforeEvaluation = (await getSeuDetailView(seuId))?.deliverables.find((d) => d.id === deliverableId)?.lifecycleState;
   const first = await evaluateCompliance(seuId);
   assert.ok(first.frameworks.includes(fwCode), `expected ${fwCode} applicable (frameworks: ${first.frameworks.join(", ")})`);
   assert.equal(first.results.find((r) => r.requirementCode === reqCode)?.state, "satisfied");
@@ -69,7 +70,7 @@ test("compliance is evaluated per-SEU from engineering state: a required obligat
 
   // Evaluation is read-only: the Deliverable is untouched (§9).
   const detail = await getSeuDetailView(seuId);
-  assert.equal(detail?.deliverables.find((d) => d.id === deliverableId)?.lifecycleState, "Defined");
+  assert.equal(detail?.deliverables.find((d) => d.id === deliverableId)?.lifecycleState, stateBeforeEvaluation);
 
   // Resolve the obligation -> this requirement is satisfied again (deterministic from state).
   for (const st of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {

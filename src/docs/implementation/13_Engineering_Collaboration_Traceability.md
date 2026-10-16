@@ -60,7 +60,7 @@
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">ECM-005: Runtime events shall communicate engineering state changes<br> Ref: §5 ECM-005<br>§9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/eventBus.ts:94-111<br>src/routes/seu/core/workItems.ts:189-220</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/eventBus.ts:94-111<br>src/routes/seu/core/workItems.ts</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;"><code>eventBus.publish</code> persists an event row and fires <code>dispatch()</code> fire-and-forget on every governed state change (e.g. <code>DeliverableTransitioned</code>, <code>WorkItemDisposed</code>). State changes are communicated via real, persisted events, not via direct calls.</td>
     </tr>
     <tr>
@@ -115,7 +115,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Collaboration Flow: Produce Deliverable → Knowledge Updated → Dependency Evaluated → Event Published → Interested Participants Continue, with no Participant needing to know who consumes the event<br> Ref: §8</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/deliverables.ts:100-120<br>src/routes/seu/core/workItems.ts:189-220</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The real flow is more asynchronous than the diagram implies: <code>transitionDeliverable</code> does not apply the state change or publish synchronously — it dispatches a Work Item via <code>executionEngine.execute()</code> and returns <code>dispatched: true</code>; the state change and <code>DeliverableTransitioned</code> publish happen later, asynchronously, when <code>completeWorkItem</code> is called. The "no Participant needs to know who consumes the event" property holds (subscribers are resolved generically from <code>event_subscriptions</code>), but the flow's actual sequencing differs from the diagram's implied synchronous chain.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionDeliverable</code> is a request: the Execution Engine governs it (<code>evaluateDeliverableTransition</code>) and, when governance passes, applies the state change itself as the SEU system actor (<code>applyDeliverableTransition</code>), mints the attestation where the hop requires one and publishes <code>DeliverableTransitioned</code>, all before the call returns. Producing work follows asynchronously: the kickoff generates the producing Command (<code>In Progress -> In Progress</code>) for the Deliverable, and <code>completeWorkItem</code> records the evidence reference and disposes the Work Item without changing state. The "no Participant needs to know who consumes the event" property holds (subscribers are resolved generically from <code>event_subscriptions</code>), but the flow's actual sequencing differs from the diagram's implied synchronous chain.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
@@ -196,4 +196,4 @@ Total intents analysed: 24
 
 3. **Automatic Participant replacement on failure is not implemented** (§14, FR-14.5, §17 acceptance criterion). A failed/blocked Work Item raises an `AttentionItem` (engineering state is preserved, satisfying the chapter's core continuity concern), but reassignment to a different Participant is a governance/human action, not an automatic platform behaviour. The spec's "Participants may be restarted/replaced" reads as more automatic than the implementation provides.
 
-4. **The actual collaboration flow (§8) is more asynchronous than its own diagram implies.** Deliverable transitions dispatch a Work Item and return immediately; the state change and event publish happen later, on `completeWorkItem`. This does not contradict the chapter's principles (§13 is in fact realised more literally this way) but is a deviation from the diagram's apparent synchronous sequencing.
+4. **The actual collaboration flow (§8) is partly asynchronous.** A Deliverable transition is governed and applied by the Execution Engine within the request, and `DeliverableTransitioned` is published once the state has changed. Producing work runs afterwards as a separate Command and Work Item, and `completeWorkItem` records the evidence reference without changing state.

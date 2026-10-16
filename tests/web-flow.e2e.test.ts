@@ -272,16 +272,13 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
   return { seuId, csrf };
 }
 
-// Model A (Participant Integration Plan): a web transition form POST now
-// *dispatches* a Work Item — the Deliverable only moves once a Participant
-// reports a result. These flows stub the Participant by immediately reporting
-// `done` to the CSRF-exempt result-in callback (POST /api/seu/work-items/:id/
-// result), collapsing the real two-step round-trip into one call so each flow
-// can focus on the governed outcome it's actually testing. Only call this for
-// a transition that passes governance (and so genuinely dispatches); a
-// governance-blocked transition creates no Work Item and is asserted directly
-// on the form POST instead.
+// The Execution Engine makes every Deliverable transition itself. Only producing work (In Progress -> In Progress)
+// has a Work Item. These flows stub the Participant by immediately reporting `done` to the CSRF-exempt result-in
+// callback (POST /api/seu/work-items/:id/result), which records the reference and disposes the Work Item. A
+// governance-blocked transition creates no Command and is asserted directly on the form POST instead.
 async function completeOutstanding(request: Session, seuId: string, deliverableId: string, targetState: string): Promise<void> {
+  // Only producing work has a Work Item. The Execution Engine makes every other transition itself.
+  if (targetState !== "In Progress") return;
   // Command generation, Work Item generation and Dispatch all run in their
   // own async consumers now (executionEngine.ts/dispatchEngine.ts's own
   // header comments) — the form POST's 302 lands before any of that has
@@ -290,7 +287,7 @@ async function completeOutstanding(request: Session, seuId: string, deliverableI
   let command: CommandRow | undefined;
   await waitUntilAsync(async () => {
     const { data: commands } = await commandsDB.findBySeuId(seuId);
-    command = (commands ?? []).find((c) => c.entity_id === deliverableId && c.to_state === targetState && c.status === "Dispatched");
+    command = (commands ?? []).find((c) => c.entity_id === deliverableId && c.from_state === targetState && c.to_state === targetState && c.status === "Dispatched");
     return !!command;
   });
   assert.ok(command, `expected a Dispatched Command for ${deliverableId} -> ${targetState} (did governance block it, or did Dispatch reject/defer it?)`);
@@ -311,12 +308,14 @@ async function completeOutstanding(request: Session, seuId: string, deliverableI
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ outcome: "done", reference: `vcs://webflow/${deliverableId}@${targetState}` }),
   });
-  assert.equal(res.status, 200, `result-in callback should apply the transition: ${await res.text()}`);
+  assert.equal(res.status, 200, `result-in callback should record the reference: ${await res.text()}`);
 }
 
 // Dispatch (web form) + complete (result callback) in one call, for flows that
 // just need the Deliverable actually moved before their real assertions.
 async function webTransitionAndComplete(request: Session, seuId: string, csrf: string, deliverableId: string, targetState: string): Promise<void> {
+  // The person's click lands some time after the engine's own kickoff.
+  if (targetState === "In Progress") await new Promise((resolve) => setTimeout(resolve, 1500));
   const posted = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState });
   assert.equal(posted.status, 302, `transition dispatch to ${targetState} should redirect`);
   await completeOutstanding(request, seuId, deliverableId, targetState);
@@ -441,27 +440,17 @@ test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Delivera
   });
   assert.equal(result.status, 302);
 
-  // Model A: the form POST dispatches — the flash reports it as dispatched-and-
-  // outstanding, and the Deliverable is still "Defined" until a result lands.
-  //
-  // deliverableKickoffHandler's own automatic rescan (off SEUOperational) can
-  // legitimately have already requested this exact governed hop before this
-  // POST lands — the "manual" trigger tag only controls button visibility,
-  // not who/what may attempt the transition. Either this call's own request
-  // dispatches (alert-success, seus.ts's own "requested... until dispatched"
-  // copy) or it collides with one already in flight (alert-danger, "already
-  // {status} (Command ...)" — transitionDeliverable's own already_in_flight
-  // detail text, no literal "flight" substring) — a real Command either way,
-  // just differing in who got there first; completeOutstanding below finds
-  // whichever one is actually outstanding.
+  // Defined -> In Progress is a governed hop made by the Execution Engine, so this manual POST either makes it
+  // (alert-success) or finds the Deliverable already In Progress (alert-danger, no Transition Definition).
+  // completeOutstanding below finds the producing Command, which dispatches once the Capability is fulfilled.
   const afterDispatch = await getPage(request, `/seu/seus/${seuId}`);
   assert.ok(
-    /alert-success[\s\S]*?requested\. It stays in/.test(afterDispatch.html) || /alert-danger[\s\S]*?already[\s\S]*?\(Command /.test(afterDispatch.html),
+    /alert-success[\s\S]*?completed by the Execution Engine/.test(afterDispatch.html) || /alert-danger[\s\S]*?no Transition Definition for Deliverable In Progress/.test(afterDispatch.html),
     afterDispatch.html
   );
-  assert.match(afterDispatch.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Defined">Defined/, "dispatched, not yet applied");
+  assert.match(afterDispatch.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/, "the Execution Engine made the transition");
 
-  // The Participant reports `done` -> the result-in callback drives the move.
+  // The Participant reports `done` on the producing Work Item -> the result-in callback records the reference.
   await completeOutstanding(request, seuId, deliverableId, "In Progress");
   const after1 = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(after1.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/);
@@ -490,7 +479,9 @@ test("Flow 4 — Deliverable transition, invalid: rejected with an explicit erro
 
   const after1 = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(after1.html, /alert-danger/);
-  assert.match(after1.html, /no Transition Definition for Deliverable In Progress -&gt; In Progress/);
+  // In Progress -> In Progress is the producing Command's hop: with the engine's own Command still in flight the
+  // repeat click is refused as already in flight; once it has completed there is no Transition Definition.
+  assert.match(after1.html, /no Transition Definition for Deliverable In Progress -&gt; In Progress|a Command for this exact hop is already/);
 });
 
 test("Flow 5 — Deliverable transition, dependency gating (regression: must never go green by accident)", async () => {
@@ -534,90 +525,57 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   // Now B must succeed.
   await webTransitionAndComplete(request, seuId, csrf, architectureDocId, "In Progress");
   const afterUnblocked = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterUnblocked.html, /alert-success/);
   assert.match(afterUnblocked.html, /Architecture Decision Record<br[\s\S]*?state-badge state-In-Progress">In Progress/);
 });
 
-// Post-MVP Phase 3 addition, per the brief's "How this expands" section: the
-// web route's externally-visible contract (form POST -> 302 + flash) is
-// unchanged, but a real Command and Work Item must now exist behind it.
-//
-// Rewritten this session for the Ch.33 redesign: governance clearing and
-// dispatch outcome are no longer the same synchronous fact (executionEngine.ts/
-// dispatchEngine.ts's own header comments) — the web form POST always 302s
-// once governance clears, and an empty eligible-Participant pool (nobody
-// fulfils the Capability yet) is Dispatch's own case 1 (DispatchRejected,
-// Command marked Failed, an Obligation + Attention Item raised), not a
-// deferral, so there is no more "no Participant currently fulfils..." error
-// flash on the first attempt — that reason no longer exists.
-test("Phase 3 — a dispatched web transition leaves a real Command and Work Item, and dispatch genuinely rejects without a fulfilled Capability", async () => {
+// Post-MVP Phase 3 addition: the web route's externally-visible contract (form POST -> 302 + flash) is unchanged, but
+// a real Command and Work Item must exist behind it. Under the Execution Engine flow the Deliverable's own hop
+// (Defined -> In Progress) is governed and made by the engine, so its Command is Completed with no Work Item. The
+// producing Command (In Progress -> In Progress) is the one that dispatches to a Participant. With nobody fulfilling
+// the Capability yet, Dispatch rejects it (Failed). Fulfilling the Capability (CapabilityFulfilled) makes the
+// kickoff request the producing Command again, which then dispatches.
+test("Phase 3 — the engine makes the hop, and the producing Command and Work Item dispatch once the Capability is fulfilled", async () => {
   const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase3");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  // Nobody fulfils the Capability yet — governance still clears (dependency/
-  // authority/policy are all fine), so the request itself succeeds; Dispatch
-  // rejects the empty pool asynchronously, marking the Command Failed.
-  //
-  // deliverableKickoffHandler (SEUOperational / DeliverableTransitioned /
-  // ObligationTransitioned) re-scans every Deliverable in the SEU and
-  // attempts each one's own next governed transition on its own initiative,
-  // the same governed check this manual POST also runs — the "manual"
-  // trigger tag only controls button visibility, not who/what may attempt
-  // the transition. So the platform's own automatic rescan can legitimately
-  // have already requested (and, with no fulfilled Capability, already had
-  // rejected) this exact hop before this POST lands: either this call's own
-  // request rejects, or it collides with one already in flight
-  // (already_in_flight, still a 302 — flashError also redirects) and the
-  // earlier one rejects instead. Either way there is at least one Failed
-  // Command, never a successful dispatch, before fulfilment — the real
-  // behaviour under test.
-  const rejected = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
-  assert.equal(rejected.status, 302);
+  // Nobody fulfils the Capability yet: the kickoff makes the hop and the producing Command is rejected.
   await waitUntilAsync(async () => {
     const { data: commands } = await commandsDB.findBySeuId(seuId);
-    return commands?.some((c) => c.status === "Failed") ?? false;
+    return (commands ?? []).some((c) => c.entity_id === deliverableId && c.from_state === "In Progress" && c.to_state === "In Progress" && c.status === "Failed");
   });
   const afterRejected = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterRejected.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Defined">Defined/, "the Deliverable must not have moved after Dispatch rejected the empty pool");
+  assert.match(afterRejected.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/, "the engine made the hop without a Participant");
 
   const { data: rejectedCommands } = await commandsDB.findBySeuId(seuId);
-  assert.ok(rejectedCommands && rejectedCommands.length >= 1, "expected at least one Command for the rejected hop");
-  for (const c of rejectedCommands ?? []) {
-    assert.equal(c.status, "Failed");
-    assert.equal(c.from_state, "Defined");
-    assert.equal(c.to_state, "In Progress");
-  }
-  const priorFailedCount = rejectedCommands!.length;
+  const hop = (rejectedCommands ?? []).filter((c) => c.entity_id === deliverableId && c.from_state === "Defined" && c.to_state === "In Progress");
+  assert.equal(hop.length, 1, "exactly one Command for the Defined -> In Progress hop");
+  assert.equal(hop[0]?.status, "Completed");
+  assert.equal(((await workItemsDB.findByCommandIds([hop[0]!.id])).data ?? []).length, 0, "the hop is made by the engine and has no Work Item");
+  const priorFailed = (rejectedCommands ?? []).filter((c) => c.entity_id === deliverableId && c.status === "Failed");
+  assert.ok(priorFailed.length >= 1);
+  assert.ok(priorFailed.every((c) => c.from_state === "In Progress" && c.to_state === "In Progress"), "only producing Commands are rejected for the empty pool");
 
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
   const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
 
-  // The earlier Command is Failed, not in-flight (commandsDB.findInFlight),
-  // so this retry is free to generate a brand new Command for the same hop.
-  const dispatched = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
-  assert.equal(dispatched.status, 302);
-
-  // Model A: the retry dispatches; the Participant then reports `done`, which
-  // drives the Command to Completed and disposes its Work Item.
+  // The earlier producing Command is Failed, not in flight, so the fulfilment produces a new one.
   await completeOutstanding(request, seuId, deliverableId, "In Progress");
 
   const { data: commands } = await commandsDB.findBySeuId(seuId);
-  assert.equal(commands?.length, priorFailedCount + 1, "the earlier rejected attempt(s), plus one Completed Command from the dispatched retry");
-  const completed = commands?.find((c) => c.status === "Completed");
-  assert.ok(completed, "expected exactly one Completed Command");
-  assert.equal(completed?.from_state, "Defined");
-  assert.equal(completed?.to_state, "In Progress");
-  assert.equal(commands?.filter((c) => c.status === "Failed").length, priorFailedCount, "every earlier attempt must still be Failed, untouched by the retry");
+  const producing = (commands ?? []).filter((c) => c.entity_id === deliverableId && c.from_state === "In Progress" && c.to_state === "In Progress");
+  assert.equal(producing.length, priorFailed.length + 1, "the earlier rejected attempt(s), plus one Command from the fulfilment");
+  const completed = producing.find((c) => c.status === "Completed");
+  assert.ok(completed, "expected exactly one Completed producing Command");
+  assert.equal(producing.filter((c) => c.status === "Failed").length, priorFailed.length, "every earlier attempt must still be Failed, untouched by the retry");
 
   const { data: workItems } = await workItemsDB.findByCommandIds([completed!.id]);
   assert.equal(workItems?.length, 1, "Ch.32 FR-32.1: exactly one Work Item for this one Command");
   assert.equal(workItems?.[0]?.status, "Disposed", "Ch.32 §13: a completed Work Item is disposed");
-  // Ch.33 §9 — no dispatchStrategyPreference declared for this test's Profile,
-  // so selectParticipant falls back to the baseline "capability-match"
-  // strategy, not the pre-Ch.33-redesign "sole-eligible-participant" literal.
+  // Ch.33 §9 — no dispatchStrategyPreference declared for this test's Profile, so selectParticipant falls back to
+  // the baseline "capability-match" strategy.
   assert.equal(workItems?.[0]?.dispatch_strategy, "capability-match");
   assert.ok(workItems?.[0]?.participant_id, "expected the Work Item to be assigned to the fulfilling Participant");
 });

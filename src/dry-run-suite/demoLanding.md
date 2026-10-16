@@ -1,68 +1,77 @@
 # SEU Studio
 
-## 1. The application
+Engineering knowledge, governance and working practice, combined into one executable model.
 
-SEU Studio is an execution environment for commissioning and operating Software Engineering Units (SEUs). An SEU is a self-contained unit of software engineering. It exists to achieve an Objective and to produce the Deliverables that Objective needs.
+SEU Studio runs software engineering from that model. An Objective states what the organisation wants. The platform assembles the engineering unit that delivers it, staffs it with people and AI agents, governs every decision and keeps the evidence. The organisation keeps what it learned.
 
-People, schedules and tasks are not the starting point. SEU Studio starts from the engineering itself. It combines the organisation's engineering knowledge, governance rules and working practices into one executable model. It then runs the SEU from that model.
+## Why it matters
 
-### How it works
+- **Practice is defined once and applied everywhere.** Coding standards, quality gates, release rules and compliance requirements are authored as reusable Packs. Every new unit of work inherits them without reconfiguration.
+- **Work starts from the goal.** Commissioning turns an Objective into a running engineering unit in a guided sequence. Nothing is assembled by hand.
+- **Authority is enforced by the platform.** A state changes only when the participant holds the authority for that step. Each approval records the evidence behind it.
+- **People are asked only when a decision is needed.** Blockers, risks and review findings reach the right person. All other work continues.
+- **Every outcome can be explained.** Objectives, Deliverables, decisions and evidence form one connected record.
+- **Knowledge outlives the team.** Participants and units are temporary. What they learned stays with the organisation.
 
-- **An Objective is the reason an SEU exists.** It states what is to be achieved and leaves the method open. Objectives are arranged in a tree, from strategic goals down to engineering work.
-- **Deliverables are the focus.** A Deliverable is an outcome such as a requirements specification, a design or a release. It moves through stages such as Draft, Reviewed and Approved. All work in an SEU contributes to a Deliverable.
-- **Dependencies decide what happens next.** Work becomes ready when the Deliverables it depends on have reached the required state. For example, architecture work begins when the requirements specification is Approved.
-- **Capabilities say what is needed.** When an SEU is commissioned, the application works out which engineering Capabilities are required. It then fulfils them with Participants, who may be people or AI agents.
-- **Practices are chosen, not built in.** Coding standards, quality gates, release rules and compliance requirements are defined once, as Packs. A Profile selects the Packs for a kind of work. The application composes them into the rules that govern each SEU.
-- **Approvals follow authority.** A change of state, such as approving a Deliverable, needs a Participant who holds the authority for that step. The approval is recorded with the evidence that justified it.
-- **Attention is requested only when a decision is needed.** A blocker, a risk or a review finding becomes an Attention Item only when someone must decide. Other work continues without interruption.
-- **Knowledge is kept.** Participants and SEUs are temporary. The knowledge gained stays with the organisation and can be reused.
-- **Every decision can be traced.** Objects and the links between them form one connected record, so any outcome can be explained afterwards.
-- **Telemetry shows how work flows.** It shows where Deliverables are waiting and why. It measures the flow of engineering work and does not measure individual people.
+## The story
 
-## 2. The demo
+A small team at the Riverbend Public Library is building Riverbend Digital Shelf, an app that lets members browse, borrow, return and wait-list ebooks. The library's practices, four Profiles and twenty-two Objectives are already in place. No engineering unit exists yet. You create them as you go.
 
-### The story
+## The demo in three parts
 
-The demo follows a small team at the Riverbend Public Library. They are building Riverbend Digital Shelf, an app that lets library members browse, borrow, return and wait-list ebooks.
+The three parts follow the order in which the platform is used. Each part opens with a short action on this page and continues on the pages named below.
 
-### What is already set up
+### Part 1. Authoring: see how the organisation's practice is defined
 
-The demo starts with the library's way of working and its plan already loaded.
+The library's way of working was authored once, as declarative definitions. This part shows what the rest of the demo stands on and then extends it with one new definition.
 
-- **Practices.** The library's coding standards, lean delivery, quality gates, release rules and push notification practices.
-- **Four Profiles.** One each for catalogue work, lending work, notification work and release work. A Profile chooses the practices for that kind of work.
-- **Twenty-two Objectives.** They run from two strategic goals down to the engineering work that delivers them.
+1. Open **Registry, Packs**. Each Pack is a reusable practice: coding standards, lean delivery, quality gates, release rules and push notifications.
+2. Open **Registry, Profiles**. Each of the four Profiles selects the Packs for a kind of work: catalogue, lending, notification and release.
+3. Open **Registry, Templates** and **Registry, Capability Definitions**. Templates give the shape of a unit. Capabilities state the engineering skills it needs.
+4. Open **Objectives**. The goal tree runs from two strategic goals down to the engineering work that delivers them.
+5. Run **Accept the new compliance code** from the Scenarios table. A new reader-privacy code enters the library's Ontology through the approval path. Open **Ontology** to see it.
 
-No SEU exists yet. You commission them as you play the demo.
+What to take away: the organisation's rules are data that is authored, versioned and approved. They are not buried in code or in people's heads.
 
-### How to play the demo
+### Part 2. Commissioning: turn an Objective into a running unit
 
-The demo is run from the Riverbend Demo page. It lists Scenarios and Playbooks. A Scenario is one event in the life of the project. A Playbook is a prepared story made of several Scenarios, played one step at a time.
+1. On this page, run **Commission an SEU for O10** from the Scenarios table. The platform selects a Template and a Profile, composes the rules for this unit, activates them and brings the unit to Operational.
+2. Any of the other eleven **Commission an SEU** Scenarios (O11 to O22) commissions a further unit in the same way.
+3. Open **SEUs**. The new unit appears with its Capabilities and the Deliverables it will produce.
+4. Open **Objectives**. The Objective now has a unit working on it.
 
-1. **Commission an SEU.** Run a Scenario named "Commission an SEU". The application commissions an SEU for that Objective.
-2. **Make progress.** Run a Scenario such as "Complete requirements-specification". A Deliverable moves forward.
-3. **Introduce a problem.** Run a Scenario such as "Test environment is unavailable", "Lead reviewer unavailable" or "Critical vulnerability in a dependency". The application records the problem and raises it for attention.
-4. **Resolve it.** Run a Scenario such as "Release the open blocker" or "Convert the Finding to an Obligation". The problem is worked through to a resolution.
-5. **Follow a story.** Run a Playbook one step at a time. The four Playbooks are Catalogue first sprint, Review Finding to Obligation, Release readiness and Reader privacy compliance.
+What to take away: a goal becomes a governed, staffed engineering unit in one guided flow, with the Profile's practices already applied.
 
-### Where to see the effect
+### Part 3. Execution: watch governed work run
 
-After each Scenario, open these pages from the navigation bar.
+1. Run **Complete requirements-specification on O10**. The Deliverable moves forward, and work that depended on it becomes ready.
+2. Run **Test environment is unavailable** or **Critical vulnerability in a dependency**. The platform records the problem and raises it for attention.
+3. Open **Attention**. Only items that need a decision appear here.
+4. Run **Release the open blocker on O10** or **Convert the Finding to an Obligation**. The problem is resolved with its evidence recorded.
+5. Open **Telemetry** to see where work waits and why. Open **Knowledge Capital** to see what the organisation has gained.
 
-| Page | What it shows |
+The Scenarios for this part fall into four groups:
+
+| Group | Scenarios |
 | --- | --- |
-| Objectives | The goal tree and the status of each goal. |
-| Commissioned SEUs | The SEUs that exist and the Deliverables each one is working on. |
-| Attention | Blockers, risks and findings that need a decision. |
-| Telemetry | Where work is waiting and why. |
-| Engineering Capital | The knowledge the organisation has built up. |
+| Deliverables | Complete requirements-specification, architecture-decision-record or detailed-design-specification on O10. |
+| Blockers | Test environment unavailable, Lending service API not ready, App store rejects the build, Design approval pending. Release the open blocker on O10, O12, O19 or O21. |
+| Risks | Lead reviewer unavailable, Push provider changes its API terms, Library board requests a scope change. |
+| Findings | Critical vulnerability in a dependency. Convert it to an Obligation or waive it. |
 
-### Starting again
+What to take away: the platform keeps work moving, asks for people only at decisions, and leaves a complete trail.
 
-The Reset demo data button on the Riverbend Demo page returns the demo to its starting point. The library's practices and the Objectives stay. Every SEU commissioned during the demo is removed. The same story can then be played again.
+## Prepared stories
 
-<!--
-## Source
+The Playbooks table runs a complete story one step at a time. Enter the step number and choose **Run step**, then open the pages named in the part after each step. Each step belongs to one of the three parts.
 
-The seed code is in `src/dblayer/seed/demo`. The scenario and playbook catalogue is in `src/dblayer/seed/data/demo`. The simulator is `src/routes/seu/core/demoSimulator.ts`. Design records are in `DECISIONS.md`, `WHITEBOARD.md` and `BUILD_PLAN.md` beside this file.
--->
+| Playbook | Part 1. Authoring | Part 2. Commissioning | Part 3. Execution |
+| --- | --- | --- | --- |
+| Reader privacy compliance | Accept the new compliance code into the Ontology. | | |
+| Catalogue first sprint | | Commission O10. | Three Deliverables approved in sequence. A blocker raised and released. |
+| Review Finding to Obligation | | Commission O10. | A critical Finding raised and converted into a tracked Obligation. |
+| Release readiness | | Commission O19 and O21. | Two units blocked on their dependencies and released in turn. |
+
+## Starting again
+
+**Reset demo data** returns the demo to its starting point. The library's practices and Objectives stay. Every unit commissioned during the demo is removed, so the story can be played again.

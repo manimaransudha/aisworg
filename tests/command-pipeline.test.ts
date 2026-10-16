@@ -1,24 +1,10 @@
-// Post-MVP Phase 3 (Command / Work Item / Dispatch Engine pipeline) —
-// automated coverage for what the Phase 3 audit checked by hand: a Deliverable
-// transition no longer applies directly. Governance (dependency + Authority/
-// Policy) still gates first, then a Command is generated, a Work Item derived
-// from it, and the Dispatch Engine must actually assign that Work Item to the
-// Participant fulfilling the Deliverable's producing Capability before the
-// state change lands.
-//
-// Rewritten this session for the event-driven Execution Engine pipeline
-// (executionEngine.ts/dispatchEngine.ts's own header comments):
-// transitionDeliverable/executionEngine.execute report only "governance
-// cleared, Command requested" now — Command generation, Work Item generation
-// and Dispatch all run in their own async consumers (CommandGenerated ->
-// commandGeneratedHandler, WorkItemGenerated -> workItemGeneratedHandler),
-// so nothing here can read workItemId/dispatched/participantId synchronously
-// off a return value any more. And an empty eligible-Participant pool (or no
-// producing Capability declared at all) is Dispatch's own case 1
-// (DispatchRejected, Command marked Failed, an Obligation + Attention Item
-// raised) — not a deferral — per this session's own Ch.33 redesign. Run
-// against the real dev database, no mocking.
+// Command / Work Item / Dispatch Engine pipeline (CR-121 third pass). A Deliverable transition is a Command the
+// Execution Engine governs and applies itself; no Work Item is involved. Work Items exist only for producing work:
+// once the engine has moved a Deliverable to In Progress it generates the producing Command, the Work Item
+// Generator derives a Work Item from it, and Dispatch assigns it to a Participant. Completing the Work Item records
+// the reference and changes no state (Ch.32 WI-005). Run against the real dev database, no mocking.
 import "dotenv/config";
+import { commandTypeFor, PRODUCE_COMMAND_VERB } from "../src/dblayer/constants.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -26,7 +12,6 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { executionEngine } from "../src/domain/engine/executionEngine.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
@@ -34,7 +19,7 @@ import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, transitionDeliverableSync } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 
@@ -80,80 +65,40 @@ async function waitForCommandStatus(seuId: string, deliverableId: string, status
   return resolvedCommand as CommandRow;
 }
 
-test("transitionDeliverable rejects the transition when nobody fulfils the producing Capability yet, then dispatches once a Participant does", async () => {
+test("the engine starts a Deliverable when nobody fulfils the producing Capability yet, and the producing Command fails dispatch", async () => {
   const seuId = await commissionTestSeu("phase3-defer");
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec, "expected a seeded Requirements Analysis Model deliverable");
-  assert.equal(requirementsSpec.lifecycleState, "Defined");
+  // The engine starts the first Deliverable off the kickoff, so this read may land before or after that hop.
+  assert.ok(["Defined", "In Progress"].includes(requirementsSpec.lifecycleState), requirementsSpec.lifecycleState);
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
 
-  // deliverableKickoffHandler's own automatic rescan (off SEUOperational)
-  // may already have generated this exact hop's Command before this explicit
-  // call lands — a real already_in_flight, not a governance rejection; either
-  // way one real Command exists for this hop and waitForCommandStatus below
-  // finds it regardless of which caller created it.
-  const requested = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID,
-    deliverableId: requirementsSpec.id,
-    targetState: "In Progress",
-    actorRole: "super", actorId: ROOT_ACTOR_ID,
-  });
-  if (!requested.ok) assert.equal(requested.reason, "already_in_flight", JSON.stringify(requested));
+  // Defined -> In Progress is the engine's own governed hop. It is governed by dependencies, Obligations and
+  // Policy, not by Participant availability.
+  const moved = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(moved.ok, true, !moved.ok ? JSON.stringify(moved) : "assertion failed");
 
+  // The producing work has nobody to go to: Dispatch's own case 1 (Command Failed, Obligation raised).
   await waitForCommandStatus(seuId, requirementsSpec.id, "Failed");
-  const stillDefined = await getSeuDetailView(seuId);
-  assert.equal(stillDefined?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "Defined", "Deliverable must not move state while nobody fulfils the Capability");
-
-  const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(reqAnalysisCapability);
-  await fulfilCapability({
-    seuId,
-    capabilityId: reqAnalysisCapability.capabilityId,
-    participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]),
-  });
-
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID,
-    deliverableId: requirementsSpec.id,
-    targetState: "In Progress",
-    actorRole: "super", actorId: ROOT_ACTOR_ID,
-  });
-  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
-  if (!dispatched.ok) throw new Error("unreachable");
-
-  // Model A (Participant Integration Plan): dispatch does NOT move the
-  // Deliverable — it stays Defined, outstanding, until the Participant reports
-  // a result.
-  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
-  const stillDefinedAfterDispatch = await getSeuDetailView(seuId);
-  assert.equal(stillDefinedAfterDispatch?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "Defined", "dispatched, not yet applied — the transition waits for the result callback");
-
-  const completed = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference: "vcs://phase3-defer/req-spec@abc123" });
-  assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : "assertion failed");
-
-  const moved = await getSeuDetailView(seuId);
-  assert.equal(moved?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "In Progress", "the result callback drives the governed transition");
+  const started = await getSeuDetailView(seuId);
+  assert.equal(started?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "In Progress", "the engine's transition does not wait for a Participant");
 });
 
-test("a dispatched transition leaves a traceable Command and a Completed/Disposed Work Item assigned to the fulfilling Participant", async () => {
+test("the producing Command leaves a traceable Command and a Completed/Disposed Work Item assigned to the fulfilling Participant", async () => {
   const seuId = await commissionTestSeu("phase3-trace", fulfilRequirementsAnalysis);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  // deliverableKickoffHandler (off SEUOperational) re-scans every Deliverable
-  // in the SEU and attempts each one's own next governed transition
-  // unprompted — the same governed check this manual call also runs, and
-  // "manual" trigger only controls button visibility, not who/what may
-  // attempt the transition. Fulfilling before commence-work (above) means
-  // that automatic rescan can now legitimately win the race and already have
-  // a Command in flight (already_in_flight) before this call lands — same
-  // tolerance tenant-contract.test.ts's own commissionAndDispatch uses.
-  const result = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  if (!result.ok) assert.equal(result.reason, "already_in_flight", JSON.stringify(result));
+  // Defined -> In Progress is a governed hop: the Execution Engine makes it off the kickoff, so a manual request that
+  // lands after it finds the Deliverable already In Progress (no_transition_definition). The producing Command
+  // (In Progress -> In Progress) is what the test then waits for.
+  const result = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : "assertion failed");
 
-  // Outstanding first: Model A leaves the Command and Work Item Dispatched
-  // (waiting for the result callback), not Completed.
-  const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
+  // Outstanding first: the producing Command and its Work Item are Dispatched, waiting for the Participant.
+  const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
   const outstanding = await getSeuDetailView(seuId);
   // The automatic rescan's own first attempt may have already hit an empty
   // eligible-Participant pool and left a real, terminal Failed Command
@@ -163,15 +108,15 @@ test("a dispatched transition leaves a traceable Command and a Completed/Dispose
   assert.equal(dispatchedCommands.length, 1, "expected exactly one Dispatched-and-outstanding Command for the one dispatched transition");
   assert.equal(dispatchedCommands[0]?.workItems[0]?.status, "Dispatched", "the Work Item waits Dispatched for the Participant's result");
 
-  // The result callback drives it to Completed/Disposed.
+  // The Participant's result drives the Work Item to Completed/Disposed.
   const completed = await completeWorkItem({ workItemId: dispatchedWorkItem.id, outcome: "done", reference: "vcs://phase3-trace/req-spec@def456" });
   assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : "assertion failed");
 
   const after1 = await getSeuDetailView(seuId);
-  const completedCommands = (after1?.commands ?? []).filter((c) => c.status === "Completed");
-  assert.equal(completedCommands.length, 1, "expected exactly one Completed Command for the one dispatched transition");
-  const command = completedCommands[0];
-  assert.equal(command?.fromState, "Defined");
+  const producingCommands = (after1?.commands ?? []).filter((c) => c.commandType === commandTypeFor("Deliverable", PRODUCE_COMMAND_VERB) && c.status === "Completed");
+  assert.equal(producingCommands.length, 1, "expected exactly one Completed producing Command");
+  const command = producingCommands[0];
+  assert.equal(command?.fromState, "In Progress");
   assert.equal(command?.toState, "In Progress");
   assert.equal(command?.status, "Completed");
   assert.equal(command?.entityLabel, "Requirements Analysis Model");
@@ -203,9 +148,10 @@ test("executionEngine rejects dispatch when no Participant fulfils the producing
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   await executionEngine.execute({
     seuId,
+    commandType: commandTypeFor("Deliverable", PRODUCE_COMMAND_VERB),
     entityType: "Deliverable",
     entityId: architectureDeliverable!.id,
-    fromState: "Defined",
+    fromState: "In Progress",
     toState: "In Progress",
     producingCapabilityId: architectureCapability!.capabilityId,
     requestedBy: ROOT_ACTOR_ID,
@@ -220,8 +166,9 @@ test("executionEngine rejects dispatch when no Participant fulfils the producing
 test("executionEngine rejects dispatch when the entity has no producing Capability declared at all", async () => {
   const seuId = await commissionTestSeu("phase3-no-capability");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
-  assert.ok(requirementsSpec);
+  // The architecture Deliverable depends on the requirements one, so the kickoff has not generated any Command for it.
+  const architectureSpec = detail?.deliverables.find((d) => d.name === "Architecture Decision Record");
+  assert.ok(architectureSpec);
 
   // Ch.33's own redesign (this session, owner: "this is the same as
   // participant eligibility") — "no producing Capability declared" is no
@@ -231,9 +178,10 @@ test("executionEngine rejects dispatch when the entity has no producing Capabili
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   await executionEngine.execute({
     seuId,
+    commandType: commandTypeFor("Deliverable", PRODUCE_COMMAND_VERB),
     entityType: "Deliverable",
-    entityId: requirementsSpec!.id,
-    fromState: "Defined",
+    entityId: architectureSpec!.id,
+    fromState: "In Progress",
     toState: "In Progress",
     producingCapabilityId: null,
     requestedBy: ROOT_ACTOR_ID,
@@ -242,32 +190,32 @@ test("executionEngine rejects dispatch when the entity has no producing Capabili
     correlationId: eventBus.newCorrelationId(),
   });
 
-  await waitForCommandStatus(seuId, requirementsSpec!.id, "Failed");
+  await waitForCommandStatus(seuId, architectureSpec!.id, "Failed");
 });
 
-// Participant Integration & Attestation — Plan step 1 (Model A): the `blocked`/
+// Participant Integration & Attestation — Plan step 1 : the `blocked`/
 // `failed` result path. A Participant that could not complete the Work Item
 // reports the outcome, and the platform must NOT apply the governed transition,
 // must fail the Work Item and Command, and must raise a single Attention Item —
 // exactly the "cannot automatically continue" case (Ch.34).
-test("a Participant reporting 'blocked' fails the Work Item without applying the transition, and raises an Attention Item", async () => {
+test("a Participant reporting 'blocked' fails the Work Item, and raises an Attention Item", async () => {
   const seuId = await commissionTestSeu("phase3-blocked", fulfilRequirementsAnalysis);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
+  const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
 
-  const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
+  const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
   const completed = await completeWorkItem({ workItemId: dispatchedWorkItem.id, outcome: "blocked", reference: "vcs://phase3-blocked/partial@wip" });
   assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : "assertion failed");
   if (!completed.ok) throw new Error("unreachable");
   assert.equal(completed.outcome, "blocked");
 
-  // The Deliverable must NOT have moved.
+  // A blocked result changes no engineering state: the Deliverable stays where the engine put it.
   const after = await getSeuDetailView(seuId);
-  assert.equal(after?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "Defined", "a blocked result must never apply the transition");
+  assert.equal(after?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "In Progress", "a blocked result never changes the Deliverable's state");
 
   // Work Item Failed, Command Failed, but the raw reference is still stored.
   const { data: workItem } = await workItemsDB.findById(dispatchedWorkItem.id);
@@ -287,10 +235,10 @@ test("completeWorkItem is idempotent-safe: a second result on an already-complet
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
+  const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
 
-  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
   const first = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference: "vcs://phase3-double/req-spec@1" });
   assert.equal(first.ok, true);
 

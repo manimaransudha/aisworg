@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
+import { transitionDeliverableSync as transitionDeliverable, produceDeliverable } from "./testFixtures.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { createAttentionItem, listAttentionItemsBySeu, transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
@@ -74,7 +74,7 @@ test("a Quality Gate block raises exactly one 'Action Required' Attention Item, 
   // at that hop, automatic or manual, whichever gets there first, finds the
   // same Obligation already in place.
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 attention-dedup blocker (left unresolved)" });
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
 
   for (let i = 0; i < 3; i++) {
     const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
@@ -95,7 +95,7 @@ test("a sustained pattern of Quality Gate blocking raises a High-priority 'Escal
   // Same ordering fix as the AM-002 dedup test above — Obligation before
   // "In Progress", not after (see that test's own comment for why).
   await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 escalation blocker (left unresolved)" });
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
 
   // Threshold is 3 (SUSTAINED_BLOCK_THRESHOLD) — cross it.
   for (let i = 0; i < 4; i++) {

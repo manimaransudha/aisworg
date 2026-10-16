@@ -6,20 +6,20 @@ export const attestationsDB = {
   async create(input: {
     seuId: string;
     deliverableId: string;
-    workItemId: string;
-    participantId: string | null;
+    commandId: string;
+    participantId: string;
     fromState: string;
     toState: string;
     reference: string | null;
-    actingBadgeType: string | null;
-    requestedBy: string | null;
+    actingBadgeType: string;
+    requestedBy: string;
   }): Promise<DbResult<AttestationRow>> {
     try {
       const { rows } = await query<AttestationRow>(
-        `INSERT INTO attestations (seu_id, deliverable_id, work_item_id, participant_id, from_state, to_state, reference, acting_badge_type, requested_by)
+        `INSERT INTO attestations (seu_id, deliverable_id, command_id, participant_id, from_state, to_state, reference, acting_badge_type, requested_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [input.seuId, input.deliverableId, input.workItemId, input.participantId, input.fromState, input.toState, input.reference, input.actingBadgeType, input.requestedBy]
+        [input.seuId, input.deliverableId, input.commandId, input.participantId, input.fromState, input.toState, input.reference, input.actingBadgeType, input.requestedBy]
       );
       return { data: rows[0] };
     } catch (err) {

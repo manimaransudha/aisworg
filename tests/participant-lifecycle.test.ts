@@ -132,12 +132,11 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
   assert.ok(requirementsSpec);
 
   const result = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  if (!result.ok) assert.equal(result.reason, "already_in_flight", JSON.stringify(result));
+  if (!result.ok) assert.ok(result.reason === "no_transition_definition" || result.reason === "already_in_flight", JSON.stringify(result));
 
-  // Model A: dispatch alone moves the Participant to Assigned and stops there —
-  // it is holding an outstanding Work Item, not yet done. Dispatch itself is
-  // now async (WorkItemGenerated -> dispatchEngine), so wait for it.
-  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
+  // Dispatch of the producing Work Item (In Progress -> In Progress) moves the Participant to Assigned and stops
+  // there: it holds an outstanding Work Item, not yet done. Dispatch is asynchronous, so wait for it.
+  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
   const { data: assigned } = await participantsDB.findById(participant.id);
   assert.equal(assigned?.state, "Assigned", "dispatched: the Participant is Assigned, holding the outstanding Work Item");
   assert.ok((await participantEventTypes(participant.id)).includes("ParticipantAssigned"), "expected Assigned on dispatch");

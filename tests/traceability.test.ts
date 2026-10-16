@@ -13,25 +13,9 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
-import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { explainDeliverable, impactOfDeliverable } from "../src/routes/seu/core/traceability.js";
-import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, transitionDeliverableSync, produceDeliverable, ensureActorParticipant, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
-
-async function dispatchAndComplete(deliverableId: string, targetState: string, reference: string | null) {
-  const { data: deliverable } = await deliverablesDB.findById(deliverableId);
-  const fromState = deliverable!.lifecycle_state;
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState, actorRole: "super", actorId: ROOT_ACTOR_ID });
-  // deliverableKickoffHandler (off SEUOperational) may already have this
-  // exact hop in flight from its own automatic rescan, now that fulfilment
-  // happens before commence-work.
-  if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
-  const { workItem } = await waitForDispatchedWorkItem(deliverableId, fromState, targetState);
-  const completed = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference });
-  assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : "assertion failed");
-}
 
 async function commissionWebApp(prefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
@@ -60,8 +44,10 @@ test("backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be
   assert.ok(reqSpec);
   await resolveDispatchRejectionObligations(seuId);
 
-  await dispatchAndComplete(reqSpec.id, "In Progress", "vcs://trace/req@prod");
-  await dispatchAndComplete(reqSpec.id, "Approved", "vcs://trace/req@approved");
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  await produceDeliverable(reqSpec.id, ROOT_ACTOR_ID, "vcs://trace/req@prod");
+  const approved = await transitionDeliverableSync({ deliverableId: reqSpec.id, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(approved.ok, true, !approved.ok ? JSON.stringify(approved) : "assertion failed");
 
   const explanation = await explainDeliverable(reqSpec.id);
   assert.ok(explanation);
@@ -72,10 +58,10 @@ test("backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be
   // bound to its commit + the Participant that produced it.
   const production = explanation!.provenance.find((p) => p.toState === "In Progress");
   const acceptance = explanation!.provenance.find((p) => p.toState === "Approved");
-  assert.ok(production && acceptance, "both the production and acceptance completions appear in provenance");
+  assert.ok(production && acceptance, "both the production and the acceptance appear in provenance");
   assert.equal(production!.reference, "vcs://trace/req@prod");
   assert.equal(production!.certified, false, "a production completion is not a certified (attested) state change");
-  assert.equal(acceptance!.reference, "vcs://trace/req@approved");
+  assert.equal(acceptance!.reference, null, "the acceptance is the Command that requested it; the reference belongs to production");
   assert.equal(acceptance!.certified, true, "the In Progress -> Approved acceptance is attested");
   assert.ok(acceptance!.actingBadgeType, "the certified state records the authority that produced it");
   // ensureEligibleParticipant mints a real participants_master row (type

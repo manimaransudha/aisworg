@@ -13,6 +13,15 @@ export const RESERVED_TENANT_CODES = ["default", "platform", "demo"];
 export const INITIAL_VERSION = "1.0.0";
 export const SYSTEM_ACTOR_NAME = "System";
 export const SYSTEM_ACTOR_BADGE = "system";
+export const DELIVERABLE_BADGE_PREFIX = "deliverable_";
+export const DELIVERABLE_PRODUCING_STATE = "In Progress";
+export const PRODUCE_COMMAND_VERB = "produce";
+export const ATTESTATION_REQUIRED_POLICY_CODE = "policy-attestation-required";
+
+// One shape for every Command type: the entity type and the verb, e.g. "Deliverable.approve".
+export function commandTypeFor(entityType: string, verb: string): string {
+    return `${entityType}.${verb}`;
+}
 export const DEMO_VOICE_PROVIDER = "webspeech";
 export const DEMO_EDGETTS_VOICE = "en-IN-NeerjaNeural";
 export const TEMP_TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -91,6 +100,11 @@ async function findPlatformSystemActorId(): Promise<string> {
     const found = (data ?? []).find((p) => p.type === "Automated" && p.display_name === SYSTEM_ACTOR_NAME && p.user_id === null);
     if (!found) throw new Error("the platform system actor is not provisioned — it is created with the Platform tenant and superuser");
     return found.id;
+}
+
+// The system actor acts as root for Deliverable badges only (CR-121 third pass).
+export async function isPlatformSystemActor(actorId: string): Promise<boolean> {
+    return actorId === (await findPlatformSystemActorId());
 }
 
 // The SEU's system participant: a participants row for the platform system actor, named after the SEU id.

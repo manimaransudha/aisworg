@@ -7,6 +7,7 @@ import { logger } from "../../utils/logger.js";
 import { userDB } from "../userDB.js";
 import { authorityVocabularyDB } from "../authorityVocabularyDB.js";
 import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
+import { ATTESTATION_REQUIRED_POLICY_CODE, getPlatformTenantId } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +29,7 @@ interface TransitionDefinitionSeed {
   category?: string;
   trigger?: "manual" | "governed";
   submitVerb?: string;
+  attestationRequired?: boolean;
   eventType?: string;
   versionEvent?: string;
   versionHop?: boolean;
@@ -127,6 +129,17 @@ export async function seedTransitionDefinitions(actor: SeedActor): Promise<void>
   });
   if (vocabulary.error || !vocabulary.data) throw vocabulary.error ?? new Error("authority vocabulary reload failed");
 
+  // A transition that requires an attestation carries the UUID of the Policy Definition that states the requirement.
+  let attestationPolicyId: string | null = null;
+  if (seeds.some((s) => s.attestationRequired)) {
+    const { rows } = await query<{ id: string }>(
+      "SELECT id FROM policy_definitions WHERE code = $1 AND status = 'Active' AND tenant_id = $2",
+      [ATTESTATION_REQUIRED_POLICY_CODE, await getPlatformTenantId()]
+    );
+    if (rows.length !== 1) throw new Error(`[seed:transition-definitions] expected one Active Policy Definition "${ATTESTATION_REQUIRED_POLICY_CODE}", found ${rows.length} — seed Policy Definitions first`);
+    attestationPolicyId = rows[0].id;
+  }
+
   const transitions = await transitionDefinitionsDB.replaceAll(
     seeds.map((s) => ({
       entityType: s.entityType,
@@ -134,7 +147,7 @@ export async function seedTransitionDefinitions(actor: SeedActor): Promise<void>
       toState: s.toState,
       verb: s.verb ?? null,
       requiredAuthorityRuleId: s.requiredAuthorityRuleId ?? null,
-      requiredPolicyIds: s.requiredPolicyIds ?? [],
+      requiredPolicyIds: [...(s.requiredPolicyIds ?? []), ...(s.attestationRequired && attestationPolicyId ? [attestationPolicyId] : [])],
       requiredQualityGateIds: s.requiredQualityGateIds ?? [],
       createsObligation: s.createsObligation ?? null,
       category: s.category ?? null,

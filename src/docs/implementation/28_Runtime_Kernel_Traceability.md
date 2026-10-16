@@ -121,7 +121,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">§7 Execution Planning: produces transient execution plans<br> Ref: §7 Execution Planning</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/executionEngine.ts:63-90<br>src/domain/engine/workItemGenerator.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>executionEngine.evaluateDeliverableTransition</code>/<code>execute</code> compute the next step (Command → Work Item → Dispatch) per transition request, which functions as an execution plan, but the result is not persisted as a standalone "plan" object — it is immediately acted upon and only observable afterward via the Command/Work Item rows and events it produced.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>executionEngine.evaluateDeliverableTransition</code>/<code>execute</code> compute the next step per transition request (the engine applies a Deliverable hop itself; producing work follows as Command → Work Item → Dispatch), which functions as an execution plan, but the result is not persisted as a standalone "plan" object — it is immediately acted upon and only observable afterward via the Command/Work Item rows and events it produced.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>

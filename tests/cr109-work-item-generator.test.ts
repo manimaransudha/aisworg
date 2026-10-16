@@ -33,7 +33,7 @@ import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { decisionsDB } from "../src/dblayer/decisionsDB.js";
 import { governanceEvaluationOutcomesDB } from "../src/dblayer/governanceEvaluationOutcomesDB.js";
 import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
-import { driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, waitForDispatchedWorkItem, transitionDeliverableSync, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
@@ -47,21 +47,12 @@ async function rootParticipantId(seuId: string): Promise<string> {
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
 
 
-// deliverableKickoffHandler (SEUOperational / DeliverableTransitioned /
-// ObligationTransitioned) re-scans every Deliverable in the SEU and attempts
-// each one's own next governed transition on its own initiative, the same
-// governed check a manual transitionDeliverable call here also runs — the
-// "manual" trigger tag on a row only controls whether it renders as a
-// clickable button, it is not a restriction on who/what may attempt the
-// transition. So a hop this test expects to succeed can legitimately have
-// already been requested by that automatic rescan before this call lands
-// (already_in_flight) — a real Command either way, just differing in who got
-// there first. Callers that only need "the transition was requested, proceed
-// to waitForDispatchedWorkItem" use this instead of asserting a bare
-// ok === true.
+// Defined -> In Progress is a governed hop: the Execution Engine makes it off the kickoff, so a manual request that
+// lands after it finds the Deliverable already In Progress (no_transition_definition). The producing Command
+// (In Progress -> In Progress) is what the test then waits for.
 function assertTransitionRequested(result: { ok: boolean; reason?: string }): void {
   if (result.ok) return;
-  assert.equal(result.reason, "already_in_flight", JSON.stringify(result));
+  assert.ok(result.reason === "no_transition_definition" || result.reason === "already_in_flight", JSON.stringify(result));
 }
 
 async function registerOrganisationName(code: string): Promise<void> {
@@ -144,25 +135,20 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
   return commissioned.seu.id;
 }
 
-// Drives a Deliverable all the way from Defined to Approved: dispatch,
-// complete "done" (lands In Progress), dispatch again, complete "done"
-// again (lands Approved, the acceptance transition). Returns the two
-// Work Item ids in case a caller wants to inspect either one's Execution
-// Context.
-async function driveDeliverableToApproved(deliverableId: string, tag: string): Promise<{ productionWorkItemId: string; acceptanceWorkItemId: string }> {
-  const toInProgress = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  assertTransitionRequested(toInProgress);
-  const { workItem: productionWorkItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
+// Drives a Deliverable from Defined to Approved: the engine's governed hop to In Progress, the producing Work
+// Item completed "done" (records the reference), then the Command to approve, which the engine governs and applies.
+// Returns the producing Work Item id.
+async function driveDeliverableToApproved(deliverableId: string, tag: string): Promise<{ productionWorkItemId: string }> {
+  const toInProgress = await transitionDeliverableSync({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : "assertion failed");
+  const { workItem: productionWorkItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
   const produced = await completeWorkItem({ workItemId: productionWorkItem.id, outcome: "done", reference: `vcs://${tag}/produced@1` });
   assert.equal(produced.ok, true, !produced.ok ? JSON.stringify(produced) : "assertion failed");
 
-  const toApproved = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  assertTransitionRequested(toApproved);
-  const { workItem: acceptanceWorkItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "Approved");
-  const accepted = await completeWorkItem({ workItemId: acceptanceWorkItem.id, outcome: "done", reference: `vcs://${tag}/accepted@1` });
-  assert.equal(accepted.ok, true, !accepted.ok ? JSON.stringify(accepted) : "assertion failed");
+  const toApproved = await transitionDeliverableSync({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(toApproved.ok, true, !toApproved.ok ? JSON.stringify(toApproved) : "assertion failed");
 
-  return { productionWorkItemId: productionWorkItem.id, acceptanceWorkItemId: acceptanceWorkItem.id };
+  return { productionWorkItemId: productionWorkItem.id };
 }
 
 // --- Fixture 2: an isolated, single-Deliverable Template/Pack/Profile (same
@@ -180,7 +166,7 @@ async function driveDeliverableToApproved(deliverableId: string, tag: string): P
 // exact moment (compositionCompleted.ts); a Policy upserted after
 // commissioning has already completed is invisible to policyEngine.evaluate
 // (the bug the first version of this fixture actually had).
-async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: string) => Promise<void>): Promise<{ seuId: string; deliverableId: string; packId: string }> {
+async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: string) => Promise<void>, beforeCommenceWork?: (seuId: string) => Promise<void>): Promise<{ seuId: string; deliverableId: string; packId: string }> {
   const packSeed = { code: `cr109-isolated-pack-${run}`, name: "CR-109 Isolated Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   await registerOrganisationName(packSeed.code);
   const published = await publishPack({ seed: packSeed as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
@@ -228,17 +214,10 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
-  // No beforeCommenceWork fulfilment here, deliberately: the failing test
-  // this fixture serves creates its OWN Obligation after commissioning
-  // returns, then needs its OWN transitionDeliverable call to be the first
-  // real attempt on Defined -> In Progress, so that Obligation is genuinely
-  // open (and so recorded as "consulted") when governance actually runs.
-  // Fulfilling here would let the automatic commence-work kickoff complete
-  // that hop first, before the test's Obligation exists. The commence-work
-  // kickoff's own first attempt (no Participant yet) hits empty_eligible_pool
-  // and rejects instead — swept below so it doesn't linger as a second,
-  // unrelated open Obligation once the test creates its real one.
-  const driven = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
+  // The Execution Engine makes the governed Defined -> In Progress hop off SEUOperational, so anything the hop's
+  // governance must see (an Obligation, a fulfilled Capability) has to exist before commence-work. The caller
+  // supplies it through beforeCommenceWork, which runs once the SEU is Activated.
+  const driven = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, beforeCommenceWork });
   assert.equal(driven.ok, true, !driven.ok ? JSON.stringify(driven) : "assertion failed");
   await resolveDispatchRejectionObligations(requested.seu.id);
 
@@ -254,17 +233,14 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
 // ---------------------------------------------------------------------------
 
 test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached to the Deliverable show up as actual content in the Work Item's Execution Context", async () => {
-  // Fulfilled AFTER commissioning, deliberately — Decision/Evidence/Knowledge
-  // below are attached before the explicit dispatch too, and the automatic
-  // commence-work rescan must not dispatch (and snapshot the Execution
-  // Context) before they exist.
+  // The producing Command is generated when the Capability is fulfilled (the engine already made the hop to In
+  // Progress at commence-work), and its Work Item snapshots the Execution Context then. Decision, Evidence and
+  // Knowledge are therefore attached first and the Capability is fulfilled last.
   const seuId = await commissionCr104MinimalSeu("cr109-real-content");
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
-
-  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
 
   const { data: decision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId,
@@ -284,10 +260,9 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
     title: "Domain glossary for this backlog", acquisitionScope: "SEU",
   });
 
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  assertTransitionRequested(dispatched);
+  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
 
-  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "In Progress", "In Progress");
   const ec = workItem!.execution_context!;
   assert.ok(ec.relevantDecisions.some((d) => d.id === decision!.id && d.title === decision!.title && d.status === "Approved"), "the actual Decision (title/status), not just a count");
   assert.ok(ec.supportingEvidence.some((e) => e.id === evidence!.id && e.title === evidence!.title), "the actual Evidence, not just a count");
@@ -306,7 +281,7 @@ test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Co
   const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 
-  const { command, workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
+  const { command, workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "In Progress", "In Progress");
   assert.ok(command!.eligible_participant_pool_id, "the Command must carry a real eligibleParticipantPoolRef");
 
   const { data: pool } = await capabilityFulfilmentPoolsDB.findById(command!.eligible_participant_pool_id!);
@@ -356,6 +331,7 @@ test("Ch.12 §9 / CR-109 §6.2: no producing Capability declared means no pool a
 test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obligation both show up on a real Approved-with-Conditions outcome", async () => {
   const run = randomUUID().slice(0, 8);
   let standardPolicyId = "";
+  let obligationId = "";
   const { seuId, deliverableId } = await commissionIsolatedSeu(run, async (packId) => {
     const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
     if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("no participants_master row for user_id 1 — is db:clean-slate seeded?");
@@ -369,57 +345,64 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
     });
     assert.ok(standardPolicy);
     standardPolicyId = standardPolicy!.id;
+  }, async (activatedSeuId) => {
+    // Raised and fulfilled before commence-work, so the hop the engine makes at Operational is the first governance
+    // evaluation of the Deliverable and records this open Obligation as consulted.
+    const { data: seuDeliverables } = await deliverablesDB.findBySeuId(activatedSeuId);
+    const head = (seuDeliverables ?? [])[0];
+    assert.ok(head, "expected the one head-of-chain Deliverable");
+    const created = await createObligationAsRoot({
+      relatedObjectType: "Deliverable", relatedObjectId: head!.id,
+      category: "Engineering", title: "Follow up with security review after this hop",
+      // No blockedFromState/blockedToState — genuinely non-blocking, but still open (Identified).
+    });
+    assert.ok(created);
+    assert.equal(created!.status, "Identified", "open, not resolved");
+    obligationId = created!.id;
+    assert.ok(head!.producing_capability_id, "expected the isolated Template's requirements-analysis Capability to be declared");
+    await fulfilCapability({ seuId: activatedSeuId, capabilityId: head!.producing_capability_id!, participantMasterId: await ensureEligibleParticipant(activatedSeuId, ["requirements-analysis"]) });
   });
 
-  const obligation = await createObligationAsRoot({
-    relatedObjectType: "Deliverable", relatedObjectId: deliverableId,
-    category: "Engineering", title: "Follow up with security review after this hop",
-    // No blockedFromState/blockedToState — genuinely non-blocking, but still open (Identified).
+  // The hop is the engine's own governed transition. Its Command carries the governance outcome the producing
+  // Command reuses.
+  let hop: CommandRow | undefined;
+  await waitUntilAsync(async () => {
+    const { data: commands } = await commandsDB.findBySeuId(seuId);
+    hop = (commands ?? []).find((c) => c.entity_id === deliverableId && c.from_state === "Defined" && c.to_state === "In Progress");
+    return !!hop;
   });
-  assert.ok(obligation);
-  assert.equal(obligation!.status, "Identified", "open, not resolved");
-
-  // Fulfilled here, after the Obligation above already exists, so this
-  // call's own governance evaluation is the first real attempt on the hop
-  // and genuinely sees (and records) that open Obligation.
-  const { data: deliverable } = await deliverablesDB.findById(deliverableId);
-  assert.ok(deliverable?.producing_capability_id, "expected the isolated Template's requirements-analysis Capability to be declared");
-  const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
-  await fulfilCapability({ seuId, capabilityId: deliverable!.producing_capability_id!, participantMasterId });
-
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  assertTransitionRequested(dispatched);
-
-  const { data: rawCommand } = await commandsDB.findBySeuId(seuId);
-  const command = rawCommand![0];
-  const { data: outcome } = await governanceEvaluationOutcomesDB.findById(command.governance_outcome_id!);
+  const hopCommand = hop as CommandRow | undefined;
+  const { data: outcome } = await governanceEvaluationOutcomesDB.findById(hopCommand!.governance_outcome_id!);
   assert.equal(outcome!.outcome, "Approved-with-Conditions", "a real Standard-Policy deviation must produce this exact outcome, not a bare 'Approved'");
   assert.ok(outcome!.deviated_policy_ids.includes(standardPolicyId), "the deviating Policy's real id must be recorded");
-  assert.ok(outcome!.consulted_obligation_ids.includes(obligation!.id), "the open, non-blocking Obligation's real id must be recorded even though it never blocked");
+  assert.ok(outcome!.consulted_obligation_ids.includes(obligationId), "the open, non-blocking Obligation's real id must be recorded even though it never blocked");
 
-  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
   const ec = workItem!.execution_context!;
   assert.ok(ec.governingPolicies.length === 0, "deviated policies aren't 'satisfied' — governingPolicies reads satisfied_policy_ids, which stays empty here");
-  assert.ok(ec.activeObligations.some((o) => o.id === obligation!.id), "the Participant must still see the open Obligation for their own awareness (Ch.32 §11)");
+  assert.ok(ec.activeObligations.some((o) => o.id === obligationId), "the Participant must still see the open Obligation for their own awareness (Ch.32 §11)");
 });
 
 test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model also blocks Source Code, with no new dependency edge", async () => {
-  const seuId = await commissionCr104MinimalSeu("cr109-transitivity");
+  // The open Decision exists before commence-work, because the engine makes the governed hop at Operational and a
+  // Decision raised afterwards cannot block a hop already made.
+  const seuId = await commissionCr104MinimalSeu("cr109-transitivity", async (activatedSeuId) => {
+    const activatedDetail = await getSeuDetailView(activatedSeuId);
+    const req = activatedDetail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
+    assert.ok(req);
+    const { data: openDecision } = await decisionsDB.create({ participantId: await rootParticipantId(activatedSeuId), authorityBadge: ROOT_ACTOR_BADGE,
+      seuId: activatedSeuId,
+      relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [req.id] }],
+      category: "Engineering Decisions",
+      title: "CR-109 transitivity test decision",
+    });
+    assert.ok(openDecision);
+  });
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
   const sourceCode = detail?.deliverables.find((d) => d.name === "source-code" || d.name === "Source Code");
-  const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(requirementsSpec && sourceCode && reqAnalysisCapability);
-
-  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
-
-  const { data: decision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
-    seuId,
-    relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [requirementsSpec!.id] }],
-    category: "Engineering Decisions",
-    title: "CR-109 transitivity test decision",
-  });
-  assert.ok(decision);
+  assert.ok(requirementsSpec && sourceCode);
+  assert.equal(requirementsSpec.lifecycleState, "Defined", "the open Decision stopped the engine's own hop");
 
   const blockedDirect = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blockedDirect.ok, false);
@@ -472,7 +455,7 @@ test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation 
   const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 
-  const { workItem } = await waitForDispatchedWorkItem(sourceCode!.id, "Defined", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(sourceCode!.id, "In Progress", "In Progress");
   const ec = workItem!.execution_context!;
   assert.equal(ec.relevantDeliverable.id, sourceCode!.id);
   assert.equal(ec.service?.code, "software-construction");
@@ -496,9 +479,8 @@ test("CR-109 Source Code §5a: decision_blocked triggers even when only ONE of s
   const constructionCapability = detail?.capabilities.find((c) => c.code === "software-construction");
   assert.ok(requirementsSpec && sourceCode && constructionCapability);
 
-  await driveDeliverableToApproved(requirementsSpec!.id, `cr109-source-code-partial-block-${seuId}`);
-  await fulfilCapability({ seuId, capabilityId: constructionCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["software-construction"]) });
-
+  // Both Decisions exist before Requirements Analysis Model is approved, because approving it makes the engine
+  // request Source Code's own governed hop at once.
   const { data: approvedDecision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [sourceCode!.id] }],
     category: "Engineering Decisions", title: "Source Code decision 1 (already Approved)",
@@ -509,6 +491,9 @@ test("CR-109 Source Code §5a: decision_blocked triggers even when only ONE of s
     seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [sourceCode!.id] }],
     category: "Engineering Decisions", title: "Source Code decision 2 (still open)",
   });
+
+  await driveDeliverableToApproved(requirementsSpec!.id, `cr109-source-code-partial-block-${seuId}`);
+  await fulfilCapability({ seuId, capabilityId: constructionCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["software-construction"]) });
 
   const blocked = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);

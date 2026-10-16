@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverableSync as transitionDeliverable, ensureCoreEngineeringQualityGates } from "./testFixtures.js";
+import { transitionDeliverableSync as transitionDeliverable, produceDeliverable, ensureCoreEngineeringQualityGates } from "./testFixtures.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { dependencyDefinitionEngine } from "../src/domain/engine/dependencyDefinitionEngine.js";
@@ -90,8 +90,7 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
   });
   assert.equal(obligation.status, "Identified");
 
-  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : "assertion failed");
+  await produceDeliverable(requirementsSpec.id, ROOT_ACTOR_ID);
 
   // Dependency Engine still has nothing to say — re-confirm right before the
   // blocked attempt, not just at the start.

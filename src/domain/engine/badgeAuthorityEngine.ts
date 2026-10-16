@@ -1,4 +1,5 @@
 import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
+import { DELIVERABLE_BADGE_PREFIX, isPlatformSystemActor } from "../../dblayer/constants.js";
 
 const ROOT_BADGE_CODE = "root";
 
@@ -39,6 +40,9 @@ export const badgeAuthorityEngine = {
     const { isRoot, badgeTypes } = await getHeldBadges(input.actorId);
     if (isRoot) return { allowed: true, via: "root" };
     const required = Array.isArray(input.requiredBadge) ? input.requiredBadge : [input.requiredBadge];
+    if (required.every((b) => b.startsWith(DELIVERABLE_BADGE_PREFIX)) && (await isPlatformSystemActor(input.actorId))) {
+      return { allowed: true, via: "badge", matchedBadge: required[0] };
+    }
     const matched = required.find((b) => badgeTypes.has(b));
     if (matched) return { allowed: true, via: "badge", matchedBadge: matched };
     return { allowed: false, reason: "missing_badge" };

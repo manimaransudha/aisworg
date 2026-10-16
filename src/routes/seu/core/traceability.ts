@@ -100,21 +100,30 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
       findingsDB.findByRelatedObject("Deliverable", deliverableId),
     ]);
 
-  const attestationByTransition = new Map((attestations ?? []).map((a) => [`${a.from_state}->${a.to_state}`, a] as const));
-
   const provenance: ProvenanceEntry[] = [];
   for (const ref of (references ?? []).slice().reverse()) {
-    const att = attestationByTransition.get(`${ref.from_state}->${ref.to_state}`);
     provenance.push({
       fromState: ref.from_state,
       toState: ref.to_state,
       reference: ref.reference,
       participantLabel: await participantLabel(ref.participant_id),
-      certified: Boolean(att),
-      actingBadgeType: att?.acting_badge_type ?? null,
+      certified: false,
+      actingBadgeType: null,
       at: ref.created_at,
     });
   }
+  for (const att of (attestations ?? []).slice().reverse()) {
+    provenance.push({
+      fromState: att.from_state,
+      toState: att.to_state,
+      reference: att.reference,
+      participantLabel: await participantLabel(att.participant_id),
+      certified: true,
+      actingBadgeType: att.acting_badge_type,
+      at: att.created_at,
+    });
+  }
+  provenance.sort((x, y) => new Date(x.at).getTime() - new Date(y.at).getTime());
 
   let producingCapability: { id: string; label: string } | null = null;
   if (deliverable.producing_capability_id) {

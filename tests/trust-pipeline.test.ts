@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability, ensureActorParticipant } from "./testFixtures.js";
-import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
+import { transitionDeliverableSync as transitionDeliverable, produceDeliverable } from "./testFixtures.js";
 import { transitionEvidence, linkEvidenceToObject, listEvidenceRelationships, listEvidenceLinkedToSeu } from "../src/routes/seu/core/evidence.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { evidenceDB } from "../src/dblayer/evidenceDB.js";
@@ -58,8 +58,7 @@ async function commissionAndApproveRequirementsSpec(statementPrefix: string) {
   // empty_eligible_pool Obligation, not part of this test's own scenario.
   await resolveDispatchRejectionObligations(seuId);
 
-  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : "assertion failed");
+  await produceDeliverable(requirementsSpec.id, ROOT_ACTOR_ID);
   const toApproved = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(toApproved.ok, true, !toApproved.ok ? JSON.stringify(toApproved) : "assertion failed");
 

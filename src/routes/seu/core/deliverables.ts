@@ -3,6 +3,7 @@ import { seusDB } from "../../../dblayer/seusDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { executionEngine } from "../../../domain/engine/executionEngine.js";
 import type { DeliverableGovernanceResult } from "../../../domain/engine/executionEngine.js";
+import type { GateRejectionResult } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
 import { resolveAuthor } from "./attentionItems.js";
@@ -38,14 +39,17 @@ export async function createDeliverable(input: { seuId: string; name: string; ca
 export type TransitionDeliverableResult =
   | { ok: true; fromState: string; toState: string }
   | { ok: false; reason: "not_found" }
-  | Exclude<DeliverableGovernanceResult, { ok: true }>;
+  | Exclude<DeliverableGovernanceResult, { ok: true }>
+  | GateRejectionResult;
+
+// A request to move a Deliverable. The request is the Command: the Execution Engine governs it and, when governance
+// passes, makes the transition itself. The requester is a participant (button click) or the system actor (governed hop).
 export async function transitionDeliverable(input: {
   deliverableId: string;
   targetState: string;
   actorRole?: string;
   actorId: string;
   requestedBy: string;
-  targetCompletionAt?: Date | null;
 }): Promise<TransitionDeliverableResult> {
   const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
   if (!deliverable) return { ok: false, reason: "not_found" };
@@ -56,23 +60,16 @@ export async function transitionDeliverable(input: {
   if (!governance.ok) return governance;
   const { fromState } = governance;
 
-  const actingBadgeType = governance.actingBadgeType;
-
-  const correlationId = eventBus.newCorrelationId();
-  await executionEngine.execute({
-    seuId: deliverable.seu_id,
-    entityType: "Deliverable",
-    entityId: deliverable.id,
+  const applied = await executionEngine.applyDeliverableTransition({
+    deliverable,
     fromState,
     toState: input.targetState,
-    producingCapabilityId: deliverable.producing_capability_id,
     requestedBy: input.requestedBy,
-    actorId: input.actorId,
-    actingBadgeType,
-    targetCompletionAt: input.targetCompletionAt ?? null,
-    correlationId,
+    actingBadgeType: governance.actingBadgeType,
     governanceOutcome: governance.governanceOutcome,
+    correlationId: eventBus.newCorrelationId(),
   });
+  if (!applied.ok) return applied;
 
   return { ok: true, fromState, toState: input.targetState };
 }

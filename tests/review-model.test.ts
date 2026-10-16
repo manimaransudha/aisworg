@@ -52,6 +52,7 @@ async function walkReviewToAccepted(reviewId: string, outcome: "Passed" | "Passe
 test("a Review runs its full lifecycle without modifying the reviewed object; its outcome is set at Completion and is immutable", async () => {
   const { seuId, deliverable } = await commissionSeu("review-lifecycle");
 
+  const stateBeforeReview = (await getSeuDetailView(seuId))?.deliverables.find((d) => d.id === deliverable.id)?.lifecycleState;
   const review = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Architecture Review of Requirements Analysis Model" });
   assert.equal(review.status, "Planned");
   assert.equal(review.outcome, null, "a fresh Review has no outcome");
@@ -70,7 +71,7 @@ test("a Review runs its full lifecycle without modifying the reviewed object; it
 
   // The reviewed Deliverable is untouched by the Review (RM-001).
   const detail = await getSeuDetailView(seuId);
-  assert.equal(detail?.deliverables.find((d) => d.id === deliverable.id)?.lifecycleState, "Defined", "a Review must never modify the reviewed object");
+  assert.equal(detail?.deliverables.find((d) => d.id === deliverable.id)?.lifecycleState, stateBeforeReview, "a Review must never modify the reviewed object");
 
   // Outcome survives further lifecycle transitions unchanged (immutable).
   await transitionReview({ reviewId: review.id, targetState: "Accepted", actorRole: "super", actorId: TESTER_ALL_ID });

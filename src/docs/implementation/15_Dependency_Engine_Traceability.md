@@ -81,7 +81,7 @@ Note: the chapter's own §19 "Implementation Specifics" section already contains
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">On Deliverable readiness: identify required capabilities, determine eligible Participants, generate Work Items, select/assign executing Participant via Dispatch Engine; Dependency Engine itself does not assign or execute<br> Ref: §12</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dependencyDefinitionEngine.ts:210-220 (DeliverableReady publish)<br>src/domain/engine/executionEngine.ts (execute chain)<br>src/domain/engine/dispatchEngine.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Full chain (<code>transitionDeliverable</code>/<code>evaluateDeliverableTransition</code> → dependency gate → Quality Gate → Authority/Policy → <code>executionEngine.execute</code> → Work Item → <code>dispatchEngine.dispatch</code>) exists and the Dependency Engine performs no assignment or execution itself. However the chain is pull-only: nothing subscribes to <code>DeliverableReady</code> to auto-trigger the downstream steps; <code>transitionDeliverable</code> must still be invoked by a separate caller. Dispatch itself assigns the sole eligible Participant (<code>SOLE_ELIGIBLE_PARTICIPANT</code>), not a selection among an eligible pool.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Full chain (<code>transitionDeliverable</code>/<code>evaluateDeliverableTransition</code> → dependency gate → Quality Gate → Authority/Policy → <code>applyDeliverableTransition</code>; then, for producing work, <code>executionEngine.execute</code> → Work Item → <code>dispatchEngine.dispatch</code>) exists and the Dependency Engine performs no assignment or execution itself. The governed hop is requested by <code>deliverableKickoffHandler</code> (only hops whose Transition Definition <code>trigger</code> is <code>governed</code>); hops with trigger <code>manual</code> are requested by a participant holding the verb badge. Dispatch itself assigns the sole eligible Participant (<code>SOLE_ELIGIBLE_PARTICIPANT</code>), not a selection among an eligible pool.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
@@ -189,7 +189,7 @@ Note: the chapter's own §19 "Implementation Specifics" section already contains
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: execution is initiated only after dependency satisfaction<br> Ref: §17</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/executionEngine.ts:76-100</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>evaluateDeliverableTransition</code> is the real gate called before <code>execute()</code> proceeds; an unsatisfied target is refused with <code>dependency_not_satisfied</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>evaluateDeliverableTransition</code> is the real gate called before <code>applyDeliverableTransition</code> changes the state; an unsatisfied target is refused with <code>dependency_not_satisfied</code>.</td>
     </tr>
   </tbody>
 </table>

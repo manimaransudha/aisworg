@@ -37,7 +37,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Architectural position: Objective → Deliverables → Dependencies → Capabilities → Participants → Execution → State Change (§3)<br> Ref: §3</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/executionEngine.ts:73-331<br>src/domain/engine/dependencyDefinitionEngine.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>evaluateDeliverableTransition</code> runs dependency readiness (<code>dependencyDefinitionEngine.isTargetReady</code>) before Quality Gate/Policy/Authority checks, then hands off to Command→Work Item dispatch (Participant execution), closing the loop back to a state change. The pipeline order matches the chapter's diagram.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>evaluateDeliverableTransition</code> runs dependency readiness (<code>dependencyDefinitionEngine.isTargetReady</code>) before Quality Gate/Policy/Authority checks. When governance passes, <code>applyDeliverableTransition</code> records the governance outcome and the Command and changes the state as the SEU system actor. Participant execution follows as a separate producing Command (Work Item and Dispatch) once the Deliverable is In Progress. The pipeline order matches the chapter's diagram.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
