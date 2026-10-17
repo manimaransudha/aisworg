@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { listConceptTypes, listConceptsForType, addConcept, deprecateConcept, retireConcept, archiveConcept, composeConcept, updateConceptMeta, quickRetireConcept, listAllConceptsForPicker, listDistinctUiGroupings, getConceptTypeNav, tabsForActiveType, approveConcept, rejectConcept, listDraftConceptsForApproval, type OntologyActor } from "../core/ontology.js";
@@ -158,9 +159,9 @@ router.post("/sdk/ontology/add", async (req: Request, res: Response) => {
       },
       actor
     );
-    return flashSuccess(req, res, `${backTo}?type=${encodeURIComponent(type)}`, `Concept "${code}" added.`);
+    return redirects.seu.sdkOntologyAdd.success(req, res, `Concept "${code}" added.`, `${backTo}?type=${encodeURIComponent(type)}`);
   } catch (err) {
-    return flashError(req, res, `${backTo}?type=${encodeURIComponent(type)}`, (err as Error).message);
+    return redirects.seu.sdkOntologyAdd.error(req, res, (err as Error).message, `${backTo}?type=${encodeURIComponent(type)}`);
   }
 });
 
@@ -171,9 +172,9 @@ router.post("/sdk/ontology/deprecate", async (req: Request, res: Response) => {
     const held = await heldBadges(req);
     const actor = actorFrom(req, held);
     await deprecateConcept(type, String(code ?? ""), String(tenantId ?? ""), actor);
-    return flashSuccess(req, res, `${backTo}?type=${encodeURIComponent(type)}`, `Concept "${code}" deprecated.`);
+    return redirects.seu.sdkOntologyDeprecate.success(req, res, `Concept "${code}" deprecated.`, `${backTo}?type=${encodeURIComponent(type)}`);
   } catch (err) {
-    return flashError(req, res, `${backTo}?type=${encodeURIComponent(type)}`, (err as Error).message);
+    return redirects.seu.sdkOntologyDeprecate.error(req, res, (err as Error).message, `${backTo}?type=${encodeURIComponent(type)}`);
   }
 });
 
@@ -184,9 +185,9 @@ router.post("/sdk/ontology/retire", async (req: Request, res: Response) => {
     const held = await heldBadges(req);
     const actor = actorFrom(req, held);
     await retireConcept(type, String(code ?? ""), String(tenantId ?? ""), actor);
-    return flashSuccess(req, res, `${backTo}?type=${encodeURIComponent(type)}`, `Concept "${code}" retired.`);
+    return redirects.seu.sdkOntologyRetire.success(req, res, `Concept "${code}" retired.`, `${backTo}?type=${encodeURIComponent(type)}`);
   } catch (err) {
-    return flashError(req, res, `${backTo}?type=${encodeURIComponent(type)}`, (err as Error).message);
+    return redirects.seu.sdkOntologyRetire.error(req, res, (err as Error).message, `${backTo}?type=${encodeURIComponent(type)}`);
   }
 });
 
@@ -197,9 +198,9 @@ router.post("/sdk/ontology/archive", async (req: Request, res: Response) => {
     const held = await heldBadges(req);
     const actor = actorFrom(req, held);
     await archiveConcept(type, String(code ?? ""), String(tenantId ?? ""), actor);
-    return flashSuccess(req, res, `${backTo}?type=${encodeURIComponent(type)}`, `Concept "${code}" archived.`);
+    return redirects.seu.sdkOntologyArchive.success(req, res, `Concept "${code}" archived.`, `${backTo}?type=${encodeURIComponent(type)}`);
   } catch (err) {
-    return flashError(req, res, `${backTo}?type=${encodeURIComponent(type)}`, (err as Error).message);
+    return redirects.seu.sdkOntologyArchive.error(req, res, (err as Error).message, `${backTo}?type=${encodeURIComponent(type)}`);
   }
 });
 
@@ -220,16 +221,15 @@ router.post("/sdk/ontology/compose", async (req: Request, res: Response) => {
       },
       actor
     );
-    return flashSuccess(req, res, `${backTo}?type=${encodeURIComponent(type)}`, `Concept "${code}" composed.`);
+    return redirects.seu.sdkOntologyCompose.success(req, res, `Concept "${code}" composed.`, `${backTo}?type=${encodeURIComponent(type)}`);
   } catch (err) {
-    return flashError(req, res, `${backTo}?type=${encodeURIComponent(type)}`, (err as Error).message);
+    return redirects.seu.sdkOntologyCompose.error(req, res, (err as Error).message, `${backTo}?type=${encodeURIComponent(type)}`);
   }
 });
 
 router.post("/sdk/ontology/update-meta", async (req: Request, res: Response) => {
   const { conceptType, code, tenantId, textType, uiGrouping } = req.body ?? {};
   const type = String(conceptType ?? "").trim();
-  const metadataUrl = `${backTo}/metadata`;
   try {
     const held = await heldBadges(req);
     const actor = actorFrom(req, held);
@@ -240,22 +240,21 @@ router.post("/sdk/ontology/update-meta", async (req: Request, res: Response) => 
       { textType: textType === "text" ? "text" : "markdown", uiGrouping: typeof uiGrouping === "string" && uiGrouping.trim() ? uiGrouping.trim() : null },
       actor
     );
-    return flashSuccess(req, res, metadataUrl, `Concept "${code}" updated.`);
+    return redirects.seu.sdkOntologyUpdateMeta.success(req, res, `Concept "${code}" updated.`);
   } catch (err) {
-    return flashError(req, res, metadataUrl, (err as Error).message);
+    return redirects.seu.sdkOntologyUpdateMeta.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/sdk/ontology/quick-retire", async (req: Request, res: Response) => {
   const { conceptType, code, tenantId } = req.body ?? {};
-  const metadataUrl = `${backTo}/metadata`;
   try {
     const held = await heldBadges(req);
     const actor = actorFrom(req, held);
     await quickRetireConcept(String(conceptType ?? "").trim(), String(code ?? ""), String(tenantId ?? ""), actor);
-    return flashSuccess(req, res, metadataUrl, `Concept "${code}" retired.`);
+    return redirects.seu.sdkOntologyQuickRetire.success(req, res, `Concept "${code}" retired.`);
   } catch (err) {
-    return flashError(req, res, metadataUrl, (err as Error).message);
+    return redirects.seu.sdkOntologyQuickRetire.error(req, res, (err as Error).message);
   }
 });
 
@@ -293,27 +292,25 @@ router.get("/sdk/ontology/approvals", attachVM("seu/sdk/ontology/approvals"), as
 
 router.post("/sdk/ontology/approvals/approve", async (req: Request, res: Response) => {
   const { conceptType, code, tenantId } = req.body ?? {};
-  const backToApprovals = "/aisworg/seu/sdk/ontology/approvals";
   try {
     const held = await heldBadges(req);
     const actor = actorFrom(req, held);
     await approveConcept(String(conceptType ?? "").trim(), String(code ?? ""), String(tenantId ?? ""), actor);
-    return flashSuccess(req, res, backToApprovals, `Concept "${code}" approved.`);
+    return redirects.seu.sdkOntologyApprovals.success(req, res, `Concept "${code}" approved.`);
   } catch (err) {
-    return flashError(req, res, backToApprovals, (err as Error).message);
+    return redirects.seu.sdkOntologyApprovals.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/sdk/ontology/approvals/reject", async (req: Request, res: Response) => {
   const { conceptType, code, tenantId, comment } = req.body ?? {};
-  const backToApprovals = "/aisworg/seu/sdk/ontology/approvals";
   try {
     const held = await heldBadges(req);
     const actor = actorFrom(req, held);
     await rejectConcept(String(conceptType ?? "").trim(), String(code ?? ""), String(tenantId ?? ""), String(comment ?? ""), actor);
-    return flashSuccess(req, res, backToApprovals, `Concept "${code}" rejected.`);
+    return redirects.seu.sdkOntologyApprovals.success(req, res, `Concept "${code}" rejected.`);
   } catch (err) {
-    return flashError(req, res, backToApprovals, (err as Error).message);
+    return redirects.seu.sdkOntologyApprovals.error(req, res, (err as Error).message);
   }
 });
 

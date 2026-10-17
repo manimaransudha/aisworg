@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects, redirectsFor } from "../../../middleware/redirects.js";
 import { safeBack } from "../../../middleware/safeBack.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
@@ -18,8 +19,7 @@ router.get("/tenant-admin/users", attachVM("seu/tenantAdmin/users"), async (req:
   try {
     const tenantId = req.session?.user?.tenant_id;
     if (!tenantId) {
-      req.session.flash = { type: "error", message: "Your account has no tenant assigned." };
-      return res.redirect("/aisworg/quickview");
+      return redirectsFor(req).error(req, res, "Your account has no tenant assigned.", "/aisworg/quickview");
     }
     const [users, badges] = await Promise.all([listUsersForTenant(tenantId), listGrantableNounVerbBadges()]);
     req.vm.req.title = "Tenant User Management";
@@ -46,20 +46,20 @@ router.get("/tenant-admin/users", attachVM("seu/tenantAdmin/users"), async (req:
 router.post("/tenant-admin/users/:id/badges", async (req: Request, res: Response) => {
   const tenantId = req.session?.user?.tenant_id;
   const back = safeBack(req, usersBackTo);
-  if (!tenantId) return flashError(req, res, back, "Your account has no tenant assigned.");
+  if (!tenantId) return redirects.seu.tenantAdminUsersBadges.error(req, res, "Your account has no tenant assigned.", back);
   const userId = String(req.params.id);
-  if (!userId) return flashError(req, res, back, "Invalid user id.");
+  if (!userId) return redirects.seu.tenantAdminUsersBadges.error(req, res, "Invalid user id.", back);
   const rawBadges = req.body?.badges;
   const badges = (Array.isArray(rawBadges) ? rawBadges : rawBadges ? [rawBadges] : [])
     .filter((v: unknown): v is string => typeof v === "string" && v.trim().length > 0)
     .map((v: string) => v.trim());
   try {
     const result = await setTenantUserAuthorisedBadges({ actingTenantId: tenantId, userId, badges });
-    if (!result.ok) return flashError(req, res, back, `Could not update badges: ${result.detail}`);
-    return flashSuccess(req, res, back, "Badges updated.");
+    if (!result.ok) return redirects.seu.tenantAdminUsersBadges.error(req, res, `Could not update badges: ${result.detail}`, back);
+    return redirects.seu.tenantAdminUsersBadges.success(req, res, "Badges updated.", back);
   } catch (err) {
     logger.error("[web/seu/tenantAdmin] POST /tenant-admin/users/:id/badges error", err as Error);
-    return flashError(req, res, back, (err as Error).message);
+    return redirects.seu.tenantAdminUsersBadges.error(req, res, (err as Error).message, back);
   }
 });
 

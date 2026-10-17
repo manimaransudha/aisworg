@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { listAttentionItems, listAttentionItemsWithNextStates, transitionAttentionItem } from "../core/attentionItems.js";
@@ -36,15 +37,14 @@ router.get("/attention", attachVM("seu/attention/index"), async (req: Request, r
 });
 
 router.post("/attention/:id/transition", async (req: Request, res: Response) => {
-  const backTo = "/aisworg/seu/attention";
   const { targetState } = req.body ?? {};
 
   if (typeof targetState !== "string" || !targetState.trim()) {
-    return flashError(req, res, backTo, "Target state is required.");
+    return redirects.seu.attentionTransition.error(req, res, "Target state is required.");
   }
 
   try {
-    if (req.session?.user?.id == null) return flashError(req, res, backTo, "Authentication required.");
+    if (req.session?.user?.id == null) return redirects.seu.attentionTransition.error(req, res, "Authentication required.");
     const result = await transitionAttentionItem({
       attentionItemId: String(req.params.id),
       targetState,
@@ -52,12 +52,12 @@ router.post("/attention/:id/transition", async (req: Request, res: Response) => 
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
-      return flashError(req, res, backTo, `Attention Item transition blocked: ${reason}`);
+      return redirects.seu.attentionTransition.error(req, res, `Attention Item transition blocked: ${reason}`);
     }
-    return flashSuccess(req, res, backTo, `Attention Item moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
+    return redirects.seu.attentionTransition.success(req, res, `Attention Item moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
   } catch (err) {
     logger.error("[web/seu/attention] POST /attention/:id/transition error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.attentionTransition.error(req, res, (err as Error).message);
   }
 });
 

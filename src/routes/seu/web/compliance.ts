@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { evaluateCompliance, grantWaiver } from "../core/compliance.js";
 import { complianceDB } from "../../../dblayer/complianceDB.js";
@@ -34,23 +35,22 @@ router.get("/seus/:id/compliance", attachVM("seu/compliance/index"), async (req:
 
 router.post("/seus/:id/compliance/waivers", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/${seuId}/compliance`;
   const { requirementCode, rationale } = req.body ?? {};
   if (typeof requirementCode !== "string" || !requirementCode.trim() || typeof rationale !== "string" || !rationale.trim()) {
-    return flashError(req, res, backTo, "Requirement and rationale are required.");
+    return redirects.seu.seusComplianceWaivers.error(req, res, "Requirement and rationale are required.");
   }
   try {
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!actorId) return flashError(req, res, backTo, "Authentication required.");
+    if (!actorId) return redirects.seu.seusComplianceWaivers.error(req, res, "Authentication required.");
     const { data: master } = await participantsMasterDB.findById(actorId);
-    if (!master) return flashError(req, res, backTo, "No superuser provisioned.");
+    if (!master) return redirects.seu.seusComplianceWaivers.error(req, res, "No superuser provisioned.");
     const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(actorId);
     const authorBadge = isRoot ? "root" : [...badgeTypes][0] ?? "general";
     await grantWaiver({ seuId, requirementCode, rationale, grantedBy: master.id, authorBadge });
-    return flashSuccess(req, res, backTo, `Waiver granted for "${requirementCode}".`);
+    return redirects.seu.seusComplianceWaivers.success(req, res, `Waiver granted for "${requirementCode}".`);
   } catch (err) {
     logger.error("[web/seu/compliance] POST waiver error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.seusComplianceWaivers.error(req, res, (err as Error).message);
   }
 });
 

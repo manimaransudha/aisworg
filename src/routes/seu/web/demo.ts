@@ -8,7 +8,8 @@ import path from "node:path";
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
@@ -20,7 +21,7 @@ import { getDemoActor } from "../../../dblayer/seed/demo/demoBadges.js";
 import { listAllScenarios, listAllowedScenarios, listPlaybooks, runScenario, setScenarioEnabled, stepPlaybook, resetDemo } from "../core/demoSimulator.js";
 
 // Every demo route is reachable only from the Demo tenant (root is always in reach).
-const demoTenantOnly = requireTenantScope.forParam<TenantRow>("demo", () => tenantsDB.findByName(DEMO_TENANT_NAME), (tenant) => tenant.id, { notFoundRedirect: "/aisworg/seu" });
+const demoTenantOnly = requireTenantScope.forParam<TenantRow>("demo", () => tenantsDB.findByName(DEMO_TENANT_NAME), (tenant) => tenant.id);
 router.use("/demo", (req: Request, res: Response, next: NextFunction) => {
   void demoTenantOnly(req, res, next, "demo");
 });
@@ -68,17 +69,17 @@ router.post("/demo/reset", async (req: Request, res: Response) => {
   const backTo = backFor(req);
   try {
     await resetDemo();
-    return flashSuccess(req, res, backTo, "Demo data was reset to the seeded base state.");
+    return redirects.seu.demo.success(req, res, "Demo data was reset to the seeded base state.", backTo);
   } catch (err) {
     logger.error("[web/seu/demo] POST /demo/reset error", err as Error);
-    return flashError(req, res, backTo, `Reset failed: ${(err as Error).message}`);
+    return redirects.seu.demo.error(req, res, `Reset failed: ${(err as Error).message}`, backTo);
   }
 });
 
 router.post("/demo/scenarios/:code/run", async (req: Request, res: Response) => {
   const backTo = backFor(req);
   const result = await runScenario(String(req.params.code), { allowDisabled: backTo === rootPath });
-  return result.ok ? flashSuccess(req, res, backTo, result.message) : flashError(req, res, backTo, result.message);
+  return result.ok ? redirects.seu.demo.success(req, res, result.message, backTo) : redirects.seu.demo.error(req, res, result.message, backTo);
 });
 
 router.post("/demo/playbooks/:code/step", async (req: Request, res: Response) => {
@@ -87,20 +88,20 @@ router.post("/demo/playbooks/:code/step", async (req: Request, res: Response) =>
     const index = Number.parseInt(String(req.body?.index ?? "0"), 10);
     const result = await stepPlaybook(String(req.params.code), Number.isFinite(index) && index >= 0 ? index : 0);
     const progress = result.nextIndex === null ? "Playbook finished." : `Next step is ${result.nextIndex + 1}.`;
-    return result.ok ? flashSuccess(req, res, backTo, `${result.message} ${progress}`) : flashError(req, res, backTo, result.message);
+    return result.ok ? redirects.seu.demo.success(req, res, `${result.message} ${progress}`, backTo) : redirects.seu.demo.error(req, res, result.message, backTo);
   } catch (err) {
     logger.error("[web/seu/demo] POST /demo/playbooks/:code/step error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.demo.error(req, res, (err as Error).message, backTo);
   }
 });
 
 router.post("/demo/root/scenarios/:code/enabled", async (req: Request, res: Response) => {
   try {
     await setScenarioEnabled(String(req.params.code), req.body?.enabled === "true");
-    return flashSuccess(req, res, rootPath, `Scenario "${String(req.params.code)}" ${req.body?.enabled === "true" ? "enabled" : "disabled"}.`);
+    return redirects.seu.demoRootScenariosEnabled.success(req, res, `Scenario "${String(req.params.code)}" ${req.body?.enabled === "true" ? "enabled" : "disabled"}.`);
   } catch (err) {
     logger.error("[web/seu/demo] POST /demo/root/scenarios/:code/enabled error", err as Error);
-    return flashError(req, res, rootPath, (err as Error).message);
+    return redirects.seu.demoRootScenariosEnabled.error(req, res, (err as Error).message);
   }
 });
 

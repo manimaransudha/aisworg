@@ -8,12 +8,12 @@ const router = express.Router();
 import { attachVM } from "../../middleware/attachVM.js";
 import { renderView } from "../../utils/viewModel.js";
 import { getFlash } from "../../utils/flash.js";
+import { redirects } from "../../middleware/redirects.js";
 import { logger } from "../../utils/logger.js";
 import {parseListParams, paginateList} from "../../utils/listQuery.js";
 import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";
 import { getSeuQuickview } from "../seu/core/seus.js";
 import { getParticipantHomeView, completeMyWorkItem, raiseMyObligation } from "../seu/core/participantHome.js";
-import { flashError, flashSuccess } from "../../utils/flash.js";
 import type { WorkItemOutcome } from "../seu/core/workItems.js";
 import { listConceptsForType } from "../seu/core/ontology.js";
 import { resolveHeldRoles } from "../../domain/identity/heldRoles.js";
@@ -73,10 +73,9 @@ router.get("/quickview", attachVM("quickview/index"), async (req: Request, res: 
 });
 
 router.post("/quickview/work-items/:workItemId/complete", async (req: Request, res: Response) => {
-  const backTo = "/aisworg/quickview";
   const { outcome, reference } = req.body ?? {};
   if (typeof outcome !== "string" || !["done", "failed", "blocked"].includes(outcome)) {
-    return flashError(req, res, backTo, "Outcome must be done, failed or blocked.");
+    return redirects.home.quickview.error(req, res, "Outcome must be done, failed or blocked.");
   }
   try {
     const result = await completeMyWorkItem({
@@ -86,23 +85,22 @@ router.post("/quickview/work-items/:workItemId/complete", async (req: Request, r
       reference: typeof reference === "string" && reference.trim() !== "" ? reference : null,
     });
     if (!result.ok) {
-      return flashError(req, res, backTo, `Could not record result: ${result.detail}`);
+      return redirects.home.quickview.error(req, res, `Could not record result: ${result.detail}`);
     }
     if (result.outcome === "done") {
-      return flashSuccess(req, res, backTo, `Result recorded for Deliverable "${result.deliverable.name}".`);
+      return redirects.home.quickview.success(req, res, `Result recorded for Deliverable "${result.deliverable.name}".`);
     }
-    return flashSuccess(req, res, backTo, `Reported "${result.outcome}" — the transition was not applied and an Attention Item was raised.`);
+    return redirects.home.quickview.success(req, res, `Reported "${result.outcome}" — the transition was not applied and an Attention Item was raised.`);
   } catch (err) {
     logger.error("[QuickView] POST work-item complete error:", err);
-    return flashError(req, res, backTo, err instanceof Error ? err.message : String(err));
+    return redirects.home.quickview.error(req, res, err instanceof Error ? err.message : String(err));
   }
 });
 
 router.post("/quickview/seus/:seuId/obligations", async (req: Request, res: Response) => {
-  const backTo = "/aisworg/quickview";
   const { deliverableId, category, title, description, severity, completionCriteria } = req.body ?? {};
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
-    return flashError(req, res, backTo, "Deliverable, category and title are required.");
+    return redirects.home.quickview.error(req, res, "Deliverable, category and title are required.");
   }
   try {
     const result = await raiseMyObligation({
@@ -116,12 +114,12 @@ router.post("/quickview/seus/:seuId/obligations", async (req: Request, res: Resp
       completionCriteria,
     });
     if (!result.ok) {
-      return flashError(req, res, backTo, result.detail);
+      return redirects.home.quickview.error(req, res, result.detail);
     }
-    return flashSuccess(req, res, backTo, `Obligation "${result.obligation.title}" created (${result.obligation.category}, ${result.obligation.severity}).`);
+    return redirects.home.quickview.success(req, res, `Obligation "${result.obligation.title}" created (${result.obligation.category}, ${result.obligation.severity}).`);
   } catch (err) {
     logger.error("[QuickView] POST obligations error:", err);
-    return flashError(req, res, backTo, err instanceof Error ? err.message : String(err));
+    return redirects.home.quickview.error(req, res, err instanceof Error ? err.message : String(err));
   }
 });
 

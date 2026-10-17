@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../utils/logger.js";
-import { flashError } from "../utils/flash.js";
+import { redirectsFor } from "./redirects.js";
 import { resolveHeldRoles } from "../domain/identity/heldRoles.js";
 
 const NONE = "None";
@@ -9,7 +9,6 @@ export function requireRole(
   roles: string[],
   opts: {
     mode?: "web" | "api";
-    redirectTo?: string | ((req: Request) => string);
     denyMessage?: string;
     match?: "all" | "any";
     getSeuId?: (req: Request) => string | null;
@@ -22,9 +21,6 @@ export function requireRole(
   const mode = opts.mode ?? "web";
   const match = opts.match ?? "all";
   const rootBypassAllowed = process.env.NODE_ENV !== "production";
-  if (mode === "web" && required.length > 0 && !opts.redirectTo) {
-    throw new Error("requireRole(): redirectTo is required in web mode when a real role is listed — pass mode: 'api' for a JSON-only router instead.");
-  }
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (required.length === 0) {
@@ -38,7 +34,7 @@ export function requireRole(
         res.status(401).json({ success: false, message: "Session expired — please log in again." });
         return;
       }
-      res.redirect("/aisworg/login");
+      redirectsFor(req).authfail(req, res, "Session expired — please log in again.");
       return;
     }
 
@@ -71,6 +67,6 @@ export function requireRole(
       res.status(403).json({ success: false, message });
       return;
     }
-    flashError(req, res, typeof opts.redirectTo === "function" ? opts.redirectTo(req) : (opts.redirectTo as string), message);
+    redirectsFor(req).rolefail(req, res, message);
   };
 }

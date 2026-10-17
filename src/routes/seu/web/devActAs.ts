@@ -4,7 +4,7 @@ const express = require("express");
 const router = express.Router();
 
 import type { Request, Response, NextFunction } from "express";
-import { flashError, flashSuccess } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { devActAsAvailable, currentActAs, setActingNounVerbBadge, isAssumableBadgeCode } from "../../../dev/actAs.js";
 
@@ -23,7 +23,7 @@ router.post("/dev/act-as", async (req: Request, res: Response) => {
     const badgeType = typeof req.body?.badgeType === "string" && req.body.badgeType.trim() !== "" ? req.body.badgeType : "root";
 
     if (!(await isAssumableBadgeCode(badgeType, tenantId))) {
-      return flashError(req, res, back, `Unknown badge type "${badgeType}" for the selected tenant.`);
+      return redirects.seu.devActAs.error(req, res, `Unknown badge type "${badgeType}" for the selected tenant.`, back);
     }
 
     const previous = currentActAs(req);
@@ -36,10 +36,10 @@ router.post("/dev/act-as", async (req: Request, res: Response) => {
     }
 
     const label = badgeType === "root" ? "root (full access)" : `badge "${badgeType}"`;
-    return flashSuccess(req, res, back, `Now acting as ${label}${tenantId ? "" : " · default tenant"}.`);
+    return redirects.seu.devActAs.success(req, res, `Now acting as ${label}${tenantId ? "" : " · default tenant"}.`, back);
   } catch (err) {
     logger.error("[dev/act-as] POST error", err as Error);
-    return flashError(req, res, back, (err as Error).message);
+    return redirects.seu.devActAs.error(req, res, (err as Error).message, back);
   }
 });
 
@@ -51,7 +51,7 @@ router.post("/dev/act-as/reset", async (req: Request, res: Response) => {
     await setActingNounVerbBadge(req, { userId, tenantId: previous.tenantId, badgeType: null, previousBadgeType: previous.badgeType });
   }
   delete (req.session as unknown as { actAs?: unknown }).actAs;
-  return flashSuccess(req, res, back, "Acting context reset to root (full access).");
+  return redirects.seu.devActAs.success(req, res, "Acting context reset to root (full access).", back);
 });
 
 export { router };

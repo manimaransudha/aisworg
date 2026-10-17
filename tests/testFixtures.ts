@@ -14,7 +14,7 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
 import { getPlatformTenantId, getTesterId, INITIAL_VERSION } from "../src/dblayer/constants.js";
 import { userDB } from "../src/dblayer/userDB.js";
-import { commissionFromForm, transitionEbm, previewCommissioningValidation } from "../src/routes/seu/core/commissioning.js";
+import { commissionFromForm, transitionEbm, previewCommissioningValidation, attemptSeuCommenceWork } from "../src/routes/seu/core/commissioning.js";
 import { publishProfile, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
@@ -404,6 +404,12 @@ export async function driveCommissioningToActive(input: {
   // with no DB round trip of its own) instead of always losing it (the old
   // shape: fulfil only after already polling all the way to Operational).
   beforeCommenceWork?: (seuId: string) => Promise<void>;
+  // Deterministic alternative to beforeCommenceWork's race: the acting actor is deliberately NOT granted the SEU
+  // Activated -> Operational badge up front, so the engine's own commence-work attempt (attemptSeuCommenceWork, off
+  // SEUActivated) finds it unauthorised and leaves the SEU at Activated. This callback runs once the SEU is Activated,
+  // with the Deliverables and Capabilities already created and the engine's governed hops not yet made. The badge is
+  // granted after it returns and commence-work is attempted again, as a human would.
+  holdAtActivated?: (seuId: string) => Promise<void>;
 }): Promise<DriveCommissioningResult> {
   await ensureEventSubscriptionsLoaded();
   // CR-104 — Quality Gates are now materialised onto the EBM once, at
@@ -531,7 +537,7 @@ export async function driveCommissioningToActive(input: {
   }
 
   await grantTransitionBadge(input.actorId, "EBM", "Validated", "Active");
-  await grantTransitionBadge(input.actorId, "SEU", "Activated", "Operational");
+  if (!input.holdAtActivated) await grantTransitionBadge(input.actorId, "SEU", "Activated", "Operational");
   const activateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Active", actorId: input.actorId });
   if (!activateResult.ok) {
     return { ok: false, stage: "activate", reason: activateResult.reason === "not_found" ? "EBM not found" : activateResult.detail, seuId: input.seuId };
@@ -566,6 +572,20 @@ export async function driveCommissioningToActive(input: {
     console.log(`[driveCommissioningToActive] beforeCommenceWork firing seuId=${input.seuId} lifecycle_state=${(seu as SeuRow | null)?.lifecycle_state} at t=${Date.now()}`);
     await input.beforeCommenceWork(input.seuId);
     console.log(`[driveCommissioningToActive] beforeCommenceWork done seuId=${input.seuId} at t=${Date.now()}`);
+  }
+
+  if (input.holdAtActivated) {
+    let activatedEvent: EventRow | undefined;
+    await waitUntilAsync(async () => {
+      const { data: events } = await eventsDB.findByOriginatingObject("SEU", input.seuId);
+      activatedEvent = (events ?? []).find((e) => e.event_type === "SEUActivated");
+      return !!activatedEvent;
+    }, input.timeoutMs);
+    const activated = activatedEvent as EventRow | undefined;
+    if (!activated) return { ok: false, stage: "activate", reason: "SEUActivated was not published in time", seuId: input.seuId };
+    await input.holdAtActivated(input.seuId);
+    await grantTransitionBadge(input.actorId, "SEU", "Activated", "Operational");
+    await attemptSeuCommenceWork({ seuId: input.seuId, correlationId: activated.correlation_id, causationId: activated.id, actorId: input.actorId });
   }
 
   // CR-102 — Activate only publishes EBMActivated now; finalizeCommissioning

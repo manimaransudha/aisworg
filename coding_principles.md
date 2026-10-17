@@ -97,7 +97,7 @@ router.get('/', requireRole(['super', 'author']), attachVM("admin/subjects"),
 ```code
 router.get(
   "/objectives/:id/edit",
-  requireBadge(["objective_propose"], { redirectTo: (req) => `/aisworg/seu/objectives/${req.params.id}` }),
+  requireBadge(["objective_propose"]),
   attachVM("seu/objectives/edit"),
   async (req, res, next) => { ... }
 );
@@ -142,11 +142,11 @@ import { requireBadge } from "../../../middleware/requireBadge.js";
 router.get("/objectives", requireBadge(["None"]), attachVM("seu/objectives/index"), handler);
 
 // A route gated on one noun_verb badge (entity_verb, e.g. objective_propose).
-// redirectTo is REQUIRED whenever a real badge is listed — either a literal
-// path, or a function of req for a page whose target depends on :id.
+// A denial redirects through redirects.<area>.<page>.badgefail, with the page
+// worked out from the request path. The route names no destination.
 router.post(
   "/objectives/:id/delete",
-  requireBadge(["objective_propose"], { redirectTo: (req) => `/aisworg/seu/objectives/${req.params.id}` }),
+  requireBadge(["objective_propose"]),
   handler
 );
 
@@ -156,7 +156,7 @@ router.post("/objectives/:id/update", requireBadge(["objective_propose"], { mode
 ```
 
 - **List every badge the action needs; the actor must hold ALL of them (AND, never OR).** If a route would need a *different* badge depending on the request body (e.g. one `/transition` endpoint that could Achieve, Retire, or Reject), that is a design smell — split it into one route per badge, each with its own fixed target and its own single `requireBadge`. Do not build a resolver/dispatch shape into the middleware to work around this.
-- `redirectTo` (web mode) is a config error if omitted when a real badge is listed — never fall back to a Referer-based "go back" guess; a mandatory gate needs a predictable destination.
+- A web-mode denial lands on the `badgefail` destination of the page that matches the request path in `middleware/redirects.js`. There is no `redirectTo` option and no Referer-based "go back" guess; a mandatory gate has a predictable destination declared once per page.
 - `denyMessage` is optional — set it when the route has its own bespoke wording; otherwise a sensible generic message is used.
 - The underlying primitive is `resolveHeldBadges(req)` (`domain/identity/heldBadges.js`) — root bypasses everything; everyone else is checked against a live query, not the session's cached `platformBadges` (which can only ever hold the three flat Platform-layer badges — root/tenant_admin/viewer — never a noun_verb badge).
 
@@ -171,7 +171,6 @@ import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 router.param(
   "id",
   requireTenantScope.forParam("id", objectivesDB.findById, {
-    notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Objective not found.",
   })
 );
@@ -181,15 +180,15 @@ router.param(
 // field is absent — most such fields are optional.
 router.post(
   "/objectives",
-  requireBadge(["objective_propose"], { redirectTo: "/aisworg/seu/objectives" }),
+  requireBadge(["objective_propose"]),
   requireTenantScope.forField("body", "parentObjectiveId", objectivesDB.findById, {
-    notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Parent Objective not found.",
   }),
   handler
 );
 ```
 
+- A web-mode denial lands on the `tenantfail` destination of the page that matches the request path, in `middleware/redirects.js`.
 - Pass `{ mode: "api" }` on a JSON router the same way `requireBadge` does — always a JSON 404, never a redirect.
 - DB-level tenant filtering inside a list query (`WHERE sponsoring_authority->>'tenant' = $1`) is fine on its own and doesn't need this middleware — `requireTenantScope` is for gating access to one already-identified row, not for filtering a result set.
 
@@ -216,13 +215,16 @@ One-time, session-carried messages that survive a redirect — the standard way 
 
 ### The functions (`utils/flash.js`)
 
+`flashError` and `flashSuccess` are called only from `middleware/redirects.js`. Controllers and middleware never call them, and never assign `req.session.flash`. A flash is always `{ type: "error" | "success", message }`. See "The redirects module" below.
+
 ```code
-import { flashError, flashSuccess, getFlash, stashFormInput, takeFormInput } from "../../utils/flash.js";
+import { redirects } from "../../middleware/redirects.js";
+import { getFlash, stashFormInput, takeFormInput } from "../../utils/flash.js";
 
 // Set a message on the session and redirect in one call — always the LAST
 // thing a controller/middleware does on that path, nothing runs after it.
-flashError(req, res, "/aisworg/seu/objectives", "You don't hold the badge required to add Objectives.");
-flashSuccess(req, res, "/aisworg/seu/objectives", "Objective created.");
+redirects.seu.objectives.error(req, res, "You don't hold the badge required to add Objectives.");
+redirects.seu.objectives.success(req, res, "Objective created.");
 
 // Read-once, on the page the redirect landed on: pops the message and clears
 // it from the session, so a later reload of the same page shows nothing.
@@ -232,7 +234,7 @@ req.vm.opt.flash = getFlash(req);
 // typed so the re-rendered form can pre-fill it, instead of making them
 // retype everything. Read once (takeFormInput), same pop-and-clear pattern.
 stashFormInput(req, { statement, requiredCapabilityCodes });
-return flashError(req, res, backToForm, "Statement is required.");
+return redirects.seu.objectivesNew.error(req, res, "Statement is required.");
 ```
 
 ### The view side
@@ -251,22 +253,33 @@ Every page that can be a redirect target renders it unconditionally, near the to
 
 
 
+### The redirects module (`middleware/redirects.js`)
+
+The only module that calls `flashError` and `flashSuccess`. A destination is declared once per page, keyed by a request-path prefix.
+
+```code
 export const redirects = {
-    admin: {
-        chapters: {
-            error: (req, res, msg) => flashError(req, res, "/admin/chapters", msg),
-            success: (req, res, msg) => flashSuccess(req, res, "/admin/chapters", msg),
-            authfail: (req, res, msg) => flashError(req, res, "/admin/login", msg),
-        },
-        concepts: {
-            error: (req, res, msg) => flashError(req, res, "/admin/concepts", msg),
-            success: (req, res, msg) => flashSuccess(req, res, "/admin/concepts", msg),
-            authfail: (req, res, msg) => flashError(req, res, "/admin/login", msg),
-        },
-    //     and so on
-    }// and for other routes
-}
- 
+  seu: {
+    objectives: page({ prefix: "/aisworg/seu/objectives", error: "/aisworg/seu/objectives", tenantfail: "/aisworg/seu/objectives" }),
+    objectivesById: page({ prefix: "/aisworg/seu/objectives/:id", error: "/aisworg/seu/objectives" }),
+    objectivesUpdate: page({ prefix: "/aisworg/seu/objectives/:id/update", error: "/aisworg/seu/objectives/:id/edit", success: "/aisworg/seu/objectives" }),
+  },
+  auth: {
+    login: page({ prefix: "/aisworg/auth/login", error: "/aisworg/login" }),
+  },
+};
+```
+
+- **Prefix.** `:name` segments match any value. The entry with the most segments that matches the request path wins, and literal segments win a tie. `redirectsFor(req)` returns that entry.
+- **Outcomes.** Every page has `error`, `success`, `authfail`, `rolefail`, `badgefail` and `tenantfail`, each called as `(req, res, msg)`.
+  - `error` is where a failed action lands. `success` defaults to `error`.
+  - `authfail` lands on the login page.
+  - `rolefail`, `badgefail` and `tenantfail` land on `deny`, which defaults to `/aisworg`. A page overrides `badgefail` or `tenantfail` only when a denial should land elsewhere.
+- **Parameters.** A destination pattern may use `:name` for any parameter in the page's `prefix`. The values come from the request path.
+- **Explicit path.** `error` and `success` accept a fourth `path` argument for a destination that is not in the request path, for example a successful copy that lands on the new draft: ``redirects.seu.templatesCopy.success(req, res, msg, `/aisworg/seu/sdk/template-authoring/${draftId}`)``.
+- **Middleware.** `requireBadge`, `requireRole`, `requireTenantScope` and `routeAuthorityGate` call `badgefail`, `rolefail`, `tenantfail` and `authfail` through `redirectsFor(req)`. A route does not name a destination when it mounts them.
+- **New routes.** Adding a page to this module is one step of creating a route. See the `new-route` skill.
+
 ## Database
 
 Every time a db schema is created/modified , there has to be a corresponding entry/update in the dblayer folder/file. 

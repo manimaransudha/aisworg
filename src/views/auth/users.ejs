@@ -9,11 +9,8 @@
     </button>
   </div>
 
-  <% if (locals.flash?.error) { %>
-    <div class="alert alert-danger py-2 small"><%= flash.error %></div>
-  <% } %>
-  <% if (locals.flash?.info) { %>
-    <div class="alert alert-info py-2 small"><%= flash.info %></div>
+  <% if (locals.flash) { %>
+    <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> py-2 small"><%= flash.message %></div>
   <% } %>
 
   <% const _base = locals.listBasePath || '/aisworg/auth/users'; %>

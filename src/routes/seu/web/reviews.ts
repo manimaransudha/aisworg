@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
@@ -45,33 +46,31 @@ router.get("/seus/:id/reviews", attachVM("seu/reviews/index"), async (req: Reque
 
 router.post("/seus/:id/reviews", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
   const { deliverableId, category, name } = req.body ?? {};
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof name !== "string" || !name.trim()) {
-    return flashError(req, res, backTo, "Deliverable, category and name are required.");
+    return redirects.seu.seusReviews.error(req, res, "Deliverable, category and name are required.");
   }
   try {
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Review's author — log in first.");
+    if (!actorId) return redirects.seu.seusReviews.error(req, res, "No acting user to record as this Review's author — log in first.");
     const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
     const held = await resolveHeldBadges(req);
     const authorBadge = resolveAuthorBadge(authRow, held);
-    if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
+    if (!authorBadge) return redirects.seu.seusReviews.error(req, res, "No held badge authorises this action — cannot record an author badge.");
 
     await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, name, actorId, authorBadge });
-    return flashSuccess(req, res, backTo, `Review "${name}" planned (${category}).`);
+    return redirects.seu.seusReviews.success(req, res, `Review "${name}" planned (${category}).`);
   } catch (err) {
     logger.error("[web/seu/reviews] POST /seus/:id/reviews error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.seusReviews.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/seus/:id/reviews/:reviewId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
   const { targetState, outcome } = req.body ?? {};
-  if (typeof targetState !== "string" || !targetState.trim()) return flashError(req, res, backTo, "Target state is required.");
-  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
+  if (typeof targetState !== "string" || !targetState.trim()) return redirects.seu.seusReviewsTransition.error(req, res, "Target state is required.");
+  if (req.session?.user?.id == null) return redirects.seu.seusReviewsTransition.error(req, res, "You must be logged in.");
   try {
     const result = await transitionReview({
       reviewId: String(req.params.reviewId),
@@ -81,28 +80,27 @@ router.post("/seus/:id/reviews/:reviewId/transition", async (req: Request, res: 
     });
     if (!result.ok) {
       const detail = "detail" in result ? result.detail : result.reason;
-      return flashError(req, res, backTo, `Review transition blocked: ${detail}`);
+      return redirects.seu.seusReviewsTransition.error(req, res, `Review transition blocked: ${detail}`);
     }
     const suffix = result.review.outcome ? ` (outcome: ${result.review.outcome})` : "";
-    return flashSuccess(req, res, backTo, `Review moved to "${result.appliedTransition.toState}"${suffix}.`);
+    return redirects.seu.seusReviewsTransition.success(req, res, `Review moved to "${result.appliedTransition.toState}"${suffix}.`);
   } catch (err) {
     logger.error("[web/seu/reviews] POST review transition error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.seusReviewsTransition.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/seus/:id/reviews/:reviewId/findings", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
   const { severity, title, description } = req.body ?? {};
-  if (typeof title !== "string" || !title.trim()) return flashError(req, res, backTo, "Finding title is required.");
+  if (typeof title !== "string" || !title.trim()) return redirects.seu.seusReviewsFindings.error(req, res, "Finding title is required.");
   try {
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Finding's author — log in first.");
+    if (!actorId) return redirects.seu.seusReviewsFindings.error(req, res, "No acting user to record as this Finding's author — log in first.");
     const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
     const held = await resolveHeldBadges(req);
     const authorBadge = resolveAuthorBadge(authRow, held);
-    if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
+    if (!authorBadge) return redirects.seu.seusReviewsFindings.error(req, res, "No held badge authorises this action — cannot record an author badge.");
 
     await createFinding({
       reviewId: String(req.params.reviewId),
@@ -112,46 +110,44 @@ router.post("/seus/:id/reviews/:reviewId/findings", async (req: Request, res: Re
       actorId,
       authorBadge,
     });
-    return flashSuccess(req, res, backTo, `Finding "${title}" raised.`);
+    return redirects.seu.seusReviewsFindings.success(req, res, `Finding "${title}" raised.`);
   } catch (err) {
     logger.error("[web/seu/reviews] POST finding error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.seusReviewsFindings.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/seus/:id/findings/:findingId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
   const { targetState } = req.body ?? {};
-  if (typeof targetState !== "string" || !targetState.trim()) return flashError(req, res, backTo, "Target state is required.");
-  if (req.session?.user?.id == null) return flashError(req, res, backTo, "You must be logged in.");
+  if (typeof targetState !== "string" || !targetState.trim()) return redirects.seu.seusFindingsTransition.error(req, res, "Target state is required.");
+  if (req.session?.user?.id == null) return redirects.seu.seusFindingsTransition.error(req, res, "You must be logged in.");
   try {
     const result = await transitionFinding({ findingId: String(req.params.findingId), targetState, actorId: String(req.session.user.id) });
     if (!result.ok) {
       const detail = "detail" in result ? result.detail : result.reason;
-      return flashError(req, res, backTo, `Finding transition blocked: ${detail}`);
+      return redirects.seu.seusFindingsTransition.error(req, res, `Finding transition blocked: ${detail}`);
     }
-    return flashSuccess(req, res, backTo, `Finding moved to "${result.appliedTransition.toState}".`);
+    return redirects.seu.seusFindingsTransition.success(req, res, `Finding moved to "${result.appliedTransition.toState}".`);
   } catch (err) {
     logger.error("[web/seu/reviews] POST finding transition error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.seusFindingsTransition.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/seus/:id/findings/:findingId/convert", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
   try {
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!actorId) return flashError(req, res, backTo, "Authentication required.");
+    if (!actorId) return redirects.seu.seusFindingsConvert.error(req, res, "Authentication required.");
     const held = await resolveHeldBadges(req);
     const authorBadge = held.isRoot ? "root" : [...held.badgeTypes][0] ?? "general";
     const result = await convertFindingToObligation({ findingId: String(req.params.findingId), category: typeof req.body?.category === "string" ? req.body.category : undefined, actorId, authorBadge });
-    if (!result.ok) return flashError(req, res, backTo, `Could not convert Finding: ${result.detail}`);
-    return flashSuccess(req, res, backTo, `Finding converted to an Obligation.`);
+    if (!result.ok) return redirects.seu.seusFindingsConvert.error(req, res, `Could not convert Finding: ${result.detail}`);
+    return redirects.seu.seusFindingsConvert.success(req, res, `Finding converted to an Obligation.`);
   } catch (err) {
     logger.error("[web/seu/reviews] POST finding convert error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.seusFindingsConvert.error(req, res, (err as Error).message);
   }
 });
 

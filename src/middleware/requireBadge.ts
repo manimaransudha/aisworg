@@ -1,11 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../utils/logger.js";
-import { flashError } from "../utils/flash.js";
+import { redirectsFor } from "./redirects.js";
 import { resolveHeldBadges } from "../domain/identity/heldBadges.js";
 
 const NONE = "None";
 
-export function requireBadge(badges: string[], opts: { mode?: "web" | "api"; redirectTo?: string | ((req: Request) => string); denyMessage?: string; match?: "all" | "any" } = {}) {
+export function requireBadge(badges: string[], opts: { mode?: "web" | "api"; denyMessage?: string; match?: "all" | "any" } = {}) {
   if (badges.length === 0) {
     throw new Error("requireBadge(): pass ['None'] to declare no badge is required — an empty array is not a valid, reviewable declaration.");
   }
@@ -13,9 +13,6 @@ export function requireBadge(badges: string[], opts: { mode?: "web" | "api"; red
   const mode = opts.mode ?? "web";
   const match = opts.match ?? "all";
   const rootBypassAllowed = process.env.NODE_ENV !== "production";
-  if (mode === "web" && required.length > 0 && !opts.redirectTo) {
-    throw new Error("requireBadge(): redirectTo is required in web mode when a real badge is listed — pass mode: 'api' for a JSON-only router instead.");
-  }
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (required.length === 0) return next();
@@ -26,7 +23,7 @@ export function requireBadge(badges: string[], opts: { mode?: "web" | "api"; red
         res.status(401).json({ success: false, message: "Session expired — please log in again." });
         return;
       }
-      res.redirect("/aisworg/login");
+      redirectsFor(req).authfail(req, res, "Session expired — please log in again.");
       return;
     }
 
@@ -45,6 +42,6 @@ export function requireBadge(badges: string[], opts: { mode?: "web" | "api"; red
       res.status(403).json({ success: false, message });
       return;
     }
-    flashError(req, res, typeof opts.redirectTo === "function" ? opts.redirectTo(req) : (opts.redirectTo as string), message);
+    redirectsFor(req).badgefail(req, res, message);
   };
 }

@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
@@ -21,9 +22,6 @@ import {
   updatePlatformUser,
 } from "../core/identity.js";
 
-const tenantsBackTo = "/aisworg/seu/identity/tenants";
-const badgesBackTo = "/aisworg/seu/identity/badges";
-const usersBackTo = "/aisworg/seu/identity/users";
 
 router.get("/identity", attachVM("seu/identity/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -124,31 +122,31 @@ router.get("/identity/users", attachVM("seu/identity/users"), async (req: Reques
 router.post("/identity/tenants", async (req: Request, res: Response) => {
   const { code, name } = req.body ?? {};
   if (typeof code !== "string" || !code.trim() || typeof name !== "string" || !name.trim()) {
-    return flashError(req, res, tenantsBackTo, "Tenant code and name are required.");
+    return redirects.seu.identityTenants.error(req, res, "Tenant code and name are required.");
   }
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-  if (!actorId) return flashError(req, res, tenantsBackTo, "No actor resolved for this Tenant creation.");
+  if (!actorId) return redirects.seu.identityTenants.error(req, res, "No actor resolved for this Tenant creation.");
   const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
   const authorBadge = resolveAuthorBadge(authRow, held);
-  if (!authorBadge) return flashError(req, res, tenantsBackTo, "No author badge resolved for this Tenant creation.");
+  if (!authorBadge) return redirects.seu.identityTenants.error(req, res, "No author badge resolved for this Tenant creation.");
   try {
     const result = await createTenant({ code: code.trim(), name: name.trim(), authorId: actorId, authorBadge, is_system: false });
-    if (!result.ok) return flashError(req, res, tenantsBackTo, `Could not create Tenant: ${result.detail}`);
-    return flashSuccess(req, res, tenantsBackTo, `Tenant "${result.tenant.name}" created. Create its admin user (type Tenant) and grant Tenant Admin from Badge Management.`);
+    if (!result.ok) return redirects.seu.identityTenants.error(req, res, `Could not create Tenant: ${result.detail}`);
+    return redirects.seu.identityTenants.success(req, res, `Tenant "${result.tenant.name}" created. Create its admin user (type Tenant) and grant Tenant Admin from Badge Management.`);
   } catch (err) {
     logger.error("[web/seu/identity] POST /identity/tenants error", err as Error);
-    return flashError(req, res, tenantsBackTo, (err as Error).message);
+    return redirects.seu.identityTenants.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/identity/users", async (req: Request, res: Response) => {
   const { email, name, tenantId } = req.body ?? {};
   if (typeof email !== "string" || !email.trim()) {
-    return flashError(req, res, usersBackTo, "Email is required.");
+    return redirects.seu.identityUsers.error(req, res, "Email is required.");
   }
   if (typeof tenantId !== "string" || !tenantId.trim()) {
-    return flashError(req, res, usersBackTo, "A tenant must be selected.");
+    return redirects.seu.identityUsers.error(req, res, "A tenant must be selected.");
   }
   const rawRoles = req.body?.roles;
   const authorisedRoles = (Array.isArray(rawRoles) ? rawRoles : rawRoles ? [rawRoles] : []).filter((r): r is string => typeof r === "string" && r.trim() !== "");
@@ -159,46 +157,46 @@ router.post("/identity/users", async (req: Request, res: Response) => {
       tenantId: tenantId.trim(),
       authorisedRoles,
     });
-    if (!result.ok) return flashError(req, res, usersBackTo, `Could not create user: ${result.detail}`);
-    return flashSuccess(req, res, usersBackTo, result.verificationLink ? `User created. SMTP not configured — verification link: ${result.verificationLink}` : `User created — verification email sent to ${result.email}.`);
+    if (!result.ok) return redirects.seu.identityUsers.error(req, res, `Could not create user: ${result.detail}`);
+    return redirects.seu.identityUsers.success(req, res, result.verificationLink ? `User created. SMTP not configured — verification link: ${result.verificationLink}` : `User created — verification email sent to ${result.email}.`);
   } catch (err) {
     logger.error("[web/seu/identity] POST /identity/users error", err as Error);
-    return flashError(req, res, usersBackTo, (err as Error).message);
+    return redirects.seu.identityUsers.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/identity/users/:id/update", async (req: Request, res: Response) => {
   const id = String(req.params.id);
-  if (!id) return flashError(req, res, usersBackTo, "Invalid user id.");
+  if (!id) return redirects.seu.identityUsers.error(req, res, "Invalid user id.");
   const isActive = req.body?.isActive === "true";
   const rawRoles = req.body?.roles;
   const roles = (Array.isArray(rawRoles) ? rawRoles : rawRoles ? [rawRoles] : []).filter((r): r is string => typeof r === "string" && r.trim() !== "");
   try {
     const actingUserEmail = req.session?.user?.email ?? null;
     const activeResult = await updatePlatformUser({ id, isActive, actingUserEmail });
-    if (!activeResult.ok) return flashError(req, res, usersBackTo, `Could not update user: ${activeResult.detail}`);
+    if (!activeResult.ok) return redirects.seu.identityUsers.error(req, res, `Could not update user: ${activeResult.detail}`);
     const rolesResult = await setAuthorisedRoles({ id, roles, actingUserEmail });
-    if (!rolesResult.ok) return flashError(req, res, usersBackTo, `Could not update authorised roles: ${rolesResult.detail}`);
-    return flashSuccess(req, res, usersBackTo, "User updated.");
+    if (!rolesResult.ok) return redirects.seu.identityUsers.error(req, res, `Could not update authorised roles: ${rolesResult.detail}`);
+    return redirects.seu.identityUsers.success(req, res, "User updated.");
   } catch (err) {
     logger.error("[web/seu/identity] POST /identity/users/:id/update error", err as Error);
-    return flashError(req, res, usersBackTo, (err as Error).message);
+    return redirects.seu.identityUsers.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/identity/badges/:id/update", async (req: Request, res: Response) => {
   const id = String(req.params.id);
-  if (!id) return flashError(req, res, badgesBackTo, "Invalid user id.");
+  if (!id) return redirects.seu.identityBadgesUpdate.error(req, res, "Invalid user id.");
   const rawBadges = req.body?.badges;
   const badges = (Array.isArray(rawBadges) ? rawBadges : rawBadges ? [rawBadges] : []).filter((b): b is string => typeof b === "string" && b.trim() !== "");
   try {
     const actingUserEmail = req.session?.user?.email ?? null;
     const result = await setAuthorisedBadges({ id, badges, actingUserEmail });
-    if (!result.ok) return flashError(req, res, badgesBackTo, `Could not update authorised badges: ${result.detail}`);
-    return flashSuccess(req, res, badgesBackTo, "Badges updated.");
+    if (!result.ok) return redirects.seu.identityBadgesUpdate.error(req, res, `Could not update authorised badges: ${result.detail}`);
+    return redirects.seu.identityBadgesUpdate.success(req, res, "Badges updated.");
   } catch (err) {
     logger.error("[web/seu/identity] POST /identity/badges/:id/update error", err as Error);
-    return flashError(req, res, badgesBackTo, (err as Error).message);
+    return redirects.seu.identityBadgesUpdate.error(req, res, (err as Error).message);
   }
 });
 

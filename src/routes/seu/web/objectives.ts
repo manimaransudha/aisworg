@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess, stashFormInput, takeFormInput } from "../../../utils/flash.js";
+import { getFlash, stashFormInput, takeFormInput } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
 import {
@@ -65,7 +66,6 @@ async function getObjectiveViewerContext(req: Request): Promise<{ isRoot: boolea
 router.param(
   "id",
   requireTenantScope.forParam("id", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
-    notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Objective not found.",
   })
 );
@@ -126,11 +126,9 @@ router.get("/objectives/:id/children", async (req: Request, res: Response, next:
 router.get(
   "/objectives/new",
   requireTenantScope.forField("query", "parent", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
-    notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Parent Objective not found.",
   }),
   requireTenantScope.forField("query", "supersedes", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
-    notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Objective to supersede not found.",
   }),
   attachVM("seu/objectives/new"),
@@ -142,12 +140,12 @@ router.get(
 
     if (parentId) {
       const { data } = await objectivesDB.findById(parentId);
-      if (!data) return flashError(req, res, "/aisworg/seu/objectives", "Parent Objective not found.");
+      if (!data) return redirects.seu.objectivesNew.error(req, res, "Parent Objective not found.");
       parent = data;
       const requested = req.query.tier as ObjectiveTier | undefined;
       const allowed = CHILD_TIERS[data.tier];
       if (!requested || !allowed.includes(requested)) {
-        return flashError(req, res, `/aisworg/seu/objectives/${parentId}`, `A ${data.tier} Objective can only add: ${allowed.join(", ") || "no"} children.`);
+        return redirects.seu.objectivesNew.error(req, res, `A ${data.tier} Objective can only add: ${allowed.join(", ") || "no"} children.`, `/aisworg/seu/objectives/${parentId}`);
       }
       tier = requested;
     }
@@ -155,7 +153,7 @@ router.get(
     const supersedesId = typeof req.query.supersedes === "string" && req.query.supersedes.trim() ? req.query.supersedes.trim() : null;
     const supersedesObjective = supersedesId ? (await objectivesDB.findById(supersedesId)).data ?? null : null;
     if (supersedesId && !supersedesObjective) {
-      return flashError(req, res, "/aisworg/seu/objectives", "Objective to supersede not found.");
+      return redirects.seu.objectivesNew.error(req, res, "Objective to supersede not found.");
     }
 
     const { isRoot, tenantId } = await getObjectiveViewerContext(req);
@@ -187,11 +185,9 @@ router.get(
 router.post(
   "/objectives",
   requireTenantScope.forField("body", "parentObjectiveId", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
-    notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Parent Objective not found.",
   }),
   requireTenantScope.forField("body", "supersedes", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
-    notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Objective to supersede not found.",
   }),
   async (req: Request, res: Response) => {
@@ -203,16 +199,16 @@ router.post(
 
   if (supersedesId && (typeof supersedeComment !== "string" || !supersedeComment.trim())) {
     stashFormInput(req, { statement: typeof statement === "string" ? statement : "", requiredCapabilityCodes: codes });
-    return flashError(req, res, backToNew, "Supersede requires a comment explaining the supersession.");
+    return redirects.seu.objectives.error(req, res, "Supersede requires a comment explaining the supersession.", backToNew);
   }
 
   if (typeof statement !== "string" || !statement.trim() || codes.length === 0) {
     stashFormInput(req, { statement: typeof statement === "string" ? statement : "", requiredCapabilityCodes: codes });
-    return flashError(req, res, backToNew, "Statement and at least one required Capability are required.");
+    return redirects.seu.objectives.error(req, res, "Statement and at least one required Capability are required.", backToNew);
   }
 
   if (req.session?.user?.id == null) {
-    return flashError(req, res, backToNew, "You must be logged in to create an Objective.");
+    return redirects.seu.objectives.error(req, res, "You must be logged in to create an Objective.", backToNew);
   }
 
   try {
@@ -235,14 +231,14 @@ router.post(
       });
       if (!result.ok) {
         const detail = "detail" in result ? result.detail : result.reason;
-        return flashError(req, res, `/aisworg/seu/objectives/${objective.id}`, `Objective created, but superseding the original was blocked: ${detail}`);
+        return redirects.seu.objectives.error(req, res, `Objective created, but superseding the original was blocked: ${detail}`, `/aisworg/seu/objectives/${objective.id}`);
       }
     }
 
-    return flashSuccess(req, res, "/aisworg/seu/objectives", `Objective created as Proposed. Activate it before commissioning an SEU against it.`);
+    return redirects.seu.objectives.success(req, res, `Objective created as Proposed. Activate it before commissioning an SEU against it.`);
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives error", err as Error);
-    return flashError(req, res, backToNew, (err as Error).message);
+    return redirects.seu.objectives.error(req, res, (err as Error).message, backToNew);
   }
 });
 
@@ -250,7 +246,7 @@ router.get("/objectives/:id", attachVM("seu/objectives/detail"), async (req: Req
   try {
     const id = String(req.params.id);
     const detail = await getObjectiveDetail(id);
-    if (!detail) return flashError(req, res, "/aisworg/seu/objectives", "Objective not found.");
+    if (!detail) return redirects.seu.objectivesById.error(req, res, "Objective not found.");
     req.vm.req.title = `Objective ${detail.objective.display_id ?? detail.objective.id.slice(0, 8)}`;
     const { canRetireObjective, canProposeObjective, canComment, hasObjectiveBadge } = await getObjectiveViewerContext(req);
     detail.possibleNextStates = detail.possibleNextStates.filter((s) => hasObjectiveBadge(detail.possibleTransitionVerbs[s]));
@@ -276,7 +272,7 @@ router.get("/objectives/:id/edit", attachVM("seu/objectives/edit"), async (req: 
   try {
     const id = String(req.params.id);
     const { data: objective } = await objectivesDB.findById(id);
-    if (!objective) return flashError(req, res, "/aisworg/seu/objectives", "Objective not found.");
+    if (!objective) return redirects.seu.objectivesEdit.error(req, res, "Objective not found.");
     const { isRoot, tenantId, canComment } = await getObjectiveViewerContext(req);
 
     const capabilities = (await listConceptsForType("capability-name", { isRoot, tenantId }, false))
@@ -305,37 +301,35 @@ router.get("/objectives/:id/edit", attachVM("seu/objectives/edit"), async (req: 
 
 router.post("/objectives/:id/submit", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  const backTo = `/aisworg/seu/objectives/${objectiveId}`;
   try {
     if (req.session?.user?.id == null) {
-    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+    return redirects.seu.objectivesSubmit.error(req, res, "You must be logged in to create an Objective.");
   }
 
     await submitObjective(objectiveId, String(req.session.user.id));
-    return flashSuccess(req, res, backTo, "Submitted — awaiting the next transition.");
+    return redirects.seu.objectivesSubmit.success(req, res, "Submitted — awaiting the next transition.");
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/submit error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.objectivesSubmit.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/objectives/:id/update", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  const backTo = `/aisworg/seu/objectives/${objectiveId}/edit`;
   const { statement, requiredCapabilityCodes, action } = req.body ?? {};
   const codes = Array.isArray(requiredCapabilityCodes) ? requiredCapabilityCodes : requiredCapabilityCodes ? [requiredCapabilityCodes] : [];
   const bumpVersion = action !== "save_no_version";
 
   if (codes.length === 0) {
     stashFormInput(req, { statement: typeof statement === "string" ? statement : "", requiredCapabilityCodes: codes });
-    return flashError(req, res, backTo, "At least one required Capability is required.");
+    return redirects.seu.objectivesUpdate.error(req, res, "At least one required Capability is required.");
   }
   if (typeof statement !== "string" || !statement.trim()) {
     stashFormInput(req, { statement: "", requiredCapabilityCodes: codes });
-    return flashError(req, res, backTo, "Statement is required.");
+    return redirects.seu.objectivesUpdate.error(req, res, "Statement is required.");
   }
   if (req.session?.user?.id == null) {
-    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+    return redirects.seu.objectivesUpdate.error(req, res, "You must be logged in to create an Objective.");
   }
   try {
     const updated = await updateObjective(objectiveId, {
@@ -345,24 +339,23 @@ router.post("/objectives/:id/update", async (req: Request, res: Response) => {
       bumpVersion,
     });
     const msg = bumpVersion ? `Objective updated to v${updated.version}.` : `Objective updated (still v${updated.version}).`;
-    return flashSuccess(req, res, "/aisworg/seu/objectives", msg);
+    return redirects.seu.objectivesUpdate.success(req, res, msg);
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/update error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.objectivesUpdate.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/objectives/:id/move", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  const backTo = `/aisworg/seu/objectives/${objectiveId}`;
   const { newParentId } = req.body ?? {};
 
   try {
     await reParentObjective(objectiveId, typeof newParentId === "string" && newParentId.trim() ? newParentId : null);
-    return flashSuccess(req, res, backTo, `Objective moved.`);
+    return redirects.seu.objectivesMove.success(req, res, `Objective moved.`);
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/move error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.objectivesMove.error(req, res, (err as Error).message);
   }
 });
 
@@ -373,18 +366,17 @@ router.post("/objectives/:id/delete", async (req: Request, res: Response) => {
     const parentId = detail?.parent?.id ?? null;
     await deleteObjective(objectiveId);
     const backTo = parentId ? `/aisworg/seu/objectives/${parentId}` : "/aisworg/seu/objectives";
-    return flashSuccess(req, res, backTo, "Objective deleted.");
+    return redirects.seu.objectivesDelete.success(req, res, "Objective deleted.", backTo);
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/delete error", err as Error);
-    return flashError(req, res, `/aisworg/seu/objectives/${objectiveId}`, (err as Error).message);
+    return redirects.seu.objectivesDelete.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/objectives/:id/retire", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  const backTo = `/aisworg/seu/objectives/${objectiveId}`;
   if (req.session?.user?.id == null) {
-    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+    return redirects.seu.objectivesRetire.error(req, res, "You must be logged in to create an Objective.");
   }
 
   try {
@@ -395,20 +387,19 @@ router.post("/objectives/:id/retire", async (req: Request, res: Response) => {
     const msg = skipped.length
       ? `Retired ${retired.length} Objective(s); skipped ${skipped.length} (not Active).`
       : `Retired ${retired.length} Objective(s).`;
-    return flashSuccess(req, res, backTo, msg);
+    return redirects.seu.objectivesRetire.success(req, res, msg);
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/retire error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.objectivesRetire.error(req, res, (err as Error).message);
   }
 });
 
 function postObjectiveTransition(targetState: ObjectiveStatus) {
   return async (req: Request, res: Response): Promise<void> => {
     const objectiveId = String(req.params.id);
-    const backTo = `/aisworg/seu/objectives/${objectiveId}`;
     const { comment, supersedingObjectiveId } = req.body ?? {};
     if (req.session?.user?.id == null) {
-    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+    return redirects.seu.objectivesRetire.error(req, res, "You must be logged in to create an Objective.");
   }
 
     try {
@@ -421,13 +412,13 @@ function postObjectiveTransition(targetState: ObjectiveStatus) {
       });
       if (!result.ok) {
         const detail = "detail" in result ? result.detail : result.reason;
-        flashError(req, res, backTo, `Transition blocked: ${detail}`);
+        redirects.seu.objectivesRetire.error(req, res, `Transition blocked: ${detail}`);
         return;
       }
-      flashSuccess(req, res, backTo, `Objective moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
+      redirects.seu.objectivesRetire.success(req, res, `Objective moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
     } catch (err) {
       logger.error(`[web/seu/objectives] POST /objectives/:id/transition/${targetState} error`, err as Error);
-      flashError(req, res, backTo, (err as Error).message);
+      redirects.seu.objectivesRetire.error(req, res, (err as Error).message);
     }
   };
 }
@@ -505,15 +496,14 @@ function parseCompositionSourceSelections(body: Record<string, unknown>): { chec
 
 router.post("/objectives/:id/validate-commission", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/new?objectiveId=${objectiveId}`;
   const selections = parseTemplateProfileSelections(req.body ?? {});
   const resolvedParameterOverrides = parseResolvedParameterOverrides(req.body ?? {});
 
   if (selections.length === 0) {
-    return flashError(req, res, backTo, "Choose at least one Template/Profile to validate.");
+    return redirects.seu.objectivesValidateCommission.error(req, res, "Choose at least one Template/Profile to validate.");
   }
   if (selections.length > 1) {
-    return flashError(req, res, backTo, "Only one Profile may be selected.");
+    return redirects.seu.objectivesValidateCommission.error(req, res, "Only one Profile may be selected.");
   }
 
   try {
@@ -521,13 +511,13 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
 
     const selection = selections[0];
     const { data: objective } = await objectivesDB.findById(objectiveId);
-    if (!objective) return flashError(req, res, backTo, "Objective not found.");
+    if (!objective) return redirects.seu.objectivesValidateCommission.error(req, res, "Objective not found.");
     const { data: existingSeu } = await seusDB.findByObjectiveId(objectiveId);
     if (existingSeu) {
       return res.redirect("/aisworg/seu/seus");
     }
     if (!selection.profileId) {
-      return flashError(req, res, backTo, "No Profile chosen — a real Profile must be selected before commissioning.");
+      return redirects.seu.objectivesValidateCommission.error(req, res, "No Profile chosen — a real Profile must be selected before commissioning.");
     }
     const profileId = selection.profileId;
     let seuTenantId = objective.sponsoring_authority?.tenant ?? null;
@@ -536,7 +526,7 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
       seuTenantId = defaultTenant?.id ?? null;
     }
     if (req.session?.user?.id == null) {
-    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+    return redirects.seu.objectivesValidateCommission.error(req, res, "You must be logged in to create an Objective.");
   }
     const { data: newSeu, error: seuErr } = await seusDB.create({
       objectiveId,
@@ -546,7 +536,7 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
       authorBadge: await badgeAuthorityEngine.resolveAuthorBadge(String(req.session.user.id), "seu_commission"),
       tenantId: seuTenantId,
     });
-    if (seuErr || !newSeu) return flashError(req, res, backTo, (seuErr ?? new Error("failed to create SEU")).message);
+    if (seuErr || !newSeu) return redirects.seu.objectivesValidateCommission.error(req, res, (seuErr ?? new Error("failed to create SEU")).message);
     await eventBus.publish({
       eventType: "CommissionRequested",
       originatingObjectType: "SEU",
@@ -557,25 +547,23 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
       actorId: String(req.session.user.id),
       authorityBadge: "seu_commission",
     });
-    req.session.flash = { type: "success", message: "Commissioning queued — validating…" };
-    return res.redirect("/aisworg/seu/seus");
+    return redirects.seu.objectivesValidateCommission.success(req, res, "Commissioning queued — validating…", "/aisworg/seu/seus");
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/validate-commission error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.objectivesValidateCommission.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  const backTo = `/aisworg/seu/objectives/${objectiveId}/compose-ebm`;
   const selections = parseTemplateProfileSelections(req.body ?? {});
   const resolvedParameterOverrides = parseResolvedParameterOverrides(req.body ?? {});
-  if (selections.length === 0) return flashError(req, res, backTo, "Nothing to re-validate.");
+  if (selections.length === 0) return redirects.seu.objectivesComposeEbm.error(req, res, "Nothing to re-validate.");
 
   try {
     const viewerTenantId = req.session?.user?.tenant_id ?? (await getPlatformTenantId());
     const { data: existingSeu } = await seusDB.findByObjectiveId(objectiveId);
-    if (!existingSeu) return flashError(req, res, backTo, "No SEU found for this Objective.");
+    if (!existingSeu) return redirects.seu.objectivesComposeEbm.error(req, res, "No SEU found for this Objective.");
 
     const previouslyResolved = parsePreviouslyResolvedCompositionConflicts(req.body ?? {});
     const newStrategyChoices = parseCompositionStrategyChoices(req.body ?? {});
@@ -607,16 +595,16 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
     const { compositionReport, composedPacks, profileDetails, unraveled, compositionConflicts } = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts, viewerTenantId });
     await seusDB.setCompositionReport(existingSeu.id, { selections, compositionReport, composedPacks, profileDetails, resolvedParameterOverrides, unraveled, compositionConflicts, resolvedCompositionConflicts });
     if (req.session?.user?.id == null) {
-    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+    return redirects.seu.objectivesComposeEbm.error(req, res, "You must be logged in to create an Objective.");
   }
 
     if (compositionConflicts.length === 0) {
       const actorId = String(req.session.user.id);
-      if (!actorId) return flashError(req, res, backTo, "no acting user to record as this EBM's author — log in first");
+      if (!actorId) return redirects.seu.objectivesComposeEbm.error(req, res, "no acting user to record as this EBM's author — log in first");
       const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
       const held = await resolveHeldBadges(req);
       const authorBadge = resolveAuthorBadge(authRow, held);
-      if (!authorBadge) return flashError(req, res, backTo, "no held badge authorises this action — cannot record an author badge");
+      if (!authorBadge) return redirects.seu.objectivesComposeEbm.error(req, res, "no held badge authorises this action — cannot record an author badge");
       await eventBus.publish({
         eventType: "CompositionCompleted",
         originatingObjectType: "SEU",
@@ -628,15 +616,12 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
         authorityBadge: authorBadge,
       });
     }
-    if (strategyError) {
-      req.session.flash = { type: "error", message: strategyError };
-    } else if (strategyNotes.length) {
-      req.session.flash = { type: "success", message: strategyNotes.join(" · ") };
-    }
+    if (strategyError) return redirects.seu.objectivesComposeEbm.error(req, res, strategyError);
+    if (strategyNotes.length) return redirects.seu.objectivesComposeEbm.success(req, res, strategyNotes.join(" · "));
     return res.redirect(`/aisworg/seu/objectives/${objectiveId}/compose-ebm`);
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/compose-ebm error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.objectivesComposeEbm.error(req, res, (err as Error).message);
   }
 });
 
@@ -644,7 +629,7 @@ router.get("/objectives/:id/validate-commission", attachVM("seu/seus/validate"),
   const objectiveId = String(req.params.id);
   const { data: seu } = await seusDB.findByObjectiveId(objectiveId);
   if (!seu) {
-    return flashError(req, res, `/aisworg/seu/seus/new?objectiveId=${objectiveId}`, "Nothing to validate — choose a Template/Profile selection first.");
+    return redirects.seu.objectivesValidateCommission.error(req, res, "Nothing to validate — choose a Template/Profile selection first.");
   }
 
   const { data: events } = await eventsDB.findByOriginatingObject("SEU", seu.id);
@@ -673,7 +658,7 @@ router.get("/objectives/:id/compose-ebm", attachVM("seu/seus/compose"), async (r
   const objectiveId = String(req.params.id);
   const { data: seu } = await seusDB.findByObjectiveId(objectiveId);
   if (!seu) {
-    return flashError(req, res, `/aisworg/seu/seus/new?objectiveId=${objectiveId}`, "Nothing to compose — choose a Template/Profile selection first.");
+    return redirects.seu.objectivesComposeEbm.error(req, res, "Nothing to compose — choose a Template/Profile selection first.", `/aisworg/seu/seus/new?objectiveId=${objectiveId}`);
   }
   const stashed = seu.composition_report as {
     selections: Array<{ templateId: string; profileId?: string }>;
@@ -709,21 +694,20 @@ router.get("/objectives/:id/compose-ebm", attachVM("seu/seus/compose"), async (r
 
 router.post("/objectives/:id/commission", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/new?objectiveId=${objectiveId}`;
   const selections = parseTemplateProfileSelections(req.body ?? {});
   const resolvedParameterOverrides = parseResolvedParameterOverrides(req.body ?? {});
 
   if (selections.length === 0) {
-    return flashError(req, res, backTo, "Choose at least one Template/Profile to commission against.");
+    return redirects.seu.objectivesCommission.error(req, res, "Choose at least one Template/Profile to commission against.");
   }
   if (selections.length > 1) {
-    return flashError(req, res, backTo, "Only one Profile may be selected.");
+    return redirects.seu.objectivesCommission.error(req, res, "Only one Profile may be selected.");
   }
 
   try {
     const resolvedCompositionConflicts = parsePreviouslyResolvedCompositionConflicts(req.body ?? {});
     if (req.session?.user?.id == null) {
-    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+    return redirects.seu.objectivesCommission.error(req, res, "You must be logged in to create an Objective.");
   }
 
     const result = await commissionFromExistingObjective({
@@ -735,33 +719,32 @@ router.post("/objectives/:id/commission", async (req: Request, res: Response) =>
       requestedBy:String(req.session.user.id),
     });
     if (!result.ok) {
-      return flashError(req, res, backTo, `Commissioning failed at "${result.stage}": ${result.reason}`);
+      return redirects.seu.objectivesCommission.error(req, res, `Commissioning failed at "${result.stage}": ${result.reason}`);
     }
-    return flashSuccess(req, res, `/aisworg/seu/seus/${result.seu.id}`, `Commissioning request validated — composing the Engineering Behavior Model. Check back on this SEU to validate and activate it once composed.`);
+    return redirects.seu.objectivesCommission.success(req, res, `Commissioning request validated — composing the Engineering Behavior Model. Check back on this SEU to validate and activate it once composed.`, `/aisworg/seu/seus/${result.seu.id}`);
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/commission error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.objectivesCommission.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/objectives/:id/comments", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  const backTo = `/aisworg/seu/objectives/${objectiveId}/edit`;
   const { comment } = req.body ?? {};
   if (req.session?.user?.id == null) {
-    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+    return redirects.seu.objectivesComments.error(req, res, "You must be logged in to create an Objective.");
   }
   try {
     const { commentBadge } = await getObjectiveViewerContext(req);
-    if (!commentBadge) return flashError(req, res, backTo, "You don't hold a badge for this Objective.");
-    if (typeof comment !== "string" || !comment.trim()) return flashError(req, res, backTo, "Comment text is required.");
+    if (!commentBadge) return redirects.seu.objectivesComments.error(req, res, "You don't hold a badge for this Objective.");
+    if (typeof comment !== "string" || !comment.trim()) return redirects.seu.objectivesComments.error(req, res, "Comment text is required.");
 
     const { error } = await objectivesDB.addComment(objectiveId, String(req.session.user.id), commentBadge, comment.trim());
     if (error) throw error;
-    return flashSuccess(req, res, backTo, "Comment added.");
+    return redirects.seu.objectivesComments.success(req, res, "Comment added.");
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/comments error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.objectivesComments.error(req, res, (err as Error).message);
   }
 });
 

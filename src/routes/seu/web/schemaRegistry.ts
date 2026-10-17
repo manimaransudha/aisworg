@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { SCHEMA_ENTITY_KINDS, createSchemaVersion, reviewSchemaVersion, getSchemaDefinition, listSchemaDefinitions, publishSchemaVersion, rejectSchemaVersion } from "../core/schemaRegistry.js";
@@ -64,7 +65,7 @@ router.get("/sdk/schema-registry/new", attachVM("seu/sdk/schema-registry/new"), 
 router.get("/sdk/schema-registry/:id", attachVM("seu/sdk/schema-registry/detail"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const schema = await getSchemaDefinition(String(req.params.id));
-    if (!schema) return flashError(req, res, backTo, "Schema version not found.");
+    if (!schema) return redirects.seu.sdkSchemaRegistryById.error(req, res, "Schema version not found.");
     req.vm.req.title = `${schema.entity_kind} schema v${schema.version}`;
     req.vm.req.schema = {
       id: schema.id,
@@ -94,20 +95,20 @@ router.post("/sdk/schema-registry", attachVM("seu/sdk/schema-registry/review"), 
     if (typeof body.schemaJson === "string" && body.schemaJson.trim()) {
       entityKind = String(body.entityKind ?? "").trim();
       schemaJson = body.schemaJson;
-      if (!entityKind) return flashError(req, res, backTo, "Entity kind is required.");
+      if (!entityKind) return redirects.seu.sdkSchemaRegistry.error(req, res, "Entity kind is required.");
     } else {
       entityKind = String(body.entityKind ?? "").trim();
       const backToNew = `${backTo}/new?entityKind=${encodeURIComponent(entityKind)}`;
-      if (!entityKind) return flashError(req, res, backTo, "Entity kind is required.");
+      if (!entityKind) return redirects.seu.sdkSchemaRegistry.error(req, res, "Entity kind is required.");
       const doc = parseAuthoredDocumentFromBody(body);
-      if (!doc.widgets.length) return flashError(req, res, backToNew, "At least one named field is required.");
+      if (!doc.widgets.length) return redirects.seu.sdkSchemaRegistry.error(req, res, "At least one named field is required.", backToNew);
       schemaJson = JSON.stringify(widgetTreeToJsonSchema(doc));
     }
 
     const result = await reviewSchemaVersion({ entityKind, schemaJson });
     if (!result.ok) {
       const backToNew = `${backTo}/new?entityKind=${encodeURIComponent(entityKind)}`;
-      return flashError(req, res, backToNew, result.errors.join("; "));
+      return redirects.seu.sdkSchemaRegistry.error(req, res, result.errors.join("; "), backToNew);
     }
 
     req.vm.req.title = `Review ${result.entityKind} schema changes`;
@@ -118,7 +119,7 @@ router.post("/sdk/schema-registry", attachVM("seu/sdk/schema-registry/review"), 
     return renderView(req, res, "seu/sdk/schema-registry/review", req.vm);
   } catch (err) {
     logger.error("[web/seu/schemaRegistry] POST /sdk/schema-registry error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.sdkSchemaRegistry.error(req, res, (err as Error).message);
   }
 });
 
@@ -127,35 +128,35 @@ router.post("/sdk/schema-registry/publish", async (req: Request, res: Response) 
   try {
     const entityKind = String(body.entityKind ?? "").trim();
     const schemaJson = String(body.schemaJson ?? "");
-    if (!entityKind || !schemaJson) return flashError(req, res, backTo, "Entity kind and schema are required.");
+    if (!entityKind || !schemaJson) return redirects.seu.sdkSchemaRegistryPublish.error(req, res, "Entity kind and schema are required.");
 
-    if (req.session?.user?.id == null) return flashError(req, res, backTo, "No logged-in user on this session.");
+    if (req.session?.user?.id == null) return redirects.seu.sdkSchemaRegistryPublish.error(req, res, "No logged-in user on this session.");
     const actorId = String(req.session.user.id);
     const result = await createSchemaVersion({ entityKind, schemaJson, actorId });
-    if (!result.ok) return flashError(req, res, backTo, result.errors.join("; "));
-    return flashSuccess(req, res, `${backTo}/${result.schema.id}`, `${result.schema.entity_kind} schema v${result.schema.version} packaged — publish it below to make it live.`);
+    if (!result.ok) return redirects.seu.sdkSchemaRegistryPublish.error(req, res, result.errors.join("; "));
+    return redirects.seu.sdkSchemaRegistryPublish.success(req, res, `${result.schema.entity_kind} schema v${result.schema.version} packaged — publish it below to make it live.`, `${backTo}/${result.schema.id}`);
   } catch (err) {
     logger.error("[web/seu/schemaRegistry] POST /sdk/schema-registry/publish error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.sdkSchemaRegistryPublish.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/sdk/schema-registry/:id/publish", async (req: Request, res: Response) => {
   const id = String(req.params.id);
-  if (req.session?.user?.id == null) return flashError(req, res, `${backTo}/${id}`, "No logged-in user on this session.");
+  if (req.session?.user?.id == null) return redirects.seu.sdkSchemaRegistryPublishById.error(req, res, "No logged-in user on this session.");
   const actorId = String(req.session.user.id);
   const result = await publishSchemaVersion(id, actorId);
-  if (!result.ok) return flashError(req, res, `${backTo}/${id}`, result.error);
-  return flashSuccess(req, res, `${backTo}/${id}`, `${result.schema.entity_kind} schema v${result.schema.version} published.`);
+  if (!result.ok) return redirects.seu.sdkSchemaRegistryPublishById.error(req, res, result.error);
+  return redirects.seu.sdkSchemaRegistryPublishById.success(req, res, `${result.schema.entity_kind} schema v${result.schema.version} published.`);
 });
 
 router.post("/sdk/schema-registry/:id/reject", async (req: Request, res: Response) => {
   const id = String(req.params.id);
-  if (req.session?.user?.id == null) return flashError(req, res, `${backTo}/${id}`, "No logged-in user on this session.");
+  if (req.session?.user?.id == null) return redirects.seu.sdkSchemaRegistryReject.error(req, res, "No logged-in user on this session.");
   const actorId = String(req.session.user.id);
   const result = await rejectSchemaVersion(id, actorId);
-  if (!result.ok) return flashError(req, res, `${backTo}/${id}`, result.error);
-  return flashSuccess(req, res, `${backTo}/${id}`, `${result.schema.entity_kind} schema v${result.schema.version} publication rejected.`);
+  if (!result.ok) return redirects.seu.sdkSchemaRegistryReject.error(req, res, result.error);
+  return redirects.seu.sdkSchemaRegistryReject.success(req, res, `${result.schema.entity_kind} schema v${result.schema.version} publication rejected.`);
 });
 
 export { router };

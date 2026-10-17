@@ -38,6 +38,7 @@ import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
+import { packsDB } from "../src/dblayer/packsDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_USER_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, TESTER_OBJECTIVE_ACHIEVE_ONLY, grantRouteBadges, ensureSeuRequesterParticipant, ensureActorParticipant } from "./testFixtures.js";
@@ -883,10 +884,16 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
   await templatesDB.setMandatoryPacks(template!.id, [packSeed.code], ROOT_ACTOR_ID, "root");
-  const { data: requiredCapabilities } = await capabilitiesDB.findByCodes(["requirements-analysis"]);
+  // Other Packs, including disposable ones from other tests, also contribute a "requirements-analysis" Capability,
+  // and each is its own row. The seeded Pack of the same code owns the one this fixture uses.
+  const { data: seededRequirementsPack } = await packsDB.findActiveByCode("requirements-analysis");
+  assert.ok(seededRequirementsPack, "the seeded requirements-analysis Pack must be Active");
+  const { data: seededPackCapabilities } = await capabilitiesDB.findByOriginatingPackIds([seededRequirementsPack!.id]);
+  const requiredCapabilities = (seededPackCapabilities ?? []).filter((c) => c.code === "requirements-analysis");
   const { data: rootMasterForCapabilities, error: rootMasterForCapabilitiesErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
   if (rootMasterForCapabilitiesErr || !rootMasterForCapabilities) throw rootMasterForCapabilitiesErr ?? new Error("no participants_master row for user_id 1 -- is db:clean-slate seeded?");
-  await templatesDB.setRequiredCapabilities(template!.id, (requiredCapabilities ?? []).map((c) => c.id), rootMasterForCapabilities.id, "root");
+  assert.equal(requiredCapabilities.length, 1, "the seeded Pack must contribute exactly one requirements-analysis Capability");
+  await templatesDB.setRequiredCapabilities(template!.id, [requiredCapabilities[0].id], rootMasterForCapabilities.id, "root");
 
   const profilePublish = await publishProfile({
     seed: {
@@ -1324,13 +1331,11 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
   assert.doesNotMatch(list.html, /New Strategic Objective/, "the create button must not render for a non-holder");
 
   // GET /new redirects away with the real error, not a 200 with the form.
-  // safeBack() (routeAuthorityGate's denial path) only returns to the
-  // Referer, else falls back to "/aisworg" — a real browser navigating here
-  // from the list page always sends one, so this simulates that rather than
-  // asserting on the no-Referer fallback path.
+  // routeAuthorityGate denies through redirects' badgefail outcome, whose
+  // destination is the page's own, whatever the Referer says.
   const newFormRedirect = await getRedirect(request, "/seu/objectives/new", "/seu/objectives");
   assert.equal(newFormRedirect.status, 302);
-  assert.equal(newFormRedirect.location, `${baseUrl}/seu/objectives`);
+  assert.equal(newFormRedirect.location, "/aisworg");
   const newForm = await getPage(request, "/seu/objectives");
   // EJS's default <%= %> escaping renders the apostrophe as &#39;, not a
   // literal ' — match a substring either side of it, not across it.
@@ -1347,8 +1352,7 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
     requiredCapabilityCodes: ["architecture-design"],
   });
   assert.equal(blockedCreate.status, 302);
-  // No Referer on this POST (postForm never sends one), so routeAuthorityGate's
-  // safeBack() falls back to its default "/aisworg", not the route's own backToNew.
+  // routeAuthorityGate denies through redirects' badgefail outcome, which lands on "/aisworg".
   assert.equal(blockedCreate.location, "/aisworg");
   const listAfter = await getPage(request, "/seu/objectives");
   assert.doesNotMatch(listAfter.html, new RegExp(blockedStatement), "the blocked create must not have applied");
@@ -1364,7 +1368,7 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
     status: "Proposed",
     requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId,
   });
-  // No Referer on this GET either — same default-fallback location as above.
+  // Same badgefail destination as above.
   const editRedirect = await getRedirect(request, `/seu/objectives/${ownTenantObjective.id}/edit`);
   assert.equal(editRedirect.status, 302);
   assert.equal(editRedirect.location, "/aisworg");

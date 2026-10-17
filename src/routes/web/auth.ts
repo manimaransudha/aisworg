@@ -12,6 +12,8 @@ import { emailService } from '../../domain/auth/emailService.js';
 import { buildSessionUser } from '../../middleware/auth.js';
 import { ensureBadgeBootstrap, getPlatformBadges } from '../../domain/identity/badgeBootstrap.js';
 import { logger }      from '../../utils/logger.js';
+import { getFlash }    from '../../utils/flash.js';
+import { redirects }   from '../../middleware/redirects.js';
 import { parseListParams, paginateList } from '../../utils/listQuery.js';
 import { rateLimit }   from 'express-rate-limit';
 import type { Request, Response, NextFunction } from 'express';
@@ -35,13 +37,13 @@ function postLoginRedirectPath(user: { platformBadges?: string[] } | undefined) 
 router.get('/login', (req: Request, res: Response) => {
   if (req.session?.user) return res.redirect(postLoginRedirectPath(req.session.user));
   const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  const flash = getFlash(req);
   res.render('auth/login', {
     title:         'Sign in to SEU Studio',
     googleEnabled,
-    error:         req.session.flash?.error || null,
-    info:          req.session.flash?.info  || null,
+    error:         flash?.type === 'error' ? flash.message : null,
+    info:          flash?.type === 'success' ? flash.message : null,
   });
-  delete req.session.flash;
 });
 
 router.post('/login', loginLimiter, (req: Request, res: Response, next: NextFunction) => {
@@ -50,8 +52,7 @@ router.post('/login', loginLimiter, (req: Request, res: Response, next: NextFunc
 
     if (!user) {
       if (info?.message === 'disabled') return res.redirect('/aisworg/auth/disabled');
-      req.session.flash = { error: info?.message || 'Invalid credentials.' };
-      return res.redirect('/aisworg/login');
+      return redirects.auth.login.error(req, res, info?.message || 'Invalid credentials.');
     }
 
     req.session.user = await buildSessionUser(user);
@@ -97,8 +98,7 @@ router.get('/verify', async (req: Request, res: Response) => {
 
   const user = await userDB.findByVerificationToken(token);
   if (!user) {
-    req.session.flash = { error: 'Verification link is invalid or has expired.' };
-    return res.redirect('/aisworg/login');
+    return redirects.auth.verify.error(req, res, 'Verification link is invalid or has expired.');
   }
 
   res.render('auth/verify', { title: 'Set Your Password', token, email: user.email, error: null });
@@ -111,8 +111,7 @@ router.post('/verify', loginLimiter, async (req: Request, res: Response) => {
 
   const user = await userDB.findByVerificationToken(token);
   if (!user) {
-    req.session.flash = { error: 'Verification link is invalid or has expired.' };
-    return res.redirect('/aisworg/login');
+    return redirects.auth.verify.error(req, res, 'Verification link is invalid or has expired.');
   }
 
   if (!password || password.length < 8) {
@@ -142,12 +141,11 @@ router.post('/verify', loginLimiter, async (req: Request, res: Response) => {
 
 router.get('/forgot-password', (req: Request, res: Response) => {
   if (req.session?.user) return res.redirect(postLoginRedirectPath(req.session.user));
-  const flash = req.session.flash || {};
-  delete req.session.flash;
+  const flash = getFlash(req);
   res.render('auth/forgot-password', {
     title: 'Forgot Password',
-    info:  flash.info  || null,
-    error: flash.error || null,
+    info:  flash?.type === 'success' ? flash.message : null,
+    error: flash?.type === 'error' ? flash.message : null,
   });
 });
 
@@ -162,17 +160,14 @@ router.post('/forgot-password', loginLimiter, async (req: Request, res: Response
       if (user) {
         const result = await emailService.sendPasswordReset({ to: user.email, name: user.name, token });
         if (result.link) {
-          req.session.flash = { info: `SMTP not configured — reset link: ${result.link}` };
-          return res.redirect('/aisworg/auth/forgot-password');
+          return redirects.auth.forgotPassword.success(req, res, `SMTP not configured — reset link: ${result.link}`);
         }
       }
     }
-    req.session.flash = { info: GENERIC };
-    return res.redirect('/aisworg/auth/forgot-password');
+    return redirects.auth.forgotPassword.success(req, res, GENERIC);
   } catch (err) {
     logger.error('[Auth] POST /forgot-password error:', err);
-    req.session.flash = { info: GENERIC };
-    return res.redirect('/aisworg/auth/forgot-password');
+    return redirects.auth.forgotPassword.success(req, res, GENERIC);
   }
 });
 
@@ -181,8 +176,7 @@ router.get('/reset-password', async (req: Request, res: Response) => {
   if (typeof token !== 'string' || !token) return res.redirect('/aisworg/login');
   const user = await userDB.findByVerificationToken(token);
   if (!user) {
-    req.session.flash = { error: 'Password reset link is invalid or has expired.' };
-    return res.redirect('/aisworg/login');
+    return redirects.auth.resetPassword.error(req, res, 'Password reset link is invalid or has expired.');
   }
   res.render('auth/reset-password', { title: 'Reset Your Password', token, email: user.email, error: null });
 });
@@ -193,8 +187,7 @@ router.post('/reset-password', loginLimiter, async (req: Request, res: Response)
 
   const user = await userDB.findByVerificationToken(token);
   if (!user) {
-    req.session.flash = { error: 'Password reset link is invalid or has expired.' };
-    return res.redirect('/aisworg/login');
+    return redirects.auth.resetPassword.error(req, res, 'Password reset link is invalid or has expired.');
   }
 
   if (!password || password.length < 8) {
@@ -213,8 +206,7 @@ router.post('/reset-password', loginLimiter, async (req: Request, res: Response)
   const hash = await bcrypt.hash(password, 12);
   await userDB.activateWithPassword(user.email, hash);
   logger.info(`[Auth] Password reset: ${user.email}`);
-  req.session.flash = { info: 'Password reset successfully. Please sign in.' };
-  return res.redirect('/aisworg/login');
+  return redirects.auth.resetPassword.success(req, res, 'Password reset successfully. Please sign in.');
 });
 
 router.get('/users', async (req: Request, res: Response) => {
@@ -231,9 +223,8 @@ router.get('/users', async (req: Request, res: Response) => {
       list,
       listBasePath: '/aisworg/auth/users',
       currentUser: req.session.user,
-      flash:       req.session.flash || null,
+      flash:       getFlash(req),
     });
-    delete req.session.flash;
   } catch (err) {
     logger.error('[Auth] GET /users error:', err);
     res.status(500).send('Internal Server Error');
@@ -244,12 +235,10 @@ router.post('/users/create', async (req: Request, res: Response) => {
   try {
     const { email, name } = req.body;
     if (!email) {
-      req.session.flash = { error: 'Email is required.' };
-      return res.redirect('/aisworg/auth/users');
+      return redirects.auth.users.error(req, res, 'Email is required.');
     }
     if (email.toLowerCase() === SUPERUSER_EMAIL) {
-      req.session.flash = { error: 'Cannot create account for the protected superuser.' };
-      return res.redirect('/aisworg/auth/users');
+      return redirects.auth.users.error(req, res, 'Cannot create account for the protected superuser.');
     }
 
     const token   = crypto.randomBytes(32).toString('hex');
@@ -260,16 +249,12 @@ router.post('/users/create', async (req: Request, res: Response) => {
     await userDB.createLocalPending({ email, name: name || email, verification_token: token, verification_expires: expires, type: 'Platform', tenant_id: platformTenant.id });
     const result = await emailService.sendVerification({ to: email, name: name || email, token });
 
-    if (result.link) {
-      req.session.flash = { info: `Account created. SMTP not configured — verification link: ${result.link}` };
-    } else {
-      req.session.flash = { info: `Account created. Verification email sent to ${email}.` };
-    }
-    return res.redirect('/aisworg/auth/users');
+    return redirects.auth.users.success(req, res, result.link
+      ? `Account created. SMTP not configured — verification link: ${result.link}`
+      : `Account created. Verification email sent to ${email}.`);
   } catch (err) {
     logger.error('[Auth] POST /users/create error:', err);
-    req.session.flash = { error: err instanceof Error ? err.message : String(err) };
-    return res.redirect('/aisworg/auth/users');
+    return redirects.auth.users.error(req, res, err instanceof Error ? err.message : String(err));
   }
 });
 
@@ -277,17 +262,14 @@ router.post('/users/toggle', async (req: Request, res: Response) => {
   try {
     const { email, action } = req.body;
     if (email?.toLowerCase() === SUPERUSER_EMAIL) {
-      req.session.flash = { error: 'Cannot modify the protected superuser.' };
-      return res.redirect('/aisworg/auth/users');
+      return redirects.auth.users.error(req, res, 'Cannot modify the protected superuser.');
     }
     const is_active = action === 'enable';
     await userDB.setActive(email, is_active);
-    req.session.flash = { info: `${email} ${is_active ? 'enabled' : 'disabled'}.` };
-    return res.redirect('/aisworg/auth/users');
+    return redirects.auth.users.success(req, res, `${email} ${is_active ? 'enabled' : 'disabled'}.`);
   } catch (err) {
     logger.error('[Auth] POST /users/toggle error:', err);
-    req.session.flash = { error: err instanceof Error ? err.message : String(err) };
-    return res.redirect('/aisworg/auth/users');
+    return redirects.auth.users.error(req, res, err instanceof Error ? err.message : String(err));
   }
 });
 
@@ -296,8 +278,7 @@ router.post('/users/resend', async (req: Request, res: Response) => {
     const { email } = req.body;
     const user = await userDB.findByEmail(email);
     if (!user || user.auth_provider !== 'local') {
-      req.session.flash = { error: 'User not found or not a local account.' };
-      return res.redirect('/aisworg/auth/users');
+      return redirects.auth.users.error(req, res, 'User not found or not a local account.');
     }
 
     const token   = crypto.randomBytes(32).toString('hex');
@@ -306,16 +287,12 @@ router.post('/users/resend', async (req: Request, res: Response) => {
     await userDB.createLocalPending({ email, name: user.name, verification_token: token, verification_expires: expires, type: user.type, tenant_id: user.tenant_id });
     const result = await emailService.sendVerification({ to: email, name: user.name, token });
 
-    if (result.link) {
-      req.session.flash = { info: `SMTP not configured — link: ${result.link}` };
-    } else {
-      req.session.flash = { info: `Verification email resent to ${email}.` };
-    }
-    return res.redirect('/aisworg/auth/users');
+    return redirects.auth.users.success(req, res, result.link
+      ? `SMTP not configured — link: ${result.link}`
+      : `Verification email resent to ${email}.`);
   } catch (err) {
     logger.error('[Auth] POST /users/resend error:', err);
-    req.session.flash = { error: err instanceof Error ? err.message : String(err) };
-    return res.redirect('/aisworg/auth/users');
+    return redirects.auth.users.error(req, res, err instanceof Error ? err.message : String(err));
   }
 });
 

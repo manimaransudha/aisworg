@@ -6,14 +6,15 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { requireBadge } from "../../../middleware/requireBadge.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { DATA_MIGRATION_TARGETS, resolveRootActor, runDataMigrations } from "../core/dataMigrations.js";
 
 const backTo = "/aisworg/seu/data-migrations";
-const gate = requireBadge(["root"], { redirectTo: "/aisworg" });
+const gate = requireBadge(["root"]);
 
 router.get("/data-migrations", gate, attachVM("seu/data-migrations/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -35,7 +36,7 @@ router.get("/data-migrations", gate, attachVM("seu/data-migrations/index"), asyn
 router.post("/data-migrations/run", gate, async (req: Request, res: Response) => {
   try {
     const userId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!userId) return flashError(req, res, backTo, "No logged-in user on this session.");
+    if (!userId) return redirects.seu.dataMigrationsRun.error(req, res, "No logged-in user on this session.");
 
     const rawCodes = req.body?.codes;
     const codes = Array.isArray(rawCodes) ? rawCodes.map(String) : rawCodes != null ? [String(rawCodes)] : [];
@@ -44,12 +45,12 @@ router.post("/data-migrations/run", gate, async (req: Request, res: Response) =>
     const results = await runDataMigrations(actor, userId, codes);
     const failed = results.filter((r) => !r.ok);
     if (failed.length) {
-      return flashError(req, res, backTo, `Failed: ${failed.map((f) => `${f.code} (${f.error})`).join("; ")}`);
+      return redirects.seu.dataMigrationsRun.error(req, res, `Failed: ${failed.map((f) => `${f.code} (${f.error})`).join("; ")}`);
     }
-    return flashSuccess(req, res, backTo, `Ran ${results.length} data migration(s), authored by this session's root participant.`);
+    return redirects.seu.dataMigrationsRun.success(req, res, `Ran ${results.length} data migration(s), authored by this session's root participant.`);
   } catch (err) {
     logger.error("[web/seu/dataMigrations] POST /data-migrations/run error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.dataMigrationsRun.error(req, res, (err as Error).message);
   }
 });
 

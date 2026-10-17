@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { flashError } from "../utils/flash.js";
+import { redirectsFor } from "./redirects.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult } from "../dblayer/seuTypes.js";
 
@@ -9,7 +9,6 @@ function isRoot(req: Request): boolean {
 
 interface DenyOpts {
   mode?: "web" | "api";
-  notFoundRedirect?: string;
   notFoundMessage?: string;
   platformTenantId?: string;
 }
@@ -20,10 +19,7 @@ function denyNotFound(req: Request, res: Response, opts: DenyOpts): void {
     res.status(404).json({ success: false, message });
     return;
   }
-  if (!opts.notFoundRedirect) {
-    throw new Error("requireTenantScope: notFoundRedirect is required in web mode (the default) — pass mode: 'api' for a JSON-only router instead.");
-  }
-  flashError(req, res, opts.notFoundRedirect, message);
+  redirectsFor(req).tenantfail(req, res, message);
 }
 
 function inReach(req: Request, rowTenantId: string | null, platformTenantId?: string): boolean {

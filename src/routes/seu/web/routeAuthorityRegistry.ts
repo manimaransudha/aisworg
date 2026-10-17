@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { requireBadge } from "../../../middleware/requireBadge.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
@@ -18,7 +19,7 @@ import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 
 const backTo = "/aisworg/seu/route-authority";
 const adminBadge = process.env.ROUTE_AUTHORITY_ADMIN_BADGE || "root";
-const gate = requireBadge([adminBadge], { redirectTo: "/aisworg" });
+const gate = requireBadge([adminBadge]);
 
 async function resolveRouteAuthorityAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
   const userId = req.session?.user?.id != null ? String(req.session.user.id) : null;
@@ -77,7 +78,7 @@ router.get("/route-authority/new", gate, attachVM("seu/route-authority/edit"), a
 router.get("/route-authority/:id/edit", gate, attachVM("seu/route-authority/edit"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data: row } = await routeAuthorityDB.findById(String(req.params.id));
-    if (!row) return flashError(req, res, backTo, "Route authority row not found.");
+    if (!row) return redirects.seu.routeAuthorityById.error(req, res, "Route authority row not found.");
     req.vm.req.title = `Edit ${row.method} ${row.path}`;
     req.vm.req.row = row;
     req.vm.req.badgeCodes = await grantableBadgeCodes();
@@ -103,16 +104,16 @@ function readForm(body: Record<string, unknown>): { method: string; path: string
 router.post("/route-authority", gate, async (req: Request, res: Response) => {
   try {
     const parsed = readForm(req.body ?? {});
-    if ("error" in parsed) return flashError(req, res, `${backTo}/new`, parsed.error);
+    if ("error" in parsed) return redirects.seu.routeAuthority.error(req, res, parsed.error);
     const author = await resolveRouteAuthorityAuthor(req);
-    if ("error" in author) return flashError(req, res, `${backTo}/new`, author.error);
+    if ("error" in author) return redirects.seu.routeAuthority.error(req, res, author.error);
     const { data, error } = await routeAuthorityDB.create({ ...parsed, authorId: author.authorId, authorBadge: author.authorBadge });
-    if (error || !data) return flashError(req, res, `${backTo}/new`, error?.message ?? "Could not create row.");
+    if (error || !data) return redirects.seu.routeAuthority.error(req, res, error?.message ?? "Could not create row.");
     await refreshRouteAuthorityCache();
-    return flashSuccess(req, res, backTo, `${data.method} ${data.path} added.`);
+    return redirects.seu.routeAuthority.success(req, res, `${data.method} ${data.path} added.`);
   } catch (err) {
     logger.error("[web/seu/routeAuthorityRegistry] POST /route-authority error", err as Error);
-    return flashError(req, res, `${backTo}/new`, (err as Error).message);
+    return redirects.seu.routeAuthority.error(req, res, (err as Error).message);
   }
 });
 
@@ -120,26 +121,26 @@ router.post("/route-authority/:id/update", gate, async (req: Request, res: Respo
   const id = String(req.params.id);
   try {
     const parsed = readForm(req.body ?? {});
-    if ("error" in parsed) return flashError(req, res, `${backTo}/${id}/edit`, parsed.error);
+    if ("error" in parsed) return redirects.seu.routeAuthorityUpdate.error(req, res, parsed.error);
     const { data, error } = await routeAuthorityDB.update(id, parsed);
-    if (error || !data) return flashError(req, res, `${backTo}/${id}/edit`, error?.message ?? "Could not update row.");
+    if (error || !data) return redirects.seu.routeAuthorityUpdate.error(req, res, error?.message ?? "Could not update row.");
     await refreshRouteAuthorityCache();
-    return flashSuccess(req, res, backTo, `${data.method} ${data.path} updated.`);
+    return redirects.seu.routeAuthorityUpdate.success(req, res, `${data.method} ${data.path} updated.`);
   } catch (err) {
     logger.error("[web/seu/routeAuthorityRegistry] POST /route-authority/:id/update error", err as Error);
-    return flashError(req, res, `${backTo}/${id}/edit`, (err as Error).message);
+    return redirects.seu.routeAuthorityUpdate.error(req, res, (err as Error).message);
   }
 });
 
 router.post("/route-authority/:id/delete", gate, async (req: Request, res: Response) => {
   try {
     const { error } = await routeAuthorityDB.delete(String(req.params.id));
-    if (error) return flashError(req, res, backTo, error.message);
+    if (error) return redirects.seu.routeAuthorityById.error(req, res, error.message);
     await refreshRouteAuthorityCache();
-    return flashSuccess(req, res, backTo, "Row deleted.");
+    return redirects.seu.routeAuthorityById.success(req, res, "Row deleted.");
   } catch (err) {
     logger.error("[web/seu/routeAuthorityRegistry] POST /route-authority/:id/delete error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.routeAuthorityById.error(req, res, (err as Error).message);
   }
 });
 

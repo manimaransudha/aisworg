@@ -75,6 +75,9 @@ WHERE datname = current_database()
   AND state_change < now() - interval '5 minutes'
   AND pid <> pg_backend_pid();
  
+systemctl restart postgresql@18-main
+ss -ltnp | grep 5432
+
 --------
 
 https://zenfy.ac/get-started/

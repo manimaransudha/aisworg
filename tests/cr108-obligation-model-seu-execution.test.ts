@@ -379,7 +379,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
 test("CR-108 follow-on: Work Item Execution Context includes every Deliverable Obligation, the composing Pack's own Checklists/Engineering Capital matched via producing Capability, and relevant Profile Configuration only", async () => {
   const run = randomUUID().slice(0, 8);
   const pack = {
-    code: `cr108-ec-pack-${run}`, name: "CR-108 Execution Context Pack", category: "Organisation",
+    code: "cr108-ec-pack", name: "CR-108 Execution Context Pack", category: "Organisation",
     packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: {
       capabilities: [{ code: "requirements-analysis" }],
@@ -393,11 +393,17 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
       engineeringCapital: [{ type: "Reusable Components", url: "https://example.test/cr108-ec" }],
     },
   };
-  await registerOrganisationName(pack.code);
-  const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });
-  assert.ok(published.ok, `execution-context pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
+  // One shared Pack across runs: each published Pack adds its own "requirements-analysis" Capability row, and
+  // nothing removes it, so a fresh Pack per run grows the table for every test that looks the code up.
+  let packId = (await packsDB.findActiveByCode(pack.code)).data?.id;
+  if (!packId) {
+    await registerOrganisationName(pack.code);
+    const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });
+    assert.ok(published.ok, `execution-context pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
+    packId = published.pack!.id;
+  }
 
-  const { data: requiredCapabilities } = await capabilitiesDB.findByOriginatingPackIds([published.pack!.id]);
+  const { data: requiredCapabilities } = await capabilitiesDB.findByOriginatingPackIds([packId]);
   const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
     code: `cr108-ec-tpl-${run}`, name: "CR-108 Execution Context Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],

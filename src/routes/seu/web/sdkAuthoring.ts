@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects, redirectsFor } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { requireBadge } from "../../../middleware/requireBadge.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
@@ -88,13 +89,7 @@ async function heldBadges(req: Request): Promise<Set<string>> {
 }
 
 function denyAuthoring(req: Request, res: Response): void {
-  if (req.session) {
-    (req.session as unknown as { flash?: { type: string; message: string } }).flash = {
-      type: "error",
-      message: `You don't have the required badge for that.`,
-    };
-  }
-  res.redirect(req.headers.referer || "/aisworg");
+  redirectsFor(req).badgefail(req, res, "You don't have the required badge for that.");
 }
 
 function requireAuthoring(need: "any" | "define" | "publish") {
@@ -116,7 +111,7 @@ function requireDefineBadge() {
     const slug = String(req.params.slug);
     const kind = resolveKind(slug);
     if (!kind) return next();
-    return requireBadge([authoringBadge(kind, "define")], { mode: "web", redirectTo: backToIndex(slug) })(req, res, next);
+    return requireBadge([authoringBadge(kind, "define")], { mode: "web" })(req, res, next);
   };
 }
 
@@ -127,7 +122,7 @@ function requireRowActionBadge(action: { endpoint: "publish" } | { endpoint: "tr
     if (!kind) return next();
     const draftId = String(req.params.draftId);
     const draft = await getAuthoringDraft(kind, draftId);
-    if (!draft) return flashError(req, res, backToIndex(slug), "Draft not found.");
+    if (!draft) return redirectsFor(req).error(req, res, "Draft not found.", backToIndex(slug));
     const target = action.endpoint === "publish"
       ? ({ endpoint: "publish" } as const)
       : (() => {
@@ -135,10 +130,10 @@ function requireRowActionBadge(action: { endpoint: "publish" } | { endpoint: "tr
           const targetState = typeof raw === "string" ? raw.trim() : "";
           return targetState ? ({ endpoint: "transition", toState: targetState } as const) : null;
         })();
-    if (!target) return flashError(req, res, backTo(slug, draftId), "Target state is required.");
+    if (!target) return redirectsFor(req).error(req, res, "Target state is required.");
     const badges = await requiredBadgeForRowAction(kind, draft.status, target);
-    if (!badges) return flashError(req, res, backTo(slug, draftId), `No governed ${action.endpoint} is available from ${draft.status}.`);
-    return requireBadge(badges, { mode: "web", redirectTo: backTo(slug, draftId), match: "any" })(req, res, next);
+    if (!badges) return redirectsFor(req).error(req, res, `No governed ${action.endpoint} is available from ${draft.status}.`);
+    return requireBadge(badges, { mode: "web", match: "any" })(req, res, next);
   };
 }
 
@@ -148,7 +143,7 @@ function requireDraftTenantScope() {
     const kind = resolveKind(slug);
     if (!kind) return next();
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
-    const opts = { mode: "web" as const, notFoundRedirect: backToIndex(slug), notFoundMessage: "Not found.", platformTenantId: PLATFORM_TENANT_ID };
+    const opts = { mode: "web" as const, notFoundMessage: "Not found.", platformTenantId: PLATFORM_TENANT_ID };
     const gate =
       kind === "Pack" ? requireTenantScope.forParam("draftId", packsDB.findById, (p) => p.tenant_id, opts) :
       kind === "Template" ? requireTenantScope.forParam("draftId", templatesDB.findById, (t) => t.tenant_id, opts) :
@@ -291,12 +286,8 @@ router.get("/authority/mapping", attachVM("seu/sdk/authority/index"), async (req
   }
 });
 
-const AUTH_NOUNS = "/aisworg/seu/authority/nouns";
-const AUTH_VERBS = "/aisworg/seu/authority/verbs";
-const AUTH_MAPPING = "/aisworg/seu/authority/mapping";
-const TD_INDEX = "/aisworg/seu/sdk/transition-definition-authoring";
-const wrote = (req: Request, res: Response, back: string, r: { ok: true } | { ok: false; error: string }, okMsg: string) =>
-  r.ok ? flashSuccess(req, res, back, okMsg) : flashError(req, res, back, r.error);
+const wrote = (req: Request, res: Response, r: { ok: true } | { ok: false; error: string }, okMsg: string) =>
+  r.ok ? redirectsFor(req).success(req, res, okMsg) : redirectsFor(req).error(req, res, r.error);
 
 async function resolveAuthorityVocabAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
   if (req.session?.user?.id == null) {
@@ -316,49 +307,49 @@ async function resolveAuthorityVocabAuthor(req: Request): Promise<{ authorId: st
 router.post("/authority/nouns/add", async (req: Request, res: Response) => {
   const { code, label, description } = req.body ?? {};
   const author = await resolveAuthorityVocabAuthor(req);
-  if ("error" in author) return flashError(req, res, AUTH_NOUNS, author.error);
-  wrote(req, res, AUTH_NOUNS, await addNoun(String(code ?? ""), String(label ?? ""), description ? String(description) : null, author.authorId, author.authorBadge), `Noun "${code}" added.`);
+  if ("error" in author) return redirects.seu.authorityNouns.error(req, res, author.error);
+  wrote(req, res, await addNoun(String(code ?? ""), String(label ?? ""), description ? String(description) : null, author.authorId, author.authorBadge), `Noun "${code}" added.`);
 });
 router.post("/authority/nouns/retire", async (req: Request, res: Response) => {
   const { code } = req.body ?? {};
-  wrote(req, res, AUTH_NOUNS, await retireNoun(String(code ?? "")), `Noun "${code}" retired.`);
+  wrote(req, res, await retireNoun(String(code ?? "")), `Noun "${code}" retired.`);
 });
 
 router.post("/authority/verbs/add", async (req: Request, res: Response) => {
   const { code, label, description } = req.body ?? {};
   const author = await resolveAuthorityVocabAuthor(req);
-  if ("error" in author) return flashError(req, res, AUTH_VERBS, author.error);
-  wrote(req, res, AUTH_VERBS, await addVerb(String(code ?? ""), String(label ?? ""), description ? String(description) : null, author.authorId, author.authorBadge), `Verb "${code}" added.`);
+  if ("error" in author) return redirects.seu.authorityVerbs.error(req, res, author.error);
+  wrote(req, res, await addVerb(String(code ?? ""), String(label ?? ""), description ? String(description) : null, author.authorId, author.authorBadge), `Verb "${code}" added.`);
 });
 router.post("/authority/verbs/retire", async (req: Request, res: Response) => {
   const { code } = req.body ?? {};
-  wrote(req, res, AUTH_VERBS, await retireVerb(String(code ?? "")), `Verb "${code}" retired.`);
+  wrote(req, res, await retireVerb(String(code ?? "")), `Verb "${code}" retired.`);
 });
 
 router.post("/authority/mapping/add", async (req: Request, res: Response) => {
   const { nounCode, verbCode, trigger } = req.body ?? {};
   const author = await resolveAuthorityVocabAuthor(req);
-  if ("error" in author) return flashError(req, res, AUTH_MAPPING, author.error);
-  wrote(req, res, AUTH_MAPPING, await addMapping(String(nounCode ?? ""), String(verbCode ?? ""), trigger ? String(trigger) : undefined, author.authorId, author.authorBadge), `Mapping ${nounCode} → ${verbCode} added.`);
+  if ("error" in author) return redirects.seu.authorityMapping.error(req, res, author.error);
+  wrote(req, res, await addMapping(String(nounCode ?? ""), String(verbCode ?? ""), trigger ? String(trigger) : undefined, author.authorId, author.authorBadge), `Mapping ${nounCode} → ${verbCode} added.`);
 });
 router.post("/authority/mapping/retire", async (req: Request, res: Response) => {
   const { nounCode, verbCode } = req.body ?? {};
-  wrote(req, res, AUTH_MAPPING, await retireMapping(String(nounCode ?? ""), String(verbCode ?? "")), `Mapping ${nounCode} → ${verbCode} retired.`);
+  wrote(req, res, await retireMapping(String(nounCode ?? ""), String(verbCode ?? "")), `Mapping ${nounCode} → ${verbCode} retired.`);
 });
 router.post("/authority/mapping/edit-trigger", async (req: Request, res: Response) => {
   const { nounCode, verbCode, trigger } = req.body ?? {};
-  wrote(req, res, AUTH_MAPPING, await updateMappingTrigger(String(nounCode ?? ""), String(verbCode ?? ""), String(trigger ?? "")), `${nounCode} + ${verbCode} trigger set to "${trigger}".`);
+  wrote(req, res, await updateMappingTrigger(String(nounCode ?? ""), String(verbCode ?? ""), String(trigger ?? "")), `${nounCode} + ${verbCode} trigger set to "${trigger}".`);
 });
 
 router.post("/authority/transition-definitions/add", async (req: Request, res: Response) => {
   const { entityType, fromState, toState, verb } = req.body ?? {};
   const author = await resolveAuthorityVocabAuthor(req);
-  if ("error" in author) return flashError(req, res, TD_INDEX, author.error);
-  wrote(req, res, TD_INDEX, await addTransitionDefinition({ entityType: String(entityType ?? ""), fromState: String(fromState ?? ""), toState: String(toState ?? ""), verb: String(verb ?? ""), authorId: author.authorId, authorBadge: author.authorBadge }), `Transition ${entityType} ${fromState} → ${toState} added.`);
+  if ("error" in author) return redirects.seu.authorityTransitionDefinitions.error(req, res, author.error);
+  wrote(req, res, await addTransitionDefinition({ entityType: String(entityType ?? ""), fromState: String(fromState ?? ""), toState: String(toState ?? ""), verb: String(verb ?? ""), authorId: author.authorId, authorBadge: author.authorBadge }), `Transition ${entityType} ${fromState} → ${toState} added.`);
 });
 router.post("/authority/transition-definitions/retire", async (req: Request, res: Response) => {
   const { id } = req.body ?? {};
-  wrote(req, res, TD_INDEX, await retireTransitionDefinition(String(id ?? "")), "Transition definition retired.");
+  wrote(req, res, await retireTransitionDefinition(String(id ?? "")), "Transition definition retired.");
 });
 
 router.get("/authority/transition-definitions/:id", attachVM("seu/sdk/authority/detail"), async (req: Request, res: Response, next: NextFunction) => {
@@ -395,7 +386,6 @@ router.post("/authority/transition-definitions/:id/update", async (req: Request,
   wrote(
     req,
     res,
-    `/aisworg/seu/authority/transition-definitions/${id}`,
     await updateTransitionDefinition(id, { createsObligation: createsObligation != null ? String(createsObligation) : null, category: category != null ? String(category) : null }),
     "Transition definition updated."
   );
@@ -679,7 +669,7 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   const pinnedSchemaDefinitionId = typeof draft?.content?.schemaVersion === "string" ? draft.content.schemaVersion : undefined;
   const resolved = await resolvedSchemaFor(kind, pinnedSchemaDefinitionId);
   const schema = resolved?.schema ?? null;
-  if (!schema) return flashError(req, res, backToIndex(slug), `No schema_definitions grammar for ${kind}.`);
+  if (!schema) return redirects.seu.authorityTransitionDefinitionsUpdate.error(req, res, `No schema_definitions grammar for ${kind}.`, backToIndex(slug));
   const held = await heldBadges(req);
   const isRoot = held.has("root");
   const canDefine = isRoot || held.has(authoringBadge(kind, "define"));
@@ -782,24 +772,24 @@ router.get("/sdk/:slug/new", requireDefineBadge(), attachVM("seu/sdk/authoring/e
     if (fromPackId) {
       const viewerTenantId = req.session?.user?.tenant_id ?? (await getPlatformTenantId());
       const inherited = await inheritedPackVersionContent(fromPackId, viewerTenantId);
-      if (!inherited.ok) return flashError(req, res, backToIndex(slug), inherited.error);
+      if (!inherited.ok) return redirects.seu.sdkNew.error(req, res, inherited.error);
       return await renderAuthoringForm(req, res, kind, slug, null, { content: inherited.content });
     }
     if (parentTemplateId) {
       const viewerTenantId = req.session?.user?.tenant_id ?? "";
       const inherited = await inheritedTemplateContent(parentTemplateId, viewerTenantId);
-      if (!inherited.ok) return flashError(req, res, backToIndex(slug), inherited.error);
+      if (!inherited.ok) return redirects.seu.sdkNew.error(req, res, inherited.error);
       return await renderAuthoringForm(req, res, kind, slug, null, { content: inherited.content, parentTemplateId });
     }
     if (parentProfileId) {
       const viewerTenantId = req.session?.user?.tenant_id ?? "";
       const inherited = await inheritedProfileContent(parentProfileId, viewerTenantId);
-      if (!inherited.ok) return flashError(req, res, backToIndex(slug), inherited.error);
+      if (!inherited.ok) return redirects.seu.sdkNew.error(req, res, inherited.error);
       return await renderAuthoringForm(req, res, kind, slug, null, { content: inherited.content, parentProfileId });
     }
     if (parentDeliverableDefinitionId) {
       const inherited = await inheritedDeliverableDefinitionContent(parentDeliverableDefinitionId);
-      if (!inherited.ok) return flashError(req, res, backToIndex(slug), inherited.error);
+      if (!inherited.ok) return redirects.seu.sdkNew.error(req, res, inherited.error);
       return await renderAuthoringForm(req, res, kind, slug, null, { content: inherited.content, parentDeliverableDefinitionId });
     }
     return await renderAuthoringForm(req, res, kind, slug, null);
@@ -847,14 +837,14 @@ router.post("/sdk/:slug", requireDefineBadge(), async (req: Request, res: Respon
   const kind = resolveKind(slug);
   if (!kind) return next();
   if (kind === "TransitionDefinition") {
-    return flashError(req, res, backToIndex(slug), "Transition definitions are authored in the form on this page (noun × verb), not as drafts.");
+    return redirects.seu.sdk.error(req, res, "Transition definitions are authored in the form on this page (noun × verb), not as drafts.");
   }
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-  if (!actorId) return flashError(req, res, backToIndex(slug), "No actor identity on session.");
+  if (!actorId) return redirects.seu.sdk.error(req, res, "No actor identity on session.");
   try {
     const pinnedSchemaDefinitionId = typeof req.body?.schemaVersion === "string" && req.body.schemaVersion.trim() ? req.body.schemaVersion.trim() : undefined;
     const resolved = await resolvedSchemaFor(kind, pinnedSchemaDefinitionId);
-    if (!resolved) return flashError(req, res, backToIndex(slug), `No schema_definitions grammar for ${kind}.`);
+    if (!resolved) return redirects.seu.sdk.error(req, res, `No schema_definitions grammar for ${kind}.`);
     const schema = resolved.schema;
     if (kind === "Template") reconstructExposedParameters(req.body ?? {});
     if (kind === "Profile") reconstructProfileParameterOverrides(req.body ?? {});
@@ -866,11 +856,11 @@ router.post("/sdk/:slug", requireDefineBadge(), async (req: Request, res: Respon
     const held = await heldBadges(req);
     const authorBadge = held.has("root") ? "root" : authoringBadge(kind, "define");
     const result = await createAuthoringDraft({ kind, actorId, authorBadge, tenantId, parentTemplateId, parentProfileId, parentDeliverableDefinitionId, content, schemaDefinitionId: resolved.schemaDefinitionId });
-    if (!result.ok) return flashError(req, res, backToIndex(slug), result.errors.join("; "));
-    return flashSuccess(req, res, backTo(slug, result.draftId), `Started a new ${kind} draft.`);
+    if (!result.ok) return redirects.seu.sdk.error(req, res, result.errors.join("; "));
+    return redirects.seu.sdk.success(req, res, `Started a new ${kind} draft.`, backTo(slug, result.draftId));
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] POST /sdk/:slug error", err as Error);
-    return flashError(req, res, backToIndex(slug), (err as Error).message);
+    return redirects.seu.sdk.error(req, res, (err as Error).message);
   }
 });
 
@@ -880,7 +870,7 @@ router.get("/sdk/:slug/:draftId", requireDraftTenantScope(), attachVM("seu/sdk/a
   if (!kind) return next();
   try {
     const draft = await getAuthoringDraft(kind, String(req.params.draftId));
-    if (!draft) return flashError(req, res, backToIndex(slug), "Draft not found.");
+    if (!draft) return redirects.seu.sdkById.error(req, res, "Draft not found.");
     return await renderAuthoringForm(req, res, kind, slug, draft);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] GET /sdk/:slug/:id error", err as Error);
@@ -898,20 +888,20 @@ router.post("/sdk/:slug/:draftId/save", requireDraftTenantScope(), requireDefine
     const pinnedSchemaDefinitionId = typeof draft?.content?.schemaVersion === "string" ? draft.content.schemaVersion : undefined;
     const resolved = await resolvedSchemaFor(kind, pinnedSchemaDefinitionId);
     const schema = resolved?.schema ?? null;
-    if (!schema) return flashError(req, res, backTo(slug, draftId), `No schema_definitions grammar for ${kind}.`);
+    if (!schema) return redirects.seu.sdkSave.error(req, res, `No schema_definitions grammar for ${kind}.`);
     if (kind === "Template") reconstructExposedParameters(req.body ?? {});
     if (kind === "Profile") reconstructProfileParameterOverrides(req.body ?? {});
     const content = parseFormBody(schema, req.body ?? {});
-    if (req.session?.user?.id == null) return flashError(req, res, backTo(slug, draftId), "You must be logged in.");
+    if (req.session?.user?.id == null) return redirects.seu.sdkSave.error(req, res, "You must be logged in.");
     const actorId = String(req.session.user.id);
     const saved = await saveAuthoringDraft({ kind, id: draftId, content, actorId });
-    if (!saved.ok) return flashError(req, res, backTo(slug, draftId), saved.errors.join("; "));
+    if (!saved.ok) return redirects.seu.sdkSave.error(req, res, saved.errors.join("; "));
     const errors = validateAgainstSchema(schema, content);
     const msg = errors.length ? `Draft saved — ${errors.length} still to resolve before publish: ${errors.join("; ")}` : "Draft saved.";
-    return flashSuccess(req, res, backTo(slug, draftId), msg);
+    return redirects.seu.sdkSave.success(req, res, msg);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] POST .../save error", err as Error);
-    return flashError(req, res, backTo(slug, draftId), (err as Error).message);
+    return redirects.seu.sdkSave.error(req, res, (err as Error).message);
   }
 });
 
@@ -920,17 +910,17 @@ router.post("/sdk/:slug/:draftId/compose", requireDraftTenantScope(), requireDef
   const kind = resolveKind(slug);
   if (!kind) return next();
   const draftId = String(req.params.draftId);
-  if (req.session?.user?.id == null) return flashError(req, res, backTo(slug, draftId), "You must be logged in.");
+  if (req.session?.user?.id == null) return redirects.seu.sdkCompose.error(req, res, "You must be logged in.");
   try {
     const result = await composeAuthoringDraft({ kind, id: draftId, actorId: String(req.session.user.id) });
-    if (!result.ok) return flashError(req, res, backTo(slug, draftId), result.errors.join("; "));
-    if (result.note) return flashSuccess(req, res, backTo(slug, draftId), result.note);
+    if (!result.ok) return redirects.seu.sdkCompose.error(req, res, result.errors.join("; "));
+    if (result.note) return redirects.seu.sdkCompose.success(req, res, result.note);
     const from = result.composedFrom.join(", ");
     const conflictNote = result.conflicts.length ? ` — ${result.conflicts.length} field(s) could not be automatically combined: ${result.conflicts.join(" ")}` : "";
-    return flashSuccess(req, res, backTo(slug, draftId), `Composed from ${from}.${conflictNote}`);
+    return redirects.seu.sdkCompose.success(req, res, `Composed from ${from}.${conflictNote}`);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] POST .../compose error", err as Error);
-    return flashError(req, res, backTo(slug, draftId), (err as Error).message);
+    return redirects.seu.sdkCompose.error(req, res, (err as Error).message);
   }
 });
 
@@ -940,23 +930,23 @@ router.post("/sdk/:slug/:draftId/import", requireDraftTenantScope(), requireDefi
   if (!kind) return next();
   const draftId = String(req.params.draftId);
   const raw = req.body?.importedJson;
-  if (typeof raw !== "string" || !raw.trim()) return flashError(req, res, backTo(slug, draftId), "Paste a JSON document to import.");
+  if (typeof raw !== "string" || !raw.trim()) return redirects.seu.sdkImport.error(req, res, "Paste a JSON document to import.");
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const draft = await getAuthoringDraft(kind, draftId);
     const pinnedSchemaDefinitionId = typeof draft?.content?.schemaVersion === "string" ? draft.content.schemaVersion : undefined;
     const resolved = await resolvedSchemaFor(kind, pinnedSchemaDefinitionId);
     const schema = resolved?.schema ?? null;
-    if (!schema) return flashError(req, res, backTo(slug, draftId), `No schema_definitions grammar for ${kind}.`);
+    if (!schema) return redirects.seu.sdkImport.error(req, res, `No schema_definitions grammar for ${kind}.`);
     const errors = validateAgainstSchema(schema, parsed);
-    if (errors.length) return flashError(req, res, backTo(slug, draftId), `Import rejected — invalid against the ${kind} schema: ${errors.join("; ")}`);
-    if (req.session?.user?.id == null) return flashError(req, res, backTo(slug, draftId), "You must be logged in.");
+    if (errors.length) return redirects.seu.sdkImport.error(req, res, `Import rejected — invalid against the ${kind} schema: ${errors.join("; ")}`);
+    if (req.session?.user?.id == null) return redirects.seu.sdkImport.error(req, res, "You must be logged in.");
     const actorId = String(req.session.user.id);
     const saved = await saveAuthoringDraft({ kind, id: draftId, content: parsed, actorId });
-    if (!saved.ok) return flashError(req, res, backTo(slug, draftId), saved.errors.join("; "));
-    return flashSuccess(req, res, backTo(slug, draftId), "Imported.");
+    if (!saved.ok) return redirects.seu.sdkImport.error(req, res, saved.errors.join("; "));
+    return redirects.seu.sdkImport.success(req, res, "Imported.");
   } catch (err) {
-    return flashError(req, res, backTo(slug, draftId), `Invalid JSON: ${(err as Error).message}`);
+    return redirects.seu.sdkImport.error(req, res, `Invalid JSON: ${(err as Error).message}`);
   }
 });
 
@@ -966,15 +956,15 @@ router.post("/sdk/:slug/:draftId/publish", requireDraftTenantScope(), requireRow
   if (!kind) return next();
   const draftId = String(req.params.draftId);
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-  if (!actorId) return flashError(req, res, backTo(slug, draftId), "No actor identity on session.");
+  if (!actorId) return redirects.seu.sdkPublish.error(req, res, "No actor identity on session.");
   try {
     const result = await publishAuthoringDraft({ kind, id: draftId, actorId });
-    if (!result.ok) return flashError(req, res, backTo(slug, draftId), result.errors.join("; "));
+    if (!result.ok) return redirects.seu.sdkPublish.error(req, res, result.errors.join("; "));
     const msg = result.status === "Active" ? `${kind} reached Active — published and registered.` : `Advanced to ${result.status}.`;
-    return flashSuccess(req, res, backToIndex(slug), msg);
+    return redirects.seu.sdkPublish.success(req, res, msg);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] POST .../publish error", err as Error);
-    return flashError(req, res, backTo(slug, draftId), (err as Error).message);
+    return redirects.seu.sdkPublish.error(req, res, (err as Error).message);
   }
 });
 
@@ -985,49 +975,49 @@ router.post("/sdk/:slug/:draftId/transition", requireDraftTenantScope(), require
   const draftId = String(req.params.draftId);
   const { targetState, comment } = req.body ?? {};
   if (req.session?.user?.id == null) {
-    return flashError(req, res, backTo(slug, draftId), "You must be logged in to create an Objective.");
+    return redirects.seu.sdkTransition.error(req, res, "You must be logged in to create an Objective.");
   }
   const actorId = String(req.session.user.id);
   try {
     if (kind === "Pack") {
       const result = await transitionPack({ packId: draftId, targetState, actorId, comment: typeof comment === "string" ? comment : undefined });
-      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
-      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.appliedTransition.toState}".`);
+      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
+      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
     }
     if (kind === "Template") {
       const result = await transitionTemplate({ templateId: draftId, targetState: targetState as never, actorId });
-      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
-      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.template.status}".`);
+      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${result.detail ?? result.reason}`);
+      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.template.status}".`);
     }
     if (kind === "Profile") {
       const result = await transitionProfile({ profileId: draftId, targetState: targetState as never, actorId });
-      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
-      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.profile.status}".`);
+      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${result.detail ?? result.reason}`);
+      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.profile.status}".`);
     }
     if (kind === "Deliverable") {
       const result = await transitionDeliverableDefinition({ deliverableDefinitionId: draftId, targetState: targetState as never, actorId });
-      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
-      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.deliverableDefinition.status}".`);
+      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${result.detail ?? result.reason}`);
+      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.deliverableDefinition.status}".`);
     }
     if (kind === "Service") {
       const result = await transitionServiceDefinition({ serviceDefinitionId: draftId, targetState: targetState as never, actorId });
-      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
-      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.serviceDefinition.status}".`);
+      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${result.detail ?? result.reason}`);
+      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.serviceDefinition.status}".`);
     }
     if (kind === "Policy") {
       const result = await transitionPolicyDefinition({ policyDefinitionId: draftId, targetState: targetState as never, actorId });
-      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
-      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.policyDefinition.status}".`);
+      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${result.detail ?? result.reason}`);
+      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.policyDefinition.status}".`);
     }
     if (kind === "Capability") {
       const result = await transitionCapabilityDefinition({ capabilityDefinitionId: draftId, targetState: targetState as never, actorId });
-      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
-      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.capabilityDefinition.status}".`);
+      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${result.detail ?? result.reason}`);
+      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.capabilityDefinition.status}".`);
     }
     return next();
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] POST .../transition error", err as Error);
-    return flashError(req, res, backTo(slug, draftId), (err as Error).message);
+    return redirects.seu.sdkTransition.error(req, res, (err as Error).message);
   }
 });
 

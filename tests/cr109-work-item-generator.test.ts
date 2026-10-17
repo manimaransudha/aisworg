@@ -27,13 +27,14 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
+import { seusDB } from "../src/dblayer/seusDB.js";
 import { knowledgeItemsDB } from "../src/dblayer/knowledgeItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { decisionsDB } from "../src/dblayer/decisionsDB.js";
 import { governanceEvaluationOutcomesDB } from "../src/dblayer/governanceEvaluationOutcomesDB.js";
 import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
-import { driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, waitForDispatchedWorkItem, transitionDeliverableSync, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, ensureTestFixturePacks, waitForDispatchedWorkItem, transitionDeliverableSync, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
@@ -77,9 +78,11 @@ async function registerOrganisationName(code: string): Promise<void> {
 // Deliverable transition also checks its owning SEU isn't blocked
 // (seu_blocked). This Profile omits that optional Pack entirely so real
 // commissioning actually reaches Operational.
-async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>): Promise<string> {
+async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>, holdAtActivated?: (seuId: string) => Promise<void>): Promise<string> {
+  // db:clean-slate does not seed the cr104 demo; seedAllTestFixturePacks (seedCr104Demo) does, and is idempotent.
+  await ensureTestFixturePacks();
   const { data: template } = await templatesDB.findActiveByCode("cr104-demo-minimal");
-  assert.ok(template, "cr104-demo-minimal Template must be seeded (db:clean-slate) before this test runs");
+  assert.ok(template, "cr104-demo-minimal Template must exist after ensureTestFixturePacks");
 
   const profileCode = `cr109-wig-profile-${randomUUID().slice(0, 8)}`;
   const profileResult = await publishProfile({
@@ -130,7 +133,19 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
   assert.equal(commissioned.ok, true, !commissioned.ok ? JSON.stringify(commissioned) : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
 
-  const driven = await driveCommissioningToActive({ seuId: commissioned.seu.id, actorId: TESTER_ALL_ID, beforeCommenceWork });
+  // A hold needs an actor that does not yet hold the commence-work badge, which TESTER_ALL always does. A fresh
+  // participants_master row is that actor; driveCommissioningToActive grants it each badge its hops need.
+  let driveActorId = TESTER_ALL_ID;
+  if (holdAtActivated) {
+    const { data: seu } = await seusDB.findById(commissioned.seu.id);
+    const { data: holdActor, error } = await participantsMasterDB.create({
+      tenantId: seu!.tenant_id ?? PLATFORM_TENANT_ID, type: "Human", displayName: `Hold Actor ${randomUUID()}`,
+      capabilities: [], competency: {}, userId: null,
+    });
+    assert.ok(holdActor, `hold actor must be created: ${error}`);
+    driveActorId = holdActor!.id;
+  }
+  const driven = await driveCommissioningToActive({ seuId: commissioned.seu.id, actorId: driveActorId, beforeCommenceWork, holdAtActivated });
   assert.equal(driven.ok, true, !driven.ok ? JSON.stringify(driven) : "assertion failed");
   return commissioned.seu.id;
 }
@@ -383,9 +398,9 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
 });
 
 test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model also blocks Source Code, with no new dependency edge", async () => {
-  // The open Decision exists before commence-work, because the engine makes the governed hop at Operational and a
-  // Decision raised afterwards cannot block a hop already made.
-  const seuId = await commissionCr104MinimalSeu("cr109-transitivity", async (activatedSeuId) => {
+  // The SEU is held at Activated, with its Deliverables already created, while the open Decision is attached. The
+  // engine then makes its governed hop at Operational, so the Decision exists before the hop is evaluated.
+  const seuId = await commissionCr104MinimalSeu("cr109-transitivity", undefined, async (activatedSeuId) => {
     const activatedDetail = await getSeuDetailView(activatedSeuId);
     const req = activatedDetail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
     assert.ok(req);

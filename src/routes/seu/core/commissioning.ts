@@ -233,20 +233,6 @@ export async function finalizeCommissioning(input: {
   const composedPacks = ebm.composed_packs;
   const compositionReport = ebm.composition_report;
 
-  let previousStepEvent = { id: input.causationId };
-  for (const [from, to] of PRE_ASSETS_STEPS) {
-    const step = await transitionEngine.evaluate({ entityType: "SEU", fromState: from, toState: to, actorId: input.actorId, entityId: seu.id, context: {} });
-    if (!step.allowed) {
-      return { ok: false, stage: `transition_${from}_to_${to}`, reason: describeRejection(step), seuId: seu.id };
-    }
-    if (!step.authorityBadge) throw new Error(`no authority badge resolved for SEU ${from} -> ${to} — the Transition Definition declares no verb`);
-    await seusDB.updateLifecycleState(seu.id, to);
-    previousStepEvent = await eventBus.publish({
-      eventType: step.eventType ?? `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
-      causationId: previousStepEvent.id, actorId: input.actorId, authorityBadge: step.authorityBadge,
-    });
-  }
-
   const requiredCapabilitiesById = new Map<string, CapabilityRow>();
   for (const t of templates) {
     const { data: caps } = await templatesDB.getRequiredCapabilities(t.id);
@@ -287,6 +273,20 @@ export async function finalizeCommissioning(input: {
       authorBadge: systemActor.authorBadge,
     });
     if (deliverable) deliverableIdByName.set(name, deliverable.id);
+  }
+
+  let previousStepEvent = { id: input.causationId };
+  for (const [from, to] of PRE_ASSETS_STEPS) {
+    const step = await transitionEngine.evaluate({ entityType: "SEU", fromState: from, toState: to, actorId: input.actorId, entityId: seu.id, context: {} });
+    if (!step.allowed) {
+      return { ok: false, stage: `transition_${from}_to_${to}`, reason: describeRejection(step), seuId: seu.id };
+    }
+    if (!step.authorityBadge) throw new Error(`no authority badge resolved for SEU ${from} -> ${to} — the Transition Definition declares no verb`);
+    await seusDB.updateLifecycleState(seu.id, to);
+    previousStepEvent = await eventBus.publish({
+      eventType: step.eventType ?? `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
+      causationId: previousStepEvent.id, actorId: input.actorId, authorityBadge: step.authorityBadge,
+    });
   }
 
   const report: CommissioningReport = {

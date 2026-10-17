@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { listDeliverableDefinitionsWithNextStates, copyDeliverableDefinitionAsNewDraft } from "../core/deliverableDefinitions.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
@@ -47,19 +48,18 @@ router.get("/deliverable-definitions", attachVM("seu/deliverable-definitions/ind
 });
 
 router.post("/deliverable-definitions/:id/copy", async (req: Request, res: Response) => {
-  const backTo = "/aisworg/seu/deliverable-definitions";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-  if (!actorId) return flashError(req, res, backTo, "Sign in required.");
+  if (!actorId) return redirects.seu.deliverableDefinitionsCopy.error(req, res, "Sign in required.");
   const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "deliverable_define" });
-  if (!auth.allowed) return flashError(req, res, backTo, "You don't hold the deliverable_define badge.");
+  if (!auth.allowed) return redirects.seu.deliverableDefinitionsCopy.error(req, res, "You don't hold the deliverable_define badge.");
   const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "deliverable_define");
   try {
     const result = await copyDeliverableDefinitionAsNewDraft(String(req.params.id), actorId, authorBadge);
-    if (!result.ok) return flashError(req, res, backTo, `Copy failed: ${result.errors.join("; ")}`);
-    return flashSuccess(req, res, `/aisworg/seu/sdk/deliverable-authoring/${result.draftId}`, "Deliverable Definition copied — a new Draft is ready to edit.");
+    if (!result.ok) return redirects.seu.deliverableDefinitionsCopy.error(req, res, `Copy failed: ${result.errors.join("; ")}`);
+    return redirects.seu.deliverableDefinitionsCopy.success(req, res, "Deliverable Definition copied — a new Draft is ready to edit.", `/aisworg/seu/sdk/deliverable-authoring/${result.draftId}`);
   } catch (err) {
     logger.error("[web/seu/deliverableDefinitionRegistry] POST /deliverable-definitions/:id/copy error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.deliverableDefinitionsCopy.error(req, res, (err as Error).message);
   }
 });
 

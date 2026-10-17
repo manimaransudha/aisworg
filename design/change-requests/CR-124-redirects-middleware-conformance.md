@@ -2,7 +2,7 @@
 
 **Raised:** 2026-10-17 · **Origin:** `coding_principles.md` (web controller template) requires every redirect on error to use `middleware/redirects.js`. The implementation does not follow it. `src/middleware/redirects.ts` holds only two stock-application entries (`dashboard`, `stocks`) and no route imports it.
 
-**Status:** 🟡 Raised — design in progress
+**Status:** 🟡 Built pending testing
 
 ## Fix the following
 
@@ -11,6 +11,7 @@
 | 1 | Web controllers redirect on error and on success through `redirects.<area>.<page>.<outcome>(req, res, msg)`, as `coding_principles.md` specifies. |
 | 2 | `src/middleware/redirects.ts` holds the real destinations, replacing the stock-application `dashboard` and `stocks` entries. |
 | 3 | Direct `flashError`, `flashSuccess` and `res.redirect` calls in web controllers move to `redirects`. |
+| 4 | A skill describes how to create a new route as one unit: the `route_authority` row, the `attachVM` rules and the `redirects.ts` entry, so that new controllers follow the guideline. |
 
 ## Inventory
 
@@ -52,13 +53,60 @@ Findings that fall outside the plain `flashError` and `flashSuccess` form:
 
 | # | Decision | Basis |
 |---|---|---|
-| 1 | The destination is declared once per page in `redirects.ts` as `redirects.<area>.<page>.<outcome>(req, res, msg)`. Outcomes are `error`, `success` and `authfail`. Controllers do not write the path. | `coding_principles.md` lines 254-268 |
+| 1 | The destination is declared once per page in `redirects.ts` as `redirects.<area>.<page>.<outcome>(req, res, msg)`. Outcomes are `error`, `success`, `authfail`, `rolefail`, `badgefail` and `tenantfail`. Controllers do not write the path. | `coding_principles.md` lines 254-268 |
 | 2 | `flashError` and `flashSuccess` remain the primitives. Each `redirects` entry is a one-line call to them. | `coding_principles.md` lines 217-236 and 254-268 |
-| 3 | `requireBadge` and `requireTenantScope` keep their own `redirectTo` and `notFoundRedirect`, given as a literal or a function of `req`. They do not read from `redirects`. | `coding_principles.md` lines 145-159 and 174-186 |
+| 3 | The authority middleware redirect through `redirects`. `requireRole` calls `rolefail`, `requireBadge` calls `badgefail`, and `requireTenant` and `requireTenantScope` call `tenantfail`. | User instruction, 2026-10-17 |
+| 4 | The authority middleware work out the `redirects.<area>.<page>` entry from the request path. Routes do not name the page when they mount the middleware. | User instruction, 2026-10-17 |
+| 5 | `redirects.ts` is keyed by path prefix. The authority middleware pick the entry whose prefix is the longest match for the request path. The `route_authority` table and cache are not used for this, and the table is unchanged. | User instruction, 2026-10-17 |
+| 6 | A destination that depends on the request is a function of `req` that reads `req.params`, `req.query` or `req.body`. The signature stays `(req, res, msg)`. No further parameter is added. | User instruction, 2026-10-17 |
+| 7 | The destination is always the page that the request path carries. A value created by the handler is not passed to `redirects`. | User instruction, 2026-10-17 |
+| 8 | When a successful create, copy or commission lands on the entity it created, the call passes that path explicitly as an optional fourth argument, `redirects.<area>.<page>.success(req, res, msg, path)`. The id is not in the request path, so the page lookup cannot supply it. | User instruction, 2026-10-17 |
+| 9 | The purpose is to regulate flash messages. Only `redirects.ts` calls `flashError` and `flashSuccess`. No controller, middleware or other code calls them, and no code assigns `req.session.flash` by hand. | User instruction, 2026-10-17 |
+| 10 | The `{ info }` messages in `web/auth.ts` become `success`. Every flash is `{ type, message }` with `type` of `error` or `success`. | User instruction, 2026-10-17 |
+| 11 | The first pass covers all web routes. | User instruction, 2026-10-17 |
+
+## Built (2026-10-17)
+
+| Area | Change |
+|---|---|
+| `src/middleware/redirects.ts` | Rewritten. 92 pages (`auth` 5, `home` 2, `seu` 85), each declared with a path prefix. `redirectsFor(req)` picks the entry with the longest matching prefix. The module is the only caller of `flashError` and `flashSuccess`. Every page has `error`, `success`, `authfail`, `rolefail`, `badgefail` and `tenantfail`. |
+| Controllers | 378 `flashError` and `flashSuccess` calls in 22 files under `src/routes` now call `redirects.<area>.<page>.<outcome>`. A call whose destination differs from the page's declared one passes it as the fourth `path` argument. |
+| `src/routes/web/auth.ts` | 21 hand-written `session.flash` assignments replaced by `redirects.auth.*`. `{ info }` messages became `success`. The login, forgot-password and users pages read the flash through `getFlash`. |
+| Other hand-written flash | `objectives.ts` (3 assignments), `tenantAdmin.ts` (1) and `sdkAuthoring.ts` `denyAuthoring` (1) now go through `redirects`. |
+| `sdkAuthoring.ts` | The `wrote()` helper and its 10 callers use `redirectsFor(req)` and no longer pass a destination. |
+| Middleware | `requireBadge`, `requireRole`, `requireTenantScope` and `routeAuthorityGate` call `badgefail`, `rolefail`, `tenantfail` and `authfail`. The `redirectTo` and `notFoundRedirect` options are removed from the middleware and from their callers. |
+| `src/types/express-session.d.ts` | `flash` is `{ type: "error" | "success"; message: string }`. |
+| `src/views/auth/users.ejs` | Renders `flash.type` and `flash.message`. |
+| `.claude/skills/new-route/SKILL.md` | New skill: the controller, the `route_authority` row, the ViewModel, the view and the `redirects.ts` entry as one unit. |
+
+## Test fixtures updated in the same pass
+
+| File | Change |
+|---|---|
+| `tests/web-flow.e2e.test.ts` | The badge-denied `GET /seu/objectives/new` assertion expects `/aisworg`, because gate denials no longer return to the `Referer`. Two comments describing the `safeBack` behaviour were updated. |
+
+## Incidental changes in the same pass
+
+- Deleted `src/routes/index.ts-E`, a stray file left by an earlier `sed -i` on macOS.
+- Removed 52 local `backTo`-style constants that nothing references any more.
+
+## Behaviour changes to check
+
+| # | Change |
+|---|---|
+| 1 | A gate denial lands on the page's `deny` destination, `/aisworg` by default, and no longer on the `Referer`. |
+| 2 | A missing session in `requireBadge`, `requireRole` and `routeAuthorityGate` now flashes "Session expired" through `authfail`. Before, it redirected to the login page with no message. |
+| 3 | A web route with no `route_authority` row is denied through `badgefail`. |
+| 4 | `denyAuthoring` in `sdkAuthoring.ts` lands on the page's `badgefail` destination, not the `Referer`. |
+| 5 | `devActAs`, `tenantAdmin` and `demo` pass their original destination as the `path` argument, so their behaviour is unchanged. |
+
+## Not run
+
+`tsc`, `db:clean-slate` and the test suite were not run. The build has been read but not compiled.
 
 ## Still open
 
 | Point | Question |
 |---|---|
-| Dynamic destinations | Routes whose target depends on `:id` need a defined form in `redirects`. The principles show only literal paths there. |
-| Scope of the first pass | All web routes, or one area first. |
+| `coding_principles.md` | Lines 145-159 and 174-186 still describe `redirectTo` and `notFoundRedirect` on `requireBadge` and `requireTenantScope`, and the `redirects.ts` template still shows one `error` and `success` pair per page. They disagree with the build. |
+| Plain redirects | 14 `res.redirect` calls that carry no message remain, along with the gate redirects in `app.ts`, `gatekeeper.ts` and `errorHandler.ts`. Decision 9 covers flash messages only. |

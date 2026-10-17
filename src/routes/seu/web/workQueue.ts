@@ -6,7 +6,8 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
+import { redirects } from "../../../middleware/redirects.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
 import { workItemsDB } from "../../../dblayer/workItemsDB.js";
@@ -50,11 +51,10 @@ router.get("/seus/:id/work-queue", attachVM("seu/workqueue/index"), async (req: 
 
 router.post("/seus/:id/work-items/:workItemId/complete", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/${seuId}/work-queue`;
   const { outcome, reference } = req.body ?? {};
 
   if (typeof outcome !== "string" || !["done", "failed", "blocked"].includes(outcome)) {
-    return flashError(req, res, backTo, "Outcome must be done, failed or blocked.");
+    return redirects.seu.seusWorkItemsComplete.error(req, res, "Outcome must be done, failed or blocked.");
   }
   try {
     const result = await completeWorkItem({
@@ -63,15 +63,15 @@ router.post("/seus/:id/work-items/:workItemId/complete", async (req: Request, re
       reference: typeof reference === "string" && reference.trim() !== "" ? reference : null,
     });
     if (!result.ok) {
-      return flashError(req, res, backTo, `Could not record result: ${result.detail}`);
+      return redirects.seu.seusWorkItemsComplete.error(req, res, `Could not record result: ${result.detail}`);
     }
     if (result.outcome === "done") {
-      return flashSuccess(req, res, backTo, `Result recorded for Deliverable "${result.deliverable.name}".`);
+      return redirects.seu.seusWorkItemsComplete.success(req, res, `Result recorded for Deliverable "${result.deliverable.name}".`);
     }
-    return flashSuccess(req, res, backTo, `Reported "${result.outcome}" — the work was not completed and an Attention Item was raised.`);
+    return redirects.seu.seusWorkItemsComplete.success(req, res, `Reported "${result.outcome}" — the work was not completed and an Attention Item was raised.`);
   } catch (err) {
     logger.error("[web/seu/workQueue] POST complete error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
+    return redirects.seu.seusWorkItemsComplete.error(req, res, (err as Error).message);
   }
 });
 

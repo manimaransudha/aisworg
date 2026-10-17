@@ -1,7 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../utils/logger.js";
-import { flashError } from "../utils/flash.js";
-import { safeBack } from "./safeBack.js";
+import { redirectsFor } from "./redirects.js";
 import { resolveHeldBadges } from "../domain/identity/heldBadges.js";
 import { resolveHeldRoles } from "../domain/identity/heldRoles.js";
 import { lookupRouteAuthority } from "../domain/identity/routeAuthorityCache.js";
@@ -13,13 +12,13 @@ function apiMode(path: string): boolean {
   return path.startsWith("/aisworg/api/");
 }
 
-function deny(req: Request, res: Response, api: boolean, reason: string): void {
+function deny(req: Request, res: Response, api: boolean, reason: string, outcome: "badgefail" | "rolefail"): void {
   logger.warn(`[routeAuthorityGate] ${req.session?.user?.email ?? "(no session)"} denied ${req.method} ${req.path} — ${reason}`);
   if (api) {
     res.status(403).json({ success: false, message: DENY_MESSAGE });
     return;
   }
-  flashError(req, res, safeBack(req), DENY_MESSAGE);
+  redirectsFor(req)[outcome](req, res, DENY_MESSAGE);
 }
 
 function isSelfCrud(path: string): boolean {
@@ -43,7 +42,7 @@ export function routeAuthorityGate() {
         next();
         return;
       }
-      deny(req, res, api, "no route_authority row for this method+path");
+      deny(req, res, api, "no route_authority row for this method+path", "badgefail");
       return;
     }
 
@@ -59,7 +58,7 @@ export function routeAuthorityGate() {
         res.status(401).json({ success: false, message: "Session expired — please log in again." });
         return;
       }
-      res.redirect("/aisworg/login");
+      redirectsFor(req).authfail(req, res, "Session expired — please log in again.");
       return;
     }
 
@@ -70,7 +69,7 @@ export function routeAuthorityGate() {
       const held = await resolveHeldBadges(req);
       const satisfied = matchMode === "any" ? badges.some((b) => held.has(b)) : badges.every((b) => held.has(b));
       if (!(satisfied || (held.isRoot && rootBypassAllowed))) {
-        deny(req, res, api, `missing badge(s) [${badges.join(", ")}]`);
+        deny(req, res, api, `missing badge(s) [${badges.join(", ")}]`, "badgefail");
         return;
       }
     }
@@ -79,7 +78,7 @@ export function routeAuthorityGate() {
       const heldRoles = await resolveHeldRoles(user.id, {});
       const satisfied = matchMode === "any" ? roles.some((r) => heldRoles.has(r)) : roles.every((r) => heldRoles.has(r));
       if (!(satisfied || heldRoles.isSuperuser)) {
-        deny(req, res, api, `missing role(s) [${roles.join(", ")}]`);
+        deny(req, res, api, `missing role(s) [${roles.join(", ")}]`, "rolefail");
         return;
       }
     }
