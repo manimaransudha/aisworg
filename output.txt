@@ -10377,3 +10377,185 @@
 [eventBus] published 'CommandGenerated' (8ce83333-e3da-48a0-8547-32463e3a013c) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=02520a28-2815-46ee-94e3-6056fac2da3c at t=1792201303002 — 1 handler(s): commandGenerated
 [eventBus] dispatching 'CommandGenerated' (8ce83333-e3da-48a0-8547-32463e3a013c) to handler 'commandGenerated'
 [eventBus] handler 'deliverableKickoff' consumed 'CapabilityFulfilled' (abefc561-1e3f-4de1-ab85-476cd4699f24)
+[eventBus] published 'DeliverableBlocked' (dac08409-b23a-4419-9954-97d02f1bef6e) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b49b4c68-0c5e-4f0d-9a82-15c41cf82885 at t=1792201303330 — 0 handler(s): none
+[eventBus] published 'WorkItemGenerated' (f3933387-53e3-4e06-9dd6-d29891a0a85f) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=02bc9908-538e-480d-96b1-8675e66cdfb7 at t=1792201303474 — 1 handler(s): workItemGenerated
+[eventBus] dispatching 'WorkItemGenerated' (f3933387-53e3-4e06-9dd6-d29891a0a85f) to handler 'workItemGenerated'
+[eventBus] handler 'commandGenerated' consumed 'CommandGenerated' (8ce83333-e3da-48a0-8547-32463e3a013c)
+[eventBus] published 'DeliverableBlocked' (6d88ee50-46e0-4d66-bb4f-6e9e481f2960) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=661a30ad-1401-4e43-9eac-7643b9ba4d5a at t=1792201303814 — 0 handler(s): none
+[eventBus] handler 'deliverableKickoff' consumed 'DispatchRejected' (ba9037b4-4a09-49db-9386-2b019711d0de)
+[eventBus] published 'ParticipantAssigned' (9383dfa5-baed-49c8-8f55-a1ff3bd2fccf) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=92d9e944-c511-4d72-8c68-f4ef34bc2a14 at t=1792201304230 — 0 handler(s): none
+[eventBus] published 'ObligationUpdated' (2d155a6a-a538-4330-a655-9f8f5519552d) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b0ba9cf9-b6b3-462d-9c27-eed872725f52 at t=1792201304307 — 0 handler(s): none
+[eventBus] published 'ParticipantSelected' (8be5c28d-838c-414e-a10d-ddee860703b7) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=02bc9908-538e-480d-96b1-8675e66cdfb7 at t=1792201304308 — 0 handler(s): none
+[eventBus] published 'ObligationTransitioned' (1a35ebdf-a33b-4b46-b48f-7cae1d69a3af) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b0ba9cf9-b6b3-462d-9c27-eed872725f52 at t=1792201304342 — 2 handler(s): executionEngineKickoff, deliverableKickoff
+[eventBus] dispatching 'ObligationTransitioned' (1a35ebdf-a33b-4b46-b48f-7cae1d69a3af) to handler 'executionEngineKickoff'
+[eventBus] handler 'executionEngineKickoff' consumed 'ObligationTransitioned' (1a35ebdf-a33b-4b46-b48f-7cae1d69a3af)
+[eventBus] published 'WorkItemDispatched' (3657c732-f760-4121-90ee-b90eceddf87c) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=02bc9908-538e-480d-96b1-8675e66cdfb7 at t=1792201304343 — 1 handler(s): assignmentDelivery
+[eventBus] dispatching 'WorkItemDispatched' (3657c732-f760-4121-90ee-b90eceddf87c) to handler 'assignmentDelivery'
+[eventBus] handler 'workItemGenerated' consumed 'WorkItemGenerated' (f3933387-53e3-4e06-9dd6-d29891a0a85f)
+[eventBus] dispatching 'ObligationTransitioned' (1a35ebdf-a33b-4b46-b48f-7cae1d69a3af) to handler 'deliverableKickoff'
+[eventBus] handler 'deliverableKickoff' consumed 'ObligationTransitioned' (1a35ebdf-a33b-4b46-b48f-7cae1d69a3af)
+[2026-10-17T01:41:44.716Z] [INFO] [humanOnUiAdapter] Work Item 02bc9908-538e-480d-96b1-8675e66cdfb7 for Deliverable "Requirements Analysis Model" is available on the human-on-UI surface (In Progress -> In Progress).
+[eventBus] handler 'assignmentDelivery' consumed 'WorkItemDispatched' (3657c732-f760-4121-90ee-b90eceddf87c)
+[eventBus] published 'ObligationAssigned' (45a1c5ec-5fbc-4774-a707-7952f327f82c) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b0ba9cf9-b6b3-462d-9c27-eed872725f52 at t=1792201304716 — 0 handler(s): none
+[eventBus] published 'ObligationTransitioned' (a03bab5f-4bad-4bff-94d3-3bec7b90f1fa) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b0ba9cf9-b6b3-462d-9c27-eed872725f52 at t=1792201304749 — 2 handler(s): executionEngineKickoff, deliverableKickoff
+[eventBus] dispatching 'ObligationTransitioned' (a03bab5f-4bad-4bff-94d3-3bec7b90f1fa) to handler 'executionEngineKickoff'
+[eventBus] handler 'executionEngineKickoff' consumed 'ObligationTransitioned' (a03bab5f-4bad-4bff-94d3-3bec7b90f1fa)
+[eventBus] dispatching 'ObligationTransitioned' (a03bab5f-4bad-4bff-94d3-3bec7b90f1fa) to handler 'deliverableKickoff'
+[eventBus] handler 'deliverableKickoff' consumed 'ObligationTransitioned' (a03bab5f-4bad-4bff-94d3-3bec7b90f1fa)
+[eventBus] published 'ObligationProcessing' (e58d3be3-02ac-4e5c-ad20-52298897153b) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b0ba9cf9-b6b3-462d-9c27-eed872725f52 at t=1792201305142 — 0 handler(s): none
+[eventBus] published 'ObligationTransitioned' (db7dd80a-4df5-41d3-bbc3-1f78b614cea1) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b0ba9cf9-b6b3-462d-9c27-eed872725f52 at t=1792201305179 — 2 handler(s): executionEngineKickoff, deliverableKickoff
+[eventBus] dispatching 'ObligationTransitioned' (db7dd80a-4df5-41d3-bbc3-1f78b614cea1) to handler 'executionEngineKickoff'
+[eventBus] handler 'executionEngineKickoff' consumed 'ObligationTransitioned' (db7dd80a-4df5-41d3-bbc3-1f78b614cea1)
+[eventBus] dispatching 'ObligationTransitioned' (db7dd80a-4df5-41d3-bbc3-1f78b614cea1) to handler 'deliverableKickoff'
+[eventBus] handler 'deliverableKickoff' consumed 'ObligationTransitioned' (db7dd80a-4df5-41d3-bbc3-1f78b614cea1)
+[eventBus] published 'ObligationResolved' (80b19517-86a3-48b0-b5a0-ae5cb9bf10f3) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b0ba9cf9-b6b3-462d-9c27-eed872725f52 at t=1792201305571 — 0 handler(s): none
+[eventBus] published 'ObligationTransitioned' (2c1d3951-a9e9-43ff-a02a-18eea72abfb9) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b0ba9cf9-b6b3-462d-9c27-eed872725f52 at t=1792201305605 — 2 handler(s): executionEngineKickoff, deliverableKickoff
+[eventBus] dispatching 'ObligationTransitioned' (2c1d3951-a9e9-43ff-a02a-18eea72abfb9) to handler 'executionEngineKickoff'
+[eventBus] handler 'executionEngineKickoff' consumed 'ObligationTransitioned' (2c1d3951-a9e9-43ff-a02a-18eea72abfb9)
+[eventBus] dispatching 'ObligationTransitioned' (2c1d3951-a9e9-43ff-a02a-18eea72abfb9) to handler 'deliverableKickoff'
+[eventBus] handler 'deliverableKickoff' consumed 'ObligationTransitioned' (2c1d3951-a9e9-43ff-a02a-18eea72abfb9)
+[eventBus] published 'ObligationVerified' (f4bea6f9-689f-4542-ab7a-f21a201fb3fc) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b0ba9cf9-b6b3-462d-9c27-eed872725f52 at t=1792201305985 — 0 handler(s): none
+[eventBus] published 'ObligationTransitioned' (5076c844-c547-40e4-8521-982f9b10f0c3) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b0ba9cf9-b6b3-462d-9c27-eed872725f52 at t=1792201306020 — 2 handler(s): executionEngineKickoff, deliverableKickoff
+[eventBus] dispatching 'ObligationTransitioned' (5076c844-c547-40e4-8521-982f9b10f0c3) to handler 'executionEngineKickoff'
+[eventBus] handler 'executionEngineKickoff' consumed 'ObligationTransitioned' (5076c844-c547-40e4-8521-982f9b10f0c3)
+[eventBus] dispatching 'ObligationTransitioned' (5076c844-c547-40e4-8521-982f9b10f0c3) to handler 'deliverableKickoff'
+[eventBus] published 'AttentionItemTransitioned' (9fd91d19-622a-4c60-922b-de9028e971b1) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=abec5d44-007e-4d67-9b77-4104ce2f1273 at t=1792201306714 — 2 handler(s): executionEngineKickoff, deliverableKickoff
+[eventBus] dispatching 'AttentionItemTransitioned' (9fd91d19-622a-4c60-922b-de9028e971b1) to handler 'executionEngineKickoff'
+[eventBus] handler 'executionEngineKickoff' consumed 'AttentionItemTransitioned' (9fd91d19-622a-4c60-922b-de9028e971b1)
+[eventBus] dispatching 'AttentionItemTransitioned' (9fd91d19-622a-4c60-922b-de9028e971b1) to handler 'deliverableKickoff'
+[eventBus] handler 'deliverableKickoff' consumed 'AttentionItemTransitioned' (9fd91d19-622a-4c60-922b-de9028e971b1)
+[eventBus] published 'DeliverableBlocked' (9f95076b-f1ca-4c61-b074-d1ae9dff4a15) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b49b4c68-0c5e-4f0d-9a82-15c41cf82885 at t=1792201306968 — 0 handler(s): none
+[eventBus] published 'AttentionItemTransitioned' (801b740f-3d80-4e56-a15e-ff368a08ca7f) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=abec5d44-007e-4d67-9b77-4104ce2f1273 at t=1792201307114 — 2 handler(s): executionEngineKickoff, deliverableKickoff
+[eventBus] dispatching 'AttentionItemTransitioned' (801b740f-3d80-4e56-a15e-ff368a08ca7f) to handler 'executionEngineKickoff'
+[eventBus] handler 'executionEngineKickoff' consumed 'AttentionItemTransitioned' (801b740f-3d80-4e56-a15e-ff368a08ca7f)
+[eventBus] dispatching 'AttentionItemTransitioned' (801b740f-3d80-4e56-a15e-ff368a08ca7f) to handler 'deliverableKickoff'
+[eventBus] handler 'deliverableKickoff' consumed 'AttentionItemTransitioned' (801b740f-3d80-4e56-a15e-ff368a08ca7f)
+[eventBus] published 'DeliverableBlocked' (ccc64b69-8052-4414-8d09-e7ae0cca9356) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=661a30ad-1401-4e43-9eac-7643b9ba4d5a at t=1792201307406 — 0 handler(s): none
+[eventBus] handler 'deliverableKickoff' consumed 'ObligationTransitioned' (5076c844-c547-40e4-8521-982f9b10f0c3)
+[eventBus] published 'AttentionItemTransitioned' (ea4a88c6-2701-4e3c-8c5a-7eeed1071901) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=abec5d44-007e-4d67-9b77-4104ce2f1273 at t=1792201307496 — 2 handler(s): executionEngineKickoff, deliverableKickoff
+[eventBus] dispatching 'AttentionItemTransitioned' (ea4a88c6-2701-4e3c-8c5a-7eeed1071901) to handler 'executionEngineKickoff'
+[eventBus] handler 'executionEngineKickoff' consumed 'AttentionItemTransitioned' (ea4a88c6-2701-4e3c-8c5a-7eeed1071901)
+[eventBus] dispatching 'AttentionItemTransitioned' (ea4a88c6-2701-4e3c-8c5a-7eeed1071901) to handler 'deliverableKickoff'
+[eventBus] handler 'deliverableKickoff' consumed 'AttentionItemTransitioned' (ea4a88c6-2701-4e3c-8c5a-7eeed1071901)
+[eventBus] published 'QualityGatePassed' (e8e29a79-6f47-42d2-b9ec-41e1d55adef7) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=327c1344-08da-44b8-8575-66a86703c5cd at t=1792201307914 — 0 handler(s): none
+[eventBus] published 'AttentionItemTransitioned' (207475a2-d2ba-4be1-a174-df26ca5eafd7) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=abec5d44-007e-4d67-9b77-4104ce2f1273 at t=1792201307987 — 2 handler(s): executionEngineKickoff, deliverableKickoff
+[eventBus] dispatching 'AttentionItemTransitioned' (207475a2-d2ba-4be1-a174-df26ca5eafd7) to handler 'executionEngineKickoff'
+[eventBus] handler 'executionEngineKickoff' consumed 'AttentionItemTransitioned' (207475a2-d2ba-4be1-a174-df26ca5eafd7)
+[eventBus] dispatching 'AttentionItemTransitioned' (207475a2-d2ba-4be1-a174-df26ca5eafd7) to handler 'deliverableKickoff'
+[eventBus] published 'AttentionItemTransitioned' (43e131f5-82c9-437a-92b4-c81db2d31094) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=abec5d44-007e-4d67-9b77-4104ce2f1273 at t=1792201308416 — 2 handler(s): executionEngineKickoff, deliverableKickoff
+[eventBus] dispatching 'AttentionItemTransitioned' (43e131f5-82c9-437a-92b4-c81db2d31094) to handler 'executionEngineKickoff'
+[eventBus] handler 'executionEngineKickoff' consumed 'AttentionItemTransitioned' (43e131f5-82c9-437a-92b4-c81db2d31094)
+[eventBus] dispatching 'AttentionItemTransitioned' (43e131f5-82c9-437a-92b4-c81db2d31094) to handler 'deliverableKickoff'
+[eventBus] published 'DeliverableBlocked' (69fc0121-3006-4155-a3ae-7abfbc1a3172) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b49b4c68-0c5e-4f0d-9a82-15c41cf82885 at t=1792201308768 — 0 handler(s): none
+[eventBus] published 'DeliverableBlocked' (c3f64303-f7e2-430f-9b1e-a53bd77df989) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b49b4c68-0c5e-4f0d-9a82-15c41cf82885 at t=1792201309235 — 0 handler(s): none
+[eventBus] published 'DeliverableBlocked' (375d89f7-7322-4343-82d0-1f71a3f2108b) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=661a30ad-1401-4e43-9eac-7643b9ba4d5a at t=1792201309293 — 0 handler(s): none
+[eventBus] handler 'deliverableKickoff' consumed 'AttentionItemTransitioned' (207475a2-d2ba-4be1-a174-df26ca5eafd7)
+[eventBus] published 'DeliverableBlocked' (b868ae44-1da6-489f-a331-13be4747141e) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=661a30ad-1401-4e43-9eac-7643b9ba4d5a at t=1792201309720 — 0 handler(s): none
+[eventBus] handler 'deliverableKickoff' consumed 'AttentionItemTransitioned' (43e131f5-82c9-437a-92b4-c81db2d31094)
+[waitForDispatchedWorkItem] stage 1: polling for Command 18be85f2-975a-4e87-b580-802fce7fd660 In Progress -> In Progress to reach Dispatched/Deferred
+[waitForDispatchedWorkItem] stage 1 result: command=02520a28-2815-46ee-94e3-6056fac2da3c status=Dispatched
+[waitForDispatchedWorkItem] stage 2: polling for Work Item under Command 02520a28-2815-46ee-94e3-6056fac2da3c
+[waitForDispatchedWorkItem] stage 2 result: workItem=02bc9908-538e-480d-96b1-8675e66cdfb7 status=Dispatched
+[eventBus] published 'WorkItemCompleted' (445fc57d-5f25-4644-98d3-81b48551f3bb) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=02bc9908-538e-480d-96b1-8675e66cdfb7 at t=1792201310863 — 0 handler(s): none
+[eventBus] published 'WorkItemDisposed' (6452949a-f343-40c1-8846-98ccfbeb39c1) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=02bc9908-538e-480d-96b1-8675e66cdfb7 at t=1792201310936 — 0 handler(s): none
+[eventBus] published 'ParticipantIdle' (a6b6c7ad-babd-41f8-a0df-1916676af248) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=92d9e944-c511-4d72-8c68-f4ef34bc2a14 at t=1792201311051 — 0 handler(s): none
+[eventBus] published 'QualityGatePassed' (6300b0a3-bcfa-453b-876c-4d42a518907a) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=8b6f385d-b5f8-4094-b2b2-ffa02479ffe9 at t=1792201312075 — 0 handler(s): none
+[eventBus] published 'DeliverableReady' (893829e6-152f-4ff7-84c0-b5d889fdfc0e) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b49b4c68-0c5e-4f0d-9a82-15c41cf82885 at t=1792201313498 — 0 handler(s): none
+[eventBus] published 'DeliverableTransitioned' (9a886d6c-dbfe-4a6f-9a13-523cae1c58b4) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=18be85f2-975a-4e87-b580-802fce7fd660 at t=1792201313816 — 1 handler(s): deliverableKickoff
+[eventBus] dispatching 'DeliverableTransitioned' (9a886d6c-dbfe-4a6f-9a13-523cae1c58b4) to handler 'deliverableKickoff'
+[eventBus] published 'EvidenceCollected' (e5711f59-9f00-4f83-b523-32a4903d6a13) seuId=1e543aa9-08b8-4a52-94f0-f76482cb7022 originatingObjectId=5a5a1c7a-3a91-4dd2-9a4b-0e53b029dfa2 at t=1792201314989 — 0 handler(s): none
+[eventBus] published 'EvidenceLinked' (d593ba35-fb58-4360-8dfc-6b4b6867e485) seuId=1e543aa9-08b8-4a52-94f0-f76482cb7022 originatingObjectId=5a5a1c7a-3a91-4dd2-9a4b-0e53b029dfa2 at t=1792201315245 — 0 handler(s): none
+[eventBus] published 'EvidenceLinked' (fbf33845-9d02-4b45-9dcd-f95965852c8b) seuId=1e543aa9-08b8-4a52-94f0-f76482cb7022 originatingObjectId=5a5a1c7a-3a91-4dd2-9a4b-0e53b029dfa2 at t=1792201315579 — 0 handler(s): none
+✔ Evidence can be linked to more than one object, findByRelatedObject finds it via each, and cross-SEU linking works (50704.1235ms)
+[eventBus] published 'DeliverableTransitioned' (f12e5ab8-2f4d-473c-b51d-96debffabebc) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=b49b4c68-0c5e-4f0d-9a82-15c41cf82885 at t=1792201315857 — 1 handler(s): deliverableKickoff
+[eventBus] dispatching 'DeliverableTransitioned' (f12e5ab8-2f4d-473c-b51d-96debffabebc) to handler 'deliverableKickoff'
+[eventBus] published 'DeliverableBlocked' (5a4c992b-6f0d-463f-a8e7-93b22b25e3ef) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=661a30ad-1401-4e43-9eac-7643b9ba4d5a at t=1792201316404 — 0 handler(s): none
+[eventBus] handler 'deliverableKickoff' consumed 'DeliverableTransitioned' (9a886d6c-dbfe-4a6f-9a13-523cae1c58b4)
+[eventBus] published 'DeliverableBlocked' (0a935c06-0314-471a-a67c-9c59a1f2c5c4) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=661a30ad-1401-4e43-9eac-7643b9ba4d5a at t=1792201316611 — 0 handler(s): none
+[eventBus] published 'CommandGenerated' (146ca145-aab8-4c6a-9a46-33c5213a1bd0) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=cec2206a-1b5c-4022-9c61-7184c71520a1 at t=1792201317044 — 1 handler(s): commandGenerated
+[eventBus] dispatching 'CommandGenerated' (146ca145-aab8-4c6a-9a46-33c5213a1bd0) to handler 'commandGenerated'
+[eventBus] handler 'deliverableKickoff' consumed 'DeliverableTransitioned' (f12e5ab8-2f4d-473c-b51d-96debffabebc)
+[eventBus] published 'WorkItemGenerated' (ccf476fa-f8a6-452e-99cf-32c29edfb491) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=354b57a8-3b56-468b-898b-e5533a8f4bc8 at t=1792201317471 — 1 handler(s): workItemGenerated
+[eventBus] dispatching 'WorkItemGenerated' (ccf476fa-f8a6-452e-99cf-32c29edfb491) to handler 'workItemGenerated'
+[eventBus] handler 'commandGenerated' consumed 'CommandGenerated' (146ca145-aab8-4c6a-9a46-33c5213a1bd0)
+[dispatchEngine] rejectDispatch seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 entityType=Deliverable entityId=b49b4c68-0c5e-4f0d-9a82-15c41cf82885 fromState=In Progress toState=In Progress reason=empty_eligible_pool workItemId=354b57a8-3b56-468b-898b-e5533a8f4bc8
+[eventBus] published 'ObligationCreated' (4d044304-6695-4500-96dc-b87e9cb88d99) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=fc7eda66-f82b-4fcb-b258-dab944d46e70 at t=1792201318429 — 0 handler(s): none
+[eventBus] published 'AttentionCreated' (dd759607-6840-424d-9b82-69614cfe4c11) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=14f605cf-4b64-4406-9514-13407313336d at t=1792201318620 — 0 handler(s): none
+[eventBus] published 'DispatchRejected' (3654f980-5db8-4f94-9c01-9213395b15f2) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=354b57a8-3b56-468b-898b-e5533a8f4bc8 at t=1792201318675 — 1 handler(s): deliverableKickoff
+[eventBus] dispatching 'DispatchRejected' (3654f980-5db8-4f94-9c01-9213395b15f2) to handler 'deliverableKickoff'
+[eventBus] handler 'workItemGenerated' consumed 'WorkItemGenerated' (ccf476fa-f8a6-452e-99cf-32c29edfb491)
+[eventBus] published 'DeliverableBlocked' (235d3d82-1ccd-4e61-a9dc-7aeacc546dd7) seuId=0182dc57-18a5-4488-b587-a3a8665b2d92 originatingObjectId=661a30ad-1401-4e43-9eac-7643b9ba4d5a at t=1792201319478 — 0 handler(s): none
+[eventBus] handler 'deliverableKickoff' consumed 'DispatchRejected' (3654f980-5db8-4f94-9c01-9213395b15f2)
+[eventBus] published 'CommissionRequested' (c06341a1-511e-4f21-8b0b-c02f56088944) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=832fd4ce-488e-413c-b970-5b7eb737468f at t=1792201319965 — 1 handler(s): validateRequest
+[eventBus] dispatching 'CommissionRequested' (c06341a1-511e-4f21-8b0b-c02f56088944) to handler 'validateRequest'
+[eventBus] published 'CommissionValidated' (ab7ef7af-0ec0-43d1-887a-c6eb4f348cdf) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=832fd4ce-488e-413c-b970-5b7eb737468f at t=1792201320449 — 0 handler(s): none
+[eventBus] handler 'validateRequest' consumed 'CommissionRequested' (c06341a1-511e-4f21-8b0b-c02f56088944)
+[eventBus] published 'CompositionCompleted' (5faa5d56-ea94-49ea-98c7-fe26750721b1) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=832fd4ce-488e-413c-b970-5b7eb737468f at t=1792201322209 — 1 handler(s): compositionCompleted
+[eventBus] dispatching 'CompositionCompleted' (5faa5d56-ea94-49ea-98c7-fe26750721b1) to handler 'compositionCompleted'
+[eventBus] published 'EBMCreated' (d941eab0-4e45-41ac-9509-3fb566ed237e) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=b4ae0f52-7694-45d2-875b-e6a7f420b69c at t=1792201322564 — 0 handler(s): none
+[eventBus] handler 'compositionCompleted' consumed 'CompositionCompleted' (5faa5d56-ea94-49ea-98c7-fe26750721b1)
+[eventBus] published 'EBMValidated' (245006b6-9fe4-4fd5-8710-d3937825f059) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=b4ae0f52-7694-45d2-875b-e6a7f420b69c at t=1792201323187 — 0 handler(s): none
+[eventBus] published 'EBMActivated' (62957be0-49dc-4699-949b-cc7f8d889fb3) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=b4ae0f52-7694-45d2-875b-e6a7f420b69c at t=1792201323570 — 1 handler(s): ebmActivated
+[eventBus] dispatching 'EBMActivated' (62957be0-49dc-4699-949b-cc7f8d889fb3) to handler 'ebmActivated'
+[eventBus] published 'SEUConfigured' (4fede9c7-11de-4733-a2f7-4afa4eca6f39) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=832fd4ce-488e-413c-b970-5b7eb737468f at t=1792201323912 — 0 handler(s): none
+[eventBus] published 'SEUCommissioned' (6a0ed0a3-9846-4935-9f67-6fdd18c8ae10) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=832fd4ce-488e-413c-b970-5b7eb737468f at t=1792201324060 — 0 handler(s): none
+[eventBus] published 'SEUActivated' (c2d3004d-6429-45b9-a91f-111064ab2140) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=832fd4ce-488e-413c-b970-5b7eb737468f at t=1792201325621 — 1 handler(s): executionEngineKickoff
+[eventBus] dispatching 'SEUActivated' (c2d3004d-6429-45b9-a91f-111064ab2140) to handler 'executionEngineKickoff'
+[eventBus] handler 'ebmActivated' consumed 'EBMActivated' (62957be0-49dc-4699-949b-cc7f8d889fb3)
+[eventBus] published 'SEUOperational' (081dfd26-6193-40f1-a917-55767b26ab0f) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=832fd4ce-488e-413c-b970-5b7eb737468f at t=1792201326103 — 1 handler(s): deliverableKickoff
+[eventBus] dispatching 'SEUOperational' (081dfd26-6193-40f1-a917-55767b26ab0f) to handler 'deliverableKickoff'
+[eventBus] handler 'executionEngineKickoff' consumed 'SEUActivated' (c2d3004d-6429-45b9-a91f-111064ab2140)
+[eventBus] published 'DeliverableTransitioned' (8cc5b27b-838d-481c-be37-0caf90c49bf5) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=c297f450-0d47-4630-b5f2-455dad6cf448 at t=1792201328390 — 1 handler(s): deliverableKickoff
+[eventBus] dispatching 'DeliverableTransitioned' (8cc5b27b-838d-481c-be37-0caf90c49bf5) to handler 'deliverableKickoff'
+[eventBus] published 'DeliverableBlocked' (3688b8ee-967f-477f-819e-f94f93b348f9) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=4a50d215-a78d-480a-95c4-c7e6e14e0a8e at t=1792201329039 — 0 handler(s): none
+[eventBus] published 'DeliverableBlocked' (119a5f26-8905-4272-b601-6ac1a5fb955b) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=4a50d215-a78d-480a-95c4-c7e6e14e0a8e at t=1792201329199 — 0 handler(s): none
+[eventBus] published 'DeliverableBlocked' (c1162c9d-6e91-44e8-9c9f-88dfc1b67c14) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=316fa0cd-22d9-45a1-b3d3-403c7d5a3dc6 at t=1792201329502 — 0 handler(s): none
+[eventBus] handler 'deliverableKickoff' consumed 'SEUOperational' (081dfd26-6193-40f1-a917-55767b26ab0f)
+[eventBus] published 'DeliverableBlocked' (0e79bf2b-f9ac-4930-b609-521f57258c81) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=316fa0cd-22d9-45a1-b3d3-403c7d5a3dc6 at t=1792201329661 — 0 handler(s): none
+[eventBus] published 'CommandGenerated' (e7b223d3-72dd-40ed-9b57-5076cbf29e69) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=3133d721-5b80-4dcf-ae16-08ed5b0c3c93 at t=1792201330089 — 1 handler(s): commandGenerated
+[eventBus] dispatching 'CommandGenerated' (e7b223d3-72dd-40ed-9b57-5076cbf29e69) to handler 'commandGenerated'
+[eventBus] handler 'deliverableKickoff' consumed 'DeliverableTransitioned' (8cc5b27b-838d-481c-be37-0caf90c49bf5)
+[eventBus] published 'WorkItemGenerated' (3f9ac8c4-bdc0-4ff3-9d83-ada533bd7dfa) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=e6650d7b-3ed8-4e1c-98eb-35172722873c at t=1792201330594 — 1 handler(s): workItemGenerated
+[eventBus] dispatching 'WorkItemGenerated' (3f9ac8c4-bdc0-4ff3-9d83-ada533bd7dfa) to handler 'workItemGenerated'
+[eventBus] handler 'commandGenerated' consumed 'CommandGenerated' (e7b223d3-72dd-40ed-9b57-5076cbf29e69)
+[dispatchEngine] rejectDispatch seuId=832fd4ce-488e-413c-b970-5b7eb737468f entityType=Deliverable entityId=c297f450-0d47-4630-b5f2-455dad6cf448 fromState=In Progress toState=In Progress reason=empty_eligible_pool workItemId=e6650d7b-3ed8-4e1c-98eb-35172722873c
+[eventBus] published 'ParticipantCreated' (cf5ed01e-5a0b-451f-afc9-3e9dfa892c7b) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=f3f5e7b8-34f3-4bb3-abdd-63366d81e59e at t=1792201331248 — 0 handler(s): none
+[capabilities] fulfilOne complete seuId=832fd4ce-488e-413c-b970-5b7eb737468f capabilityId=2fb12f02-ea80-40ac-adff-f0d1190ed859 participantId=f3f5e7b8-34f3-4bb3-abdd-63366d81e59e at t=1792201331248
+[eventBus] published 'CapabilityFulfilled' (cd2f3f10-1ff8-4cb1-8bc2-fbb393830680) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=832fd4ce-488e-413c-b970-5b7eb737468f at t=1792201331284 — 1 handler(s): deliverableKickoff
+[eventBus] dispatching 'CapabilityFulfilled' (cd2f3f10-1ff8-4cb1-8bc2-fbb393830680) to handler 'deliverableKickoff'
+[eventBus] published 'ObligationCreated' (b0ac2fe3-69e7-4034-aa2a-426c79d65851) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=e32e35fc-ff50-4063-ba99-c76b17a63a28 at t=1792201331552 — 0 handler(s): none
+[eventBus] published 'DecisionIdentified' (cc690128-9289-4bd9-b958-f38c9f10b1d3) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=b802c568-51f4-44ca-81d0-efa5a7d1f08b at t=1792201331690 — 0 handler(s): none
+[eventBus] published 'AttentionCreated' (53ea25a6-83a1-4201-a3e9-71956d6b40dd) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=30340498-4fe7-44ca-ab3d-6c0adbc0f02a at t=1792201331742 — 0 handler(s): none
+[eventBus] published 'DispatchRejected' (4c99af8f-8861-4642-8692-0edc77b31207) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=e6650d7b-3ed8-4e1c-98eb-35172722873c at t=1792201331778 — 1 handler(s): deliverableKickoff
+[eventBus] dispatching 'DispatchRejected' (4c99af8f-8861-4642-8692-0edc77b31207) to handler 'deliverableKickoff'
+[eventBus] handler 'workItemGenerated' consumed 'WorkItemGenerated' (3f9ac8c4-bdc0-4ff3-9d83-ada533bd7dfa)
+[eventBus] published 'DeliverableBlocked' (7d297cc7-93c6-4f78-8a43-66c3090e9930) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=4a50d215-a78d-480a-95c4-c7e6e14e0a8e at t=1792201331984 — 0 handler(s): none
+[eventBus] published 'EvidenceCollected' (b6097570-223d-48e2-b89b-fc35da37b555) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=51308afa-d1bb-438c-9e64-277e53c123e7 at t=1792201332183 — 0 handler(s): none
+[eventBus] published 'EvidenceLinked' (8ea192b7-b7d8-4cef-af47-e499a32f3db8) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=51308afa-d1bb-438c-9e64-277e53c123e7 at t=1792201332372 — 0 handler(s): none
+[eventBus] published 'DeliverableBlocked' (6ebdefe2-e358-4c89-9536-472831eb2678) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=316fa0cd-22d9-45a1-b3d3-403c7d5a3dc6 at t=1792201332446 — 0 handler(s): none
+[eventBus] published 'DeliverableBlocked' (afcf7e52-8301-4a7e-87ad-6facd930ad1f) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=4a50d215-a78d-480a-95c4-c7e6e14e0a8e at t=1792201332491 — 0 handler(s): none
+[eventBus] published 'EvidenceLinked' (a82afd10-47aa-481a-876f-eaa3ada83993) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=51308afa-d1bb-438c-9e64-277e53c123e7 at t=1792201332560 — 0 handler(s): none
+[eventBus] published 'EvidenceLinked' (40b561ff-7cc7-4d20-ada2-dea9e51461b5) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=51308afa-d1bb-438c-9e64-277e53c123e7 at t=1792201332763 — 0 handler(s): none
+[eventBus] published 'CommandGenerated' (a1e8de0f-a615-4eb1-a17c-1b62a3384372) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=1aed3acf-853a-402c-9193-8aff529a9b8b at t=1792201332865 — 1 handler(s): commandGenerated
+[eventBus] dispatching 'CommandGenerated' (a1e8de0f-a615-4eb1-a17c-1b62a3384372) to handler 'commandGenerated'
+[eventBus] handler 'deliverableKickoff' consumed 'CapabilityFulfilled' (cd2f3f10-1ff8-4cb1-8bc2-fbb393830680)
+[eventBus] published 'DeliverableBlocked' (c31bdbf4-ba02-446f-a273-289d91bd2b88) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=316fa0cd-22d9-45a1-b3d3-403c7d5a3dc6 at t=1792201332939 — 0 handler(s): none
+[eventBus] handler 'deliverableKickoff' consumed 'DispatchRejected' (4c99af8f-8861-4642-8692-0edc77b31207)
+[eventBus] published 'WorkItemGenerated' (5a048cf7-5c1b-42d4-ab81-2fc590fcdfdf) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=ec00b282-4e9e-4986-9b7d-99c7eb0f9841 at t=1792201333293 — 1 handler(s): workItemGenerated
+[eventBus] dispatching 'WorkItemGenerated' (5a048cf7-5c1b-42d4-ab81-2fc590fcdfdf) to handler 'workItemGenerated'
+[eventBus] handler 'commandGenerated' consumed 'CommandGenerated' (a1e8de0f-a615-4eb1-a17c-1b62a3384372)
+[eventBus] published 'ParticipantAssigned' (faae11f5-034d-46df-8b0f-8e416e6e747e) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=f3f5e7b8-34f3-4bb3-abdd-63366d81e59e at t=1792201334185 — 0 handler(s): none
+[eventBus] published 'ParticipantSelected' (ca75c248-b954-4906-89ec-e249fa0b8b8b) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=ec00b282-4e9e-4986-9b7d-99c7eb0f9841 at t=1792201334272 — 0 handler(s): none
+[eventBus] published 'WorkItemDispatched' (14d095b6-a2ed-420d-9ef3-36a15d2c03ea) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=ec00b282-4e9e-4986-9b7d-99c7eb0f9841 at t=1792201334323 — 1 handler(s): assignmentDelivery
+[eventBus] dispatching 'WorkItemDispatched' (14d095b6-a2ed-420d-9ef3-36a15d2c03ea) to handler 'assignmentDelivery'
+[eventBus] handler 'workItemGenerated' consumed 'WorkItemGenerated' (5a048cf7-5c1b-42d4-ab81-2fc590fcdfdf)
+[2026-10-17T01:42:14.689Z] [INFO] [humanOnUiAdapter] Work Item ec00b282-4e9e-4986-9b7d-99c7eb0f9841 for Deliverable "Requirements Analysis Model" is available on the human-on-UI surface (In Progress -> In Progress).
+[eventBus] handler 'assignmentDelivery' consumed 'WorkItemDispatched' (14d095b6-a2ed-420d-9ef3-36a15d2c03ea)
+[eventBus] published 'EvidenceCollected' (1047c146-903c-47b4-b099-5ef35accfabb) seuId=832fd4ce-488e-413c-b970-5b7eb737468f originatingObjectId=1c446c7b-b028-4d76-9111-a2d1c6ec8f7b at t=1792201335680 — 0 handler(s): none
+✔ Evidence preserves its full provenance as evidence_relationships rows — Deliverable, Participant, Capability and Decision all resolve to real labels (20000.104208ms)
+[eventBus] published 'CommissionRequested' (1b0b88dc-7855-4fb0-b075-99b3d1c7e5f8) seuId=981e3210-e09a-4975-a33d-e20f970d75cf originatingObjectId=981e3210-e09a-4975-a33d-e20f970d75cf at t=1792201339715 — 1 handler(s): validateRequest
+[eventBus] dispatching 'CommissionRequested' (1b0b88dc-7855-4fb0-b075-99b3d1c7e5f8) to handler 'validateRequest'
+[eventBus] published 'CommissionValidated' (ded42480-194c-499b-bd00-bc6176a26033) seuId=981e3210-e09a-4975-a33d-e20f970d75cf originatingObjectId=981e3210-e09a-4975-a33d-e20f970d75cf at t=1792201340695 — 0 handler(s): none
+[eventBus] handler 'validateRequest' consumed 'CommissionRequested' (1b0b88dc-7855-4fb0-b075-99b3d1c7e5f8)
+[eventBus] published 'CompositionCompleted' (d424b60a-3ba4-4efc-bbc5-8d447da7a16f) seuId=981e3210-e09a-4975-a33d-e20f970d75cf originatingObjectId=981e3210-e09a-4975-a33d-e20f970d75cf at t=1792201342409 — 1 handler(s): compositionCompleted
+[eventBus] dispatching 'CompositionCompleted' (d424b60a-3ba4-4efc-bbc5-8d447da7a16f) to handler 'compositionCompleted'
