@@ -14,6 +14,8 @@ import { ensureBadgeBootstrap, getPlatformBadges } from '../../domain/identity/b
 import { logger }      from '../../utils/logger.js';
 import { parseListParams, paginateList } from '../../utils/listQuery.js';
 import { rateLimit }   from 'express-rate-limit';
+import type { Request, Response, NextFunction } from 'express';
+import type { UserRow } from '../../dblayer/userDB.js';
 
 const loginLimiter = rateLimit({
   windowMs:         4 * 60 * 60 * 1000,
@@ -26,11 +28,11 @@ const loginLimiter = rateLimit({
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || '').toLowerCase();
 
-function postLoginRedirectPath(user) {
+function postLoginRedirectPath(user: { platformBadges?: string[] } | undefined) {
   return (user?.platformBadges ?? []).includes('root') ? '/aisworg/seu/identity' : '/aisworg/quickview';
 }
 
-router.get('/login', (req, res) => {
+router.get('/login', (req: Request, res: Response) => {
   if (req.session?.user) return res.redirect(postLoginRedirectPath(req.session.user));
   const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
   res.render('auth/login', {
@@ -42,8 +44,8 @@ router.get('/login', (req, res) => {
   delete req.session.flash;
 });
 
-router.post('/login', loginLimiter, (req, res, next) => {
-  passport.authenticate('local', async (err, user, info) => {
+router.post('/login', loginLimiter, (req: Request, res: Response, next: NextFunction) => {
+  passport.authenticate('local', async (err: unknown, user: UserRow | false, info?: { message?: string }) => {
     if (err) return next(err);
 
     if (!user) {
@@ -55,7 +57,7 @@ router.post('/login', loginLimiter, (req, res, next) => {
     req.session.user = await buildSessionUser(user);
     await ensureBadgeBootstrap(user);
     req.session.user.platformBadges = await getPlatformBadges(String(req.session.user.id));
-    logger.info(`[Auth] Local login: ${user.email} (${user.role})`);
+    logger.info(`[Auth] Local login: ${user.email}`);
     return res.redirect(postLoginRedirectPath(req.session.user));
   })(req, res, next);
 });
@@ -66,17 +68,18 @@ router.get('/google',
 
 router.get('/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: '/aisworg/login' }),
-  async (req, res) => {
-    if (!req.user) return res.redirect('/aisworg/auth/disabled');
-    req.session.user = await buildSessionUser(req.user);
-    await ensureBadgeBootstrap(req.user);
+  async (req: Request, res: Response) => {
+    const googleUser = (req as Request & { user?: UserRow }).user;
+    if (!googleUser) return res.redirect('/aisworg/auth/disabled');
+    req.session.user = await buildSessionUser(googleUser);
+    await ensureBadgeBootstrap(googleUser);
     req.session.user.platformBadges = await getPlatformBadges(String(req.session.user.id));
-    logger.info(`[Auth] Google login: ${req.user.email} (${req.user.role})`);
+    logger.info(`[Auth] Google login: ${googleUser.email}`);
     res.redirect(postLoginRedirectPath(req.session.user));
   }
 );
 
-router.get('/logout', (req, res) => {
+router.get('/logout', (req: Request, res: Response) => {
   const email = req.session?.user?.email;
   req.session.destroy(() => {
     logger.info(`[Auth] Logout: ${email || 'unknown'}`);
@@ -84,13 +87,13 @@ router.get('/logout', (req, res) => {
   });
 });
 
-router.get('/disabled', (req, res) => {
+router.get('/disabled', (req: Request, res: Response) => {
   res.render('auth/disabled', { title: 'Account Disabled' });
 });
 
-router.get('/verify', async (req, res) => {
-  const { token } = req.query;
-  if (!token) return res.redirect('/aisworg/login');
+router.get('/verify', async (req: Request, res: Response) => {
+  const token = req.query.token;
+  if (typeof token !== 'string' || !token) return res.redirect('/aisworg/login');
 
   const user = await userDB.findByVerificationToken(token);
   if (!user) {
@@ -101,7 +104,7 @@ router.get('/verify', async (req, res) => {
   res.render('auth/verify', { title: 'Set Your Password', token, email: user.email, error: null });
 });
 
-router.post('/verify', loginLimiter, async (req, res) => {
+router.post('/verify', loginLimiter, async (req: Request, res: Response) => {
   const { token, password, password_confirm } = req.body;
 
   if (!token) return res.redirect('/aisworg/login');
@@ -128,15 +131,16 @@ router.post('/verify', loginLimiter, async (req, res) => {
 
   const hash = await bcrypt.hash(password, 12);
   const activated = await userDB.activateWithPassword(user.email, hash);
+  if (!activated) throw new Error(`[Auth] activateWithPassword returned no row for ${user.email}`);
 
   req.session.user = await buildSessionUser(activated);
   await ensureBadgeBootstrap(activated);
   req.session.user.platformBadges = await getPlatformBadges(String(req.session.user.id));
-  logger.info(`[Auth] Account activated: ${activated.email} (${activated.role})`);
+  logger.info(`[Auth] Account activated: ${activated.email}`);
   res.redirect(postLoginRedirectPath(req.session.user));
 });
 
-router.get('/forgot-password', (req, res) => {
+router.get('/forgot-password', (req: Request, res: Response) => {
   if (req.session?.user) return res.redirect(postLoginRedirectPath(req.session.user));
   const flash = req.session.flash || {};
   delete req.session.flash;
@@ -147,7 +151,7 @@ router.get('/forgot-password', (req, res) => {
   });
 });
 
-router.post('/forgot-password', loginLimiter, async (req, res) => {
+router.post('/forgot-password', loginLimiter, async (req: Request, res: Response) => {
   const { email } = req.body;
   const GENERIC = 'If that email is registered, a reset link has been sent.';
   try {
@@ -172,9 +176,9 @@ router.post('/forgot-password', loginLimiter, async (req, res) => {
   }
 });
 
-router.get('/reset-password', async (req, res) => {
-  const { token } = req.query;
-  if (!token) return res.redirect('/aisworg/login');
+router.get('/reset-password', async (req: Request, res: Response) => {
+  const token = req.query.token;
+  if (typeof token !== 'string' || !token) return res.redirect('/aisworg/login');
   const user = await userDB.findByVerificationToken(token);
   if (!user) {
     req.session.flash = { error: 'Password reset link is invalid or has expired.' };
@@ -183,7 +187,7 @@ router.get('/reset-password', async (req, res) => {
   res.render('auth/reset-password', { title: 'Reset Your Password', token, email: user.email, error: null });
 });
 
-router.post('/reset-password', loginLimiter, async (req, res) => {
+router.post('/reset-password', loginLimiter, async (req: Request, res: Response) => {
   const { token, password, password_confirm } = req.body;
   if (!token) return res.redirect('/aisworg/login');
 
@@ -213,13 +217,13 @@ router.post('/reset-password', loginLimiter, async (req, res) => {
   return res.redirect('/aisworg/login');
 });
 
-router.get('/users', async (req, res) => {
+router.get('/users', async (req: Request, res: Response) => {
   try {
     const managed = await userDB.listManaged(SUPERUSER_EMAIL);
-    const params = parseListParams(req.query, { sortable: ['user', 'provider', 'role', 'lastlogin'], defaultSort: 'user', defaultDir: 'asc' });
+    const params = parseListParams(req.query, { sortable: ['user', 'provider', 'lastlogin'], defaultSort: 'user', defaultDir: 'asc' });
     const list = paginateList(managed, params, {
-      searchFields: [(u) => u.email, (u) => u.name, (u) => u.role, (u) => u.auth_provider],
-      sortFields: { user: (u) => u.name || u.email, provider: (u) => u.auth_provider, role: (u) => u.role, lastlogin: (u) => u.last_login },
+      searchFields: [(u) => u.email, (u) => u.name, (u) => u.auth_provider],
+      sortFields: { user: (u) => u.name || u.email, provider: (u) => u.auth_provider, lastlogin: (u) => u.last_login },
     });
     res.render('auth/users', {
       title:       'User Management',
@@ -236,15 +240,11 @@ router.get('/users', async (req, res) => {
   }
 });
 
-router.post('/users/create', async (req, res) => {
+router.post('/users/create', async (req: Request, res: Response) => {
   try {
-    const { email, name, role } = req.body;
-    if (!email || !role) {
-      req.session.flash = { error: 'Email and role are required.' };
-      return res.redirect('/aisworg/auth/users');
-    }
-    if (!['power', 'tenant_super', 'super'].includes(role)) {
-      req.session.flash = { error: 'Invalid role.' };
+    const { email, name } = req.body;
+    if (!email) {
+      req.session.flash = { error: 'Email is required.' };
       return res.redirect('/aisworg/auth/users');
     }
     if (email.toLowerCase() === SUPERUSER_EMAIL) {
@@ -256,7 +256,8 @@ router.post('/users/create', async (req, res) => {
     const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     const { data: platformTenant } = await tenantsDB.findByCode('platform');
-    await userDB.createLocalPending({ email, name: name || email, role, verification_token: token, verification_expires: expires, type: 'Platform', tenant_id: platformTenant?.id ?? null });
+    if (!platformTenant) throw new Error("[Auth] platform tenant not found");
+    await userDB.createLocalPending({ email, name: name || email, verification_token: token, verification_expires: expires, type: 'Platform', tenant_id: platformTenant.id });
     const result = await emailService.sendVerification({ to: email, name: name || email, token });
 
     if (result.link) {
@@ -267,33 +268,12 @@ router.post('/users/create', async (req, res) => {
     return res.redirect('/aisworg/auth/users');
   } catch (err) {
     logger.error('[Auth] POST /users/create error:', err);
-    req.session.flash = { error: err.message };
+    req.session.flash = { error: err instanceof Error ? err.message : String(err) };
     return res.redirect('/aisworg/auth/users');
   }
 });
 
-router.post('/users/role', async (req, res) => {
-  try {
-    const { email, role } = req.body;
-    if (!['general', 'power', 'tenant_super', 'super'].includes(role)) {
-      req.session.flash = { error: 'Invalid role.' };
-      return res.redirect('/aisworg/auth/users');
-    }
-    if (email?.toLowerCase() === SUPERUSER_EMAIL) {
-      req.session.flash = { error: 'Cannot modify the protected superuser.' };
-      return res.redirect('/aisworg/auth/users');
-    }
-    await userDB.updateRole(email, role);
-    req.session.flash = { info: `Role updated for ${email}.` };
-    return res.redirect('/aisworg/auth/users');
-  } catch (err) {
-    logger.error('[Auth] POST /users/role error:', err);
-    req.session.flash = { error: err.message };
-    return res.redirect('/aisworg/auth/users');
-  }
-});
-
-router.post('/users/toggle', async (req, res) => {
+router.post('/users/toggle', async (req: Request, res: Response) => {
   try {
     const { email, action } = req.body;
     if (email?.toLowerCase() === SUPERUSER_EMAIL) {
@@ -306,12 +286,12 @@ router.post('/users/toggle', async (req, res) => {
     return res.redirect('/aisworg/auth/users');
   } catch (err) {
     logger.error('[Auth] POST /users/toggle error:', err);
-    req.session.flash = { error: err.message };
+    req.session.flash = { error: err instanceof Error ? err.message : String(err) };
     return res.redirect('/aisworg/auth/users');
   }
 });
 
-router.post('/users/resend', async (req, res) => {
+router.post('/users/resend', async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
     const user = await userDB.findByEmail(email);
@@ -323,7 +303,7 @@ router.post('/users/resend', async (req, res) => {
     const token   = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-    await userDB.createLocalPending({ email, name: user.name, role: user.role, verification_token: token, verification_expires: expires, type: user.type, tenant_id: user.tenant_id });
+    await userDB.createLocalPending({ email, name: user.name, verification_token: token, verification_expires: expires, type: user.type, tenant_id: user.tenant_id });
     const result = await emailService.sendVerification({ to: email, name: user.name, token });
 
     if (result.link) {
@@ -334,7 +314,7 @@ router.post('/users/resend', async (req, res) => {
     return res.redirect('/aisworg/auth/users');
   } catch (err) {
     logger.error('[Auth] POST /users/resend error:', err);
-    req.session.flash = { error: err.message };
+    req.session.flash = { error: err instanceof Error ? err.message : String(err) };
     return res.redirect('/aisworg/auth/users');
   }
 });

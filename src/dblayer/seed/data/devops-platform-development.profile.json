@@ -1,0 +1,25 @@
+{
+  "code": "profile-devops-platform-development",
+  "name": "DevOps Platform — Default Development Profile",
+  "baseTemplateCode": "devops-platform",
+  "environment": "development",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
+  "dispatchStrategyPreference": [
+    {
+      "strategy": "capability-match",
+      "order": 1
+    }
+  ],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
+  "optionalPackCodes": [
+    "testing-qa",
+    "integration-github",
+    "integration-terraform",
+    "integration-kubernetes",
+    "integration-prometheus-grafana",
+    "integration-pagerduty"
+  ]
+}

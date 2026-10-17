@@ -1,0 +1,22 @@
+{
+  "code": "profile-test-engineering-engagement-development",
+  "name": "Test Engineering Engagement — Default Development Profile",
+  "baseTemplateCode": "test-engineering-engagement",
+  "environment": "development",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
+  "dispatchStrategyPreference": [
+    {
+      "strategy": "capability-match",
+      "order": 1
+    }
+  ],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
+  "optionalPackCodes": [
+    "testing-qa",
+    "integration-github",
+    "integration-sonarqube"
+  ]
+}

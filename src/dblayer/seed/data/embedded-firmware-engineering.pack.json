@@ -12,6 +12,12 @@
     "capabilities": [
       {
         "code": "engineering-embedded-firmware"
+      },
+      {
+        "code": "safety-critical-systems-engineering"
+      },
+      {
+        "code": "hardware-software-codesign"
       }
     ],
     "services": [

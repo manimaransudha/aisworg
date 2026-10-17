@@ -107,7 +107,6 @@ test("DRIVEN: a real commissioning run publishes every real SEU/EBM event, match
   const result = await commissionFromFormSync({
     statement: `seu-ebm-lifecycle-table-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super",
     actorId: TESTER_ALL_ID,
     requestedBy: TESTER_ALL_ID,
   });

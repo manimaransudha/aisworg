@@ -21,7 +21,7 @@ import { ensureWebAppTemplateFixture, commissionFromFormSync, ROOT_ACTOR_ID, TES
 
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);
@@ -74,7 +74,7 @@ test("compliance is evaluated per-SEU from engineering state: a required obligat
 
   // Resolve the obligation -> this requirement is satisfied again (deterministic from state).
   for (const st of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    await transitionObligation({ obligationId: obligation.id, targetState: st, actorRole: "super", actorId: ROOT_ACTOR_ID });
+    await transitionObligation({ obligationId: obligation.id, targetState: st, actorId: ROOT_ACTOR_ID });
   }
   const third = await evaluateCompliance(seuId);
   assert.equal(third.results.find((r) => r.requirementCode === reqCode)?.state, "satisfied");

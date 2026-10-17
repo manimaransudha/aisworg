@@ -141,7 +141,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   // here, same as every other test exercising the outcome of commissioning
   // rather than these new async/manual mechanics.
   assert.equal(commissioning.lifecycleState, "Pending");
-  const driven = await driveCommissioningToActive({ seuId, actorRole: "general", actorId: TESTER_ACCEPTANCE_JOURNEY.participantId });
+  const driven = await driveCommissioningToActive({ seuId, actorId: TESTER_ACCEPTANCE_JOURNEY.participantId });
   assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
   assert.equal(driven.ok && driven.seu.lifecycle_state, "Operational");
   const { data: ebm } = driven.ok && driven.seu.active_ebm_id ? await ebmsDB.findById(driven.seu.active_ebm_id) : { data: null };

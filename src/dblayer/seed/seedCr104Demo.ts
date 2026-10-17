@@ -38,13 +38,13 @@ export async function seedCr104Demo(actor: SeedActor): Promise<void> {
   const mandatorySeed = loadJson<PackSeedInput>("cr104-demo-mandatory.pack.json");
   const platformTenantId = await getPlatformTenantId();
   if (!(await packsDB.findActiveByCode(mandatorySeed.code, platformTenantId)).data) {
-    const mandatoryResult = await publishPack({ seed: mandatorySeed, actorRole: actor.authorBadge, actorId: actor.authoredBy, activate: true });
+    const mandatoryResult = await publishPack({ seed: mandatorySeed, actorId: actor.authoredBy, activate: true });
     if (!mandatoryResult.ok) throw new Error(`[seed:cr104-demo] failed to publish "${mandatorySeed.code}": ${(mandatoryResult.errors ?? []).join("; ")}`);
   }
 
   const policyPackSeed = loadJson<PackSeedInput>("cr104-demo-seu-eligibility-policies.pack.json");
   if (!(await packsDB.findActiveByCode(policyPackSeed.code, platformTenantId)).data) {
-    const policyPackResult = await publishPack({ seed: policyPackSeed, actorRole: actor.authorBadge, actorId: actor.authoredBy, activate: true });
+    const policyPackResult = await publishPack({ seed: policyPackSeed, actorId: actor.authoredBy, activate: true });
     if (!policyPackResult.ok) throw new Error(`[seed:cr104-demo] failed to publish "${policyPackSeed.code}": ${(policyPackResult.errors ?? []).join("; ")}`);
   }
 
@@ -61,7 +61,7 @@ export async function seedCr104Demo(actor: SeedActor): Promise<void> {
       dependencyGraph: minimalTemplateSeed.dependencyGraph,
       purpose: minimalTemplateSeed.purpose,
     },
-    actorRole: actor.authorBadge, actorId: actor.authoredBy
+    actorId: actor.authoredBy
     });
     if (!templateResult.ok) throw new Error(`[seed:cr104-demo] failed to publish template "${minimalTemplateSeed.code}": ${templateResult.errors.join("; ")}`);
     templateId = templateResult.templateId;
@@ -70,7 +70,7 @@ export async function seedCr104Demo(actor: SeedActor): Promise<void> {
   const profileSeed = loadJson<ProfileSeedInput>("cr104-demo-development.profile.json");
   let profileId = (await profilesDB.findActiveByCode(profileSeed.code, platformTenantId)).data?.id;
   if (!profileId) {
-    const profileResult = await publishProfile({ seed: profileSeed, actorRole: actor.authorBadge, actorId: actor.authoredBy });
+    const profileResult = await publishProfile({ seed: profileSeed, actorId: actor.authoredBy });
     if (!profileResult.ok) throw new Error(`[seed:cr104-demo] failed to publish profile "${profileSeed.code}": ${profileResult.errors.join("; ")}`);
     profileId = profileResult.profileId;
   }

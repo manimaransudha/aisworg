@@ -67,7 +67,7 @@ export type TransitionExternalInteractionResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-export async function transitionExternalInteraction(input: { interactionId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionExternalInteractionResult> {
+export async function transitionExternalInteraction(input: { interactionId: string; targetState: string; actorId: string }): Promise<TransitionExternalInteractionResult> {
   const { data: interaction } = await externalInteractionsDB.findById(input.interactionId);
   if (!interaction) return { ok: false, reason: "not_found" };
 
@@ -78,7 +78,6 @@ export async function transitionExternalInteraction(input: { interactionId: stri
     entityType: "ExternalInteraction",
     fromState,
     toState: input.targetState,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     entityId: interaction.id,
     context: { interaction },

@@ -239,7 +239,7 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
   // the default 15s can run out before finalizeCommissioning's own async
   // chain reaches Operational, even though it always does eventually. Longer
   // override, per timeoutMs's own doc comment.
-  const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: TESTER_OBJECTIVE_ATHENS.participantId, timeoutMs: 45000 });
+  const driven = await driveCommissioningToActive({ seuId, actorId: TESTER_OBJECTIVE_ATHENS.participantId, timeoutMs: 45000 });
   assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
 
   // deliverableKickoffHandler's own automatic rescan (off SEUOperational,
@@ -874,7 +874,7 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
     },
   };
   await registerOrganisationName(packSeed.code);
-  const published = await publishPack({ seed: packSeed as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
+  const published = await publishPack({ seed: packSeed as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `isolated Phase8 pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
 
   const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
@@ -899,7 +899,7 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
       primaryProgrammingLanguage: "typescript",
       sourceControlProvider: "github",
     },
-    actorRole: "super", actorId: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID,
   });
   assert.ok(profilePublish.ok, `isolated Phase8 profile must publish: ${!profilePublish.ok ? JSON.stringify(profilePublish.errors) : ""}`);
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
@@ -908,13 +908,13 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
   const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
   const { objective } = await createObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
 
-  const commissioned = await commissionSeuCore({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_OBJECTIVE_ATHENS.participantId, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
+  const commissioned = await commissionSeuCore({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorId: TESTER_OBJECTIVE_ATHENS.participantId, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
   assert.equal(commissioned.ok, true, !commissioned.ok ? `Validate Request failed: ${JSON.stringify(commissioned)}` : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
   const seuId = commissioned.seu.id;
   await ensureSeuRequesterParticipant(seuId);
 
-  const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: TESTER_OBJECTIVE_ATHENS.participantId, timeoutMs: 45000 });
+  const driven = await driveCommissioningToActive({ seuId, actorId: TESTER_OBJECTIVE_ATHENS.participantId, timeoutMs: 45000 });
   assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
 
   // Unlike commissionSeu, this SEU's requested_by is TESTER_OBJECTIVE_ATHENS
@@ -1088,7 +1088,7 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
     contributions: {},
     tenantId: PLATFORM_TENANT_ID,
   };
-  const published = await publishPack({ seed, actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
+  const published = await publishPack({ seed, actorId: TESTER_ALL_ID, activate: true });
   assert.equal(published.ok, true, !published.ok ? JSON.stringify(published.errors) : "assertion failed");
   assert.equal(published.pack!.status, "Active");
 

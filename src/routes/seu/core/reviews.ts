@@ -96,7 +96,6 @@ export type TransitionReviewResult =
 export async function transitionReview(input: {
   reviewId: string;
   targetState: string;
-  actorRole: string;
   actorId: string;
   outcome?: ReviewOutcome;
 }): Promise<TransitionReviewResult> {
@@ -106,8 +105,7 @@ export async function transitionReview(input: {
   const fromState = review.status;
 
   if (!input.actorId) throw new Error("actorId is required to transition a Review");
-  const gate = await transitionEngine.evaluateGoverned({ entityType: "Review", fromState, toState: input.targetState, actorRole: input.actorRole,
-    actorId: input.actorId, entityId: review.id, context: { review },
+  const gate = await transitionEngine.evaluateGoverned({ entityType: "Review", fromState, toState: input.targetState, actorId: input.actorId, entityId: review.id, context: { review },
     gateEntityId: review.id,
     gateSeuId: review.seu_id,
   });

@@ -1,3 +1,4 @@
+import type { Request, Response, NextFunction } from "express";
 import { logger } from '../utils/logger.js';
 
 const PUBLIC_EXACT = new Set([
@@ -14,17 +15,17 @@ const PUBLIC_PREFIX = [
   '/aisworg/logout',
 ];
 
-export function isPublic(path) {
+export function isPublic(path: string) {
   if (PUBLIC_EXACT.has(path)) return true;
   if (PUBLIC_PREFIX.some(p => path.startsWith(p))) return true;
   return false;
 }
 
-export const gatekeeper = (req, res, next) => {
+export const gatekeeper = (req: Request, res: Response, next: NextFunction) => {
   const path = req.path;
   const user = req.session?.user;
 
-  logger.debug(`[Gatekeeper] ${path} | user: ${user?.email || 'none'} (${user?.role || '-'})`);
+  logger.debug(`[Gatekeeper] ${path} | user: ${user?.email || 'none'}`);
 
   if (isPublic(path)) return next();
 

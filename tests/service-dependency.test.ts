@@ -33,7 +33,7 @@ async function commissionTestSeu(statementPrefix: string) {
   const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");

@@ -14,6 +14,12 @@
         "code": "software-construction",
         "name": "Platform & Developer Experience",
         "description": "Establishes the paved-road infrastructure, CI/CD automation, and observability foundation developers rely on to ship safely."
+      },
+      {
+        "code": "continuous-delivery-pipeline-engineering"
+      },
+      {
+        "code": "infrastructure-engineering"
       }
     ],
     "services": [

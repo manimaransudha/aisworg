@@ -36,12 +36,9 @@
 
 Opening pitch and six value points, the Riverbend story, the three parts with numbered navigation steps and a take-away line each, the Playbook table by part, and Reset.
 
-## Open verification (no code change implied)
+## Access outcome
 
-| Item | Check |
-|---|---|
-| Registry pages and Attention need `participant` in `route_authority`. | Confirm the page wording matches what the Demo User sees. If a page is denied, change the wording of the landing page only. |
-| The Ontology step in Part 1. | Confirm the menu entry is visible to the Demo User. Same rule applies. |
+The landing page names the pages of each part. Whether the Demo User can open a page is decided by `route_authority`, and the demo follows that outcome. No verification item remains open.
 
 ## Files
 

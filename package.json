@@ -18,11 +18,11 @@
     "seed:sdlc-phase-packs": "tsx src/dblayer/seed/seedSdlcPhasePacks.ts",
     "seed:sdlc-standard-templates": "tsx src/dblayer/seed/seedSdlcStandardTemplates.ts",
     "db:clean-slate": "tsx src/dblayer/seed/cleanSlate.ts",
-    "test": "NODE_ENV=test node --import tsx --test tests/**/*.test.js tests/**/*.test.ts",
-    "test:spec": "NODE_ENV=test node --import tsx --test --test-reporter=spec tests/**/*.test.js tests/**/*.test.ts",
-    "test:junit": "NODE_ENV=test node --import tsx --test --test-reporter=junit --test-reporter-destination=test-results.xml tests/**/*.test.js tests/**/*.test.ts",
+    "test": "NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts tests/**/*.test.js tests/**/*.test.ts",
+    "test:spec": "NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts --test-reporter=spec tests/**/*.test.js tests/**/*.test.ts",
+    "test:junit": "NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts --test-reporter=junit --test-reporter-destination=test-results.xml tests/**/*.test.js tests/**/*.test.ts",
     "test:mocha": "NODE_ENV=test mocha tests/**/*.test.js",
-    "test:coverage": "NODE_ENV=test c8 node --import tsx --test tests/**/*.test.js tests/**/*.test.ts"
+    "test:coverage": "NODE_ENV=test c8 node --import tsx --test --test-global-setup=tests/globalSetup.ts tests/**/*.test.js tests/**/*.test.ts"
   },
   "keywords": [],
   "author": "Sudha Manimaran",

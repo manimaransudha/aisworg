@@ -10,6 +10,7 @@ export const capabilityDefinitionsDB = {
     code: string;
     defaultLabel: string;
     description?: string | null;
+    category: string;
     roles?: CapabilityRole[];
     version?: string;
     authoredBy: string;
@@ -29,6 +30,7 @@ export const capabilityDefinitionsDB = {
         code: input.code,
         defaultLabel: input.defaultLabel,
         description: input.description,
+        category: input.category,
         roles: input.roles,
         version,
         draftContent,
@@ -41,13 +43,14 @@ export const capabilityDefinitionsDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<CapabilityDefinitionRow>(
-        `INSERT INTO capability_definitions (code, default_label, description, roles, version, status, authored_by, author_badge, draft_content, tenant_id, parent_capability_definition_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, $5, 'Defined', $6, $7, $8, $9, $10, $11)
+        `INSERT INTO capability_definitions (code, default_label, description, category, roles, version, status, authored_by, author_badge, draft_content, tenant_id, parent_capability_definition_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, 'Defined', $7, $8, $9, $10, $11, $12)
          RETURNING *`,
         [
           input.code,
           input.defaultLabel,
           input.description ?? null,
+          input.category,
           JSON.stringify(input.roles ?? []),
           version,
           input.authoredBy,
@@ -68,7 +71,7 @@ export const capabilityDefinitionsDB = {
   async updateDraftContent(
     id: string,
     input: {
-      code: string; defaultLabel: string; description: string | null; roles: CapabilityRole[]; version: string; draftContent: Record<string, unknown>;
+      code: string; defaultLabel: string; description: string | null; category: string; roles: CapabilityRole[]; version: string; draftContent: Record<string, unknown>;
     }
   ): Promise<DbResult<CapabilityDefinitionRow>> {
     try {
@@ -81,6 +84,7 @@ export const capabilityDefinitionsDB = {
         code: input.code,
         defaultLabel: input.defaultLabel,
         description: input.description,
+        category: input.category,
         roles: input.roles,
         version: input.version,
         draftContent: input.draftContent,
@@ -90,9 +94,9 @@ export const capabilityDefinitionsDB = {
       if (errors.length > 0) return { error: new Error(errors.join("; ")) };
 
       const { rows } = await query<CapabilityDefinitionRow>(
-        `UPDATE capability_definitions SET code = $2, default_label = $3, description = $4, roles = $5, version = $6, draft_content = $7
+        `UPDATE capability_definitions SET code = $2, default_label = $3, description = $4, category = $5, roles = $6, version = $7, draft_content = $8
          WHERE id = $1 AND status = 'Defined' RETURNING *`,
-        [id, input.code, input.defaultLabel, input.description, JSON.stringify(input.roles), input.version, JSON.stringify(input.draftContent)]
+        [id, input.code, input.defaultLabel, input.description, input.category, JSON.stringify(input.roles), input.version, JSON.stringify(input.draftContent)]
       );
       return { data: rows[0] };
     } catch (err) {

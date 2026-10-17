@@ -463,8 +463,8 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
 
 export type PublishTemplateResult = { ok: true; templateId: string } | { ok: false; errors: string[] };
 
-export async function publishTemplate(input: { seed: TemplateSeedInput; actorRole: string; actorId: string }): Promise<PublishTemplateResult> {
-  const { seed, actorRole, actorId } = input;
+export async function publishTemplate(input: { seed: TemplateSeedInput; actorId: string }): Promise<PublishTemplateResult> {
+  const { seed, actorId } = input;
   const validation = await validateTemplateSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
@@ -509,7 +509,7 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
 
   let current = draft;
   for (let i = 0; i < 3; i++) {
-    const result = await advanceTemplateOneStep(current, actorRole, actorId);
+    const result = await advanceTemplateOneStep(current, actorId);
     if (!result.ok) return { ok: false, errors: [`advancing Template "${current.code}" from "${current.status}" failed: ${result.reason}${result.detail ? ` (${result.detail})` : ""}`] };
     current = result.template;
   }
@@ -521,11 +521,11 @@ export type TransitionTemplateResult = { ok: true; template: TemplateRow } | { o
 
 const TERMINAL_REACTIVATABLE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
 
-export async function transitionTemplate(input: { templateId: string; targetState: TemplateRow["status"]; actorRole: string; actorId: string }): Promise<TransitionTemplateResult> {
+export async function transitionTemplate(input: { templateId: string; targetState: TemplateRow["status"]; actorId: string }): Promise<TransitionTemplateResult> {
   const { data: template } = await templatesDB.findById(input.templateId);
   if (!template) return { ok: false, reason: "not_found" };
   const fromState = template.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Template", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: template.id, context: { template } });
+  const gate = await transitionEngine.evaluate({ entityType: "Template", fromState, toState: input.targetState, actorId: input.actorId, entityId: template.id, context: { template } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Template ${fromState} -> ${input.targetState}` };
@@ -535,7 +535,7 @@ export async function transitionTemplate(input: { templateId: string; targetStat
   if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
 
   if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    return reactivateAsNewVersion(template, input.actorRole, input.actorId, gate.authorityBadge);
+    return reactivateAsNewVersion(template, input.actorId, gate.authorityBadge);
   }
 
   const { data: updated, error } = await templatesDB.updateStatus(template.id, input.targetState);
@@ -561,7 +561,7 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
   return nextAvailableVersion(fromVersion, async (candidate) => !!(await templatesDB.findByCodeAndVersion(code, candidate, tenantId)).data);
 }
 
-async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, actorId: string, authorBadge: string | null): Promise<TransitionTemplateResult> {
+async function reactivateAsNewVersion(template: TemplateRow, actorId: string, authorBadge: string | null): Promise<TransitionTemplateResult> {
   const nextVersion = await nextAvailablePatchVersion(template.code, template.template_version, template.tenant_id);
   const packSelections = await getPackSelectionsByCategory(template.id);
   const seed: TemplateSeedInput = {
@@ -600,14 +600,14 @@ async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, 
 
   let current = newDraft;
   for (const targetState of ["Validated", "Published", "Active"] as const) {
-    const result = await transitionTemplate({ templateId: current.id, targetState, actorRole, actorId });
+    const result = await transitionTemplate({ templateId: current.id, targetState, actorId });
     if (!result.ok) return result;
     current = result.template;
   }
 
   const { data: previousActive } = await templatesDB.findActiveByCode(template.code, template.tenant_id);
   if (previousActive && previousActive.id !== current.id) {
-    await transitionTemplate({ templateId: previousActive.id, targetState: "Deprecated", actorRole, actorId });
+    await transitionTemplate({ templateId: previousActive.id, targetState: "Deprecated", actorId });
   }
 
   return { ok: true, template: current };
@@ -655,21 +655,21 @@ const AUTHORING_NEXT_STATE: Partial<Record<TemplateRow["status"], TemplateRow["s
   Retired: "Archived",
 };
 
-export async function advanceTemplateOneStep(template: TemplateRow, actorRole: string, actorId: string): Promise<TransitionTemplateResult> {
+export async function advanceTemplateOneStep(template: TemplateRow, actorId: string): Promise<TransitionTemplateResult> {
   const targetState = AUTHORING_NEXT_STATE[template.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Template is already ${template.status} — no further authoring step` };
 
   if (targetState === "Active") {
     const { data: previousActive } = await templatesDB.findActiveByCode(template.code, template.tenant_id);
-    const activateResult = await transitionTemplate({ templateId: template.id, targetState: "Active", actorRole, actorId });
+    const activateResult = await transitionTemplate({ templateId: template.id, targetState: "Active", actorId });
     if (!activateResult.ok) return activateResult;
     if (previousActive && previousActive.id !== activateResult.template.id) {
-      await transitionTemplate({ templateId: previousActive.id, targetState: "Deprecated", actorRole, actorId });
+      await transitionTemplate({ templateId: previousActive.id, targetState: "Deprecated", actorId });
     }
     return activateResult;
   }
 
-  return transitionTemplate({ templateId: template.id, targetState, actorRole, actorId });
+  return transitionTemplate({ templateId: template.id, targetState, actorId });
 }
 
 export async function materialiseTemplateDraft(templateId: string, seed: TemplateSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {

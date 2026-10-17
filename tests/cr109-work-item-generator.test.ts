@@ -96,7 +96,7 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
         { deliverableCode: "deployment-manifest", outputLocation: "s3://cr104-demo/deployment-manifest.yaml" },
       ],
     },
-    actorRole: "super", actorId: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID,
   });
   assert.ok(profileResult.ok, `test Profile must publish: ${!profileResult.ok ? JSON.stringify(profileResult) : ""}`);
   const { data: profile } = await profilesDB.findActiveByCode(profileCode);
@@ -125,12 +125,12 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
     objectiveId: objective.id,
     templateIds: [template!.id],
     profileIds: [profile!.id],
-    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
   assert.equal(commissioned.ok, true, !commissioned.ok ? JSON.stringify(commissioned) : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
 
-  const driven = await driveCommissioningToActive({ seuId: commissioned.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, beforeCommenceWork });
+  const driven = await driveCommissioningToActive({ seuId: commissioned.seu.id, actorId: TESTER_ALL_ID, beforeCommenceWork });
   assert.equal(driven.ok, true, !driven.ok ? JSON.stringify(driven) : "assertion failed");
   return commissioned.seu.id;
 }
@@ -139,13 +139,13 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
 // Item completed "done" (records the reference), then the Command to approve, which the engine governs and applies.
 // Returns the producing Work Item id.
 async function driveDeliverableToApproved(deliverableId: string, tag: string): Promise<{ productionWorkItemId: string }> {
-  const toInProgress = await transitionDeliverableSync({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const toInProgress = await transitionDeliverableSync({ deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : "assertion failed");
   const { workItem: productionWorkItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
   const produced = await completeWorkItem({ workItemId: productionWorkItem.id, outcome: "done", reference: `vcs://${tag}/produced@1` });
   assert.equal(produced.ok, true, !produced.ok ? JSON.stringify(produced) : "assertion failed");
 
-  const toApproved = await transitionDeliverableSync({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const toApproved = await transitionDeliverableSync({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(toApproved.ok, true, !toApproved.ok ? JSON.stringify(toApproved) : "assertion failed");
 
   return { productionWorkItemId: productionWorkItem.id };
@@ -169,7 +169,7 @@ async function driveDeliverableToApproved(deliverableId: string, tag: string): P
 async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: string) => Promise<void>, beforeCommenceWork?: (seuId: string) => Promise<void>): Promise<{ seuId: string; deliverableId: string; packId: string }> {
   const packSeed = { code: `cr109-isolated-pack-${run}`, name: "CR-109 Isolated Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   await registerOrganisationName(packSeed.code);
-  const published = await publishPack({ seed: packSeed as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
+  const published = await publishPack({ seed: packSeed as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `isolated pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(packSeed.code);
 
@@ -203,21 +203,20 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
       redispatchMaxAttempts: 5,
       redispatchAttentionThreshold: 2,
     },
-    actorRole: "super",
     actorId: TESTER_ALL_ID,
   });
   assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
 
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
   // The Execution Engine makes the governed Defined -> In Progress hop off SEUOperational, so anything the hop's
   // governance must see (an Obligation, a fulfilled Capability) has to exist before commence-work. The caller
   // supplies it through beforeCommenceWork, which runs once the SEU is Activated.
-  const driven = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, beforeCommenceWork });
+  const driven = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID, beforeCommenceWork });
   assert.equal(driven.ok, true, !driven.ok ? JSON.stringify(driven) : "assertion failed");
   await resolveDispatchRejectionObligations(requested.seu.id);
 
@@ -278,7 +277,7 @@ test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Co
 
   const { participant } = await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
 
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 
   const { command, workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "In Progress", "In Progress");
@@ -308,7 +307,7 @@ test("Ch.12 §9 / CR-109 §6.2: no producing Capability declared means no pool a
   // reports "Command requested" regardless, and an empty pool is Dispatch's
   // own case 1 (DispatchRejected, Command marked Failed), not a deferral.
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const requested = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const requested = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(requested);
 
   let command: CommandRow | null = null;
@@ -404,7 +403,7 @@ test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model 
   assert.ok(requirementsSpec && sourceCode);
   assert.equal(requirementsSpec.lifecycleState, "Defined", "the open Decision stopped the engine's own hop");
 
-  const blockedDirect = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blockedDirect = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(blockedDirect.ok, false);
   if (blockedDirect.ok) throw new Error("unreachable");
   assert.equal(blockedDirect.reason, "decision_blocked");
@@ -414,7 +413,7 @@ test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model 
   // never advanced at all (still Defined), so Source Code's own attempt
   // must fail on dependency readiness — not because of any new graph edge
   // for the Decision, purely because Requirements never moved.
-  const blockedTransitively = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blockedTransitively = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(blockedTransitively.ok, false);
   if (blockedTransitively.ok) throw new Error("unreachable");
   assert.equal(blockedTransitively.reason, "dependency_not_satisfied", "Source Code is blocked purely because Requirements Analysis Model never reached Approved, no new edge involved");
@@ -452,7 +451,7 @@ test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation 
   await driveDeliverableToApproved(requirementsSpec!.id, `cr109-source-code-scoping-${seuId}`);
 
   await fulfilCapability({ seuId, capabilityId: constructionCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["software-construction"]) });
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 
   const { workItem } = await waitForDispatchedWorkItem(sourceCode!.id, "In Progress", "In Progress");
@@ -495,12 +494,12 @@ test("CR-109 Source Code §5a: decision_blocked triggers even when only ONE of s
   await driveDeliverableToApproved(requirementsSpec!.id, `cr109-source-code-partial-block-${seuId}`);
   await fulfilCapability({ seuId, capabilityId: constructionCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["software-construction"]) });
 
-  const blocked = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blocked = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
   if (blocked.ok) throw new Error("unreachable");
   assert.equal(blocked.reason, "decision_blocked", "one Approved Decision is not enough — the second, still-open Decision must still block");
 
   await decisionsDB.updateStatus(openDecision!.id, "Approved", { participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE });
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 });

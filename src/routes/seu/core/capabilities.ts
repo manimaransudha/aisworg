@@ -160,7 +160,6 @@ export async function releaseParticipants(input: {
   seuId: string;
   capabilityId: string;
   participantIds: string[];
-  actorRole: string;
   actorId: string;
 }): Promise<ParticipantRow[]> {
   if (input.participantIds.length === 0) throw new Error("at least one Participant is required");
@@ -177,10 +176,10 @@ export async function releaseParticipants(input: {
     }
 
     if (participant.state !== "Released") {
-      const toReleased = await transitionParticipant({ participantId: participant.id, targetState: "Released", actorRole: input.actorRole, actorId: input.actorId });
+      const toReleased = await transitionParticipant({ participantId: participant.id, targetState: "Released", actorId: input.actorId });
       if (!toReleased.ok) throw new Error(`failed to release Participant ${participant.id}: ${toReleased.reason}`);
     }
-    const toArchived = await transitionParticipant({ participantId: participant.id, targetState: "Archived", actorRole: input.actorRole, actorId: input.actorId });
+    const toArchived = await transitionParticipant({ participantId: participant.id, targetState: "Archived", actorId: input.actorId });
     if (!toArchived.ok) throw new Error(`failed to archive Participant ${participant.id}: ${toArchived.reason}`);
 
     await capabilityFulfilmentsDB.revoke(fulfilment.id);

@@ -29,7 +29,7 @@ async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     beforeCommenceWork
   );
@@ -59,7 +59,7 @@ async function commissionAndApproveRequirementsSpec(statementPrefix: string) {
   await resolveDispatchRejectionObligations(seuId);
 
   await produceDeliverable(requirementsSpec.id, ROOT_ACTOR_ID);
-  const toApproved = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const toApproved = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(toApproved.ok, true, !toApproved.ok ? JSON.stringify(toApproved) : "assertion failed");
 
   return { seuId, deliverableId: requirementsSpec.id };
@@ -68,7 +68,7 @@ async function commissionAndApproveRequirementsSpec(statementPrefix: string) {
 test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, then allows it", async () => {
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-evidence-gate");
 
-  const blocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
   if (!blocked.ok) {
     assert.equal(blocked.reason, "quality_gate_blocked");
@@ -86,15 +86,15 @@ test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, 
   assert.equal(evidence.status, "Collected");
 
   // Not yet Accepted — still blocked.
-  const stillBlocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const stillBlocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorId: ROOT_ACTOR_ID });
   assert.equal(stillBlocked.ok, false);
 
-  const toValidated = await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toValidated = await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorId: TESTER_ALL_ID });
   assert.equal(toValidated.ok, true);
-  const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorId: TESTER_ALL_ID });
   assert.equal(toAccepted.ok, true);
 
-  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorId: ROOT_ACTOR_ID });
   assert.equal(unblocked.ok, true, !unblocked.ok ? JSON.stringify(unblocked) : "assertion failed");
   if (unblocked.ok) assert.equal(unblocked.deliverable.lifecycle_state, "Baselined");
 });
@@ -107,11 +107,11 @@ test("Quality Gate also accepts an Approved Decision as satisfying the same prec
   assert.equal(decision.status, "Identified");
 
   for (const targetState of ["Analysed", "Proposed", "Reviewed", "Approved"]) {
-    const step = await transitionDecision({ decisionId: decision.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const step = await transitionDecision({ decisionId: decision.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, !step.ok ? `Decision transition to ${targetState} failed: ${JSON.stringify(step)}` : "assertion failed");
   }
 
-  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorId: ROOT_ACTOR_ID });
   assert.equal(unblocked.ok, true, !unblocked.ok ? JSON.stringify(unblocked) : "assertion failed");
 });
 
@@ -119,19 +119,19 @@ test("Evidence, Knowledge and Decision each run their own governed lifecycle and
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-lifecycles");
 
   const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Phase5 lifecycle test evidence" });
-  const evidenceInvalid = await transitionEvidence({ evidenceId: evidence.id, targetState: "Referenced", actorRole: "super", actorId: TESTER_ALL_ID });
+  const evidenceInvalid = await transitionEvidence({ evidenceId: evidence.id, targetState: "Referenced", actorId: TESTER_ALL_ID });
   assert.equal(evidenceInvalid.ok, false);
   if (!evidenceInvalid.ok) assert.equal(evidenceInvalid.reason, "no_transition_definition");
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "Phase5 lifecycle test knowledge" });
-  const knowledgeInvalid = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Published", actorRole: "super", actorId: TESTER_ALL_ID });
+  const knowledgeInvalid = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Published", actorId: TESTER_ALL_ID });
   assert.equal(knowledgeInvalid.ok, false);
   if (!knowledgeInvalid.ok) assert.equal(knowledgeInvalid.reason, "no_transition_definition");
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   const decision = await createDecision({ actorId: ROOT_ACTOR_ID, seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 lifecycle test decision" });
-  const decisionInvalid = await transitionDecision({ decisionId: decision.id, targetState: "Approved", actorRole: "super", actorId: TESTER_ALL_ID });
+  const decisionInvalid = await transitionDecision({ decisionId: decision.id, targetState: "Approved", actorId: TESTER_ALL_ID });
   assert.equal(decisionInvalid.ok, false);
   if (!decisionInvalid.ok) assert.equal(decisionInvalid.reason, "no_transition_definition");
 });
@@ -146,19 +146,19 @@ test("Evidence can be Rejected from either Collected or Validated, and Rejected 
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-evidence-reject");
 
   const fromCollected = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Reject from Collected" });
-  const rejectedFromCollected = await transitionEvidence({ evidenceId: fromCollected.id, targetState: "Rejected", actorRole: "super", actorId: TESTER_ALL_ID });
+  const rejectedFromCollected = await transitionEvidence({ evidenceId: fromCollected.id, targetState: "Rejected", actorId: TESTER_ALL_ID });
   assert.equal(rejectedFromCollected.ok, true, !rejectedFromCollected.ok ? JSON.stringify(rejectedFromCollected) : "assertion failed");
   if (rejectedFromCollected.ok) assert.equal(rejectedFromCollected.evidence.status, "Rejected");
 
   const fromValidated = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Reject from Validated" });
-  const toValidated = await transitionEvidence({ evidenceId: fromValidated.id, targetState: "Validated", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toValidated = await transitionEvidence({ evidenceId: fromValidated.id, targetState: "Validated", actorId: TESTER_ALL_ID });
   assert.equal(toValidated.ok, true, !toValidated.ok ? JSON.stringify(toValidated) : "assertion failed");
-  const rejectedFromValidated = await transitionEvidence({ evidenceId: fromValidated.id, targetState: "Rejected", actorRole: "super", actorId: TESTER_ALL_ID });
+  const rejectedFromValidated = await transitionEvidence({ evidenceId: fromValidated.id, targetState: "Rejected", actorId: TESTER_ALL_ID });
   assert.equal(rejectedFromValidated.ok, true, !rejectedFromValidated.ok ? JSON.stringify(rejectedFromValidated) : "assertion failed");
 
   // Terminal: no governed hop exists out of Rejected (preserved for audit,
   // per the chapter's own words — not archived, not reactivated).
-  const noFurtherHop = await transitionEvidence({ evidenceId: fromCollected.id, targetState: "Archived", actorRole: "super", actorId: TESTER_ALL_ID });
+  const noFurtherHop = await transitionEvidence({ evidenceId: fromCollected.id, targetState: "Archived", actorId: TESTER_ALL_ID });
   assert.equal(noFurtherHop.ok, false);
   if (!noFurtherHop.ok) assert.equal(noFurtherHop.reason, "no_transition_definition");
 });
@@ -233,7 +233,7 @@ test("Knowledge Item captures §8/§10/§14 structure: structured references, ve
 
   // author_id/authority_badge update on every governed transition thereafter
   // — the row always reflects the most recent actor, full history stays in `events`.
-  const toProposed = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Proposed", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toProposed = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Proposed", actorId: TESTER_ALL_ID });
   assert.equal(toProposed.ok, true, !toProposed.ok ? JSON.stringify(toProposed) : "assertion failed");
   if (toProposed.ok) assert.equal(toProposed.knowledgeItem.authority_badge, "knowledge_propose");
 
@@ -422,7 +422,7 @@ test("Evidence transitions publish the correct named event for each landed state
     ["Referenced", "EvidenceReferenced"],
     ["Archived", "EvidenceArchived"],
   ] as const) {
-    const result = await transitionEvidence({ evidenceId: evidence.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const result = await transitionEvidence({ evidenceId: evidence.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : "assertion failed");
   }
 
@@ -437,7 +437,7 @@ test("Evidence transitions publish the correct named event for each landed state
 
   // Rejected is a separate branch (Collected -> Rejected), tested independently.
   const rejectable = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Named-event test evidence (rejected)" });
-  const rejected = await transitionEvidence({ evidenceId: rejectable.id, targetState: "Rejected", actorRole: "super", actorId: TESTER_ALL_ID });
+  const rejected = await transitionEvidence({ evidenceId: rejectable.id, targetState: "Rejected", actorId: TESTER_ALL_ID });
   assert.equal(rejected.ok, true, !rejected.ok ? JSON.stringify(rejected) : "assertion failed");
   const { data: rejectedEvents } = await eventsDB.findByOriginatingObject("Evidence", rejectable.id);
   assert.ok((rejectedEvents ?? []).some((e) => e.event_type === "EvidenceRejected"));

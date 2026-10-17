@@ -121,7 +121,7 @@ test("DRIVEN: row 6 (Activate) publishes ObjectiveActivated, matching transition
     parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, status: "Proposed",
   });
   await submitObjective(objective.id, TESTER_ALL_ID);
-  const result = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
+  const result = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Objective", objective.id);
@@ -140,9 +140,9 @@ test("DRIVEN: row 4 (Reject) publishes ObjectiveRejected, matching transition_de
     parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, status: "Proposed",
   });
   await submitObjective(objective.id, TESTER_ALL_ID);
-  await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
+  await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   const result = await transitionObjective({
-    objectiveId: objective.id, targetState: "Reject", actorRole: "general", actorId: TESTER_ALL_ID,
+    objectiveId: objective.id, targetState: "Reject", actorId: TESTER_ALL_ID,
     comment: "event-table test rejection — needs rework",
   });
   assert.equal(result.ok, true);

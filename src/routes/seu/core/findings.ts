@@ -83,14 +83,13 @@ export type TransitionFindingResult =
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked"; detail: string };
 
-export async function transitionFinding(input: { findingId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionFindingResult> {
+export async function transitionFinding(input: { findingId: string; targetState: string; actorId: string }): Promise<TransitionFindingResult> {
   const { data: finding } = await findingsDB.findById(input.findingId);
   if (!finding) return { ok: false, reason: "not_found" };
 
   const fromState = finding.status;
   if (!input.actorId) throw new Error("actorId is required to transition a Finding");
-  const gate = await transitionEngine.evaluate({ entityType: "Finding", fromState, toState: input.targetState, actorRole: input.actorRole,
-    actorId: input.actorId, entityId: finding.id, context: { finding } });
+  const gate = await transitionEngine.evaluate({ entityType: "Finding", fromState, toState: input.targetState, actorId: input.actorId, entityId: finding.id, context: { finding } });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Finding ${fromState} -> ${input.targetState}` };
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };

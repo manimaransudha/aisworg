@@ -174,13 +174,11 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   const mandatoryConfigParams = { developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github" };
   const plainPublished = await publishProfile({
     seed: { code: plainCode, name: "Plain Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: [], profileVersion: "1.0.0", ...mandatoryConfigParams },
-    actorRole: "power",
     actorId: TESTER_ALL_ID,
   });
   assert.equal(plainPublished.ok, true, !plainPublished.ok ? plainPublished.errors.join("; ") : "assertion failed");
   const nodejsPublished = await publishProfile({
     seed: { code: nodejsCode, name: "Nodejs Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: ["technology-nodejs"], profileVersion: "1.0.0", ...mandatoryConfigParams },
-    actorRole: "power",
     actorId: TESTER_ALL_ID,
   });
   assert.equal(nodejsPublished.ok, true, !nodejsPublished.ok ? nodejsPublished.errors.join("; ") : "assertion failed");
@@ -208,10 +206,10 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   }
 
   // 2. Explicitly choosing the Template + nodejs Profile actually composes it.
-  const requestedChoice = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template!.id, profileId: nodejsPublished.profileId }], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requestedChoice = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template!.id, profileId: nodejsPublished.profileId }], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
   assert.equal(requestedChoice.ok, true, !requestedChoice.ok ? JSON.stringify(requestedChoice) : "assertion failed");
   if (!requestedChoice.ok) return;
-  const chosen = await driveCommissioningToActive({ seuId: requestedChoice.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
+  const chosen = await driveCommissioningToActive({ seuId: requestedChoice.seu.id, actorId: TESTER_ALL_ID });
   assert.equal(chosen.ok, true, !chosen.ok ? `commissioning failed: ${chosen.reason}` : "assertion failed");
   if (!chosen.ok) return;
   // composedPacks moved off SeuDetailView onto its own EBM page/read model

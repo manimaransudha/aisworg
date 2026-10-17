@@ -9,6 +9,8 @@ import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js"
 import { userDB } from "../userDB.js";
 import { packsDB } from "../packsDB.js";
 import { getPlatformTenantId } from "../constants.js";
+import { seedTestOntology } from "./seedTestOntology.js";
+import { seedCr104Demo } from "./seedCr104Demo.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data", "test-fixtures");
@@ -103,7 +105,7 @@ async function publishBatch(files: string[], actorId: string): Promise<PromiseSe
     files.map(async (file) => {
       const seed = loadJson<PackSeedInput>(file);
       if ((await packsDB.findActiveByCode(seed.code, seed.tenantId ?? (await getPlatformTenantId()))).data) return;
-      const result = await publishPack({ seed, actorRole: "super", actorId, activate: true });
+      const result = await publishPack({ seed, actorId, activate: true });
       if (!result.ok) {
         throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
       }
@@ -112,7 +114,8 @@ async function publishBatch(files: string[], actorId: string): Promise<PromiseSe
 }
 
 export async function seedAllTestFixturePacks(): Promise<void> {
-  const { actorId } = await userDB.getSuperuserId();
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
+  await seedTestOntology({ authoredBy: actorId, authorBadge: actorBadge });
   const independentResults = await publishBatch(INDEPENDENT_TEST_FIXTURE_PACK_FILES, actorId);
   const independentFailures = independentResults.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
   if (independentFailures.length > 0) {
@@ -124,6 +127,8 @@ export async function seedAllTestFixturePacks(): Promise<void> {
   if (dependentFailures.length > 0) {
     throw new Error(`[seed:test-fixture-packs] ${dependentFailures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${dependentFailures.join(" | ")}`);
   }
+
+  await seedCr104Demo({ authoredBy: actorId, authorBadge: actorBadge });
 
   logger.info(`[seed:test-fixture-packs] ${independentResults.length + dependentResults.length} published — ${TEST_FIXTURE_PACK_FILES.length} test-fixture Packs total.`);
 }

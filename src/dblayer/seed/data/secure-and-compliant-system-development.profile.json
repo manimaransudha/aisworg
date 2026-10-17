@@ -1,0 +1,23 @@
+{
+  "code": "profile-secure-and-compliant-system-development",
+  "name": "Secure and Compliant System — Default Development Profile",
+  "baseTemplateCode": "secure-and-compliant-system",
+  "environment": "development",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
+  "dispatchStrategyPreference": [
+    {
+      "strategy": "capability-match",
+      "order": 1
+    }
+  ],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
+  "optionalPackCodes": [
+    "testing-qa",
+    "integration-github",
+    "integration-snyk",
+    "integration-sonarqube"
+  ]
+}

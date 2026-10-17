@@ -45,7 +45,7 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
@@ -112,7 +112,7 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
   });
   assert.equal(definitionError, undefined);
 
-  const evaluateArgs = { entityType: "AttentionItem" as const, fromState, toState, actorRole: "general", actorId: TESTER_ALL_ID, entityId: attentionItem.id, seuId };
+  const evaluateArgs = { entityType: "AttentionItem" as const, fromState, toState, actorId: TESTER_ALL_ID, entityId: attentionItem.id, seuId };
 
   const beforeObligation = await transitionEngine.evaluate(evaluateArgs);
   assert.equal(beforeObligation.allowed, true);
@@ -131,7 +131,7 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
   assert.match(blocked.detail, /unresolved Obligation/);
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
 

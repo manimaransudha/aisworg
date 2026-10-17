@@ -29,7 +29,7 @@ async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     beforeCommenceWork
   );
@@ -76,7 +76,7 @@ test("the engine starts a Deliverable when nobody fulfils the producing Capabili
 
   // Defined -> In Progress is the engine's own governed hop. It is governed by dependencies, Obligations and
   // Policy, not by Participant availability.
-  const moved = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const moved = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(moved.ok, true, !moved.ok ? JSON.stringify(moved) : "assertion failed");
 
   // The producing work has nobody to go to: Dispatch's own case 1 (Command Failed, Obligation raised).
@@ -94,7 +94,7 @@ test("the producing Command leaves a traceable Command and a Completed/Disposed 
   // Defined -> In Progress is a governed hop: the Execution Engine makes it off the kickoff, so a manual request that
   // lands after it finds the Deliverable already In Progress (no_transition_definition). The producing Command
   // (In Progress -> In Progress) is what the test then waits for.
-  const result = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const result = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : "assertion failed");
 
   // Outstanding first: the producing Command and its Work Item are Dispatched, waiting for the Participant.
@@ -204,7 +204,7 @@ test("a Participant reporting 'blocked' fails the Work Item, and raises an Atten
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
 
   const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
@@ -235,7 +235,7 @@ test("completeWorkItem is idempotent-safe: a second result on an already-complet
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
 
   const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");

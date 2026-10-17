@@ -163,10 +163,6 @@ const DOMAIN_TECHNOLOGY_PACK_FILES = [
   "technology-kubernetes.pack.json",
   "technology-sql.pack.json",
 ];
-const TEST_PACKS = [
-  "cr104-demo-seu-eligibility-policies.pack.json",
-  "cr104-demo-mandatory.pack.json"
-];
 const ALL_PACK_FILES = [
   ...CAPABILITY_PATTERN_PACK_FILES,
   ...COMPLIANCE_PACK_FILES,
@@ -176,7 +172,6 @@ const ALL_PACK_FILES = [
   ...LEGACY_MODERN_PACK_FILES,
   ...DOMAIN_SPECIALISATION_PACK_FILES,
   ...DOMAIN_TECHNOLOGY_PACK_FILES,
-  ...(process.env.NODE_ENV !== "production" ? TEST_PACKS: [])
 ];
 const PUBLISH_CONCURRENCY = 8;
 
@@ -191,7 +186,7 @@ export async function seedCapabilityPatternPacks(actor: SeedActor): Promise<void
       try {
         const seed = loadJson<PackSeedInput>(ALL_PACK_FILES[idx]);
         seed.tenantId = PLATFORM_TENANT_ID;
-        const result = await publishPack({ seed, actorRole: actor.authorBadge, actorId: actor.authoredBy, activate: true });
+        const result = await publishPack({ seed, actorId: actor.authoredBy, activate: true });
         if (!result.ok) {
           throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
         }

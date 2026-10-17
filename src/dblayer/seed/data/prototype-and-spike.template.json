@@ -1,0 +1,51 @@
+{
+  "code": "prototype-and-spike",
+  "name": "Prototype and Spike",
+  "purpose": "Template for time-boxed exploration before commitment: option analysis, hypothesis-driven experiments, throwaway or evolutionary prototypes, user feedback and a go or no-go business case. Use this when the outcome is a decision and evidence, not a production system.",
+  "mandatoryPackCodes": [
+    "development",
+    "requirements-analysis",
+    "architecture-solution-design",
+    "configuration-management",
+    "project-management",
+    "vision-opportunity-framing",
+    "product-discovery",
+    "experience-design"
+  ],
+  "deliverableCatalogue": [
+    { "code": "requirements-backlog" },
+    { "code": "solution-options-analysis" },
+    { "code": "experiment-design" },
+    { "code": "prototype-evaluation-report" },
+    { "code": "source-code" },
+    { "code": "user-research-report" },
+    { "code": "ux-ui-design-specification" },
+    { "code": "usability-test-report" },
+    { "code": "vision" },
+    { "code": "business-case" },
+    { "code": "product-roadmap" }
+  ],
+  "dependencyGraph": [
+    { "toCode": "requirements-backlog", "fromType": "Capability", "fromCapabilityCode": "requirements-elicitation" },
+    { "toCode": "solution-options-analysis", "fromType": "Capability", "fromCapabilityCode": "solution-options" },
+    { "toCode": "experiment-design", "fromType": "Deliverable", "fromCode": "requirements-backlog" },
+    { "toCode": "experiment-design", "fromType": "Deliverable", "fromCode": "solution-options-analysis" },
+    { "toCode": "experiment-design", "fromType": "Capability", "fromCapabilityCode": "prototyping-and-experimentation" },
+    { "toCode": "prototype-evaluation-report", "fromType": "Deliverable", "fromCode": "requirements-backlog" },
+    { "toCode": "prototype-evaluation-report", "fromType": "Deliverable", "fromCode": "solution-options-analysis" },
+    { "toCode": "prototype-evaluation-report", "fromType": "Capability", "fromCapabilityCode": "prototyping-and-experimentation" },
+    { "toCode": "source-code", "fromType": "Capability", "fromCapabilityCode": "software-construction" },
+    { "toCode": "user-research-report", "fromType": "Capability", "fromCapabilityCode": "user-experience-engineering" },
+    { "toCode": "ux-ui-design-specification", "fromType": "Capability", "fromCapabilityCode": "user-experience-engineering" },
+    { "toCode": "usability-test-report", "fromType": "Capability", "fromCapabilityCode": "user-experience-engineering" },
+    { "toCode": "vision", "fromType": "Deliverable", "fromCode": "requirements-backlog" },
+    { "toCode": "vision", "fromType": "Deliverable", "fromCode": "user-research-report" },
+    { "toCode": "vision", "fromType": "Capability", "fromCapabilityCode": "product-value-management" },
+    { "toCode": "business-case", "fromType": "Deliverable", "fromCode": "requirements-backlog" },
+    { "toCode": "business-case", "fromType": "Deliverable", "fromCode": "user-research-report" },
+    { "toCode": "business-case", "fromType": "Capability", "fromCapabilityCode": "product-value-management" },
+    { "toCode": "product-roadmap", "fromType": "Deliverable", "fromCode": "requirements-backlog" },
+    { "toCode": "product-roadmap", "fromType": "Deliverable", "fromCode": "user-research-report" },
+    { "toCode": "product-roadmap", "fromType": "Capability", "fromCapabilityCode": "product-value-management" }
+  ]
+}

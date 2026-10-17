@@ -24,10 +24,9 @@ router.post("/attention-items/:id/transition", async (req: Request, res: Respons
     if (typeof targetState !== "string" || !targetState.trim()) {
       return res.status(400).json({ error: "targetState is required" });
     }
-    const actorRole = req.session?.user?.role ?? "general";
     if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
     const actorId = String(req.session.user.id);
-    const result = await transitionAttentionItem({ attentionItemId: String(req.params.id), targetState, actorRole, actorId });
+    const result = await transitionAttentionItem({ attentionItemId: String(req.params.id), targetState, actorId });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "Attention Item not found" });

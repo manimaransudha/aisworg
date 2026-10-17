@@ -27,7 +27,7 @@ async function commissionAndFulfil(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
@@ -66,7 +66,7 @@ test("a reference is recorded at production, but an attestation is minted only a
   assert.equal(refsAfterProduction[0]?.reference, "vcs://attest/req-spec@prod1");
 
   // Acceptance: the Command to approve, governed and applied by the Execution Engine. Mints an attestation.
-  const approved = await transitionDeliverableSync({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const approved = await transitionDeliverableSync({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(approved.ok, true, !approved.ok ? JSON.stringify(approved) : "assertion failed");
 
   const attestations = (await attestationsDB.findByDeliverableId(deliverableId)).data ?? [];
@@ -88,7 +88,7 @@ test("empty-centre: an approval cannot be dispatched unless a real reference was
   // Produce with NO reference — the "empty centre" the platform must not certify.
   await produceDeliverable(deliverableId, ROOT_ACTOR_ID, null);
 
-  const blocked = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blocked = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false, "approving an empty Deliverable must be blocked");
   if (!blocked.ok) assert.equal(blocked.reason, "empty_centre");
 
@@ -103,6 +103,6 @@ test("empty-centre clears once a real reference is produced: the same Deliverabl
   // A real production reference this time — the presence check is satisfied.
   await produceDeliverable(deliverableId, ROOT_ACTOR_ID, "vcs://attest/req-spec@real");
 
-  const approved = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const approved = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(approved.ok, true, !approved.ok ? JSON.stringify(approved) : "assertion failed");
 });

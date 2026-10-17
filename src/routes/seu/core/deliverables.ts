@@ -11,7 +11,7 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 import type { DeliverableRow } from "../../../dblayer/seuTypes.js";
 
 export async function createDeliverable(input: { seuId: string; name: string; category: string; actorId: string }): Promise<{ deliverable: DeliverableRow }> {
-  await assertCanonicalCategory("category:deliverable", input.category);
+  await assertCanonicalCategory("deliverable-name", input.category);
 
   const { data: seu } = await seusDB.findById(input.seuId);
   if (!seu) throw new Error("SEU not found");
@@ -47,7 +47,6 @@ export type TransitionDeliverableResult =
 export async function transitionDeliverable(input: {
   deliverableId: string;
   targetState: string;
-  actorRole?: string;
   actorId: string;
   requestedBy: string;
 }): Promise<TransitionDeliverableResult> {

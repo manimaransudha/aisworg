@@ -10,6 +10,7 @@ export interface CapabilityDefinitionWriteInput {
   code: string;
   defaultLabel: string;
   description?: string | null;
+  category: string;
   roles?: CapabilityRole[];
   version: string;
   draftContent: Record<string, unknown>;
@@ -31,6 +32,7 @@ export async function validateCapabilityDefinitionWriteAgainstSchema(input: Capa
     code: input.code,
     defaultLabel: input.defaultLabel,
     description: input.description ?? "",
+    category: input.category,
     roles: input.roles ?? [],
   };
 

@@ -197,7 +197,7 @@ export type TransitionEvidenceResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-export async function transitionEvidence(input: { evidenceId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionEvidenceResult> {
+export async function transitionEvidence(input: { evidenceId: string; targetState: string; actorId: string }): Promise<TransitionEvidenceResult> {
   const { data: evidence } = await evidenceDB.findById(input.evidenceId);
   if (!evidence) return { ok: false, reason: "not_found" };
 
@@ -211,7 +211,6 @@ export async function transitionEvidence(input: { evidenceId: string; targetStat
     entityType: "Evidence",
     fromState,
     toState: input.targetState,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     entityId: evidence.id,
     context: { evidence },

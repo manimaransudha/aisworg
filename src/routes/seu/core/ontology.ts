@@ -21,7 +21,7 @@ async function resolveAuthor(actor: OntologyActor): Promise<{ authorId: string; 
 }
 
 export const CATEGORY_CONCEPT_TYPE: Record<string, string> = {
-  Deliverable: "category:deliverable",
+  Deliverable: "deliverable-name",
   Evidence: "category:evidence",
   Decision: "category:decision",
   Knowledge: "category:knowledge",
@@ -424,7 +424,7 @@ async function transitionConcept(
   const fromState = concept.status;
 
   const gate = await transitionEngine.evaluate({
-    entityType: "Ontology", fromState, toState, actorRole: "", actorId: actor.actorId,
+    entityType: "Ontology", fromState, toState, actorId: actor.actorId,
     entityId: concept.id, alternateBadges: ["ontology_define"],
   });
   if (!gate.allowed) {

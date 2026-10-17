@@ -93,7 +93,6 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
       redispatchMaxAttempts: 5,
       redispatchAttentionThreshold: 2,
     },
-    actorRole: "super",
     actorId: TESTER_ALL_ID,
   });
   assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
@@ -102,10 +101,10 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
   const { objective: tcRoot } = await createObjective({ statement: `tenant-contract-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
   const { objective } = await createObjective({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: tcRoot.id, requestedBy: TESTER_ALL_ID, status: "Proposed" });
   await submitObjective(objective.id, TESTER_ALL_ID);
-  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
+  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId });
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId });
   assert.equal(requested.ok, true, !requested.ok ? `commissioning failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
@@ -116,7 +115,6 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
   // empty_eligible_pool rejection (dispatchEngine.ts Case 1b).
   const result = await driveCommissioningToActive({
     seuId: requested.seu.id,
-    actorRole: "super",
     actorId: TESTER_ALL_ID,
     beforeCommenceWork: async (seuId) => {
       const detail = await getSeuDetailView(seuId);
@@ -145,7 +143,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
   // Defined -> In Progress is a governed hop: the Execution Engine makes it off the kickoff, so a manual request that
   // lands after it finds the Deliverable already In Progress (no_transition_definition). The producing Command
   // (In Progress -> In Progress) is what the test then waits for.
-  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: deliverable.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   if (!dispatched.ok) assert.ok(dispatched.reason === "no_transition_definition" || dispatched.reason === "already_in_flight", JSON.stringify(dispatched));
   const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "In Progress", "In Progress");
   return workItem.id;
@@ -224,7 +222,7 @@ test("a SEU commissioned without a named tenant belongs to the seeded default te
   const result = await commissionFromFormSync({
     statement: `tenant-default-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");

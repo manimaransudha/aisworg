@@ -230,11 +230,11 @@ export async function inheritedPolicyDefinitionContent(parentPolicyDefinitionId:
 
 export type TransitionPolicyDefinitionResult = { ok: true; policyDefinition: PolicyDefinitionRow } | { ok: false; reason: string; detail?: string };
 
-export async function transitionPolicyDefinition(input: { policyDefinitionId: string; targetState: PolicyDefinitionRow["status"]; actorRole: string; actorId: string }): Promise<TransitionPolicyDefinitionResult> {
+export async function transitionPolicyDefinition(input: { policyDefinitionId: string; targetState: PolicyDefinitionRow["status"]; actorId: string }): Promise<TransitionPolicyDefinitionResult> {
   const { data: policyDefinition } = await policyDefinitionsDB.findById(input.policyDefinitionId);
   if (!policyDefinition) return { ok: false, reason: "not_found" };
   const fromState = policyDefinition.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Policy", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: policyDefinition.id, context: { policyDefinition } });
+  const gate = await transitionEngine.evaluate({ entityType: "Policy", fromState, toState: input.targetState, actorId: input.actorId, entityId: policyDefinition.id, context: { policyDefinition } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Policy ${fromState} -> ${input.targetState}` };
@@ -273,10 +273,10 @@ const AUTHORING_NEXT_STATE: Partial<Record<PolicyDefinitionRow["status"], Policy
   Retired: "Archived",
 };
 
-export async function advancePolicyDefinitionOneStep(policyDefinition: PolicyDefinitionRow, actorRole: string, actorId: string): Promise<TransitionPolicyDefinitionResult> {
+export async function advancePolicyDefinitionOneStep(policyDefinition: PolicyDefinitionRow, actorId: string): Promise<TransitionPolicyDefinitionResult> {
   const targetState = AUTHORING_NEXT_STATE[policyDefinition.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Policy Definition is already ${policyDefinition.status} — no further authoring step` };
-  return transitionPolicyDefinition({ policyDefinitionId: policyDefinition.id, targetState, actorRole, actorId });
+  return transitionPolicyDefinition({ policyDefinitionId: policyDefinition.id, targetState, actorId });
 }
 
 export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {

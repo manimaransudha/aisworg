@@ -20,7 +20,7 @@ async function commissionTestSeuWithDeliverable(statementPrefix: string) {
   const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
   if (!result.ok) throw new Error(`commissioning failed: ${result.reason}`);
   const seuId = result.seu.id;

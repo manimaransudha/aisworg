@@ -182,7 +182,7 @@ test("Profile override: a real value from the candidate's own valueOptions is ac
   const validation = await validateProfileSeed(seed);
   assert.equal(validation.ok, true, !validation.ok ? `unexpected validation errors: ${validation.errors.join("; ")}` : "assertion failed");
 
-  const result = await publishProfile({ seed, actorRole: "power", actorId: TESTER_ALL_ID });
+  const result = await publishProfile({ seed, actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true, !result.ok ? result.errors.join("; ") : "assertion failed");
   if (!result.ok) return;
 
@@ -237,7 +237,6 @@ test("publishTemplate: materialises a non-sparse exposedParameters set from the 
       engineeringPackCodes: [packCode],
       deliverableCatalogue: [],
     },
-    actorRole: "power",
     actorId: TESTER_ALL_ID,
   });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : "assertion failed");

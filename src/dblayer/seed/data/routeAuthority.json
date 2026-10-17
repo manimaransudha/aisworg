@@ -715,15 +715,6 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/auth/users/role",
-    "badges": [],
-    "roles": [
-      "superuser"
-    ],
-    "match_mode": "all"
-  },
-  {
-    "method": "POST",
     "path": "/aisworg/auth/users/toggle",
     "badges": [],
     "roles": [

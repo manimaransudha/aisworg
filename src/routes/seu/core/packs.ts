@@ -449,12 +449,12 @@ export async function createPackDraft(seed: PackSeedInput, authorId: string, aut
   return { ok: true, pack };
 }
 
-export async function advancePackLifecycle(pack: PackRow, actorRole: string, actorId: string, options?: { activate?: boolean }): Promise<PublishPackResult> {
+export async function advancePackLifecycle(pack: PackRow, actorId: string, options?: { activate?: boolean }): Promise<PublishPackResult> {
   let currentPack = pack;
 
   if (currentPack.status === "Draft") {
     for (const targetState of ["Validated", "Published"]) {
-      const result = await transitionPack({ packId: currentPack.id, targetState, actorRole, actorId });
+      const result = await transitionPack({ packId: currentPack.id, targetState, actorId });
       if (!result.ok) return { ok: false, pack: currentPack, errors: [`transition to "${targetState}" failed: ${"detail" in result ? result.detail : result.reason}`] };
       currentPack = result.pack;
     }
@@ -463,12 +463,12 @@ export async function advancePackLifecycle(pack: PackRow, actorRole: string, act
   let supersededPack: PackRow | null = null;
   if (options?.activate && currentPack.status === "Published") {
     const { data: previousActive } = await packsDB.findActiveByCode(currentPack.code, currentPack.tenant_id);
-    const activateResult = await transitionPack({ packId: currentPack.id, targetState: "Active", actorRole, actorId });
+    const activateResult = await transitionPack({ packId: currentPack.id, targetState: "Active", actorId });
     if (!activateResult.ok) return { ok: false, pack: currentPack, errors: [`transition to "Active" failed: ${"detail" in activateResult ? activateResult.detail : activateResult.reason}`] };
     currentPack = activateResult.pack;
 
     if (previousActive && previousActive.id !== currentPack.id) {
-      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Retired", actorRole, actorId });
+      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Retired", actorId });
       if (supersedeResult.ok) supersededPack = supersedeResult.pack;
     }
   }
@@ -482,28 +482,28 @@ const AUTHORING_NEXT_STATE: Partial<Record<PackRow["status"], PackRow["status"]>
   Published: "Active",
 };
 
-export async function advancePackOneStep(pack: PackRow, actorRole: string, actorId: string): Promise<PublishPackResult> {
+export async function advancePackOneStep(pack: PackRow, actorId: string): Promise<PublishPackResult> {
   const targetState = AUTHORING_NEXT_STATE[pack.status];
   if (!targetState) return { ok: false, pack, errors: [`Pack is already ${pack.status} — no further authoring step`] };
 
   if (targetState === "Active") {
     const { data: previousActive } = await packsDB.findActiveByCode(pack.code, pack.tenant_id);
-    const activateResult = await transitionPack({ packId: pack.id, targetState: "Active", actorRole, actorId });
+    const activateResult = await transitionPack({ packId: pack.id, targetState: "Active", actorId });
     if (!activateResult.ok) return { ok: false, pack, errors: [`transition to "Active" failed: ${"detail" in activateResult ? activateResult.detail : activateResult.reason}`] };
     let supersededPack: PackRow | null = null;
     if (previousActive && previousActive.id !== activateResult.pack.id) {
-      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Retired", actorRole, actorId });
+      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Retired", actorId });
       if (supersedeResult.ok) supersededPack = supersedeResult.pack;
     }
     return { ok: true, pack: activateResult.pack, supersededPack };
   }
 
-  const result = await transitionPack({ packId: pack.id, targetState, actorRole, actorId });
+  const result = await transitionPack({ packId: pack.id, targetState, actorId });
   if (!result.ok) return { ok: false, pack, errors: [`transition to "${targetState}" failed: ${"detail" in result ? result.detail : result.reason}`] };
   return { ok: true, pack: result.pack };
 }
 
-export async function publishPack(input: { seed: PackSeedInput; actorRole: string; actorId: string; activate?: boolean }): Promise<PublishPackResult> {
+export async function publishPack(input: { seed: PackSeedInput; actorId: string; activate?: boolean }): Promise<PublishPackResult> {
   const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId, requiredBadge: "pack_define" });
   if (!auth.allowed) return { ok: false, errors: [`actor "${input.actorId}" does not hold pack_define`] };
   const { data: packMaster } = await participantsMasterDB.findById(input.actorId);
@@ -513,7 +513,7 @@ export async function publishPack(input: { seed: PackSeedInput; actorRole: strin
   const draft = await createPackDraft(input.seed, packMaster.id, authorBadge);
   if (!draft.ok) return { ok: false, errors: draft.errors };
 
-  const advanced = await advancePackLifecycle(draft.pack, input.actorRole, input.actorId, { activate: input.activate });
+  const advanced = await advancePackLifecycle(draft.pack, input.actorId, { activate: input.activate });
   return advanced;
 }
 
@@ -683,7 +683,7 @@ export function alternateBadgesForPackTransition(fromState: string, toState: str
   return ALTERNATE_BADGES[`${fromState}->${toState}`];
 }
 
-export async function transitionPack(input: { packId: string; targetState: string; actorRole: string; actorId: string; comment?: string }): Promise<TransitionPackResult> {
+export async function transitionPack(input: { packId: string; targetState: string; actorId: string; comment?: string }): Promise<TransitionPackResult> {
   const { data: pack } = await packsDB.findById(input.packId);
   if (!pack) return { ok: false, reason: "not_found" };
 
@@ -692,7 +692,6 @@ export async function transitionPack(input: { packId: string; targetState: strin
     entityType: "Pack",
     fromState,
     toState: input.targetState,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     context: { pack },
     entityId: pack.id,

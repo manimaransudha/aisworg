@@ -231,6 +231,7 @@ export interface CapabilityDefinitionRow {
   code: string;
   default_label: string;
   description: string | null;
+  category: string;
   roles: CapabilityRole[];
   version: string;
   status: CapabilityDefinitionStatus;

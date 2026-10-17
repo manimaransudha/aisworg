@@ -42,7 +42,7 @@ async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     beforeCommenceWork
   );
@@ -67,7 +67,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
 
 test("Flow Telemetry: Deliverable cycle time is a real, non-negative number derived from real transitions", async () => {
   const { deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-flow");
-  const toInProgress = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const toInProgress = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(toInProgress.ok, true);
 
   const flow = await getFlowMetrics();
@@ -82,7 +82,7 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
   await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
 
   // No Obligation attached — passes the "no_unresolved_obligations" gate on the first try.
-  const firstTry = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const firstTry = await transitionDeliverable({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(firstTry.ok, true, !firstTry.ok ? JSON.stringify(firstTry) : "assertion failed");
 
   const governance = await getGovernanceMetrics();
@@ -104,14 +104,14 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
   // genuinely blocked afterward.
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId2, category: "Engineering", title: "Phase7 latency test obligation" });
   await produceDeliverable(deliverableId2, ROOT_ACTOR_ID);
-  const blocked = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blocked = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true);
   }
-  const secondTry = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const secondTry = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(secondTry.ok, true, !secondTry.ok ? JSON.stringify(secondTry) : "assertion failed");
 
   const governanceAfter = await getGovernanceMetrics();
@@ -132,7 +132,7 @@ test("a sustained pattern of Quality Gate blocking raises exactly one Organisati
   // Attempt the same blocked transition repeatedly — the Obligation above is
   // deliberately never resolved, so every attempt blocks again.
   for (let i = 0; i < 4; i++) {
-    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
     assert.equal(attempt.ok, false);
   }
 
@@ -150,14 +150,14 @@ test("qualityGateEngine publishes QualityGateBlocked and QualityGatePassed on th
 
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 event test obligation" });
   await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
-  const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
   assert.ok((await qualityGateEventTypesForEntity(deliverableId)).includes("QualityGateBlocked"));
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    await transitionObligation({ obligationId: obligation.id, targetState, actorId: TESTER_ALL_ID });
   }
-  const passed = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const passed = await transitionDeliverable({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(passed.ok, true);
   assert.ok((await qualityGateEventTypesForEntity(deliverableId)).includes("QualityGatePassed"));
 });

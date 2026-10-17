@@ -8,7 +8,6 @@ import { seedParticipantsMaster } from "./seedParticipantsMaster.js";
 import { seedCapabilityPatternPacks, type SeedActor as PackSeedActor } from "./seedCapabilityPatternPacks.js";
 import { seedSdlcStandardTemplates } from "./seedSdlcStandardTemplates.js";
 import { seedPolicyDefinitions } from "./seedPolicyDefinitions.js";
-import { seedCr104Demo } from "./seedCr104Demo.js";
 import { seedRouteAuthority } from "./seedRouteAuthority.js";
 import { seedOntologyConcepts } from "./seedOntologyConcepts.js";
 import { userDB } from "../userDB.js";
@@ -73,6 +72,7 @@ const USAGE_DATA_TABLES = [
   "review_gates",
   "policies",
   "services",
+  "execution_targets",
   "capabilities",
   "authority_rules",
   "capability_definitions",
@@ -142,7 +142,6 @@ async function run(): Promise<void> {
   await seedCapabilityPatternPacksWithRetry({ authoredBy: actorId, authorBadge: actorBadge });
   await seedSdlcStandardTemplates({ authoredBy: actorId, authorBadge: actorBadge });
   await seedEbookLibraryObjectives();
-  await seedCr104Demo({ authoredBy: actorId, authorBadge: actorBadge });
   
   
   logger.info("[db:clean-slate] done. Sanity-check next: hit /aisworg/seu/sdk/pack-authoring (Create starts a fresh Draft directly — no bootstrap Template needed) and /aisworg/seu/telemetry (zero Deliverables measured) as a real user.");

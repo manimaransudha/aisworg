@@ -30,7 +30,7 @@ async function activeObjective(requestedBy: string, statementPrefix: string) {
     requestedBy,
   });
   await submitObjective(objective.id, requestedBy);
-  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: requestedBy });
+  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: requestedBy });
   assert.equal(activated.ok, true, !activated.ok ? activated.reason : "assertion failed");
   return objective;
 }
@@ -40,24 +40,24 @@ test("transitionObjective Active -> Superseded requires a real superseding Objec
   const b = await activeObjective(TESTER_ALL_ID, "cr116-b");
 
   // No supersedingObjectiveId at all.
-  const missing = await transitionObjective({ objectiveId: a.id, targetState: "Superseded", actorRole: "general", actorId: TESTER_ALL_ID, comment: "replaced by a better fit" });
+  const missing = await transitionObjective({ objectiveId: a.id, targetState: "Superseded", actorId: TESTER_ALL_ID, comment: "replaced by a better fit" });
   assert.equal(missing.ok, false);
   if (!missing.ok) assert.equal(missing.reason, "superseding_target_required");
 
   // An id that doesn't resolve to a real Objective.
-  const notFound = await transitionObjective({ objectiveId: a.id, targetState: "Superseded", actorRole: "general", actorId: TESTER_ALL_ID, comment: "replaced by a better fit", supersedingObjectiveId: randomUUID() });
+  const notFound = await transitionObjective({ objectiveId: a.id, targetState: "Superseded", actorId: TESTER_ALL_ID, comment: "replaced by a better fit", supersedingObjectiveId: randomUUID() });
   assert.equal(notFound.ok, false);
   if (!notFound.ok) assert.equal(notFound.reason, "superseding_target_not_found");
 
   // A real, valid B but no comment — mandatory whenever a superseding id is
   // supplied (owner: "make it mandatory when supersession id exists").
-  const noComment = await transitionObjective({ objectiveId: a.id, targetState: "Superseded", actorRole: "general", actorId: TESTER_ALL_ID, supersedingObjectiveId: b.id });
+  const noComment = await transitionObjective({ objectiveId: a.id, targetState: "Superseded", actorId: TESTER_ALL_ID, supersedingObjectiveId: b.id });
   assert.equal(noComment.ok, false);
   if (!noComment.ok) assert.equal(noComment.reason, "comment_required");
 
   // Valid B + comment — succeeds, and A's own superseding_objective_id is
   // written to B's id.
-  const superseded = await transitionObjective({ objectiveId: a.id, targetState: "Superseded", actorRole: "general", actorId: TESTER_ALL_ID, comment: "replaced by a better fit", supersedingObjectiveId: b.id });
+  const superseded = await transitionObjective({ objectiveId: a.id, targetState: "Superseded", actorId: TESTER_ALL_ID, comment: "replaced by a better fit", supersedingObjectiveId: b.id });
   assert.equal(superseded.ok, true, !superseded.ok ? superseded.reason : "assertion failed");
   if (superseded.ok) {
     assert.equal(superseded.objective.status, "Superseded");
@@ -92,7 +92,6 @@ test("transitionObjective refuses a cross-tenant superseding Objective", async (
   const result = await transitionObjective({
     objectiveId: athens.id,
     targetState: "Superseded",
-    actorRole: "general",
     actorId: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId,
     comment: "trying to supersede across tenants",
     supersedingObjectiveId: babylon.id,
@@ -122,7 +121,7 @@ test("getObjectiveDetail excludes Superseded from the generic dropdown and expos
   assert.ok(!detail?.supersedeCandidates.some((c) => c.id === a.id), "the Objective itself must never be offered as its own supersessor");
 
   // Once Superseded, it is no longer itself supersedable.
-  const superseded = await transitionObjective({ objectiveId: a.id, targetState: "Superseded", actorRole: "general", actorId: TESTER_ALL_ID, comment: "superseded for this test", supersedingObjectiveId: b.id });
+  const superseded = await transitionObjective({ objectiveId: a.id, targetState: "Superseded", actorId: TESTER_ALL_ID, comment: "superseded for this test", supersedingObjectiveId: b.id });
   assert.equal(superseded.ok, true);
   const afterDetail = await getObjectiveDetail(a.id);
   assert.equal(afterDetail?.supersedable, false);

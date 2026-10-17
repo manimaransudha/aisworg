@@ -14,6 +14,21 @@
         "code": "engineering-configuration",
         "name": "Configuration & Change Management",
         "description": "Controls change and maintains the integrity of engineering assets under baseline."
+      },
+      {
+        "code": "build-and-continuous-integration"
+      },
+      {
+        "code": "change-management"
+      },
+      {
+        "code": "continuous-configuration-drift-detection"
+      },
+      {
+        "code": "continuous-release-risk-management"
+      },
+      {
+        "code": "automatic-traceability-generation"
       }
     ],
     "services": [

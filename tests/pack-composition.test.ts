@@ -62,7 +62,7 @@ test("composeAuthoringDraft — specialization pre-fills a new Draft from an Act
       contributions: { capabilities: [{ code: "software-construction" }] },
       tenantId: PLATFORM_TENANT_ID,
     },
-    actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
+    actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(published.ok, true);
 
@@ -104,11 +104,11 @@ test("composeAuthoringDraft — union combines two distinct Active Packs' fields
     // "software-validation"), not throwaway per-Pack ones; kept distinct across A/B so
     // union's "both survive" assertion below still proves something real.
     seed: { code: codeA, name: "Union Source A", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction" }] }, tenantId: PLATFORM_TENANT_ID },
-    actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
+    actorId: TESTER_ALL_ID, activate: true,
   });
   const b = await publishPack({
     seed: { code: codeB, name: "Union Source B", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-validation" }] }, tenantId: PLATFORM_TENANT_ID },
-    actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
+    actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(a.ok, true);
   assert.equal(b.ok, true);
@@ -156,7 +156,7 @@ test("composeAuthoringDraft — merge with a code entered twice self-merges clea
   const sharedCode = "test-compose-merge-shared";
   const published = await publishPack({
     seed: { code: sharedCode, name: "Merge Source", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction" }] }, tenantId: PLATFORM_TENANT_ID },
-    actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
+    actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(published.ok, true);
 
@@ -187,11 +187,11 @@ test("composeAuthoringDraft — intersection keeps only unanimous fields, drops 
     // distinct so the two sides' arrays genuinely disagree (what this test
     // is actually about).
     seed: { code: codeA, name: "Common Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction" }] }, tenantId: PLATFORM_TENANT_ID },
-    actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
+    actorId: TESTER_ALL_ID, activate: true,
   });
   const b = await publishPack({
     seed: { code: codeB, name: "Common Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-validation" }] }, tenantId: PLATFORM_TENANT_ID },
-    actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
+    actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(a.ok, true);
   assert.equal(b.ok, true);
@@ -225,13 +225,13 @@ test("composeAuthoringDraft — supplement adds only what the base lacks, reject
   const extraCode = "test-compose-supplement-extra";
   const base = await publishPack({
     seed: { code: baseCode, name: "Base Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, tenantId: PLATFORM_TENANT_ID },
-    actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
+    actorId: TESTER_ALL_ID, activate: true,
   });
   const extra = await publishPack({
     // `name` collides with the base's own — must be rejected, never applied.
     // `owner` (metadata) is new — the base never set one — must be added.
     seed: { code: extraCode, name: "Attempted Override Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, owner: "team-x", tenantId: PLATFORM_TENANT_ID },
-    actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
+    actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(base.ok, true);
   assert.equal(extra.ok, true);
@@ -260,7 +260,7 @@ test("composeAuthoringDraft — override points the author at the existing versi
   const code = "test-compose-override";
   const published = await publishPack({
     seed: { code, name: "Override Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, tenantId: PLATFORM_TENANT_ID },
-    actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
+    actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(published.ok, true);
   if (!published.ok || !published.pack) return;
@@ -291,7 +291,7 @@ test("composeAuthoringDraft — rejects composing a Pack that hasn't reached (or
   const parentCode = "test-compose-notdraft-parent";
   const published = await publishPack({
     seed: { code: parentCode, name: "Parent", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, tenantId: PLATFORM_TENANT_ID },
-    actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
+    actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(published.ok, true);
   if (!published.ok || !published.pack) return;

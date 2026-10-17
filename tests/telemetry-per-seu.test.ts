@@ -22,7 +22,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
@@ -46,9 +46,9 @@ test("Flow Telemetry scoped to one SEU returns strictly that SEU's own Deliverab
   const a = await commissionAndFulfilRequirementsSpec("telemetry-per-seu-a");
   const b = await commissionAndFulfilRequirementsSpec("telemetry-per-seu-b");
 
-  const toInProgressA = await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const toInProgressA = await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(toInProgressA.ok, true);
-  const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(toInProgressB.ok, true);
 
   const scopedToA = await getFlowMetrics(a.seuId);
@@ -70,11 +70,11 @@ test("Governance Telemetry scoped to one SEU excludes another SEU's Quality Gate
   const b = await commissionAndFulfilRequirementsSpec("telemetry-per-seu-governance-b");
 
   await produceDeliverable(a.deliverableId, ROOT_ACTOR_ID);
-  const approvedA = await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const approvedA = await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(approvedA.ok, true);
 
   await produceDeliverable(b.deliverableId, ROOT_ACTOR_ID);
-  const approvedB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const approvedB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(approvedB.ok, true);
 
   const scopedToA = await getGovernanceMetrics(a.seuId);

@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const express = require('express');
@@ -7,7 +8,7 @@ import {MsEdgeTTS, OUTPUT_FORMAT} from 'msedge-tts';
 import { logger }    from '../../utils/logger.js';
 import { DEMO_VOICE_PROVIDER, DEMO_EDGETTS_VOICE } from '../../dblayer/constants.js';
 
-router.get('/voice-config', (req, res) => {
+router.get('/voice-config', (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({
     provider: DEMO_VOICE_PROVIDER,
@@ -15,7 +16,7 @@ router.get('/voice-config', (req, res) => {
   });
 });
 
-router.post('/tts', async (req, res) => {
+router.post('/tts', async (req: Request, res: Response) => {
   const { text } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'text is required' });
 
@@ -29,16 +30,17 @@ router.post('/tts', async (req, res) => {
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'no-store');
 
-    const chunks = [];
-    audioStream.on('data',  chunk => chunks.push(chunk));
+    const chunks: Buffer[] = [];
+    audioStream.on('data',  (chunk: Buffer) => chunks.push(chunk));
     audioStream.on('end',   ()    => res.send(Buffer.concat(chunks)));
-    audioStream.on('error', err  => {
+    audioStream.on('error', (err: Error) => {
       logger.error('[DemoTTS] Edge TTS stream error:', err.message);
       if (!res.headersSent) res.status(502).json({ error: 'Edge TTS failed: ' + err.message });
     });
   } catch (err) {
-    logger.error('[DemoTTS] Edge TTS error:', err.message);
-    res.status(502).json({ error: 'Edge TTS failed: ' + err.message });
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('[DemoTTS] Edge TTS error:', message);
+    res.status(502).json({ error: 'Edge TTS failed: ' + message });
   }
 });
 

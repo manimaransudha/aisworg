@@ -14,6 +14,9 @@
         "code": "adapting-business-needs",
         "name": "Project Management",
         "description": "Plans, coordinates, and monitors the engineering effort, on behalf of the Project Manager role."
+      },
+      {
+        "code": "engineering-risk-management"
       }
     ],
     "services": [

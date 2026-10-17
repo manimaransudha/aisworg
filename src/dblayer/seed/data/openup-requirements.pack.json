@@ -17,6 +17,9 @@
       },
       {
         "code": "requirements-validation"
+      },
+      {
+        "code": "continuous-requirements-validation"
       }
     ],
     "services": [

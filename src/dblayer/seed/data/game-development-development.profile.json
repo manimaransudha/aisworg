@@ -1,0 +1,21 @@
+{
+  "code": "profile-game-development-development",
+  "name": "Game Development — Default Development Profile",
+  "baseTemplateCode": "game-development",
+  "environment": "development",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
+  "dispatchStrategyPreference": [
+    {
+      "strategy": "capability-match",
+      "order": 1
+    }
+  ],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
+  "optionalPackCodes": [
+    "testing-qa",
+    "integration-github"
+  ]
+}

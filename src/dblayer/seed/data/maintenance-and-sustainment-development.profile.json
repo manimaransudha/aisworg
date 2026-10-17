@@ -1,0 +1,24 @@
+{
+  "code": "profile-maintenance-and-sustainment-development",
+  "name": "Maintenance and Sustainment — Default Development Profile",
+  "baseTemplateCode": "maintenance-and-sustainment",
+  "environment": "development",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
+  "dispatchStrategyPreference": [
+    {
+      "strategy": "capability-match",
+      "order": 1
+    }
+  ],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
+  "optionalPackCodes": [
+    "testing-qa",
+    "integration-github",
+    "integration-jira",
+    "integration-snyk",
+    "integration-sonarqube"
+  ]
+}

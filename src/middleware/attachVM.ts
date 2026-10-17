@@ -1,9 +1,12 @@
+import type { Request, Response, NextFunction } from "express";
 import { viewModels } from "../viewModels/viewRegistry.js";
 import {logger} from "../utils/logger.js";
 
-export function attachVM(viewName) {
-  return (req, res, next) => {
-    const validator = viewModels[viewName];
+type VMData = { req?: Record<string, unknown>; opt?: Record<string, unknown> } & Record<string, unknown>;
+
+export function attachVM(viewName: keyof typeof viewModels) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const validator = viewModels[viewName] as ((data: Record<string, unknown>) => unknown) | undefined;
 
     if (!validator) {
       throw new Error(`No ViewModel found for view: ${viewName}`);
@@ -12,9 +15,9 @@ export function attachVM(viewName) {
     req.vm = { req: {}, opt: {} };
 
     const originalRender = res.render.bind(res);
-    res.render = (view, data, callback) => {
+    res.render = (view: string, options?: object, callback?: (err: Error, html: string) => void) => {
       try {
-        const renderData = data || req.vm;
+        const renderData: VMData = (options as VMData | undefined) || req.vm;
         
         let validationData = renderData;
         if (renderData.req || renderData.opt) {

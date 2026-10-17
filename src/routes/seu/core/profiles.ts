@@ -337,8 +337,8 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
 
 export type PublishProfileResult = { ok: true; profileId: string } | { ok: false; errors: string[] };
 
-export async function publishProfile(input: { seed: ProfileSeedInput; actorRole: string; actorId: string }): Promise<PublishProfileResult> {
-  const { seed, actorRole, actorId } = input;
+export async function publishProfile(input: { seed: ProfileSeedInput; actorId: string }): Promise<PublishProfileResult> {
+  const { seed, actorId } = input;
   const validation = await validateProfileSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
@@ -386,7 +386,7 @@ export async function publishProfile(input: { seed: ProfileSeedInput; actorRole:
 
   let current = draft;
   for (let i = 0; i < 3; i++) {
-    const result = await advanceProfileOneStep(current, actorRole, actorId);
+    const result = await advanceProfileOneStep(current, actorId);
     if (!result.ok) return { ok: false, errors: [`advancing Profile "${current.code}" from "${current.status}" failed: ${result.reason}${result.detail ? ` (${result.detail})` : ""}`] };
     current = result.profile;
   }
@@ -398,12 +398,12 @@ export type TransitionProfileResult = { ok: true; profile: ProfileRow } | { ok: 
 
 const TERMINAL_REACTIVATABLE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
 
-export async function transitionProfile(input: { profileId: string; targetState: ProfileRow["status"]; actorRole: string; actorId: string }): Promise<TransitionProfileResult> {
+export async function transitionProfile(input: { profileId: string; targetState: ProfileRow["status"]; actorId: string }): Promise<TransitionProfileResult> {
   const { data: profile } = await profilesDB.findById(input.profileId);
   if (!profile) return { ok: false, reason: "not_found" };
   const fromState = profile.status;
   if (!input.actorId) throw new Error("actorId is required to transition a Profile");
-  const gate = await transitionEngine.evaluate({ entityType: "Profile", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: profile.id, context: { profile } });
+  const gate = await transitionEngine.evaluate({ entityType: "Profile", fromState, toState: input.targetState, actorId: input.actorId, entityId: profile.id, context: { profile } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Profile ${fromState} -> ${input.targetState}` };
@@ -414,7 +414,7 @@ export async function transitionProfile(input: { profileId: string; targetState:
   if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
 
   if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    return reactivateAsNewVersion(profile, input.actorRole, input.actorId, gate.authorityBadge);
+    return reactivateAsNewVersion(profile, input.actorId, gate.authorityBadge);
   }
 
   const { data: updated, error } = await profilesDB.updateStatus(profile.id, input.targetState);
@@ -440,7 +440,7 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
   return nextAvailableVersion(fromVersion, async (candidate) => !!(await profilesDB.findByCodeAndVersion(code, candidate, tenantId)).data);
 }
 
-async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, actorId: string, authorBadge: string): Promise<TransitionProfileResult> {
+async function reactivateAsNewVersion(profile: ProfileRow, actorId: string, authorBadge: string): Promise<TransitionProfileResult> {
   const nextVersion = await nextAvailablePatchVersion(profile.code, profile.profile_version, profile.tenant_id);
   const { data: template } = await templatesDB.findById(profile.base_template_id);
   if (!template) return { ok: false, reason: "policy_blocked", detail: `base Template ${profile.base_template_id} no longer exists` };
@@ -508,14 +508,14 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
 
   let current = newDraft;
   for (const targetState of ["Validated", "Published", "Active"] as const) {
-    const result = await transitionProfile({ profileId: current.id, targetState, actorRole, actorId });
+    const result = await transitionProfile({ profileId: current.id, targetState, actorId });
     if (!result.ok) return result;
     current = result.profile;
   }
 
   const { data: previousActive } = await profilesDB.findActiveByCode(profile.code, profile.tenant_id);
   if (previousActive && previousActive.id !== current.id) {
-    await transitionProfile({ profileId: previousActive.id, targetState: "Deprecated", actorRole, actorId });
+    await transitionProfile({ profileId: previousActive.id, targetState: "Deprecated", actorId });
   }
 
   return { ok: true, profile: current };
@@ -595,21 +595,21 @@ const AUTHORING_NEXT_STATE: Partial<Record<ProfileRow["status"], ProfileRow["sta
   Retired: "Archived",
 };
 
-export async function advanceProfileOneStep(profile: ProfileRow, actorRole: string, actorId: string ): Promise<TransitionProfileResult> {
+export async function advanceProfileOneStep(profile: ProfileRow, actorId: string ): Promise<TransitionProfileResult> {
   const targetState = AUTHORING_NEXT_STATE[profile.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Profile is already ${profile.status} — no further authoring step` };
 
   if (targetState === "Active") {
     const { data: previousActive } = await profilesDB.findActiveByCode(profile.code, profile.tenant_id);
-    const activateResult = await transitionProfile({ profileId: profile.id, targetState: "Active", actorRole, actorId });
+    const activateResult = await transitionProfile({ profileId: profile.id, targetState: "Active", actorId });
     if (!activateResult.ok) return activateResult;
     if (previousActive && previousActive.id !== activateResult.profile.id) {
-      await transitionProfile({ profileId: previousActive.id, targetState: "Deprecated", actorRole, actorId });
+      await transitionProfile({ profileId: previousActive.id, targetState: "Deprecated", actorId });
     }
     return activateResult;
   }
 
-  return transitionProfile({ profileId: profile.id, targetState, actorRole, actorId });
+  return transitionProfile({ profileId: profile.id, targetState, actorId });
 }
 
 export async function materialiseProfileDraft(profileId: string, seed: ProfileSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {

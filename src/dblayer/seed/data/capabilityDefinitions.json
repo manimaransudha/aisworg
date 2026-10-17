@@ -3,6 +3,7 @@
     "code": "adapting-business-needs",
     "default_label": "Adapting to changing business need",
     "description": "detect and assess changes in business objectives, priorities, operating conditions, and organisational needs, determine their implications for engineering capabilities and systems, and realign engineering direction, resources, and priorities so that engineering remains relevant to the business.",
+    "category": "Requirements Engineering",
     "roles": [
       {
         "name": "business-change-identification",
@@ -42,6 +43,7 @@
     "code": "architecture-design",
     "default_label": "Designing software architecture",
     "description": "determine, evaluate, document, and maintain the fundamental structure of a software system, including its major components, responsibilities, interfaces, interactions, architectural patterns, constraints, and significant design decisions, so that validated requirements and business objectives can be realised within acceptable engineering risk",
+    "category": "Architecture",
     "roles": [
       {
         "name": "architecture-definition",
@@ -97,6 +99,7 @@
     "code": "automatic-traceability-generation",
     "default_label": "Automatic traceability generation",
     "description": "automatically identify and maintain traceable relationships among engineering artefacts, including requirements, designs, architecture, implementation, tests, defects, and releases, so that dependencies, lineage, coverage, and impact relationships can be determined throughout the engineering lifecycle.",
+    "category": "Knowledge",
     "roles": [
       {
         "name": "traceability-discovery",
@@ -144,6 +147,7 @@
     "code": "autonomous-capability-optimisation",
     "default_label": "Autonomous capability optimisation",
     "description": "continuously assess organisational capability performance and autonomously identify, evaluate, prioritise, and implement changes to capability structure, capacity, processes, resources, and supporting mechanisms in order to improve organisational outcomes within defined objectives, constraints, and governance controls.",
+    "category": "Learning and Improvement",
     "roles": [
       {
         "name": "capability-assessment",
@@ -192,6 +196,7 @@
     "code": "autonomous-root-cause-synthesis",
     "default_label": "Autonomous root-cause synthesis",
     "description": "autonomously correlate and analyse evidence from incidents, system behaviour, telemetry, changes, configurations, dependencies, defects, and engineering records to identify, evaluate, and synthesise probable root causes and their causal relationships, providing an explainable basis for corrective action.",
+    "category": "Operations",
     "roles": [
       {
         "name": "root-cause-discovery",
@@ -240,6 +245,7 @@
     "code": "autonomous-standard-synthesis",
     "default_label": "Autonomous standard synthesis (Specialisation from “Improving engineering practice”)",
     "description": "drafting or refining engineering standards directly from continuously accumulating evidence of what works, rather than through periodic committee review",
+    "category": "Learning and Improvement",
     "roles": [
       {
         "name": "practice-analysis",
@@ -287,6 +293,7 @@
     "code": "business-analysis-approach",
     "default_label": "Planning the business analysis approach",
     "description": "determine and establish the methods, activities, techniques, roles, responsibilities, deliverables, timing, and governance by which business analysis will be conducted for an initiative, taking into account its context, objectives, complexity, constraints, and stakeholder environment.",
+    "category": "Requirements Engineering",
     "roles": [
       {
         "name": "analysis-approach-definition",
@@ -334,6 +341,7 @@
     "code": "capability-evolution",
     "default_label": "Stewarding capability evolution and maturity",
     "description": "assess, govern, and guide the evolution and maturity of organisational capabilities by establishing capability objectives, evaluating current capability performance and maturity, identifying gaps and improvement opportunities, defining evolutionary priorities, and monitoring progress toward the desired capability state.",
+    "category": "Learning and Improvement",
     "roles": [
       {
         "name": "capability-assessment",
@@ -381,6 +389,7 @@
     "code": "change-management",
     "default_label": "Managing engineering change",
     "description": "control proposed changes to engineering artefacts and engineering baselines by assessing their justification, impact, dependencies, risks, and consequences, obtaining appropriate authorisation, coordinating their implementation, and maintaining traceable records of the resulting state.",
+    "category": "Governance",
     "roles": [
       {
         "name": "change-identification",
@@ -437,6 +446,7 @@
     "code": "continuous-architectural-analysis",
     "default_label": "Continuous architectural analysis",
     "description": "continuously analyse the evolving architecture of software systems against their requirements, architectural principles, constraints, dependencies, and operational evidence, identifying architectural risks, deviations, degradation, and emerging implications early enough to support corrective or evolutionary decisions",
+    "category": "Architecture",
     "roles": [
       {
         "name": "architecture-monitoring",
@@ -484,6 +494,7 @@
     "code": "continuous-compliance-verification",
     "default_label": "Continuous compliance verification",
     "description": null,
+    "category": "Governance",
     "roles": [
       {
         "name": "compliance-assessment",
@@ -531,6 +542,7 @@
     "code": "continuous-configuration-drift-detection",
     "default_label": "Continuous configuration drift detection",
     "description": "continuously monitor and compare actual software, infrastructure, environment, and configuration states against authorised configuration baselines and policies, detecting, assessing, and reporting deviations so that configuration integrity can be maintained.",
+    "category": "Deployment",
     "roles": [
       {
         "name": "configuration-monitoring",
@@ -578,6 +590,7 @@
     "code": "continuous-domain-model-drift-detection",
     "default_label": "Continuous domain-model drift detection",
     "description": "continuously monitor changes in the business domain and compare them with the established domain model, identifying changes, inconsistencies, omissions, or obsolete representations that cause the model to diverge from the domain it represents.",
+    "category": "Knowledge",
     "roles": [
       {
         "name": "domain-behaviour-monitoring",
@@ -625,6 +638,7 @@
     "code": "continuous-objective-alignment-monitoring",
     "default_label": "Continuous objective-alignment monitoring",
     "description": "continuously monitor and evaluate the alignment of engineering activities, decisions, systems, investments, and outcomes with established business and organisational objectives, detecting divergence, loss of relevance, or conflicting priorities early enough to support corrective action.",
+    "category": "Governance",
     "roles": [
       {
         "name": "objective-monitoring",
@@ -672,6 +686,7 @@
     "code": "continuous-organisational-learning",
     "default_label": "Continuous organisational learning",
     "description": "continuously capture and synthesise organisational experience and knowledge, evaluate its implications, incorporate validated learning into organisational knowledge, practices, decisions, and capabilities, and assess whether the resulting changes improve organisational outcomes.",
+    "category": "Learning and Improvement",
     "roles": [
       {
         "name": "experience-capture",
@@ -727,6 +742,7 @@
     "code": "continuous-policy-conflict-detection",
     "default_label": "Continuous policy-conflict detection",
     "description": "continuously analyse applicable policies, rules, standards, and controls and their relationships to identify conflicting, contradictory, or mutually incompatible requirements, determine the affected engineering activities or decisions, and provide timely evidence for policy resolution.",
+    "category": "Governance",
     "roles": [
       {
         "name": "policy-analysis",
@@ -774,6 +790,7 @@
     "code": "continuous-quality-assurance",
     "default_label": "Continuous quality assurance",
     "description": "continuously monitor and assess the quality of engineering processes, artefacts, and outcomes against defined requirements, standards, policies, and quality criteria, providing ongoing evidence of quality status and initiating corrective action when deviations are detected.",
+    "category": "Testing",
     "roles": [
       {
         "name": "quality-monitoring",
@@ -821,6 +838,7 @@
     "code": "continuous-release-risk-management",
     "default_label": "Continuous release-risk forecasting",
     "description": "continuously analyse release contents, changes, dependencies, verification evidence, defects, configuration, operational conditions, and historical release outcomes to forecast the likelihood and potential impact of release-related problems and provide early risk information for release decisions.",
+    "category": "Deployment",
     "roles": [
       {
         "name": "release-risk-analysis",
@@ -868,6 +886,7 @@
     "code": "continuous-requirements-validation",
     "default_label": "Continuous requirements validation",
     "description": "continuously evaluate requirements against current business and stakeholder needs, system context, engineering constraints, and evolving implementation evidence, detecting invalid, obsolete, conflicting, incomplete, or otherwise non-conforming requirements early enough to support corrective action.",
+    "category": "Requirements Engineering",
     "roles": [
       {
         "name": "continuous-requirement-validation",
@@ -915,6 +934,7 @@
     "code": "continuous-stakeholder-intent-reconciliation",
     "default_label": "Continuous stakeholder-intent reconciliation",
     "description": "continuously capture and analyse evolving stakeholder intentions, compare them with established requirements and with one another, identify conflicts, ambiguities, and divergences, and facilitate their resolution so that the engineering baseline remains aligned with the current and collectively agreed stakeholder intent.",
+    "category": "Requirements Engineering",
     "roles": [
       {
         "name": "stakeholder-signal-collection",
@@ -964,6 +984,7 @@
     "code": "continuous-vulnerability-posture-assessment",
     "default_label": "Continuous vulnerability posture assessment",
     "description": "continuously identify, assess, correlate, and monitor vulnerabilities across organisational technology assets and their environments, determine their significance and exposure, and maintain an up-to-date view of the organisation's vulnerability posture to support prioritised remediation and risk decisions.",
+    "category": "Security",
     "roles": [
       {
         "name": "vulnerability-discovery",
@@ -1011,6 +1032,7 @@
     "code": "corrective-actions",
     "default_label": "Eliminating recurring operational problems",
     "description": "systematically identify recurring operational problems, analyse their underlying causes, implement and track permanent corrective actions, and verify that the causes have been eliminated or adequately controlled so that the problems do not recur.",
+    "category": "Operations",
     "roles": [
       {
         "name": "recurring-problem-identification",
@@ -1058,6 +1080,7 @@
     "code": "cross-codebase-pattern-propagation",
     "default_label": "Cross-codebase pattern propagation",
     "description": "identify engineering patterns or improvements that are applicable across multiple codebases, determine their affected locations and contextual variations, and propagate the approved pattern or change across those codebases while preserving correctness, consistency, and local compatibility.",
+    "category": "Development",
     "roles": [
       {
         "name": "code-pattern-discovery",
@@ -1105,6 +1128,7 @@
     "code": "cross-organisational-capability-benchmarking",
     "default_label": "Cross-organisational capability benchmarking",
     "description": "systematically compare organisational capabilities and their performance against relevant external organisations or established benchmarks, using comparable measures and contextual information to determine relative capability position and identify opportunities for improvement.",
+    "category": "Learning and Improvement",
     "roles": [
       {
         "name": "capability-measurement",
@@ -1152,6 +1176,7 @@
     "code": "cross-system-structural-pattern-recognition",
     "default_label": "Cross-system structural pattern recognition",
     "description": "analyse and compare the structures of multiple software systems and identify recurring, significant, or anomalous structural patterns across their architectures, components, interfaces, dependencies, and other engineering relationships.",
+    "category": "Architecture",
     "roles": [
       {
         "name": "structural-pattern-discovery",
@@ -1191,6 +1216,7 @@
     "code": "defect-management",
     "default_label": "Managing defects to resolution",
     "description": "systematically capture, classify, assess, prioritise, assign, track, resolve, and close software defects, ensuring that resolutions are verified and that defects that cannot yet be resolved are explicitly deferred, owned, and controlled.",
+    "category": "Testing",
     "roles": [
       {
         "name": "defect-capture",
@@ -1246,6 +1272,7 @@
     "code": "engineering-assets-reuse",
     "default_label": "Reusing existing engineering assets",
     "description": "identify potentially reusable engineering assets, assess their suitability, quality, security, compatibility, provenance, licensing, and lifecycle status, and select and incorporate appropriate assets into engineering solutions where reuse provides an acceptable alternative to new construction.",
+    "category": "Development",
     "roles": [
       {
         "name": "asset-discovery",
@@ -1294,6 +1321,7 @@
     "code": "engineering-configuration",
     "default_label": "Managing engineering configuration",
     "description": "establish and maintain controlled configuration items, baselines, versions, dependencies, and configuration status throughout the engineering lifecycle, ensuring that authorised changes are incorporated consistently and that the composition of any engineering product or environment can be determined and reproduced.",
+    "category": "Deployment",
     "roles": [
       {
         "name": "configuration-identification",
@@ -1351,6 +1379,7 @@
     "code": "engineering-data-pipelines",
     "default_label": "Engineering data pipelines",
     "description": "design, build, and operate the ingestion, transformation, and quality-assurance pipelines that move and shape data reliably — a distinct discipline from constructing general application components.",
+    "category": "Development",
     "roles": [
       {
         "name": "data-ingestion",
@@ -1398,6 +1427,7 @@
     "code": "engineering-decision-explainability",
     "default_label": "Engineering decision explainability",
     "description": null,
+    "category": "Governance",
     "roles": [
       {
         "name": "decision-evidence-linking",
@@ -1445,6 +1475,7 @@
     "code": "engineering-documentation",
     "default_label": "Documenting engineering work",
     "description": "create, maintain, organise, and retrieve authoritative records of engineering activities, decisions, artefacts, rationale, and evidence throughout the engineering lifecycle, ensuring that relevant engineering knowledge is understandable, traceable, and available to those who need it.",
+    "category": "Documentation",
     "roles": [
       {
         "name": "engineering-documentation",
@@ -1493,6 +1524,7 @@
     "code": "engineering-embedded-firmware",
     "default_label": "Engineering embedded firmware",
     "description": "build and verify firmware against a hardware-constrained target — memory, timing, interrupt, and power budgets a general-purpose runtime does not have — confirming it behaves correctly on the real or simulated hardware it will ship on.",
+    "category": "Development",
     "roles": [
       {
         "name": "firmware-implementation",
@@ -1541,6 +1573,7 @@
     "code": "engineering-practice-improvement",
     "default_label": "Improving engineering practice",
     "description": "systematically evaluate engineering practices using experience, evidence, performance information, and identified deficiencies, and to develop, validate, adopt, and maintain improvements to the methods, processes, standards, and practices used to perform engineering work.",
+    "category": "Learning and Improvement",
     "roles": [
       {
         "name": "practice-analysis",
@@ -1589,6 +1622,7 @@
     "code": "engineering-work-review",
     "default_label": "Reviewing engineering work",
     "description": "independently examine engineering artefacts, activities, and decisions against applicable requirements, standards, policies, and review criteria, identify and communicate deficiencies or deviations, and determine whether the reviewed work is acceptable for progression or requires correction and re-review.",
+    "category": "Governance",
     "roles": [
       {
         "name": "engineering-work-examination",
@@ -1636,6 +1670,7 @@
     "code": "enterprise-wide-engineering-impact-analysis",
     "default_label": "Enterprise-wide engineering impact analysis",
     "description": "analyse the relationships and dependencies across the organisation's engineering systems, capabilities, projects, assets, and processes to determine the direct and indirect effects of proposed changes or conditions, including affected stakeholders, requirements, architecture, resources, risks, and downstream activities.",
+    "category": "Governance",
     "roles": [
       {
         "name": "impact-discovery",
@@ -1684,6 +1719,7 @@
     "code": "evidence-based-organisational-reasoning",
     "default_label": "Evidence-based organisational reasoning",
     "description": null,
+    "category": "Knowledge",
     "roles": [
       {
         "name": "evidence-discovery",
@@ -1732,6 +1768,7 @@
     "code": "governing-engineering-decisions",
     "default_label": "Governing engineering decisions",
     "description": "establish decision-making authority, criteria, processes, and controls for significant engineering decisions, and to ensure that such decisions are appropriately evaluated, authorised, recorded, and subject to review throughout the engineering lifecycle.",
+    "category": "Governance",
     "roles": [
       {
         "name": "decision-analysis",
@@ -1788,6 +1825,7 @@
     "code": "integrating-constructed-components",
     "default_label": "Integrating constructed components",
     "description": "combine independently constructed software components and assemblies into progressively larger, coherent subsystems and systems, ensuring that their interfaces, dependencies, interactions, and configurations conform to the defined integration specifications.",
+    "category": "Development",
     "roles": [
       {
         "name": "component-integration",
@@ -1827,6 +1865,7 @@
     "code": "learning",
     "default_label": "Learning from operational experience",
     "description": "systematically capture, analyse, and synthesise operational experience, incidents, problems, performance data, and other operational evidence into actionable lessons and improvements for engineering, operations, and organisational practice.",
+    "category": "Learning and Improvement",
     "roles": [
       {
         "name": "experience-capture",
@@ -1874,6 +1913,7 @@
     "code": "legacy-modernisation",
     "default_label": "Knowledge recovery from legacy systems (Specialisation from “Recovering organisational knowledge”)",
     "description": null,
+    "category": "Knowledge",
     "roles": [
       {
         "name": "legacy-knowledge-discovery",
@@ -1921,6 +1961,7 @@
     "code": "modelling-complex-systems",
     "default_label": "Modelling complex systems",
     "description": "create, analyse, and maintain coherent structural and behavioural representations of a system, its context, interactions, dependencies, and constraints, so that system complexity can be understood and used as a reliable basis for architectural and engineering decisions.",
+    "category": "Architecture",
     "roles": [
       {
         "name": "system-modelling",
@@ -1968,6 +2009,7 @@
     "code": "operating-production-systems",
     "default_label": "Operating production systems",
     "description": "operate, monitor, maintain, support, and control software systems in their production environments, ensuring that services remain available, perform as required, remain secure, and respond appropriately to operational events and changing conditions",
+    "category": "Operations",
     "roles": [
       {
         "name": "production-monitoring",
@@ -2024,6 +2066,7 @@
     "code": "organisational-memory-synthesis",
     "default_label": "Organisational memory synthesis across multiple projects",
     "description": "aggregate, relate, and synthesise knowledge from multiple projects and their engineering artefacts, experiences, decisions, and outcomes to identify reusable organisational knowledge, cross-project patterns, dependencies, lessons, and insights.",
+    "category": "Knowledge",
     "roles": [
       {
         "name": "knowledge-aggregation",
@@ -2071,6 +2114,7 @@
     "code": "predictive-architectural-obsolescence-detection",
     "default_label": "Predictive architectural obsolescence detection (Specialisation from “Predictive engineering risk assessment”)",
     "description": "continuously analyse architectural technologies, dependencies, patterns, constraints, support lifecycles, and external technology trends to predict emerging architectural obsolescence and provide sufficient early warning for architectural remediation, replacement, or evolution.",
+    "category": "Architecture",
     "roles": [
       {
         "name": "architecture-trend-analysis",
@@ -2118,6 +2162,7 @@
     "code": "predictive-engineering-risk-assessment",
     "default_label": "Predictive engineering risk assessment",
     "description": "analyse current and historical engineering information to identify emerging risk patterns, forecast the likelihood and potential impact of future engineering risks, and provide early risk assessments that support preventive action and engineering decision-making.",
+    "category": "Governance",
     "roles": [
       {
         "name": "risk-identification",
@@ -2165,6 +2210,7 @@
     "code": "predictive-incident-anticipation",
     "default_label": "Predictive incident anticipation",
     "description": "continuously analyse operational conditions, system behaviour, telemetry, changes, dependencies, historical incidents, and other relevant signals to identify patterns indicating that an operational incident is likely to occur, assess its potential impact, and provide early warning to support preventive or mitigating action.",
+    "category": "Operations",
     "roles": [
       {
         "name": "telemetry-analysis",
@@ -2212,6 +2258,7 @@
     "code": "predictive-test-coverage-gap-detection",
     "default_label": "Predictive test-coverage gap detection (Specialisation from “Predictive engineering risk assessment”)",
     "description": "analyse software structure, requirements, changes, dependencies, existing test assets, and historical verification evidence to predict areas where test coverage is likely to be insufficient, identify the nature and significance of the anticipated gaps, and provide early direction for additional verification.",
+    "category": "Testing",
     "roles": [
       {
         "name": "coverage-analysis",
@@ -2259,6 +2306,7 @@
     "code": "predictive-threat-pattern-anticipation",
     "default_label": "Predictive threat-pattern anticipation",
     "description": "continuously analyse threat intelligence, historical security events, emerging attack techniques, vulnerabilities, system characteristics, and environmental signals to identify and forecast threat patterns that are likely to affect organisational assets, providing early warning to support preventive security action.",
+    "category": "Security",
     "roles": [
       {
         "name": "threat-pattern-discovery",
@@ -2306,6 +2354,7 @@
     "code": "protect-organisational-assets",
     "default_label": "Protecting organisational assets",
     "description": "identify organisational assets and their protection requirements, assess threats and vulnerabilities, establish and apply appropriate protective controls, and monitor their effectiveness so that assets remain protected against unauthorised access, misuse, damage, loss, compromise, or disruption",
+    "category": "Security",
     "roles": [
       {
         "name": "asset-protection",
@@ -2364,6 +2413,7 @@
     "code": "real-time-organisational-documentation",
     "default_label": "Real-time organisational documentation",
     "description": "continuously capture, update, organise, and maintain organisational knowledge and engineering information as work occurs and changes are made, keeping authoritative documentation closely synchronised with the current state of the organisation, its systems, decisions, and practices.",
+    "category": "Documentation",
     "roles": [
       {
         "name": "documentation-capture",
@@ -2411,6 +2461,7 @@
     "code": "recovering-organisational-knowledge",
     "default_label": "Recovering organisational knowledge",
     "description": "locate, retrieve, reconstruct, and contextualise existing organisational knowledge from available records, artefacts, systems, and other sources so that previously established knowledge can be made accessible and usable for current engineering and organisational needs.",
+    "category": "Knowledge",
     "roles": [
       {
         "name": "knowledge-discovery",
@@ -2461,6 +2512,7 @@
     "code": "requirements-analysis",
     "default_label": "Analysing engineering requirements",
     "description": "examine, structure, refine, model, and reason about elicited requirements to establish their meaning, relationships, dependencies, conflicts, constraints, priorities, and implications, producing a coherent requirements specification suitable for validation and subsequent engineering.",
+    "category": "Requirements Engineering",
     "roles": [
       {
         "name": "requirement-analysis",
@@ -2508,6 +2560,7 @@
     "code": "requirements-elicitation",
     "default_label": "Requirements Elicitation",
     "description": "Systematically discover and capture stakeholder needs, business objectives, constraints, and expectations from relevant sources and express them as candidate requirements for subsequent analysis and validation.",
+    "category": "Requirements Engineering",
     "roles": [
       {
         "name": "stakeholder-discovery",
@@ -2539,6 +2592,7 @@
     "code": "requirements-prioritising",
     "default_label": "Prioritising engineering requirements",
     "description": "evaluate and establish the relative priority of engineering requirements using defined business, stakeholder, technical, risk, regulatory, dependency, cost, and other relevant criteria, so that requirements can be appropriately sequenced and resources directed toward the most important outcomes.",
+    "category": "Requirements Engineering",
     "roles": [
       {
         "name": "requirement-prioritisation",
@@ -2579,6 +2633,7 @@
     "code": "requirements-validation",
     "default_label": "Validating engineering requirements",
     "description": "establish that analysed requirements accurately represent intended business and stakeholder needs and are correct, complete, consistent, feasible, unambiguous, verifiable, traceable, and appropriately agreed before being established as the authoritative engineering baseline.",
+    "category": "Requirements Engineering",
     "roles": [
       {
         "name": "requirement-validation",
@@ -2634,6 +2689,7 @@
     "code": "software-construction",
     "default_label": "Constructing software systems",
     "description": "transform architectural and detailed design specifications into working software components and implementation artefacts through coding, configuration, generation, and use of appropriate software assets, while maintaining conformance with applicable requirements, architecture, and engineering standards",
+    "category": "Development",
     "roles": [
       {
         "name": "implementation",
@@ -2717,6 +2773,7 @@
     "code": "software-design",
     "default_label": "Designing software components",
     "description": "decompose architectural elements into implementable software components and determine their responsibilities, interfaces, behaviour, internal structure, dependencies, and design constraints so that they can be constructed consistently with the architecture and allocated requirements",
+    "category": "Architecture",
     "roles": [
       {
         "name": "component-decomposition",
@@ -2764,6 +2821,7 @@
     "code": "software-release",
     "default_label": "Managing software release",
     "description": "plan, assemble, assess, authorise, and control the release of identified software configurations into their intended environments, ensuring that release prerequisites are satisfied, the released configuration is known and reproducible, and the transition is performed in a controlled manner",
+    "category": "Deployment",
     "roles": [
       {
         "name": "release-planning",
@@ -2819,6 +2877,7 @@
     "code": "software-validation",
     "default_label": "Verifying software quality",
     "description": "systematically examine and test software and associated engineering artefacts against defined requirements, specifications, standards, and quality criteria, producing objective evidence of conformance and identifying deviations that require resolution.",
+    "category": "Testing",
     "roles": [
       {
         "name": "verification-planning",
@@ -2874,6 +2933,7 @@
     "code": "solution-options",
     "default_label": "Recommending solution options by value",
     "description": "identify and evaluate alternative solution options against business objectives, stakeholder needs, expected benefits, costs, risks, constraints, and other relevant criteria, and to recommend the option or combination of options that provides the most appropriate overall value.",
+    "category": "Architecture",
     "roles": [
       {
         "name": "solution-option-discovery",
@@ -2922,6 +2982,7 @@
     "code": "training-and-evaluating-models",
     "default_label": "Training and evaluating models",
     "description": "prepare training/evaluation data, train or fine-tune a model against a defined objective, and evaluate its quality, bias, and performance against acceptance criteria before it is fit to serve — a materially different discipline from constructing general-purpose software components.",
+    "category": "Development",
     "roles": [
       {
         "name": "training-data-preparation",
@@ -2970,6 +3031,7 @@
     "code": "understanding-business-domain",
     "default_label": "Understanding business domain",
     "description": "Establish, model, validate, and maintain a shared understanding of the business domain, including its concepts, terminology, entities, relationships, processes, rules, roles, and constraints, so that engineering decisions are grounded in accurate domain knowledge.",
+    "category": "Requirements Engineering",
     "roles": [
       {
         "name": "domain-discovery",
@@ -3013,6 +3075,7 @@
     "code": "vendor-supplier-management",
     "default_label": "Managing external vendors and suppliers",
     "description": "establish and manage relationships with external vendors, suppliers, and service providers, including their selection, contractual arrangements, performance, risk, compliance, and ongoing relationship management, so that externally provided products and services meet organisational requirements.",
+    "category": "Governance",
     "roles": [
       {
         "name": "supplier-selection",
@@ -3060,6 +3123,1102 @@
           "supplier-communication",
           "issue-resolution",
           "relationship-review"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "engineering-project-planning",
+    "default_label": "Planning and tracking engineering delivery",
+    "description": "plan engineering work by scoping, estimating, scheduling, and resourcing it, and track progress against the plan so that delivery commitments are met within defined objectives and constraints.",
+    "category": "Governance",
+    "roles": [
+      {
+        "name": "work-planning",
+        "worktypes": [
+          "scope-definition",
+          "work-breakdown",
+          "milestone-planning"
+        ]
+      },
+      {
+        "name": "estimation",
+        "worktypes": [
+          "effort-estimation",
+          "estimate-calibration"
+        ]
+      },
+      {
+        "name": "scheduling-and-resourcing",
+        "worktypes": [
+          "schedule-construction",
+          "resource-allocation",
+          "dependency-sequencing"
+        ]
+      },
+      {
+        "name": "progress-tracking",
+        "worktypes": [
+          "progress-measurement",
+          "variance-analysis",
+          "forecast-update"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "engineering-risk-management",
+    "default_label": "Managing engineering risk",
+    "description": "identify, analyse, mitigate, and track risks to engineering delivery and outcomes so that exposure is understood and kept within accepted tolerance.",
+    "category": "Governance",
+    "roles": [
+      {
+        "name": "engineering-risk-identification",
+        "worktypes": [
+          "risk-discovery",
+          "risk-registration"
+        ]
+      },
+      {
+        "name": "risk-analysis",
+        "worktypes": [
+          "likelihood-assessment",
+          "impact-assessment",
+          "risk-prioritisation"
+        ]
+      },
+      {
+        "name": "risk-mitigation",
+        "worktypes": [
+          "mitigation-planning",
+          "contingency-planning"
+        ]
+      },
+      {
+        "name": "risk-monitoring",
+        "worktypes": [
+          "risk-tracking",
+          "trigger-detection"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "test-strategy-and-design",
+    "default_label": "Defining test strategy and designing tests",
+    "description": "define the test strategy and design tests, test data, and test environments so that verification is planned, risk-based, and traceable to requirements.",
+    "category": "Testing",
+    "roles": [
+      {
+        "name": "test-strategy-definition",
+        "worktypes": [
+          "test-scope-definition",
+          "test-approach-selection"
+        ]
+      },
+      {
+        "name": "test-case-and-scenario-design",
+        "worktypes": [
+          "test-case-design",
+          "test-scenario-design",
+          "coverage-modelling"
+        ]
+      },
+      {
+        "name": "test-data-management",
+        "worktypes": [
+          "test-data-design",
+          "test-data-provisioning"
+        ]
+      },
+      {
+        "name": "test-environment-management",
+        "worktypes": [
+          "environment-specification",
+          "environment-provisioning"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "test-automation-engineering",
+    "default_label": "Engineering test automation",
+    "description": "build and maintain automated test suites and harnesses so that verification is repeatable, fast, and integrated with delivery pipelines.",
+    "category": "Testing",
+    "roles": [
+      {
+        "name": "automation-design",
+        "worktypes": [
+          "framework-selection",
+          "automation-architecture"
+        ]
+      },
+      {
+        "name": "test-script-construction",
+        "worktypes": [
+          "test-script-development",
+          "mock-and-stub-development"
+        ]
+      },
+      {
+        "name": "automation-execution",
+        "worktypes": [
+          "suite-execution",
+          "flaky-test-handling"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "performance-and-reliability-testing",
+    "default_label": "Verifying performance and reliability",
+    "description": "verify performance, scalability, load, stress, and resilience behaviour of software against defined targets so that non-functional commitments are demonstrated.",
+    "category": "Testing",
+    "roles": [
+      {
+        "name": "performance-test-design",
+        "worktypes": [
+          "workload-modelling",
+          "target-definition"
+        ]
+      },
+      {
+        "name": "performance-test-execution",
+        "worktypes": [
+          "load-testing",
+          "stress-testing",
+          "soak-testing"
+        ]
+      },
+      {
+        "name": "resilience-testing",
+        "worktypes": [
+          "failure-injection",
+          "recovery-testing"
+        ]
+      },
+      {
+        "name": "performance-findings-analysis",
+        "worktypes": [
+          "bottleneck-identification",
+          "capacity-finding-reporting"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "version-control-management",
+    "default_label": "Managing source control and branching",
+    "description": "manage source repositories, branching, merging, and code review workflow so that changes are traceable, integrated safely, and reviewed.",
+    "category": "Development",
+    "roles": [
+      {
+        "name": "repository-management",
+        "worktypes": [
+          "repository-provisioning",
+          "access-control-management"
+        ]
+      },
+      {
+        "name": "branching-and-merging",
+        "worktypes": [
+          "branching-strategy-definition",
+          "merge-management",
+          "conflict-resolution"
+        ]
+      },
+      {
+        "name": "change-review",
+        "worktypes": [
+          "peer-review",
+          "review-approval"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "build-and-continuous-integration",
+    "default_label": "Engineering build and continuous integration",
+    "description": "automate the build, packaging, and integration of software so that every change is built, verified, and produces versioned artefacts.",
+    "category": "Deployment",
+    "roles": [
+      {
+        "name": "build-automation",
+        "worktypes": [
+          "build-script-development",
+          "dependency-resolution",
+          "reproducible-build-assurance"
+        ]
+      },
+      {
+        "name": "continuous-integration",
+        "worktypes": [
+          "integration-execution",
+          "integration-failure-triage"
+        ]
+      },
+      {
+        "name": "artefact-management",
+        "worktypes": [
+          "artefact-packaging",
+          "artefact-versioning"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "continuous-delivery-pipeline-engineering",
+    "default_label": "Engineering delivery pipelines",
+    "description": "design and maintain delivery pipelines that promote artefacts through verification stages to deployment with defined gates and controls.",
+    "category": "Deployment",
+    "roles": [
+      {
+        "name": "pipeline-design",
+        "worktypes": [
+          "stage-definition",
+          "gate-definition"
+        ]
+      },
+      {
+        "name": "pipeline-implementation",
+        "worktypes": [
+          "pipeline-as-code-development",
+          "pipeline-integration",
+          "secrets-handling"
+        ]
+      },
+      {
+        "name": "deployment-automation",
+        "worktypes": [
+          "deployment-script-development",
+          "rollout-strategy-implementation",
+          "rollback-implementation"
+        ]
+      },
+      {
+        "name": "delivery-pipeline-operation",
+        "worktypes": [
+          "pipeline-monitoring",
+          "pipeline-failure-resolution"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "infrastructure-engineering",
+    "default_label": "Engineering infrastructure and environments",
+    "description": "specify, provision, and maintain infrastructure and runtime environments as code so that environments are consistent, secure, and capacity-planned.",
+    "category": "Deployment",
+    "roles": [
+      {
+        "name": "infrastructure-design",
+        "worktypes": [
+          "infrastructure-architecture",
+          "environment-topology-design"
+        ]
+      },
+      {
+        "name": "infrastructure-provisioning",
+        "worktypes": [
+          "infrastructure-as-code-development",
+          "environment-provisioning",
+          "environment-teardown"
+        ]
+      },
+      {
+        "name": "platform-engineering",
+        "worktypes": [
+          "container-platform-management",
+          "service-platform-provision"
+        ]
+      },
+      {
+        "name": "capacity-planning",
+        "worktypes": [
+          "capacity-forecasting",
+          "capacity-provisioning"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "observability-engineering",
+    "default_label": "Engineering observability and monitoring",
+    "description": "instrument systems and configure monitoring, logging, tracing, and alerting so that system health and behaviour can be understood and acted on in production.",
+    "category": "Operations",
+    "roles": [
+      {
+        "name": "instrumentation",
+        "worktypes": [
+          "metric-definition",
+          "log-instrumentation",
+          "trace-instrumentation"
+        ]
+      },
+      {
+        "name": "monitoring-configuration",
+        "worktypes": [
+          "dashboard-configuration",
+          "health-check-definition"
+        ]
+      },
+      {
+        "name": "alerting",
+        "worktypes": [
+          "alert-rule-definition",
+          "alert-routing",
+          "alert-tuning"
+        ]
+      },
+      {
+        "name": "service-level-management",
+        "worktypes": [
+          "service-level-objective-definition",
+          "error-budget-tracking"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "incident-response-management",
+    "default_label": "Responding to production incidents",
+    "description": "detect, triage, resolve, and communicate production incidents and review them afterwards so that service is restored quickly and recurrence is reduced.",
+    "category": "Operations",
+    "roles": [
+      {
+        "name": "incident-triage",
+        "worktypes": [
+          "incident-declaration",
+          "severity-classification"
+        ]
+      },
+      {
+        "name": "incident-resolution",
+        "worktypes": [
+          "diagnosis",
+          "mitigation-application",
+          "service-restoration"
+        ]
+      },
+      {
+        "name": "incident-communication",
+        "worktypes": [
+          "stakeholder-notification",
+          "status-reporting"
+        ]
+      },
+      {
+        "name": "incident-review",
+        "worktypes": [
+          "post-incident-review",
+          "action-item-tracking"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "reliability-and-resilience-engineering",
+    "default_label": "Engineering reliability and recovery",
+    "description": "design and verify reliability, availability, backup, and disaster recovery mechanisms so that systems tolerate failure and recover within agreed objectives.",
+    "category": "Operations",
+    "roles": [
+      {
+        "name": "reliability-design",
+        "worktypes": [
+          "failure-mode-analysis",
+          "redundancy-design"
+        ]
+      },
+      {
+        "name": "backup-and-recovery",
+        "worktypes": [
+          "backup-configuration",
+          "restore-verification"
+        ]
+      },
+      {
+        "name": "disaster-recovery",
+        "worktypes": [
+          "disaster-recovery-planning",
+          "recovery-exercise"
+        ]
+      },
+      {
+        "name": "resilience-validation",
+        "worktypes": [
+          "chaos-experiment-design",
+          "chaos-experiment-execution"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "software-maintenance-and-refactoring",
+    "default_label": "Maintaining and refactoring software",
+    "description": "maintain and improve the internal structure of existing software through corrective fixes, adaptive changes, and refactoring without altering intended behaviour unless specified.",
+    "category": "Development",
+    "roles": [
+      {
+        "name": "maintenance-triage",
+        "worktypes": [
+          "maintenance-request-classification",
+          "maintenance-impact-assessment"
+        ]
+      },
+      {
+        "name": "corrective-maintenance",
+        "worktypes": [
+          "defect-fix-development",
+          "fix-verification"
+        ]
+      },
+      {
+        "name": "adaptive-maintenance",
+        "worktypes": [
+          "platform-upgrade-adaptation",
+          "compatibility-restoration"
+        ]
+      },
+      {
+        "name": "code-refactoring",
+        "worktypes": [
+          "code-smell-identification",
+          "refactoring-execution",
+          "behaviour-preservation-verification"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "technical-debt-and-dependency-management",
+    "default_label": "Managing technical debt and dependencies",
+    "description": "identify, quantify, prioritise, and repay technical debt and manage third-party and internal dependencies, upgrades, and end-of-life so that the codebase stays sustainable.",
+    "category": "Development",
+    "roles": [
+      {
+        "name": "technical-debt-identification",
+        "worktypes": [
+          "debt-discovery",
+          "debt-quantification"
+        ]
+      },
+      {
+        "name": "debt-prioritisation",
+        "worktypes": [
+          "repayment-planning",
+          "debt-trade-off-decision"
+        ]
+      },
+      {
+        "name": "dependency-management",
+        "worktypes": [
+          "dependency-inventory",
+          "dependency-upgrade",
+          "vulnerable-dependency-remediation"
+        ]
+      },
+      {
+        "name": "end-of-life-management",
+        "worktypes": [
+          "end-of-life-tracking",
+          "decommissioning"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "secure-engineering",
+    "default_label": "Engineering secure software",
+    "description": "build security into software through threat modelling, secure design, secure coding, security testing, and secrets and identity management.",
+    "category": "Security",
+    "roles": [
+      {
+        "name": "threat-modelling",
+        "worktypes": [
+          "trust-boundary-identification",
+          "threat-identification",
+          "mitigation-selection"
+        ]
+      },
+      {
+        "name": "secure-design",
+        "worktypes": [
+          "security-requirement-definition",
+          "security-design-review"
+        ]
+      },
+      {
+        "name": "secure-construction",
+        "worktypes": [
+          "static-security-analysis",
+          "secrets-management"
+        ]
+      },
+      {
+        "name": "security-verification",
+        "worktypes": [
+          "penetration-testing",
+          "dynamic-security-testing",
+          "security-finding-remediation"
+        ]
+      },
+      {
+        "name": "identity-and-access-engineering",
+        "worktypes": [
+          "authentication-design",
+          "authorisation-design"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "privacy-and-licence-compliance",
+    "default_label": "Managing privacy, regulatory and licence compliance",
+    "description": "identify and satisfy privacy, regulatory, and open-source licence obligations applicable to engineered software so that products can be lawfully built, shipped, and operated.",
+    "category": "Governance",
+    "roles": [
+      {
+        "name": "obligation-mapping",
+        "worktypes": [
+          "regulation-identification",
+          "obligation-extraction"
+        ]
+      },
+      {
+        "name": "privacy-engineering",
+        "worktypes": [
+          "data-classification",
+          "privacy-impact-assessment"
+        ]
+      },
+      {
+        "name": "licence-management",
+        "worktypes": [
+          "licence-inventory",
+          "licence-compatibility-assessment",
+          "software-bill-of-materials-production"
+        ]
+      },
+      {
+        "name": "compliance-evidence-management",
+        "worktypes": [
+          "evidence-collection",
+          "remediation-tracking"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "non-functional-requirements-engineering",
+    "default_label": "Engineering non-functional qualities",
+    "description": "elicit, specify, and architect for non-functional qualities such as performance, scalability, availability, maintainability, and portability, and verify that designs achieve them.",
+    "category": "Architecture",
+    "roles": [
+      {
+        "name": "quality-requirement-elicitation",
+        "worktypes": [
+          "quality-attribute-identification",
+          "target-quantification"
+        ]
+      },
+      {
+        "name": "quality-trade-off-analysis",
+        "worktypes": [
+          "architecture-evaluation",
+          "trade-off-decision"
+        ]
+      },
+      {
+        "name": "quality-attribute-assessment",
+        "worktypes": [
+          "fitness-function-definition",
+          "quality-measurement",
+          "quality-gap-reporting"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "data-and-database-engineering",
+    "default_label": "Designing and evolving data stores",
+    "description": "design, implement, migrate, and govern data models and data stores so that data is correct, available, performant, and evolvable.",
+    "category": "Development",
+    "roles": [
+      {
+        "name": "data-modelling",
+        "worktypes": [
+          "logical-data-modelling",
+          "physical-data-modelling"
+        ]
+      },
+      {
+        "name": "database-construction",
+        "worktypes": [
+          "schema-implementation",
+          "query-optimisation"
+        ]
+      },
+      {
+        "name": "data-migration",
+        "worktypes": [
+          "migration-planning",
+          "migration-execution",
+          "migration-verification"
+        ]
+      },
+      {
+        "name": "data-governance",
+        "worktypes": [
+          "data-ownership-definition",
+          "data-quality-rule-definition"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "api-and-interface-engineering",
+    "default_label": "Designing and managing APIs and interfaces",
+    "description": "design, specify, version, and govern APIs and system interfaces so that components and external consumers can integrate reliably.",
+    "category": "Architecture",
+    "roles": [
+      {
+        "name": "api-interface-design",
+        "worktypes": [
+          "interface-specification",
+          "contract-definition"
+        ]
+      },
+      {
+        "name": "interface-versioning",
+        "worktypes": [
+          "compatibility-assessment",
+          "deprecation-management"
+        ]
+      },
+      {
+        "name": "interface-verification",
+        "worktypes": [
+          "contract-testing",
+          "consumer-compatibility-testing"
+        ]
+      },
+      {
+        "name": "interface-publication",
+        "worktypes": [
+          "interface-documentation",
+          "consumer-onboarding"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "product-value-management",
+    "default_label": "Managing product value and roadmap",
+    "description": "define product vision, business case, and roadmap, and measure realised value so that engineering effort is directed to the highest-value outcomes.",
+    "category": "Requirements Engineering",
+    "roles": [
+      {
+        "name": "product-vision-definition",
+        "worktypes": [
+          "vision-articulation",
+          "outcome-definition"
+        ]
+      },
+      {
+        "name": "business-case-development",
+        "worktypes": [
+          "benefit-estimation",
+          "investment-justification"
+        ]
+      },
+      {
+        "name": "roadmap-management",
+        "worktypes": [
+          "roadmap-construction",
+          "roadmap-prioritisation"
+        ]
+      },
+      {
+        "name": "value-measurement",
+        "worktypes": [
+          "outcome-metric-definition",
+          "usage-analytics-analysis",
+          "benefits-realisation-review"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "user-support-and-feedback-management",
+    "default_label": "Handling user support and feedback",
+    "description": "receive, triage, resolve, and learn from user support requests and feedback so that user problems are resolved and insight feeds back into engineering.",
+    "category": "Operations",
+    "roles": [
+      {
+        "name": "support-intake",
+        "worktypes": [
+          "request-capture",
+          "request-classification"
+        ]
+      },
+      {
+        "name": "support-resolution",
+        "worktypes": [
+          "issue-diagnosis",
+          "workaround-provision"
+        ]
+      },
+      {
+        "name": "feedback-analysis",
+        "worktypes": [
+          "feedback-theme-analysis",
+          "feedback-prioritisation"
+        ]
+      },
+      {
+        "name": "feedback-integration",
+        "worktypes": [
+          "requirement-candidate-creation",
+          "defect-candidate-creation"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "engineering-team-enablement",
+    "default_label": "Enabling engineering teams",
+    "description": "onboard, develop, and equip engineering teams with skills, tooling, and collaboration practices so that teams can deliver effectively and sustainably.",
+    "category": "Learning and Improvement",
+    "roles": [
+      {
+        "name": "onboarding",
+        "worktypes": [
+          "onboarding-plan-definition",
+          "access-and-tooling-provisioning"
+        ]
+      },
+      {
+        "name": "skills-development",
+        "worktypes": [
+          "skill-gap-assessment",
+          "training-provision",
+          "mentoring"
+        ]
+      },
+      {
+        "name": "tooling-enablement",
+        "worktypes": [
+          "tool-selection",
+          "developer-experience-improvement"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "engineering-cost-management",
+    "default_label": "Managing engineering effort and cost",
+    "description": "plan, track, and optimise engineering effort and cost, including infrastructure and cloud spend, against budgets so that delivery remains economically justified.",
+    "category": "Governance",
+    "roles": [
+      {
+        "name": "budget-planning",
+        "worktypes": [
+          "budget-definition",
+          "cost-allocation"
+        ]
+      },
+      {
+        "name": "cost-tracking",
+        "worktypes": [
+          "effort-capture",
+          "spend-capture",
+          "variance-reporting"
+        ]
+      },
+      {
+        "name": "cost-optimisation",
+        "worktypes": [
+          "waste-identification",
+          "rightsizing"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "mlops-and-ai-assurance",
+    "default_label": "Operating and assuring AI-enabled systems",
+    "description": "deploy, monitor, govern, and assure machine-learning models and AI-assisted engineering outputs so that AI behaviour remains accurate, safe, and accountable in production.",
+    "category": "Operations",
+    "roles": [
+      {
+        "name": "model-deployment",
+        "worktypes": [
+          "model-packaging",
+          "model-release",
+          "model-rollback"
+        ]
+      },
+      {
+        "name": "model-monitoring",
+        "worktypes": [
+          "drift-detection",
+          "performance-monitoring"
+        ]
+      },
+      {
+        "name": "ai-output-governance",
+        "worktypes": [
+          "ai-output-review",
+          "ai-use-policy-enforcement"
+        ]
+      },
+      {
+        "name": "model-lifecycle-management",
+        "worktypes": [
+          "retraining-trigger-management",
+          "model-retirement"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "prototyping-and-experimentation",
+    "default_label": "Prototyping and experimenting",
+    "description": "build prototypes, spikes, and controlled experiments to reduce uncertainty about requirements, designs, and value before committing to full construction.",
+    "category": "Development",
+    "roles": [
+      {
+        "name": "prototype-definition",
+        "worktypes": [
+          "hypothesis-definition",
+          "success-criteria-definition"
+        ]
+      },
+      {
+        "name": "prototype-construction",
+        "worktypes": [
+          "spike-development",
+          "proof-of-concept-development"
+        ]
+      },
+      {
+        "name": "experiment-evaluation",
+        "worktypes": [
+          "result-analysis",
+          "decision-recommendation",
+          "learning-capture"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "user-experience-engineering",
+    "default_label": "Engineering user experience and accessibility",
+    "description": "research, design, and verify user interfaces and interactions, including accessibility and internationalisation, so that software is usable by its intended users.",
+    "category": "Architecture",
+    "roles": [
+      {
+        "name": "user-research",
+        "worktypes": [
+          "user-need-research",
+          "usability-finding-analysis"
+        ]
+      },
+      {
+        "name": "interaction-design",
+        "worktypes": [
+          "interaction-flow-design",
+          "design-system-application"
+        ]
+      },
+      {
+        "name": "accessibility-and-localisation",
+        "worktypes": [
+          "accessibility-verification",
+          "internationalisation-support"
+        ]
+      },
+      {
+        "name": "usability-verification",
+        "worktypes": [
+          "usability-testing",
+          "usability-defect-reporting"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "mobile-application-engineering",
+    "default_label": "Engineering mobile applications",
+    "description": "design, build, verify, secure, and release applications for mobile platforms, accounting for device and operating-system diversity, offline operation, battery and network constraints, and app-store policies.",
+    "category": "Development",
+    "roles": [
+      {
+        "name": "mobile-platform-design",
+        "worktypes": [
+          "platform-strategy-selection",
+          "device-and-os-support-matrix-definition",
+          "offline-and-synchronisation-design"
+        ]
+      },
+      {
+        "name": "mobile-application-construction",
+        "worktypes": [
+          "mobile-ui-implementation",
+          "platform-api-integration",
+          "mobile-performance-optimisation"
+        ]
+      },
+      {
+        "name": "mobile-quality-verification",
+        "worktypes": [
+          "device-matrix-testing",
+          "mobile-security-testing",
+          "app-store-guideline-conformance-review"
+        ]
+      },
+      {
+        "name": "mobile-release-management",
+        "worktypes": [
+          "store-submission-preparation",
+          "staged-rollout-management",
+          "crash-and-adoption-monitoring"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "safety-critical-systems-engineering",
+    "default_label": "Engineering safety-critical and real-time systems",
+    "description": "engineer systems whose failure can harm people or the environment by analysing hazards, deriving and allocating safety requirements, proving real-time behaviour, verifying to the applicable functional-safety standard, and assembling the safety case for certification.",
+    "category": "Development",
+    "roles": [
+      {
+        "name": "hazard-and-risk-analysis",
+        "worktypes": [
+          "hazard-identification",
+          "hazard-analysis-and-risk-assessment",
+          "safety-integrity-level-allocation"
+        ]
+      },
+      {
+        "name": "safety-requirements-engineering",
+        "worktypes": [
+          "safety-requirement-derivation",
+          "safety-requirement-allocation",
+          "safety-requirement-traceability"
+        ]
+      },
+      {
+        "name": "real-time-design-analysis",
+        "worktypes": [
+          "timing-budget-definition",
+          "worst-case-execution-time-analysis",
+          "schedulability-analysis"
+        ]
+      },
+      {
+        "name": "safety-verification",
+        "worktypes": [
+          "coding-standard-conformance-checking",
+          "structural-coverage-analysis",
+          "fault-injection-testing"
+        ]
+      },
+      {
+        "name": "safety-assurance",
+        "worktypes": [
+          "safety-case-construction",
+          "independent-safety-assessment",
+          "certification-evidence-compilation"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "hardware-software-codesign",
+    "default_label": "Co-designing hardware and software",
+    "description": "partition functions between hardware and software, verify interfaces and behaviour through co-simulation and hardware-in-the-loop testing before and during hardware availability, and integrate the two to a working system.",
+    "category": "Architecture",
+    "roles": [
+      {
+        "name": "system-partitioning",
+        "worktypes": [
+          "hardware-software-partitioning",
+          "interface-allocation",
+          "performance-budget-allocation"
+        ]
+      },
+      {
+        "name": "co-simulation",
+        "worktypes": [
+          "virtual-prototype-development",
+          "co-simulation-execution",
+          "interface-conformance-simulation"
+        ]
+      },
+      {
+        "name": "hardware-in-the-loop-verification",
+        "worktypes": [
+          "hil-test-bench-specification",
+          "hil-test-execution",
+          "hardware-fault-scenario-testing"
+        ]
+      },
+      {
+        "name": "hardware-software-integration",
+        "worktypes": [
+          "board-bring-up",
+          "hardware-software-integration-testing",
+          "integration-defect-triage"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "game-and-interactive-media-engineering",
+    "default_label": "Engineering games and interactive media",
+    "description": "design, build, optimise, certify, and operate real-time interactive software such as games, including gameplay systems, rendering and asset pipelines, frame and memory budgets, platform certification, and live service operation.",
+    "category": "Development",
+    "roles": [
+      {
+        "name": "gameplay-system-design",
+        "worktypes": [
+          "gameplay-mechanics-design",
+          "game-balance-modelling",
+          "game-design-documentation"
+        ]
+      },
+      {
+        "name": "real-time-runtime-engineering",
+        "worktypes": [
+          "frame-budget-definition",
+          "rendering-pipeline-implementation",
+          "asset-pipeline-implementation"
+        ]
+      },
+      {
+        "name": "game-performance-engineering",
+        "worktypes": [
+          "frame-rate-profiling",
+          "memory-budget-profiling",
+          "load-time-optimisation"
+        ]
+      },
+      {
+        "name": "game-quality-verification",
+        "worktypes": [
+          "playtesting",
+          "platform-certification-testing",
+          "hardware-compatibility-testing"
+        ]
+      },
+      {
+        "name": "live-operations",
+        "worktypes": [
+          "live-service-telemetry-analysis",
+          "content-update-release",
+          "live-event-operations"
         ]
       }
     ]

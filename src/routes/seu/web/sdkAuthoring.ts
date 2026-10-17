@@ -402,12 +402,11 @@ router.post("/authority/transition-definitions/:id/update", async (req: Request,
 });
 
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
-  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, capabilityNames, engineeringCapitalTypes, complianceNames, roleNames, worktypeNames, { data: transitionDefinitions }] = await Promise.all([
+  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, capabilityNames, engineeringCapitalTypes, complianceNames, roleNames, worktypeNames, { data: transitionDefinitions }] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
     templatesDB.findAllActive(),
     listConceptsForType("feature-flag", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     listConceptsForType("deliverable-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
-    listConceptsForType("category:deliverable", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     listConceptsForType("category:evidence", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     listConceptsForType("category:policy", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     listConceptsForType("category:obligation", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
@@ -426,7 +425,6 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     "template-code": [...new Set((templates ?? []).map((t) => t.code))].sort(),
     "feature-flag": [...new Set(featureFlags.map((c) => c.code))].sort(),
     "deliverable-name": [...new Set(deliverableNames.map((c) => c.default_label))].sort(),
-    "category:deliverable": [...new Set(deliverableCategories.map((c) => c.default_label))].sort(),
     "category:evidence": [...new Set(evidenceCategories.map((c) => c.code))].sort(),
     "category:policy": [...new Set(policyCategories.map((c) => c.code))].sort(),
     "category:obligation": [...new Set(obligationCategories.map((c) => c.code))].sort(),
@@ -970,7 +968,7 @@ router.post("/sdk/:slug/:draftId/publish", requireDraftTenantScope(), requireRow
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
   if (!actorId) return flashError(req, res, backTo(slug, draftId), "No actor identity on session.");
   try {
-    const result = await publishAuthoringDraft({ kind, id: draftId, actorId, actorRole: req.session?.user?.role ?? "general" });
+    const result = await publishAuthoringDraft({ kind, id: draftId, actorId });
     if (!result.ok) return flashError(req, res, backTo(slug, draftId), result.errors.join("; "));
     const msg = result.status === "Active" ? `${kind} reached Active — published and registered.` : `Advanced to ${result.status}.`;
     return flashSuccess(req, res, backToIndex(slug), msg);
@@ -986,44 +984,43 @@ router.post("/sdk/:slug/:draftId/transition", requireDraftTenantScope(), require
   if (!kind) return next();
   const draftId = String(req.params.draftId);
   const { targetState, comment } = req.body ?? {};
-  const actorRole = req.session?.user?.role ?? "general";
   if (req.session?.user?.id == null) {
-    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+    return flashError(req, res, backTo(slug, draftId), "You must be logged in to create an Objective.");
   }
   const actorId = String(req.session.user.id);
   try {
     if (kind === "Pack") {
-      const result = await transitionPack({ packId: draftId, targetState, actorRole, actorId, comment: typeof comment === "string" ? comment : undefined });
+      const result = await transitionPack({ packId: draftId, targetState, actorId, comment: typeof comment === "string" ? comment : undefined });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
       return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.appliedTransition.toState}".`);
     }
     if (kind === "Template") {
-      const result = await transitionTemplate({ templateId: draftId, targetState: targetState as never, actorRole, actorId });
+      const result = await transitionTemplate({ templateId: draftId, targetState: targetState as never, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
       return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.template.status}".`);
     }
     if (kind === "Profile") {
-      const result = await transitionProfile({ profileId: draftId, targetState: targetState as never, actorRole, actorId });
+      const result = await transitionProfile({ profileId: draftId, targetState: targetState as never, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
       return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.profile.status}".`);
     }
     if (kind === "Deliverable") {
-      const result = await transitionDeliverableDefinition({ deliverableDefinitionId: draftId, targetState: targetState as never, actorRole, actorId });
+      const result = await transitionDeliverableDefinition({ deliverableDefinitionId: draftId, targetState: targetState as never, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
       return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.deliverableDefinition.status}".`);
     }
     if (kind === "Service") {
-      const result = await transitionServiceDefinition({ serviceDefinitionId: draftId, targetState: targetState as never, actorRole, actorId });
+      const result = await transitionServiceDefinition({ serviceDefinitionId: draftId, targetState: targetState as never, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
       return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.serviceDefinition.status}".`);
     }
     if (kind === "Policy") {
-      const result = await transitionPolicyDefinition({ policyDefinitionId: draftId, targetState: targetState as never, actorRole, actorId });
+      const result = await transitionPolicyDefinition({ policyDefinitionId: draftId, targetState: targetState as never, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
       return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.policyDefinition.status}".`);
     }
     if (kind === "Capability") {
-      const result = await transitionCapabilityDefinition({ capabilityDefinitionId: draftId, targetState: targetState as never, actorRole, actorId });
+      const result = await transitionCapabilityDefinition({ capabilityDefinitionId: draftId, targetState: targetState as never, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
       return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.capabilityDefinition.status}".`);
     }

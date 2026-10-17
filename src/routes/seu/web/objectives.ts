@@ -229,7 +229,6 @@ router.post(
       const result = await transitionObjective({
         objectiveId: supersedesId,
         targetState: "Superseded",
-        actorRole: req.session?.user?.role ?? "general",
         actorId: String(req.session.user.id),
         comment: supersedeComment,
         supersedingObjectiveId: objective.id,
@@ -391,7 +390,6 @@ router.post("/objectives/:id/retire", async (req: Request, res: Response) => {
   try {
     const { retired, skipped } = await retireObjectiveSubtree({
       objectiveId,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
     });
     const msg = skipped.length
@@ -417,7 +415,6 @@ function postObjectiveTransition(targetState: ObjectiveStatus) {
       const result = await transitionObjective({
         objectiveId,
         targetState,
-        actorRole: req.session?.user?.role ?? "general",
         actorId: String(req.session.user.id),
         comment: typeof comment === "string" ? comment : undefined,
         supersedingObjectiveId: typeof supersedingObjectiveId === "string" && supersedingObjectiveId ? supersedingObjectiveId : undefined,
@@ -734,7 +731,6 @@ router.post("/objectives/:id/commission", async (req: Request, res: Response) =>
       selections,
       resolvedParameterOverrides,
       resolvedCompositionConflicts,
-      actorRole: "general",
       actorId: String(req.session.user.id),
       requestedBy:String(req.session.user.id),
     });

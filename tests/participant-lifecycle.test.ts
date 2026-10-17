@@ -47,7 +47,7 @@ async function commissionAndFulfil(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
@@ -80,38 +80,38 @@ test("Participant transition graph: the full Ch.13 §9 lifecycle is seeded and e
 
   const { participant } = await commissionAndFulfil("participant-lifecycle-graph");
 
-  const toAssigned = await transitionParticipant({ participantId: participant.id, targetState: "Assigned", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toAssigned = await transitionParticipant({ participantId: participant.id, targetState: "Assigned", actorId: TESTER_ALL_ID });
   assert.equal(toAssigned.ok, true, !toAssigned.ok ? JSON.stringify(toAssigned) : "assertion failed");
   if (toAssigned.ok) assert.equal(toAssigned.participant.state, "Assigned");
 
-  const toExecuting = await transitionParticipant({ participantId: participant.id, targetState: "Executing", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toExecuting = await transitionParticipant({ participantId: participant.id, targetState: "Executing", actorId: TESTER_ALL_ID });
   assert.equal(toExecuting.ok, true);
 
-  const toIdle = await transitionParticipant({ participantId: participant.id, targetState: "Idle", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toIdle = await transitionParticipant({ participantId: participant.id, targetState: "Idle", actorId: TESTER_ALL_ID });
   assert.equal(toIdle.ok, true);
 
   // Repeat cycle: Idle -> Assigned again (a second Work Item dispatched to
   // the same Participant), not a one-shot straight line.
-  const backToAssigned = await transitionParticipant({ participantId: participant.id, targetState: "Assigned", actorRole: "super", actorId: TESTER_ALL_ID });
+  const backToAssigned = await transitionParticipant({ participantId: participant.id, targetState: "Assigned", actorId: TESTER_ALL_ID });
   assert.equal(backToAssigned.ok, true);
 
-  const backToExecuting = await transitionParticipant({ participantId: participant.id, targetState: "Executing", actorRole: "super", actorId: TESTER_ALL_ID });
+  const backToExecuting = await transitionParticipant({ participantId: participant.id, targetState: "Executing", actorId: TESTER_ALL_ID });
   assert.equal(backToExecuting.ok, true);
-  const backToIdle = await transitionParticipant({ participantId: participant.id, targetState: "Idle", actorRole: "super", actorId: TESTER_ALL_ID });
+  const backToIdle = await transitionParticipant({ participantId: participant.id, targetState: "Idle", actorId: TESTER_ALL_ID });
   assert.equal(backToIdle.ok, true);
 
-  const released = await transitionParticipant({ participantId: participant.id, targetState: "Released", actorRole: "super", actorId: TESTER_ALL_ID });
+  const released = await transitionParticipant({ participantId: participant.id, targetState: "Released", actorId: TESTER_ALL_ID });
   assert.equal(released.ok, true);
   if (released.ok) assert.equal(released.participant.state, "Released");
 
-  const archived = await transitionParticipant({ participantId: participant.id, targetState: "Archived", actorRole: "super", actorId: TESTER_ALL_ID });
+  const archived = await transitionParticipant({ participantId: participant.id, targetState: "Archived", actorId: TESTER_ALL_ID });
   assert.equal(archived.ok, true);
   if (archived.ok) assert.equal(archived.participant.state, "Archived");
 
   // An undefined transition (skipping straight from Available to Executing
   // on a fresh Participant) is rejected the same way any other entity's is.
   const { participant: fresh } = await commissionAndFulfil("participant-lifecycle-skip");
-  const skip = await transitionParticipant({ participantId: fresh.id, targetState: "Executing", actorRole: "super", actorId: TESTER_ALL_ID });
+  const skip = await transitionParticipant({ participantId: fresh.id, targetState: "Executing", actorId: TESTER_ALL_ID });
   assert.equal(skip.ok, false);
   if (!skip.ok) assert.equal(skip.reason, "no_transition_definition");
 
@@ -131,7 +131,7 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  const result = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const result = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   if (!result.ok) assert.ok(result.reason === "no_transition_definition" || result.reason === "already_in_flight", JSON.stringify(result));
 
   // Dispatch of the producing Work Item (In Progress -> In Progress) moves the Participant to Assigned and stops
@@ -160,7 +160,7 @@ test("Build order step 4: replaceParticipant hands a Capability Fulfilment from 
     oldParticipantId: oldParticipant.id,
     newParticipantType: "Human",
     newDisplayName: "Participant lifecycle replacement analyst",
-    actorRole: "super", actorId: ROOT_ACTOR_ID,
+    actorId: ROOT_ACTOR_ID,
     authorBadge: "root",
   });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : "assertion failed");
@@ -182,9 +182,9 @@ test("Build order step 4: replaceParticipant hands a Capability Fulfilment from 
 test("Build order step 4: replaceParticipant works from Executing, not just Idle — Ch.13 §13 'any Participant'", async () => {
   const { participant: oldParticipant, seuCapabilityId } = await commissionAndFulfil("participant-lifecycle-replace-executing");
 
-  const toAssigned = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Assigned", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toAssigned = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Assigned", actorId: TESTER_ALL_ID });
   assert.equal(toAssigned.ok, true);
-  const toExecuting = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Executing", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toExecuting = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Executing", actorId: TESTER_ALL_ID });
   assert.equal(toExecuting.ok, true);
   const { data: midWork } = await participantsDB.findById(oldParticipant.id);
   assert.equal(midWork?.state, "Executing");
@@ -193,7 +193,7 @@ test("Build order step 4: replaceParticipant works from Executing, not just Idle
     oldParticipantId: oldParticipant.id,
     newParticipantType: "AI",
     newDisplayName: "Participant lifecycle replacement (mid-work)",
-    actorRole: "super", actorId: ROOT_ACTOR_ID,
+    actorId: ROOT_ACTOR_ID,
     authorBadge: "root",
   });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : "assertion failed");

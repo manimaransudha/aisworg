@@ -4,8 +4,16 @@
     "name": "Architectural Awareness Service",
     "capability_code": "continuous-architectural-analysis",
     "purpose": "maintain continuous, always-current architectural integrity assessment",
-    "inputs": [],
-    "outputs": [],
+    "inputs": [
+      "artefact-change-stream",
+      "traceability-link-stream",
+      "solution-architecture-document",
+      "architecture-decision-record",
+      "fitness-function-catalog"
+    ],
+    "outputs": [
+      "architecture-drift-finding"
+    ],
     "service_level": [
       {
         "code": "latency-near-zero",
@@ -36,9 +44,13 @@
     "capability_code": "predictive-architectural-obsolescence-detection",
     "purpose": "forecast when a pattern will fail to scale, before it breaks",
     "inputs": [
-      "solution-architecture-document"
+      "telemetry-stream",
+      "solution-architecture-document",
+      "operational-intelligence-report"
     ],
-    "outputs": [],
+    "outputs": [
+      "obsolescence-forecast-finding"
+    ],
     "service_level": [
       {
         "code": "lead-time-before-actual-failure",
@@ -70,11 +82,17 @@
     "inputs": [
       "solution-options-analysis",
       "requirements-specification",
-      "engineering-standard"
+      "engineering-standard",
+      "requirement-validity-finding",
+      "architecture-drift-finding",
+      "architecture-tradeoff-analysis-report",
+      "obsolescence-forecast-finding",
+      "structural-pattern-finding"
     ],
     "outputs": [
       "architecture-decision-record",
-      "risk-assessment-report"
+      "risk-assessment-report",
+      "solution-architecture-document"
     ],
     "service_level": [
       {
@@ -103,7 +121,28 @@
     "success": "decision approved, risk addressed, traceability established",
     "consumers": [
       "software-construction",
-      "governing-engineering-decisions"
+      "governing-engineering-decisions",
+      "real-time-organisational-documentation",
+      "automatic-traceability-generation",
+      "predictive-threat-pattern-anticipation",
+      "vendor-supplier-management",
+      "continuous-architectural-analysis",
+      "predictive-architectural-obsolescence-detection",
+      "predictive-test-coverage-gap-detection",
+      "cross-system-structural-pattern-recognition",
+      "engineering-data-pipelines",
+      "software-design",
+      "engineering-embedded-firmware",
+      "requirements-prioritising",
+      "engineering-documentation",
+      "test-strategy-and-design",
+      "infrastructure-engineering",
+      "observability-engineering",
+      "reliability-and-resilience-engineering",
+      "secure-engineering",
+      "api-and-interface-engineering",
+      "safety-critical-systems-engineering",
+      "hardware-software-codesign"
     ],
     "version": "1.0.0"
   },
@@ -112,7 +151,11 @@
     "name": "Asset Reuse Service",
     "capability_code": "engineering-assets-reuse",
     "purpose": "identify and leverage existing components, libraries or patterns instead of building from scratch",
-    "inputs": [],
+    "inputs": [
+      "requirements-specification",
+      "detailed-design-specification",
+      "software-bill-of-materials"
+    ],
     "outputs": [
       "reuse-assessment"
     ],
@@ -146,7 +189,11 @@
     "purpose": "keep deployed systems reliable and observable",
     "inputs": [
       "deployment-package",
-      "monitoring-alerting-configuration"
+      "monitoring-alerting-configuration",
+      "deployment-manifest",
+      "decommissioning-plan",
+      "configuration-drift-finding",
+      "user-technical-documentation"
     ],
     "outputs": [
       "incident-report-post-mortem",
@@ -175,7 +222,15 @@
       "requirements-analysis",
       "requirements-validation",
       "requirements-prioritising",
-      "architecture-design"
+      "architecture-design",
+      "predictive-architectural-obsolescence-detection",
+      "predictive-engineering-risk-assessment",
+      "autonomous-standard-synthesis",
+      "continuous-organisational-learning",
+      "predictive-incident-anticipation",
+      "learning",
+      "product-value-management",
+      "adapting-business-needs"
     ],
     "version": "1.0.0"
   },
@@ -184,7 +239,10 @@
     "name": "BA Approach Definition Service",
     "capability_code": "business-analysis-approach",
     "purpose": "determine the appropriate elicitation technique, deliverable set, and stakeholder-engagement plan for a given engagement before any elicitation begins",
-    "inputs": [],
+    "inputs": [
+      "vision",
+      "regulatory-obligations-register"
+    ],
     "outputs": [
       "business-analysis-plan"
     ],
@@ -219,7 +277,9 @@
     "capability_code": "engineering-configuration",
     "purpose": "preserve version integrity of every engineering artefact",
     "inputs": [
-      "change-request"
+      "change-request",
+      "ci-cd-pipeline-definition",
+      "configuration-drift-finding"
     ],
     "outputs": [
       "configuration-baseline-record"
@@ -242,7 +302,9 @@
     ],
     "governance": "configuration-management policy; also draws on tracked artefact versions",
     "success": "baseline reproducible on demand",
-    "consumers": [],
+    "consumers": [
+      "continuous-configuration-drift-detection"
+    ],
     "version": "1.0.0"
   },
   {
@@ -275,7 +337,8 @@
     "governance": "multi-tenancy/data-sharing policy (Book 3 Ch.42); also produces an identified improvement opportunity alongside the benchmark report",
     "success": "benchmark-identified opportunity acted upon",
     "consumers": [
-      "governing-engineering-decisions"
+      "governing-engineering-decisions",
+      "autonomous-capability-optimisation"
     ],
     "version": "1.0.0"
   },
@@ -284,9 +347,15 @@
     "name": "Capability Realignment Service",
     "capability_code": "adapting-business-needs",
     "purpose": "keep the capability portfolio aligned to shifting objectives",
-    "inputs": [],
+    "inputs": [
+      "vision",
+      "product-roadmap",
+      "capability-evolution-roadmap",
+      "incident-report-post-mortem"
+    ],
     "outputs": [
-      "capability-maturity-assessment"
+      "capability-maturity-assessment",
+      "capability-realignment-recommendation"
     ],
     "service_level": [
       {
@@ -306,7 +375,11 @@
     ],
     "governance": "strategic-governance policy; also draws on revised or superseded Objectives and market/business signal; also produces a realignment recommendation",
     "success": "capability portfolio reflects current Objectives",
-    "consumers": [],
+    "consumers": [
+      "capability-evolution",
+      "cross-organisational-capability-benchmarking",
+      "autonomous-capability-optimisation"
+    ],
     "version": "1.0.0"
   },
   {
@@ -314,8 +387,16 @@
     "name": "Capability Self-Optimisation Service",
     "capability_code": "autonomous-capability-optimisation",
     "purpose": "improve a capability's own effectiveness without waiting for external direction",
-    "inputs": [],
-    "outputs": [],
+    "inputs": [
+      "telemetry-stream",
+      "capability-maturity-assessment",
+      "improvement-opportunity-finding",
+      "benchmark-report"
+    ],
+    "outputs": [
+      "capability-optimisation-record",
+      "capability-bottleneck-finding"
+    ],
     "service_level": [
       {
         "code": "measurable-performance-delta",
@@ -334,7 +415,9 @@
     ],
     "governance": "capability-ownership policy; draws on capability performance evidence; produces an applied optimisation and improvement record",
     "success": "optimisation improves measured capability metric without introducing regression",
-    "consumers": [],
+    "consumers": [
+      "capability-evolution"
+    ],
     "version": "1.0.0"
   },
   {
@@ -343,7 +426,11 @@
     "capability_code": "capability-evolution",
     "purpose": "ensure a capability continues to serve the organisation effectively over time, distinct from exercising it day to day",
     "inputs": [
-      "capability-maturity-assessment"
+      "capability-maturity-assessment",
+      "improvement-opportunity-finding",
+      "capability-optimisation-record",
+      "capability-realignment-recommendation",
+      "capability-bottleneck-finding"
     ],
     "outputs": [
       "capability-maturity-assessment",
@@ -390,7 +477,9 @@
     "success": "measurable increase in capability maturity over time, and every identified gap either addressed or explicitly accepted as strategic debt with a named owner",
     "consumers": [
       "governing-engineering-decisions",
-      "adapting-business-needs"
+      "adapting-business-needs",
+      "cross-organisational-capability-benchmarking",
+      "autonomous-capability-optimisation"
     ],
     "version": "1.0.0"
   },
@@ -400,7 +489,8 @@
     "capability_code": "change-management",
     "purpose": "evaluate, approve, schedule and coordinate a proposed change based on its risk and potential conflict with other concurrent changes",
     "inputs": [
-      "change-request"
+      "change-request",
+      "impact-analysis-report"
     ],
     "outputs": [
       "decision-record"
@@ -433,7 +523,11 @@
     "consumers": [
       "engineering-configuration",
       "software-construction",
-      "software-release"
+      "software-release",
+      "evidence-based-organisational-reasoning",
+      "automatic-traceability-generation",
+      "continuous-policy-conflict-detection",
+      "engineering-decision-explainability"
     ],
     "version": "1.0.0"
   },
@@ -444,7 +538,8 @@
     "purpose": "combine separately constructed components into a coherent, working whole",
     "inputs": [
       "source-code",
-      "integration-specification-interface-contracts"
+      "integration-specification-interface-contracts",
+      "api-versioning-policy"
     ],
     "outputs": [
       "integration-build"
@@ -485,9 +580,14 @@
     "capability_code": "continuous-configuration-drift-detection",
     "purpose": "verify deployed configuration matches declared intent at all times",
     "inputs": [
-      "configuration-files"
+      "telemetry-stream",
+      "deployment-event-stream",
+      "configuration-files",
+      "configuration-baseline-record"
     ],
-    "outputs": [],
+    "outputs": [
+      "configuration-drift-finding"
+    ],
     "service_level": [
       {
         "code": "detection-latency",
@@ -517,8 +617,15 @@
     "name": "Continuous Confidence Service",
     "capability_code": "continuous-quality-assurance",
     "purpose": "maintain an always-current confidence assessment rather than a point-in-time one",
-    "inputs": [],
+    "inputs": [
+      "code-change-stream",
+      "test-execution-stream",
+      "traceability-link-stream",
+      "test-suite",
+      "test-report-results"
+    ],
     "outputs": [
+      "quality-deviation-finding",
       "confidence-assessment",
       "defect-log"
     ],
@@ -541,7 +648,12 @@
     "governance": "quality policy; continuously monitors every code/test change",
     "success": "confidence score never stale at any release decision",
     "consumers": [
-      "software-release"
+      "software-release",
+      "continuous-release-risk-management",
+      "predictive-engineering-risk-assessment",
+      "predictive-test-coverage-gap-detection",
+      "defect-management",
+      "software-maintenance-and-refactoring"
     ],
     "version": "1.0.0"
   },
@@ -550,7 +662,12 @@
     "name": "Continuous Documentation Service",
     "capability_code": "real-time-organisational-documentation",
     "purpose": "keep documentation synchronised with current system state at all times",
-    "inputs": [],
+    "inputs": [
+      "source-code",
+      "architecture-decision-record",
+      "api-specification",
+      "solution-architecture-document"
+    ],
     "outputs": [
       "user-technical-documentation"
     ],
@@ -584,8 +701,15 @@
     "name": "Continuous Learning Service",
     "capability_code": "continuous-organisational-learning",
     "purpose": "keep the capability-improvement loop running without waiting for retrospectives",
-    "inputs": [],
-    "outputs": [],
+    "inputs": [
+      "event-replay-stream",
+      "lessons-learned-report",
+      "operational-intelligence-report",
+      "review-report"
+    ],
+    "outputs": [
+      "improvement-opportunity-finding"
+    ],
     "service_level": [
       {
         "code": "cycle-time-between-evidence-and-improvement",
@@ -597,7 +721,10 @@
     ],
     "governance": "organisational-learning policy; draws on evidence generated by every service interaction; produces a capability-improvement recommendation",
     "success": "measurable capability-maturity increase over time",
-    "consumers": [],
+    "consumers": [
+      "capability-evolution",
+      "autonomous-capability-optimisation"
+    ],
     "version": "1.0.0"
   },
   {
@@ -605,8 +732,15 @@
     "name": "Continuous Requirement Conformance Service",
     "capability_code": "continuous-requirements-validation",
     "purpose": "keep the requirement baseline validated as it evolves, not only at baseline-freeze",
-    "inputs": [],
-    "outputs": [],
+    "inputs": [
+      "requirement-change-stream",
+      "traceability-link-stream",
+      "requirements-specification",
+      "requirements-analysis-model"
+    ],
+    "outputs": [
+      "requirement-validity-finding"
+    ],
     "service_level": [
       {
         "code": "zero-lag-detection-of-newly-introduced-conflict",
@@ -628,8 +762,17 @@
     "name": "Continuous Security Posture Service",
     "capability_code": "continuous-vulnerability-posture-assessment",
     "purpose": "maintain whole-portfolio security exposure awareness continuously",
-    "inputs": [],
-    "outputs": [],
+    "inputs": [
+      "code-change-stream",
+      "deployment-event-stream",
+      "threat-intelligence-feed",
+      "software-bill-of-materials",
+      "infrastructure-as-code-environment-configuration",
+      "threat-model"
+    ],
+    "outputs": [
+      "vulnerability-posture-finding"
+    ],
     "service_level": [
       {
         "code": "coverage",
@@ -659,7 +802,13 @@
     "name": "Continuous Trace Awareness Service",
     "capability_code": "automatic-traceability-generation",
     "purpose": "keep every artefact relationship current without manual maintenance",
-    "inputs": [],
+    "inputs": [
+      "requirements-specification",
+      "architecture-decision-record",
+      "source-code",
+      "test-report-results",
+      "decision-record"
+    ],
     "outputs": [
       "traceability-matrix"
     ],
@@ -684,7 +833,9 @@
     "consumers": [
       "governing-engineering-decisions",
       "recovering-organisational-knowledge",
-      "software-validation"
+      "software-validation",
+      "engineering-decision-explainability",
+      "enterprise-wide-engineering-impact-analysis"
     ],
     "version": "1.0.0"
   },
@@ -694,11 +845,15 @@
     "capability_code": "predictive-test-coverage-gap-detection",
     "purpose": "identify defect classes current coverage would fail to catch, before they occur",
     "inputs": [
+      "test-execution-stream",
+      "code-change-stream",
       "defect-log",
       "test-suite",
       "solution-architecture-document"
     ],
-    "outputs": [],
+    "outputs": [
+      "test-coverage-gap-finding"
+    ],
     "service_level": [
       {
         "code": "predictive-precision",
@@ -740,7 +895,8 @@
     "success": "no unanticipated downstream impact discovered post-change",
     "consumers": [
       "governing-engineering-decisions",
-      "architecture-design"
+      "architecture-design",
+      "change-management"
     ],
     "version": "1.0.0"
   },
@@ -773,7 +929,11 @@
     ],
     "governance": "knowledge acquisition-scope policy (cf. Book 3 Ch.16 §12)",
     "success": "synthesised knowledge reused by at least one other project",
-    "consumers": [],
+    "consumers": [
+      "understanding-business-domain",
+      "evidence-based-organisational-reasoning",
+      "user-support-and-feedback-management"
+    ],
     "version": "1.0.0"
   },
   {
@@ -782,9 +942,11 @@
     "capability_code": "cross-system-structural-pattern-recognition",
     "purpose": "identify structural weakness in one system by reasoning across every system's architecture simultaneously",
     "inputs": [
+      "artefact-change-stream",
       "solution-architecture-document"
     ],
     "outputs": [
+      "structural-pattern-finding",
       "risk-assessment-report"
     ],
     "service_level": [
@@ -799,7 +961,10 @@
     "governance": "architecture policy",
     "success": "pattern confirmed applicable and addressed",
     "consumers": [
-      "architecture-design"
+      "architecture-design",
+      "governing-engineering-decisions",
+      "vendor-supplier-management",
+      "requirements-prioritising"
     ],
     "version": "1.0.0"
   },
@@ -809,7 +974,8 @@
     "capability_code": "engineering-data-pipelines",
     "purpose": "deliver a data pipeline that moves and transforms data reliably, with evidence of its own quality",
     "inputs": [
-      "architecture-decision-record"
+      "architecture-decision-record",
+      "source-code"
     ],
     "outputs": [
       "data-pipeline-specification",
@@ -834,7 +1000,9 @@
     "governance": "data-management policy, data-quality standard",
     "success": "the pipeline's data-quality evidence is accepted as sufficient to trust downstream consumers",
     "consumers": [
-      "software-validation"
+      "software-validation",
+      "data-and-database-engineering",
+      "software-construction"
     ],
     "version": "1.0.0"
   },
@@ -844,9 +1012,12 @@
     "capability_code": "engineering-decision-explainability",
     "purpose": "keep every significant decision connected to its supporting evidence and outcome",
     "inputs": [
-      "decision-record"
+      "decision-record",
+      "traceability-matrix"
     ],
-    "outputs": [],
+    "outputs": [
+      "decision-trace"
+    ],
     "service_level": [
       {
         "code": "completeness-of-rationale-chain",
@@ -868,7 +1039,23 @@
     "name": "Decision Validation Service",
     "capability_code": "governing-engineering-decisions",
     "purpose": "ensure engineering decisions comply with policy before taking effect",
-    "inputs": [],
+    "inputs": [
+      "change-request",
+      "engineering-standard",
+      "risk-assessment-report",
+      "policy-conflict-report",
+      "objective-alignment-report",
+      "compliance-violation-finding",
+      "decision-trace",
+      "compliance-audit-evidence",
+      "reasoned-recommendation-record",
+      "policy-conflict-finding",
+      "objective-misalignment-finding",
+      "engineering-risk-forecast-finding",
+      "project-status-report",
+      "cost-variance-report",
+      "security-assessment-report"
+    ],
     "outputs": [
       "decision-record"
     ],
@@ -890,7 +1077,12 @@
     ],
     "governance": "decision-governance policy; also draws on the proposed decision itself and the applicable policy it is evaluated against",
     "success": "decision recorded with traceable rationale",
-    "consumers": [],
+    "consumers": [
+      "evidence-based-organisational-reasoning",
+      "automatic-traceability-generation",
+      "continuous-policy-conflict-detection",
+      "engineering-decision-explainability"
+    ],
     "version": "1.0.0"
   },
   {
@@ -931,7 +1123,11 @@
     "success": "defect closed and verified resolved, or explicitly deferred with documented rationale and owner",
     "consumers": [
       "software-construction",
-      "software-release"
+      "software-release",
+      "continuous-release-risk-management",
+      "predictive-engineering-risk-assessment",
+      "predictive-test-coverage-gap-detection",
+      "software-maintenance-and-refactoring"
     ],
     "version": "1.0.0"
   },
@@ -942,11 +1138,31 @@
     "purpose": "determine and coordinate readiness for deployment",
     "inputs": [
       "test-report-results",
-      "release-package"
+      "release-package",
+      "confidence-assessment",
+      "performance-load-test-report",
+      "resilience-test-report",
+      "release-notes-change-log",
+      "compliance-violation-finding",
+      "penetration-test-report",
+      "privacy-impact-assessment",
+      "licence-compliance-report",
+      "accessibility-conformance-report",
+      "safety-case",
+      "mobile-security-assessment-report",
+      "playtest-report",
+      "platform-certification-report",
+      "api-compatibility-report",
+      "data-migration-plan",
+      "release-risk-finding",
+      "compliance-audit-evidence",
+      "quality-deviation-finding",
+      "data-migration-verification-report"
     ],
     "outputs": [
       "deployment-manifest",
-      "app-store-submission-package"
+      "app-store-submission-package",
+      "runbook-operational-documentation"
     ],
     "service_level": [
       {
@@ -960,7 +1176,9 @@
     "governance": "release policy, change-control standard; also produces a release recommendation alongside the deployment coordination record",
     "success": "release deployed without rollback",
     "consumers": [
-      "operating-production-systems"
+      "operating-production-systems",
+      "incident-response-management",
+      "user-support-and-feedback-management"
     ],
     "version": "1.0.0"
   },
@@ -971,7 +1189,9 @@
     "purpose": "produce the detailed, element-level design of a specific component before construction begins",
     "inputs": [
       "solution-architecture-document",
-      "requirements-analysis-model"
+      "requirements-analysis-model",
+      "system-model",
+      "architecture-decision-record"
     ],
     "outputs": [
       "detailed-design-specification"
@@ -1009,7 +1229,8 @@
     "governance": "design standard, architecture-conformance policy",
     "success": "the design is accepted as ready for construction — a developer can implement against it without needing to make further design decisions",
     "consumers": [
-      "software-construction"
+      "software-construction",
+      "engineering-assets-reuse"
     ],
     "version": "1.0.0"
   },
@@ -1019,9 +1240,14 @@
     "capability_code": "continuous-domain-model-drift-detection",
     "purpose": "detect the moment the domain model diverges from actual business behaviour",
     "inputs": [
-      "domain-model"
+      "business-signal-stream",
+      "stakeholder-communication-stream",
+      "domain-model",
+      "user-feedback-analysis-report"
     ],
-    "outputs": [],
+    "outputs": [
+      "domain-model-drift-finding"
+    ],
     "service_level": [
       {
         "code": "detection-latency",
@@ -1047,7 +1273,11 @@
     "name": "Domain Model Service",
     "capability_code": "understanding-business-domain",
     "purpose": "give the organisation a shared model of the business it serves",
-    "inputs": [],
+    "inputs": [
+      "business-analysis-plan",
+      "knowledge-base-articles",
+      "stakeholder-intent-baseline"
+    ],
     "outputs": [
       "domain-model"
     ],
@@ -1075,7 +1305,10 @@
       "requirements-validation",
       "requirements-prioritising",
       "architecture-design",
-      "recovering-organisational-knowledge"
+      "recovering-organisational-knowledge",
+      "continuous-domain-model-drift-detection",
+      "modelling-complex-systems",
+      "data-and-database-engineering"
     ],
     "version": "1.0.0"
   },
@@ -1085,7 +1318,9 @@
     "capability_code": "engineering-work-review",
     "purpose": "statically examine a completed artefact for defects and standard-conformance without executing it",
     "inputs": [
-      "engineering-standard"
+      "engineering-standard",
+      "code-review-record",
+      "ai-output-review-record"
     ],
     "outputs": [
       "review-report"
@@ -1117,7 +1352,10 @@
     "success": "artefact approved for progression, or findings resolved and re-reviewed",
     "consumers": [
       "software-construction",
-      "software-validation"
+      "software-validation",
+      "autonomous-standard-synthesis",
+      "continuous-organisational-learning",
+      "engineering-practice-improvement"
     ],
     "version": "1.0.0"
   },
@@ -1126,8 +1364,16 @@
     "name": "Engineering Risk Forecast Service",
     "capability_code": "predictive-engineering-risk-assessment",
     "purpose": "forecast engineering risk before it materialises",
-    "inputs": [],
+    "inputs": [
+      "event-replay-stream",
+      "telemetry-stream",
+      "risk-register",
+      "defect-log",
+      "operational-intelligence-report",
+      "lessons-learned-report"
+    ],
     "outputs": [
+      "engineering-risk-forecast-finding",
       "risk-assessment-report"
     ],
     "service_level": [
@@ -1143,7 +1389,9 @@
     "success": "forecast risk actually materialising within predicted window, tracked",
     "consumers": [
       "governing-engineering-decisions",
-      "software-release"
+      "software-release",
+      "vendor-supplier-management",
+      "requirements-prioritising"
     ],
     "version": "1.0.0"
   },
@@ -1153,7 +1401,13 @@
     "capability_code": "engineering-embedded-firmware",
     "purpose": "deliver firmware that behaves correctly within the target hardware's real constraints",
     "inputs": [
-      "architecture-decision-record"
+      "architecture-decision-record",
+      "hazard-analysis-and-risk-assessment",
+      "safety-requirements-specification",
+      "timing-analysis-report",
+      "hardware-software-partitioning-specification",
+      "hardware-in-the-loop-test-report",
+      "co-simulation-report"
     ],
     "outputs": [
       "hardware-interface-specification",
@@ -1179,7 +1433,8 @@
     "governance": "embedded systems engineering standard, safety/regulatory obligation where applicable",
     "success": "firmware verified against the real or simulated target hardware and accepted for integration",
     "consumers": [
-      "software-validation"
+      "software-validation",
+      "hardware-software-codesign"
     ],
     "version": "1.0.0"
   },
@@ -1188,8 +1443,15 @@
     "name": "Fix Propagation Service",
     "capability_code": "cross-codebase-pattern-propagation",
     "purpose": "propagate a fix or improvement to every place it applies, instantly",
-    "inputs": [],
-    "outputs": [],
+    "inputs": [
+      "code-change-stream",
+      "source-code",
+      "change-request"
+    ],
+    "outputs": [
+      "pattern-propagation-finding",
+      "source-code"
+    ],
     "service_level": [
       {
         "code": "precision-no-incorrect-propagation",
@@ -1209,7 +1471,23 @@
     "governance": "change-control policy; draws on an applied fix and the codebase inventory; produces propagation candidates and applied propagations",
     "success": "all valid instances remediated",
     "consumers": [
-      "software-construction"
+      "software-construction",
+      "continuous-quality-assurance",
+      "real-time-organisational-documentation",
+      "automatic-traceability-generation",
+      "protect-organisational-assets",
+      "software-maintenance-and-refactoring",
+      "integrating-constructed-components",
+      "recovering-organisational-knowledge",
+      "legacy-modernisation",
+      "software-validation",
+      "autonomous-root-cause-synthesis",
+      "engineering-documentation",
+      "test-automation-engineering",
+      "build-and-continuous-integration",
+      "technical-debt-and-dependency-management",
+      "secure-engineering",
+      "safety-critical-systems-engineering"
     ],
     "version": "1.0.0"
   },
@@ -1218,8 +1496,16 @@
     "name": "Incident Anticipation Service",
     "capability_code": "predictive-incident-anticipation",
     "purpose": "recognise precursor conditions of a future incident before it manifests",
-    "inputs": [],
-    "outputs": [],
+    "inputs": [
+      "telemetry-stream",
+      "event-replay-stream",
+      "monitoring-alerting-configuration",
+      "service-level-objective-specification",
+      "incident-report-post-mortem"
+    ],
+    "outputs": [
+      "incident-precursor-finding"
+    ],
     "service_level": [
       {
         "code": "lead-time",
@@ -1239,7 +1525,8 @@
     "governance": "operational policy; continuously monitors telemetry; produces an anticipatory alert",
     "success": "anticipated incident prevented or mitigated pre-emptively",
     "consumers": [
-      "operating-production-systems"
+      "operating-production-systems",
+      "incident-response-management"
     ],
     "version": "1.0.0"
   },
@@ -1249,7 +1536,8 @@
     "capability_code": "recovering-organisational-knowledge",
     "purpose": "reconstruct engineering understanding not currently captured",
     "inputs": [
-      "source-code"
+      "source-code",
+      "user-technical-documentation"
     ],
     "outputs": [
       "knowledge-base-articles"
@@ -1274,7 +1562,11 @@
     "success": "recovered knowledge validated and published",
     "consumers": [
       "architecture-design",
-      "recovering-organisational-knowledge"
+      "recovering-organisational-knowledge",
+      "understanding-business-domain",
+      "organisational-memory-synthesis",
+      "evidence-based-organisational-reasoning",
+      "user-support-and-feedback-management"
     ],
     "version": "1.0.0"
   },
@@ -1302,7 +1594,11 @@
     "success": "reconstructed knowledge validated by domain review",
     "consumers": [
       "architecture-design",
-      "recovering-organisational-knowledge"
+      "recovering-organisational-knowledge",
+      "understanding-business-domain",
+      "organisational-memory-synthesis",
+      "evidence-based-organisational-reasoning",
+      "user-support-and-feedback-management"
     ],
     "version": "1.0.0"
   },
@@ -1312,7 +1608,9 @@
     "capability_code": "training-and-evaluating-models",
     "purpose": "produce a trained model that meets its defined quality, bias, and performance objective, with evidence that it does",
     "inputs": [
-      "requirements-analysis-model"
+      "requirements-analysis-model",
+      "model-deployment-record",
+      "model-monitoring-report"
     ],
     "outputs": [
       "training-data-specification",
@@ -1338,7 +1636,8 @@
     "governance": "model-governance policy, responsible-AI standard",
     "success": "the model's evaluation record is accepted as sufficient to authorise serving it",
     "consumers": [
-      "software-construction"
+      "software-construction",
+      "mlops-and-ai-assurance"
     ],
     "version": "1.0.0"
   },
@@ -1347,8 +1646,15 @@
     "name": "Objective Alignment Service",
     "capability_code": "continuous-objective-alignment-monitoring",
     "purpose": "continuously check ongoing engineering work still serves its stated Objective",
-    "inputs": [],
+    "inputs": [
+      "event-replay-stream",
+      "traceability-link-stream",
+      "vision",
+      "project-plan",
+      "requirements-backlog"
+    ],
     "outputs": [
+      "objective-misalignment-finding",
       "objective-alignment-report"
     ],
     "service_level": [
@@ -1403,7 +1709,14 @@
       "requirements-validation",
       "requirements-prioritising",
       "architecture-design",
-      "operating-production-systems"
+      "operating-production-systems",
+      "predictive-architectural-obsolescence-detection",
+      "evidence-based-organisational-reasoning",
+      "predictive-engineering-risk-assessment",
+      "autonomous-standard-synthesis",
+      "continuous-organisational-learning",
+      "product-value-management",
+      "engineering-team-enablement"
     ],
     "version": "1.0.0"
   },
@@ -1413,9 +1726,13 @@
     "capability_code": "evidence-based-organisational-reasoning",
     "purpose": "let engineering decisions emerge from accumulated organisational understanding rather than isolated discussion",
     "inputs": [
-      "knowledge-base-articles"
+      "knowledge-base-articles",
+      "decision-record",
+      "lessons-learned-report"
     ],
-    "outputs": [],
+    "outputs": [
+      "reasoned-recommendation-record"
+    ],
     "service_level": [
       {
         "code": "consistency-with-prior-precedent",
@@ -1434,7 +1751,9 @@
     ],
     "governance": "decision-governance policy; also draws on accumulated evidence; produces a reasoned recommendation",
     "success": "recommendation accepted or explicitly overridden with rationale",
-    "consumers": [],
+    "consumers": [
+      "governing-engineering-decisions"
+    ],
     "version": "1.0.0"
   },
   {
@@ -1442,8 +1761,18 @@
     "name": "Persistent Compliance Service",
     "capability_code": "continuous-compliance-verification",
     "purpose": "evaluate every change against applicable policy the instant it occurs",
-    "inputs": [],
-    "outputs": [],
+    "inputs": [
+      "event-replay-stream",
+      "artefact-change-stream",
+      "deployment-event-stream",
+      "regulatory-obligations-register",
+      "engineering-standard",
+      "infrastructure-as-code-environment-configuration"
+    ],
+    "outputs": [
+      "compliance-violation-finding",
+      "compliance-audit-evidence"
+    ],
     "service_level": [
       {
         "code": "zero-lag-detection",
@@ -1473,8 +1802,14 @@
     "name": "Policy Consistency Service",
     "capability_code": "continuous-policy-conflict-detection",
     "purpose": "detect latent contradiction across every active policy/standard/decision",
-    "inputs": [],
+    "inputs": [
+      "policy-change-stream",
+      "engineering-standard",
+      "regulatory-obligations-register",
+      "decision-record"
+    ],
     "outputs": [
+      "policy-conflict-finding",
       "policy-conflict-report"
     ],
     "service_level": [
@@ -1531,7 +1866,10 @@
     "success": "recurring root cause permanently eliminated, confirmed by absence of recurrence over a defined period",
     "consumers": [
       "operating-production-systems",
-      "learning"
+      "learning",
+      "incident-response-management",
+      "software-maintenance-and-refactoring",
+      "user-support-and-feedback-management"
     ],
     "version": "1.0.0"
   },
@@ -1543,7 +1881,15 @@
     "inputs": [
       "source-code",
       "requirements-specification",
-      "engineering-standard"
+      "engineering-standard",
+      "integration-build",
+      "test-plan",
+      "test-strategy",
+      "contract-test-report",
+      "usability-test-report",
+      "test-coverage-gap-finding",
+      "data-quality-report",
+      "hardware-compatibility-report"
     ],
     "outputs": [
       "test-report-results",
@@ -1569,7 +1915,16 @@
     "governance": "quality policy, compliance standard",
     "success": "confidence sufficient to justify release",
     "consumers": [
-      "software-release"
+      "software-release",
+      "continuous-release-risk-management",
+      "continuous-quality-assurance",
+      "automatic-traceability-generation",
+      "predictive-engineering-risk-assessment",
+      "predictive-test-coverage-gap-detection",
+      "defect-management",
+      "continuous-delivery-pipeline-engineering",
+      "software-maintenance-and-refactoring",
+      "safety-critical-systems-engineering"
     ],
     "version": "1.0.0"
   },
@@ -1579,9 +1934,15 @@
     "capability_code": "continuous-release-risk-management",
     "purpose": "maintain an ongoing, updating risk prediction for an in-progress release",
     "inputs": [
-      "release-package"
+      "test-execution-stream",
+      "deployment-event-stream",
+      "release-package",
+      "risk-register",
+      "defect-log"
     ],
-    "outputs": [],
+    "outputs": [
+      "release-risk-finding"
+    ],
     "service_level": [
       {
         "code": "calibration-accuracy",
@@ -1605,7 +1966,10 @@
     "purpose": "rank validated requirements by relative value, risk and dependency to guide delivery sequencing",
     "inputs": [
       "requirements-specification",
-      "risk-assessment-report"
+      "risk-assessment-report",
+      "stakeholder-intent-baseline",
+      "domain-model-drift-finding",
+      "benefits-realisation-report"
     ],
     "outputs": [
       "requirements-prioritisation-record"
@@ -1638,7 +2002,8 @@
     "consumers": [
       "architecture-design",
       "software-construction",
-      "software-release"
+      "software-release",
+      "engineering-project-planning"
     ],
     "version": "1.0.0"
   },
@@ -1648,7 +2013,9 @@
     "capability_code": "requirements-validation",
     "purpose": "confirm discovered requirements are correct, complete and agreed",
     "inputs": [
-      "requirements-analysis-model"
+      "requirements-analysis-model",
+      "stakeholder-intent-baseline",
+      "domain-model-drift-finding"
     ],
     "outputs": [
       "requirements-specification"
@@ -1681,7 +2048,27 @@
     "consumers": [
       "architecture-design",
       "software-construction",
-      "software-validation"
+      "software-validation",
+      "engineering-assets-reuse",
+      "automatic-traceability-generation",
+      "vendor-supplier-management",
+      "continuous-requirements-validation",
+      "requirements-prioritising",
+      "solution-options",
+      "modelling-complex-systems",
+      "engineering-documentation",
+      "engineering-risk-management",
+      "test-strategy-and-design",
+      "secure-engineering",
+      "privacy-and-licence-compliance",
+      "non-functional-requirements-engineering",
+      "data-and-database-engineering",
+      "api-and-interface-engineering",
+      "user-experience-engineering",
+      "mobile-application-engineering",
+      "safety-critical-systems-engineering",
+      "hardware-software-codesign",
+      "game-and-interactive-media-engineering"
     ],
     "version": "1.0.0"
   },
@@ -1691,7 +2078,11 @@
     "capability_code": "requirements-analysis",
     "purpose": "decompose and structure elicited requirements into a coherent set, resolving gaps and conflicts before modelling or validation begins",
     "inputs": [
-      "requirements-backlog"
+      "requirements-backlog",
+      "stakeholder-intent-baseline",
+      "domain-model-drift-finding",
+      "intent-divergence-finding",
+      "domain-model"
     ],
     "outputs": [
       "requirements-analysis-model"
@@ -1730,7 +2121,10 @@
     "success": "the analysed requirement set is accepted as ready for modelling (#4) or validation (#3) without needing further raw elicitation",
     "consumers": [
       "modelling-complex-systems",
-      "requirements-validation"
+      "requirements-validation",
+      "continuous-requirements-validation",
+      "software-design",
+      "training-and-evaluating-models"
     ],
     "version": "1.0.0"
   },
@@ -1741,7 +2135,11 @@
     "purpose": "Surface stakeholder needs before design begins",
     "inputs": [
       "domain-model",
-      "vision"
+      "vision",
+      "business-analysis-plan",
+      "stakeholder-intent-baseline",
+      "domain-model-drift-finding",
+      "intent-divergence-finding"
     ],
     "outputs": [
       "requirements-backlog"
@@ -1773,7 +2171,12 @@
     "success": "sponsor confirms requirement set represents intent",
     "consumers": [
       "requirements-analysis",
-      "architecture-design"
+      "architecture-design",
+      "continuous-objective-alignment-monitoring",
+      "continuous-stakeholder-intent-reconciliation",
+      "engineering-project-planning",
+      "product-value-management",
+      "prototyping-and-experimentation"
     ],
     "version": "1.0.0"
   },
@@ -1783,6 +2186,8 @@
     "capability_code": "autonomous-root-cause-synthesis",
     "purpose": "reconstruct a full root-cause chain the instant an incident occurs",
     "inputs": [
+      "telemetry-stream",
+      "event-replay-stream",
       "source-code",
       "configuration-files"
     ],
@@ -1816,7 +2221,8 @@
     "success": "root cause confirmed correct on human review",
     "consumers": [
       "operating-production-systems",
-      "governing-engineering-decisions"
+      "governing-engineering-decisions",
+      "corrective-actions"
     ],
     "version": "1.0.0"
   },
@@ -1827,7 +2233,19 @@
     "purpose": "deliver a working component satisfying agreed expectation",
     "inputs": [
       "solution-architecture-document",
-      "engineering-standard"
+      "engineering-standard",
+      "detailed-design-specification",
+      "security-design",
+      "design-system-specification",
+      "data-dictionary",
+      "reuse-assessment",
+      "vendor-contract",
+      "vendor-assessment",
+      "vendor-performance-record",
+      "access-control-model",
+      "architecture-decision-record",
+      "data-pipeline-specification",
+      "model-evaluation-report"
     ],
     "outputs": [
       "source-code"
@@ -1858,7 +2276,24 @@
     "governance": "coding standard, security policy",
     "success": "component satisfies architectural and functional specification",
     "consumers": [
-      "software-validation"
+      "software-validation",
+      "continuous-quality-assurance",
+      "real-time-organisational-documentation",
+      "automatic-traceability-generation",
+      "protect-organisational-assets",
+      "integrating-constructed-components",
+      "cross-codebase-pattern-propagation",
+      "recovering-organisational-knowledge",
+      "legacy-modernisation",
+      "autonomous-root-cause-synthesis",
+      "engineering-documentation",
+      "test-automation-engineering",
+      "build-and-continuous-integration",
+      "software-maintenance-and-refactoring",
+      "technical-debt-and-dependency-management",
+      "secure-engineering",
+      "safety-critical-systems-engineering",
+      "engineering-data-pipelines"
     ],
     "version": "1.0.0"
   },
@@ -1868,7 +2303,8 @@
     "capability_code": "solution-options",
     "purpose": "compare candidate solution options against the business need and recommend the one delivering the greatest net value",
     "inputs": [
-      "requirements-specification"
+      "requirements-specification",
+      "prototype-evaluation-report"
     ],
     "outputs": [
       "solution-options-analysis"
@@ -1900,7 +2336,9 @@
     "success": "sponsoring authority accepts the recommendation, or explicitly overrides it with documented rationale",
     "consumers": [
       "architecture-design",
-      "governing-engineering-decisions"
+      "governing-engineering-decisions",
+      "non-functional-requirements-engineering",
+      "prototyping-and-experimentation"
     ],
     "version": "1.0.0"
   },
@@ -1909,8 +2347,17 @@
     "name": "Stakeholder Intent Reconciliation Service",
     "capability_code": "continuous-stakeholder-intent-reconciliation",
     "purpose": "keep requirement understanding synchronised with scattered, ongoing stakeholder signal",
-    "inputs": [],
-    "outputs": [],
+    "inputs": [
+      "stakeholder-communication-stream",
+      "vision",
+      "requirements-backlog",
+      "user-feedback-analysis-report",
+      "support-resolution-record"
+    ],
+    "outputs": [
+      "intent-divergence-finding",
+      "stakeholder-intent-baseline"
+    ],
     "service_level": [
       {
         "code": "currency",
@@ -1933,7 +2380,8 @@
       "requirements-elicitation",
       "requirements-analysis",
       "requirements-validation",
-      "requirements-prioritising"
+      "requirements-prioritising",
+      "understanding-business-domain"
     ],
     "version": "1.0.0"
   },
@@ -1943,7 +2391,8 @@
     "capability_code": "engineering-practice-improvement",
     "purpose": "keep engineering standards current with accumulated evidence",
     "inputs": [
-      "review-report"
+      "review-report",
+      "developer-experience-assessment"
     ],
     "outputs": [
       "engineering-standard"
@@ -1966,7 +2415,18 @@
     ],
     "governance": "standards-governance policy; also draws on evidence from service delivery; output also includes a checklist and practice guidance alongside the revised standard",
     "success": "revised standard formally published",
-    "consumers": [],
+    "consumers": [
+      "governing-engineering-decisions",
+      "continuous-policy-conflict-detection",
+      "architecture-design",
+      "engineering-work-review",
+      "continuous-compliance-verification",
+      "software-validation",
+      "software-construction",
+      "version-control-management",
+      "api-and-interface-engineering",
+      "engineering-team-enablement"
+    ],
     "version": "1.0.0"
   },
   {
@@ -1974,7 +2434,12 @@
     "name": "Standard Synthesis Service",
     "capability_code": "autonomous-standard-synthesis",
     "purpose": "draft or refine engineering standards directly from accumulating evidence",
-    "inputs": [],
+    "inputs": [
+      "event-replay-stream",
+      "lessons-learned-report",
+      "review-report",
+      "operational-intelligence-report"
+    ],
     "outputs": [
       "engineering-standard"
     ],
@@ -1997,7 +2462,16 @@
     "governance": "standards-governance policy; draws on evidence from service delivery across the organisation",
     "success": "proposed revision formally adopted",
     "consumers": [
-      "governing-engineering-decisions"
+      "governing-engineering-decisions",
+      "continuous-policy-conflict-detection",
+      "architecture-design",
+      "engineering-work-review",
+      "continuous-compliance-verification",
+      "software-validation",
+      "software-construction",
+      "version-control-management",
+      "api-and-interface-engineering",
+      "engineering-team-enablement"
     ],
     "version": "1.0.0"
   },
@@ -2032,7 +2506,8 @@
     "governance": "modelling standard; also draws on system/environment constraints",
     "success": "model reviewed and accepted as basis for architecture",
     "consumers": [
-      "architecture-design"
+      "architecture-design",
+      "software-design"
     ],
     "version": "1.0.0"
   },
@@ -2086,8 +2561,14 @@
     "name": "Threat Anticipation Service",
     "capability_code": "predictive-threat-pattern-anticipation",
     "purpose": "check the organisation's own exposure the moment a new attack pattern emerges elsewhere",
-    "inputs": [],
+    "inputs": [
+      "threat-intelligence-feed",
+      "software-bill-of-materials",
+      "threat-model",
+      "solution-architecture-document"
+    ],
     "outputs": [
+      "threat-exposure-finding",
       "security-assessment-report"
     ],
     "service_level": [
@@ -2102,7 +2583,8 @@
     "governance": "security policy; also draws on external threat intelligence and the internal system inventory",
     "success": "exposure checked and mitigated before exploitation",
     "consumers": [
-      "protect-organisational-assets"
+      "protect-organisational-assets",
+      "technical-debt-and-dependency-management"
     ],
     "version": "1.0.0"
   },
@@ -2111,7 +2593,11 @@
     "name": "Vendor Management Service",
     "capability_code": "vendor-supplier-management",
     "purpose": "formally manage relationships with external vendors, suppliers and service providers",
-    "inputs": [],
+    "inputs": [
+      "requirements-specification",
+      "risk-assessment-report",
+      "regulatory-obligations-register"
+    ],
     "outputs": [
       "vendor-contract",
       "vendor-assessment",
@@ -2153,7 +2639,17 @@
     "name": "Vulnerability Assessment Service",
     "capability_code": "protect-organisational-assets",
     "purpose": "identify and reduce exposure to security threat",
-    "inputs": [],
+    "inputs": [
+      "source-code",
+      "software-bill-of-materials",
+      "infrastructure-as-code-environment-configuration",
+      "threat-model",
+      "vendor-assessment",
+      "vendor-performance-record",
+      "access-control-model",
+      "vulnerability-posture-finding",
+      "threat-exposure-finding"
+    ],
     "outputs": [
       "security-assessment-report"
     ],
@@ -2178,7 +2674,1460 @@
     "consumers": [
       "architecture-design",
       "software-construction",
-      "software-release"
+      "software-release",
+      "technical-debt-and-dependency-management",
+      "governing-engineering-decisions"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "engineering-delivery-planning-service",
+    "name": "Engineering Delivery Planning Service",
+    "capability_code": "engineering-project-planning",
+    "purpose": "plan engineering delivery by scoping, breaking down, estimating, scheduling, and resourcing the work, and report progress against the baseline",
+    "inputs": [
+      "requirements-backlog",
+      "risk-register",
+      "business-case",
+      "product-roadmap",
+      "requirements-prioritisation-record",
+      "risk-mitigation-plan",
+      "engineering-budget",
+      "skills-matrix"
+    ],
+    "outputs": [
+      "project-plan",
+      "work-breakdown-structure",
+      "effort-estimate",
+      "project-status-report"
+    ],
+    "service_level": [
+      {
+        "code": "estimate-accuracy-within-20-percent-of-actual-effort",
+        "label": "Estimate accuracy within 20 percent of actual effort",
+        "target_level": "minimum",
+        "target": 80,
+        "units": "percent"
+      },
+      {
+        "code": "status-report-interval",
+        "label": "Status report interval",
+        "target_level": "maximum",
+        "target": 168,
+        "units": "hours"
+      }
+    ],
+    "governance": "project governance policy and delivery standard; scope changes pass through engineering change management; also draws on risk-register exposure",
+    "success": "baseline plan approved, estimates calibrated against actuals, and variance reported on schedule",
+    "consumers": [
+      "engineering-risk-management",
+      "engineering-cost-management",
+      "governing-engineering-decisions",
+      "continuous-objective-alignment-monitoring"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "engineering-risk-management-service",
+    "name": "Engineering Risk Management Service",
+    "capability_code": "engineering-risk-management",
+    "purpose": "identify, analyse, mitigate, and monitor risks to engineering delivery and outcomes so that exposure stays within accepted tolerance",
+    "inputs": [
+      "project-plan",
+      "requirements-specification",
+      "failure-mode-and-effects-analysis"
+    ],
+    "outputs": [
+      "risk-register",
+      "risk-mitigation-plan"
+    ],
+    "service_level": [
+      {
+        "code": "high-severity-risks-with-named-owner-and-mitigation",
+        "label": "High-severity risks with named owner and mitigation",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "risk-register-review-interval",
+        "label": "Risk register review interval",
+        "target_level": "maximum",
+        "target": 168,
+        "units": "hours"
+      }
+    ],
+    "governance": "risk management policy and risk appetite statement; risk acceptance decisions recorded as decision-record",
+    "success": "every risk rated, owned, and either mitigated, contingency-planned, or explicitly accepted",
+    "consumers": [
+      "engineering-project-planning",
+      "governing-engineering-decisions",
+      "continuous-release-risk-management",
+      "predictive-engineering-risk-assessment",
+      "test-strategy-and-design"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "test-strategy-and-design-service",
+    "name": "Test Strategy And Design Service",
+    "capability_code": "test-strategy-and-design",
+    "purpose": "define the test strategy and plan, design test cases and scenarios, and specify test data and environments so that verification is risk-based and traceable to requirements",
+    "inputs": [
+      "requirements-specification",
+      "risk-register",
+      "solution-architecture-document",
+      "device-support-matrix"
+    ],
+    "outputs": [
+      "test-strategy",
+      "test-plan",
+      "test-case-specification",
+      "test-data-set",
+      "test-environment-specification"
+    ],
+    "service_level": [
+      {
+        "code": "requirements-covered-by-designed-test-cases",
+        "label": "Requirements covered by designed test cases",
+        "target_level": "minimum",
+        "target": 95,
+        "units": "percent"
+      },
+      {
+        "code": "high-risk-items-with-test-coverage",
+        "label": "High-risk items with test coverage",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "test policy and engineering standard; aligned to the organisational test strategy; test data must satisfy privacy obligations",
+    "success": "every requirement and high-risk item traceable to at least one designed test",
+    "consumers": [
+      "test-automation-engineering",
+      "software-validation",
+      "performance-and-reliability-testing"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "test-automation-service",
+    "name": "Test Automation Service",
+    "capability_code": "test-automation-engineering",
+    "purpose": "build, run, and maintain automated test suites that execute in delivery pipelines and report results",
+    "inputs": [
+      "test-case-specification",
+      "test-data-set",
+      "test-environment-specification",
+      "source-code",
+      "test-plan"
+    ],
+    "outputs": [
+      "test-suite",
+      "test-report-results"
+    ],
+    "service_level": [
+      {
+        "code": "automated-regression-pass-rate",
+        "label": "Automated regression pass rate",
+        "target_level": "minimum",
+        "target": 98,
+        "units": "percent"
+      },
+      {
+        "code": "flaky-test-rate",
+        "label": "Flaky test rate",
+        "target_level": "maximum",
+        "target": 2,
+        "units": "percent"
+      },
+      {
+        "code": "regression-cases-automated",
+        "label": "Regression cases automated",
+        "target_level": "minimum",
+        "target": 80,
+        "units": "percent"
+      }
+    ],
+    "governance": "engineering standard for test automation; suites are versioned alongside source-code",
+    "success": "regression suite runs unattended on every change and failures are attributable to defects, not test instability",
+    "consumers": [
+      "software-validation",
+      "build-and-continuous-integration",
+      "predictive-test-coverage-gap-detection",
+      "continuous-release-risk-management",
+      "continuous-quality-assurance",
+      "automatic-traceability-generation",
+      "software-release",
+      "continuous-delivery-pipeline-engineering",
+      "safety-critical-systems-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "performance-and-reliability-testing-service",
+    "name": "Performance And Reliability Testing Service",
+    "capability_code": "performance-and-reliability-testing",
+    "purpose": "verify performance, load, stress, endurance, and resilience behaviour against quality-attribute targets before release",
+    "inputs": [
+      "quality-attribute-requirements-specification",
+      "test-environment-specification",
+      "build-artefact"
+    ],
+    "outputs": [
+      "workload-model",
+      "performance-load-test-report",
+      "resilience-test-report"
+    ],
+    "service_level": [
+      {
+        "code": "quality-attribute-scenarios-with-load-evidence",
+        "label": "Quality-attribute scenarios with load evidence",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "report-turnaround-after-test-completion",
+        "label": "Report turnaround after test completion",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      }
+    ],
+    "governance": "non-functional quality standard; results feed the release decision",
+    "success": "every performance and resilience target either demonstrated or recorded as a defect",
+    "consumers": [
+      "software-release",
+      "non-functional-requirements-engineering",
+      "reliability-and-resilience-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "version-control-service",
+    "name": "Version Control Service",
+    "capability_code": "version-control-management",
+    "purpose": "manage repositories, branching, merging, and peer review so that every change is traceable, reviewed, and integrated safely",
+    "inputs": [
+      "engineering-standard"
+    ],
+    "outputs": [
+      "branching-strategy",
+      "repository-configuration",
+      "code-review-record"
+    ],
+    "service_level": [
+      {
+        "code": "changes-merged-with-an-approved-review",
+        "label": "Changes merged with an approved review",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "code-review-turnaround",
+        "label": "Code review turnaround",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      }
+    ],
+    "governance": "engineering standard; protected-branch and review rules enforced by repository configuration",
+    "success": "no change reaches a protected branch without an approved review and a traceable commit",
+    "consumers": [
+      "build-and-continuous-integration",
+      "engineering-work-review",
+      "software-construction"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "continuous-integration-service",
+    "name": "Continuous Integration Service",
+    "capability_code": "build-and-continuous-integration",
+    "purpose": "automate build, packaging, and integration of every change and produce versioned, traceable artefacts",
+    "inputs": [
+      "source-code",
+      "branching-strategy",
+      "configuration-files",
+      "repository-configuration"
+    ],
+    "outputs": [
+      "build-artefact",
+      "integration-build",
+      "software-bill-of-materials"
+    ],
+    "service_level": [
+      {
+        "code": "build-success-rate-on-the-main-branch",
+        "label": "Build success rate on the main branch",
+        "target_level": "minimum",
+        "target": 95,
+        "units": "percent"
+      },
+      {
+        "code": "integration-feedback-time",
+        "label": "Integration feedback time",
+        "target_level": "maximum",
+        "target": 900,
+        "units": "seconds"
+      },
+      {
+        "code": "builds-reproducible-from-source",
+        "label": "Builds reproducible from source",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "engineering standard and supply-chain integrity policy; artefacts are immutable once published",
+    "success": "every change produces a versioned artefact with an inventory of its components within the feedback target",
+    "consumers": [
+      "continuous-delivery-pipeline-engineering",
+      "software-validation",
+      "privacy-and-licence-compliance",
+      "engineering-assets-reuse",
+      "predictive-threat-pattern-anticipation",
+      "protect-organisational-assets",
+      "continuous-vulnerability-posture-assessment",
+      "performance-and-reliability-testing",
+      "technical-debt-and-dependency-management"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "continuous-delivery-pipeline-service",
+    "name": "Continuous Delivery Pipeline Service",
+    "capability_code": "continuous-delivery-pipeline-engineering",
+    "purpose": "design and operate delivery pipelines that promote artefacts through verification gates to deployment with automated rollback",
+    "inputs": [
+      "build-artefact",
+      "test-suite",
+      "test-report-results",
+      "infrastructure-as-code-environment-configuration"
+    ],
+    "outputs": [
+      "ci-cd-pipeline-definition",
+      "deployment-package",
+      "release-package",
+      "rollback-plan"
+    ],
+    "service_level": [
+      {
+        "code": "change-failure-rate",
+        "label": "Change failure rate",
+        "target_level": "maximum",
+        "target": 15,
+        "units": "percent"
+      },
+      {
+        "code": "deployments-per-week",
+        "label": "Deployments per week",
+        "target_level": "minimum",
+        "target": 5,
+        "units": "count"
+      },
+      {
+        "code": "time-to-restore-via-rollback",
+        "label": "Time to restore via rollback",
+        "target_level": "maximum",
+        "target": 1,
+        "units": "hours"
+      }
+    ],
+    "governance": "release policy and change-management policy; promotion gates require passing verification evidence",
+    "success": "changes reach production through automated gated promotion and any failed deployment is reversed within the target",
+    "consumers": [
+      "software-release",
+      "operating-production-systems",
+      "engineering-configuration",
+      "incident-response-management",
+      "continuous-release-risk-management"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "infrastructure-engineering-service",
+    "name": "Infrastructure Engineering Service",
+    "capability_code": "infrastructure-engineering",
+    "purpose": "specify, provision, and maintain infrastructure and runtime environments as code with planned capacity",
+    "inputs": [
+      "solution-architecture-document",
+      "quality-attribute-requirements-specification",
+      "cost-optimisation-plan"
+    ],
+    "outputs": [
+      "infrastructure-as-code-environment-configuration",
+      "configuration-files",
+      "capacity-plan"
+    ],
+    "service_level": [
+      {
+        "code": "environments-provisioned-from-code",
+        "label": "Environments provisioned from code",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "environment-provisioning-time",
+        "label": "Environment provisioning time",
+        "target_level": "maximum",
+        "target": 1,
+        "units": "hours"
+      },
+      {
+        "code": "configuration-drift",
+        "label": "Configuration drift",
+        "target_level": "maximum",
+        "target": 2,
+        "units": "percent"
+      }
+    ],
+    "governance": "infrastructure standard and security baseline; changes follow engineering change management",
+    "success": "every environment is reproducible from versioned code and sized to forecast demand",
+    "consumers": [
+      "continuous-delivery-pipeline-engineering",
+      "engineering-configuration",
+      "observability-engineering",
+      "operating-production-systems",
+      "protect-organisational-assets",
+      "engineering-cost-management",
+      "continuous-configuration-drift-detection",
+      "continuous-vulnerability-posture-assessment",
+      "continuous-compliance-verification",
+      "autonomous-root-cause-synthesis",
+      "build-and-continuous-integration",
+      "reliability-and-resilience-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "observability-service",
+    "name": "Observability Service",
+    "capability_code": "observability-engineering",
+    "purpose": "instrument systems and configure monitoring, logging, tracing, alerting, and service-level objectives so production behaviour can be understood and acted on",
+    "inputs": [
+      "solution-architecture-document",
+      "quality-attribute-requirements-specification"
+    ],
+    "outputs": [
+      "monitoring-alerting-configuration",
+      "service-level-objective-specification"
+    ],
+    "service_level": [
+      {
+        "code": "services-with-defined-service-level-objectives",
+        "label": "Services with defined service-level objectives",
+        "target_level": "minimum",
+        "target": 95,
+        "units": "percent"
+      },
+      {
+        "code": "alerts-leading-to-action",
+        "label": "Alerts leading to action",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "operational standard; service-level objectives approved by the service owner",
+    "success": "each production service has instrumentation, actionable alerts, and a measurable service-level objective",
+    "consumers": [
+      "operating-production-systems",
+      "incident-response-management",
+      "reliability-and-resilience-engineering",
+      "predictive-incident-anticipation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "incident-response-service",
+    "name": "Incident Response Service",
+    "capability_code": "incident-response-management",
+    "purpose": "detect, triage, resolve, and communicate production incidents and review them afterwards to prevent recurrence",
+    "inputs": [
+      "monitoring-alerting-configuration",
+      "runbook-operational-documentation",
+      "known-error-record",
+      "rollback-plan",
+      "disaster-recovery-plan",
+      "chaos-experiment-report",
+      "incident-precursor-finding",
+      "failure-mode-and-effects-analysis",
+      "backup-restore-verification-report"
+    ],
+    "outputs": [
+      "incident-report-post-mortem",
+      "incident-communication-log"
+    ],
+    "service_level": [
+      {
+        "code": "time-to-restore-service-for-severity-1-incidents",
+        "label": "Time to restore service for severity 1 incidents",
+        "target_level": "maximum",
+        "target": 1,
+        "units": "hours"
+      },
+      {
+        "code": "post-incident-review-completed-within",
+        "label": "Post-incident review completed within",
+        "target_level": "maximum",
+        "target": 5,
+        "units": "days"
+      },
+      {
+        "code": "incident-acknowledgement-time",
+        "label": "Incident acknowledgement time",
+        "target_level": "maximum",
+        "target": 300,
+        "units": "seconds"
+      }
+    ],
+    "governance": "incident management policy; severity classification and escalation per operational standard",
+    "success": "service restored within target and every major incident reviewed with tracked corrective actions",
+    "consumers": [
+      "learning",
+      "autonomous-root-cause-synthesis",
+      "corrective-actions",
+      "predictive-incident-anticipation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "reliability-engineering-service",
+    "name": "Reliability Engineering Service",
+    "capability_code": "reliability-and-resilience-engineering",
+    "purpose": "analyse failure modes and engineer, test, and verify redundancy, backup, recovery, and disaster-recovery capability against recovery objectives",
+    "inputs": [
+      "service-level-objective-specification",
+      "solution-architecture-document",
+      "infrastructure-as-code-environment-configuration"
+    ],
+    "outputs": [
+      "failure-mode-and-effects-analysis",
+      "disaster-recovery-plan",
+      "backup-restore-verification-report",
+      "chaos-experiment-report"
+    ],
+    "service_level": [
+      {
+        "code": "recovery-exercises-meeting-recovery-time-and-recovery-point-objectives",
+        "label": "Recovery exercises meeting recovery time and recovery point objectives",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "backups-with-verified-restore",
+        "label": "Backups with verified restore",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "critical-services-with-failure-mode-analysis",
+        "label": "Critical services with failure-mode analysis",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "business continuity policy; recovery objectives approved by the service owner",
+    "success": "recovery capability demonstrated by exercise against stated objectives for every critical service",
+    "consumers": [
+      "operating-production-systems",
+      "incident-response-management",
+      "engineering-risk-management"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "software-maintenance-service",
+    "name": "Software Maintenance Service",
+    "capability_code": "software-maintenance-and-refactoring",
+    "purpose": "maintain and refactor existing software through corrective, adaptive, and structural change while preserving verified behaviour",
+    "inputs": [
+      "source-code",
+      "defect-log",
+      "known-error-record",
+      "technical-debt-register",
+      "dependency-upgrade-plan",
+      "pattern-propagation-finding"
+    ],
+    "outputs": [
+      "source-code",
+      "refactoring-plan",
+      "change-request",
+      "release-notes-change-log"
+    ],
+    "service_level": [
+      {
+        "code": "refactorings-with-behaviour-preserved-by-passing-tests",
+        "label": "Refactorings with behaviour preserved by passing tests",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "critical-defect-fix-lead-time",
+        "label": "Critical defect fix lead time",
+        "target_level": "maximum",
+        "target": 2,
+        "units": "days"
+      },
+      {
+        "code": "regression-escape-rate",
+        "label": "Regression escape rate",
+        "target_level": "maximum",
+        "target": 5,
+        "units": "percent"
+      }
+    ],
+    "governance": "engineering standard and engineering change management; maintenance changes require a change-request",
+    "success": "maintenance changes delivered with behaviour preserved and documented in the change log",
+    "consumers": [
+      "software-validation",
+      "software-release",
+      "engineering-configuration",
+      "continuous-quality-assurance",
+      "real-time-organisational-documentation",
+      "automatic-traceability-generation",
+      "governing-engineering-decisions",
+      "protect-organisational-assets",
+      "change-management",
+      "integrating-constructed-components",
+      "enterprise-wide-engineering-impact-analysis",
+      "cross-codebase-pattern-propagation",
+      "recovering-organisational-knowledge",
+      "legacy-modernisation",
+      "autonomous-root-cause-synthesis",
+      "engineering-documentation",
+      "test-automation-engineering",
+      "build-and-continuous-integration",
+      "technical-debt-and-dependency-management",
+      "secure-engineering",
+      "safety-critical-systems-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "technical-debt-management-service",
+    "name": "Technical Debt Management Service",
+    "capability_code": "technical-debt-and-dependency-management",
+    "purpose": "identify, quantify, prioritise, and repay technical debt and manage dependency currency and end-of-life",
+    "inputs": [
+      "source-code",
+      "software-bill-of-materials",
+      "security-assessment-report"
+    ],
+    "outputs": [
+      "technical-debt-register",
+      "dependency-upgrade-plan",
+      "decommissioning-plan"
+    ],
+    "service_level": [
+      {
+        "code": "critical-vulnerable-dependencies-remediated-within",
+        "label": "Critical vulnerable dependencies remediated within",
+        "target_level": "maximum",
+        "target": 7,
+        "units": "days"
+      },
+      {
+        "code": "dependencies-on-supported-versions",
+        "label": "Dependencies on supported versions",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "debt-items-with-named-owner",
+        "label": "Debt items with named owner",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "engineering standard and vulnerability management policy; debt acceptance recorded as decision-record",
+    "success": "debt is visible, owned, prioritised by impact, and dependencies stay supported and patched",
+    "consumers": [
+      "software-maintenance-and-refactoring",
+      "engineering-risk-management",
+      "predictive-architectural-obsolescence-detection",
+      "operating-production-systems"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "secure-engineering-service",
+    "name": "Secure Engineering Service",
+    "capability_code": "secure-engineering",
+    "purpose": "build security into software through threat modelling, security requirements, secure design, security testing, and access-control design",
+    "inputs": [
+      "requirements-specification",
+      "solution-architecture-document",
+      "source-code"
+    ],
+    "outputs": [
+      "threat-model",
+      "security-requirements-specification",
+      "security-design",
+      "access-control-model",
+      "penetration-test-report"
+    ],
+    "service_level": [
+      {
+        "code": "critical-and-high-findings-remediated-before-release",
+        "label": "Critical and high findings remediated before release",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "system-components-covered-by-a-threat-model",
+        "label": "System components covered by a threat model",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "critical-penetration-test-findings-remediated-within",
+        "label": "Critical penetration-test findings remediated within",
+        "target_level": "maximum",
+        "target": 7,
+        "units": "days"
+      }
+    ],
+    "governance": "information security policy and secure-development standard; findings accepted only through risk acceptance",
+    "success": "threats identified and mitigated by design and verified by test before release",
+    "consumers": [
+      "protect-organisational-assets",
+      "software-release",
+      "architecture-design",
+      "predictive-threat-pattern-anticipation",
+      "software-construction",
+      "continuous-vulnerability-posture-assessment",
+      "mobile-application-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "privacy-and-licence-compliance-service",
+    "name": "Privacy And Licence Compliance Service",
+    "capability_code": "privacy-and-licence-compliance",
+    "purpose": "map regulatory, privacy, and licence obligations to the software and produce evidence that they are met",
+    "inputs": [
+      "software-bill-of-materials",
+      "requirements-specification",
+      "database-schema-data-model"
+    ],
+    "outputs": [
+      "regulatory-obligations-register",
+      "privacy-impact-assessment",
+      "licence-compliance-report",
+      "compliance-audit-evidence"
+    ],
+    "service_level": [
+      {
+        "code": "components-with-identified-licence",
+        "label": "Components with identified licence",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "processing-activities-with-completed-privacy-impact-assessment",
+        "label": "Processing activities with completed privacy impact assessment",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "obligations-mapped-to-controls",
+        "label": "Obligations mapped to controls",
+        "target_level": "minimum",
+        "target": 95,
+        "units": "percent"
+      }
+    ],
+    "governance": "privacy policy, regulatory obligations, and open-source licence policy",
+    "success": "each obligation mapped to a control with evidence and no unresolved licence conflict at release",
+    "consumers": [
+      "continuous-compliance-verification",
+      "software-release",
+      "governing-engineering-decisions",
+      "business-analysis-approach",
+      "continuous-policy-conflict-detection",
+      "vendor-supplier-management"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "quality-attribute-engineering-service",
+    "name": "Quality Attribute Engineering Service",
+    "capability_code": "non-functional-requirements-engineering",
+    "purpose": "elicit, quantify, and trade off non-functional quality attributes and define fitness functions that verify them",
+    "inputs": [
+      "requirements-specification",
+      "solution-options-analysis"
+    ],
+    "outputs": [
+      "quality-attribute-requirements-specification",
+      "architecture-tradeoff-analysis-report",
+      "fitness-function-catalog"
+    ],
+    "service_level": [
+      {
+        "code": "quality-attributes-expressed-as-measurable-scenarios",
+        "label": "Quality attributes expressed as measurable scenarios",
+        "target_level": "minimum",
+        "target": 95,
+        "units": "percent"
+      },
+      {
+        "code": "quality-attributes-with-quantified-targets",
+        "label": "Quality attributes with quantified targets",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "architecture policy and quality standard; trade-off decisions recorded as architecture-decision-record",
+    "success": "each quality attribute measurable, traded off explicitly, and verifiable by an automated fitness function",
+    "consumers": [
+      "architecture-design",
+      "performance-and-reliability-testing",
+      "observability-engineering",
+      "continuous-architectural-analysis",
+      "infrastructure-engineering",
+      "data-and-database-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "data-engineering-service",
+    "name": "Data Engineering Service",
+    "capability_code": "data-and-database-engineering",
+    "purpose": "design, implement, migrate, and govern data models and data stores",
+    "inputs": [
+      "domain-model",
+      "requirements-specification",
+      "quality-attribute-requirements-specification",
+      "data-quality-report"
+    ],
+    "outputs": [
+      "database-schema-data-model",
+      "data-dictionary",
+      "data-migration-plan",
+      "data-migration-verification-report"
+    ],
+    "service_level": [
+      {
+        "code": "migrations-verified-by-record-reconciliation",
+        "label": "Migrations verified by record reconciliation",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "data-quality-rules-passing",
+        "label": "Data quality rules passing",
+        "target_level": "minimum",
+        "target": 98,
+        "units": "percent"
+      },
+      {
+        "code": "migrations-with-tested-rollback",
+        "label": "Migrations with tested rollback",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "data governance policy and data classification standard; schema changes follow engineering change management",
+    "success": "data models documented, migrations reconciled and reversible, and data ownership defined",
+    "consumers": [
+      "engineering-data-pipelines",
+      "software-construction",
+      "software-release",
+      "privacy-and-licence-compliance"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "api-engineering-service",
+    "name": "Api Engineering Service",
+    "capability_code": "api-and-interface-engineering",
+    "purpose": "design, specify, version, verify, and publish APIs and interface contracts for reliable integration",
+    "inputs": [
+      "requirements-specification",
+      "solution-architecture-document",
+      "engineering-standard"
+    ],
+    "outputs": [
+      "api-specification",
+      "integration-specification-interface-contracts",
+      "api-versioning-policy",
+      "api-compatibility-report",
+      "contract-test-report"
+    ],
+    "service_level": [
+      {
+        "code": "breaking-changes-released-without-a-version-change",
+        "label": "Breaking changes released without a version change",
+        "target_level": "exact",
+        "target": 0,
+        "units": "count"
+      },
+      {
+        "code": "consumer-contract-tests-passing",
+        "label": "Consumer contract tests passing",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "deprecation-notice-period",
+        "label": "Deprecation notice period",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "days"
+      }
+    ],
+    "governance": "API standard and versioning policy; contract changes follow engineering change management",
+    "success": "consumers integrate against versioned, tested contracts and breaking changes are never released silently",
+    "consumers": [
+      "integrating-constructed-components",
+      "software-construction",
+      "engineering-documentation",
+      "real-time-organisational-documentation",
+      "software-release",
+      "software-validation",
+      "mobile-application-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "product-value-service",
+    "name": "Product Value Service",
+    "capability_code": "product-value-management",
+    "purpose": "define product vision, business case, and roadmap and measure realised benefits so that effort targets the highest-value outcomes",
+    "inputs": [
+      "requirements-backlog",
+      "operational-intelligence-report",
+      "user-feedback-analysis-report",
+      "user-research-report"
+    ],
+    "outputs": [
+      "vision",
+      "business-case",
+      "product-roadmap",
+      "benefits-realisation-report"
+    ],
+    "service_level": [
+      {
+        "code": "roadmap-items-linked-to-a-measurable-outcome",
+        "label": "Roadmap items linked to a measurable outcome",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "delivered-initiatives-with-a-benefits-review",
+        "label": "Delivered initiatives with a benefits review",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "portfolio governance policy and investment criteria; roadmap changes recorded as decision-record",
+    "success": "roadmap prioritised by evidenced value and realised benefits reviewed after delivery",
+    "consumers": [
+      "requirements-elicitation",
+      "requirements-prioritising",
+      "engineering-project-planning",
+      "business-analysis-approach",
+      "adapting-business-needs",
+      "continuous-objective-alignment-monitoring",
+      "continuous-stakeholder-intent-reconciliation",
+      "prototyping-and-experimentation",
+      "user-experience-engineering",
+      "game-and-interactive-media-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "user-support-service",
+    "name": "User Support Service",
+    "capability_code": "user-support-and-feedback-management",
+    "purpose": "receive, resolve, and analyse user support requests and feedback and feed insight back into engineering",
+    "inputs": [
+      "knowledge-base-articles",
+      "known-error-record",
+      "runbook-operational-documentation"
+    ],
+    "outputs": [
+      "support-resolution-record",
+      "user-feedback-analysis-report",
+      "knowledge-base-articles"
+    ],
+    "service_level": [
+      {
+        "code": "first-response-time",
+        "label": "First response time",
+        "target_level": "maximum",
+        "target": 4,
+        "units": "hours"
+      },
+      {
+        "code": "first-contact-resolution",
+        "label": "First-contact resolution",
+        "target_level": "minimum",
+        "target": 70,
+        "units": "percent"
+      },
+      {
+        "code": "user-satisfaction",
+        "label": "User satisfaction",
+        "target_level": "minimum",
+        "target": 85,
+        "units": "percent"
+      }
+    ],
+    "governance": "support policy and service-level agreement; user data handled under privacy policy",
+    "success": "user problems resolved within service levels and recurring themes converted into requirements and defects",
+    "consumers": [
+      "product-value-management",
+      "defect-management",
+      "learning",
+      "continuous-domain-model-drift-detection",
+      "understanding-business-domain",
+      "organisational-memory-synthesis",
+      "evidence-based-organisational-reasoning",
+      "continuous-stakeholder-intent-reconciliation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "team-enablement-service",
+    "name": "Team Enablement Service",
+    "capability_code": "engineering-team-enablement",
+    "purpose": "onboard and develop engineering teams and equip them with tooling and practices to deliver effectively",
+    "inputs": [
+      "engineering-standard",
+      "lessons-learned-report"
+    ],
+    "outputs": [
+      "onboarding-plan",
+      "skills-matrix",
+      "training-plan",
+      "developer-experience-assessment"
+    ],
+    "service_level": [
+      {
+        "code": "time-to-first-merged-change-for-new-engineers",
+        "label": "Time to first merged change for new engineers",
+        "target_level": "maximum",
+        "target": 10,
+        "units": "days"
+      },
+      {
+        "code": "identified-skill-gaps-with-a-training-action",
+        "label": "Identified skill gaps with a training action",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "people development policy and engineering standard",
+    "success": "new engineers productive within target and skill gaps closed by planned training",
+    "consumers": [
+      "engineering-practice-improvement",
+      "engineering-project-planning"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "engineering-cost-service",
+    "name": "Engineering Cost Service",
+    "capability_code": "engineering-cost-management",
+    "purpose": "plan, track, forecast, and optimise engineering effort and infrastructure cost against budget",
+    "inputs": [
+      "project-plan",
+      "effort-estimate",
+      "infrastructure-as-code-environment-configuration",
+      "work-breakdown-structure",
+      "capacity-plan"
+    ],
+    "outputs": [
+      "engineering-budget",
+      "cost-variance-report",
+      "cost-optimisation-plan"
+    ],
+    "service_level": [
+      {
+        "code": "cost-forecast-accuracy-within-10-percent",
+        "label": "Cost forecast accuracy within 10 percent",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "resources-with-cost-allocation-tags",
+        "label": "Resources with cost-allocation tags",
+        "target_level": "minimum",
+        "target": 95,
+        "units": "percent"
+      }
+    ],
+    "governance": "financial governance policy and budget authority; overruns escalated through decision-record",
+    "success": "spend attributed, forecast within tolerance, and optimisation actions tracked to realised savings",
+    "consumers": [
+      "governing-engineering-decisions",
+      "engineering-project-planning",
+      "infrastructure-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "model-operations-service",
+    "name": "Model Operations Service",
+    "capability_code": "mlops-and-ai-assurance",
+    "purpose": "deploy, monitor, and govern machine-learning models and review AI-generated engineering output",
+    "inputs": [
+      "model-card",
+      "model-evaluation-report",
+      "training-data-specification"
+    ],
+    "outputs": [
+      "model-deployment-record",
+      "model-monitoring-report",
+      "ai-output-review-record"
+    ],
+    "service_level": [
+      {
+        "code": "model-drift-detection-latency",
+        "label": "Model drift detection latency",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      },
+      {
+        "code": "deployed-models-under-monitoring",
+        "label": "Deployed models under monitoring",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "ai-generated-changes-with-human-review",
+        "label": "AI-generated changes with human review",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "AI use policy and model risk policy; deployment requires an approved model-card",
+    "success": "every deployed model monitored for drift and every AI-generated change reviewed by an accountable person",
+    "consumers": [
+      "training-and-evaluating-models",
+      "operating-production-systems",
+      "governing-engineering-decisions",
+      "engineering-work-review"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "experimentation-service",
+    "name": "Experimentation Service",
+    "capability_code": "prototyping-and-experimentation",
+    "purpose": "reduce uncertainty through time-boxed prototypes and controlled experiments with predefined success criteria",
+    "inputs": [
+      "requirements-backlog",
+      "vision",
+      "solution-options-analysis"
+    ],
+    "outputs": [
+      "experiment-design",
+      "prototype-evaluation-report"
+    ],
+    "service_level": [
+      {
+        "code": "experiments-with-predefined-success-criteria",
+        "label": "Experiments with predefined success criteria",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "spike-duration",
+        "label": "Spike duration",
+        "target_level": "maximum",
+        "target": 10,
+        "units": "days"
+      }
+    ],
+    "governance": "engineering standard; experiments run in isolated environments and do not enter production unreviewed",
+    "success": "each experiment ends in an evidenced proceed, pivot, or stop recommendation",
+    "consumers": [
+      "requirements-elicitation",
+      "solution-options",
+      "architecture-design"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "user-experience-service",
+    "name": "User Experience Service",
+    "capability_code": "user-experience-engineering",
+    "purpose": "research, design, and verify usable and accessible user interfaces, including internationalisation",
+    "inputs": [
+      "requirements-specification",
+      "vision"
+    ],
+    "outputs": [
+      "user-research-report",
+      "ux-ui-design-specification",
+      "design-system-specification",
+      "usability-test-report",
+      "accessibility-conformance-report"
+    ],
+    "service_level": [
+      {
+        "code": "released-interfaces-conforming-to-wcag-2-2-level-aa",
+        "label": "Released interfaces conforming to WCAG 2.2 level AA",
+        "target_level": "minimum",
+        "target": 95,
+        "units": "percent"
+      },
+      {
+        "code": "usability-task-success-rate",
+        "label": "Usability task success rate",
+        "target_level": "minimum",
+        "target": 85,
+        "units": "percent"
+      }
+    ],
+    "governance": "accessibility policy and design system standard; conformance reported per WCAG",
+    "success": "interfaces validated with users, accessible to WCAG 2.2 AA, and built from a governed design system",
+    "consumers": [
+      "software-construction",
+      "software-validation",
+      "engineering-documentation",
+      "software-release",
+      "product-value-management",
+      "mobile-application-engineering",
+      "game-and-interactive-media-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "mobile-engineering-service",
+    "name": "Mobile Engineering Service",
+    "capability_code": "mobile-application-engineering",
+    "purpose": "engineer, secure, and release mobile applications for the supported platforms and devices",
+    "inputs": [
+      "requirements-specification",
+      "ux-ui-design-specification",
+      "api-specification",
+      "security-requirements-specification"
+    ],
+    "outputs": [
+      "mobile-platform-strategy",
+      "device-support-matrix",
+      "source-code",
+      "mobile-security-assessment-report"
+    ],
+    "service_level": [
+      {
+        "code": "crash-free-sessions",
+        "label": "Crash-free sessions",
+        "target_level": "minimum",
+        "target": 99.5,
+        "units": "percent"
+      },
+      {
+        "code": "cold-start-time",
+        "label": "Cold start time",
+        "target_level": "maximum",
+        "target": 2,
+        "units": "seconds"
+      },
+      {
+        "code": "supported-device-matrix-passing-release-tests",
+        "label": "Supported device matrix passing release tests",
+        "target_level": "minimum",
+        "target": 95,
+        "units": "percent"
+      }
+    ],
+    "governance": "mobile platform store policies, OWASP MASVS, and the organisational security standard; releases follow staged rollout",
+    "success": "application stable and secure on every supported device and accepted by the app stores",
+    "consumers": [
+      "software-validation",
+      "software-release",
+      "protect-organisational-assets",
+      "continuous-quality-assurance",
+      "real-time-organisational-documentation",
+      "automatic-traceability-generation",
+      "test-strategy-and-design",
+      "integrating-constructed-components",
+      "cross-codebase-pattern-propagation",
+      "recovering-organisational-knowledge",
+      "legacy-modernisation",
+      "autonomous-root-cause-synthesis",
+      "engineering-documentation",
+      "test-automation-engineering",
+      "build-and-continuous-integration",
+      "software-maintenance-and-refactoring",
+      "technical-debt-and-dependency-management",
+      "secure-engineering",
+      "safety-critical-systems-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "safety-critical-engineering-service",
+    "name": "Safety Critical Engineering Service",
+    "capability_code": "safety-critical-systems-engineering",
+    "purpose": "analyse hazards, derive and verify safety requirements and real-time behaviour, and assemble the safety case to the applicable functional-safety standard",
+    "inputs": [
+      "requirements-specification",
+      "solution-architecture-document",
+      "source-code",
+      "test-report-results"
+    ],
+    "outputs": [
+      "hazard-analysis-and-risk-assessment",
+      "safety-requirements-specification",
+      "timing-analysis-report",
+      "structural-coverage-report",
+      "safety-case"
+    ],
+    "service_level": [
+      {
+        "code": "hazards-with-allocated-mitigation",
+        "label": "Hazards with allocated mitigation",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "safety-requirements-traced-to-verification-evidence",
+        "label": "Safety requirements traced to verification evidence",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "structural-coverage-at-the-level-required-by-the-safety-integrity-level",
+        "label": "Structural coverage at the level required by the safety integrity level",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "applicable functional-safety standard (IEC 61508, ISO 26262, DO-178C, or EN 50128); independent safety assessment required before release; deviations only through decision-record",
+    "success": "every hazard mitigated by a verified safety requirement and the safety case accepted by the independent assessor",
+    "consumers": [
+      "engineering-embedded-firmware",
+      "software-validation",
+      "software-release",
+      "governing-engineering-decisions"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "hardware-software-codesign-service",
+    "name": "Hardware Software Codesign Service",
+    "capability_code": "hardware-software-codesign",
+    "purpose": "partition hardware and software functions and verify and integrate them through co-simulation and hardware-in-the-loop testing",
+    "inputs": [
+      "requirements-specification",
+      "hardware-interface-specification",
+      "solution-architecture-document",
+      "firmware-build",
+      "hardware-compatibility-report"
+    ],
+    "outputs": [
+      "hardware-software-partitioning-specification",
+      "co-simulation-report",
+      "hardware-in-the-loop-test-report",
+      "integration-bring-up-report"
+    ],
+    "service_level": [
+      {
+        "code": "interface-requirements-verified-in-simulation-before-hardware-availability",
+        "label": "Interface requirements verified in simulation before hardware availability",
+        "target_level": "minimum",
+        "target": 80,
+        "units": "percent"
+      },
+      {
+        "code": "hardware-in-the-loop-regression-pass-rate",
+        "label": "Hardware-in-the-loop regression pass rate",
+        "target_level": "minimum",
+        "target": 95,
+        "units": "percent"
+      }
+    ],
+    "governance": "system engineering standard (ISO/IEC/IEEE 15288) and interface control practice; interface changes follow engineering change management",
+    "success": "partitioning decisions justified, interfaces verified before hardware arrives, and integration defects triaged to hardware or software",
+    "consumers": [
+      "engineering-embedded-firmware",
+      "software-validation",
+      "safety-critical-systems-engineering"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "game-engineering-service",
+    "name": "Game Engineering Service",
+    "capability_code": "game-and-interactive-media-engineering",
+    "purpose": "design, build, optimise, certify, and operate real-time interactive software within frame, memory, and platform budgets",
+    "inputs": [
+      "requirements-specification",
+      "ux-ui-design-specification",
+      "vision"
+    ],
+    "outputs": [
+      "game-design-document",
+      "performance-budget",
+      "playtest-report",
+      "platform-certification-report"
+    ],
+    "service_level": [
+      {
+        "code": "sessions-meeting-the-target-frame-rate",
+        "label": "Sessions meeting the target frame rate",
+        "target_level": "minimum",
+        "target": 95,
+        "units": "percent"
+      },
+      {
+        "code": "platform-certification-first-submission-pass-rate",
+        "label": "Platform certification first-submission pass rate",
+        "target_level": "minimum",
+        "target": 80,
+        "units": "percent"
+      },
+      {
+        "code": "crash-free-sessions",
+        "label": "Crash-free sessions",
+        "target_level": "minimum",
+        "target": 99,
+        "units": "percent"
+      }
+    ],
+    "governance": "platform holder certification requirements (console and store technical requirements) and age-rating and consumer-protection obligations",
+    "success": "title meets performance budgets, passes platform certification, and is playtested before release",
+    "consumers": [
+      "software-validation",
+      "software-release",
+      "user-experience-engineering"
     ],
     "version": "1.0.0"
   }

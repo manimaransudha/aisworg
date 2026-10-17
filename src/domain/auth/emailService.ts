@@ -16,8 +16,14 @@ function buildTransport() {
   });
 }
 
+interface MailInput {
+  to: string;
+  name: string;
+  token: string;
+}
+
 export const emailService = {
-  async sendPasswordReset({ to, name, token }) {
+  async sendPasswordReset({ to, name, token }: MailInput) {
     const base    = process.env.BASE_URL || 'http://localhost:4300';
     const link    = `${base}/aisworg/auth/reset-password?token=${token}`;
     const from    = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@finanaly.app';
@@ -45,7 +51,7 @@ export const emailService = {
     }
   },
 
-  async sendVerification({ to, name, token }) {
+  async sendVerification({ to, name, token }: MailInput) {
     const base     = process.env.BASE_URL || 'http://localhost:4300';
     const link     = `${base}/aisworg/auth/verify?token=${token}`;
     const from     = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@finanaly.app';

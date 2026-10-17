@@ -1,0 +1,22 @@
+{
+  "code": "profile-safety-critical-system-development",
+  "name": "Safety-Critical System — Default Development Profile",
+  "baseTemplateCode": "safety-critical-system",
+  "environment": "development",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
+  "dispatchStrategyPreference": [
+    {
+      "strategy": "capability-match",
+      "order": 1
+    }
+  ],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
+  "optionalPackCodes": [
+    "testing-qa",
+    "integration-github",
+    "integration-sonarqube"
+  ]
+}

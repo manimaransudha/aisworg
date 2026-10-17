@@ -38,10 +38,9 @@ function postPackTransition(targetState: PackStatus) {
   return async (req: Request, res: Response): Promise<void> => {
     try {
       const { comment } = req.body ?? {};
-      const actorRole = req.session?.user?.role ?? "general";
       if (req.session?.user?.id == null) { res.status(401).json({ error: "not authenticated" }); return; }
       const actorId = String(req.session.user.id);
-      const result = await transitionPack({ packId: String(req.params.id), targetState, actorRole, actorId, comment: typeof comment === "string" ? comment : undefined });
+      const result = await transitionPack({ packId: String(req.params.id), targetState, actorId, comment: typeof comment === "string" ? comment : undefined });
       if (!result.ok) {
         if (result.reason === "not_found") { res.status(404).json({ error: "Pack not found" }); return; }
         res.status(409).json({ reason: result.reason, detail: "detail" in result ? result.detail : undefined });

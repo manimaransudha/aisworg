@@ -23,7 +23,7 @@ async function commissionWebApp(prefix: string, beforeCommenceWork?: (seuId: str
     {
       statement: `${prefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     beforeCommenceWork
   );
@@ -46,7 +46,7 @@ test("backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   await produceDeliverable(reqSpec.id, ROOT_ACTOR_ID, "vcs://trace/req@prod");
-  const approved = await transitionDeliverableSync({ deliverableId: reqSpec.id, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const approved = await transitionDeliverableSync({ deliverableId: reqSpec.id, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(approved.ok, true, !approved.ok ? JSON.stringify(approved) : "assertion failed");
 
   const explanation = await explainDeliverable(reqSpec.id);

@@ -14,6 +14,15 @@
         "code": "operating-production-systems",
         "name": "Scale & Performance Optimization",
         "description": "Validates and improves the system's ability to scale, remain resilient, and operate cost-efficiently under real-world load."
+      },
+      {
+        "code": "reliability-and-resilience-engineering"
+      },
+      {
+        "code": "engineering-cost-management"
+      },
+      {
+        "code": "performance-and-reliability-testing"
       }
     ],
     "services": [

@@ -93,7 +93,7 @@ async function commissionSeuBlockedByPackObligation(run: string) {
     },
   };
   await registerOrganisationName(pack.code);
-  const published = await publishPack({ seed: pack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
+  const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `pack obligation pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(pack.code);
 
@@ -120,17 +120,16 @@ async function commissionSeuBlockedByPackObligation(run: string) {
       redispatchMaxAttempts: 5,
       redispatchAttentionThreshold: 2,
     },
-    actorRole: "super",
     actorId: TESTER_ALL_ID,
   });
   assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
-  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, timeoutMs: 30000 });
+  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID, timeoutMs: 30000 });
   assert.equal(result.ok, false, "a Pack-declared Obligation Definition matching the hop must block Activated -> Operational");
   if (!result.ok) assert.equal(result.stage, "blocked");
 
@@ -153,7 +152,7 @@ test("CR-108 item 1: a Pack's own obligationDefinitions[].applicabilityDeliverab
   // Drive the real Obligation through its full lifecycle to Verified — the
   // same real transitionObligation path a human/API caller uses.
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: blockingObligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const step = await transitionObligation({ obligationId: blockingObligation.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, !step.ok ? `Obligation ${targetState} step failed: ${JSON.stringify(step)}` : "assertion failed");
   }
 
@@ -187,7 +186,7 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   // Obligation's own resolution.
   const pack = { code: `cr108-attn-pack-${run}`, name: "CR-108 Attention Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   await registerOrganisationName(pack.code);
-  const published = await publishPack({ seed: pack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
+  const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `attention pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(pack.code);
 
@@ -223,16 +222,16 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
       developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github",
       redispatchMaxAttempts: 5, redispatchAttentionThreshold: 2,
     },
-    actorRole: "super", actorId: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID,
   });
   assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
-  const driven = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, timeoutMs: 30000 });
+  const driven = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID, timeoutMs: 30000 });
   assert.equal(driven.ok, false, "the unsatisfied Policy must block Activated -> Operational");
 
   const { data: seu } = await seusDB.findById(requested.seu.id);
@@ -269,7 +268,7 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   // deliberately left untouched, so any retry that happens is provably off
   // AttentionItemTransitioned, not a coincidental Obligation-side resolution.
   for (const targetState of ["Delivered", "Acknowledged", "In Progress", "Resolved"]) {
-    const step = await transitionAttentionItem({ attentionItemId: attentionItem!.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const step = await transitionAttentionItem({ attentionItemId: attentionItem!.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, !step.ok ? `Attention Item ${targetState} step failed: ${JSON.stringify(step)}` : "assertion failed");
   }
 
@@ -317,7 +316,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   let participantMasterId!: string;
 
   const result = await commissionFromFormSync(
-    { statement: `cr108-participant-${run}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID },
+    { statement: `cr108-participant-${run}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
       const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
@@ -339,7 +338,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   // Drive the Deliverable to a real dispatched Work Item against this exact
   // Participant — myDeliverableIds (raiseMyObligation's own ownership check)
   // is derived from a real commands/work_items row, never assumed.
-  await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
+  await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: TESTER_ALL_ID });
   await waitForDispatchedWorkItem(requirementsSpec!.id, "In Progress", "In Progress");
 
   const raised = await raiseMyObligation({
@@ -395,7 +394,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
     },
   };
   await registerOrganisationName(pack.code);
-  const published = await publishPack({ seed: pack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
+  const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `execution-context pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
 
   const { data: requiredCapabilities } = await capabilitiesDB.findByOriginatingPackIds([published.pack!.id]);
@@ -418,12 +417,12 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
       developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github",
       redispatchMaxAttempts: 5, redispatchAttentionThreshold: 2,
     },
-    actorRole: "super", actorId: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID,
   });
   assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
   const seuId = requested.seu.id;
@@ -439,7 +438,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
   // dispatch attempt.
   let unrelatedObligation!: Awaited<ReturnType<typeof createObligation>>;
   const driven = await driveCommissioningToActive({
-    seuId, actorRole: "super", actorId: TESTER_ALL_ID, timeoutMs: 30000,
+    seuId, actorId: TESTER_ALL_ID, timeoutMs: 30000,
     beforeCommenceWork: async () => {
       const detail = await getSeuDetailView(seuId);
       const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");

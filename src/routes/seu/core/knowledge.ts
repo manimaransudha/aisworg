@@ -99,7 +99,7 @@ export type TransitionKnowledgeItemResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-export async function transitionKnowledgeItem(input: { knowledgeItemId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionKnowledgeItemResult> {
+export async function transitionKnowledgeItem(input: { knowledgeItemId: string; targetState: string; actorId: string }): Promise<TransitionKnowledgeItemResult> {
   const { data: knowledgeItem } = await knowledgeItemsDB.findById(input.knowledgeItemId);
   if (!knowledgeItem) return { ok: false, reason: "not_found" };
 
@@ -109,7 +109,6 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
     entityType: "Knowledge",
     fromState,
     toState: input.targetState,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     entityId: knowledgeItem.id,
     seuId: knowledgeItem.seu_id,
@@ -146,7 +145,7 @@ export type PromoteKnowledgeItemScopeResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string; targetScope: AcquisitionScope; actorRole: string; actorId: string }): Promise<PromoteKnowledgeItemScopeResult> {
+export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string; targetScope: AcquisitionScope; actorId: string }): Promise<PromoteKnowledgeItemScopeResult> {
   const { data: knowledgeItem } = await knowledgeItemsDB.findById(input.knowledgeItemId);
   if (!knowledgeItem) return { ok: false, reason: "not_found" };
 
@@ -159,7 +158,6 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
     entityType: "KnowledgeScope",
     fromState: fromScope,
     toState: input.targetScope,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     entityId: knowledgeItem.id,
     seuId: knowledgeItem.seu_id,

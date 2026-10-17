@@ -14,6 +14,15 @@
         "code": "protect-organisational-assets",
         "name": "Security, Privacy & Compliance",
         "description": "Establishes the security controls, privacy safeguards, and compliance posture required before further platform investment."
+      },
+      {
+        "code": "secure-engineering"
+      },
+      {
+        "code": "continuous-compliance-verification"
+      },
+      {
+        "code": "continuous-vulnerability-posture-assessment"
       }
     ],
     "services": [

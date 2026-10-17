@@ -97,7 +97,7 @@ export type TransitionDecisionResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-export async function transitionDecision(input: { decisionId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionDecisionResult> {
+export async function transitionDecision(input: { decisionId: string; targetState: string; actorId: string }): Promise<TransitionDecisionResult> {
   const { data: decision } = await decisionsDB.findById(input.decisionId);
   if (!decision) return { ok: false, reason: "not_found" };
 
@@ -107,7 +107,6 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     entityType: "Decision",
     fromState,
     toState: input.targetState,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     entityId: decision.id,
     context: { decision },

@@ -38,7 +38,6 @@ export interface SimulatorResult {
 }
 
 interface SimulatorContext extends DemoActor {
-  actorRole: string;
 }
 
 type Target = Record<string, unknown>;
@@ -55,7 +54,7 @@ async function getContext(): Promise<SimulatorContext> {
   if (error || !master) throw error ?? new Error("Demo User participant not found");
   const role = master.authorised_role[0]?.role;
   if (!role) throw new Error("Demo User holds no role; reset the demo data");
-  return { ...actor, actorRole: role };
+  return { ...actor };
 }
 
 // Grants what route_authority declares for this route, then records the same author badge the web layer would.
@@ -143,7 +142,7 @@ const handlers: Record<string, Handler> = {
     if (!profile) throw new Error(`Profile ${profileCode} is not Active; reset the demo data`);
     const result = await commissionSeu({
       objectiveId: objective.id, templateIds: [template.id], profileIds: [profile.id],
-      actorRole: ctx.actorRole, actorId: ctx.participantId, requestedBy: ctx.participantId, tenantId: ctx.tenantId,
+      actorId: ctx.participantId, requestedBy: ctx.participantId, tenantId: ctx.tenantId,
     });
     if (!result.ok) throw new Error(`commissioning stopped at ${result.stage}: ${result.reason}`);
     const seuId = result.seu.id;
@@ -163,7 +162,7 @@ const handlers: Record<string, Handler> = {
     const ebmId = await waitFor("the EBM to be composed", async () => (await seusDB.findById(seuId)).data?.active_ebm_id);
     for (const [from, to] of [["Composed", "Validated"], ["Validated", "Active"]] as const) {
       await grantTransitionBadge(ctx.participantId, "EBM", from, to);
-      const step = await transitionEbm({ ebmId, targetState: to, actorRole: ctx.actorRole, actorId: ctx.participantId });
+      const step = await transitionEbm({ ebmId, targetState: to, actorId: ctx.participantId });
       if (!step.ok) throw new Error(`EBM ${from} -> ${to} blocked: ${"detail" in step ? step.detail : step.reason}`);
     }
     const state = await waitFor("the SEU to finish commissioning", async () => {
@@ -203,7 +202,7 @@ const handlers: Record<string, Handler> = {
     for (const target of ["Acknowledged", "In Progress", "Resolved"]) {
       const current = (await attentionItemsDB.findById(open.id)).data;
       if (current?.status === target || (target === "Acknowledged" && current && ["In Progress", "Resolved"].includes(current.status))) continue;
-      const result = await transitionAttentionItem({ attentionItemId: open.id, targetState: target, actorRole: ctx.actorRole, actorId: ctx.participantId });
+      const result = await transitionAttentionItem({ attentionItemId: open.id, targetState: target, actorId: ctx.participantId });
       if (!result.ok) throw new Error("detail" in result ? result.detail : result.reason);
     }
     return `Released "${open.title}"; re-dispatch follows from the Resolved event.`;
@@ -247,7 +246,7 @@ const handlers: Record<string, Handler> = {
     const seuId = await seuFor(ctx, sc.target);
     const finding = await findingFor(seuId, str(sc.target.findingTitle, "target.findingTitle"));
     await grantTransitionBadge(ctx.participantId, "Finding", "Open", "Waived");
-    const result = await transitionFinding({ findingId: finding.id, targetState: "Waived", actorRole: ctx.actorRole, actorId: ctx.participantId });
+    const result = await transitionFinding({ findingId: finding.id, targetState: "Waived", actorId: ctx.participantId });
     if (!result.ok) throw new Error("detail" in result ? String(result.detail) : result.reason);
     return `Waived Finding "${finding.title}".`;
   },
@@ -261,7 +260,7 @@ const handlers: Record<string, Handler> = {
     if (!pack) throw new Error("the reader privacy Pack is not seeded; reset the demo data");
     let status: string = pack.status;
     while (status !== "Active") {
-      const advanced = await publishAuthoringDraft({ kind: "Pack", id: pack.id, actorId: ctx.participantId, actorRole: ctx.actorRole });
+      const advanced = await publishAuthoringDraft({ kind: "Pack", id: pack.id, actorId: ctx.participantId });
       if (!advanced.ok) throw new Error(advanced.errors.join("; "));
       status = advanced.status;
     }

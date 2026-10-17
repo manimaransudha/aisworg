@@ -12,6 +12,9 @@
     "capabilities": [
       {
         "code": "training-and-evaluating-models"
+      },
+      {
+        "code": "mlops-and-ai-assurance"
       }
     ],
     "services": [

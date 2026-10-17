@@ -119,11 +119,11 @@ async function demoteOntologyIfNoOtherActive(row: ServiceDefinitionRow, actorId:
   if (!stillActive) await retireConceptForEntity("service-name", row.code, row.tenant_id, actorId, actorBadge);
 }
 
-export async function transitionServiceDefinition(input: { serviceDefinitionId: string; targetState: ServiceDefinitionRow["status"]; actorRole: string; actorId: string }): Promise<TransitionServiceDefinitionResult> {
+export async function transitionServiceDefinition(input: { serviceDefinitionId: string; targetState: ServiceDefinitionRow["status"]; actorId: string }): Promise<TransitionServiceDefinitionResult> {
   const { data: serviceDefinition } = await serviceDefinitionsDB.findById(input.serviceDefinitionId);
   if (!serviceDefinition) return { ok: false, reason: "not_found" };
   const fromState = serviceDefinition.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Service", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: serviceDefinition.id, context: { serviceDefinition } });
+  const gate = await transitionEngine.evaluate({ entityType: "Service", fromState, toState: input.targetState, actorId: input.actorId, entityId: serviceDefinition.id, context: { serviceDefinition } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Service ${fromState} -> ${input.targetState}` };
@@ -168,10 +168,10 @@ const AUTHORING_NEXT_STATE: Partial<Record<ServiceDefinitionRow["status"], Servi
   Retired: "Archived",
 };
 
-export async function advanceServiceDefinitionOneStep(serviceDefinition: ServiceDefinitionRow, actorRole: string, actorId: string): Promise<TransitionServiceDefinitionResult> {
+export async function advanceServiceDefinitionOneStep(serviceDefinition: ServiceDefinitionRow, actorId: string): Promise<TransitionServiceDefinitionResult> {
   const targetState = AUTHORING_NEXT_STATE[serviceDefinition.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Service Definition is already ${serviceDefinition.status} — no further authoring step` };
-  return transitionServiceDefinition({ serviceDefinitionId: serviceDefinition.id, targetState, actorRole, actorId });
+  return transitionServiceDefinition({ serviceDefinitionId: serviceDefinition.id, targetState, actorId });
 }
 
 export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {

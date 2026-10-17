@@ -18,7 +18,7 @@
 
   <% const _base = locals.listBasePath || '/aisworg/auth/users'; %>
   <%- include('../partials/helpers') %>
-  <%- include('../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search user / role / provider' }) %>
+  <%- include('../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search user / provider' }) %>
   <div class="card border-0 shadow-sm">
     <div class="table-responsive">
       <table class="table table-hover mb-0">
@@ -26,7 +26,6 @@
           <tr>
             <th><%- sortLink('User', 'user', list, _base) %></th>
             <th><%- sortLink('Provider', 'provider', list, _base) %></th>
-            <th><%- sortLink('Role', 'role', list, _base) %></th>
             <th>Status</th>
             <th><%- sortLink('Last login', 'lastlogin', list, _base) %></th>
             <th></th>
@@ -52,21 +51,6 @@
                 </div>
               </td>
               <td class="small text-capitalize align-middle"><%= u.auth_provider %></td>
-              <td class="align-middle">
-                <!-- <form method="POST" action="/finanaly/auth/users/role" class="d-inline"> -->
-                <form method="POST" action="/aisworg/auth/users/role" class="d-inline">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <input type="hidden" name="email" value="<%= u.email %>">
-                  <select name="role" onchange="this.form.submit()"
-                          class="form-select form-select-sm py-0" style="width:auto;"
-                          <%= !currentUser || currentUser.email === u.email ? 'disabled' : '' %>>
-                    <option value="general" <%= u.role==='general' ? 'selected' : '' %>>General</option>
-                    <option value="power"   <%= u.role==='power'   ? 'selected' : '' %>>Power</option>
-                    <option value="tenant_super" <%= u.role==='tenant_super' ? 'selected' : '' %>>Tenant Super</option>
-                    <option value="super"   <%= u.role==='super'   ? 'selected' : '' %>>Super</option>
-                  </select>
-                </form>
-              </td>
               <td class="align-middle">
                 <% if (u.is_active) { %>
                   <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
@@ -130,14 +114,6 @@
           <div class="mb-3">
             <label class="form-label small fw-semibold">Name</label>
             <input type="text" name="name" class="form-control" placeholder="Optional">
-          </div>
-          <div class="mb-3">
-            <label class="form-label small fw-semibold">Role *</label>
-            <select name="role" class="form-select" required>
-              <option value="power">Power</option>
-              <option value="tenant_super">Tenant Super</option>
-              <option value="super">Super</option>
-            </select>
           </div>
           <p class="text-muted small mb-0">A verification email will be sent so the user can set their own password.</p>
         </div>

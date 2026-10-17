@@ -30,7 +30,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     // Fulfil before the Execution Engine's own automatic commence-work
     // attempt (executionEngineKickoff, off SEUActivated) reaches Dispatch —
@@ -77,7 +77,7 @@ test("a Quality Gate block raises exactly one 'Action Required' Attention Item, 
   await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
 
   for (let i = 0; i < 3; i++) {
-    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
     assert.equal(attempt.ok, false);
   }
 
@@ -99,7 +99,7 @@ test("a sustained pattern of Quality Gate blocking raises a High-priority 'Escal
 
   // Threshold is 3 (SUSTAINED_BLOCK_THRESHOLD) — cross it.
   for (let i = 0; i < 4; i++) {
-    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
     assert.equal(attempt.ok, false);
   }
 
@@ -118,7 +118,7 @@ test("an Attention Item can be created directly and walked through its Ch.34 §9
   assert.equal(attentionItem.status, "Created");
 
   for (const targetState of ["Delivered", "Acknowledged", "In Progress", "Resolved", "Closed"]) {
-    const step = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const step = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
 });
@@ -143,7 +143,7 @@ test("an External Interaction can be recorded against a Deliverable and walked t
   assert.ok(bySeu.some((i) => i.id === interaction.id));
 
   for (const targetState of ["Validated", "Dispatched", "Acknowledged", "Completed", "Archived"]) {
-    const step = await transitionExternalInteraction({ interactionId: interaction.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const step = await transitionExternalInteraction({ interactionId: interaction.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
 });
@@ -160,13 +160,13 @@ test("transitioning an External Interaction to Failed automatically raises an Ex
     authorBadge: "root",
   });
 
-  const toValidated = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Validated", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toValidated = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Validated", actorId: TESTER_ALL_ID });
   assert.equal(toValidated.ok, true, !toValidated.ok ? JSON.stringify(toValidated) : "assertion failed");
 
-  const toDispatched = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Dispatched", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toDispatched = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Dispatched", actorId: TESTER_ALL_ID });
   assert.equal(toDispatched.ok, true, !toDispatched.ok ? JSON.stringify(toDispatched) : "assertion failed");
 
-  const toFailed = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Failed", actorRole: "super", actorId: TESTER_ALL_ID });
+  const toFailed = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Failed", actorId: TESTER_ALL_ID });
   assert.equal(toFailed.ok, true, !toFailed.ok ? JSON.stringify(toFailed) : "assertion failed");
 
   const items = await listAttentionItemsBySeu(seuId);

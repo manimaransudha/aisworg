@@ -57,7 +57,6 @@ async function runValidation(seu: SeuRow, objective: ObjectiveRow, template: Tem
     entityType: "SEU",
     fromState: "Pending",
     toState: "Commissioned",
-    actorRole: "system",
     actorId: event.actor_id,
     context: { profile, objective },
   });

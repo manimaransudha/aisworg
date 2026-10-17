@@ -36,7 +36,7 @@ async function commissionTestSeuAndDeliverable(): Promise<{ seuId: string; deliv
   const result = await commissionFromFormSync({
     statement: `knowledge-lifecycle-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
@@ -107,7 +107,7 @@ test("DRIVEN: every Knowledge lifecycle hop publishes its matching event, in ord
 
   let last: KnowledgeItemRow = knowledgeItem;
   for (const row of KNOWLEDGE_TABLE) {
-    const result = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: row.toState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const result = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: row.toState, actorId: TESTER_ALL_ID });
     assert.equal(result.ok, true, result.ok ? "" : `row ${row.row} (${row.description}): ${result.reason}: ${JSON.stringify(result)}`);
     if (result.ok) {
       // Ch.5 §19.13's own noun_verb badge convention: entityType_verb.
@@ -134,12 +134,12 @@ test("DRIVEN: every KnowledgeScope promotion hop publishes KnowledgeScopePromote
   // promoteKnowledgeItemScope call below fails not_published.
   const toPublished = KNOWLEDGE_TABLE.filter((row) => row.row <= 4);
   for (const row of toPublished) {
-    const step = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: row.toState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const step = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: row.toState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, step.ok ? "" : JSON.stringify(step));
   }
 
   for (const row of KNOWLEDGE_SCOPE_TABLE) {
-    const result = await promoteKnowledgeItemScope({ knowledgeItemId: knowledgeItem.id, targetScope: row.toState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const result = await promoteKnowledgeItemScope({ knowledgeItemId: knowledgeItem.id, targetScope: row.toState, actorId: TESTER_ALL_ID });
     assert.equal(result.ok, true, result.ok ? "" : `row ${row.row}: ${result.reason}: ${JSON.stringify(result)}`);
   }
 

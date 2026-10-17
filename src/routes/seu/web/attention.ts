@@ -48,7 +48,6 @@ router.post("/attention/:id/transition", async (req: Request, res: Response) => 
     const result = await transitionAttentionItem({
       attentionItemId: String(req.params.id),
       targetState,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
     });
     if (!result.ok) {

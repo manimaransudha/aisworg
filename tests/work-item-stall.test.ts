@@ -25,7 +25,7 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
   const result = await commissionFromFormSync({
     statement: `${prefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
@@ -65,7 +65,7 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
 
   // Dispatch and DO NOT complete — the Work Item is now genuinely outstanding.
   // The target is the SLA-derived default.
-  const dispatched = await transitionDeliverableSync({ deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const dispatched = await transitionDeliverableSync({ deliverableId: deliverable.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
   if (!dispatched.ok) throw new Error("unreachable");
 

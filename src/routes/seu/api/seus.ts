@@ -17,11 +17,10 @@ router.post("/commission", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "objectiveId, templateId and profileId are all required" });
     }
 
-    const actorRole = req.session?.user?.role ?? "general";
 
     if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
     const actorId = String(req.session.user.id);
-    const result = await commissionSeu({ objectiveId, templateIds: [templateId], profileIds: [profileId], actorRole, actorId, requestedBy: actorId, tenantId: typeof tenantId === "string" ? tenantId : null });
+    const result = await commissionSeu({ objectiveId, templateIds: [templateId], profileIds: [profileId], actorId, requestedBy: actorId, tenantId: typeof tenantId === "string" ? tenantId : null });
 
     if (!result.ok) {
       return res.status(422).json({ stage: result.stage, reason: result.reason, seuId: result.seuId });

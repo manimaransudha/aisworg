@@ -14,6 +14,21 @@
         "code": "software-validation",
         "name": "Quality Engineering & Hardening",
         "description": "Verifies the product meets functional, performance, security, and accessibility quality bars before it is exposed to real users."
+      },
+      {
+        "code": "test-automation-engineering"
+      },
+      {
+        "code": "test-strategy-and-design"
+      },
+      {
+        "code": "continuous-quality-assurance"
+      },
+      {
+        "code": "predictive-test-coverage-gap-detection"
+      },
+      {
+        "code": "protect-organisational-assets"
       }
     ],
     "services": [

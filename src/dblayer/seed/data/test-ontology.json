@@ -1,0 +1,2594 @@
+[
+  {
+    "concept_type": "capability-name",
+    "code": "development",
+    "default_label": "Development",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "project-management",
+    "default_label": "Project Management",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "vision-opportunity-framing",
+    "default_label": "Vision & Opportunity Framing",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "product-discovery",
+    "default_label": "Product Discovery",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "experience-design",
+    "default_label": "Experience Design",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "technical-architecture-discovery",
+    "default_label": "Technical Architecture & Discovery",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "security-privacy-compliance",
+    "default_label": "Security, Privacy & Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "platform-developer-experience",
+    "default_label": "Platform & Developer Experience",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "backlog-release-planning",
+    "default_label": "Backlog & Release Planning",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "implementation-engineering",
+    "default_label": "Implementation Engineering",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "quality-engineering-hardening",
+    "default_label": "Quality Engineering & Hardening",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "scale-performance-optimization",
+    "default_label": "Scale & Performance Optimization",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "beta-early-access-management",
+    "default_label": "Beta / Early Access Management",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "launch-management",
+    "default_label": "Launch Management",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "hypercare-stabilization",
+    "default_label": "Hypercare & Stabilization",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "growth-optimization",
+    "default_label": "Growth & Optimization",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "internationalization-localization",
+    "default_label": "Internationalization & Localization",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "ongoing-operations-governance",
+    "default_label": "Ongoing Operations & Governance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "domain-ebook-library",
+    "default_label": "E-Book Library Domain Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "technology-nodejs",
+    "default_label": "Node.js Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-domain-ebook-library",
+    "default_label": "Test: E-Book Library Domain Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-architecture-solution-design",
+    "default_label": "Test: Architecture (OpenUP Capability Pattern)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-configuration-management",
+    "default_label": "Test: Configuration & Change Management (OpenUP Capability Pattern)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-development",
+    "default_label": "Test: Development (OpenUP Capability Pattern)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-project-management",
+    "default_label": "Test: Project Management (OpenUP Capability Pattern)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-requirements-analysis",
+    "default_label": "Test: Requirements (OpenUP Capability Pattern)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-testing-qa",
+    "default_label": "Test: Test (OpenUP Capability Pattern)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-vision-opportunity-framing",
+    "default_label": "Test: Vision & Opportunity (SDLC Phase 0)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-product-discovery",
+    "default_label": "Test: Product Discovery (SDLC Phase 1)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-experience-design",
+    "default_label": "Test: Experience Design (SDLC Phase 2)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-technical-architecture-discovery",
+    "default_label": "Test: Technical Discovery & Architecture (SDLC Phase 3)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-security-privacy-compliance",
+    "default_label": "Test: Security, Privacy & Compliance (SDLC Phase 4)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-platform-developer-experience",
+    "default_label": "Test: Platform & Developer Experience (SDLC Phase 5)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-backlog-release-planning",
+    "default_label": "Test: Backlog & Release Planning (SDLC Phase 6)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-implementation-engineering",
+    "default_label": "Test: Implementation (SDLC Phase 7)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-quality-engineering-hardening",
+    "default_label": "Test: Quality Engineering & Hardening (SDLC Phase 8)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-scale-performance-optimization",
+    "default_label": "Test: Scale & Performance Optimization (SDLC Phase 9)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-beta-early-access-management",
+    "default_label": "Test: Beta / Early Access (SDLC Phase 10)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-launch-management",
+    "default_label": "Test: Launch (SDLC Phase 11)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-hypercare-stabilization",
+    "default_label": "Test: Hypercare & Stabilization (SDLC Phase 12)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-growth-optimization",
+    "default_label": "Test: Growth & Optimization (SDLC Phase 13)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-internationalization-localization",
+    "default_label": "Test: Internationalization & Localization (SDLC Phase 14)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-ongoing-operations-governance",
+    "default_label": "Test: Ongoing Operations & Governance (SDLC Phase 15)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "test-technology-nodejs",
+    "default_label": "Test: Node.js Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "code-review",
+    "default_label": "Code Review",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "catalog-management",
+    "default_label": "Catalog Management",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "circulation-management",
+    "default_label": "Circulation Management",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "accessibility-audit",
+    "default_label": "Accessibility Audit",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "accessibility-compliance-checklist",
+    "default_label": "Accessibility Compliance Checklist",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "api-contracts",
+    "default_label": "API Contracts",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "api-design-spec",
+    "default_label": "API Design Spec",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "approved-architecture",
+    "default_label": "Approved Architecture",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "approved-catalog-metadata-design",
+    "default_label": "Approved Catalog Metadata Design",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "approved-circulation-rules",
+    "default_label": "Approved Circulation Rules",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "approved-requirements-specification",
+    "default_label": "Approved Requirements Specification",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "architecture-decision-records",
+    "default_label": "Architecture Decision Records",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "architecture-notebook",
+    "default_label": "Architecture Notebook",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "audit-evidence-catalog",
+    "default_label": "Audit Evidence Catalog",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "automated-test-suite-reports",
+    "default_label": "Automated Test Suite Reports",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "autoscaling-caching-strategy",
+    "default_label": "Autoscaling Caching Strategy",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "beta-entry-exit-criteria",
+    "default_label": "Beta Entry Exit Criteria",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "beta-success-metrics",
+    "default_label": "Beta Success Metrics",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "business-continuity-dr-plan",
+    "default_label": "Business Continuity Dr Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "c4-diagrams",
+    "default_label": "C4 Diagrams",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "capacity-scaling-model",
+    "default_label": "Capacity Scaling Model",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "cdn-edge-strategy",
+    "default_label": "Cdn Edge Strategy",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "change-request",
+    "default_label": "Change Request",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "chaos-engineering-report",
+    "default_label": "Chaos Engineering Report",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "ci-cd-pipeline-specification",
+    "default_label": "CI CD Pipeline Specification",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "clickable-prototype",
+    "default_label": "Clickable Prototype",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "code-review",
+    "default_label": "Code Review",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "coding-standards-review-guidelines",
+    "default_label": "Coding Standards Review Guidelines",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "competitive-teardown",
+    "default_label": "Competitive Teardown",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "compliance-readiness-checklist",
+    "default_label": "Compliance Readiness Checklist",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "configuration-management-plan",
+    "default_label": "Configuration Management Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "content-strategy-voice-tone-guide",
+    "default_label": "Content Strategy Voice Tone Guide",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "cost-optimization-finops-plan",
+    "default_label": "Cost Optimization FINOPS Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "customer-communication-plan",
+    "default_label": "Customer Communication Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "customer-feedback-summary",
+    "default_label": "Customer Feedback Summary",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "customer-journey-map",
+    "default_label": "Customer Journey Map",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "data-migration-plan",
+    "default_label": "Data Migration Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "data-model-erd",
+    "default_label": "Data Model ERD",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "data-protection-addendum-vendor-list",
+    "default_label": "Data Protection Addendum Vendor List",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "data-residency-privacy-plan",
+    "default_label": "Data Residency Privacy Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "dependency-map",
+    "default_label": "Dependency Map",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "deployment-rollout-plan",
+    "default_label": "Deployment Rollout Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "design-system-ui-kit",
+    "default_label": "Design System UI Kit",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "design-tokens",
+    "default_label": "Design Tokens",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "environments-matrix",
+    "default_label": "Environments Matrix",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "event-taxonomy-tracking-plan",
+    "default_label": "Event Taxonomy Tracking Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "experimentation-framework",
+    "default_label": "Experimentation Framework",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "feature-epic-backlog-acceptance-criteria",
+    "default_label": "Feature Epic Backlog Acceptance Criteria",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "feature-flag-documentation",
+    "default_label": "Feature Flag Documentation",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "feature-flag-rollout-strategy",
+    "default_label": "Feature Flag Rollout Strategy",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "feedback-capture-analysis-plan",
+    "default_label": "Feedback Capture Analysis Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "glossary",
+    "default_label": "Glossary",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "governance-raci-chart",
+    "default_label": "Governance RACI Chart",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "growth-experiments-backlog",
+    "default_label": "Growth Experiments Backlog",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "hotfix-plan-ownership-matrix",
+    "default_label": "Hotfix Plan Ownership Matrix",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "hypercare-runbook",
+    "default_label": "Hypercare Runbook",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "hypothesis-validation-tracker",
+    "default_label": "Hypothesis Validation Tracker",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "implementation-elements",
+    "default_label": "Implementation Elements",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "incident-change-management-process",
+    "default_label": "Incident Change Management Process",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "incident-response-plan",
+    "default_label": "Incident Response Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "information-architecture-map",
+    "default_label": "Information Architecture Map",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "infrastructure-as-code-plan",
+    "default_label": "Infrastructure As Code Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "initial-risks-assumptions-log",
+    "default_label": "Initial Risks Assumptions Log",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "integrated-build",
+    "default_label": "Integrated Build",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "integration-architecture-overview",
+    "default_label": "Integration Architecture Overview",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "iteration-plan",
+    "default_label": "Iteration Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "jobs-to-be-done-statements",
+    "default_label": "Jobs To Be Done Statements",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "jtbd-insights-summary",
+    "default_label": "JTBD Insights Summary",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "known-issues-bug-tracker",
+    "default_label": "Known Issues Bug Tracker",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "known-issues-log",
+    "default_label": "Known Issues Log",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "launch-checklist",
+    "default_label": "Launch Checklist",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "lean-business-model-canvas",
+    "default_label": "Lean Business Model Canvas",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "locale-language-strategy",
+    "default_label": "Locale Language Strategy",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "localization-internationalization-strategy",
+    "default_label": "Localization Internationalization Strategy",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "market-sizing-brief",
+    "default_label": "Market Sizing Brief",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "master-test-plan",
+    "default_label": "Master Test Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "monitoring-dashboards",
+    "default_label": "Monitoring Dashboards",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "multi-region-disaster-recovery-plan",
+    "default_label": "Multi Region Disaster Recovery Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "non-functional-requirements-spec",
+    "default_label": "Non Functional Requirements Spec",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "observability-strategy",
+    "default_label": "Observability Strategy",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "operational-kpis-report",
+    "default_label": "Operational KPIS Report",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "outcome-based-product-roadmap",
+    "default_label": "Outcome Based Product Roadmap",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "performance-load-test-plan-results",
+    "default_label": "Performance Load Test Plan Results",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "post-mortem-lessons-learned",
+    "default_label": "Post Mortem Lessons Learned",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "pricing-packaging-tests",
+    "default_label": "Pricing Packaging Tests",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "privacy-impact-assessment",
+    "default_label": "Privacy Impact Assessment",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "product-analytics-specification",
+    "default_label": "Product Analytics Specification",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "product-requirements-document",
+    "default_label": "Product Requirements Document",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "project-plan",
+    "default_label": "Project Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "pseudolocalization-report",
+    "default_label": "Pseudolocalization Report",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "quarterly-architecture-review",
+    "default_label": "Quarterly Architecture Review",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "regional-compliance-addenda",
+    "default_label": "Regional Compliance Addenda",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "release-plan",
+    "default_label": "Release Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "requirements-specification",
+    "default_label": "Requirements Specification",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "research-findings-report",
+    "default_label": "Research Findings Report",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "research-plan-interview-guide",
+    "default_label": "Research Plan Interview Guide",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "retention-engagement-dashboard",
+    "default_label": "Retention Engagement Dashboard",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "risk-list",
+    "default_label": "Risk List",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "risk-mitigation-plan",
+    "default_label": "Risk Mitigation Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "rtl-cultural-adaptation-review",
+    "default_label": "RTL Cultural Adaptation Review",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "runbooks-playbooks",
+    "default_label": "Runbooks Playbooks",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "secrets-management-access-control-plan",
+    "default_label": "Secrets Management Access Control Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "secure-sdlc-guidelines",
+    "default_label": "Secure Sdlc Guidelines",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "security-controls-matrix",
+    "default_label": "Security Controls Matrix",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "security-testing-report",
+    "default_label": "Security Testing Report",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "service-blueprint",
+    "default_label": "Service Blueprint",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "slo-sla-sli-definitions",
+    "default_label": "SLO SLA SLI Definitions",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "solution-architecture-document",
+    "default_label": "Solution Architecture Document",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "sre-playbook",
+    "default_label": "SRE Playbook",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "success-metrics-okrs-draft",
+    "default_label": "Success Metrics OKRS Draft",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "support-playbook-beta-users",
+    "default_label": "Support Playbook Beta Users",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "tech-debt-register",
+    "default_label": "Tech Debt Register",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "tech-stack-evaluation-matrix",
+    "default_label": "Tech Stack Evaluation Matrix",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "technical-specifications-per-feature",
+    "default_label": "Technical Specifications Per Feature",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "tenancy-model",
+    "default_label": "Tenancy Model",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "test-case",
+    "default_label": "Test Case",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "test-cases-traceability-matrix",
+    "default_label": "Test Cases Traceability Matrix",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "test-evaluation-summary",
+    "default_label": "Test Evaluation Summary",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "threat-model-stride",
+    "default_label": "Threat Model STRIDE",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "translation-glossary-style-guide",
+    "default_label": "Translation Glossary Style Guide",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "uat-plan-sign-off-report",
+    "default_label": "UAT Plan Sign Off Report",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "unit-integration-test-plans",
+    "default_label": "Unit Integration Test Plans",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "usability-test-plan-report",
+    "default_label": "Usability Test Plan Report",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "user-personas",
+    "default_label": "User Personas",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "vision",
+    "default_label": "Vision",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "vision-one-pager",
+    "default_label": "Vision One Pager",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "wireframes",
+    "default_label": "Wireframes",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "template-categories",
+    "code": "test-cr088-publish-template",
+    "default_label": "Test CR-088 Publish Template (test fixture)",
+    "description": "Not a real business category — a disposable, per-run (unique templateVersion) Template code used only by tests/cr088-filter-shaped-overrides.test.ts to exercise publishTemplate's own exposedParameters materialisation. Do not use for real commissioning.",
+    "is_mandatory": null,
+    "text_type": "markdown",
+    "ui_grouping": null
+  },
+  {
+    "concept_type": "template-categories",
+    "code": "test-sdk-authoring-template",
+    "default_label": "Test SDK Authoring Template (test fixture)",
+    "description": "Not a real business category — a disposable, per-run (unique templateVersion) Template code used only by tests/sdk-authoring.test.ts to publish and activate Platform Templates without superseding any seeded Template. Do not use for real commissioning.",
+    "is_mandatory": null,
+    "text_type": "markdown",
+    "ui_grouping": null
+  },
+  {
+    "concept_type": "template-categories",
+    "code": "test-dependency-graph-template",
+    "default_label": "Test Dependency Graph Template (test fixture)",
+    "description": "Not a real business category — a disposable, per-run (unique templateVersion) Template code used only by tests/dependency-graph-relationship-kind.test.ts to publish and activate Platform Templates without superseding any seeded Template. Do not use for real commissioning.",
+    "is_mandatory": null,
+    "text_type": "markdown",
+    "ui_grouping": null
+  },
+  {
+    "concept_type": "template-categories",
+    "code": "test-template-lifecycle-template",
+    "default_label": "Test Template Lifecycle Template (test fixture)",
+    "description": "Not a real business category — a disposable, per-run (unique templateVersion) Template code used only by tests/template-event-lifecycle-table.test.ts to publish and activate Platform Templates without superseding any seeded Template. Do not use for real commissioning.",
+    "is_mandatory": null,
+    "text_type": "markdown",
+    "ui_grouping": null
+  },
+  {
+    "concept_type": "template-categories",
+    "code": "test-enterprise-web-application",
+    "default_label": "Test Enterprise Web Application (test fixture)",
+    "description": "Not a real business category — the shared test-suite fixture Template (tests/testFixtures.ts ensureWebAppTemplateFixture), a minimal Requirements/Architecture/Development composition used across the test suite. Do not use for real commissioning.",
+    "is_mandatory": null,
+    "text_type": "markdown",
+    "ui_grouping": null
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-security-privacy-compliance",
+    "default_label": "Security, Privacy & Compliance (SDLC Phase 4)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "domain-name",
+    "code": "test-domain-ebook-library",
+    "default_label": "E-Book Library Domain Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-configuration-management",
+    "default_label": "Configuration & Change Management (OpenUP Capability Pattern)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-experience-design",
+    "default_label": "Experience Design (SDLC Phase 2)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-hypercare-stabilization",
+    "default_label": "Hypercare & Stabilization (SDLC Phase 12)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-implementation-engineering",
+    "default_label": "Implementation (SDLC Phase 7)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-internationalization-localization",
+    "default_label": "Internationalization & Localization (SDLC Phase 14)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-launch-management",
+    "default_label": "Launch (SDLC Phase 11)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-ongoing-operations-governance",
+    "default_label": "Ongoing Operations & Governance (SDLC Phase 15)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-platform-developer-experience",
+    "default_label": "Platform & Developer Experience (SDLC Phase 5)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-project-management",
+    "default_label": "Project Management (OpenUP Capability Pattern)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-quality-engineering-hardening",
+    "default_label": "Quality Engineering & Hardening (SDLC Phase 8)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-scale-performance-optimization",
+    "default_label": "Scale & Performance Optimization (SDLC Phase 9)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-technical-architecture-discovery",
+    "default_label": "Technical Discovery & Architecture (SDLC Phase 3)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-testing-qa",
+    "default_label": "Test (OpenUP Capability Pattern)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "test-backlog-release-planning",
+    "default_label": "Backlog & Release Planning (SDLC Phase 6)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "test-beta-early-access-management",
+    "default_label": "Beta / Early Access (SDLC Phase 10)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "test-growth-optimization",
+    "default_label": "Growth & Optimization (SDLC Phase 13)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "test-product-discovery",
+    "default_label": "Product Discovery (SDLC Phase 1)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "test-vision-opportunity-framing",
+    "default_label": "Vision & Opportunity (SDLC Phase 0)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-nodejs",
+    "default_label": "Node.js Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-comp-arity",
+    "default_label": "Test: Composition Arity",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-comp-samecode",
+    "default_label": "Test: Composition Same Code",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-comp-cd",
+    "default_label": "Test: Composition Conflict Detection",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-specialize-parent",
+    "default_label": "Test: Compose Specialize Parent",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-specialize-child",
+    "default_label": "Test: Compose Specialize Child",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-union-a",
+    "default_label": "Test: Compose Union A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-union-b",
+    "default_label": "Test: Compose Union B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-union-child",
+    "default_label": "Test: Compose Union Child",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-merge-shared",
+    "default_label": "Test: Compose Merge Shared",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-merge-child",
+    "default_label": "Test: Compose Merge Child",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-intersect-a",
+    "default_label": "Test: Compose Intersect A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-intersect-b",
+    "default_label": "Test: Compose Intersect B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-intersect-child",
+    "default_label": "Test: Compose Intersect Child",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-supplement-base",
+    "default_label": "Test: Compose Supplement Base",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-supplement-extra",
+    "default_label": "Test: Compose Supplement Extra",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-supplement-child",
+    "default_label": "Test: Compose Supplement Child",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-override",
+    "default_label": "Test: Compose Override",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-override-draft",
+    "default_label": "Test: Compose Override Draft",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-notdraft-parent",
+    "default_label": "Test: Compose Not-Draft Parent",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-mandatory",
+    "default_label": "Test: Compose Mandatory",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-compose-optional",
+    "default_label": "Test: Compose Optional",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-pack",
+    "default_label": "Test: Pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-conflict",
+    "default_label": "Test: Conflict",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-live-code",
+    "default_label": "Test: Live Code",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-reactivate-supersede",
+    "default_label": "Test: Reactivate Supersede",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-tenant-scoped",
+    "default_label": "Test: Tenant Scoped",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-tenant-reactivate",
+    "default_label": "Test: Tenant Reactivate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-sdk-pack",
+    "default_label": "Test: SDK Pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-pack-versioning",
+    "default_label": "Test: Pack Versioning",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-pack-no-active-version",
+    "default_label": "Test: Pack No Active Version",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-pack-still-active",
+    "default_label": "Test: Pack Still Active",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-pack-reject",
+    "default_label": "Test: Pack Reject",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-pack-sequence",
+    "default_label": "Test: Pack Version Sequence",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-pack-all-tabs",
+    "default_label": "Test: All Tabs Populated",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-accessibility-ada-508",
+    "default_label": "Test: Digital Accessibility Compliance (ADA Title III / Sec 508 / EAA)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-aml-kyc",
+    "default_label": "Test: AML / KYC & OFAC Sanctions Screening Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-automotive-wp29",
+    "default_label": "Test: Automotive Cybersecurity & Software Update (UNECE R155 / R156)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-bipa",
+    "default_label": "Test: Biometric Information Privacy Compliance (BIPA / CUBI)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-coppa",
+    "default_label": "Test: COPPA Children's Privacy Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-data-residency-localization",
+    "default_label": "Test: Global Sovereign Data Residency & Localization Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-do178c-aviation",
+    "default_label": "Test: DO-178C Airborne Systems Software Certification",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-e-commerce-consumer-protection",
+    "default_label": "Test: E-Commerce & Consumer Protection Compliance (FTC / EU / India)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-eu-ai-act",
+    "default_label": "Test: EU AI Act & Algorithmic Impact Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-eu-dora-nis2",
+    "default_label": "Test: EU DORA & NIS2 Digital Operational Resilience Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-eu-dsa-dma",
+    "default_label": "Test: EU Digital Services & Digital Markets Act (DSA / DMA / Data Act)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-eu-financial-reporting",
+    "default_label": "Test: EU Financial Markets & Corporate Sustainability (CSRD / MiFID II)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-eu-mdr",
+    "default_label": "Test: EU Medical Device Regulation (MDR 2017/745 / IVDR)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-fcpa",
+    "default_label": "Test: FCPA & UK Bribery Act Corporate Integrity Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-fda-21cfr11",
+    "default_label": "Test: FDA 21 CFR Part 11 & SaMD Medical Software Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-fedramp",
+    "default_label": "Test: FedRAMP High & Moderate Baseline Cloud Security Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-fisma",
+    "default_label": "Test: FISMA & Executive Order 14028 Federal Cybersecurity Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-gdpr",
+    "default_label": "Test: GDPR Data Privacy & Protection Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-glba",
+    "default_label": "Test: GLBA Financial Privacy & FTC Safeguards Rule Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-hipaa",
+    "default_label": "Test: HIPAA Health Data Privacy & Security Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-india-dpdp",
+    "default_label": "Test: India Digital Personal Data Protection (DPDP Act 2023 / CERT-In)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-india-rbi-pmla",
+    "default_label": "Test: RBI Financial Cybersecurity & PMLA AML Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-iso-27001",
+    "default_label": "Test: ISO/IEC 27001:2022 ISMS Information Security Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-itar-ear",
+    "default_label": "Test: ITAR & EAR Defense Export & CMMC 2.0 Supply Chain Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-nist-800-53",
+    "default_label": "Test: NIST SP 800-53 Rev. 5 Security & Privacy Controls Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-nydfs",
+    "default_label": "Test: NYDFS 23 NYCRR 500 Financial Cybersecurity Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-pci-dss",
+    "default_label": "Test: PCI-DSS v4.0 Cardholder Data Security Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-psd2-psd3",
+    "default_label": "Test: EU PSD2 / PSD3 Payment Services & Open Banking Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-sebi-companies",
+    "default_label": "Test: India Companies Act & SEBI Regulatory Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-soc2",
+    "default_label": "Test: SOC 2 Type II Trust Services Criteria Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-sox",
+    "default_label": "Test: SOX Financial IT General Controls (ITGC) Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-uk-gdpr-dpa",
+    "default_label": "Test: UK Data Protection & Online Safety Compliance (UK GDPR / OSA)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "test-compliance-us-state-privacy",
+    "default_label": "Test: US Multi-State Privacy Compliance (CCPA/CPRA, VCDPA, CPA)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-cobol",
+    "default_label": "Test: COBOL Mainframe Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-csharp",
+    "default_label": "Test: C# .NET Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-css",
+    "default_label": "Test: Cascading Style Sheet Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-db2",
+    "default_label": "Test: IBM DB2 Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-docker",
+    "default_label": "Test: Docker Containerization Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-git",
+    "default_label": "Test: Git Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-go",
+    "default_label": "Test: Go Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-html",
+    "default_label": "Test: HTML Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-java",
+    "default_label": "Test: Java Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-js",
+    "default_label": "Test: Javascript Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-kotlin",
+    "default_label": "Test: Kotlin Android Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-kubernetes",
+    "default_label": "Test: Kubernetes Cloud-Native Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-oracle",
+    "default_label": "Test: Oracle Database Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-php",
+    "default_label": "Test: PHP Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-python",
+    "default_label": "Test: Python Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-rails",
+    "default_label": "Test: Ruby on Rails Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-react-native",
+    "default_label": "Test: React Native Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-react",
+    "default_label": "Test: React Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-rust",
+    "default_label": "Test: Rust Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-sass",
+    "default_label": "Test: SASS Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-sql",
+    "default_label": "Test: SQL Database Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-swift",
+    "default_label": "Test: Swift iOS Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-c",
+    "default_label": "Test: C Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "test-technology-cpp",
+    "default_label": "Test: C++ Engineering Practices",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  }
+]

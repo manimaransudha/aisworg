@@ -107,14 +107,14 @@ test("transitionObjective follows the Ch.1 lifecycle and rejects an undefined tr
     parentObjectiveId: await strategicRoot(),
     status: "Proposed", requestedBy: TESTER_ALL_ID,});
 
-  const skipAhead = await transitionObjective({ objectiveId: objective.id, targetState: "Archived", actorRole: "super", actorId: TESTER_ALL_ID });
+  const skipAhead = await transitionObjective({ objectiveId: objective.id, targetState: "Archived", actorId: TESTER_ALL_ID });
   assert.equal(skipAhead.ok, false);
   if (!skipAhead.ok && skipAhead.reason !== "not_found") assert.equal(skipAhead.reason, "no_transition_definition");
 
   // CR-072 — Proposed -> Active now needs its own submit_verb ("propose")
   // queued first; transitionObjective real-gates on it (not just a UI hint).
   await submitObjective(objective.id, TESTER_ALL_ID);
-  const activate = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
+  const activate = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activate.ok, true);
   if (activate.ok) {
     assert.equal(activate.objective.status, "Active");
@@ -204,7 +204,7 @@ test("only a Proposed Objective can have its own fields/lineage edited — Activ
   await updateObjective(child.id, { statement: "still-Proposed-still-editable", requestedBy: TESTER_ALL_ID });
 
   await submitObjective(child.id, TESTER_ALL_ID);
-  const activated = await transitionObjective({ objectiveId: child.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
+  const activated = await transitionObjective({ objectiveId: child.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
   // Now Active: this Objective's OWN statement/Capabilities/Move are still
@@ -373,10 +373,10 @@ test("transitionObjective Active -> Reject requires new feedback every time and 
     status: "Proposed", requestedBy: TESTER_ALL_ID,
   });
   await submitObjective(objective.id, TESTER_ALL_ID);
-  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
+  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
-  const noComment = await transitionObjective({ objectiveId: objective.id, targetState: "Reject", actorRole: "general", actorId: TESTER_ALL_ID });
+  const noComment = await transitionObjective({ objectiveId: objective.id, targetState: "Reject", actorId: TESTER_ALL_ID });
   assert.equal(noComment.ok, false);
   if (!noComment.ok) assert.equal(noComment.reason, "comment_required");
 
@@ -385,11 +385,11 @@ test("transitionObjective Active -> Reject requires new feedback every time and 
   // reject needs genuinely new feedback, not just a non-empty field.
   const staleText = "needs more detail on the fraud-detection scope";
   await objectivesDB.addComment(objective.id, TESTER_ALL_ID, ROOT_ACTOR_BADGE, staleText);
-  const staleComment = await transitionObjective({ objectiveId: objective.id, targetState: "Reject", actorRole: "general", actorId: TESTER_ALL_ID, comment: staleText });
+  const staleComment = await transitionObjective({ objectiveId: objective.id, targetState: "Reject", actorId: TESTER_ALL_ID, comment: staleText });
   assert.equal(staleComment.ok, false);
   if (!staleComment.ok) assert.equal(staleComment.reason, "comment_required");
 
-  const rejected = await transitionObjective({ objectiveId: objective.id, targetState: "Reject", actorRole: "general", actorId: TESTER_ALL_ID, comment: "needs a narrower fraud-detection scope before reconsidering" });
+  const rejected = await transitionObjective({ objectiveId: objective.id, targetState: "Reject", actorId: TESTER_ALL_ID, comment: "needs a narrower fraud-detection scope before reconsidering" });
   assert.equal(rejected.ok, true);
   if (rejected.ok) {
     assert.equal(rejected.objective.status, "Reject");
@@ -422,9 +422,9 @@ test("getRejectedObjectivesPage reflects an ancestor's lock on a Reject-status r
   });
 
   await submitObjective(child.id, TESTER_ALL_ID);
-  await transitionObjective({ objectiveId: child.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
+  await transitionObjective({ objectiveId: child.id, targetState: "Active", actorId: TESTER_ALL_ID });
   const rejected = await transitionObjective({
-    objectiveId: child.id, targetState: "Reject", actorRole: "general", actorId: TESTER_ALL_ID,
+    objectiveId: child.id, targetState: "Reject", actorId: TESTER_ALL_ID,
     comment: "needs revision before reconsidering",
   });
   assert.equal(rejected.ok, true);
@@ -459,19 +459,18 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
       primaryProgrammingLanguage: "typescript",
       sourceControlProvider: "github",
     },
-    actorRole: "super",
     actorId: ROOT_ACTOR_ID,
   });
   assert.equal(published.ok, true, !published.ok ? `template status "${template.status}": ${JSON.stringify(published.errors)}` : "assertion failed");
   if (!published.ok) throw new Error("unreachable");
   const profile = { id: published.profileId };
 
-  const blocked = await commissionSeu({ objectiveId: objective.id, templateIds: [template.id], profileIds: [profile.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const blocked = await commissionSeu({ objectiveId: objective.id, templateIds: [template.id], profileIds: [profile.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
   assert.equal(blocked.ok, false);
   if (!blocked.ok) assert.ok(blocked.reason.includes("not Active"), `expected reason to mention "not Active", got: ${blocked.reason}`);
 
   await submitObjective(objective.id, TESTER_ALL_ID);
-  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
+  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
   // design/mvp-build-plan/SEU Composition.md — commissionSeu itself only
@@ -479,10 +478,10 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
   // Active check this test is actually about), so its own lifecycle_state
   // stays 'Pending' here; driveCommissioningToActive runs the rest (Compose
   // EBM, Validate, Activate) to confirm it genuinely completes.
-  const allowed = await commissionSeu({ objectiveId: objective.id, templateIds: [template.id], profileIds: [profile.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const allowed = await commissionSeu({ objectiveId: objective.id, templateIds: [template.id], profileIds: [profile.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
   assert.equal(allowed.ok, true);
   if (!allowed.ok) throw new Error("unreachable");
-  const completed = await driveCommissioningToActive({ seuId: allowed.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
+  const completed = await driveCommissioningToActive({ seuId: allowed.seu.id, actorId: TESTER_ALL_ID });
   assert.equal(completed.ok, true, !completed.ok ? `commissioning failed: ${completed.reason}` : "assertion failed");
   if (completed.ok) assert.equal(completed.seu.lifecycle_state, "Operational");
 });
@@ -512,10 +511,10 @@ test("commissionFromExistingObjective takes an explicit Template choice — a pa
     // status omitted — defaults Active, matching the one-shot quick-commission path
   });
 
-  const requested = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template.id, profileId: profile.id }], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requested = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template.id, profileId: profile.id }], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? JSON.stringify(requested) : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
-  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
+  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (result.ok) assert.equal(result.seu.lifecycle_state, "Operational");
 });

@@ -85,7 +85,7 @@ async function autoAdvanceToPackaged(schema: SchemaDefinitionRow, actorId: strin
   ];
   let current = schema;
   for (const [from, to] of hops) {
-    const gate = await transitionEngine.evaluate({ entityType: "SchemaDefinition", fromState: from, toState: to, actorRole: "", actorId, entityId: current.id });
+    const gate = await transitionEngine.evaluate({ entityType: "SchemaDefinition", fromState: from, toState: to, actorId, entityId: current.id });
     if (!gate.allowed) throw new Error(`cannot advance ${current.entity_kind} schema v${current.version} from ${from} to ${to}`);
     if (!gate.authorityBadge) throw new Error(`no authority badge resolved for SchemaDefinition ${from} -> ${to} — the Transition Definition declares no verb`);
     const { data: updated, error } = await schemaDefinitionsDB.advanceLifecycle(current.id, to, gate.authorityBadge, actorId);
@@ -135,7 +135,7 @@ async function transitionPackagedSchema(id: string, toState: "Published" | "Publ
   if (schema.lifecycle_state !== "Packaged") return { ok: false, error: `Only a Packaged schema can be moved to ${toState} (this one is ${schema.lifecycle_state}).` };
 
   if (!actorId) return { ok: false, error: "actorId is required to publish/reject a Schema Definition" };
-  const gate = await transitionEngine.evaluate({ entityType: "SchemaDefinition", fromState: "Packaged", toState, actorRole: "", actorId, entityId: id });
+  const gate = await transitionEngine.evaluate({ entityType: "SchemaDefinition", fromState: "Packaged", toState, actorId, entityId: id });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, error: `requires badge ${gate.authorityRuleCode}` };
     return { ok: false, error: gate.reason };

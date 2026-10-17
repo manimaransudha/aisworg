@@ -61,7 +61,6 @@ router.post("/reviews/:id/transition", async (req: Request, res: Response) => {
     const result = await transitionReview({
       reviewId: String(req.params.id),
       targetState,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
       outcome: typeof outcome === "string" ? (outcome as ReviewOutcome) : undefined,
     });
@@ -116,7 +115,7 @@ router.post("/findings/:id/transition", async (req: Request, res: Response) => {
   try {
     const { targetState } = req.body ?? {};
     if (typeof targetState !== "string" || !targetState.trim()) return res.status(400).json({ error: "targetState is required" });
-    const result = await transitionFinding({ findingId: String(req.params.id), targetState, actorRole: req.session?.user?.role ?? "general", actorId: String(req.session.user.id) });
+    const result = await transitionFinding({ findingId: String(req.params.id), targetState, actorId: String(req.session.user.id) });
     if (!result.ok) {
       const status = result.reason === "not_found" ? 404 : 409;
       return res.status(status).json({ reason: result.reason, ...("detail" in result ? { detail: result.detail } : {}) });

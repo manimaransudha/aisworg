@@ -51,7 +51,6 @@ export const ebmActivatedHandler: EventHandler = async (event: EventRow) => {
       templates: [template],
       profiles: [profile],
       tenantId: seu.tenant_id,
-      actorRole: "system",
       actorId: event.actor_id,
       correlationId: event.correlation_id,
       causationId: event.id,

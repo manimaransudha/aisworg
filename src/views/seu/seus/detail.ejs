@@ -784,7 +784,7 @@
         <%# ---------------------------------------------------------------- Events %>
         <div class="<%= paneClass('events') %>" id="seu-detail-events" role="tabpanel">
           <div class="section-card">
-            <% if (locals.session?.user?.role === 'super') { %>
+            <% if (locals.isSuperuser) { %>
               <div class="p-2 border-bottom text-end">
                 <a href="/aisworg/seu/events?seuId=<%= detail.seu.id %>" class="small">Explore full history in Event Bus &rarr;</a>
               </div>

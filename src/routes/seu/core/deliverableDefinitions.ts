@@ -77,11 +77,11 @@ async function demoteOntologyIfNoOtherActive(row: DeliverableDefinitionRow, acto
   if (!stillActive) await retireConceptForEntity("deliverable-name", row.code, row.tenant_id, actorId, actorBadge);
 }
 
-export async function transitionDeliverableDefinition(input: { deliverableDefinitionId: string; targetState: DeliverableDefinitionRow["status"]; actorRole: string; actorId: string }): Promise<TransitionDeliverableDefinitionResult> {
+export async function transitionDeliverableDefinition(input: { deliverableDefinitionId: string; targetState: DeliverableDefinitionRow["status"]; actorId: string }): Promise<TransitionDeliverableDefinitionResult> {
   const { data: concept } = await deliverableDefinitionsDB.findById(input.deliverableDefinitionId);
   if (!concept) return { ok: false, reason: "not_found" };
   const fromState = concept.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Deliverable", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, context: { deliverableDefinition: concept } });
+  const gate = await transitionEngine.evaluate({ entityType: "Deliverable", fromState, toState: input.targetState, actorId: input.actorId, context: { deliverableDefinition: concept } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Deliverable ${fromState} -> ${input.targetState}` };
@@ -92,7 +92,7 @@ export async function transitionDeliverableDefinition(input: { deliverableDefini
     return { ok: false, reason: "not_authorised" };
   }
   if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    return reactivateAsNewVersion(concept, input.actorRole, input.actorId, gate.authorityBadge);
+    return reactivateAsNewVersion(concept, input.actorId, gate.authorityBadge);
   }
 
   const { data: updated, error } = await deliverableDefinitionsDB.updateStatus(concept.id, input.targetState);
@@ -124,7 +124,7 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
   return nextAvailableVersion(fromVersion, async (candidate) => !!(await deliverableDefinitionsDB.findByCodeAndVersion(code, candidate, tenantId)).data);
 }
 
-async function reactivateAsNewVersion(concept: DeliverableDefinitionRow, actorRole: string, actorId: string, authorBadge: string): Promise<TransitionDeliverableDefinitionResult> {
+async function reactivateAsNewVersion(concept: DeliverableDefinitionRow, actorId: string, authorBadge: string): Promise<TransitionDeliverableDefinitionResult> {
   const nextVersion = await nextAvailablePatchVersion(concept.code, concept.version, concept.tenant_id);
   const { data: reactivationSchema } = concept.schema_definition_id ? { data: { id: concept.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Deliverable");
   if (!reactivationSchema) return { ok: false, reason: "policy_blocked", detail: `no schema_definitions grammar for Deliverable` };
@@ -147,14 +147,14 @@ async function reactivateAsNewVersion(concept: DeliverableDefinitionRow, actorRo
 
   let current = newDraft;
   for (const targetState of ["Validated", "Published", "Active"] as const) {
-    const result = await transitionDeliverableDefinition({ deliverableDefinitionId: current.id, targetState, actorRole, actorId });
+    const result = await transitionDeliverableDefinition({ deliverableDefinitionId: current.id, targetState, actorId });
     if (!result.ok) return result;
     current = result.deliverableDefinition;
   }
 
   const { data: previousActive } = await deliverableDefinitionsDB.findActiveByCode(concept.code, concept.tenant_id);
   if (previousActive && previousActive.id !== current.id) {
-    await transitionDeliverableDefinition({ deliverableDefinitionId: previousActive.id, targetState: "Deprecated", actorRole, actorId });
+    await transitionDeliverableDefinition({ deliverableDefinitionId: previousActive.id, targetState: "Deprecated", actorId });
   }
 
   return { ok: true, deliverableDefinition: current };
@@ -169,21 +169,21 @@ const AUTHORING_NEXT_STATE: Partial<Record<DeliverableDefinitionRow["status"], D
   Retired: "Archived",
 };
 
-export async function advanceDeliverableDefinitionOneStep(concept: DeliverableDefinitionRow, actorRole: string, actorId: string): Promise<TransitionDeliverableDefinitionResult> {
+export async function advanceDeliverableDefinitionOneStep(concept: DeliverableDefinitionRow, actorId: string): Promise<TransitionDeliverableDefinitionResult> {
   const targetState = AUTHORING_NEXT_STATE[concept.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Deliverable Definition is already ${concept.status} — no further authoring step` };
 
   if (targetState === "Active") {
     const { data: previousActive } = await deliverableDefinitionsDB.findActiveByCode(concept.code, concept.tenant_id);
-    const activateResult = await transitionDeliverableDefinition({ deliverableDefinitionId: concept.id, targetState: "Active", actorRole, actorId });
+    const activateResult = await transitionDeliverableDefinition({ deliverableDefinitionId: concept.id, targetState: "Active", actorId });
     if (!activateResult.ok) return activateResult;
     if (previousActive && previousActive.id !== activateResult.deliverableDefinition.id) {
-      await transitionDeliverableDefinition({ deliverableDefinitionId: previousActive.id, targetState: "Deprecated", actorRole, actorId });
+      await transitionDeliverableDefinition({ deliverableDefinitionId: previousActive.id, targetState: "Deprecated", actorId });
     }
     return activateResult;
   }
 
-  return transitionDeliverableDefinition({ deliverableDefinitionId: concept.id, targetState, actorRole, actorId });
+  return transitionDeliverableDefinition({ deliverableDefinitionId: concept.id, targetState, actorId });
 }
 
 export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {

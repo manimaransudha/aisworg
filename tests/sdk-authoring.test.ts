@@ -230,9 +230,9 @@ async function grant(actorId: string, badgeType: string): Promise<void> {
 // advancePackOneStep). Reaching Active from Draft is however many hops the
 // entity has — call repeatedly (as the given actor, who must hold every hop's
 // verb to drive it through alone, same as `pack-all`) until Active or blocked.
-async function advanceToActive(kind: "Pack" | "Template" | "Profile" | "Deliverable", id: string, actorId: string, actorRole: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
+async function advanceToActive(kind: "Pack" | "Template" | "Profile" | "Deliverable", id: string, actorId: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   for (let i = 0; i < 10; i++) {
-    const result = await publishAuthoringDraft({ kind, id, actorId, actorRole });
+    const result = await publishAuthoringDraft({ kind, id, actorId });
     if (!result.ok) return result;
     if (result.status === "Active") return { ok: true };
   }
@@ -275,7 +275,7 @@ async function ensureCr026ParentTemplate(): Promise<TemplateRow> {
       if (!created.ok) throw new Error(`ensureCr026ParentTemplate: ${created.errors.join("; ")}`);
       createdTemplateIds.push(created.draftId);
       await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content });
-      const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
+      const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID);
       if (!published.ok) throw new Error(`ensureCr026ParentTemplate: failed to activate: ${published.errors.join("; ")}`);
       const { data: template, error } = await templatesDB.findById(created.draftId);
       if (error || !template) throw error ?? new Error("ensureCr026ParentTemplate: template not found after publish");
@@ -306,7 +306,7 @@ test("Pack authoring (entity-direct): root creates a Draft, authors, and publish
   const saved = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Pack", id: created.draftId, content: validPackContent(code, packVersion) });
   assert.equal(saved.ok, true, !saved.ok ? saved.errors.join("; ") : "assertion failed");
 
-  const published = await advanceToActive("Pack", created.draftId, ROOT_ACTOR_ID, "general");
+  const published = await advanceToActive("Pack", created.draftId, ROOT_ACTOR_ID);
   assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
 
   const { data: activePack } = await packsDB.findByCodeAndVersion(code, packVersion);
@@ -335,7 +335,7 @@ test("Pack authoring authority is noun × verb: a non-root holder of the Pack li
   const okDraft = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: publisherId, content: validPackContent(REAL_PACK_CODE, okVersion) });
   assert.equal(okDraft.ok, true, !okDraft.ok ? okDraft.errors.join("; ") : "assertion failed");
   if (!okDraft.ok) return;
-  const okPublish = await advanceToActive("Pack", okDraft.draftId, publisherId, "general");
+  const okPublish = await advanceToActive("Pack", okDraft.draftId, publisherId);
   assert.equal(okPublish.ok, true, !okPublish.ok ? okPublish.errors.join("; ") : "assertion failed");
   const { data: activeOk } = await packsDB.findByCodeAndVersion(REAL_PACK_CODE, okVersion);
   assert.ok(activeOk, "publisher with the Pack lifecycle badges should produce an Active Pack");
@@ -345,7 +345,7 @@ test("Pack authoring authority is noun × verb: a non-root holder of the Pack li
   const denyDraft = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: outsiderId, content: validPackContent(REAL_PACK_CODE, uniqueVersion()) });
   assert.equal(denyDraft.ok, true);
   if (!denyDraft.ok) return;
-  const denyPublish = await publishAuthoringDraft({ kind: "Pack", id: denyDraft.draftId, actorId: outsiderId, actorRole: "general" });
+  const denyPublish = await publishAuthoringDraft({ kind: "Pack", id: denyDraft.draftId, actorId: outsiderId });
   assert.equal(denyPublish.ok, false, "a holder without Pack authority must NOT be able to publish");
   const { data: stillDraft } = await packsDB.findById(denyDraft.draftId);
   assert.equal(stillDraft!.status, "Draft", "a denied publish leaves the Draft a Draft");
@@ -368,22 +368,22 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   assert.equal(draftPack!.authored_by, author, "authored_by is the real defining actor");
 
   // The author (define-only) cannot advance it — defining isn't reviewing.
-  const authorTriesToAdvance = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: author, actorRole: "general" });
+  const authorTriesToAdvance = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: author });
   assert.equal(authorTriesToAdvance.ok, false, "the author alone (no validate badge) cannot advance Draft -> Validated");
 
-  const step1 = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: reviewer, actorRole: "general" });
+  const step1 = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: reviewer });
   assert.equal(step1.ok, true, !step1.ok ? step1.errors.join("; ") : "assertion failed");
   if (step1.ok) assert.equal(step1.status, "Validated");
 
   // The reviewer (validate-only) cannot also publish — that's a different badge.
-  const reviewerTriesToPublish = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: reviewer, actorRole: "general" });
+  const reviewerTriesToPublish = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: reviewer });
   assert.equal(reviewerTriesToPublish.ok, false, "the reviewer alone (no publish badge) cannot advance Validated -> Published");
 
-  const step2 = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: publisher, actorRole: "general" });
+  const step2 = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: publisher });
   assert.equal(step2.ok, true, !step2.ok ? step2.errors.join("; ") : "assertion failed");
   if (step2.ok) assert.equal(step2.status, "Published");
 
-  const step3 = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: activator, actorRole: "general" });
+  const step3 = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: activator });
   assert.equal(step3.ok, true, !step3.ok ? step3.errors.join("; ") : "assertion failed");
   if (step3.ok) assert.equal(step3.status, "Active");
 
@@ -414,7 +414,7 @@ test("Pack authoring: Publish is blocked by referential validation (unresolvable
   // A dependency on a Pack that doesn't exist — fails validatePackSeed at publish.
   await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Pack", id: created.draftId, content: { ...validPackContent(REAL_PACK_CODE, packVersion), dependencies: [{ packCode: "this-pack-does-not-exist", version: "1.0.0", type: "required" }] } });
 
-  const published = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
+  const published = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: ROOT_ACTOR_ID });
   assert.equal(published.ok, false);
   assert.ok(!published.ok && published.errors.length > 0);
 
@@ -447,7 +447,7 @@ test("CR-081: creating a new Pack from an EXISTING code inherits its content (in
   const sourceCreated = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: sourceContent });
   assert.equal(sourceCreated.ok, true, !sourceCreated.ok ? sourceCreated.errors.join("; ") : "assertion failed");
   if (!sourceCreated.ok) return;
-  const publishedSource = await advanceToActive("Pack", sourceCreated.draftId, ROOT_ACTOR_ID, "general");
+  const publishedSource = await advanceToActive("Pack", sourceCreated.draftId, ROOT_ACTOR_ID);
   assert.equal(publishedSource.ok, true, !publishedSource.ok ? publishedSource.errors.join("; ") : "assertion failed");
 
   // The computed next version is whatever the code's own sequence says right
@@ -559,7 +559,7 @@ test("Template authoring (entity-direct): the same pipeline as Pack produces a r
   // change) — one publishAuthoringDraft call only advances one hop, same as
   // Pack; root holds every verb, so advanceToActive drives it straight
   // through, same as the Pack test above.
-  const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
+  const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID);
   assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
 
   const { data: template } = await templatesDB.findByCodeAndVersion(REAL_TEMPLATE_CODE, templateVersion);
@@ -584,7 +584,7 @@ test("Profile authoring (entity-direct): produces a real Active Profile row refe
   await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Profile", id: created.draftId, content });
 
   // Bug fix (owner, 2026-08-18): same six-hop lifecycle change as Template above.
-  const published = await advanceToActive("Profile", created.draftId, ROOT_ACTOR_ID, "general");
+  const published = await advanceToActive("Profile", created.draftId, ROOT_ACTOR_ID);
   assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
 
   const { data: profile } = await profilesDB.findByCode(code);
@@ -602,7 +602,7 @@ test("Template authoring: referential validation rejects a mandatoryPackCode tha
   createdTemplateIds.push(created.draftId);
   await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content: { ...validTemplateContent(REAL_TEMPLATE_CODE, templateVersion), engineeringPackCodes: [{ packCode: "this-pack-code-does-not-exist" }] } });
 
-  const published = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
+  const published = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID });
   assert.equal(published.ok, false);
   assert.match((!published.ok && published.errors.join(";")) || "", /this-pack-code-does-not-exist/);
 });
@@ -689,7 +689,7 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   const savedStripped = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content: strippedContent });
   assert.equal(savedStripped.ok, true, "WIP is allowed to be incomplete — Save itself must not block this");
 
-  const rejectedPublish = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
+  const rejectedPublish = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID });
   assert.equal(rejectedPublish.ok, false, "an inherited Template must keep every one of its parent's mandatory Packs");
   assert.match((!rejectedPublish.ok && rejectedPublish.errors.join(";")) || "", new RegExp(parentMandatory![0]!));
   const { data: stillDraft } = await templatesDB.findById(created.draftId);
@@ -698,7 +698,7 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   const restored = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content: { ...sanitisedContent, templateVersion: "1.0.0" } });
   assert.equal(restored.ok, true);
 
-  const acceptedPublish = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
+  const acceptedPublish = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID);
   assert.equal(acceptedPublish.ok, true, !acceptedPublish.ok ? acceptedPublish.errors.join("; ") : "assertion failed");
   const { data: active } = await templatesDB.findById(created.draftId);
   assert.equal(active?.status, "Active");
@@ -724,7 +724,7 @@ test("Profile Inheritance: a tenant author inheriting an Active Platform Profile
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   createdProfileIds.push(created.draftId);
-  const parentPublish = await advanceToActive("Profile", created.draftId, ROOT_ACTOR_ID, "general");
+  const parentPublish = await advanceToActive("Profile", created.draftId, ROOT_ACTOR_ID);
   assert.equal(parentPublish.ok, true, !parentPublish.ok ? parentPublish.errors.join("; ") : "assertion failed");
   const { data: parent } = await profilesDB.findById(created.draftId);
   assert.equal(parent?.status, "Active");
@@ -792,7 +792,7 @@ test("Deliverable Definition authoring (entity-direct): produces a real Active r
   const saved = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Deliverable", id: created.draftId, content: validDeliverableDefinitionContent(code, definitionVersion) });
   assert.equal(saved.ok, true, !saved.ok ? saved.errors.join("; ") : "assertion failed");
 
-  const published = await advanceToActive("Deliverable", created.draftId, ROOT_ACTOR_ID, "general");
+  const published = await advanceToActive("Deliverable", created.draftId, ROOT_ACTOR_ID);
   assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
 
   const { data: activeRow } = await deliverableDefinitionsDB.findByCodeAndVersion(code, definitionVersion, PLATFORM_TENANT_ID);
@@ -842,7 +842,7 @@ test("CR-049: inheriting from an Active Platform Deliverable Definition offers a
   assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : "assertion failed");
   if (!parentCreated.ok) return;
   createdDeliverableDefinitionIds.push(parentCreated.draftId);
-  const parentPublished = await advanceToActive("Deliverable", parentCreated.draftId, ROOT_ACTOR_ID, "general");
+  const parentPublished = await advanceToActive("Deliverable", parentCreated.draftId, ROOT_ACTOR_ID);
   assert.equal(parentPublished.ok, true, !parentPublished.ok ? parentPublished.errors.join("; ") : "assertion failed");
   const { data: parent } = await deliverableDefinitionsDB.findByCodeAndVersion(parentCode, parentVersion, PLATFORM_TENANT_ID);
 
@@ -886,14 +886,14 @@ test("Deliverable Definition: a second Version of the same code superseding the 
   assert.equal(v1.ok, true, !v1.ok ? v1.errors.join("; ") : "assertion failed");
   if (!v1.ok) return;
   createdDeliverableDefinitionIds.push(v1.draftId);
-  const v1Published = await advanceToActive("Deliverable", v1.draftId, ROOT_ACTOR_ID, "general");
+  const v1Published = await advanceToActive("Deliverable", v1.draftId, ROOT_ACTOR_ID);
   assert.equal(v1Published.ok, true, !v1Published.ok ? v1Published.errors.join("; ") : "assertion failed");
 
   const v2 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: { code, description: "Updated description for v2", definitionVersion: "1.0.1" } });
   assert.equal(v2.ok, true, !v2.ok ? v2.errors.join("; ") : "assertion failed");
   if (!v2.ok) return;
   createdDeliverableDefinitionIds.push(v2.draftId);
-  const v2Published = await advanceToActive("Deliverable", v2.draftId, ROOT_ACTOR_ID, "general");
+  const v2Published = await advanceToActive("Deliverable", v2.draftId, ROOT_ACTOR_ID);
   assert.equal(v2Published.ok, true, !v2Published.ok ? v2Published.errors.join("; ") : "assertion failed");
 
   const { data: v1After } = await deliverableDefinitionsDB.findById(v1.draftId);

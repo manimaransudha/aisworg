@@ -14,6 +14,9 @@
         "code": "software-design",
         "name": "Experience Design",
         "description": "Translates validated user needs into concrete interface designs, prototypes, and a coherent design system ready for engineering handoff."
+      },
+      {
+        "code": "user-experience-engineering"
       }
     ],
     "services": [

@@ -5,7 +5,6 @@ CREATE TABLE capabilities (
   code                 TEXT NOT NULL,
   name                 TEXT NOT NULL,
   description          TEXT,
-  category             TEXT,
   originating_pack_id  UUID REFERENCES packs(id),
   version              INTEGER NOT NULL DEFAULT 1,
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()

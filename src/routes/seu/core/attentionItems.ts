@@ -95,7 +95,7 @@ export type TransitionAttentionItemResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-export async function transitionAttentionItem(input: { attentionItemId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionAttentionItemResult> {
+export async function transitionAttentionItem(input: { attentionItemId: string; targetState: string; actorId: string }): Promise<TransitionAttentionItemResult> {
   const { data: attentionItem } = await attentionItemsDB.findById(input.attentionItemId);
   if (!attentionItem) return { ok: false, reason: "not_found" };
 
@@ -105,7 +105,6 @@ export async function transitionAttentionItem(input: { attentionItemId: string; 
     entityType: "AttentionItem",
     fromState,
     toState: input.targetState,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     context: { attentionItem },
     gateEntityId: attentionItem.id,

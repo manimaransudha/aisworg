@@ -102,7 +102,7 @@ test("DRIVEN: row 3 (Validate) publishes PackValidated, matching transition_defi
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  const result = await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
+  const result = await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Pack", draft.pack.id);
@@ -118,9 +118,9 @@ test("DRIVEN: row 4 (Reject) publishes PackRejected, matching transition_definit
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorId: TESTER_ALL_ID });
   const rejected = await transitionPack({
-    packId: draft.pack.id, targetState: "Draft", actorRole: "power", actorId: TESTER_ALL_ID,
+    packId: draft.pack.id, targetState: "Draft", actorId: TESTER_ALL_ID,
     comment: `event-table test rejection ${randomUUID()}`,
   });
   assert.equal(rejected.ok, true);
@@ -138,11 +138,11 @@ test("DRIVEN: rows 5-8 (Publish/Activate/Retire/Archive) each publish their matc
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
-  await transitionPack({ packId: draft.pack.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
-  await transitionPack({ packId: draft.pack.id, targetState: "Active", actorRole: "power", actorId: TESTER_ALL_ID });
-  await transitionPack({ packId: draft.pack.id, targetState: "Retired", actorRole: "power", actorId: TESTER_ALL_ID });
-  const archived = await transitionPack({ packId: draft.pack.id, targetState: "Archived", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorId: TESTER_ALL_ID });
+  await transitionPack({ packId: draft.pack.id, targetState: "Published", actorId: TESTER_ALL_ID });
+  await transitionPack({ packId: draft.pack.id, targetState: "Active", actorId: TESTER_ALL_ID });
+  await transitionPack({ packId: draft.pack.id, targetState: "Retired", actorId: TESTER_ALL_ID });
+  const archived = await transitionPack({ packId: draft.pack.id, targetState: "Archived", actorId: TESTER_ALL_ID });
   assert.equal(archived.ok, true);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Pack", draft.pack.id);

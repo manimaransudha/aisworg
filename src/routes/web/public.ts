@@ -1,3 +1,4 @@
+import type { Request, Response, NextFunction } from "express";
 
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
@@ -13,9 +14,17 @@ import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard
 import { getSeuQuickview } from "../seu/core/seus.js";
 import { getParticipantHomeView, completeMyWorkItem, raiseMyObligation } from "../seu/core/participantHome.js";
 import { flashError, flashSuccess } from "../../utils/flash.js";
+import type { WorkItemOutcome } from "../seu/core/workItems.js";
 import { listConceptsForType } from "../seu/core/ontology.js";
+import { resolveHeldRoles } from "../../domain/identity/heldRoles.js";
 
-router.get("/", attachVM("seu/dashboard"), async (req, res, next) => {
+function sessionUserOf(req: Request) {
+  const user = req.session.user;
+  if (!user) throw new Error(`[web/public] ${req.method} ${req.path} reached without a session user`);
+  return user;
+}
+
+router.get("/", attachVM("seu/dashboard"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const [layers, counts] = await Promise.all([getArchitectureLayers(), getDashboardCounts()]);
     req.vm.req.title = "SEU Platform";
@@ -29,13 +38,14 @@ router.get("/", attachVM("seu/dashboard"), async (req, res, next) => {
   }
 });
 
-router.get("/quickview", attachVM("quickview/index"), async (req, res, next) => {
+router.get("/quickview", attachVM("quickview/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (req.session?.user?.role === "general") {
+    const held = req.session?.user ? await resolveHeldRoles(String(sessionUserOf(req).id)) : null;
+    if (held && !held.isSuperuser && held.roles.has("general")) {
       req.vm.req.title = "My Work";
-      req.vm.req.participantHome = await getParticipantHomeView(req.session.user.id);
-      const isRoot = (req.session.user.platformBadges ?? []).includes("root");
-      const tenantId = req.session.user.tenant_id ?? null;
+      req.vm.req.participantHome = await getParticipantHomeView(sessionUserOf(req).id);
+      const isRoot = (sessionUserOf(req).platformBadges ?? []).includes("root");
+      const tenantId = sessionUserOf(req).tenant_id ?? null;
       const [obligationCategories, obligationSeverities] = await Promise.all([
         listConceptsForType("category:obligation", { isRoot, tenantId }, false),
         listConceptsForType("category:obligation-severity", { isRoot, tenantId }, false),
@@ -62,7 +72,7 @@ router.get("/quickview", attachVM("quickview/index"), async (req, res, next) => 
   }
 });
 
-router.post("/quickview/work-items/:workItemId/complete", async (req, res) => {
+router.post("/quickview/work-items/:workItemId/complete", async (req: Request, res: Response) => {
   const backTo = "/aisworg/quickview";
   const { outcome, reference } = req.body ?? {};
   if (typeof outcome !== "string" || !["done", "failed", "blocked"].includes(outcome)) {
@@ -70,9 +80,9 @@ router.post("/quickview/work-items/:workItemId/complete", async (req, res) => {
   }
   try {
     const result = await completeMyWorkItem({
-      userId: req.session.user.id,
+      userId: sessionUserOf(req).id,
       workItemId: String(req.params.workItemId),
-      outcome,
+      outcome: outcome as WorkItemOutcome,
       reference: typeof reference === "string" && reference.trim() !== "" ? reference : null,
     });
     if (!result.ok) {
@@ -84,11 +94,11 @@ router.post("/quickview/work-items/:workItemId/complete", async (req, res) => {
     return flashSuccess(req, res, backTo, `Reported "${result.outcome}" — the transition was not applied and an Attention Item was raised.`);
   } catch (err) {
     logger.error("[QuickView] POST work-item complete error:", err);
-    return flashError(req, res, backTo, err.message);
+    return flashError(req, res, backTo, err instanceof Error ? err.message : String(err));
   }
 });
 
-router.post("/quickview/seus/:seuId/obligations", async (req, res) => {
+router.post("/quickview/seus/:seuId/obligations", async (req: Request, res: Response) => {
   const backTo = "/aisworg/quickview";
   const { deliverableId, category, title, description, severity, completionCriteria } = req.body ?? {};
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
@@ -96,7 +106,7 @@ router.post("/quickview/seus/:seuId/obligations", async (req, res) => {
   }
   try {
     const result = await raiseMyObligation({
-      userId: req.session.user.id,
+      userId: sessionUserOf(req).id,
       seuId: String(req.params.seuId),
       deliverableId,
       category,
@@ -111,7 +121,7 @@ router.post("/quickview/seus/:seuId/obligations", async (req, res) => {
     return flashSuccess(req, res, backTo, `Obligation "${result.obligation.title}" created (${result.obligation.category}, ${result.obligation.severity}).`);
   } catch (err) {
     logger.error("[QuickView] POST obligations error:", err);
-    return flashError(req, res, backTo, err.message);
+    return flashError(req, res, backTo, err instanceof Error ? err.message : String(err));
   }
 });
 

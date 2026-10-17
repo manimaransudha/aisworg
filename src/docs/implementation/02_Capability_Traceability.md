@@ -91,10 +91,10 @@ A **Pack contributes to a Capability** as an extension: `capabilities` rows are 
       <td style="word-break:break-word; overflow-wrap:anywhere;">Each fulfilment writes <code>capability_fulfilments</code> with seu_capability_id, participant_id, author_id, author_badge, established_at and revoked_at, and publishes ParticipantCreated and CapabilityFulfilled with actor and badge.<br>Gap:<br>updateStatus overwrites authored_by and author_badge on the Definition row at every transition, so the original author is lost and only the latest actor is retained. The event stream holds the history.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability has Identifier, Name, Description, Category, Inputs, Outputs, Required Knowledge, Expected Deliverables, Success Criteria and Supported Participant Types.<br> Ref: §8</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/recovery/<code>capability_definitions</code>_schema_recovery.sql:3-12</code><br><code>src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</code><br><code>src/dblayer/seed/data/schemaDefinitions.json (entity_kind Capability)</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capability_definitions</code> holds id, code, default_label, description and roles[] with worktypes. The Service Definition bound to the Capability through capability_code holds Inputs (inputs), Outputs (outputs, which name the Expected Deliverables), Success Criteria (success), purpose, consumers, governance and service level. Packs supply Required Knowledge through contributions.competencies and contributions.engineeringCapital (src/routes/seu/core/packs.ts:365-382), composed into the SEU's competency requirements (src/domain/engine/profileCompositionUnravel.ts:66). Packs supply Supported Participant Types through Eligibility-scope Policies, applied with the competency match in src/routes/seu/core/participantEligibility.ts:28-60. The Pack extension row holds id, code, name, description, category and version.<br>Gap:<br>The extension row's category column is never written (upsertFromPack omits it), and the Definition has no category property. service_definitions.capability_code is indexed but not unique, so the 1:1 binding is not enforced by the database.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/recovery/<code>capability_definitions</code>_schema_recovery.sql:3-12</code><br><code>src/dblayer/recovery/capabilities_schema_recovery.sql:3-12</code><br><code>src/dblayer/seed/data/schemaDefinitions.json (entity_kind Capability)</code><br><code>src/dblayer/seed/data/capabilityDefinitions.json</code><br><code>src/dblayer/seed/seedCapabilityDefinitions.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capability_definitions</code> holds id, code, default_label, description, category and roles[] with worktypes. The category is a NOT NULL column, declared as a required Ontology-driven property in the Capability schema (concept type category:capability, composable) and validated on seed and on authoring. The Service Definition bound to the Capability through capability_code holds Inputs (inputs), Outputs (outputs, which name the Expected Deliverables), Success Criteria (success), purpose, consumers, governance and service level. Packs supply Required Knowledge through contributions.competencies and contributions.engineeringCapital (src/routes/seu/core/packs.ts:365-382), composed into the SEU's competency requirements (src/domain/engine/profileCompositionUnravel.ts:66). Packs supply Supported Participant Types through Eligibility-scope Policies, applied with the competency match in src/routes/seu/core/participantEligibility.ts:28-60. The Pack extension row holds id, code, name, description and version; the Category is carried by the Definition only.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
@@ -142,7 +142,7 @@ A **Pack contributes to a Capability** as an extension: `capabilities` rows are 
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities are discoverable by identifier, category, engineering objective, Deliverable, Pack contribution and supported Participant type.<br> Ref: §11</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/capabilitiesDB.ts:32-60</code><br><code>src/routes/seu/api/objectives.ts:62-68</code><br><code>src/routes/seu/web/capabilityDefinitionRegistry.ts:18-45</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">By identifier: findById and findByCodes. By Pack contribution (extensions): findByOriginatingPackIds. By engineering objective: suggest-capabilities endpoint. By Deliverable: producing_capability_id. The Definition registry supports code and label search and a status filter.<br>Gap:<br>No discovery by category (column never populated) or by supported Participant type. No Capability discovery service or API exists as a single surface.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">By identifier: findById and findByCodes. By Pack contribution (extensions): findByOriginatingPackIds. By engineering objective: suggest-capabilities endpoint. By Deliverable: producing_capability_id. The Definition registry supports code and label search and a status filter.<br>Gap:<br>The Definition carries a category, but no finder or registry filter queries by it, and there is no discovery by supported Participant type. No Capability discovery service or API exists as a single surface.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
@@ -216,17 +216,16 @@ A **Pack contributes to a Capability** as an extension: `capabilities` rows are 
 ## Summary
 
 - Total intents analysed: 30
-- Fully met: 14
-- Partially met: 14
+- Fully met: 15
+- Partially met: 13
 - Not met: 2
 - Not verifiable: 0
 
 **Major implementation gaps**
 
-- §8 structure: the Category of a Capability is not carried by the Definition, and the extension row's category column is never written.
 - §9 relationships: only a parent pointer exists. Dependency and composition relations and the circular-dependency rule are absent.
 - §13: the Organisational Learning Obligation path is absent. A Pack's extension row is overwritten in place on republish.
 - §14 events: CapabilityRegistered, CapabilityUpdated, CapabilityRequested, CapabilityUnavailable and CapabilityReleased are not published.
 - §12: fulfilment is not triggered when a Deliverable becomes Ready.
-- §11 discovery: no category or Participant type discovery and no single discovery service or API.
+- §11 discovery: no category-based or Participant type discovery and no single discovery service or API.
 

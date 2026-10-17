@@ -101,7 +101,6 @@ function postTransition(targetState: ObjectiveStatus) {
   return async (req: Request, res: Response): Promise<void> => {
     try {
       const { comment, supersedingObjectiveId } = req.body ?? {};
-      const actorRole = req.session?.user?.role ?? "general";
       if (req.session?.user?.id == null) {
         res.status(401).json({ error: "authentication required" });
         return;
@@ -110,7 +109,6 @@ function postTransition(targetState: ObjectiveStatus) {
       const result = await transitionObjective({
         objectiveId: String(req.params.id),
         targetState,
-        actorRole,
         actorId,
         comment: typeof comment === "string" ? comment : undefined,
         supersedingObjectiveId: typeof supersedingObjectiveId === "string" && supersedingObjectiveId ? supersedingObjectiveId : undefined,

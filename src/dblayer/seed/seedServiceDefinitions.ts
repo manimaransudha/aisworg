@@ -9,6 +9,7 @@ import { schemaDefinitionsDB } from "../schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../participantsMasterDB.js";
 import { transitionServiceDefinition } from "../../routes/seu/core/serviceDefinitions.js";
 import type { ServiceLevelExpectation } from "../seuTypes.js";
+import { ontologyDB } from "../ontologyDB.js";
 import { userDB } from "../userDB.js";
 import { getPlatformTenantId } from "../constants.js";
 
@@ -42,27 +43,26 @@ export interface SeedActor {
 export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
 
-  const { rows: existing } = await query<{ code: string; tenant_id: string }>(
-    "SELECT code, tenant_id FROM service_definitions"
-  );
-  const existingKeys = new Set(existing.map((r) => `${r.code}|${r.tenant_id}`));
-
   const platformTenantId = await getPlatformTenantId();
-  const missing = seeds.filter((s) => !existingKeys.has(`${s.code}|${platformTenantId}`));
-  if (missing.length === 0) {
-    logger.info("[seedServiceDefinitions] every baseline row already present, nothing to do");
-    return;
+  const { data: deliverableConcepts, error: deliverableError } = await ontologyDB.findConceptsByType("deliverable-name", { isRoot: false, tenantId: platformTenantId });
+  if (deliverableError) throw new Error(`[seedServiceDefinitions] failed to load deliverable-name Ontology: ${deliverableError.message}`);
+  const deliverableNames = new Set((deliverableConcepts ?? []).map((c) => c.code));
+  const invalid = seeds.flatMap((s) => [...s.inputs.map((v) => ({ code: s.code, field: "inputs", v })), ...s.outputs.map((v) => ({ code: s.code, field: "outputs", v }))]).filter((x) => !deliverableNames.has(x.v));
+  if (invalid.length > 0) {
+    throw new Error(`[seedServiceDefinitions] values not in Ontology deliverable-name: ${invalid.map((x) => `${x.code}.${x.field}="${x.v}"`).join(", ")}`);
   }
-  logger.info(`[seedServiceDefinitions] ${missing.length} of ${seeds.length} baseline rows missing -- creating now`);
+
+  const { rowCount: deleted } = await query("DELETE FROM service_definitions WHERE tenant_id = $1", [platformTenantId]);
+  logger.info(`[seedServiceDefinitions] deleted ${deleted ?? 0} platform-tenant rows -- creating ${seeds.length} baseline rows now`);
 
   const { data: serviceSchema } = await schemaDefinitionsDB.findLatest("Service");
   if (!serviceSchema) throw new Error("no schema_definitions grammar for Service -- run the schema-definitions data migration first");
 
   let i = 0;
   const PLATFORM_TENANT_ID = platformTenantId;
-  for (const seed of missing) {
+  for (const seed of seeds) {
     i++;
-    logger.info(`[seedServiceDefinitions] (${i}/${missing.length}) ${seed.code} -- creating draft...`);
+    logger.info(`[seedServiceDefinitions] (${i}/${seeds.length}) ${seed.code} -- creating draft...`);
     const { data: created, error } = await serviceDefinitionsDB.createDraft({
       code: seed.code,
       name: seed.name,
@@ -87,17 +87,17 @@ export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
     });
     if (error) throw new Error(`[seedServiceDefinitions] failed to create draft for ${seed.code}: ${error.message}`);
     if (!created) {
-      logger.info(`[seedServiceDefinitions] (${i}/${missing.length}) ${seed.code} already exists, skipping`);
+      logger.info(`[seedServiceDefinitions] (${i}/${seeds.length}) ${seed.code} already exists, skipping`);
       continue;
     }
 
-    const publish = await transitionServiceDefinition({ serviceDefinitionId: created.id, targetState: "Published", actorRole: actor.authorBadge, actorId: actor.authoredBy});
+    const publish = await transitionServiceDefinition({ serviceDefinitionId: created.id, targetState: "Published", actorId: actor.authoredBy});
     if (!publish.ok) throw new Error(`[seedServiceDefinitions] failed to publish ${seed.code}: ${publish.reason}${publish.detail ? ` (${publish.detail})` : ""}`);
 
-    const activate = await transitionServiceDefinition({ serviceDefinitionId: created.id, targetState: "Active", actorRole: actor.authorBadge, actorId: actor.authoredBy});
+    const activate = await transitionServiceDefinition({ serviceDefinitionId: created.id, targetState: "Active", actorId: actor.authoredBy});
     if (!activate.ok) throw new Error(`[seedServiceDefinitions] failed to activate ${seed.code}: ${activate.reason}${activate.detail ? ` (${activate.detail})` : ""}`);
 
-    logger.info(`[seedServiceDefinitions] (${i}/${missing.length}) ${seed.code} -- created + published + activated`);
+    logger.info(`[seedServiceDefinitions] (${i}/${seeds.length}) ${seed.code} -- created + published + activated`);
   }
 }
 

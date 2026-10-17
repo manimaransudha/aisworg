@@ -14,6 +14,21 @@
         "code": "software-construction",
         "name": "Implementation",
         "description": "Delivers the working software, technical specifications, and engineering decisions that turn the backlog into a functioning product."
+      },
+      {
+        "code": "software-maintenance-and-refactoring"
+      },
+      {
+        "code": "technical-debt-and-dependency-management"
+      },
+      {
+        "code": "data-and-database-engineering"
+      },
+      {
+        "code": "game-and-interactive-media-engineering"
+      },
+      {
+        "code": "software-release"
       }
     ],
     "services": [

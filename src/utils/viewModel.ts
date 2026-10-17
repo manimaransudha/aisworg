@@ -1,10 +1,11 @@
+import type { Request, Response } from "express";
 import { logger } from "./logger.js";
 
-export function createViewModel(config) {
+export function createViewModel(config: { required?: string[]; optional?: string[] }) {
   const { required = [], optional = [] } = config;
 
-  return function validate(data) {
-    const missing = required.filter((key) => !(key in data));
+  return function validate(data: Record<string, unknown>) {
+    const missing = required.filter((key: string) => !(key in data));
 
     if (missing.length > 0) {
       throw new Error(
@@ -16,7 +17,7 @@ export function createViewModel(config) {
   };
 }
 
-export function renderView(req, res, viewPath, viewModel) {
+export function renderView(req: Request, res: Response, viewPath: string, viewModel: object) {
   try {
     const start = Date.now();
     res.render(viewPath, viewModel);

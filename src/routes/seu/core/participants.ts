@@ -19,7 +19,7 @@ const CH13_EVENT_BY_TRANSITION: Record<string, string> = {
   "Released->Archived": "ParticipantArchived",
 };
 
-export async function transitionParticipant(input: { participantId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionParticipantResult> {
+export async function transitionParticipant(input: { participantId: string; targetState: string; actorId: string }): Promise<TransitionParticipantResult> {
   const { data: participant } = await participantsDB.findById(input.participantId);
   if (!participant) return { ok: false, reason: "not_found", detail: `Participant not found: ${input.participantId}` };
 
@@ -30,7 +30,6 @@ export async function transitionParticipant(input: { participantId: string; targ
     entityType: "Participant",
     fromState,
     toState: input.targetState,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     seuId: participant.seu_id,
     entityId: participant.id,
@@ -75,7 +74,6 @@ export async function replaceParticipant(input: {
   newParticipantType: ParticipantType;
   newDisplayName: string;
   newParticipantMasterId?: string | null;
-  actorRole: string;
   actorId: string;
   authorBadge: string;
 }): Promise<ReplaceParticipantResult> {
@@ -87,10 +85,10 @@ export async function replaceParticipant(input: {
   if (!fulfilment) return { ok: false, reason: "no_active_fulfilment", detail: `Participant ${oldParticipant.id} has no active Capability Fulfilment to hand off` };
 
   if (oldParticipant.state !== "Released") {
-    const toReleased = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Released", actorRole: input.actorRole, actorId: input.actorId });
+    const toReleased = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Released", actorId: input.actorId });
     if (!toReleased.ok) return toReleased;
   }
-  const toArchived = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Archived", actorRole: input.actorRole, actorId: input.actorId });
+  const toArchived = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Archived", actorId: input.actorId });
   if (!toArchived.ok) return toArchived;
 
   await assertCanonicalCategory("participant-types", input.newParticipantType);

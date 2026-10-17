@@ -269,7 +269,6 @@ export async function waitForDispatchedWorkItem(deliverableId: string, fromState
 export async function transitionDeliverableSync(input: {
   deliverableId: string;
   targetState: string;
-  actorRole?: string;
   actorId: string;
 }): Promise<{ ok: true; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } } | Extract<TransitionDeliverableResult, { ok: false }>> {
   const { data: deliverableBefore } = await deliverablesDB.findById(input.deliverableId);
@@ -302,7 +301,7 @@ export async function transitionDeliverableSync(input: {
 // has already made the hop by then, the click finds the Deliverable at the target state and counts as done.
 export async function clickTransitionAfterLag(input: { deliverableId: string; targetState: string; actorId: string; lagMs?: number }): Promise<{ ok: true } | { ok: false; reason: string }> {
   await new Promise((resolve) => setTimeout(resolve, input.lagMs ?? 1500));
-  const result = await transitionDeliverable({ deliverableId: input.deliverableId, targetState: input.targetState, actorRole: "super", actorId: input.actorId, requestedBy: input.actorId });
+  const result = await transitionDeliverable({ deliverableId: input.deliverableId, targetState: input.targetState, actorId: input.actorId, requestedBy: input.actorId });
   if (result.ok) return { ok: true };
   const { data: current } = await deliverablesDB.findById(input.deliverableId);
   if ((result.reason === "no_transition_definition" || result.reason === "already_in_flight") && current?.lifecycle_state === input.targetState) return { ok: true };
@@ -311,7 +310,7 @@ export async function clickTransitionAfterLag(input: { deliverableId: string; ta
 
 export async function produceDeliverable(deliverableId: string, actorId: string, reference: string | null = "vcs://test/produced@1"): Promise<string> {
   await new Promise((resolve) => setTimeout(resolve, 1500)); // the person's click lands after the engine's own kickoff
-  const moved = await transitionDeliverableSync({ deliverableId, targetState: "In Progress", actorRole: "super", actorId });
+  const moved = await transitionDeliverableSync({ deliverableId, targetState: "In Progress", actorId });
   if (!moved.ok) throw new Error(`produceDeliverable: could not move ${deliverableId} to In Progress: ${JSON.stringify(moved)}`);
   const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
   const completed = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference });
@@ -382,7 +381,6 @@ export function ensureEventSubscriptionsLoaded(): Promise<void> {
 
 export async function driveCommissioningToActive(input: {
   seuId: string;
-  actorRole: string;
   actorId: string;
   // CR-104 — per-call override for the three internal waitUntilAsync polls
   // below, for callers that drive several full commissioning cycles in one
@@ -527,14 +525,14 @@ export async function driveCommissioningToActive(input: {
   // real transition_definitions row's own `verb` requires itself, rather than
   // leaving every caller to guess and pre-grant badge names at the call site.
   await grantTransitionBadge(input.actorId, "EBM", "Composed", "Validated");
-  const validateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Validated", actorRole: input.actorRole, actorId: input.actorId });
+  const validateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Validated", actorId: input.actorId });
   if (!validateResult.ok) {
     return { ok: false, stage: "validate_engineering_model", reason: validateResult.reason === "not_found" ? "EBM not found" : validateResult.detail, seuId: input.seuId };
   }
 
   await grantTransitionBadge(input.actorId, "EBM", "Validated", "Active");
   await grantTransitionBadge(input.actorId, "SEU", "Activated", "Operational");
-  const activateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Active", actorRole: input.actorRole, actorId: input.actorId });
+  const activateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Active", actorId: input.actorId });
   if (!activateResult.ok) {
     return { ok: false, stage: "activate", reason: activateResult.reason === "not_found" ? "EBM not found" : activateResult.detail, seuId: input.seuId };
   }
@@ -785,7 +783,7 @@ async function resolveDispatchRejectionObligationsForDeliverable(deliverableId: 
   );
   for (const obligation of strayObligations) {
     for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-      const result = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId });
+      const result = await transitionObligation({ obligationId: obligation.id, targetState, actorId });
       if (!result.ok) throw new Error(`resolveDispatchRejectionObligations: ${obligation.id} -> ${targetState} failed: ${JSON.stringify(result)}`);
     }
   }
@@ -797,7 +795,7 @@ async function resolveDispatchRejectionObligationsForDeliverable(deliverableId: 
   const strayAttentionItems = (attentionItems ?? []).filter((a) => /could not be dispatched/.test(a.title));
   for (const item of strayAttentionItems) {
     for (const targetState of ["Delivered", "Acknowledged", "In Progress", "Resolved", "Closed"]) {
-      const result = await transitionAttentionItem({ attentionItemId: item.id, targetState, actorRole: "super", actorId });
+      const result = await transitionAttentionItem({ attentionItemId: item.id, targetState, actorId });
       if (!result.ok) throw new Error(`resolveDispatchRejectionObligations: attention item ${item.id} -> ${targetState} failed: ${JSON.stringify(result)}`);
     }
   }
@@ -892,7 +890,7 @@ export async function commissionFromFormSync(
   await ensureEventSubscriptionsLoaded();
   const requested = await commissionFromForm(input);
   if (!requested.ok) return requested;
-  return driveCommissioningToActive({ seuId: requested.seu.id, actorRole: input.actorRole, actorId: input.actorId, beforeCommenceWork });
+  return driveCommissioningToActive({ seuId: requested.seu.id, actorId: input.actorId, beforeCommenceWork });
 }
 
 let cached: Promise<{ template: TemplateRow; profile: ProfileRow }> | null = null;
@@ -967,7 +965,6 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
         tenantId: PLATFORM_TENANT_ID,
         ...packSelections,
       },
-      actorRole: ROOT_ACTOR_BADGE,
       actorId: ROOT_ACTOR_ID,
     });
     // publishTemplate's own idempotency (findByCodeAndVersion above, then
@@ -1012,13 +1009,13 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   // self-heal here instead of handing back a non-Active row silently.
   if (template.status !== "Active") {
     if (TERMINAL_TEMPLATE_STATES.has(template.status)) {
-      const reactivated = await transitionTemplate({ templateId: template.id, targetState: "Active", actorRole: ROOT_ACTOR_BADGE, actorId: ROOT_ACTOR_ID });
+      const reactivated = await transitionTemplate({ templateId: template.id, targetState: "Active", actorId: ROOT_ACTOR_ID });
       if (!reactivated.ok) throw new Error(`seed(): could not reactivate template "${templateSeed.code}" from "${template.status}": ${reactivated.reason}${reactivated.detail ? ` (${reactivated.detail})` : ""}`);
       template = reactivated.template;
     } else {
       let current = template;
       while (current.status !== "Active") {
-        const stepped = await advanceTemplateOneStep(current, ROOT_ACTOR_BADGE, ROOT_ACTOR_ID);
+        const stepped = await advanceTemplateOneStep(current, ROOT_ACTOR_ID);
         if (!stepped.ok) throw new Error(`seed(): could not advance template "${templateSeed.code}" past "${current.status}": ${stepped.reason}${stepped.detail ? ` (${stepped.detail})` : ""}`);
         current = stepped.template;
       }
@@ -1058,7 +1055,7 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   // raw profiles_code_version_tenant_key constraint — match both.
   const activeProfile = (await profilesDB.findActiveByCode(profileSeed.code, PLATFORM_TENANT_ID)).data ?? null;
   if (activeProfile) return { template, profile: activeProfile };
-  const profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const profileResult = await publishProfile({ seed: profileSeed, actorId: ROOT_ACTOR_ID });
   if (!profileResult.ok && profileResult.errors.some((e) => e.includes("profiles_code_version_tenant_key") || e.includes("already exists at version"))) {
     // Another `node --test` process won the publish race. Publish is not idempotent, so wait for the
     // winner's own walk to reach Active and use that row.

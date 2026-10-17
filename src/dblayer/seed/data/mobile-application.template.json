@@ -61,9 +61,9 @@
     { "toCode": "decision-record", "fromType": "Capability", "fromCapabilityCode": "governing-engineering-decisions" },
     { "toCode": "deployment-manifest", "fromType": "Deliverable", "fromCode": "test-report-results" },
     { "toCode": "deployment-manifest", "fromType": "Capability", "fromCapabilityCode": "software-release" },
-    { "toCode": "app-store-submission-package", "fromType": "Deliverable", "fromCode": "deployment-manifest" },
+    { "toCode": "app-store-submission-package", "fromType": "Deliverable", "fromCode": "test-report-results" },
     { "toCode": "app-store-submission-package", "fromType": "Capability", "fromCapabilityCode": "software-release" },
-    { "toCode": "incident-report-post-mortem", "fromType": "Deliverable", "fromCode": "app-store-submission-package" },
+    { "toCode": "incident-report-post-mortem", "fromType": "Deliverable", "fromCode": "deployment-manifest" },
     { "toCode": "incident-report-post-mortem", "fromType": "Capability", "fromCapabilityCode": "operating-production-systems" }
   ]
 }

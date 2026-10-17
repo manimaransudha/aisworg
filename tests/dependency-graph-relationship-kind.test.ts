@@ -94,9 +94,9 @@ async function schemaDefinitionIdFor(kind: SchemaDefinitionEntityKind): Promise<
   return data.id;
 }
 
-async function advanceToActive(kind: "Template" | "Deliverable", id: string, actorId: string, actorRole: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
+async function advanceToActive(kind: "Template" | "Deliverable", id: string, actorId: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   for (let i = 0; i < 10; i++) {
-    const result = await publishAuthoringDraft({ kind, id, actorId, actorRole });
+    const result = await publishAuthoringDraft({ kind, id, actorId });
     if (!result.ok) return result;
     if (result.status === "Active") return { ok: true };
   }
@@ -116,7 +116,7 @@ async function publishDeliverableDefinition(code: string, tenantId: string, pare
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) throw new Error("unreachable");
   createdDeliverableDefinitionIds.push(created.draftId);
-  const published = await advanceToActive("Deliverable", created.draftId, ROOT_ACTOR_ID, "general");
+  const published = await advanceToActive("Deliverable", created.draftId, ROOT_ACTOR_ID);
   assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
   return created.draftId;
 }
@@ -142,7 +142,7 @@ async function publishParentTemplate(dependencyGraph: Array<Record<string, unkno
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) throw new Error("unreachable");
   createdTemplateIds.push(created.draftId);
-  const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
+  const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID);
   assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
   return { id: created.draftId, version };
 }
@@ -166,7 +166,7 @@ test("CR-049 Phase 2: a plain 'dependency' edge is unrestricted on Template Inhe
   assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : "assertion failed");
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
-  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID, "general");
+  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID);
   assert.equal(childPublished.ok, true, !childPublished.ok ? childPublished.errors.join("; ") : "assertion failed");
 });
 
@@ -184,7 +184,7 @@ test("CR-049 Phase 2: a Decomposition edge is locked — dropping it on a derive
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
 
-  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID, "general");
+  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID);
   assert.equal(childPublished.ok, false, "dropping an inherited Decomposition edge must block publish");
   assert.match((!childPublished.ok && childPublished.errors.join(";")) || "", /decomposition/);
 });
@@ -216,7 +216,7 @@ test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own De
   assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : "assertion failed");
   if (!parentCreated.ok) return;
   createdTemplateIds.push(parentCreated.draftId);
-  const parentPublished = await advanceToActive("Template", parentCreated.draftId, ROOT_ACTOR_ID, "general");
+  const parentPublished = await advanceToActive("Template", parentCreated.draftId, ROOT_ACTOR_ID);
   assert.equal(parentPublished.ok, true, !parentPublished.ok ? parentPublished.errors.join("; ") : "assertion failed");
 
   const tenantArchCode = `phase2-tenant-architecture-${randomUUID()}`;
@@ -237,7 +237,7 @@ test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own De
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
 
-  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID, "general");
+  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID);
   assert.equal(childPublished.ok, true, !childPublished.ok ? childPublished.errors.join("; ") : "a legitimate rename (tracing back through Phase 1 lineage) must be accepted");
 });
 
@@ -262,7 +262,7 @@ test("CR-049 Phase 2: renaming a locked edge to an UNRELATED Deliverable Definit
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
 
-  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID, "general");
+  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID);
   assert.equal(childPublished.ok, false, "an unrelated name with no lineage back to the parent's own must NOT count as a valid rename");
   assert.match((!childPublished.ok && childPublished.errors.join(";")) || "", /decomposition/);
 });
@@ -283,6 +283,6 @@ test("CR-049 Phase 2: a Derivation edge is freely editable on Template Inheritan
   assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : "assertion failed");
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
-  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID, "general");
+  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID);
   assert.equal(childPublished.ok, true, !childPublished.ok ? childPublished.errors.join("; ") : "assertion failed");
 });

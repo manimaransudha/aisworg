@@ -1,14 +1,13 @@
+import type { UserRow } from '../dblayer/userDB.js';
 import { logger } from '../utils/logger.js';
-import { effectivePlatformBadges, isGodUser } from '../dev/actAs.js';
+import { isGodUser } from '../dev/actAs.js';
 import { safeBack } from './safeBack.js';
 import { participantsMasterDB } from '../dblayer/participantsMasterDB.js';
 import { createParticipantMaster } from '../routes/seu/core/participantsMaster.js';
 import { tenantsDB } from '../dblayer/tenantsDB.js';
 import { DEMO_TENANT_NAME } from '../dblayer/constants.js';
 
-const ROLE_LEVEL = { general: 1, power: 2, tenant_super: 3, super: 4 };
-
-let demoTenantIdCache = null;
+let demoTenantIdCache: string | null = null;
 async function getDemoTenantId() {
   if (demoTenantIdCache) return demoTenantIdCache;
   const { data, error } = await tenantsDB.findByName(DEMO_TENANT_NAME);
@@ -18,7 +17,7 @@ async function getDemoTenantId() {
 }
 
 const DEMO_PARTICIPANT_DISPLAY_NAME = 'Demo User';
-let demoParticipantIdCache = null;
+let demoParticipantIdCache: string | null = null;
 async function getOrCreateDemoParticipantId() {
   if (demoParticipantIdCache) return demoParticipantIdCache;
   const tenantId = await getDemoTenantId();
@@ -39,7 +38,7 @@ async function getOrCreateDemoParticipantId() {
   return demoParticipantIdCache;
 }
 
-async function resolveParticipantId(user) {
+async function resolveParticipantId(user: UserRow) {
   // The env superuser belongs to the Platform tenant. The Demo tenant is only consulted for other sign-ins.
   if (!isGodUser(user)) {
     const demoTenantId = await getDemoTenantId();
@@ -59,41 +58,15 @@ async function resolveParticipantId(user) {
   return created.id;
 }
 
-export async function buildSessionUser(user) {
+export async function buildSessionUser(user: UserRow) {
   const participantId = await resolveParticipantId(user);
   return {
     id:         participantId,
     email:      user.email,
     name:       user.name,
     avatar_url: user.avatar_url || null,
-    role:       user.role,
-    is_active:  user.is_active !== false,
-    type:       user.type || null,
-    tenant_id:  user.tenant_id || null,
+    is_active:  user.is_active,
+    type:       user.type,
+    tenant_id:  user.tenant_id,
   };
 }
-
-export function requireRole(minRole) {
-  return (req, res, next) => {
-    const user = req.session?.user;
-    if (!user) {
-      if (req.method !== 'GET') {
-        return res.status(401).json({ success: false, message: 'Session expired — please log in again.' });
-      }
-      logger.debug(`[requireRole] Not logged in — redirect to login (path: ${req.path})`);
-      return res.redirect('/aisworg/login');
-    }
-    const badges = effectivePlatformBadges(req) ?? user.platformBadges ?? [];
-    if (badges.includes('root')) return next();
-
-    const userLevel = ROLE_LEVEL[user.role] ?? 0;
-    const needLevel = ROLE_LEVEL[minRole] ?? 99;
-    if (userLevel >= needLevel) return next();
-
-    logger.warn(`[requireRole] ${user.email} (${user.role}) tried to access ${req.path} — needs ${minRole}`);
-    req.session.flash = { type: 'error', message: "You don't have permission to access that page." };
-    return res.redirect(safeBack(req));
-  };
-}
-
-export const requireLogin = requireRole('general');

@@ -80,7 +80,7 @@ async function freshObligation(title: string) {
 
 async function driveTo(obligationId: string, states: string[]) {
   for (const targetState of states) {
-    const result = await transitionObligation({ obligationId, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const result = await transitionObligation({ obligationId, targetState, actorId: TESTER_ALL_ID });
     assert.equal(result.ok, true, !result.ok ? `-> ${targetState} failed: ${JSON.stringify(result)}` : "assertion failed");
   }
 }
@@ -94,7 +94,6 @@ test("DRIVEN setup: a real SEU to hang Obligations off", async () => {
   const result = await commissionFromFormSync({
     statement: `obligation-lifecycle-table-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super",
     actorId: TESTER_ALL_ID,
     requestedBy: TESTER_ALL_ID,
   });
@@ -151,7 +150,7 @@ test("DRIVEN: Escalate is reachable from every pre-Closed state and publishes Ob
 
   const closed = await freshObligation("no escalate from closed");
   await driveTo(closed.id, ["Analysed", "Assigned", "In Progress", "Resolved", "Verified", "Closed"]);
-  const result = await transitionObligation({ obligationId: closed.id, targetState: "Escalated", actorRole: "super", actorId: TESTER_ALL_ID });
+  const result = await transitionObligation({ obligationId: closed.id, targetState: "Escalated", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.reason, "no_transition_definition");
 });
@@ -159,7 +158,7 @@ test("DRIVEN: Escalate is reachable from every pre-Closed state and publishes Ob
 test("DRIVEN: closure cannot skip verification", async () => {
   const obligation = await freshObligation("no skip");
   await driveTo(obligation.id, ["Analysed", "Assigned", "In Progress", "Resolved"]);
-  const result = await transitionObligation({ obligationId: obligation.id, targetState: "Closed", actorRole: "super", actorId: TESTER_ALL_ID });
+  const result = await transitionObligation({ obligationId: obligation.id, targetState: "Closed", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, false);
 });
 

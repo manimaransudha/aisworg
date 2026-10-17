@@ -39,12 +39,12 @@ test("compositionEngine.compose resolves a Template's mandatory Pack plus a Prof
 
   const mandatory = await publishPack({
     seed: { code: mandatoryCode, name: "Test Mandatory Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, tenantId: PLATFORM_TENANT_ID },
-    actorRole: "power", actorId: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID,
     activate: true,
   });
   const optional = await publishPack({
     seed: { code: optionalCode, name: "Test Optional Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, tenantId: PLATFORM_TENANT_ID },
-    actorRole: "power", actorId: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID,
     activate: true,
   });
   assert.equal(mandatory.ok, true);
@@ -73,7 +73,6 @@ test("transitionEngine.evaluate allows an authorised, policy-satisfied SEU trans
     entityType: "SEU",
     fromState: "Pending",
     toState: "Commissioned",
-    actorRole: "general",
     actorId: TESTER_ALL_ID,
     context: {},
   });
@@ -85,7 +84,6 @@ test("transitionEngine.evaluate denies an under-privileged actor", async () => {
     entityType: "SEU",
     fromState: "Pending",
     toState: "Commissioned",
-    actorRole: "unregistered-role",
     actorId: randomUUID(),
     context: {},
   });
@@ -98,7 +96,7 @@ test("transitionEngine.evaluate rejects a transition with no Transition Definiti
     entityType: "SEU",
     fromState: "Commissioned",
     toState: "Archived",
-    actorRole: "super", actorId: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID,
   });
   assert.equal(outcome.allowed, false);
   if (!outcome.allowed) assert.equal(outcome.reason, "no_transition_definition");
@@ -117,7 +115,6 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
     entityType: "Objective",
     fromState: "Proposed",
     toState: "Active",
-    actorRole: "general",
     actorId: TESTER_ALL_ID,
     context: {},
     entityId: submittedObjectiveId,
@@ -128,7 +125,6 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
     entityType: "Objective",
     fromState: "Proposed",
     toState: "Active",
-    actorRole: "general",
     actorId: TESTER_ALL_ID,
     context: {},
     entityId: randomUUID(), // a different, never-submitted id
@@ -140,7 +136,6 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
     entityType: "Objective",
     fromState: "Proposed",
     toState: "Active",
-    actorRole: "unregistered-role",
     actorId: randomUUID(),
     context: {},
   });
@@ -151,7 +146,7 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
     entityType: "Objective",
     fromState: "Proposed",
     toState: "Retired",
-    actorRole: "super", actorId: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID,
   });
   assert.equal(undefinedTransition.allowed, false);
   if (!undefinedTransition.allowed) assert.equal(undefinedTransition.reason, "no_transition_definition");

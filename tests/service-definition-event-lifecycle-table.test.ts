@@ -147,7 +147,7 @@ test("REGRESSION: Service Definition inputs/outputs round-trip as real string ar
 test("DRIVEN: row 3 (Publish) publishes ServiceDefinitionPublished, matching transition_definitions.event_type", async () => {
   const draft = await freshServiceDefinitionDraft();
 
-  const result = await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
+  const result = await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Published", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true, result.ok ? "" : `${result.reason}: ${result.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("ServiceDefinition", draft.id);
@@ -161,11 +161,11 @@ test("DRIVEN: row 3 (Publish) publishes ServiceDefinitionPublished, matching tra
 test("DRIVEN: rows 4-7 (Activate/Deprecate/Retire/Archive) each publish their matching event", async () => {
   const draft = await freshServiceDefinitionDraft();
 
-  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
-  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Active", actorRole: "power", actorId: TESTER_ALL_ID });
-  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: TESTER_ALL_ID });
-  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Retired", actorRole: "power", actorId: TESTER_ALL_ID });
-  const archived = await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Archived", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Published", actorId: TESTER_ALL_ID });
+  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Active", actorId: TESTER_ALL_ID });
+  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Deprecated", actorId: TESTER_ALL_ID });
+  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Retired", actorId: TESTER_ALL_ID });
+  const archived = await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Archived", actorId: TESTER_ALL_ID });
   assert.equal(archived.ok, true, archived.ok ? "" : `${archived.reason}: ${archived.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("ServiceDefinition", draft.id);

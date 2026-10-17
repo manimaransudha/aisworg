@@ -52,7 +52,7 @@ async function requireCapabilitySchemaId(): Promise<string> {
 }
 
 async function freshCapabilityDefinitionDraft(): Promise<{ id: string }> {
-  const { data: draft, error } = await capabilityDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
+  const { data: draft, error } = await capabilityDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID, category: "Requirements Engineering",
     code: "requirements-analysis",
     defaultLabel: "Test Capability Definition",
     version: `0.0.${Math.floor(Math.random() * 1_000_000)}`,
@@ -101,7 +101,7 @@ test("DRIVEN: row 1 (New) is a pure Revision — no event published on creation"
 test("DRIVEN: row 3 (Publish) publishes CapabilityDefinitionPublished, matching transition_definitions.event_type", async () => {
   const draft = await freshCapabilityDefinitionDraft();
 
-  const result = await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
+  const result = await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Published", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true, result.ok ? "" : `${result.reason}: ${result.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("CapabilityDefinition", draft.id);
@@ -115,11 +115,11 @@ test("DRIVEN: row 3 (Publish) publishes CapabilityDefinitionPublished, matching 
 test("DRIVEN: rows 4-7 (Activate/Deprecate/Retire/Archive) each publish their matching event", async () => {
   const draft = await freshCapabilityDefinitionDraft();
 
-  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
-  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Active", actorRole: "power", actorId: TESTER_ALL_ID });
-  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: TESTER_ALL_ID });
-  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Retired", actorRole: "power", actorId: TESTER_ALL_ID });
-  const archived = await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Archived", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Published", actorId: TESTER_ALL_ID });
+  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Active", actorId: TESTER_ALL_ID });
+  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Deprecated", actorId: TESTER_ALL_ID });
+  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Retired", actorId: TESTER_ALL_ID });
+  const archived = await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Archived", actorId: TESTER_ALL_ID });
   assert.equal(archived.ok, true, archived.ok ? "" : `${archived.reason}: ${archived.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("CapabilityDefinition", draft.id);
@@ -130,7 +130,7 @@ test("DRIVEN: rows 4-7 (Activate/Deprecate/Retire/Archive) each publish their ma
 });
 
 test("REGRESSION: roles[] round-trips as real {name, worktypes[]} rows and is validated against role-name/worktype-name Ontology", async () => {
-  const { data: draft, error } = await capabilityDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
+  const { data: draft, error } = await capabilityDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID, category: "Requirements Engineering",
     code: "requirements-analysis",
     defaultLabel: "Test Capability Definition Roles",
     version: `0.0.${Math.floor(Math.random() * 1_000_000)}`,
@@ -142,7 +142,7 @@ test("REGRESSION: roles[] round-trips as real {name, worktypes[]} rows and is va
   assert.equal(error, undefined);
   assert.deepEqual(draft?.roles, [{ name: "requirement-analysis", worktypes: ["requirement-examination", "requirement-interpretation"] }]);
 
-  const { error: badRoleError } = await capabilityDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
+  const { error: badRoleError } = await capabilityDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID, category: "Requirements Engineering",
     code: "requirements-analysis",
     defaultLabel: "Test Capability Definition Bad Role",
     version: `0.0.${Math.floor(Math.random() * 1_000_000)}`,
@@ -153,7 +153,7 @@ test("REGRESSION: roles[] round-trips as real {name, worktypes[]} rows and is va
   });
   assert.ok(badRoleError, "expected an unregistered role-name to be rejected at write time");
 
-  const { error: badWorktypeError } = await capabilityDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
+  const { error: badWorktypeError } = await capabilityDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID, category: "Requirements Engineering",
     code: "requirements-analysis",
     defaultLabel: "Test Capability Definition Bad Worktype",
     version: `0.0.${Math.floor(Math.random() * 1_000_000)}`,
@@ -166,7 +166,7 @@ test("REGRESSION: roles[] round-trips as real {name, worktypes[]} rows and is va
 });
 
 test("REGRESSION: an unregistered code is rejected at write time (code is x-ontology, not composable)", async () => {
-  const { error } = await capabilityDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
+  const { error } = await capabilityDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID, category: "Requirements Engineering",
     code: `not-a-real-capability-${randomUUID()}`,
     defaultLabel: "Test Capability Definition Bad Code",
     version: `0.0.${Math.floor(Math.random() * 1_000_000)}`,

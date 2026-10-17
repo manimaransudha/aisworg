@@ -32,7 +32,7 @@ async function commissionAndFulfil(prefix: string): Promise<{ seuId: string; del
     {
       statement: `${prefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
@@ -55,13 +55,13 @@ test("only producing work has a Work Item: the engine's own hops (start, approve
   const { seuId, deliverableId } = await commissionAndFulfil("cr121-no-work-item");
   const productionWorkItemId = await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
 
-  const approved = await transitionDeliverableSync({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const approved = await transitionDeliverableSync({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(approved.ok, true, !approved.ok ? JSON.stringify(approved) : "assertion failed");
 
   const evidence = await createEvidenceAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Validation Evidence", title: "CR-121 baseline evidence" });
-  await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "general", actorId: TESTER_ALL_ID });
-  await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "general", actorId: TESTER_ALL_ID });
-  const baselined = await transitionDeliverableSync({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorId: TESTER_ALL_ID });
+  await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorId: TESTER_ALL_ID });
+  const baselined = await transitionDeliverableSync({ deliverableId, targetState: "Baselined", actorId: ROOT_ACTOR_ID });
   assert.equal(baselined.ok, true, !baselined.ok ? JSON.stringify(baselined) : "assertion failed");
 
   const { data: commands } = await commandsDB.findBySeuId(seuId);
@@ -103,7 +103,7 @@ test("the kickoff requests only governed hops: a manual hop stays where it is un
   const { data: commands } = await commandsDB.findBySeuId(seuId);
   assert.equal((commands ?? []).some((c) => c.entity_id === deliverableId && c.to_state === "Approved"), false, "the kickoff created no Command for the manual hop");
 
-  const approved = await transitionDeliverableSync({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const approved = await transitionDeliverableSync({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(approved.ok, true, !approved.ok ? JSON.stringify(approved) : "assertion failed");
 });
 
@@ -131,7 +131,7 @@ test("overlapping kickoff runs make a governed hop once: one start Command and o
   assert.ok(architecture);
   assert.equal(architecture.lifecycleState, "Defined");
 
-  const approved = await transitionDeliverableSync({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const approved = await transitionDeliverableSync({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(approved.ok, true, !approved.ok ? JSON.stringify(approved) : "assertion failed");
 
   const overlapping = (): EventRow => ({

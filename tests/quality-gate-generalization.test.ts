@@ -52,7 +52,7 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
@@ -107,7 +107,7 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
 
   // Resolve it — the gate must now pass.
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
   const afterResolution = await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root" });
@@ -170,18 +170,18 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
     title: "QG wiring test obligation (left unresolved)",
   });
 
-  const blockedResult = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState: toState, actorRole: "super", actorId: TESTER_ALL_ID });
+  const blockedResult = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState: toState, actorId: TESTER_ALL_ID });
   assert.equal(blockedResult.ok, false);
   if (blockedResult.ok) throw new Error("unreachable");
   assert.equal(blockedResult.reason, "quality_gate_blocked");
   assert.match(blockedResult.detail, /unresolved Obligation/);
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
 
-  const passedResult = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState: toState, actorRole: "super", actorId: TESTER_ALL_ID });
+  const passedResult = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState: toState, actorId: TESTER_ALL_ID });
   assert.equal(passedResult.ok, true, !passedResult.ok ? JSON.stringify(passedResult) : "assertion failed");
   if (passedResult.ok) assert.equal(passedResult.attentionItem.status, toState);
 });

@@ -67,14 +67,17 @@ const STANDARD_TEMPLATE_FILES: Array<{ template: string; profile: string }> = [
   { template: "legacy-modernisation.template.json", profile: "legacy-modernisation-development.profile.json" },
   { template: "mobile-application.template.json", profile: "mobile-application-development.profile.json" },
   { template: "package-implementation.template.json", profile: "package-implementation-development.profile.json" },
+  { template: "devops-platform.template.json", profile: "devops-platform-development.profile.json" },
+  { template: "maintenance-and-sustainment.template.json", profile: "maintenance-and-sustainment-development.profile.json" },
+  { template: "secure-and-compliant-system.template.json", profile: "secure-and-compliant-system-development.profile.json" },
+  { template: "safety-critical-system.template.json", profile: "safety-critical-system-development.profile.json" },
+  { template: "game-development.template.json", profile: "game-development-development.profile.json" },
+  { template: "mlops-ai-assurance.template.json", profile: "mlops-ai-assurance-development.profile.json" },
+  { template: "prototype-and-spike.template.json", profile: "prototype-and-spike-development.profile.json" },
+  { template: "test-engineering-engagement.template.json", profile: "test-engineering-engagement-development.profile.json" },
+  { template: "continuous-assurance.template.json", profile: "continuous-assurance-development.profile.json" },
 ];
-const TEST_TEMPLATES: Array<{ template: string; profile: string }> = [
-  { template: "cr104-demo-minimal.template.json", profile: "cr104-demo-development.profile.json" },
-];
-const ALL_TEMPLATES: Array<{ template: string; profile: string }> = [
-  ...STANDARD_TEMPLATE_FILES,
-  ...(process.env.NODE_ENV !== "production" ? TEST_TEMPLATES : [])
-];
+
 async function seedOne(templateFile: string, profileFile: string, actor: SeedActor): Promise<void> {
   const templateSeed = loadJson<TemplateSeed>(templateFile);
   const profileSeed = loadJson<ProfileSeed>(profileFile);
@@ -103,7 +106,6 @@ async function seedOne(templateFile: string, profileFile: string, actor: SeedAct
       tenantId: PLATFORM_TENANT_ID,
       ...packSelections,
     },
-    actorRole: actor.authorBadge,
     actorId: actor.authoredBy
   });
   if (!templateResult.ok) throw new Error(`[seed:sdlc-standard-templates] failed to publish template "${templateSeed.code}": ${templateResult.errors.join("; ")}`);
@@ -135,7 +137,6 @@ async function seedOne(templateFile: string, profileFile: string, actor: SeedAct
       documentationLevel: profileSeed.documentationLevel,
       exposedParameterOverrides: profileSeed.exposedParameterOverrides,
     },
-    actorRole: actor.authorBadge,
     actorId: actor.authoredBy
   });
   if (!profileResult.ok) throw new Error(`[seed:sdlc-standard-templates] failed to publish profile "${profileSeed.code}": ${profileResult.errors.join("; ")}`);
@@ -143,10 +144,10 @@ async function seedOne(templateFile: string, profileFile: string, actor: SeedAct
 }
 
 export async function seedSdlcStandardTemplates(actor: SeedActor): Promise<void> {
-  for (const { template, profile } of ALL_TEMPLATES) {
+  for (const { template, profile } of STANDARD_TEMPLATE_FILES) {
     await seedOne(template, profile, actor);
   }
-  logger.info(`[seed:sdlc-standard-templates] done — ${ALL_TEMPLATES.length} standard Templates seeded.`);
+  logger.info(`[seed:sdlc-standard-templates] done — ${STANDARD_TEMPLATE_FILES.length} standard Templates seeded.`);
 }
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;

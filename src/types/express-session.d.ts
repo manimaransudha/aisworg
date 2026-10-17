@@ -7,13 +7,13 @@ declare module "express-session" {
       email: string;
       name: string;
       avatar_url: string | null;
-      role: string;
       is_active: boolean;
       platformBadges?: string[];
-      type?: "Platform" | "Tenant" | null;
+      type?: string | null;
       tenant_id?: string | null;
     };
-    flash?: unknown;
+    flash?: { type?: string; message?: string; error?: string; info?: string };
+    formInput?: Record<string, unknown>;
     _t?: number;
   }
 }

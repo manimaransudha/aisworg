@@ -14,6 +14,12 @@
         "code": "understanding-business-domain",
         "name": "Product Discovery",
         "description": "Establishes a validated understanding of user needs, problems, and product requirements through structured research and hypothesis testing."
+      },
+      {
+        "code": "product-value-management"
+      },
+      {
+        "code": "prototyping-and-experimentation"
       }
     ],
     "services": [

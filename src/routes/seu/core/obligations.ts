@@ -330,7 +330,7 @@ export type TransitionObligationResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-export async function transitionObligation(input: { obligationId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionObligationResult> {
+export async function transitionObligation(input: { obligationId: string; targetState: string; actorId: string }): Promise<TransitionObligationResult> {
   const { data: obligation } = await obligationsDB.findById(input.obligationId);
   if (!obligation) return { ok: false, reason: "not_found" };
 
@@ -340,7 +340,6 @@ export async function transitionObligation(input: { obligationId: string; target
     entityType: "Obligation",
     fromState,
     toState: input.targetState,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     context: { obligation },
     gateEntityId: obligation.id,

@@ -6,6 +6,7 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
+import { resolveHeldRoles } from "../../../domain/identity/heldRoles.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
 import { listSeusPaginated, getSeuDetailView, getSeuEbmView } from "../core/seus.js";
@@ -84,6 +85,9 @@ router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: R
     }
     req.vm.req.title = `SEU ${detail.seu.id.slice(0, 8)}`;
     req.vm.req.detail = detail;
+    const sessionUser = req.session.user;
+    if (!sessionUser) throw new Error("[web/seu/seus] GET /seus/:id reached without a session user");
+    req.vm.req.isSuperuser = (await resolveHeldRoles(sessionUser.id)).isSuperuser;
     req.vm.req.activeTab = typeof req.query.tab === "string" ? req.query.tab : undefined;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/detail", req.vm);
@@ -162,7 +166,6 @@ router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/rep
       oldParticipantId: String(req.params.participantId),
       newParticipantType: participantType as ParticipantType,
       newDisplayName: displayName,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
       authorBadge,
     });
@@ -192,7 +195,6 @@ router.post("/seus/:id/capabilities/:capabilityId/release", async (req: Request,
       seuId,
       capabilityId: String(req.params.capabilityId),
       participantIds,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
     });
     const names = released.map((p) => p.display_name).join(", ");
@@ -217,7 +219,6 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
     const result = await transitionDeliverable({
       deliverableId: String(req.params.deliverableId),
       targetState,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
       requestedBy: String(req.session.user.id),
     });
@@ -250,7 +251,6 @@ router.post("/seus/:id/ebm/transition", async (req: Request, res: Response) => {
     const result = await transitionEbm({
       ebmId: seu.active_ebm_id,
       targetState,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
     });
     if (!result.ok) {
@@ -282,7 +282,6 @@ router.post("/seus/:id/obligations/:obligationId/transition", async (req: Reques
     const result = await transitionObligation({
       obligationId: String(req.params.obligationId),
       targetState,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
     });
     if (!result.ok) {
@@ -370,7 +369,6 @@ router.post("/seus/:id/attention-items/:attentionItemId/transition", async (req:
     const result = await transitionAttentionItem({
       attentionItemId: String(req.params.attentionItemId),
       targetState,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
     });
     if (!result.ok) {
@@ -445,7 +443,6 @@ router.post("/seus/:id/evidence/:evidenceId/transition", async (req: Request, re
     const result = await transitionEvidence({
       evidenceId: String(req.params.evidenceId),
       targetState,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
     });
     if (!result.ok) {
@@ -530,7 +527,6 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/transition", async (req: Reque
     const result = await transitionKnowledgeItem({
       knowledgeItemId: String(req.params.knowledgeItemId),
       targetState,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
     });
     if (!result.ok) {
@@ -558,7 +554,6 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/promote-scope", async (req: Re
     const result = await promoteKnowledgeItemScope({
       knowledgeItemId: String(req.params.knowledgeItemId),
       targetScope: targetScope as AcquisitionScope,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
     });
     if (!result.ok) {
@@ -623,7 +618,6 @@ router.post("/seus/:id/decisions/:decisionId/transition", async (req: Request, r
     const result = await transitionDecision({
       decisionId: String(req.params.decisionId),
       targetState,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
     });
     if (!result.ok) {
@@ -685,7 +679,6 @@ router.post("/seus/:id/external-interactions/:interactionId/transition", async (
     const result = await transitionExternalInteraction({
       interactionId: String(req.params.interactionId),
       targetState,
-      actorRole: req.session?.user?.role ?? "general",
       actorId: String(req.session.user.id),
     });
     if (!result.ok) {

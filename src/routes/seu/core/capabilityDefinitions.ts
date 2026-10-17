@@ -15,6 +15,7 @@ export interface CapabilityDefinitionSeedInput {
   code: string;
   defaultLabel: string;
   description?: string | null;
+  category: string;
   roles?: CapabilityRole[];
   version: string;
   tenantId?: string;
@@ -63,6 +64,7 @@ export async function validateCapabilityDefinitionSeed(seed: CapabilityDefinitio
       errors.push((err as Error).message);
     }
   }
+  if (!seed.category?.trim()) errors.push("category is required");
   errors.push(...(await validateRoles(seed.roles)));
 
   if (seed.parentCapabilityDefinitionId) {
@@ -91,17 +93,17 @@ export async function inheritedCapabilityDefinitionContent(parentCapabilityDefin
   if (parent.status !== "Active") return { ok: false, error: "a Capability Definition can only be inherited from an Active Version" };
   return {
     ok: true,
-    content: { code: parent.code, defaultLabel: parent.default_label, description: parent.description ?? "", roles: parent.roles },
+    content: { code: parent.code, defaultLabel: parent.default_label, description: parent.description ?? "", category: parent.category, roles: parent.roles },
   };
 }
 
 export type TransitionCapabilityDefinitionResult = { ok: true; capabilityDefinition: CapabilityDefinitionRow } | { ok: false; reason: string; detail?: string };
 
-export async function transitionCapabilityDefinition(input: { capabilityDefinitionId: string; targetState: CapabilityDefinitionRow["status"]; actorRole: string; actorId: string }): Promise<TransitionCapabilityDefinitionResult> {
+export async function transitionCapabilityDefinition(input: { capabilityDefinitionId: string; targetState: CapabilityDefinitionRow["status"]; actorId: string }): Promise<TransitionCapabilityDefinitionResult> {
   const { data: capabilityDefinition } = await capabilityDefinitionsDB.findById(input.capabilityDefinitionId);
   if (!capabilityDefinition) return { ok: false, reason: "not_found" };
   const fromState = capabilityDefinition.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Capability", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: capabilityDefinition.id, context: { capabilityDefinition } });
+  const gate = await transitionEngine.evaluate({ entityType: "Capability", fromState, toState: input.targetState, actorId: input.actorId, entityId: capabilityDefinition.id, context: { capabilityDefinition } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Capability ${fromState} -> ${input.targetState}` };
@@ -142,10 +144,10 @@ const AUTHORING_NEXT_STATE: Partial<Record<CapabilityDefinitionRow["status"], Ca
   Retired: "Archived",
 };
 
-export async function advanceCapabilityDefinitionOneStep(capabilityDefinition: CapabilityDefinitionRow, actorRole: string, actorId: string): Promise<TransitionCapabilityDefinitionResult> {
+export async function advanceCapabilityDefinitionOneStep(capabilityDefinition: CapabilityDefinitionRow, actorId: string): Promise<TransitionCapabilityDefinitionResult> {
   const targetState = AUTHORING_NEXT_STATE[capabilityDefinition.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Capability Definition is already ${capabilityDefinition.status} — no further authoring step` };
-  return transitionCapabilityDefinition({ capabilityDefinitionId: capabilityDefinition.id, targetState, actorRole, actorId });
+  return transitionCapabilityDefinition({ capabilityDefinitionId: capabilityDefinition.id, targetState, actorId });
 }
 
 export async function copyCapabilityDefinitionAsNewDraft(capabilityDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
@@ -159,11 +161,12 @@ export async function copyCapabilityDefinitionAsNewDraft(capabilityDefinitionId:
     code: source.code,
     defaultLabel: source.default_label,
     description: source.description,
+    category: source.category,
     roles: source.roles,
     version: await nextAvailablePatchVersion(source.version, async (candidate) => !!(await capabilityDefinitionsDB.findByCodeAndVersion(source.code, candidate, source.tenant_id)).data),
     authoredBy: copyMaster.id,
     authorBadge,
-    draftContent: { code: source.code, defaultLabel: source.default_label, description: source.description ?? "", roles: source.roles },
+    draftContent: { code: source.code, defaultLabel: source.default_label, description: source.description ?? "", category: source.category, roles: source.roles },
     tenantId: source.tenant_id,
     parentCapabilityDefinitionId: source.parent_capability_definition_id,
     schemaDefinitionId: copySchema.id,

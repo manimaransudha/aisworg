@@ -121,7 +121,6 @@ export async function commissionSeu(input: {
   profileIds: string[];
   resolvedParameterOverrides?: Record<string, string>;
   resolvedCompositionConflicts?: Record<string, unknown>;
-  actorRole: string;
   actorId: string;
   requestedBy: string;
   tenantId?: string | null;
@@ -224,7 +223,6 @@ export async function finalizeCommissioning(input: {
   templates: TemplateRow[];
   profiles: ProfileRow[];
   tenantId: string | null;
-  actorRole: string;
   actorId: string;
   correlationId: string;
   causationId: string;
@@ -237,7 +235,7 @@ export async function finalizeCommissioning(input: {
 
   let previousStepEvent = { id: input.causationId };
   for (const [from, to] of PRE_ASSETS_STEPS) {
-    const step = await transitionEngine.evaluate({ entityType: "SEU", fromState: from, toState: to, actorRole: input.actorRole, actorId: input.actorId, entityId: seu.id, context: {} });
+    const step = await transitionEngine.evaluate({ entityType: "SEU", fromState: from, toState: to, actorId: input.actorId, entityId: seu.id, context: {} });
     if (!step.allowed) {
       return { ok: false, stage: `transition_${from}_to_${to}`, reason: describeRejection(step), seuId: seu.id };
     }
@@ -302,7 +300,7 @@ export async function finalizeCommissioning(input: {
   };
   await seusDB.setCommissioningReport(seu.id, report);
 
-  const finalStep = await transitionEngine.evaluate({ entityType: "SEU", fromState: "Commissioned", toState: "Activated", actorRole: input.actorRole, actorId: input.actorId, entityId: seu.id, context: {} });
+  const finalStep = await transitionEngine.evaluate({ entityType: "SEU", fromState: "Commissioned", toState: "Activated", actorId: input.actorId, entityId: seu.id, context: {} });
   if (!finalStep.allowed) {
     return { ok: false, stage: "transition_Commissioned_to_Activated", reason: describeRejection(finalStep), seuId: seu.id };
   }
@@ -379,7 +377,7 @@ export type TransitionEbmResult =
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
   | { ok: false; reason: "ebm_retired"; detail: string };
 
-export async function transitionEbm(input: { ebmId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionEbmResult> {
+export async function transitionEbm(input: { ebmId: string; targetState: string; actorId: string }): Promise<TransitionEbmResult> {
   const { data: ebm } = await ebmsDB.findById(input.ebmId);
   if (!ebm) return { ok: false, reason: "not_found" };
 
@@ -388,7 +386,6 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
     entityType: "EBM",
     fromState,
     toState: input.targetState,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     entityId: ebm.id,
     context: { ebm },
@@ -463,7 +460,6 @@ export type CommissionFromFormResult =
 export async function commissionFromForm(input: {
   statement: string;
   requiredCapabilityCodes: string[];
-  actorRole: string;
   actorId: string;
   requestedBy: string;
   tenantId?: string | null;
@@ -508,7 +504,6 @@ export async function commissionFromForm(input: {
     objectiveId: objective.id,
     templateIds: [template.id],
     profileIds: [profile.id],
-    actorRole: input.actorRole,
     actorId: input.actorId,
     requestedBy: input.requestedBy,
     tenantId,
@@ -523,7 +518,6 @@ export async function commissionFromExistingObjective(input: {
   }>;
   resolvedParameterOverrides?: Record<string, string>;
   resolvedCompositionConflicts?: Record<string, unknown>;
-  actorRole: string;
   actorId: string;
   requestedBy: string;
 }): Promise<CommissionResult> {
@@ -542,7 +536,6 @@ export async function commissionFromExistingObjective(input: {
     profileIds: [...new Set(profileIds)],
     resolvedParameterOverrides: input.resolvedParameterOverrides,
     resolvedCompositionConflicts: input.resolvedCompositionConflicts,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     requestedBy: input.requestedBy,
   });

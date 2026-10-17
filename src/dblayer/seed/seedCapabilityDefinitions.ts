@@ -7,6 +7,7 @@ import { logger } from "../../utils/logger.js";
 import { capabilityDefinitionsDB } from "../capabilityDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../participantsMasterDB.js";
+import { ontologyDB } from "../ontologyDB.js";
 import { userDB } from "../userDB.js";
 import { transitionCapabilityDefinition } from "../../routes/seu/core/capabilityDefinitions.js";
 import type { CapabilityRole } from "../seuTypes.js";
@@ -18,6 +19,7 @@ interface CapabilityDefinitionSeed {
   code: string;
   default_label: string;
   description: string | null;
+  category: string;
   roles: CapabilityRole[];
   tenant_id: string;
 }
@@ -34,31 +36,32 @@ export interface SeedActor {
 
 export async function seedCapabilityDefinitions(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
-  const { rows: existing } = await query<{ code: string; tenant_id: string }>(
-    "SELECT code, tenant_id FROM capability_definitions"
-  );
-  const existingKeys = new Set(existing.map((r) => `${r.code}|${r.tenant_id}`));
-
-  const missing = seeds.filter((s) => !existingKeys.has(`${s.code}|${s.tenant_id}`));
-  if (missing.length === 0) {
-    logger.info("[seedCapabilityDefinitions] every baseline row already present, nothing to do");
-    return;
-  }
-
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   const { data: capabilitySchema } = await schemaDefinitionsDB.findLatest("Capability");
   if (!capabilitySchema) throw new Error("no schema_definitions grammar for Capability -- run the schema-definitions data migration first");
 
-  const PLATFORM_TENANT_ID = await getPlatformTenantId();
-  for (const seed of missing) {
+  const { data: categoryConcepts, error: categoryError } = await ontologyDB.findConceptsByType("category:capability", { isRoot: false, tenantId: PLATFORM_TENANT_ID });
+  if (categoryError) throw new Error(`[seedCapabilityDefinitions] failed to load category:capability Ontology: ${categoryError.message}`);
+  const categories = new Set((categoryConcepts ?? []).map((c) => c.code));
+  const invalid = seeds.filter((s) => !categories.has(s.category));
+  if (invalid.length > 0) {
+    throw new Error(`[seedCapabilityDefinitions] category not in Ontology category:capability (${[...categories].join(", ")}): ${invalid.map((s) => `${s.code}="${s.category}"`).join(", ")}`);
+  }
+
+  const { rowCount: deleted } = await query("DELETE FROM capability_definitions WHERE tenant_id = $1", [PLATFORM_TENANT_ID]);
+  logger.info(`[seedCapabilityDefinitions] deleted ${deleted ?? 0} platform-tenant rows -- creating ${seeds.length} baseline rows now`);
+
+  for (const seed of seeds) {
     const { data: created, error } = await capabilityDefinitionsDB.createDraft({
       code: seed.code,
       defaultLabel: seed.default_label,
       description: seed.description,
+      category: seed.category,
       roles: seed.roles,
       version: INITIAL_VERSION,
       authoredBy: actor.authoredBy,
       authorBadge: actor.authorBadge,
-      draftContent: { code: seed.code, defaultLabel: seed.default_label, description: seed.description ?? "", roles: seed.roles },
+      draftContent: { code: seed.code, defaultLabel: seed.default_label, description: seed.description ?? "", category: seed.category, roles: seed.roles },
       tenantId: PLATFORM_TENANT_ID,
       parentCapabilityDefinitionId: null,
       schemaDefinitionId: capabilitySchema.id,
@@ -69,10 +72,10 @@ export async function seedCapabilityDefinitions(actor: SeedActor): Promise<void>
       continue;
     }
 
-    const publish = await transitionCapabilityDefinition({ capabilityDefinitionId: created.id, targetState: "Published", actorRole: actor.authorBadge, actorId: actor.authoredBy});
+    const publish = await transitionCapabilityDefinition({ capabilityDefinitionId: created.id, targetState: "Published", actorId: actor.authoredBy});
     if (!publish.ok) throw new Error(`[seedCapabilityDefinitions] failed to publish ${seed.code}: ${publish.reason}${publish.detail ? ` (${publish.detail})` : ""}`);
 
-    const activate = await transitionCapabilityDefinition({ capabilityDefinitionId: created.id, targetState: "Active", actorRole: actor.authorBadge, actorId: actor.authoredBy});
+    const activate = await transitionCapabilityDefinition({ capabilityDefinitionId: created.id, targetState: "Active", actorId: actor.authoredBy});
     if (!activate.ok) throw new Error(`[seedCapabilityDefinitions] failed to activate ${seed.code}: ${activate.reason}${activate.detail ? ` (${activate.detail})` : ""}`);
 
     logger.info(`[seedCapabilityDefinitions] created + activated ${seed.code}`);

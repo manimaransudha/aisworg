@@ -4,6 +4,7 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-124](design/change-requests/CR-124-redirects-middleware-conformance.md) | Web controllers redirect through the `redirects` middleware, as `coding_principles.md` requires | 🟡 Raised — design in progress |
 | [CR-123](design/change-requests/CR-123-demo-landing-three-parts.md) | Demo landing page organised into the three manual parts, with Scenarios and Playbook steps classified by part; demo wrapper only | 🟡 Built pending verification |
 | [CR-122](design/change-requests/CR-122-platform-system-actor.md) | A platform system actor provisioned with the Platform tenant; rule-based evaluations (Quality Gate, governance) are authored by the system, not the requesting user | 🟡 Built pending verification |
 | [CR-121](design/change-requests/CR-121-governed-transition-evaluation.md) | One governed transition evaluation (authority, policy, Quality Gate) shared by every transition function; event publishing stays in each entity function | ✅ Built 2026-10-16 |

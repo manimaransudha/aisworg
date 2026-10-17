@@ -319,6 +319,7 @@ export function toCapabilityDefinitionSeedInput(content: Record<string, unknown>
     code: typeof content.code === "string" ? content.code : "",
     defaultLabel: typeof content.defaultLabel === "string" ? content.defaultLabel : "",
     description: typeof content.description === "string" ? content.description : undefined,
+    category: typeof content.category === "string" ? content.category : "",
     roles: toCapabilityRoles(typeof content.roles === "string" ? safeJsonParse(content.roles) : content.roles),
     version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : INITIAL_VERSION,
   };
@@ -568,7 +569,7 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
     return {
       id: c.id, code: c.code, name: c.default_label, status: c.status,
       content: {
-        ...(c.draft_content ?? {}), code: c.code, defaultLabel: c.default_label, description: c.description ?? "", roles: c.roles, version: c.version,
+        ...(c.draft_content ?? {}), code: c.code, defaultLabel: c.default_label, description: c.description ?? "", category: c.category, roles: c.roles, version: c.version,
         tenantId: c.tenant_id, parentCapabilityDefinitionId: c.parent_capability_definition_id, schemaVersion: c.schema_definition_id,
       },
     };
@@ -929,6 +930,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       code: seed.code,
       defaultLabel: seed.defaultLabel,
       description: seed.description ?? null,
+      category: seed.category,
       roles: seed.roles ?? [],
       version: seed.version,
       authoredBy: capabilityMaster.id,
@@ -939,6 +941,10 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       schemaDefinitionId: input.schemaDefinitionId,
     });
     if (error || !c) return { ok: false, errors: [(error ?? new Error("failed to create Capability Definition draft")).message] };
+    const { data: capabilitySchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
+    if (capabilitySchema) {
+      await proposeComposableOntologyValues(capabilitySchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Capability", originatingObjectId: c.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: input.authorBadge, tenantId });
+    }
     return { ok: true, draftId: c.id };
   }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
@@ -1065,10 +1071,14 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     const validation = await validateCapabilityDefinitionSeed({ ...seed, tenantId: existing.tenant_id, parentCapabilityDefinitionId: existing.parent_capability_definition_id ?? undefined }, input.id);
     if (!validation.ok) return { ok: false, errors: validation.errors };
     const { data, error } = await capabilityDefinitionsDB.updateDraftContent(input.id, {
-      code: seed.code, defaultLabel: seed.defaultLabel, description: seed.description ?? null, roles: seed.roles ?? [], version: seed.version, draftContent: input.content,
+      code: seed.code, defaultLabel: seed.defaultLabel, description: seed.description ?? null, category: seed.category, roles: seed.roles ?? [], version: seed.version, draftContent: input.content,
     });
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Defined rows can be saved)"] };
+    const { data: capabilitySchema } = existing.schema_definition_id ? await schemaDefinitionsDB.findById(existing.schema_definition_id) : { data: null };
+    if (capabilitySchema) {
+      await proposeComposableOntologyValues(capabilitySchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Capability", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: existing.author_badge, tenantId: existing.tenant_id });
+    }
     return { ok: true };
   }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
@@ -1076,7 +1086,7 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
 
 export type AdvanceAuthoringDraftResult = { ok: true; status: string } | { ok: false; errors: string[] };
 
-export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; id: string; actorId: string; actorRole: string }): Promise<AdvanceAuthoringDraftResult> {
+export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; id: string; actorId: string }): Promise<AdvanceAuthoringDraftResult> {
   if (input.kind === "Pack") {
     const { data: pack } = await packsDB.findById(input.id);
     if (!pack) return { ok: false, errors: ["Pack draft not found"] };
@@ -1097,7 +1107,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
         if (errors.length > 0) return { ok: false, errors };
       }
     }
-    const advanced = await advancePackOneStep(pack, input.actorRole, input.actorId);
+    const advanced = await advancePackOneStep(pack, input.actorId);
     if (!advanced.ok || !advanced.pack) return { ok: false, errors: advanced.errors ?? ["advance failed"] };
     return { ok: true, status: advanced.pack.status };
   }
@@ -1118,7 +1128,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
         if (errors.length > 0) return { ok: false, errors };
       }
     }
-    const advanced = await advanceTemplateOneStep(t, input.actorRole, input.actorId);
+    const advanced = await advanceTemplateOneStep(t, input.actorId);
     if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
     return { ok: true, status: advanced.template.status };
   }
@@ -1139,7 +1149,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
         if (errors.length > 0) return { ok: false, errors };
       }
     }
-    const advanced = await advanceProfileOneStep(p, input.actorRole, input.actorId);
+    const advanced = await advanceProfileOneStep(p, input.actorId);
     if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
     return { ok: true, status: advanced.profile.status };
   }
@@ -1151,7 +1161,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
       const validation = await validateDeliverableDefinitionSeed({ ...seed, tenantId: d.tenant_id, parentDeliverableDefinitionId: d.parent_deliverable_definition_id ?? undefined }, d.id);
       if (!validation.ok) return { ok: false, errors: validation.errors };
     }
-    const advanced = await advanceDeliverableDefinitionOneStep(d, input.actorRole, input.actorId);
+    const advanced = await advanceDeliverableDefinitionOneStep(d, input.actorId);
     if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
     return { ok: true, status: advanced.deliverableDefinition.status };
   }
@@ -1167,7 +1177,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
       const validation = await validateServiceDefinitionSeed({ ...seed, tenantId: s.tenant_id, parentServiceDefinitionId: s.parent_service_definition_id ?? undefined }, s.id);
       if (!validation.ok) return { ok: false, errors: validation.errors };
     }
-    const advanced = await advanceServiceDefinitionOneStep(s, input.actorRole, input.actorId);
+    const advanced = await advanceServiceDefinitionOneStep(s, input.actorId);
     if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
     return { ok: true, status: advanced.serviceDefinition.status };
   }
@@ -1192,7 +1202,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
         if (errors.length > 0) return { ok: false, errors };
       }
     }
-    const advanced = await advancePolicyDefinitionOneStep(p, input.actorRole, input.actorId);
+    const advanced = await advancePolicyDefinitionOneStep(p, input.actorId);
     if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
     return { ok: true, status: advanced.policyDefinition.status };
   }
@@ -1201,12 +1211,12 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     if (!c) return { ok: false, errors: ["Capability Definition draft not found"] };
     if (c.status === "Defined") {
       const seed = toCapabilityDefinitionSeedInput({
-        code: c.code, defaultLabel: c.default_label, description: c.description ?? undefined, roles: c.roles, version: c.version, ...(c.draft_content ?? {}),
+        code: c.code, defaultLabel: c.default_label, description: c.description ?? undefined, category: c.category, roles: c.roles, version: c.version, ...(c.draft_content ?? {}),
       });
       const validation = await validateCapabilityDefinitionSeed({ ...seed, tenantId: c.tenant_id, parentCapabilityDefinitionId: c.parent_capability_definition_id ?? undefined }, c.id);
       if (!validation.ok) return { ok: false, errors: validation.errors };
     }
-    const advanced = await advanceCapabilityDefinitionOneStep(c, input.actorRole, input.actorId);
+    const advanced = await advanceCapabilityDefinitionOneStep(c, input.actorId);
     if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
     return { ok: true, status: advanced.capabilityDefinition.status };
   }

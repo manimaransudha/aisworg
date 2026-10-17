@@ -1,0 +1,23 @@
+{
+  "code": "profile-continuous-assurance-development",
+  "name": "Continuous Assurance — Default Development Profile",
+  "baseTemplateCode": "continuous-assurance",
+  "environment": "development",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
+  "dispatchStrategyPreference": [
+    {
+      "strategy": "capability-match",
+      "order": 1
+    }
+  ],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
+  "optionalPackCodes": [
+    "testing-qa",
+    "integration-github",
+    "integration-datadog",
+    "integration-sentry"
+  ]
+}

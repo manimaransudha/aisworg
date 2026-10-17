@@ -6,16 +6,24 @@ const LocalStrategy   = require('passport-local').Strategy;
 const bcrypt          = require('bcryptjs');
 
 import { userDB }  from '../../dblayer/userDB.js';
+import type { UserRow } from '../../dblayer/userDB.js';
 import { tenantsDB } from '../../dblayer/tenantsDB.js';
 import {participantsMasterDB} from '../../dblayer/participantsMasterDB.js';
 import {DEMO_TENANT_NAME, ensurePlatformSystemActor} from '../../dblayer/constants.js';
 import { logger }  from '../../utils/logger.js';
 
+interface GoogleProfile {
+  id: string;
+  displayName: string;
+  emails?: Array<{ value: string }>;
+  photos?: Array<{ value: string }>;
+}
+type PassportDone = (err: unknown, user?: UserRow | false, info?: { message: string }) => void;
+
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || '').toLowerCase();
 
-function applyRoleOverride(user) {
+function applyRoleOverride(user: UserRow) {
   if (SUPERUSER_EMAIL && user.email.toLowerCase() === SUPERUSER_EMAIL) {
-    user.role = 'super';
     user.tenant_id = '';
   }
   return user;
@@ -30,16 +38,16 @@ export function configurePassport() {
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         callbackURL:  `${process.env.BASE_URL || ''}/aisworg/auth/google/callback`,
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (_accessToken: string, _refreshToken: string, profile: GoogleProfile, done: PassportDone) => {
         try {
           const email = profile.emails?.[0]?.value?.toLowerCase();
           if (!email) return done(new Error('No email from Google'));
 
-          let user;
+          let user: UserRow | null;
           try {
             user = await userDB.findByEmail(email);
           } catch (dbErr) {
-            if (dbErr.message?.includes('timeout') || dbErr.message?.includes('terminated')) {
+            if (dbErr instanceof Error && (dbErr.message.includes('timeout') || dbErr.message.includes('terminated'))) {
               logger.warn('[Auth] DB cold-start on Google callback — retrying once');
               user = await userDB.findByEmail(email);
             } else {
@@ -51,11 +59,17 @@ export function configurePassport() {
 
             const isSuper = SUPERUSER_EMAIL && email.toLowerCase() === SUPERUSER_EMAIL;
 
-            const home = isSuper
-              ? await tenantsDB.ensurePlatformTenant()
-              : await tenantsDB.findByName(DEMO_TENANT_NAME);
-            if (home.error) return done(home.error);
-            const homeTenantId = isSuper ? home.data : home.data.id;
+            let homeTenantId: string;
+            if (isSuper) {
+              const home = await tenantsDB.ensurePlatformTenant();
+              if (home.error) return done(home.error);
+              homeTenantId = home.data;
+            } else {
+              const home = await tenantsDB.findByName(DEMO_TENANT_NAME);
+              if (home.error) return done(home.error);
+              if (!home.data) return done(new Error(`${DEMO_TENANT_NAME} tenant not provisioned`));
+              homeTenantId = home.data.id;
+            }
 
             user = await userDB.create({
               email,
@@ -75,7 +89,7 @@ export function configurePassport() {
           if (participantLookupErr) return done(participantLookupErr);
           if (!existingParticipant) {
             const isSuper = SUPERUSER_EMAIL && user.email.toLowerCase() === SUPERUSER_EMAIL;
-            let participantTenantId;
+            let participantTenantId: string;
             if (isSuper) {
               const {data, error} = await tenantsDB.ensurePlatformTenant();
               if (error) return done(error);
@@ -83,6 +97,7 @@ export function configurePassport() {
             } else {
               const {data, error} = await tenantsDB.findByName(DEMO_TENANT_NAME);
               if (error) return done(error);
+              if (!data) return done(new Error(`${DEMO_TENANT_NAME} tenant not provisioned`));
               participantTenantId = data.id;
             }
 
@@ -121,7 +136,7 @@ export function configurePassport() {
 
   passport.use(new LocalStrategy(
     { usernameField: 'email' },
-    async (email, password, done) => {
+    async (email: string, password: string, done: PassportDone) => {
       try {
         const user = await userDB.findByEmail(email.toLowerCase());
 

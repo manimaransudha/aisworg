@@ -14,6 +14,18 @@
         "code": "governing-engineering-decisions",
         "name": "Ongoing Operations & Governance",
         "description": "Sustains long-term operational reliability, compliance, and architectural health through recurring governance practices."
+      },
+      {
+        "code": "observability-engineering"
+      },
+      {
+        "code": "incident-response-management"
+      },
+      {
+        "code": "predictive-incident-anticipation"
+      },
+      {
+        "code": "privacy-and-licence-compliance"
       }
     ],
     "services": [

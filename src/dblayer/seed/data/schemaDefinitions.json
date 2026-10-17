@@ -6,7 +6,8 @@
       "type": "object",
       "required": [
         "code",
-        "defaultLabel"
+        "defaultLabel",
+        "category"
       ],
       "properties": {
         "code": {
@@ -15,6 +16,14 @@
           "minLength": 1,
           "x-ontology": true,
           "x-referential-source": "capability-name"
+        },
+        "category": {
+          "type": "string",
+          "x-help": "Capability category (Ch.18 Ontology, concept type category:capability), e.g. \"Requirements Engineering\".",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-ontology-composable": true,
+          "x-referential-source": "category:capability"
         },
         "roles": {
           "type": "array",

@@ -528,14 +528,14 @@ export async function deleteObjective(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function retireObjectiveSubtree(input: { objectiveId: string; actorRole: string; actorId: string }): Promise<{ retired: string[]; skipped: Array<{ id: string; status: ObjectiveStatus }> }> {
+export async function retireObjectiveSubtree(input: { objectiveId: string; actorId: string }): Promise<{ retired: string[]; skipped: Array<{ id: string; status: ObjectiveStatus }> }> {
   const { data: node } = await objectivesDB.findById(input.objectiveId);
   if (!node) throw new Error(`Objective not found: ${input.objectiveId}`);
   if (node.status !== "Active") {
     throw new Error(`only an Active Objective can be retired (status: ${node.status})`);
   }
 
-  const rootResult = await transitionObjective({ objectiveId: node.id, targetState: "Retired", actorRole: input.actorRole, actorId: input.actorId });
+  const rootResult = await transitionObjective({ objectiveId: node.id, targetState: "Retired", actorId: input.actorId });
   if (!rootResult.ok) {
     const detail = "detail" in rootResult ? rootResult.detail : rootResult.reason;
     throw new Error(`retire blocked: ${detail}`);
@@ -551,7 +551,7 @@ export async function retireObjectiveSubtree(input: { objectiveId: string; actor
       skipped.push({ id: descId, status: desc.status });
       continue;
     }
-    const res = await transitionObjective({ objectiveId: descId, targetState: "Retired", actorRole: input.actorRole, actorId: input.actorId });
+    const res = await transitionObjective({ objectiveId: descId, targetState: "Retired", actorId: input.actorId });
     if (res.ok) retired.push(descId);
     else skipped.push({ id: descId, status: desc.status });
   }
@@ -667,7 +667,7 @@ export type TransitionObjectiveResult =
   | { ok: false; reason: "superseding_target_required" | "superseding_target_not_found"; detail: string }
   | { ok: false; reason: "superseding_target_wrong_tenant"; detail: string };
 
-export async function transitionObjective(input: { objectiveId: string; targetState: ObjectiveStatus; actorRole: string; actorId: string; comment?: string; supersedingObjectiveId?: string }): Promise<TransitionObjectiveResult> {
+export async function transitionObjective(input: { objectiveId: string; targetState: ObjectiveStatus; actorId: string; comment?: string; supersedingObjectiveId?: string }): Promise<TransitionObjectiveResult> {
   const { data: objective } = await objectivesDB.findById(input.objectiveId);
   if (!objective) return { ok: false, reason: "not_found" };
 
@@ -676,7 +676,6 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
     entityType: "Objective",
     fromState,
     toState: input.targetState,
-    actorRole: input.actorRole,
     actorId: input.actorId,
     context: { objective },
     entityId: objective.id,

@@ -131,6 +131,3 @@ pnpm exec tsx src/dblayer/seed/seedRouteAuthority.ts
 ----------
 
 Keep the responses short, relevant and non-repetitive. I understand English. You do not have to restate it different ways - understood ?
-
-I want to create an user manual for the application. There are 3 pieces to it. 1) SDK Authoring: this should cover all the definition/declarative part. 
-2) SEU Commissioning: THis should cover the SEU commission for a specific objective. 3) Execution engine:: This should cover all aspects of execution. 

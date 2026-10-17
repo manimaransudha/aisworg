@@ -24,7 +24,6 @@ export interface EvaluateInput {
   entityType: TransitionEntityType;
   fromState: string;
   toState: string;
-  actorRole: string;
   actorId: string;
   context?: Record<string, unknown>;
   entityId?: string;

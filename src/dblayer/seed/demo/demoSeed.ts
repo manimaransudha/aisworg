@@ -71,7 +71,7 @@ async function grantAuthoringBadges(actor: DemoActor): Promise<void> {
 // Authors each Pack through the SDK authoring path. A Pack whose code is not yet a
 // canonical Ontology concept gets a ConceptCreated proposal at Draft creation and
 // stays unpublished until the concept is accepted; that is an outcome, not an error.
-async function seedPacks(actor: DemoActor, actorRole: string): Promise<{ authored: Set<string>; active: Set<string> }> {
+async function seedPacks(actor: DemoActor): Promise<{ authored: Set<string>; active: Set<string> }> {
   const packs = loadJson<Array<Omit<PackSeedInput, "tenantId">>>("packs.json");
   const { data: packSchema, error: schemaError } = await schemaDefinitionsDB.findLatest("Pack");
   if (schemaError || !packSchema) throw schemaError ?? new Error("no schema_definitions grammar for Pack");
@@ -98,7 +98,7 @@ async function seedPacks(actor: DemoActor, actorRole: string): Promise<{ authore
           break;
         }
       }
-      const advanced = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: actor.participantId, actorRole });
+      const advanced = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: actor.participantId });
       if (!advanced.ok) throw new Error(`[seed:demo] Pack "${pack.code}" failed at ${status}: ${advanced.errors.join("; ")}`);
       status = advanced.status;
     }
@@ -109,7 +109,7 @@ async function seedPacks(actor: DemoActor, actorRole: string): Promise<{ authore
 
 // The Demo tenant cannot see Platform Templates, so each base Template the Profiles
 // use is inherited into the Demo tenant unchanged and taken to Active.
-async function seedTemplates(actor: DemoActor, actorRole: string): Promise<void> {
+async function seedTemplates(actor: DemoActor): Promise<void> {
   const profiles = loadJson<ProfileSeedInput[]>("profiles.json");
   const baseTemplateCodes = [...new Set(profiles.map((p) => p.baseTemplateCode))];
   const { data: templateSchema, error: schemaError } = await schemaDefinitionsDB.findLatest("Template");
@@ -131,7 +131,7 @@ async function seedTemplates(actor: DemoActor, actorRole: string): Promise<void>
     if (!created.ok) throw new Error(`[seed:demo] Template "${code}" draft failed: ${created.errors.join("; ")}`);
     let status = "Draft";
     while (status !== "Active") {
-      const advanced = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: actor.participantId, actorRole });
+      const advanced = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: actor.participantId });
       if (!advanced.ok) throw new Error(`[seed:demo] Template "${code}" failed at ${status}: ${advanced.errors.join("; ")}`);
       status = advanced.status;
     }
@@ -140,7 +140,7 @@ async function seedTemplates(actor: DemoActor, actorRole: string): Promise<void>
 
 // A Profile can only select Active Packs; one that selects a Pack still waiting on
 // the Ontology is skipped and reported.
-async function seedProfiles(actor: DemoActor, actorRole: string, packs: { authored: Set<string>; active: Set<string> }): Promise<void> {
+async function seedProfiles(actor: DemoActor, packs: { authored: Set<string>; active: Set<string> }): Promise<void> {
   const profiles = loadJson<ProfileSeedInput[]>("profiles.json");
   for (const profile of profiles) {
     const waiting = (profile.optionalPackCodes ?? []).filter((c) => packs.authored.has(c) && !packs.active.has(c));
@@ -148,12 +148,12 @@ async function seedProfiles(actor: DemoActor, actorRole: string, packs: { author
       logger.info(`[seed:demo] Profile "${profile.code}" not published, waiting on Pack(s): ${waiting.join(", ")}`);
       continue;
     }
-    const result = await publishProfile({ seed: { ...profile, tenantId: actor.tenantId }, actorRole, actorId: actor.participantId });
+    const result = await publishProfile({ seed: { ...profile, tenantId: actor.tenantId }, actorId: actor.participantId });
     if (!result.ok) throw new Error(`[seed:demo] Profile "${profile.code}" failed: ${result.errors.join("; ")}`);
   }
 }
 
-async function seedObjectives(actor: DemoActor, actorRole: string): Promise<void> {
+async function seedObjectives(actor: DemoActor): Promise<void> {
   const objectives = loadJson<DemoObjectiveSeed[]>("objectives.json");
   const idByKey = new Map<string, string>();
   // All Objectives are created first: a submitted Proposed parent locks its children.
@@ -173,7 +173,7 @@ async function seedObjectives(actor: DemoActor, actorRole: string): Promise<void
   for (const o of objectives) {
     const objectiveId = idByKey.get(o.key)!;
     await submitObjective(objectiveId, actor.participantId);
-    const result = await transitionObjective({ objectiveId, targetState: "Active", actorRole, actorId: actor.participantId });
+    const result = await transitionObjective({ objectiveId, targetState: "Active", actorId: actor.participantId });
     if (!result.ok) throw new Error(`[seed:demo] Objective ${o.key} activation failed: ${result.reason}${"detail" in result ? `: ${result.detail}` : ""}`);
   }
 }
@@ -235,13 +235,12 @@ async function seedCatalogue(actor: DemoActor): Promise<void> {
 export async function seedDemo(): Promise<void> {
   const actor = await getDemoActor();
   await purgeDemoTenant(actor.tenantId);
-  const actorRole = await prepareActor(actor);
   await grantAuthoringBadges(actor);
-  const packs = await seedPacks(actor, actorRole);
-  await seedTemplates(actor, actorRole);
-  await seedProfiles(actor, actorRole, packs);
+  const packs = await seedPacks(actor);
+  await seedTemplates(actor);
+  await seedProfiles(actor, packs);
   await seedDemoParticipants(actor);
-  await seedObjectives(actor, actorRole);
+  await seedObjectives(actor);
   await seedCatalogue(actor);
   logger.info("[seed:demo] Packs, Templates, Profiles, participants, Objectives and the scenario catalogue seeded.");
 }
