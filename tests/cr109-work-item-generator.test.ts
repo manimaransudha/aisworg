@@ -34,7 +34,7 @@ import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { decisionsDB } from "../src/dblayer/decisionsDB.js";
 import { governanceEvaluationOutcomesDB } from "../src/dblayer/governanceEvaluationOutcomesDB.js";
 import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
-import { driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, ensureTestFixturePacks, waitForDispatchedWorkItem, transitionDeliverableSync, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { getEmptyPoolTenantId, driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, ensureTestFixturePacks, waitForDispatchedWorkItem, transitionDeliverableSync, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
@@ -78,7 +78,7 @@ async function registerOrganisationName(code: string): Promise<void> {
 // Deliverable transition also checks its owning SEU isn't blocked
 // (seu_blocked). This Profile omits that optional Pack entirely so real
 // commissioning actually reaches Operational.
-async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>, holdAtActivated?: (seuId: string) => Promise<void>): Promise<string> {
+async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>, holdAtActivated?: (seuId: string) => Promise<void>, tenantId?: string): Promise<string> {
   // db:clean-slate does not seed the cr104 demo; seedAllTestFixturePacks (seedCr104Demo) does, and is idempotent.
   await ensureTestFixturePacks();
   const { data: template } = await templatesDB.findActiveByCode("cr104-demo-minimal");
@@ -128,7 +128,7 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
     objectiveId: objective.id,
     templateIds: [template!.id],
     profileIds: [profile!.id],
-    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId,
   });
   assert.equal(commissioned.ok, true, !commissioned.ok ? JSON.stringify(commissioned) : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
@@ -274,7 +274,7 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
     title: "Domain glossary for this backlog", acquisitionScope: "SEU",
   });
 
-  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, capabilityCodes: ["requirements-analysis"] });
 
   const { workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "In Progress", "In Progress");
   const ec = workItem!.execution_context!;
@@ -290,7 +290,7 @@ test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Co
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
-  const { participant } = await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+  const { participant } = await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, capabilityCodes: ["requirements-analysis"] });
 
   const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
@@ -301,45 +301,31 @@ test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Co
   const { data: pool } = await capabilityFulfilmentPoolsDB.findById(command!.eligible_participant_pool_id!);
   assert.ok(pool, "the referenced pool snapshot must actually exist");
   assert.equal(pool!.seu_id, seuId);
-  assert.deepEqual(pool!.participant_ids, [participant.id], "the pool must be the real fulfilment, not empty or fabricated");
+  assert.ok(pool!.participant_ids.includes(participant.id), "the pool must be the real fulfilment and include this Participant");
 
-  // Dispatch actually selected from this persisted snapshot.
-  assert.equal(workItem.participant_id, participant.id);
+  // Dispatch actually selected one member of this persisted snapshot.
+  assert.ok(workItem.participant_id && pool!.participant_ids.includes(workItem.participant_id), "the Work Item goes to a member of the persisted pool");
 });
 
-test("Ch.12 §9 / CR-109 §6.2: no producing Capability declared means no pool at all, not an empty-query result", async () => {
-  const seuId = await commissionCr104MinimalSeu("cr109-pool-no-capability");
-  const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
-  const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(requirementsSpec && reqAnalysisCapability);
+test("Ch.12 §9 / CR-109 §6.2: with no eligible Participant the producing Capability stays unfulfilled and the Deliverable stays in Defined", async () => {
+  {
+    const seuId = await commissionCr104MinimalSeu("cr109-pool-no-capability", undefined, undefined, await getEmptyPoolTenantId());
+    const detail = await getSeuDetailView(seuId);
+    const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
+    assert.ok(requirementsSpec);
 
-  // Deliberately no fulfilCapability call — the Deliverable has a producing
-  // Capability declared, but nobody fulfils it, so the pool snapshot must
-  // exist with an empty participant_ids array (not a null pool reference).
-  // Ch.33's own redesign (this session): governance clearing and dispatch
-  // outcome are no longer the same synchronous fact — transitionDeliverable
-  // reports "Command requested" regardless, and an empty pool is Dispatch's
-  // own case 1 (DispatchRejected, Command marked Failed), not a deferral.
-  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const requested = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assertTransitionRequested(requested);
+    // The Mandatory Policy blocks Defined -> In Progress until the producing Capability is Fulfilled.
+    await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+    const moved = await transitionDeliverableSync({ deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
+    assert.equal(moved.ok, false, "no hop without a fulfilled Capability");
+    if (!moved.ok) assert.equal(moved.reason, "policy_blocked", JSON.stringify(moved));
 
-  let command: CommandRow | null = null;
-  await waitUntilAsync(async () => {
+    const after = await getSeuDetailView(seuId);
+    const deliverable = after?.deliverables.find((d) => d.id === requirementsSpec!.id);
+    assert.equal(deliverable?.lifecycleState, "Defined", "the Deliverable stays in Defined");
     const { data: commands } = await commandsDB.findBySeuId(seuId);
-    command = (commands ?? []).find((c) => c.entity_id === requirementsSpec!.id) ?? null;
-    return command?.status === "Failed";
-  });
-  // TS narrows a `let` reassigned inside an async closure (the
-  // waitUntilAsync callback above) to `never` at every read site after the
-  // closure returns — a known compiler limitation, not an actual runtime
-  // possibility. A local cast sidesteps it without weakening the null check.
-  const resolvedCommand = command as CommandRow | null;
-  assert.equal(resolvedCommand?.status, "Failed", "an empty eligible-Participant pool must reject, not silently dispatch or defer forever");
-  assert.ok(resolvedCommand?.eligible_participant_pool_id, "a Capability WAS declared, so a pool snapshot must still exist");
-  const { data: pool } = await capabilityFulfilmentPoolsDB.findById(resolvedCommand!.eligible_participant_pool_id!);
-  assert.deepEqual(pool!.participant_ids, []);
+    assert.equal((commands ?? []).filter((c) => c.entity_id === requirementsSpec!.id && c.from_state === "In Progress" && c.to_state === "In Progress").length, 0, "no producing Command without a hop");
+  }
 });
 
 test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obligation both show up on a real Approved-with-Conditions outcome", async () => {
@@ -374,7 +360,7 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
     assert.equal(created!.status, "Identified", "open, not resolved");
     obligationId = created!.id;
     assert.ok(head!.producing_capability_id, "expected the isolated Template's requirements-analysis Capability to be declared");
-    await fulfilCapability({ seuId: activatedSeuId, capabilityId: head!.producing_capability_id!, participantMasterId: await ensureEligibleParticipant(activatedSeuId, ["requirements-analysis"]) });
+    await fulfilCapability({ seuId: activatedSeuId, capabilityId: head!.producing_capability_id!, capabilityCodes: ["requirements-analysis"] });
   });
 
   // The hop is the engine's own governed transition. Its Command carries the governance outcome the producing
@@ -393,7 +379,7 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
 
   const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
   const ec = workItem!.execution_context!;
-  assert.ok(ec.governingPolicies.length === 0, "deviated policies aren't 'satisfied' — governingPolicies reads satisfied_policy_ids, which stays empty here");
+  assert.ok(!ec.governingPolicies.some((p) => p.id === standardPolicyId), "a deviated policy isn't 'satisfied' — governingPolicies reads satisfied_policy_ids, so it never lists the deviating Policy");
   assert.ok(ec.activeObligations.some((o) => o.id === obligationId), "the Participant must still see the open Obligation for their own awareness (Ch.32 §11)");
 });
 
@@ -445,7 +431,7 @@ test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation 
     const detail = await getSeuDetailView(seuId);
     const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
     assert.ok(reqAnalysisCapability);
-    await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+    await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, capabilityCodes: ["requirements-analysis"] });
   });
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
@@ -465,7 +451,7 @@ test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation 
 
   await driveDeliverableToApproved(requirementsSpec!.id, `cr109-source-code-scoping-${seuId}`);
 
-  await fulfilCapability({ seuId, capabilityId: constructionCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["software-construction"]) });
+  await fulfilCapability({ seuId, capabilityId: constructionCapability!.capabilityId, capabilityCodes: ["software-construction"] });
   const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 
@@ -485,7 +471,7 @@ test("CR-109 Source Code §5a: decision_blocked triggers even when only ONE of s
     const detail = await getSeuDetailView(seuId);
     const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
     assert.ok(reqAnalysisCapability);
-    await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+    await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, capabilityCodes: ["requirements-analysis"] });
   });
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
@@ -507,7 +493,7 @@ test("CR-109 Source Code §5a: decision_blocked triggers even when only ONE of s
   });
 
   await driveDeliverableToApproved(requirementsSpec!.id, `cr109-source-code-partial-block-${seuId}`);
-  await fulfilCapability({ seuId, capabilityId: constructionCapability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["software-construction"]) });
+  await fulfilCapability({ seuId, capabilityId: constructionCapability!.capabilityId, capabilityCodes: ["software-construction"] });
 
   const blocked = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);

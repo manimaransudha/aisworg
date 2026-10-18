@@ -10,6 +10,7 @@ import { userDB } from "../userDB.js";
 import { packsDB } from "../packsDB.js";
 import { getPlatformTenantId } from "../constants.js";
 import { seedTestOntology } from "./seedTestOntology.js";
+import { loadServiceDefinitionIdByCode, stampServiceDefinitionIds } from "./serviceDefinitionIds.js";
 import { seedCr104Demo } from "./seedCr104Demo.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -100,10 +101,10 @@ const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
 const DEPENDENT_TEST_FIXTURE_PACK_FILES = ["test-domain-ebook-library.pack.json", "test-technology-nodejs.pack.json"];
 const TEST_FIXTURE_PACK_FILES = [...INDEPENDENT_TEST_FIXTURE_PACK_FILES, ...DEPENDENT_TEST_FIXTURE_PACK_FILES];
 
-async function publishBatch(files: string[], actorId: string): Promise<PromiseSettledResult<void>[]> {
+async function publishBatch(files: string[], actorId: string, serviceDefinitionIdByCode: Map<string, string>): Promise<PromiseSettledResult<void>[]> {
   return Promise.allSettled(
     files.map(async (file) => {
-      const seed = loadJson<PackSeedInput>(file);
+      const seed = stampServiceDefinitionIds(loadJson<PackSeedInput>(file), serviceDefinitionIdByCode);
       if ((await packsDB.findActiveByCode(seed.code, seed.tenantId ?? (await getPlatformTenantId()))).data) return;
       const result = await publishPack({ seed, actorId, activate: true });
       if (!result.ok) {
@@ -116,13 +117,14 @@ async function publishBatch(files: string[], actorId: string): Promise<PromiseSe
 export async function seedAllTestFixturePacks(): Promise<void> {
   const { actorId, actorBadge } = await userDB.getSuperuserId();
   await seedTestOntology({ authoredBy: actorId, authorBadge: actorBadge });
-  const independentResults = await publishBatch(INDEPENDENT_TEST_FIXTURE_PACK_FILES, actorId);
+  const serviceDefinitionIdByCode = await loadServiceDefinitionIdByCode(await getPlatformTenantId());
+  const independentResults = await publishBatch(INDEPENDENT_TEST_FIXTURE_PACK_FILES, actorId, serviceDefinitionIdByCode);
   const independentFailures = independentResults.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
   if (independentFailures.length > 0) {
     throw new Error(`[seed:test-fixture-packs] ${independentFailures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${independentFailures.join(" | ")}`);
   }
 
-  const dependentResults = await publishBatch(DEPENDENT_TEST_FIXTURE_PACK_FILES, actorId);
+  const dependentResults = await publishBatch(DEPENDENT_TEST_FIXTURE_PACK_FILES, actorId, serviceDefinitionIdByCode);
   const dependentFailures = dependentResults.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
   if (dependentFailures.length > 0) {
     throw new Error(`[seed:test-fixture-packs] ${dependentFailures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${dependentFailures.join(" | ")}`);

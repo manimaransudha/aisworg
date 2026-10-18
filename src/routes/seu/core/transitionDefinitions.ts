@@ -1,5 +1,6 @@
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { authorityVocabularyDB } from "../../../dblayer/authorityVocabularyDB.js";
+import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { listActiveNouns, activeMappingByNoun, type WriteResult } from "./authorityVocabulary.js";
 
 export interface TransitionDefinitionListItem {
@@ -37,6 +38,22 @@ export async function listCurrentTransitionDefinitions(): Promise<TransitionDefi
     createsObligation: r.creates_obligation,
     category: r.category,
   }));
+}
+
+// The Policy Definition codes a transition may require: the Active, Platform-owned ones.
+export async function listRequirablePolicyCodes(): Promise<string[]> {
+  const { data } = await policyDefinitionsDB.findActivePlatformOwned();
+  return (data ?? []).map((p) => p.code);
+}
+
+// Resolves chosen Policy Definition codes to their ids. A code that is not an Active Policy Definition is an error.
+async function resolvePolicyIds(codes: string[]): Promise<{ ids: string[] } | { error: string }> {
+  const { data, error } = await policyDefinitionsDB.findActivePlatformOwned();
+  if (error) return { error: error.message };
+  const idByCode = new Map((data ?? []).map((p) => [p.code, p.id]));
+  const unknown = codes.filter((code) => !idByCode.has(code));
+  if (unknown.length > 0) return { error: `No Active Policy Definition for: ${unknown.join(", ")}.` };
+  return { ids: [...new Set(codes)].map((code) => idByCode.get(code)!) };
 }
 
 export interface TransitionDefinitionDetailItem {
@@ -80,6 +97,7 @@ export async function addTransitionDefinition(input: {
   fromState: string;
   toState: string;
   verb: string;
+  policyCodes: string[];
   authorId: string;
   authorBadge: string;
 }): Promise<WriteResult> {
@@ -98,13 +116,19 @@ export async function addTransitionDefinition(input: {
     return { ok: false, error: `Verb "${verb}" is not allowed on ${entityType}. Add it on the Mapping tab first.` };
   }
 
+  const policies = await resolvePolicyIds(input.policyCodes);
+  if ("error" in policies) return { ok: false, error: policies.error };
+
   const { data: defaultTrigger } = await authorityVocabularyDB.findDefaultTrigger(entityType, verb);
-  const { error } = await transitionDefinitionsDB.insertDefinition({ entityType, fromState, toState, verb, trigger: defaultTrigger, authorId: input.authorId, authorBadge: input.authorBadge });
+  const { error } = await transitionDefinitionsDB.insertDefinition({ entityType, fromState, toState, verb, trigger: defaultTrigger, requiredPolicyIds: policies.ids, authorId: input.authorId, authorBadge: input.authorBadge });
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
-export async function updateTransitionDefinition(id: string, input: { createsObligation?: string | null; category?: string | null }): Promise<WriteResult> {
+export async function updateTransitionDefinition(id: string, input: { createsObligation?: string | null; category?: string | null; policyCodes: string[] }): Promise<WriteResult> {
+  const policies = await resolvePolicyIds(input.policyCodes);
+  if ("error" in policies) return { ok: false, error: policies.error };
   const { data, error } = await transitionDefinitionsDB.updateMetadata(id, {
+    requiredPolicyIds: policies.ids,
     createsObligation: input.createsObligation?.trim() ? input.createsObligation.trim() : null,
     category: input.category?.trim() ? input.category.trim() : null,
   });

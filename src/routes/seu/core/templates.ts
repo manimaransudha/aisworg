@@ -184,8 +184,8 @@ export async function deriveOverridableParameterCandidates(baseTemplateCode: str
   const exposed = extractExposedParameters(template.draft_content as Record<string, unknown> | null) ?? [];
   const overridableKeys = new Set(exposed.filter((e) => e.overridable).map((e) => `${e.sourceType}::${e.sourceCode}::${e.parameterName}`));
   if (overridableKeys.size === 0) return [];
-  const packSelections = await getPackSelectionsByCategory(template.id);
-  const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => (packSelections[slot.field as keyof PackSelectionsByCategory] as string[] | undefined) ?? []))];
+  const { data: mandatoryCodes } = await templatesDB.getMandatoryPackCodes(template.id);
+  const packCodes = [...new Set(mandatoryCodes ?? [])];
   const dependencyGraph = await getDependencyGraphContent(template.id, viewerTenantId);
   const candidates = await deriveExposableParameterCandidates(packCodes, viewerTenantId, dependencyGraph);
   return candidates.filter((c) => overridableKeys.has(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`));
@@ -407,9 +407,10 @@ export async function getPackSelectionsByCategory(templateId: string): Promise<P
   const { data: allCodes } = await templatesDB.getMandatoryPackCodes(templateId);
   const result: PackSelectionsByCategory = {};
   for (const slot of PACK_SELECTION_SLOTS) result[slot.field as keyof PackSelectionsByCategory] = [];
+  const { data: categories } = await packsDB.findCategoriesByCodes(allCodes ?? []);
+  const categoryByCode = new Map((categories ?? []).map((c) => [c.code, c.category]));
   for (const code of allCodes ?? []) {
-    const { data: pack } = await packsDB.findByCode(code);
-    const slot = PACK_SELECTION_SLOTS.find((s) => s.packCategory === pack?.category);
+    const slot = PACK_SELECTION_SLOTS.find((s) => s.packCategory === categoryByCode.get(code));
     if (slot) (result[slot.field as keyof PackSelectionsByCategory] as string[]).push(code);
   }
   return result;

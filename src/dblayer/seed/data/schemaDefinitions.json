@@ -15,6 +15,7 @@
           "x-help": "The Capability's own canonical Ontology identity (capability-name concept type, migration 046), e.g. \"requirements-analysis\".",
           "minLength": 1,
           "x-ontology": true,
+          "x-ontology-composable": true,
           "x-referential-source": "capability-name"
         },
         "category": {
@@ -240,12 +241,17 @@
           "items": {
             "type": "object",
             "required": [
-              "code"
+              "code",
+              "serviceDefinitionId"
             ],
             "properties": {
               "code": {
                 "type": "string",
                 "x-help": "Which canonical Service Definition this Pack composes."
+              },
+              "serviceDefinitionId": {
+                "type": "string",
+                "x-help": "The id of the exact Service Definition version this Pack composes."
               },
               "serviceLevel": {
                 "type": "array",
@@ -269,6 +275,7 @@
             },
             "x-property-order": [
               "code",
+              "serviceDefinitionId",
               "serviceLevel"
             ]
           },

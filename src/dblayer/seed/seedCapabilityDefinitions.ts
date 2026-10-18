@@ -10,6 +10,7 @@ import { participantsMasterDB } from "../participantsMasterDB.js";
 import { ontologyDB } from "../ontologyDB.js";
 import { userDB } from "../userDB.js";
 import { transitionCapabilityDefinition } from "../../routes/seu/core/capabilityDefinitions.js";
+import { eventBus } from "../../domain/engine/eventBus.js";
 import type { CapabilityRole } from "../seuTypes.js";
 import { getPlatformTenantId, INITIAL_VERSION } from "../constants.js";
 
@@ -71,6 +72,18 @@ export async function seedCapabilityDefinitions(actor: SeedActor): Promise<void>
       logger.info(`[seedCapabilityDefinitions] ${seed.code} already exists, skipping`);
       continue;
     }
+
+    await eventBus.publish({
+      eventType: "CapabilityRegistered",
+      originatingObjectType: "CapabilityDefinition",
+      originatingObjectId: created.id,
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      actorId: actor.authoredBy,
+      authorityBadge: actor.authorBadge,
+      payload: { code: created.code, version: created.version },
+      tenantId: created.tenant_id,
+    });
 
     const publish = await transitionCapabilityDefinition({ capabilityDefinitionId: created.id, targetState: "Published", actorId: actor.authoredBy});
     if (!publish.ok) throw new Error(`[seedCapabilityDefinitions] failed to publish ${seed.code}: ${publish.reason}${publish.detail ? ` (${publish.detail})` : ""}`);

@@ -15,7 +15,7 @@ import fetchCookie from "fetch-cookie";
 
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
-import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
+import { waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
 let server: ReturnType<typeof app.listen>;
@@ -179,6 +179,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
     redirect: "manual",
   });
   assert.equal(fulfilRes.status, 302, "the web fulfil form must redirect, success or error");
+  await waitForCapabilityFulfilled(seuId, requirementsCapability.capabilityId);
 
   const statusAfterFulfil = await request(`${baseUrl}/seus/${seuId}`);
   assert.equal(statusAfterFulfil.status, 200);

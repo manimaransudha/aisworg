@@ -15,7 +15,7 @@ import { parseListParams } from "../../../utils/listQuery.js";
 import { getObjectiveDetail, listCommissionableObjectives } from "../core/objectives.js";
 import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
-import { fulfilCapabilityWithParticipants, releaseParticipants } from "../core/capabilities.js";
+import { requestCapabilityFulfilment, releaseParticipants } from "../core/capabilities.js";
 import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
 import { transitionEbm } from "../core/commissioning.js";
@@ -119,10 +119,6 @@ router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, 
   const raw = req.body?.participantMasterIds;
   const participantMasterIds: string[] = (Array.isArray(raw) ? raw : raw ? [raw] : []).map(String);
 
-  if (participantMasterIds.length === 0) {
-    return redirects.seu.seusCapabilities.error(req, res, "At least one Participant is required.");
-  }
-
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
   if (!actorId) return redirects.seu.seusCapabilities.error(req, res, "No acting user to record as this Capability Fulfilment's author — log in first.");
   const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
@@ -131,15 +127,14 @@ router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, 
   if (!authorBadge) return redirects.seu.seusCapabilities.error(req, res, "No held badge authorises this action — cannot record an author badge.");
 
   try {
-    const results = await fulfilCapabilityWithParticipants({
+    await requestCapabilityFulfilment({
       seuId,
       capabilityId: String(req.params.capabilityId),
       participantMasterIds,
       actorId,
       authorBadge,
     });
-    const names = results.map((r) => r.participant.display_name).join(", ");
-    return redirects.seu.seusCapabilities.success(req, res, `Capability "${results[0].capabilityCode}" fulfilled by ${names}.`);
+    return redirects.seu.seusCapabilities.success(req, res, "Capability requested.");
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/capabilities/:capabilityId/fulfil error", err as Error);
     return redirects.seu.seusCapabilities.error(req, res, (err as Error).message);

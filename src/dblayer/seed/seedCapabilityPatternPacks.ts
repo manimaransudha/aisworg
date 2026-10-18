@@ -7,6 +7,7 @@ import { logger } from "../../utils/logger.js";
 import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js";
 import { userDB } from "../userDB.js";
 import { getPlatformTenantId } from "../constants.js";
+import { loadServiceDefinitionIdByCode, stampServiceDefinitionIds } from "./serviceDefinitionIds.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -20,6 +21,7 @@ export interface SeedActor {
 }
 
 const CAPABILITY_PATTERN_PACK_FILES = [
+  "platform-governance-baseline.pack.json",
   "openup-requirements.pack.json",
   "openup-architecture.pack.json",
   "openup-development.pack.json",
@@ -178,13 +180,14 @@ const PUBLISH_CONCURRENCY = 8;
 export async function seedCapabilityPatternPacks(actor: SeedActor): Promise<void> {
 
   const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  const serviceDefinitionIdByCode = await loadServiceDefinitionIdByCode(PLATFORM_TENANT_ID);
   const settled: PromiseSettledResult<void>[] = new Array(ALL_PACK_FILES.length);
   let next = 0;
   async function runOne(): Promise<void> {
     while (next < ALL_PACK_FILES.length) {
       const idx = next++;
       try {
-        const seed = loadJson<PackSeedInput>(ALL_PACK_FILES[idx]);
+        const seed = stampServiceDefinitionIds(loadJson<PackSeedInput>(ALL_PACK_FILES[idx]), serviceDefinitionIdByCode);
         seed.tenantId = PLATFORM_TENANT_ID;
         const result = await publishPack({ seed, actorId: actor.authoredBy, activate: true });
         if (!result.ok) {

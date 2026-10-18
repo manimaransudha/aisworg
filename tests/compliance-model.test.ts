@@ -17,11 +17,12 @@ import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { evaluateCompliance, grantWaiver, generateComplianceReport, complianceHistory } from "../src/routes/seu/core/compliance.js";
 import { complianceDB } from "../src/dblayer/complianceDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, getEmptyPoolTenantId, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
+// Commissioned where no Participant can fulfil a Capability, so no background kickoff moves a Deliverable while the test reads its state.
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: await getEmptyPoolTenantId() });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);

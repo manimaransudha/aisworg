@@ -1,0 +1,41 @@
+{
+  "code": "policy-capability-fulfilled-before-start",
+  "name": "Capability Fulfilled Before Start",
+  "description": "A Deliverable moves from Defined to In Progress only after the Capability that produces it is fulfilled. A Deliverable that has no producing Capability is not held.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The Capability that produces the Deliverable is Fulfilled before the Deliverable moves from Defined to In Progress.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "",
+          "transitions": [
+            "Deliverable|Defined|In Progress"
+          ],
+          "governingCondition": {
+            "type": "field_in",
+            "field": "producingCapabilityStatus",
+            "values": [
+              "Fulfilled",
+              null
+            ]
+          }
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Capability Fulfilment Record",
+        "category": "Validation Evidence",
+        "description": "The active Capability Fulfilment of the Capability that produces the Deliverable.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

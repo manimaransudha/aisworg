@@ -34,18 +34,30 @@ interface MinimalTemplateSeed {
   purpose: string;
 }
 
+// Test files run in parallel processes and each seeds this demo, so two processes can both find nothing Active and both
+// publish. The loser's publish fails on the unique (code, version, tenant) key while the winner is still activating,
+// so a failed publish waits for the winner's row to become Active and reuses it.
+async function waitForActive(find: () => Promise<{ id: string } | null | undefined>): Promise<{ id: string } | null> {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const found = await find();
+    if (found) return found;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  return null;
+}
+
 export async function seedCr104Demo(actor: SeedActor): Promise<void> {
   const mandatorySeed = loadJson<PackSeedInput>("cr104-demo-mandatory.pack.json");
   const platformTenantId = await getPlatformTenantId();
   if (!(await packsDB.findActiveByCode(mandatorySeed.code, platformTenantId)).data) {
     const mandatoryResult = await publishPack({ seed: mandatorySeed, actorId: actor.authoredBy, activate: true });
-    if (!mandatoryResult.ok) throw new Error(`[seed:cr104-demo] failed to publish "${mandatorySeed.code}": ${(mandatoryResult.errors ?? []).join("; ")}`);
+    if (!mandatoryResult.ok && !(await waitForActive(async () => (await packsDB.findActiveByCode(mandatorySeed.code, platformTenantId)).data))) throw new Error(`[seed:cr104-demo] failed to publish "${mandatorySeed.code}": ${(mandatoryResult.errors ?? []).join("; ")}`);
   }
 
   const policyPackSeed = loadJson<PackSeedInput>("cr104-demo-seu-eligibility-policies.pack.json");
   if (!(await packsDB.findActiveByCode(policyPackSeed.code, platformTenantId)).data) {
     const policyPackResult = await publishPack({ seed: policyPackSeed, actorId: actor.authoredBy, activate: true });
-    if (!policyPackResult.ok) throw new Error(`[seed:cr104-demo] failed to publish "${policyPackSeed.code}": ${(policyPackResult.errors ?? []).join("; ")}`);
+    if (!policyPackResult.ok && !(await waitForActive(async () => (await packsDB.findActiveByCode(policyPackSeed.code, platformTenantId)).data))) throw new Error(`[seed:cr104-demo] failed to publish "${policyPackSeed.code}": ${(policyPackResult.errors ?? []).join("; ")}`);
   }
 
   const minimalTemplateSeed = loadJson<MinimalTemplateSeed>("cr104-demo-minimal.template.json");
@@ -63,16 +75,22 @@ export async function seedCr104Demo(actor: SeedActor): Promise<void> {
     },
     actorId: actor.authoredBy
     });
-    if (!templateResult.ok) throw new Error(`[seed:cr104-demo] failed to publish template "${minimalTemplateSeed.code}": ${templateResult.errors.join("; ")}`);
-    templateId = templateResult.templateId;
+    if (templateResult.ok) templateId = templateResult.templateId;
+    else {
+      templateId = (await waitForActive(async () => (await templatesDB.findActiveByCode(minimalTemplateSeed.code, platformTenantId)).data))?.id;
+      if (!templateId) throw new Error(`[seed:cr104-demo] failed to publish template "${minimalTemplateSeed.code}": ${templateResult.errors.join("; ")}`);
+    }
   }
 
   const profileSeed = loadJson<ProfileSeedInput>("cr104-demo-development.profile.json");
   let profileId = (await profilesDB.findActiveByCode(profileSeed.code, platformTenantId)).data?.id;
   if (!profileId) {
     const profileResult = await publishProfile({ seed: profileSeed, actorId: actor.authoredBy });
-    if (!profileResult.ok) throw new Error(`[seed:cr104-demo] failed to publish profile "${profileSeed.code}": ${profileResult.errors.join("; ")}`);
-    profileId = profileResult.profileId;
+    if (profileResult.ok) profileId = profileResult.profileId;
+    else {
+      profileId = (await waitForActive(async () => (await profilesDB.findActiveByCode(profileSeed.code, platformTenantId)).data))?.id;
+      if (!profileId) throw new Error(`[seed:cr104-demo] failed to publish profile "${profileSeed.code}": ${profileResult.errors.join("; ")}`);
+    }
   }
 
   logger.info(`[seed:cr104-demo] done — Pack "${mandatorySeed.code}" (Mandatory), Pack "${policyPackSeed.code}" (adopts 2 real Policy Definitions), Template "${minimalTemplateSeed.code}" -> ${templateId}, Profile "${profileSeed.code}" -> ${profileId}.`);

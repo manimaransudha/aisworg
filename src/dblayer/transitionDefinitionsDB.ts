@@ -180,7 +180,7 @@ export const transitionDefinitionsDB = {
         `SELECT td.id, td.entity_type, td.from_state, td.to_state, td.verb, td.is_active, td.retired_at,
                 td.creates_obligation, td.category,
                 ar.code AS authority_rule_code,
-                COALESCE((SELECT array_agg(p.code ORDER BY p.code) FROM policies p WHERE p.id = ANY(td.required_policy_ids)), '{}') AS policy_codes,
+                COALESCE((SELECT array_agg(p.code ORDER BY p.code) FROM policy_definitions p WHERE p.id = ANY(td.required_policy_ids)), '{}') AS policy_codes,
                 COALESCE((SELECT array_agg(q.code ORDER BY q.code) FROM quality_gates q WHERE q.id = ANY(td.required_quality_gate_ids)), '{}') AS quality_gate_codes
          FROM transition_definitions td
          LEFT JOIN authority_rules ar ON ar.id = td.required_authority_rule_id
@@ -234,11 +234,11 @@ export const transitionDefinitionsDB = {
     }
   },
 
-  async updateMetadata(id: string, input: { createsObligation: string | null; category: string | null }): Promise<DbResult<{ id: string } | null>> {
+  async updateMetadata(id: string, input: { createsObligation: string | null; category: string | null; requiredPolicyIds: string[] }): Promise<DbResult<{ id: string } | null>> {
     try {
       const { rows } = await query<{ id: string }>(
-        "UPDATE transition_definitions SET creates_obligation = $2, category = $3 WHERE id = $1 RETURNING id",
-        [id, input.createsObligation, input.category]
+        "UPDATE transition_definitions SET creates_obligation = $2, category = $3, required_policy_ids = $4::uuid[] WHERE id = $1 RETURNING id",
+        [id, input.createsObligation, input.category, input.requiredPolicyIds]
       );
       return { data: rows[0] ?? null };
     } catch (err) {

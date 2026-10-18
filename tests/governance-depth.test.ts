@@ -48,8 +48,7 @@ async function fulfilRequirementsAnalysis(seuId: string): Promise<void> {
   const detail = await getSeuDetailView(seuId);
   const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   if (!capability) return;
-  const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
-  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId });
+  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, capabilityCodes: ["requirements-analysis"] });
 }
 
 // Walks an Obligation all the way to 'Verified' — the point Ch.23 §12 says

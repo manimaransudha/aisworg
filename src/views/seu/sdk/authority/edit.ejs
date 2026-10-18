@@ -45,6 +45,13 @@
             <label for="category" class="form-label fw-semibold">Category</label>
             <input type="text" id="category" name="category" class="form-control" value="<%= detail.category || '' %>" placeholder="Leave blank for none">
           </div>
+          <div class="mb-3">
+            <label for="policyCodes" class="form-label fw-semibold">Required Policies</label>
+            <select id="policyCodes" name="policyCodes" class="form-select" multiple size="8">
+              <% (locals.policyCodeOptions || []).forEach(function(code) { %><option value="<%= code %>"<%= detail.policyCodes.includes(code) ? ' selected' : '' %>><%= code %></option><% }) %>
+            </select>
+            <div class="form-text">Only existing Policy Definitions are listed. Hold Ctrl or Cmd to choose more than one.</div>
+          </div>
           <div class="d-flex align-items-center gap-2">
             <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save</button>
             <a href="/aisworg/seu/authority/transition-definitions/<%= detail.id %>" class="btn btn-link text-muted">Cancel</a>

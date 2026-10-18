@@ -22,7 +22,6 @@ interface TransitionDefinitionSeed {
   toState: string;
   verb?: string;
   requiredAuthorityRuleId?: string;
-  requiredPolicyIds?: string[];
   requiredPolicyCodes?: string[];
   requiredQualityGateIds?: string[];
   createsObligation?: string;
@@ -118,6 +117,21 @@ export async function seedTransitionDefinitions(actor: SeedActor): Promise<void>
   for (const s of seeds) if (s.verb) addPair(s.entityType, s.verb, `transition ${s.entityType}|${s.fromState}|${s.toState}`);
   for (const m of vocab.authoringMappings ?? []) for (const verb of m.verbs) addPair(m.noun, verb, "authoringMappings");
   for (const nv of vocab.nounVerbs ?? []) addPair(nv.noun, nv.verb, "nounVerbs");
+  // Policy codes resolve to the Active, Platform-owned Policy Definitions seeded before this step. A code with no
+  // Policy Definition is an error: it would otherwise leave the transition without the Policy it names.
+  const policyCodes = [...new Set(seeds.flatMap((s) => s.requiredPolicyCodes ?? []))];
+  const policyIdByCode = new Map<string, string>();
+  if (policyCodes.length > 0) {
+    const { rows: policyRows } = await query<{ id: string; code: string }>(
+      "SELECT id, code FROM policy_definitions WHERE code = ANY($1::text[]) AND status = 'Active' AND tenant_id = $2",
+      [policyCodes, await getPlatformTenantId()]
+    );
+    for (const row of policyRows) {
+      if (policyIdByCode.has(row.code)) problems.push(`policy code ${row.code}: more than one Active Policy Definition`);
+      policyIdByCode.set(row.code, row.id);
+    }
+    for (const code of policyCodes) if (!policyIdByCode.has(code)) problems.push(`policy code ${code}: no Active Policy Definition — seed Policy Definitions first`);
+  }
   if (problems.length) throw new Error(`[seed:transition-definitions] invalid seed data:\n  ${problems.join("\n  ")}`);
 
   const vocabulary = await authorityVocabularyDB.replaceVocabulary({
@@ -147,7 +161,7 @@ export async function seedTransitionDefinitions(actor: SeedActor): Promise<void>
       toState: s.toState,
       verb: s.verb ?? null,
       requiredAuthorityRuleId: s.requiredAuthorityRuleId ?? null,
-      requiredPolicyIds: [...(s.requiredPolicyIds ?? []), ...(s.attestationRequired && attestationPolicyId ? [attestationPolicyId] : [])],
+      requiredPolicyIds: [...(s.requiredPolicyCodes ?? []).map((code) => policyIdByCode.get(code)!), ...(s.attestationRequired && attestationPolicyId ? [attestationPolicyId] : [])],
       requiredQualityGateIds: s.requiredQualityGateIds ?? [],
       createsObligation: s.createsObligation ?? null,
       category: s.category ?? null,

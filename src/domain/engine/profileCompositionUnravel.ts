@@ -3,7 +3,7 @@ import { profilesDB } from "../../dblayer/profilesDB.js";
 import { packsDB } from "../../dblayer/packsDB.js";
 import { policiesDB } from "../../dblayer/policiesDB.js";
 import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
-import { getProfilePackSelections, resolveEffectiveParameters, extractExposedParameterOverrides } from "../../routes/seu/core/profiles.js";
+import { getProfilePackCodes, resolveEffectiveParameters, extractExposedParameterOverrides } from "../../routes/seu/core/profiles.js";
 import { deriveOverridableParameterCandidates, getDependencyGraphContent } from "../../routes/seu/core/templates.js";
 import type { PackRow, ProfileRow, TemplateRow, EbmComposedPack } from "../../dblayer/seuTypes.js";
 
@@ -73,30 +73,30 @@ function computeCompetencyRequirements(profiles: ProfileRow[], composedPacks: Ma
   return result;
 }
 
-async function resolveActivePack(code: string): Promise<PackRow | null> {
-  const { data } = await packsDB.findActiveByCode(code);
-  return data ?? null;
-}
-
+// Walks the Pack dependency closure one level at a time, resolving each level's Active Packs in a single query.
 async function resolveComposedPacksTransitively(rootCodes: string[]): Promise<{ resolved: Map<string, PackRow>; warnings: string[] }> {
   const resolved = new Map<string, PackRow>();
   const warnings: string[] = [];
   const rootSet = new Set(rootCodes);
   const visited = new Set<string>();
-  const queue = [...new Set(rootCodes)];
-  while (queue.length) {
-    const code = queue.shift()!;
-    if (visited.has(code)) continue;
-    visited.add(code);
-    const pack = await resolveActivePack(code);
-    if (!pack) {
-      if (rootSet.has(code)) warnings.push(`Pack "${code}" has no Active version — skipped.`);
-      continue;
+  let level = [...new Set(rootCodes)];
+  while (level.length) {
+    level.forEach((code) => visited.add(code));
+    const { data } = await packsDB.findActiveByCodes(level);
+    const activeByCode = new Map((data ?? []).map((pack) => [pack.code, pack]));
+    const next: string[] = [];
+    for (const code of level) {
+      const pack = activeByCode.get(code);
+      if (!pack) {
+        if (rootSet.has(code)) warnings.push(`Pack "${code}" has no Active version — skipped.`);
+        continue;
+      }
+      resolved.set(pack.code, pack);
+      for (const dep of pack.dependencies ?? []) {
+        if (!visited.has(dep.packCode) && !next.includes(dep.packCode)) next.push(dep.packCode);
+      }
     }
-    resolved.set(pack.code, pack);
-    for (const dep of pack.dependencies ?? []) {
-      if (!visited.has(dep.packCode)) queue.push(dep.packCode);
-    }
+    level = next;
   }
   return { resolved, warnings };
 }
@@ -121,16 +121,7 @@ export async function unravelComposition(input: { templateIds: string[]; profile
     const { data: profile } = await profilesDB.findById(profileId);
     if (!profile) continue;
     profiles.push(profile);
-    const selections = await getProfilePackSelections(profile.id);
-    rootPackCodes.push(
-      ...(selections.optionalPackCodes ?? []),
-      ...(selections.technologyPackCodes ?? []),
-      ...(selections.domainPackCodes ?? []),
-      ...(selections.compliancePackCodes ?? []),
-      ...(selections.integrationPackCodes ?? []),
-      ...(selections.engineeringPackCodes ?? []),
-      ...(selections.organisationPackCodes ?? [])
-    );
+    rootPackCodes.push(...(await getProfilePackCodes(profile.id)));
   }
 
   const directlySelectedPackCodes = new Set(rootPackCodes);

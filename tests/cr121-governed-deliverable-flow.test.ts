@@ -38,7 +38,7 @@ async function commissionAndFulfil(prefix: string): Promise<{ seuId: string; del
       const detail = await getSeuDetailView(seuId);
       const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
       assert.ok(capability);
-      await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+      await fulfilCapability({ seuId, capabilityId: capability.capabilityId, capabilityCodes: ["requirements-analysis"] });
     }
   );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
@@ -127,6 +127,10 @@ test("overlapping kickoff runs make a governed hop once: one start Command and o
   await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
 
   const detail = await getSeuDetailView(seuId);
+  // The Mandatory Policy lets Architecture Decision Record start only once its producing Capability is fulfilled.
+  const architectureCapability = detail?.capabilities.find((c) => c.code === "architecture-design");
+  assert.ok(architectureCapability);
+  await fulfilCapability({ seuId, capabilityId: architectureCapability.capabilityId, capabilityCodes: ["architecture-design"] });
   const architecture = detail?.deliverables.find((d) => d.name === "Architecture Decision Record");
   assert.ok(architecture);
   assert.equal(architecture.lifecycleState, "Defined");

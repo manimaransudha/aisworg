@@ -37,7 +37,7 @@ import { raiseMyObligation } from "../src/routes/seu/core/participantHome.js";
 import { transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
-import { fulfilCapabilityAsRoot as fulfilCapability, clickTransitionAfterLag } from "./testFixtures.js";
+import { fulfilCapabilityAsRoot as fulfilCapability, clickTransitionAfterLag, getEmptyPoolTenantId, deactivateParticipants } from "./testFixtures.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
@@ -315,8 +315,10 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   const userId = await createTestUser(run);
   let participantMasterId!: string;
 
+  // Commissioned in the tenant with no pool, so the only Participant that can be dispatched is this test's own.
+  try {
   const result = await commissionFromFormSync(
-    { statement: `cr108-participant-${run}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID },
+    { statement: `cr108-participant-${run}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: await getEmptyPoolTenantId() },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
       const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
@@ -362,6 +364,9 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   assert.equal(rejected.ok, false);
   if (rejected.ok) throw new Error("unreachable");
   assert.equal(rejected.reason, "not_mine");
+  } finally {
+    if (participantMasterId) await deactivateParticipants([participantMasterId]);
+  }
 });
 
 // --- CR-108 follow-on (owner: "WorkItem Generator has to include everything

@@ -19,17 +19,17 @@ import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, transitionDeliverableSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, transitionDeliverableSync, getEmptyPoolTenantId } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 
-async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
+async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>, tenantId?: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync(
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId,
     },
     beforeCommenceWork
   );
@@ -45,8 +45,7 @@ async function fulfilRequirementsAnalysis(seuId: string): Promise<void> {
   const detail = await getSeuDetailView(seuId);
   const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   if (!capability) return;
-  const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
-  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId });
+  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, capabilityCodes: ["requirements-analysis"] });
 }
 
 async function waitForCommandStatus(seuId: string, deliverableId: string, status: string): Promise<CommandRow> {
@@ -65,24 +64,22 @@ async function waitForCommandStatus(seuId: string, deliverableId: string, status
   return resolvedCommand as CommandRow;
 }
 
-test("the engine starts a Deliverable when nobody fulfils the producing Capability yet, and the producing Command fails dispatch", async () => {
-  const seuId = await commissionTestSeu("phase3-defer");
+test("a Deliverable does not move to In Progress while nobody fulfils its producing Capability", async () => {
+  const seuId = await commissionTestSeu("phase3-defer", undefined, await getEmptyPoolTenantId());
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec, "expected a seeded Requirements Analysis Model deliverable");
-  // The engine starts the first Deliverable off the kickoff, so this read may land before or after that hop.
-  assert.ok(["Defined", "In Progress"].includes(requirementsSpec.lifecycleState), requirementsSpec.lifecycleState);
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
 
-  // Defined -> In Progress is the engine's own governed hop. It is governed by dependencies, Obligations and
-  // Policy, not by Participant availability.
+  // Defined -> In Progress is blocked by the Mandatory Policy until the producing Capability is Fulfilled.
   const moved = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assert.equal(moved.ok, true, !moved.ok ? JSON.stringify(moved) : "assertion failed");
+  assert.equal(moved.ok, false, "no hop without a fulfilled Capability");
+  if (!moved.ok) assert.equal(moved.reason, "policy_blocked", JSON.stringify(moved));
 
-  // The producing work has nobody to go to: Dispatch's own case 1 (Command Failed, Obligation raised).
-  await waitForCommandStatus(seuId, requirementsSpec.id, "Failed");
-  const started = await getSeuDetailView(seuId);
-  assert.equal(started?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "In Progress", "the engine's transition does not wait for a Participant");
+  const after = await getSeuDetailView(seuId);
+  assert.equal(after?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "Defined", "the Deliverable stays in Defined");
+  const { data: commands } = await commandsDB.findBySeuId(seuId);
+  assert.equal((commands ?? []).filter((c) => c.entity_id === requirementsSpec.id && c.status === "Completed").length, 0, "no Command completed for the Deliverable");
 });
 
 test("the producing Command leaves a traceable Command and a Completed/Disposed Work Item assigned to the fulfilling Participant", async () => {

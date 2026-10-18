@@ -381,24 +381,38 @@ export const profilesDB = {
     }
   },
 
-  async getPackSelection(profileId: string, listKind: string): Promise<DbResult<string[]>> {
+  // Every Pack code the Profile selects, whatever its category. One query.
+  async getPackCodes(profileId: string): Promise<DbResult<string[]>> {
     try {
       const { rows } = await query<{ pack_code: string }>(
-        "SELECT pack_code FROM profile_packs WHERE profile_id = $1 AND list_kind = $2 ORDER BY pack_code",
-        [profileId, listKind]
+        "SELECT DISTINCT pack_code FROM profile_packs WHERE profile_id = $1 ORDER BY pack_code",
+        [profileId]
       );
       return { data: rows.map((r) => r.pack_code) };
     } catch (err) {
-      logger.error("[profilesDB] getPackSelection error", err as Error);
+      logger.error("[profilesDB] getPackCodes error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // One read of every Pack the Profile selects. list_kind is the Pack's category, kept only so callers can show or
+  // restore the grouping; it is not a filter.
+  async getPackSelections(profileId: string): Promise<DbResult<Record<string, string[]>>> {
+    try {
+      const { rows } = await query<{ list_kind: string; pack_code: string }>(
+        "SELECT list_kind, pack_code FROM profile_packs WHERE profile_id = $1 ORDER BY pack_code",
+        [profileId]
+      );
+      const byKind: Record<string, string[]> = {};
+      for (const row of rows) (byKind[row.list_kind] ??= []).push(row.pack_code);
+      return { data: byKind };
+    } catch (err) {
+      logger.error("[profilesDB] getPackSelections error", err as Error);
       return { error: err as Error };
     }
   },
 
   async setOptionalPacks(profileId: string, packCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     return profilesDB.setPackSelection(profileId, "optional", packCodes, authorId, authorBadge);
-  },
-
-  async getOptionalPackCodes(profileId: string): Promise<DbResult<string[]>> {
-    return profilesDB.getPackSelection(profileId, "optional");
   },
 };

@@ -22,7 +22,7 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { reviewGatesDB } from "../src/dblayer/reviewGatesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot, getEmptyPoolTenantId } from "./testFixtures.js";
 import { TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionSeu(prefix: string) {
@@ -31,6 +31,9 @@ async function commissionSeu(prefix: string) {
     statement: `${prefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+    // The empty-pool tenant keeps the Capability unfulfilled, so the Deliverable stays in Defined and the
+    // "Review never modifies the reviewed object" check is not racing the governed Defined -> In Progress hop.
+    tenantId: await getEmptyPoolTenantId(),
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");

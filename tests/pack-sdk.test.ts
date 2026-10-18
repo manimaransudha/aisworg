@@ -17,14 +17,17 @@ import pool from "../src/utils/db.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { serviceDefinitionsDB } from "../src/dblayer/serviceDefinitionsDB.js";
+import { transitionServiceDefinition } from "../src/routes/seu/core/serviceDefinitions.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { compositionEngine } from "../src/domain/engine/compositionEngine.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
+import { createAuthoringDraft, saveAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
 import { validatePackSeed, publishPack, transitionPack, createPackDraft, listPacksWithNextStates, packCodeVersionSummaries, type PackSeedInput } from "../src/routes/seu/core/packs.js";
-import { ensureTestFixturePacks, uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { ensureTestFixturePacks, uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, serviceDefinitionIdFor } from "./testFixtures.js";
 
 // CR-026 — a real, seeded tenant (seedIdentityBaseline.ts's ATHENS_TENANT_ID's
 // sibling "Demo" tenant), used only to prove Pack's tenant-scoped versioning
@@ -79,7 +82,7 @@ test("validatePackSeed rejects a non-semver packVersion, duplicate contribution 
       // a real value keeps this test isolated to what it's actually testing
       // (duplicate detection), not incidentally also failing Ontology lookup.
       capabilities: [{ code: "software-construction" }, { code: "software-construction" }],
-      services: [{ code: "requirements-analysis-service" }, { code: "requirements-analysis-service" }],
+      services: [{ code: "requirements-analysis-service", serviceDefinitionId: await serviceDefinitionIdFor("requirements-analysis-service") }, { code: "requirements-analysis-service", serviceDefinitionId: await serviceDefinitionIdFor("requirements-analysis-service") }],
     },
   });
 
@@ -99,6 +102,89 @@ test("validatePackSeed accepts a well-formed Pack and resolves a real dependency
   });
   const result = await validatePackSeed(seed);
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : "assertion failed");
+});
+
+async function seedWithService(entry: { code: string; serviceDefinitionId: string }, capabilityCode: string): Promise<PackSeedInput> {
+  return freshPackSeed({ contributions: { capabilities: [{ code: capabilityCode }], services: [entry] } });
+}
+
+test("validatePackSeed accepts a service whose serviceDefinitionId names the Active Service Definition for its code", async () => {
+  const seed = await seedWithService({ code: "requirements-analysis-service", serviceDefinitionId: await serviceDefinitionIdFor("requirements-analysis-service") }, "requirements-analysis");
+  const result = await validatePackSeed(seed);
+  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : "assertion failed");
+});
+
+test("validatePackSeed rejects a service with no serviceDefinitionId, an unknown one, and one that belongs to a different Service Definition", async () => {
+  const missing = await validatePackSeed(await seedWithService({ code: "requirements-analysis-service", serviceDefinitionId: "" }, "requirements-analysis"));
+  assert.equal(missing.ok, false);
+  if (missing.ok) throw new Error("unreachable");
+  assert.ok(missing.errors.some((e) => e.includes("has no serviceDefinitionId")));
+
+  const unknown = await validatePackSeed(await seedWithService({ code: "requirements-analysis-service", serviceDefinitionId: randomUUID() }, "requirements-analysis"));
+  assert.equal(unknown.ok, false);
+  if (unknown.ok) throw new Error("unreachable");
+  assert.ok(unknown.errors.some((e) => e.includes("does not resolve to a Service Definition")));
+
+  const otherId = await serviceDefinitionIdFor("architectural-review-service");
+  const mismatched = await validatePackSeed(await seedWithService({ code: "requirements-analysis-service", serviceDefinitionId: otherId }, "requirements-analysis"));
+  assert.equal(mismatched.ok, false);
+  if (mismatched.ok) throw new Error("unreachable");
+  assert.ok(mismatched.errors.some((e) => e.includes('belongs to Service Definition "architectural-review-service"')));
+});
+
+async function freshServiceDefinition(tenantId: string): Promise<{ id: string; code: string }> {
+  const { data: serviceSchema } = await schemaDefinitionsDB.findLatest("Service");
+  assert.ok(serviceSchema, "no schema_definitions grammar for Service");
+  const { data: draft, error } = await serviceDefinitionsDB.createDraft({
+    tenantId, code: `test-pack-service-${randomUUID()}`, name: "Test Service Definition", capabilityCode: "requirements-analysis",
+    schemaDefinitionId: serviceSchema!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
+  });
+  if (error || !draft) throw error ?? new Error("failed to create Service Definition draft");
+  return { id: draft.id, code: draft.code };
+}
+
+test("validatePackSeed rejects a service whose Service Definition is not Active", async () => {
+  const draft = await freshServiceDefinition(PLATFORM_TENANT_ID);
+  const result = await validatePackSeed(await seedWithService({ code: draft.code, serviceDefinitionId: draft.id }, "requirements-analysis"));
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.ok(result.errors.some((e) => e.includes("not Active")), JSON.stringify(result.errors));
+});
+
+test("validatePackSeed rejects a service whose Active Service Definition belongs to another tenant", async () => {
+  const demoDefinition = await freshServiceDefinition(DEMO_TENANT_ID);
+  for (const targetState of ["Published", "Active"] as const) {
+    const advanced = await transitionServiceDefinition({ serviceDefinitionId: demoDefinition.id, targetState, actorId: ROOT_ACTOR_ID });
+    assert.ok(advanced.ok, !advanced.ok ? `${advanced.reason}: ${advanced.detail ?? ""}` : "assertion failed");
+  }
+  const result = await validatePackSeed(await seedWithService({ code: demoDefinition.code, serviceDefinitionId: demoDefinition.id }, "requirements-analysis"));
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.ok(result.errors.some((e) => e.includes("not visible to this tenant")), JSON.stringify(result.errors));
+});
+
+test("saveAuthoringDraft records the Active Service Definition's id for each service code the form posts", async () => {
+  const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
+  assert.ok(packSchema, "no schema_definitions grammar for Pack");
+  const base = { code: "test-pack", name: "Test Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributionCapabilities: [{ code: "requirements-analysis" }] };
+  const created = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: PLATFORM_TENANT_ID, schemaDefinitionId: packSchema!.id, content: base });
+  assert.ok(created.ok, !created.ok ? JSON.stringify(created.errors) : "assertion failed");
+  const saved = await saveAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: ROOT_ACTOR_ID, content: { ...base, contributionServices: [{ code: "requirements-analysis-service" }] } });
+  assert.ok(saved.ok, !saved.ok ? JSON.stringify(saved.errors) : "assertion failed");
+  const { data: pack } = await packsDB.findById(created.draftId);
+  assert.equal(pack!.contributions.services?.[0]?.serviceDefinitionId, await serviceDefinitionIdFor("requirements-analysis-service"));
+});
+
+test("createAuthoringDraft records the Active Service Definition's id for each service code the form posts", async () => {
+  const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
+  assert.ok(packSchema, "no schema_definitions grammar for Pack");
+  const created = await createAuthoringDraft({
+    kind: "Pack", actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: PLATFORM_TENANT_ID, schemaDefinitionId: packSchema!.id,
+    content: { code: "test-pack", name: "Test Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributionCapabilities: [{ code: "requirements-analysis" }], contributionServices: [{ code: "requirements-analysis-service" }] },
+  });
+  assert.ok(created.ok, !created.ok ? JSON.stringify(created.errors) : "assertion failed");
+  const { data: pack } = await packsDB.findById(created.draftId);
+  assert.equal(pack!.contributions.services?.[0]?.serviceDefinitionId, await serviceDefinitionIdFor("requirements-analysis-service"));
 });
 
 test("publishPack without activate: true walks the Pack to Published but not Active", async () => {

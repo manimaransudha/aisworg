@@ -37,7 +37,7 @@ test("backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be
     const detail = await getSeuDetailView(seuId);
     const reqCap = detail?.capabilities.find((c) => c.code === "requirements-analysis");
     assert.ok(reqCap);
-    await fulfilCapability({ seuId, capabilityId: reqCap.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+    await fulfilCapability({ seuId, capabilityId: reqCap.capabilityId, capabilityCodes: ["requirements-analysis"] });
   });
   const detail = await getSeuDetailView(seuId);
   const reqSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");

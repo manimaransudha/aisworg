@@ -8,10 +8,12 @@
 //
 //   - DEFINITION: every row's transition_definitions record (event_type/
 //     version_event) matches the table.
-//   - DRIVEN: every row is actually exercised through the real functions
-//     (capabilityDefinitionsDB.createDraft/transitionCapabilityDefinition)
-//     and the events they publish are asserted against eventsDB directly —
-//     no mocking.
+//   - DRIVEN: creation is exercised through a real callsite
+//     (copyCapabilityDefinitionAsNewDraft), which publishes CapabilityRegistered
+//     after the insert, since capabilityDefinitionsDB.createDraft itself
+//     publishes nothing. Every transition row is exercised through
+//     transitionCapabilityDefinition. The events they publish are asserted
+//     against eventsDB directly — no mocking.
 import "dotenv/config";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -22,7 +24,7 @@ import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionRow } from "../src/dblayer/seuTypes.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
-import { transitionCapabilityDefinition } from "../src/routes/seu/core/capabilityDefinitions.js";
+import { transitionCapabilityDefinition, copyCapabilityDefinitionAsNewDraft } from "../src/routes/seu/core/capabilityDefinitions.js";
 import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 // capabilityDefinitionsDB.createDraft is a raw DB-layer insert (no
@@ -74,11 +76,11 @@ interface CapabilityDefinitionTableRow {
 }
 
 const CAPABILITY_DEFINITION_TABLE: CapabilityDefinitionTableRow[] = [
-  { row: 3, description: "Publish", fromState: "Defined", toState: "Published", eventType: "CapabilityDefinitionPublished", versionEvent: "VersionPublished" },
-  { row: 4, description: "Activate", fromState: "Published", toState: "Active", eventType: "CapabilityDefinitionActivated", versionEvent: "VersionActivated" },
-  { row: 5, description: "Deprecate", fromState: "Active", toState: "Deprecated", eventType: "CapabilityDefinitionDeprecated", versionEvent: "VersionDeprecated" },
-  { row: 6, description: "Retire", fromState: "Deprecated", toState: "Retired", eventType: "CapabilityDefinitionRetired", versionEvent: "VersionSuperseded" },
-  { row: 7, description: "Archive", fromState: "Retired", toState: "Archived", eventType: "CapabilityDefinitionArchived", versionEvent: "VersionArchived" },
+  { row: 3, description: "Publish", fromState: "Defined", toState: "Published", eventType: "CapabilityPublished", versionEvent: "VersionPublished" },
+  { row: 4, description: "Activate", fromState: "Published", toState: "Active", eventType: "CapabilityActivated", versionEvent: "VersionActivated" },
+  { row: 5, description: "Deprecate", fromState: "Active", toState: "Deprecated", eventType: "CapabilityDeprecated", versionEvent: "VersionDeprecated" },
+  { row: 6, description: "Retire", fromState: "Deprecated", toState: "Retired", eventType: "CapabilityRetired", versionEvent: "VersionSuperseded" },
+  { row: 7, description: "Archive", fromState: "Retired", toState: "Archived", eventType: "CapabilityArchived", versionEvent: "VersionArchived" },
 ];
 
 test("DEFINITION: every Capability transition_definitions row matches its own event_type/version_event", async () => {
@@ -92,21 +94,28 @@ test("DEFINITION: every Capability transition_definitions row matches its own ev
   }
 });
 
-test("DRIVEN: row 1 (New) is a pure Revision — no event published on creation", async () => {
-  const draft = await freshCapabilityDefinitionDraft();
-  const { data: events } = await eventsDB.findByOriginatingObject("CapabilityDefinition", draft.id);
-  assert.equal(events?.length ?? 0, 0, "expected no event published by createDraft alone");
+test("DRIVEN: creation through copyCapabilityDefinitionAsNewDraft publishes CapabilityRegistered with the real actor and badge", async () => {
+  const source = await freshCapabilityDefinitionDraft();
+  const copy = await copyCapabilityDefinitionAsNewDraft(source.id, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  assert.equal(copy.ok, true, copy.ok ? "" : copy.errors.join("; "));
+  if (!copy.ok) return;
+
+  const { data: events } = await eventsDB.findByOriginatingObject("CapabilityDefinition", copy.draftId);
+  const registered = events?.find((e) => e.event_type === "CapabilityRegistered");
+  assert.ok(registered, "expected a CapabilityRegistered event");
+  assert.equal(registered!.actor_id, ROOT_ACTOR_ID);
+  assert.equal(registered!.authority_badge, ROOT_ACTOR_BADGE);
 });
 
-test("DRIVEN: row 3 (Publish) publishes CapabilityDefinitionPublished, matching transition_definitions.event_type", async () => {
+test("DRIVEN: row 3 (Publish) publishes CapabilityPublished, matching transition_definitions.event_type", async () => {
   const draft = await freshCapabilityDefinitionDraft();
 
   const result = await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Published", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true, result.ok ? "" : `${result.reason}: ${result.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("CapabilityDefinition", draft.id);
-  const published = events?.find((e) => e.event_type === "CapabilityDefinitionPublished");
-  assert.ok(published, "expected a CapabilityDefinitionPublished event");
+  const published = events?.find((e) => e.event_type === "CapabilityPublished");
+  assert.ok(published, "expected a CapabilityPublished event");
 
   const { data: def } = await transitionDefinitionsDB.find("Capability", "Defined", "Published");
   assert.equal(published!.event_type, def!.event_type);
@@ -124,7 +133,7 @@ test("DRIVEN: rows 4-7 (Activate/Deprecate/Retire/Archive) each publish their ma
 
   const { data: events } = await eventsDB.findByOriginatingObject("CapabilityDefinition", draft.id);
   const eventTypes = (events ?? []).map((e) => e.event_type);
-  for (const expected of ["CapabilityDefinitionActivated", "CapabilityDefinitionDeprecated", "CapabilityDefinitionRetired", "CapabilityDefinitionArchived"]) {
+  for (const expected of ["CapabilityActivated", "CapabilityDeprecated", "CapabilityRetired", "CapabilityArchived"]) {
     assert.ok(eventTypes.includes(expected), `expected ${expected} among published events, got: ${eventTypes.join(", ")}`);
   }
 });

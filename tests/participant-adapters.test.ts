@@ -97,7 +97,7 @@ async function commissionAndFulfil(prefix: string, beforeFulfil?: (capabilityId:
       assert.ok(capability);
       capabilityId = capability.capabilityId;
       if (beforeFulfil) await beforeFulfil(capability.capabilityId);
-      await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+      await fulfilCapability({ seuId, capabilityId: capability.capabilityId, capabilityCodes: ["requirements-analysis"] });
     }
   );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");

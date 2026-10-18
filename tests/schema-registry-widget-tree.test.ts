@@ -1,8 +1,10 @@
 // CR-114 — the widget-tree editor's own round-trip fidelity: editing an
 // existing schema version through the new form and saving it again with no
-// changes must reproduce the same grammar. Read-only against the DB (just
-// schemaDefinitionsDB.findLatest) — no version is created, nothing is
-// written, so this is safe to run anytime.
+// changes must reproduce the same grammar. Reads each kind's seeded baseline
+// (lowest) version through schemaDefinitionsDB.findAllVersions, never
+// findLatest, because other test files author throwaway versions of the same
+// kind while they run. Read-only against the DB — no version is created,
+// nothing is written, so this is safe to run anytime.
 //
 // Compares SEMANTICALLY, not byte-for-byte: `x-property-order` is a
 // position-preserving hint (formGenerator.ts's own comment — Postgres JSONB
@@ -20,7 +22,7 @@ import assert from "node:assert/strict";
 
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { SCHEMA_KINDS, jsonSchemaToWidgetTree, widgetTreeToJsonSchema } from "../src/domain/sdk/schemaCompiler.js";
-import type { SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
+import type { SchemaDefinitionEntityKind, SchemaDefinitionRow } from "../src/dblayer/seuTypes.js";
 
 function normalize(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -43,13 +45,16 @@ function normalize(value: unknown): unknown {
 }
 
 for (const kind of SCHEMA_KINDS) {
-  test(`Schema Registry widget tree: ${kind}'s current live schema round-trips losslessly`, async () => {
-    const { data: schema } = await schemaDefinitionsDB.findLatest(kind as SchemaDefinitionEntityKind);
+  test(`Schema Registry widget tree: ${kind}'s seeded baseline schema round-trips losslessly`, async () => {
+    // The seeded baseline (lowest version), not findLatest: another test file authors throwaway versions of the same
+    // entity_kind and deletes them afterwards, and findLatest returns one of those while they exist.
+    const { data: versions } = await schemaDefinitionsDB.findAllVersions(kind as SchemaDefinitionEntityKind);
+    const schema = (versions ?? []).reduce<SchemaDefinitionRow | undefined>((lowest, v) => (!lowest || v.version < lowest.version ? v : lowest), undefined);
     assert.ok(schema, `expected ${kind} to already have a real, seeded schema version`);
 
-    const doc = jsonSchemaToWidgetTree(schema!.schema);
+    const doc = jsonSchemaToWidgetTree(schema.schema);
     const roundTripped = widgetTreeToJsonSchema(doc);
 
-    assert.deepEqual(normalize(roundTripped), normalize(schema!.schema));
+    assert.deepEqual(normalize(roundTripped), normalize(schema.schema));
   });
 }

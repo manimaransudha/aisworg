@@ -119,6 +119,12 @@
                 <label class="form-label small mb-1">Verb</label>
                 <select name="verb" id="td-verb" class="form-select form-select-sm" required><option value="">Choose noun first…</option></select>
               </div>
+              <div class="col-12">
+                <label class="form-label small mb-1">Required Policies</label>
+                <select name="policyCodes" class="form-select form-select-sm" multiple size="4">
+                  <% (locals.policyCodeOptions || []).forEach(function(code) { %><option value="<%= code %>"><%= code %></option><% }) %>
+                </select>
+              </div>
               <div class="col-sm-2 d-grid"><button class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add</button></div>
             </form>
             <div class="form-text small">The verb must be allowed on the noun (Mapping tab).</div>

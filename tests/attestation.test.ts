@@ -33,8 +33,7 @@ async function commissionAndFulfil(statementPrefix: string) {
       const detail = await getSeuDetailView(seuId);
       const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
       assert.ok(capability);
-      const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
-      await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId });
+      await fulfilCapability({ seuId, capabilityId: capability.capabilityId, capabilityCodes: ["requirements-analysis"] });
     }
   );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");

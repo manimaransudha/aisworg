@@ -19,7 +19,7 @@ async function resolveEbmPool(seuId: string): Promise<Array<{ propertyName: stri
   return (ebm?.behaviors as { pool?: Array<{ propertyName: string; value: unknown }> } | null)?.pool ?? [];
 }
 
-async function resolveRedispatchThresholds(seuId: string): Promise<{ maxAttempts: number | null; attentionThreshold: number | null }> {
+export async function resolveRedispatchThresholds(seuId: string): Promise<{ maxAttempts: number | null; attentionThreshold: number | null }> {
   const pool = await resolveEbmPool(seuId);
   const maxAttempts = pool.find((e) => e.propertyName === "redispatchMaxAttempts")?.value;
   const attentionThreshold = pool.find((e) => e.propertyName === "redispatchAttentionThreshold")?.value;

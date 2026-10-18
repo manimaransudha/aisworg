@@ -1213,7 +1213,7 @@
     "toState": "Published",
     "verb": "publish",
     "requiredPolicyCodes": [],
-    "eventType": "CapabilityDefinitionPublished",
+    "eventType": "CapabilityPublished",
     "versionEvent": "VersionPublished"
   },
   {
@@ -1222,7 +1222,7 @@
     "toState": "Active",
     "verb": "activate",
     "requiredPolicyCodes": [],
-    "eventType": "CapabilityDefinitionActivated",
+    "eventType": "CapabilityActivated",
     "versionEvent": "VersionActivated"
   },
   {
@@ -1231,7 +1231,7 @@
     "toState": "Deprecated",
     "verb": "deprecate",
     "requiredPolicyCodes": [],
-    "eventType": "CapabilityDefinitionDeprecated",
+    "eventType": "CapabilityDeprecated",
     "versionEvent": "VersionDeprecated"
   },
   {
@@ -1240,7 +1240,7 @@
     "toState": "Retired",
     "verb": "retire",
     "requiredPolicyCodes": [],
-    "eventType": "CapabilityDefinitionRetired",
+    "eventType": "CapabilityRetired",
     "versionEvent": "VersionSuperseded"
   },
   {
@@ -1249,7 +1249,7 @@
     "toState": "Archived",
     "verb": "archive",
     "requiredPolicyCodes": [],
-    "eventType": "CapabilityDefinitionArchived",
+    "eventType": "CapabilityArchived",
     "versionEvent": "VersionArchived"
   },
   {

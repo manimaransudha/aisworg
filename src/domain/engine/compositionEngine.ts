@@ -2,16 +2,23 @@ import { isDeepStrictEqual } from "node:util";
 import { templatesDB } from "../../dblayer/templatesDB.js";
 import { profilesDB } from "../../dblayer/profilesDB.js";
 import { packsDB } from "../../dblayer/packsDB.js";
-import { extractExposedParameterOverrides, getProfilePackSelections } from "../../routes/seu/core/profiles.js";
+import { extractExposedParameterOverrides, getProfilePackCodes } from "../../routes/seu/core/profiles.js";
 import type { ExposedParameterOverride } from "../../routes/seu/core/profiles.js";
 import type { EbmComposedPack, EbmCompositionReport, PackRow, ProfileRow, ParameterConflict, ParameterConflictOption } from "../../dblayer/seuTypes.js";
 
-async function resolveActivePack(code: string, requiredBy: string): Promise<{ pack: PackRow | null; warning: string | null }> {
-  const { data: pack } = await packsDB.findActiveByCode(code);
-  if (!pack) {
-    return { pack: null, warning: `Pack "${code}" (required by ${requiredBy}) has no Active Version — excluded from composition.` };
+// Resolves every required Pack code to its Active Pack in one query. A code with no Active Version is excluded from
+// composition and reported once as a warning.
+async function resolveActivePacks(required: Array<{ code: string; requiredBy: string }>): Promise<{ packs: PackRow[]; warnings: string[] }> {
+  const { data } = await packsDB.findActiveByCodes([...new Set(required.map((r) => r.code))]);
+  const activeByCode = new Map((data ?? []).map((pack) => [pack.code, pack]));
+  const packs: PackRow[] = [];
+  const warnings: string[] = [];
+  for (const { code, requiredBy } of required) {
+    const pack = activeByCode.get(code);
+    if (pack) packs.push(pack);
+    else warnings.push(`Pack "${code}" (required by ${requiredBy}) has no Active Version — excluded from composition.`);
   }
-  return { pack, warning: null };
+  return { packs, warnings };
 }
 
 export type CompositionStrategyCode = "specialization" | "override" | "merge" | "union" | "intersection" | "supplement";
@@ -219,38 +226,19 @@ export const compositionEngine = {
     composedPacks: EbmComposedPack[];
     compositionReport: EbmCompositionReport;
   }> {
-    const warnings: string[] = [];
-    const resolvedPacks: PackRow[] = [];
-
+    const required: Array<{ code: string; requiredBy: string }> = [];
     for (const templateId of input.templateIds) {
       const { data: mandatoryCodes } = await templatesDB.getMandatoryPackCodes(templateId);
-      for (const code of mandatoryCodes ?? []) {
-        const { pack, warning } = await resolveActivePack(code, "a Template's mandatory set");
-        if (warning) warnings.push(warning);
-        if (pack) resolvedPacks.push(pack);
-      }
+      for (const code of mandatoryCodes ?? []) required.push({ code, requiredBy: "a Template's mandatory set" });
     }
 
     const profiles: ProfileRow[] = [];
     for (const profileId of input.profileIds) {
-      const selections = await getProfilePackSelections(profileId);
-      const allSelectedCodes = [
-        ...(selections.optionalPackCodes ?? []),
-        ...(selections.technologyPackCodes ?? []),
-        ...(selections.domainPackCodes ?? []),
-        ...(selections.compliancePackCodes ?? []),
-        ...(selections.integrationPackCodes ?? []),
-        ...(selections.engineeringPackCodes ?? []),
-        ...(selections.organisationPackCodes ?? []),
-      ];
-      for (const code of allSelectedCodes) {
-        const { pack, warning } = await resolveActivePack(code, "a Profile's optional set");
-        if (warning) warnings.push(warning);
-        if (pack) resolvedPacks.push(pack);
-      }
+      for (const code of await getProfilePackCodes(profileId)) required.push({ code, requiredBy: "a Profile's optional set" });
       const { data: profile } = await profilesDB.findById(profileId);
       if (profile) profiles.push(profile);
     }
+    const { packs: resolvedPacks, warnings } = await resolveActivePacks(required);
 
     const byCode = new Map<string, PackRow>();
     for (const pack of resolvedPacks) byCode.set(pack.code, pack);

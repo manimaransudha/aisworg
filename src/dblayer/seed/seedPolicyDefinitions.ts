@@ -66,6 +66,15 @@ const POLICY_DEFINITION_FILES = [
   "policy-change-and-decision-governance-artifact-completeness.json",
   "policy-vendor-and-compliance-evidence-completeness.json",
   "policy-organisational-knowledge-currency.json",
+  "policy-capability-fulfilled-before-start.json",
+  "policy-obligation-transition-baseline.json",
+  "policy-participant-transition-baseline.json",
+  "policy-objective-transition-baseline.json",
+  "policy-evidence-transition-baseline.json",
+  "policy-externalinteraction-transition-baseline.json",
+  "policy-pack-transition-baseline.json",
+  "policy-attentionitem-transition-baseline.json",
+  "policy-deliverable-transition-baseline.json",
 ];
 
 const TEST_POLICY_DEFINITION_FILES = [

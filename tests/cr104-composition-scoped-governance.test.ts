@@ -185,10 +185,11 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   // Same regression, for Policy — policyEngine.evaluate is a brand new path
   // with no prior test coverage at all, so this also exercises it directly,
   // not just its scoping.
-  const policyResultWith = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWith.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
-  const policyResultWithout = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const policyResultWith = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWith.id, fromState: "Defined", toState: "In Progress", context: { producingCapabilityStatus: "Fulfilled" }, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const policyResultWithout = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", context: { producingCapabilityStatus: "Fulfilled" }, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(policyResultWith.outcome, "Passed", "the composing SEU's own Policy is found and evaluated (always_true condition)");
-  assert.equal(policyResultWithout.outcome, "NotApplicable", "the non-composing SEU sees no Policy from a Pack it never selected");
+  assert.ok(!policyResultWithout.satisfiedPolicyIds.includes(policyRow!.id), "the non-composing SEU sees no Policy from a Pack it never selected");
+  assert.ok(policyResultWith.satisfiedPolicyIds.includes(policyRow!.id), "the composing SEU evaluates the Policy from its composed Pack");
 });
 
 test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint but not on 'Standard' alone", async () => {
@@ -229,10 +230,10 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
   await templatesDB.setRequiredCapabilities(blockingTemplate!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const blockingSeu = await commissionAgainstTemplate(blockingTemplate!.id, `cr104-blocking-${run}`);
 
-  const standardResult = await policyEngine.evaluate({ entityType: "Deliverable", seuId: standardSeu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const standardResult = await policyEngine.evaluate({ entityType: "Deliverable", seuId: standardSeu.id, fromState: "Defined", toState: "In Progress", context: { producingCapabilityStatus: "Fulfilled" }, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(standardResult.outcome, "Passed", "an unsatisfied Standard-only policy deviates non-blockingly, never Blocked");
 
-  const blockingResult = await policyEngine.evaluate({ entityType: "Deliverable", seuId: blockingSeu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const blockingResult = await policyEngine.evaluate({ entityType: "Deliverable", seuId: blockingSeu.id, fromState: "Defined", toState: "In Progress", context: { producingCapabilityStatus: "Fulfilled" }, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(blockingResult.outcome, "Blocked");
   if (blockingResult.outcome === "Blocked") assert.equal(blockingResult.policyCode, blockingPolicy!.code);
 });

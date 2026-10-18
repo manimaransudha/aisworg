@@ -1,4 +1,4 @@
-# CR-124 — Web controllers redirect through the redirects middleware
+# CR-125 — Web controllers redirect through the redirects middleware
 
 **Raised:** 2026-10-17 · **Origin:** `coding_principles.md` (web controller template) requires every redirect on error to use `middleware/redirects.js`. The implementation does not follow it. `src/middleware/redirects.ts` holds only two stock-application entries (`dashboard`, `stocks`) and no route imports it.
 
@@ -15,7 +15,7 @@
 
 ## Inventory
 
-Audited call site by call site under `src/routes` on 2026-10-17. The full list, with route and resolved destination for each site, is in [CR-124-call-site-audit.md](CR-124-call-site-audit.md).
+Audited call site by call site under `src/routes` on 2026-10-17. The full list, with route and resolved destination for each site, is in [CR-125-call-site-audit.md](CR-125-call-site-audit.md).
 
 | Class | Sites |
 |---|---|

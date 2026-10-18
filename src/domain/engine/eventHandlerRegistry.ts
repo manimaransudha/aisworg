@@ -9,6 +9,8 @@ import { deliverableKickoffHandler } from "./deliverableKickoff.js";
 import { redispatchRequestHandler } from "./redispatchRequest.js";
 import { redispatchHandler } from "./redispatch.js";
 import { conceptCreatedHandler } from "./conceptCreated.js";
+import { capabilityRequestedHandler } from "./capabilityRequested.js";
+import { capabilityOnReadyHandler } from "./capabilityOnReady.js";
 import type { EventHandler } from "./eventBus.js";
 
 export const HANDLER_REGISTRY: Record<string, EventHandler> = {
@@ -23,4 +25,6 @@ export const HANDLER_REGISTRY: Record<string, EventHandler> = {
   redispatchRequest: redispatchRequestHandler,
   redispatch: redispatchHandler,
   conceptCreated: conceptCreatedHandler,
+  capabilityRequested: capabilityRequestedHandler,
+  capabilityOnReady: capabilityOnReadyHandler,
 };

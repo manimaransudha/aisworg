@@ -1,6 +1,6 @@
-# CR-124 — Call-site audit
+# CR-125 — Call-site audit
 
-Every call site under `src/routes` that sends a redirect, produced by reading each match. Companion to [CR-124](CR-124-redirects-middleware-conformance.md).
+Every call site under `src/routes` that sends a redirect, produced by reading each match. Companion to [CR-125](CR-125-redirects-middleware-conformance.md).
 
 Destinations are resolved from the nearest preceding definition in the file. `:x` marks a value taken from the request or a result.
 

@@ -161,7 +161,7 @@ test("Mapping's Allow trigger seeds a new Transition Definition, but re-Allowing
   const allowed = await addMapping(nounCode, verbCode, "governed", ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(allowed.ok, true, !allowed.ok ? allowed.error : "assertion failed");
 
-  const created = await addTransitionDefinition({ entityType: nounCode, fromState, toState, verb: verbCode, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const created = await addTransitionDefinition({ entityType: nounCode, fromState, toState, verb: verbCode, policyCodes: [], authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(created.ok, true, !created.ok ? created.error : "assertion failed");
 
   const { data: rowAfterCreate } = await transitionDefinitionsDB.find(nounCode, fromState, toState);
@@ -187,7 +187,7 @@ test("Mapping's Allow trigger seeds a new Transition Definition, but re-Allowing
   // A SECOND new transition under the same pair now starts at the updated default.
   const secondFromState = `td-mapping-from2-${randomUUID()}`;
   const secondToState = `td-mapping-to2-${randomUUID()}`;
-  const createdSecond = await addTransitionDefinition({ entityType: nounCode, fromState: secondFromState, toState: secondToState, verb: verbCode, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const createdSecond = await addTransitionDefinition({ entityType: nounCode, fromState: secondFromState, toState: secondToState, verb: verbCode, policyCodes: [], authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(createdSecond.ok, true, !createdSecond.ok ? createdSecond.error : "assertion failed");
   const { data: secondRow } = await transitionDefinitionsDB.find(nounCode, secondFromState, secondToState);
   assert.equal(secondRow?.trigger, "manual", "a transition added after the re-Allow starts at the NEW default");

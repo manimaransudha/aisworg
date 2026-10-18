@@ -19,7 +19,7 @@ import { listTransitionsForEntityType } from "./policyDefinitions.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
-import type { PackCategory, PackClassification, PackContributions, PackRow, PolicyCondition, PolicyDefinitionRow, PolicyScope, TransitionEntityType } from "../../../dblayer/seuTypes.js";
+import type { PackCategory, PackClassification, PackContributions, PackRow, PolicyCondition, PolicyDefinitionRow, PolicyScope, ServiceDefinitionRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { getPlatformTenantId, INITIAL_VERSION } from "../../../dblayer/constants.js";
@@ -51,11 +51,13 @@ function governedTransitionsFor(scope: PolicyScope, applicabilityDeliverables: P
     return applicabilityDeliverables.map((row) => ({ governedTransition: null, deliverableNames: [row.name], governingCondition: row.governingCondition }));
   }
   if (!applicabilityDeliverables.length) return [{ governedTransition: "Deliverable|Approved|Baselined", deliverableNames: [], governingCondition: null }];
-  return applicabilityDeliverables.flatMap((row) =>
-    row.transitions.length
-      ? row.transitions.map((t) => ({ governedTransition: t, deliverableNames: [row.name], governingCondition: row.governingCondition }))
-      : [{ governedTransition: "Deliverable|Approved|Baselined", deliverableNames: [row.name], governingCondition: row.governingCondition }]
-  );
+  // A row with an empty name applies to every Deliverable.
+  return applicabilityDeliverables.flatMap((row) => {
+    const deliverableNames = row.name ? [row.name] : [];
+    return row.transitions.length
+      ? row.transitions.map((t) => ({ governedTransition: t, deliverableNames, governingCondition: row.governingCondition }))
+      : [{ governedTransition: "Deliverable|Approved|Baselined", deliverableNames, governingCondition: row.governingCondition }];
+  });
 }
 
 const DEFAULT_CONDITION: PolicyCondition = {
@@ -314,7 +316,7 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
         : new Set(
             definition.conditions.flatMap((c) =>
               (c.applicabilityDeliverables ?? [])
-                .filter((row) => !row.transitions.some((t) => t.startsWith("SEU|")) && row.name !== "SEU")
+                .filter((row) => row.name && !row.transitions.some((t) => t.startsWith("SEU|")) && row.name !== "SEU")
                 .map((row) => row.name)
             )
           );
@@ -386,10 +388,11 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
   }
 
   const capabilityCodes = new Set((seed.contributions.capabilities ?? []).map((c) => c.code));
+  const viewerTenantId = ontologyViewer.tenantId ?? (await getPlatformTenantId());
   for (const svc of seed.contributions.services ?? []) {
-    const { data: definition } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(svc.code ?? "", ontologyViewer.tenantId ?? (await getPlatformTenantId()));
-    if (!definition) {
-      errors.push(`service "${svc.code}" does not resolve to an Active Service Definition visible to this tenant`);
+    const definition = await resolvePinnedServiceDefinition(svc, viewerTenantId);
+    if (typeof definition === "string") {
+      errors.push(definition);
       continue;
     }
     if (!capabilityCodes.has(definition.capability_code)) {
@@ -517,6 +520,18 @@ export async function publishPack(input: { seed: PackSeedInput; actorId: string;
   return advanced;
 }
 
+// A contributed service names the exact Service Definition version it composes by id. The id must resolve to an
+// Active definition visible to the tenant whose code matches the entry's code. Returns the row, or a message.
+async function resolvePinnedServiceDefinition(svc: { code: string; serviceDefinitionId: string }, viewerTenantId: string): Promise<ServiceDefinitionRow | string> {
+  if (!svc.serviceDefinitionId) return `service "${svc.code}" has no serviceDefinitionId`;
+  const { data: definition } = await serviceDefinitionsDB.findById(svc.serviceDefinitionId);
+  if (!definition) return `service "${svc.code}" serviceDefinitionId "${svc.serviceDefinitionId}" does not resolve to a Service Definition`;
+  if (definition.code !== svc.code) return `service "${svc.code}" serviceDefinitionId "${svc.serviceDefinitionId}" belongs to Service Definition "${definition.code}"`;
+  if (definition.status !== "Active") return `service "${svc.code}" Service Definition ${definition.version} is ${definition.status}, not Active`;
+  if (definition.tenant_id !== viewerTenantId && definition.tenant_id !== (await getPlatformTenantId())) return `service "${svc.code}" Service Definition is not visible to this tenant`;
+  return definition;
+}
+
 async function materializeContributions(pack: PackRow, seed: PackSeedInput): Promise<void> {
   const capabilityIdByCode = new Map<string, string>();
   for (const cap of seed.contributions.capabilities ?? []) {
@@ -535,8 +550,8 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
   }
 
   for (const svc of seed.contributions.services ?? []) {
-    const { data: definition } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(svc.code, pack.tenant_id);
-    if (!definition) throw new Error(`service ${svc.code} does not resolve to an Active Service Definition`);
+    const definition = await resolvePinnedServiceDefinition(svc, pack.tenant_id);
+    if (typeof definition === "string") throw new Error(definition);
     const capabilityId = capabilityIdByCode.get(definition.capability_code);
     if (!capabilityId) throw new Error(`service ${svc.code} references unknown capability ${definition.capability_code}`);
     const overrideByCode = new Map<string, number>();

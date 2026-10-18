@@ -24,7 +24,7 @@ import { createObjective, ensureOneShotContainer } from "./objectives.js";
 import { raiseAttentionItem, resolveAuthor } from "./attentionItems.js";
 import { raiseObligationForBlockedTransition, raiseObligationsForPackDefinitions } from "./obligations.js";
 import { findCandidateTemplates } from "./templates.js";
-import { extractProfileDetails, getProfilePackSelections, extractExposedParameterOverrides, listRealProfilesForTemplate } from "./profiles.js";
+import { extractProfileDetails, getProfilePackCodes, extractExposedParameterOverrides, listRealProfilesForTemplate } from "./profiles.js";
 import type { ProfileDetail } from "./profiles.js";
 import { resolveLabels } from "./ontology.js";
 import type { CommissioningReport, SeuLifecycleState, SeuRow, TemplateRow, ProfileRow, ObjectiveRow, CapabilityRow, TemplateDeliverableSeed, EbmCompositionReport, EbmComposedPack, EbmRow } from "../../../dblayer/seuTypes.js";
@@ -61,18 +61,11 @@ export async function checkRequestLiveness(input: { objective: ObjectiveRow; tem
     const { data: mandatoryCodes } = await templatesDB.getMandatoryPackCodes(template.id);
     for (const code of mandatoryCodes ?? []) packCodes.add(code);
   }
-  const selections = await getProfilePackSelections(input.profile.id);
-  for (const code of [
-    ...(selections.optionalPackCodes ?? []),
-    ...(selections.technologyPackCodes ?? []),
-    ...(selections.domainPackCodes ?? []),
-    ...(selections.compliancePackCodes ?? []),
-    ...(selections.integrationPackCodes ?? []),
-    ...(selections.engineeringPackCodes ?? []),
-    ...(selections.organisationPackCodes ?? []),
-  ]) packCodes.add(code);
+  for (const code of await getProfilePackCodes(input.profile.id)) packCodes.add(code);
+  const { data: activePacks } = await packsDB.findActiveByCodes([...packCodes]);
+  const activePackByCode = new Map((activePacks ?? []).map((p) => [p.code, p]));
   for (const code of packCodes) {
-    const { data: pack } = await packsDB.findActiveByCode(code);
+    const pack = activePackByCode.get(code);
     checks.push(pack ? { item: `Pack "${code}"`, status: "live", detail: `Active version ${pack.pack_version}` } : { item: `Pack "${code}"`, status: "dead", detail: "has no Active version" });
   }
 

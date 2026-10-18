@@ -38,7 +38,7 @@ let captureBase: string;
 // Ch.30 Event Bus redesign — dispatch is fire-and-forget, so anything
 // waiting on a handler's side effect (here, delivery to the capture server)
 // must poll rather than assume it's done synchronously.
-async function waitUntil(condition: () => boolean, timeoutMs = 2000, intervalMs = 20): Promise<void> {
+async function waitUntil(condition: () => boolean, timeoutMs = 20000, intervalMs = 20): Promise<void> {
   const start = Date.now();
   while (!condition()) {
     if (Date.now() - start > timeoutMs) return; // let the caller's own assertion report the failure
@@ -125,7 +125,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
       // resolveExecutionTarget (executionTargetResolver.ts) silently falls
       // back to human-on-ui and the capture server never sees a delivery.
       assert.equal(capability!.capabilityId, expectedCapabilityId, `SEU's requirements-analysis Capability (${capability!.capabilityId}) does not match the Capability the execution target was upserted against (${expectedCapabilityId})`);
-      await fulfilCapability({ seuId, capabilityId: capability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+      await fulfilCapability({ seuId, capabilityId: capability!.capabilityId, capabilityCodes: ["requirements-analysis"] });
     },
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");

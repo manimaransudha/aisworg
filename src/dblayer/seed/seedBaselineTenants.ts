@@ -1,7 +1,7 @@
 import "dotenv/config";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
-import { PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, CAMBODIA_TENANT_NAME, TEMP_TENANT_ID } from "../constants.js";
+import { PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, CAMBODIA_TENANT_NAME, TEMP_TENANT_ID } from "../constants.js";
 interface SeedTenant {
   code: string;
   name: string;
@@ -14,8 +14,6 @@ const PLATFORM_TENANT: SeedTenant =
 
 const TENANTS: SeedTenant[] = [
   { code: "demo", name: DEMO_TENANT_NAME, status: "Operational", is_system: true },
-  { code: "athens", name: ATHENS_TENANT_NAME, status: "Operational", is_system: false},
-  { code: "babylon", name: BABYLON_TENANT_NAME, status: "Operational", is_system: false},
   { code: "cambodia", name: CAMBODIA_TENANT_NAME, status: "Operational", is_system: false},
 ];
 

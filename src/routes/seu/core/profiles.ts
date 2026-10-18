@@ -193,24 +193,24 @@ const PACK_SELECTION_SLOTS: Array<{ field: keyof ProfileSeedInput; packCategory:
   { field: "organisationPackCodes", packCategory: "Organisation" },
 ];
 
+// Every Pack code a Profile selects, whatever its category, for composition and commissioning.
+export async function getProfilePackCodes(profileId: string): Promise<string[]> {
+  const { data, error } = await profilesDB.getPackCodes(profileId);
+  if (error || !data) throw error ?? new Error(`could not read the Pack selection of Profile ${profileId}`);
+  return data;
+}
+
 export async function getProfilePackSelections(profileId: string): Promise<Pick<ProfileSeedInput, "optionalPackCodes" | "technologyPackCodes" | "domainPackCodes" | "compliancePackCodes" | "integrationPackCodes" | "engineeringPackCodes" | "organisationPackCodes">> {
-  const [optionalPackCodes, technologyPackCodes, domainPackCodes, compliancePackCodes, integrationPackCodes, engineeringPackCodes, organisationPackCodes] = await Promise.all([
-    profilesDB.getPackSelection(profileId, "optional"),
-    profilesDB.getPackSelection(profileId, "technology"),
-    profilesDB.getPackSelection(profileId, "domain"),
-    profilesDB.getPackSelection(profileId, "compliance"),
-    profilesDB.getPackSelection(profileId, "integration"),
-    profilesDB.getPackSelection(profileId, "engineering"),
-    profilesDB.getPackSelection(profileId, "organisation"),
-  ]);
+  const { data, error } = await profilesDB.getPackSelections(profileId);
+  if (error || !data) throw error ?? new Error(`could not read the Pack selection of Profile ${profileId}`);
   return {
-    optionalPackCodes: optionalPackCodes.data ?? [],
-    technologyPackCodes: technologyPackCodes.data ?? [],
-    domainPackCodes: domainPackCodes.data ?? [],
-    compliancePackCodes: compliancePackCodes.data ?? [],
-    integrationPackCodes: integrationPackCodes.data ?? [],
-    engineeringPackCodes: engineeringPackCodes.data ?? [],
-    organisationPackCodes: organisationPackCodes.data ?? [],
+    optionalPackCodes: data.optional ?? [],
+    technologyPackCodes: data.technology ?? [],
+    domainPackCodes: data.domain ?? [],
+    compliancePackCodes: data.compliance ?? [],
+    integrationPackCodes: data.integration ?? [],
+    engineeringPackCodes: data.engineering ?? [],
+    organisationPackCodes: data.organisation ?? [],
   };
 }
 

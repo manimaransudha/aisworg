@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import pool from "../../../utils/db.js";
 import { logger } from "../../../utils/logger.js";
+import { loadServiceDefinitionIdByCode, stampServiceDefinitionIds } from "../serviceDefinitionIds.js";
 import type { PackSeedInput } from "../../../routes/seu/core/packs.js";
 import { createAuthoringDraft, publishAuthoringDraft, inheritedTemplateContent } from "../../../routes/seu/core/sdkAuthoring.js";
 import { validateComposableFieldsAgainstSchema } from "../../../routes/seu/core/ontology.js";
@@ -79,9 +80,11 @@ async function seedPacks(actor: DemoActor): Promise<{ authored: Set<string>; act
   if (!auth.allowed) throw new Error(`[seed:demo] Demo User does not hold pack_define`);
   const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "pack_define");
 
+  const serviceDefinitionIdByCode = await loadServiceDefinitionIdByCode(actor.tenantId);
   const authored = new Set<string>();
   const active = new Set<string>();
   for (const pack of packs) {
+    stampServiceDefinitionIds(pack, serviceDefinitionIdByCode);
     const created = await createAuthoringDraft({
       kind: "Pack", actorId: actor.participantId, authorBadge, tenantId: actor.tenantId,
       content: pack as unknown as Record<string, unknown>, schemaDefinitionId: packSchema.id,

@@ -133,13 +133,18 @@ export const executionEngine = {
       return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
     }
 
+    // A Policy condition reads the producing Capability's status here; null when the Deliverable has no producing Capability.
+    const { data: producingSeuCapability } = deliverable.producing_capability_id
+      ? await seuCapabilitiesDB.findBySeuIdAndCapabilityId(deliverable.seu_id, deliverable.producing_capability_id)
+      : { data: null };
+
     const policyResult = await policyEngine.evaluate({
       entityType: "Deliverable",
       seuId: deliverable.seu_id,
       entityId: deliverable.id,
       fromState,
       toState: targetState,
-      context: { deliverable },
+      context: { deliverable, producingCapabilityStatus: producingSeuCapability?.status ?? null },
       authorId: input.actorId,
       authorBadge: actingBadgeType,
     });

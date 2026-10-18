@@ -1,0 +1,26 @@
+{
+  "code": "policy-externalinteraction-transition-baseline",
+  "name": "External Interaction Transition Baseline",
+  "description": "Every governed transition of a External Interaction passes through the Transition Engine, which records the transition, its actor and its authority badge.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every transition of a External Interaction governed by this Policy is applied by the Transition Engine with a recorded actor and authority badge.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "External Interaction Transition Record",
+        "category": "Validation Evidence",
+        "description": "The transition record written by the Transition Engine when the External Interaction transition is applied.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

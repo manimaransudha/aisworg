@@ -1,0 +1,13 @@
+{
+  "code": "platform-governance-baseline",
+  "name": "Platform Governance Baseline",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Mandatory",
+  "description": "Mandatory baseline governance. A Deliverable moves from Defined to In Progress only after the Capability that produces it is fulfilled.",
+  "contributions": {
+    "policies": [
+      "policy-capability-fulfilled-before-start"
+    ]
+  }
+}

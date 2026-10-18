@@ -1,0 +1,26 @@
+{
+  "code": "policy-attentionitem-transition-baseline",
+  "name": "Attention Item Transition Baseline",
+  "description": "Every governed transition of a Attention Item passes through the Transition Engine, which records the transition, its actor and its authority badge.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every transition of a Attention Item governed by this Policy is applied by the Transition Engine with a recorded actor and authority badge.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Attention Item Transition Record",
+        "category": "Validation Evidence",
+        "description": "The transition record written by the Transition Engine when the Attention Item transition is applied.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -351,17 +351,4 @@ export const templatesDB = {
       return { error: err as Error };
     }
   },
-
-  async getPackSelection(templateId: string, listKind: string): Promise<DbResult<string[]>> {
-    try {
-      const { rows } = await query<{ pack_code: string }>(
-        "SELECT pack_code FROM template_packs WHERE template_id = $1 AND list_kind = $2 ORDER BY pack_code",
-        [templateId, listKind]
-      );
-      return { data: rows.map((r) => r.pack_code) };
-    } catch (err) {
-      logger.error("[templatesDB] getPackSelection error", err as Error);
-      return { error: err as Error };
-    }
-  },
 };

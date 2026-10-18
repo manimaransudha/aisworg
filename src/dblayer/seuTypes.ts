@@ -100,7 +100,7 @@ export interface ChecklistItem {
 
 export interface PackContributions {
   capabilities?: Array<{ code: string }>;
-  services?: Array<{ code: string; serviceLevel?: Array<{ code: string; target: number }> }>;
+  services?: Array<{ code: string; serviceDefinitionId: string; serviceLevel?: Array<{ code: string; target: number }> }>;
   authorityRules?: Array<{ code: string; governedTransition: string; authorisedRole: string }>;
   policies?: string[];
   qualityGates?: Array<{

@@ -57,13 +57,6 @@ export async function validateCapabilityDefinitionSeed(seed: CapabilityDefinitio
   if (versionError) errors.push(versionError);
 
   const tenantId = seed.tenantId ?? (await getPlatformTenantId());
-  if (seed.code?.trim()) {
-    try {
-      await assertCanonicalCategory("capability-name", seed.code.trim());
-    } catch (err) {
-      errors.push((err as Error).message);
-    }
-  }
   if (!seed.category?.trim()) errors.push("category is required");
   errors.push(...(await validateRoles(seed.roles)));
 
@@ -172,6 +165,17 @@ export async function copyCapabilityDefinitionAsNewDraft(capabilityDefinitionId:
     schemaDefinitionId: copySchema.id,
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Capability Definition")).message] };
+  await eventBus.publish({
+    eventType: "CapabilityRegistered",
+    originatingObjectType: "CapabilityDefinition",
+    originatingObjectId: newDraft.id,
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    actorId: copyMaster.id,
+    authorityBadge: authorBadge,
+    payload: { code: newDraft.code, version: newDraft.version },
+    tenantId: newDraft.tenant_id,
+  });
   return { ok: true, draftId: newDraft.id };
 }
 

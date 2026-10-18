@@ -209,6 +209,30 @@ export const packsDB = {
     }
   },
 
+  // The newest Active Pack for each of the given codes, in one query.
+  async findActiveByCodes(codes: string[]): Promise<DbResult<PackRow[]>> {
+    if (codes.length === 0) return { data: [] };
+    try {
+      const { rows } = await query<PackRow>("SELECT DISTINCT ON (code) * FROM packs WHERE code = ANY($1) AND status = 'Active' ORDER BY code, created_at DESC", [codes]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[packsDB] findActiveByCodes error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // The category of each given Pack code, from its newest row, in one query.
+  async findCategoriesByCodes(codes: string[]): Promise<DbResult<Array<{ code: string; category: string }>>> {
+    if (codes.length === 0) return { data: [] };
+    try {
+      const { rows } = await query<{ code: string; category: string }>("SELECT DISTINCT ON (code) code, category FROM packs WHERE code = ANY($1) ORDER BY code, created_at DESC", [codes]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[packsDB] findCategoriesByCodes error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findVersionsByCode(code: string): Promise<DbResult<PackRow[]>> {
     try {
       const { rows } = await query<PackRow>("SELECT * FROM packs WHERE code = $1 ORDER BY created_at DESC", [code]);

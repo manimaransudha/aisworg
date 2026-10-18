@@ -56,7 +56,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
     const detail = await getSeuDetailView(seuId);
     const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
     assert.ok(reqAnalysisCapability);
-    await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+    await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, capabilityCodes: ["requirements-analysis"] });
   });
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");

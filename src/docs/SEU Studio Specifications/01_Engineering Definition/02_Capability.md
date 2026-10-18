@@ -298,8 +298,11 @@ Evolution shall preserve backward compatibility wherever practical.
 The Capability subsystem shall publish:
 
 - CapabilityRegistered
-- CapabilityUpdated
+- CapabilityPublished
+~~- CapabilityUpdated~~
 - CapabilityDeprecated
+- CapabilityRetired
+- CapabilityArchived
 - CapabilityRequested
 - CapabilityFulfilled
 - CapabilityUnavailable

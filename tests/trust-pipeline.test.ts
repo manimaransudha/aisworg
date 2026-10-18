@@ -47,7 +47,7 @@ async function commissionAndApproveRequirementsSpec(statementPrefix: string) {
     const detail = await getSeuDetailView(seuId);
     const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
     assert.ok(reqAnalysisCapability);
-    await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+    await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, capabilityCodes: ["requirements-analysis"] });
   });
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
@@ -313,7 +313,7 @@ test("Evidence preserves its full provenance as evidence_relationships rows — 
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
   const { participant } = await fulfilCapability({
-    seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]),
+    seuId, capabilityId: reqAnalysisCapability.capabilityId, capabilityCodes: ["requirements-analysis"],
   });
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);

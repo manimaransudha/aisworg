@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { query } from "../src/utils/db.js";
+import pool, { query } from "../src/utils/db.js";
 import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
@@ -12,12 +12,14 @@ import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
-import { getPlatformTenantId, getTesterId, INITIAL_VERSION } from "../src/dblayer/constants.js";
+import { getPlatformTenantId, getTesterId, INITIAL_VERSION, BABYLON_TENANT_NAME } from "../src/dblayer/constants.js";
+import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { userDB } from "../src/dblayer/userDB.js";
 import { commissionFromForm, transitionEbm, previewCommissioningValidation, attemptSeuCommenceWork } from "../src/routes/seu/core/commissioning.js";
 import { publishProfile, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
+import { serviceDefinitionsDB } from "../src/dblayer/serviceDefinitionsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
@@ -25,7 +27,10 @@ import { transitionRequiresAttestation } from "../src/domain/engine/transitionEn
 import type { TransitionEntityType } from "../src/dblayer/seuTypes.js";
 import { lookupRouteAuthority } from "../src/domain/identity/routeAuthorityCache.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
-import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
+import { requestCapabilityFulfilment } from "../src/routes/seu/core/capabilities.js";
+import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
+import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
+import type { CapabilityFulfilmentRow, ParticipantRow } from "../src/dblayer/seuTypes.js";
 import { createEvidence } from "../src/routes/seu/core/evidence.js";
 import { createReview } from "../src/routes/seu/core/reviews.js";
 import { createFinding } from "../src/routes/seu/core/findings.js";
@@ -56,8 +61,23 @@ export const PLATFORM_TENANT_ID = await getPlatformTenantId();
 // memoized, idempotent, self-healing idiom as ensureWebAppTemplateFixture.
 let testFixturePacksCached: Promise<void> | null = null;
 
+// seedAllTestFixturePacks checks for an existing Pack and then publishes, which is not atomic, so test files running in
+// separate processes can both miss the check and collide on packs_code_version_tenant_key. Only this seed is serialised
+// across processes, by a session-level Postgres advisory lock; the later holder finds every Pack already Active.
+const TEST_FIXTURE_PACKS_LOCK_KEY = 7_310_046;
+async function withSeedLock(seed: () => Promise<void>): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query("SELECT pg_advisory_lock($1)", [TEST_FIXTURE_PACKS_LOCK_KEY]);
+    await seed();
+  } finally {
+    await client.query("SELECT pg_advisory_unlock($1)", [TEST_FIXTURE_PACKS_LOCK_KEY]).catch(() => undefined);
+    client.release();
+  }
+}
+
 export function ensureTestFixturePacks(): Promise<void> {
-  if (!testFixturePacksCached) testFixturePacksCached = seedAllTestFixturePacks();
+  if (!testFixturePacksCached) testFixturePacksCached = withSeedLock(seedAllTestFixturePacks);
   return testFixturePacksCached;
 }
 
@@ -686,6 +706,20 @@ export async function ensureEligibleParticipant(seuId: string, capabilityCodes: 
   return participant.id;
 }
 
+// Babylon AI-Native onboards no Participant that holds an engineering Capability, so a Capability required by an SEU
+// commissioned there has an empty eligible pool and ends in CapabilityUnavailable. No Participant of any shared pool
+// is ever toggled, so parallel test files cannot disturb each other. A test that later fulfils a Capability there
+// with a fixture Participant releases it through deactivateParticipants when it finishes.
+export async function getEmptyPoolTenantId(): Promise<string> {
+  const { data: tenant } = await tenantsDB.findByName(BABYLON_TENANT_NAME);
+  if (!tenant) throw new Error(`getEmptyPoolTenantId: tenant "${BABYLON_TENANT_NAME}" not found — is db:clean-slate seeded?`);
+  return tenant.id;
+}
+
+export async function deactivateParticipants(participantMasterIds: string[]): Promise<void> {
+  await query("UPDATE participants_master SET is_active = FALSE WHERE id = ANY($1::uuid[])", [participantMasterIds]);
+}
+
 // capability_fulfilments.author_id is a real Ch.13 participants(id) FK
 // (schema recovery pass, capability_fulfilments_schema_recovery.sql) —
 // fulfilCapability now resolves it via resolveAuthor(seuId, actorId), which
@@ -724,15 +758,82 @@ export async function ensureSeuRequesterParticipant(seuId: string): Promise<void
   await ensureActorParticipant(seuId, seu.requested_by);
 }
 
+// CapabilityRequested is consumed by a handler that fulfils in the background, so this requests and then waits
+// until the Participant's active Capability Fulfilment exists.
 export async function fulfilCapabilityAsRoot(input: {
   seuId: string;
   capabilityId: string;
+  // Either an existing Participant, or the codes a fixture Participant is created with. The codes form creates it
+  // only when the Capability is still Unfulfilled after the on-Ready request has settled, so it never joins that pool.
   participantMasterId?: string;
-  participantType?: import("../src/dblayer/seuTypes.js").ParticipantType;
-  displayName?: string;
-}): ReturnType<typeof fulfilCapability> {
+  capabilityCodes?: string[];
+}): Promise<{ participant: ParticipantRow; fulfilment: CapabilityFulfilmentRow; seuCapabilityId: string }> {
+  await ensureEventSubscriptionsLoaded();
   await ensureRootActorParticipant(input.seuId);
-  return fulfilCapability({ ...input, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  // Commissioning requests fulfilment itself. Fulfilling by hand is needed only when that request ended unfulfilled.
+  await settleCapabilityRequests(input.seuId, input.capabilityId);
+  const { data: seuCapabilities } = await seuCapabilitiesDB.findBySeuId(input.seuId);
+  const seuCapability = (seuCapabilities ?? []).find((c) => c.capability_id === input.capabilityId);
+  if (!seuCapability) throw new Error(`fulfilCapabilityAsRoot: capability ${input.capabilityId} is not required by SEU ${input.seuId}`);
+  let participantMasterId = input.participantMasterId;
+  if (seuCapability.status === "Unfulfilled") {
+    if (!participantMasterId) {
+      if (!input.capabilityCodes) throw new Error("fulfilCapabilityAsRoot: pass participantMasterId or capabilityCodes");
+      participantMasterId = await ensureEligibleParticipant(input.seuId, input.capabilityCodes);
+    }
+    await requestCapabilityFulfilment({ seuId: input.seuId, capabilityId: input.capabilityId, participantMasterIds: [participantMasterId], actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+    await waitForCapabilityFulfilled(input.seuId, input.capabilityId);
+  }
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const { data: fulfilments } = await capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId(seuCapability.id);
+    const own = (fulfilments ?? []);
+    for (const fulfilment of own) {
+      const { data: participant } = await participantsDB.findById(fulfilment.participant_id);
+      if (participant?.participant_id === participantMasterId) return { participant, fulfilment, seuCapabilityId: seuCapability.id };
+    }
+    if (seuCapability.status === "Fulfilled" && own.length > 0) {
+      const { data: participant } = await participantsDB.findById(own[0].participant_id);
+      if (participant) return { participant, fulfilment: own[0], seuCapabilityId: seuCapability.id };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`fulfilCapabilityAsRoot: no active fulfilment for Capability ${input.capabilityId} of SEU ${input.seuId} after 10s`);
+}
+
+// Waits until no CapabilityRequested of this Capability is still waiting for its handler. Returns at once when none
+// was ever published. A failed handler throws with its recorded error.
+export async function settleCapabilityRequests(seuId: string, capabilityId: string): Promise<void> {
+  for (let attempt = 0; attempt < 900; attempt++) {
+    const { data: events } = await eventsDB.findByOriginatingObject("SEU", seuId);
+    const requests = (events ?? []).filter((e) => e.event_type === "CapabilityRequested" && (e.payload as { capabilityId?: string }).capabilityId === capabilityId);
+    const failed = requests.find((e) => e.consumption_state?.capabilityRequested?.status === "failed");
+    if (failed) throw new Error(`settleCapabilityRequests: CapabilityRequested ${failed.id} failed: ${(failed.consumption_state.capabilityRequested as { error?: string }).error}`);
+    if (requests.every((e) => e.consumption_state?.capabilityRequested?.status === "consumed")) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`settleCapabilityRequests: a CapabilityRequested for Capability ${capabilityId} of SEU ${seuId} was not consumed after 90s`);
+}
+
+// Fulfilment runs in the CapabilityRequested handler after the request returns, so a test that requested it waits
+// here until the handler has consumed the latest CapabilityRequested of that Capability, including the events the
+// handler publishes. A failed handler throws with its recorded error.
+export async function waitForCapabilityFulfilled(seuId: string, capabilityId: string): Promise<void> {
+  const latestRequest = async () => {
+    const { data: events } = await eventsDB.findByOriginatingObject("SEU", seuId);
+    return (events ?? [])
+      .filter((e) => e.event_type === "CapabilityRequested" && (e.payload as { capabilityId?: string }).capabilityId === capabilityId)
+      .sort((x, y) => new Date(x.occurred_at).getTime() - new Date(y.occurred_at).getTime())
+      .pop();
+  };
+  // An empty-named request fulfils the whole eligible pool, which accumulates fixture Participants across runs.
+  for (let attempt = 0; attempt < 900; attempt++) {
+    const request = await latestRequest();
+    const consumption = request?.consumption_state?.capabilityRequested;
+    if (consumption?.status === "failed") throw new Error(`waitForCapabilityFulfilled: CapabilityRequested ${request!.id} failed: ${(consumption as { error?: string }).error}`);
+    if (consumption?.status === "consumed") return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`waitForCapabilityFulfilled: no consumed CapabilityRequested for Capability ${capabilityId} of SEU ${seuId} after 90s`);
 }
 
 // evidence.author_id/author_badge (schema recovery pass, evidenceDB.ts) —
@@ -1147,4 +1248,11 @@ async function seedCoreGates(): Promise<void> {
     authorId: corePack.authored_by,
     authorBadge: corePack.author_badge,
   });
+}
+
+// The id of the Active Platform Service Definition a seeded Service code names, for a Pack contributionServices[] entry.
+export async function serviceDefinitionIdFor(code: string): Promise<string> {
+  const { data, error } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(code, await getPlatformTenantId());
+  if (error || !data) throw error ?? new Error(`no Active Service Definition "${code}" -- run db:clean-slate`);
+  return data.id;
 }

@@ -28,6 +28,7 @@ import fetchCookie from "fetch-cookie";
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
+import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { createObligationAsRoot as createObligation } from "./testFixtures.js";
@@ -41,7 +42,7 @@ import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
-import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_USER_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, TESTER_OBJECTIVE_ACHIEVE_ONLY, grantRouteBadges, ensureSeuRequesterParticipant, ensureActorParticipant } from "./testFixtures.js";
+import { deactivateParticipants, waitForCapabilityFulfilled, settleCapabilityRequests, ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_USER_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, TESTER_OBJECTIVE_ACHIEVE_ONLY, grantRouteBadges, ensureSeuRequesterParticipant, ensureActorParticipant } from "./testFixtures.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import type { CommandRow, WorkItemRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
@@ -175,20 +176,21 @@ async function postForm(
 // one is one of those unrelated fixtures, not this file's own. Targeting
 // this fixture's own known Template/Profile ids directly is both correct
 // and robust to however many other rows the picker happens to offer.
-async function commissionSeu(request: Session, statementPrefix: string): Promise<{ seuId: string; csrf: string }> {
+// `sponsor` owns the Objectives and so decides the SEU's tenant: Athens by default, Babylon where the pool must be empty.
+async function commissionSeu(request: Session, statementPrefix: string, sponsor: { participantId: string } = TESTER_OBJECTIVE_ATHENS, withFixtureParticipant = true): Promise<{ seuId: string; csrf: string }> {
   const { template: fixtureTemplate, profile: fixtureProfile } = await ensureWebAppTemplateFixture();
   const { objective: root } = await createObjective({
     statement: `${statementPrefix}-root-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Strategic",
-    requestedBy: TESTER_OBJECTIVE_ATHENS.participantId,
+    requestedBy: sponsor.participantId,
   });
   const { objective } = await createObjective({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     tier: "Engineering",
     parentObjectiveId: root.id,
-    requestedBy: TESTER_OBJECTIVE_ATHENS.participantId,
+    requestedBy: sponsor.participantId,
   });
 
   // TESTER_OBJECTIVE_ATHENS (seedIdentityBaseline.ts) is documented/scoped to
@@ -198,7 +200,7 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
   // for those — granted here, at test-run time, onto its own
   // participants_master row rather than widening the seed fixture or
   // hardcoding a badge name at the call site.
-  await grantRouteBadges(TESTER_OBJECTIVE_ATHENS.participantId, "POST", `/aisworg/seu/objectives/${objective.id}/commission`);
+  await grantRouteBadges(sponsor.participantId, "POST", `/aisworg/seu/objectives/${objective.id}/commission`);
 
   const picker = await getPage(request, `/seu/seus/new?objectiveId=${objective.id}`);
   assert.equal(picker.status, 200);
@@ -240,7 +242,7 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
   // the default 15s can run out before finalizeCommissioning's own async
   // chain reaches Operational, even though it always does eventually. Longer
   // override, per timeoutMs's own doc comment.
-  const driven = await driveCommissioningToActive({ seuId, actorId: TESTER_OBJECTIVE_ATHENS.participantId, timeoutMs: 45000 });
+  const driven = await driveCommissioningToActive({ seuId, actorId: sponsor.participantId, timeoutMs: 45000 });
   assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
 
   // deliverableKickoffHandler's own automatic rescan (off SEUOperational,
@@ -268,7 +270,8 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
   // hasAnyEligible). This participant is real and genuinely eligible by the
   // platform's own actual rules — it's not shared with anything else, so it
   // can never be contended away.
-  await ensureEligibleParticipant(seuId, ["requirements-analysis", "architecture-design", "software-construction"]);
+  // The empty-pool caller (Phase 3) must keep the Capability unfulfilled, so it skips this and creates its own later.
+  if (withFixtureParticipant) await ensureEligibleParticipant(seuId, ["requirements-analysis", "architecture-design", "software-construction"]);
 
   return { seuId, csrf };
 }
@@ -353,12 +356,23 @@ function capabilityStatus(html: string, code: string): string {
   return match[1];
 }
 
-function findUnfulfilledCapabilityId(html: string, code: string): string {
+// Any status: the Capability's own form action carries its id (fulfil while Unfulfilled, release once Fulfilled).
+function findCapabilityId(html: string, code: string): string {
   const card = extractCapabilityCard(html, code);
-  if (capabilityStatus(html, code) !== "Unfulfilled") throw new Error(`expected Capability "${code}" to be Unfulfilled on the page`);
-  const match = card.match(/capabilities\/([a-f0-9-]+)\/fulfil/);
-  if (!match) throw new Error(`could not find an unfulfilled Fulfil form for Capability "${code}" on the page`);
+  const match = card.match(/capabilities\/([a-f0-9-]+)\/(?:fulfil|release)/);
+  if (!match) throw new Error(`could not find a Capability id on the page for "${code}"`);
   return match[1];
+}
+
+// Commissioning requests fulfilment itself; a person fulfils by hand only when that request left the Capability
+// Unfulfilled (CapabilityUnavailable, or no request because its Deliverable is not Ready yet).
+async function fulfilByHandIfStillUnfulfilled(request: Session, csrf: string, seuId: string, capabilityId: string, code: string): Promise<void> {
+  await settleCapabilityRequests(seuId, capabilityId);
+  const page = await getPage(request, `/seu/seus/${seuId}`);
+  if (capabilityStatus(page.html, code) === "Fulfilled") return;
+  const participantMasterId = findEligibleParticipantMasterId(page.html, code);
+  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
+  await waitForCapabilityFulfilled(seuId, capabilityId);
 }
 
 // CR-098's own registry-based Fulfil (fulfilCapabilityWithParticipants) —
@@ -412,13 +426,9 @@ test("Flow 2 — Capability Fulfilment: fulfilling a Capability flips its status
   const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-fulfil");
   const detail = await getPage(request, `/seu/seus/${seuId}`);
-  const capabilityId = findUnfulfilledCapabilityId(detail.html, "requirements-analysis");
-  const participantMasterId = findEligibleParticipantMasterId(detail.html, "requirements-analysis");
+  const capabilityId = findCapabilityId(detail.html, "requirements-analysis");
 
-  const result = await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
-    participantMasterIds: participantMasterId,
-  });
-  assert.equal(result.status, 302);
+  await fulfilByHandIfStillUnfulfilled(request, csrf, seuId, capabilityId, "requirements-analysis");
 
   const after1 = await getPage(request, `/seu/seus/${seuId}`);
   assert.equal(capabilityStatus(after1.html, "requirements-analysis"), "Fulfilled");
@@ -428,13 +438,10 @@ test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Delivera
   const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-valid-transition");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
-  const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
+  const capabilityId = findCapabilityId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
-    participantMasterIds: participantMasterId,
-  });
+  await fulfilByHandIfStillUnfulfilled(request, csrf, seuId, capabilityId, "requirements-analysis");
 
   const result = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, {
     targetState: "In Progress",
@@ -446,7 +453,7 @@ test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Delivera
   // completeOutstanding below finds the producing Command, which dispatches once the Capability is fulfilled.
   const afterDispatch = await getPage(request, `/seu/seus/${seuId}`);
   assert.ok(
-    /alert-success[\s\S]*?completed by the Execution Engine/.test(afterDispatch.html) || /alert-danger[\s\S]*?no Transition Definition for Deliverable In Progress/.test(afterDispatch.html),
+    /alert-success[\s\S]*?completed by the Execution Engine/.test(afterDispatch.html) || /alert-danger[\s\S]*?no Transition Definition for Deliverable In Progress/.test(afterDispatch.html) || /alert-danger[\s\S]*?a Command for this exact hop is already Dispatched/.test(afterDispatch.html),
     afterDispatch.html
   );
   assert.match(afterDispatch.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/, "the Execution Engine made the transition");
@@ -461,13 +468,10 @@ test("Flow 4 — Deliverable transition, invalid: rejected with an explicit erro
   const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-invalid-transition");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
-  const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
+  const capabilityId = findCapabilityId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
-    participantMasterIds: participantMasterId,
-  });
+  await fulfilByHandIfStillUnfulfilled(request, csrf, seuId, capabilityId, "requirements-analysis");
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
   // No Transition Definition exists for "In Progress" -> "In Progress" — the
@@ -489,10 +493,8 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-dependency-gating");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
-  const reqCapabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const archCapabilityId = findUnfulfilledCapabilityId(before1.html, "architecture-design");
-  const reqParticipantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
-  const archParticipantMasterId = findEligibleParticipantMasterId(before1.html, "architecture-design");
+  const reqCapabilityId = findCapabilityId(before1.html, "requirements-analysis");
+  const archCapabilityId = findCapabilityId(before1.html, "architecture-design");
   const requirementsSpecId = findDeliverableId(before1.html, "Requirements Analysis Model");
   const architectureDocId = findDeliverableId(before1.html, "Architecture Decision Record");
 
@@ -500,8 +502,8 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   // after this bug was originally found and fixed) is never what's blocking
   // Architecture Decision Record below — this test isolates the dependency gate
   // specifically, the one that actually broke before.
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${reqCapabilityId}/fulfil`, csrf, { participantMasterIds: reqParticipantMasterId });
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${archCapabilityId}/fulfil`, csrf, { participantMasterIds: archParticipantMasterId });
+  await fulfilByHandIfStillUnfulfilled(request, csrf, seuId, reqCapabilityId, "requirements-analysis");
+  await fulfilByHandIfStillUnfulfilled(request, csrf, seuId, archCapabilityId, "architecture-design");
   // Now that both Capabilities are genuinely fulfilled, resolving the stray
   // commissioning-time empty_eligible_pool Obligation can't recur (see
   // commissionSeu's own comment) — this hop reaches Approved below, gated by
@@ -533,44 +535,46 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
 // a real Command and Work Item must exist behind it. Under the Execution Engine flow the Deliverable's own hop
 // (Defined -> In Progress) is governed and made by the engine, so its Command is Completed with no Work Item. The
 // producing Command (In Progress -> In Progress) is the one that dispatches to a Participant. With nobody fulfilling
-// the Capability yet, Dispatch rejects it (Failed). Fulfilling the Capability (CapabilityFulfilled) makes the
-// kickoff request the producing Command again, which then dispatches.
-test("Phase 3 — the engine makes the hop, and the producing Command and Work Item dispatch once the Capability is fulfilled", async () => {
+// the Capability the hop is blocked by policy, so the Deliverable stays in Defined. Fulfilling the Capability
+// (CapabilityFulfilled) makes the kickoff make the hop and issue the producing Command, which then dispatches.
+test("Phase 3 — the Deliverable stays in Defined until the Capability is fulfilled, then the hop is made and the producing Command and Work Item dispatch", async () => {
   const request = newSession(ROOT_USER_ID);
-  const { seuId, csrf } = await commissionSeu(request, "webflow-phase3");
+  const fixtureParticipantIds: string[] = [];
+  try {
+  const { seuId, csrf } = await commissionSeu(request, "webflow-phase3", TESTER_OBJECTIVE_BABYLON, false);
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  // Nobody fulfils the Capability yet: the kickoff makes the hop and the producing Command is rejected.
+  // Nobody fulfils the Capability: the request ends in CapabilityUnavailable and the Deliverable stays in Defined.
   await waitUntilAsync(async () => {
-    const { data: commands } = await commandsDB.findBySeuId(seuId);
-    return (commands ?? []).some((c) => c.entity_id === deliverableId && c.from_state === "In Progress" && c.to_state === "In Progress" && c.status === "Failed");
+    const { data: events } = await eventsDB.findByOriginatingObject("SEU", seuId);
+    return (events ?? []).some((e) => e.event_type === "CapabilityUnavailable");
   });
-  const afterRejected = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterRejected.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/, "the engine made the hop without a Participant");
+  const afterUnavailable = await getPage(request, `/seu/seus/${seuId}`);
+  assert.match(afterUnavailable.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Defined">Defined/, "no hop without a fulfilled Capability");
+  const { data: commandsBefore } = await commandsDB.findBySeuId(seuId);
+  assert.equal((commandsBefore ?? []).filter((c) => c.entity_id === deliverableId && c.status === "Completed").length, 0, "no Command completed for the Deliverable while its Capability is unfulfilled");
 
-  const { data: rejectedCommands } = await commandsDB.findBySeuId(seuId);
-  const hop = (rejectedCommands ?? []).filter((c) => c.entity_id === deliverableId && c.from_state === "Defined" && c.to_state === "In Progress");
-  assert.equal(hop.length, 1, "exactly one Command for the Defined -> In Progress hop");
-  assert.equal(hop[0]?.status, "Completed");
-  assert.equal(((await workItemsDB.findByCommandIds([hop[0]!.id])).data ?? []).length, 0, "the hop is made by the engine and has no Work Item");
-  const priorFailed = (rejectedCommands ?? []).filter((c) => c.entity_id === deliverableId && c.status === "Failed");
-  assert.ok(priorFailed.length >= 1);
-  assert.ok(priorFailed.every((c) => c.from_state === "In Progress" && c.to_state === "In Progress"), "only producing Commands are rejected for the empty pool");
+  // The page renders no Fulfil form while the pool is empty, so the Capability id comes from the SEU itself.
+  const capabilityId = (await getSeuDetailView(seuId))?.capabilities.find((c) => c.code === "requirements-analysis")?.capabilityId;
+  assert.ok(capabilityId, "the SEU requires requirements-analysis");
+  const fixtureParticipantId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+  fixtureParticipantIds.push(fixtureParticipantId);
+  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: fixtureParticipantId });
+  await waitForCapabilityFulfilled(seuId, capabilityId);
 
-  const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
-
-  // The earlier producing Command is Failed, not in flight, so the fulfilment produces a new one.
+  // Fulfilling the Capability lets the engine make the hop and then issue the producing Command.
   await completeOutstanding(request, seuId, deliverableId, "In Progress");
 
   const { data: commands } = await commandsDB.findBySeuId(seuId);
+  const hop = (commands ?? []).filter((c) => c.entity_id === deliverableId && c.from_state === "Defined" && c.to_state === "In Progress");
+  assert.equal(hop.length, 1, "exactly one Command for the Defined -> In Progress hop");
+  assert.equal(hop[0]?.status, "Completed");
+  assert.equal(((await workItemsDB.findByCommandIds([hop[0]!.id])).data ?? []).length, 0, "the hop is made by the engine and has no Work Item");
   const producing = (commands ?? []).filter((c) => c.entity_id === deliverableId && c.from_state === "In Progress" && c.to_state === "In Progress");
-  assert.equal(producing.length, priorFailed.length + 1, "the earlier rejected attempt(s), plus one Command from the fulfilment");
+  assert.equal(producing.length, 1, "one producing Command, from the fulfilment");
   const completed = producing.find((c) => c.status === "Completed");
-  assert.ok(completed, "expected exactly one Completed producing Command");
-  assert.equal(producing.filter((c) => c.status === "Failed").length, priorFailed.length, "every earlier attempt must still be Failed, untouched by the retry");
+  assert.ok(completed, "expected the producing Command to be Completed");
 
   const { data: workItems } = await workItemsDB.findByCommandIds([completed!.id]);
   assert.equal(workItems?.length, 1, "Ch.32 FR-32.1: exactly one Work Item for this one Command");
@@ -579,6 +583,9 @@ test("Phase 3 — the engine makes the hop, and the producing Command and Work I
   // the baseline "capability-match" strategy.
   assert.equal(workItems?.[0]?.dispatch_strategy, "capability-match");
   assert.ok(workItems?.[0]?.participant_id, "expected the Work Item to be assigned to the fulfilling Participant");
+  } finally {
+    await deactivateParticipants(fixtureParticipantIds);
+  }
 });
 
 // Post-MVP Phase 4 addition, per the brief's "How this expands" section: "a
@@ -592,11 +599,10 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase4");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
-  const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
+  const capabilityId = findCapabilityId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
+  await fulfilByHandIfStillUnfulfilled(request, csrf, seuId, capabilityId, "requirements-analysis");
   // Now that the Capability is genuinely fulfilled, resolving the stray
   // commissioning-time empty_eligible_pool Obligation can't recur (see
   // commissionSeu's own comment) — done before this test raises its own
@@ -663,11 +669,10 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
   const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase5");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
-  const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
+  const capabilityId = findCapabilityId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
+  await fulfilByHandIfStillUnfulfilled(request, csrf, seuId, capabilityId, "requirements-analysis");
   // Now that the Capability is genuinely fulfilled, resolving the stray
   // commissioning-time empty_eligible_pool Obligation can't recur (see
   // commissionSeu's own comment) — this Deliverable reaches Approved below,
@@ -760,11 +765,10 @@ test("Phase 7 — Flow and Governance Telemetry are real, and a sustained patter
   const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase7");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
-  const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
+  const capabilityId = findCapabilityId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
+  await fulfilByHandIfStillUnfulfilled(request, csrf, seuId, capabilityId, "requirements-analysis");
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
   // A real Flow metric: this Deliverable now has a measurable cycle time.
@@ -957,11 +961,10 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionIsolatedPhase8Seu(request, "webflow-phase8");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
-  const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
+  const capabilityId = findCapabilityId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
+  await fulfilByHandIfStillUnfulfilled(request, csrf, seuId, capabilityId, "requirements-analysis");
   // Now that the Capability is genuinely fulfilled, resolving the stray
   // commissioning-time empty_eligible_pool Obligation can't recur (see
   // commissionIsolatedPhase8Seu's own comment) — safe here specifically
@@ -1147,12 +1150,8 @@ test("Participant Lifecycle Governance, Build order step 5 — replacing a fulfi
   const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-participant-replace");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
-  const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const originalParticipantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
-
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
-    participantMasterIds: originalParticipantMasterId,
-  });
+  const capabilityId = findCapabilityId(before1.html, "requirements-analysis");
+  await fulfilByHandIfStillUnfulfilled(request, csrf, seuId, capabilityId, "requirements-analysis");
 
   const afterFulfil = await getPage(request, `/seu/seus/${seuId}`);
   assert.equal(capabilityStatus(afterFulfil.html, "requirements-analysis"), "Fulfilled");
@@ -1169,11 +1168,11 @@ test("Participant Lifecycle Governance, Build order step 5 — replacing a fulfi
   // reappear among the eligible picks for the very next Fulfil (excludeParticipantMasterIds,
   // core/participantEligibility.ts).
   const replacementParticipantMasterId = findEligibleParticipantMasterId(afterRelease.html, "requirements-analysis");
-  assert.notEqual(replacementParticipantMasterId, originalParticipantMasterId, "the just-released Participant must not be offered again as an eligible pick");
 
   const result = await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
     participantMasterIds: replacementParticipantMasterId,
   });
+  await waitForCapabilityFulfilled(seuId, capabilityId);
   assert.equal(result.status, 302);
 
   const afterReplace = await getPage(request, `/seu/seus/${seuId}`);

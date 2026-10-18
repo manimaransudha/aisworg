@@ -16,6 +16,7 @@ export const SYSTEM_ACTOR_BADGE = "system";
 export const DELIVERABLE_BADGE_PREFIX = "deliverable_";
 export const DELIVERABLE_PRODUCING_STATE = "In Progress";
 export const PRODUCE_COMMAND_VERB = "produce";
+export const CAPABILITY_RETRY_DELAY_SECONDS = 300;
 export const ATTESTATION_REQUIRED_POLICY_CODE = "policy-attestation-required";
 
 // One shape for every Command type: the entity type and the verb, e.g. "Deliverable.approve".

@@ -1,0 +1,26 @@
+{
+  "code": "policy-pack-transition-baseline",
+  "name": "Pack Transition Baseline",
+  "description": "Every governed transition of a Pack passes through the Transition Engine, which records the transition, its actor and its authority badge.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every transition of a Pack governed by this Policy is applied by the Transition Engine with a recorded actor and authority badge.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Pack Transition Record",
+        "category": "Validation Evidence",
+        "description": "The transition record written by the Transition Engine when the Pack transition is applied.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

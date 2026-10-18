@@ -6,17 +6,17 @@ import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsD
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { assertCanonicalCategory } from "./ontology.js";
 import { findEligibleParticipants, getSeuCompetencyRequirements, resolveEligibilityPolicies } from "./participantEligibility.js";
 import { transitionParticipant } from "./participants.js";
 import { resolveAuthor } from "./attentionItems.js";
-import type { CapabilityFulfilmentRow, FulfilmentStrategy, ParticipantRow, ParticipantType, SeuRow } from "../../../dblayer/seuTypes.js";
+import type { CapabilityFulfilmentRow, EventRow, FulfilmentStrategy, ParticipantMasterRow, ParticipantRow, ParticipantType, SeuRow } from "../../../dblayer/seuTypes.js";
 
 export interface FulfilCapabilityResult {
   fulfilment: CapabilityFulfilmentRow;
   participant: ParticipantRow;
   seuCapabilityId: string;
   capabilityCode: string;
+  authorId: string;
 }
 
 async function loadContext(seuId: string, capabilityId: string): Promise<{ seu: SeuRow; seuCapability: SeuCapabilityWithCode }> {
@@ -30,18 +30,24 @@ async function loadContext(seuId: string, capabilityId: string): Promise<{ seu: 
   return { seu, seuCapability };
 }
 
+async function loadEligiblePool(seu: SeuRow, seuCapability: SeuCapabilityWithCode, excludeParticipantMasterIds: string[]): Promise<ParticipantMasterRow[]> {
+  if (!seu.tenant_id) throw new Error(`SEU ${seu.id} has no owning tenant`);
+  const competency = await getSeuCompetencyRequirements(seu);
+  const requiredPolicies = await resolveEligibilityPolicies(seu);
+  return findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: seuCapability.capability_code, competency, requiredPolicyIds: requiredPolicies.map((p) => p.id), excludeParticipantMasterIds });
+}
+
+type ResolvedParticipant = { type: ParticipantType; displayName: string; participantMasterId: string };
+
 async function resolveMasterParticipant(
   seu: SeuRow,
   seuCapability: SeuCapabilityWithCode,
   participantMasterId: string,
   excludeParticipantMasterIds: string[] = []
-): Promise<{ type: ParticipantType; displayName: string; participantMasterId: string }> {
+): Promise<ResolvedParticipant> {
   const { data: master } = await participantsMasterDB.findById(participantMasterId);
   if (!master) throw new Error(`Participant ${participantMasterId} not found`);
-  if (!seu.tenant_id) throw new Error(`SEU ${seu.id} has no owning tenant`);
-  const competency = await getSeuCompetencyRequirements(seu);
-  const requiredPolicies = await resolveEligibilityPolicies(seu);
-  const eligible = await findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: seuCapability.capability_code, competency, requiredPolicyIds: requiredPolicies.map((p) => p.id), excludeParticipantMasterIds });
+  const eligible = await loadEligiblePool(seu, seuCapability, excludeParticipantMasterIds);
   if (!eligible.some((p) => p.id === master.id)) {
     throw new Error(`Participant "${master.display_name}" is not eligible for Capability "${seuCapability.capability_code}"`);
   }
@@ -86,74 +92,89 @@ async function fulfilOne(
     });
   }
 
-  await eventBus.publish({
-    eventType: "ParticipantCreated",
-    originatingObjectType: "Participant",
-    originatingObjectId: participant.id,
+  return { fulfilment, participant, seuCapabilityId: seuCapability.id, capabilityCode: seuCapability.capability_code, authorId };
+}
+
+export async function requestCapabilityFulfilment(input: {
+  seuId: string;
+  capabilityId: string;
+  participantMasterIds?: string[];
+  actorId: string;
+  authorBadge: string;
+}): Promise<EventRow> {
+
+  const { seu, seuCapability } = await loadContext(input.seuId, input.capabilityId);
+  return eventBus.publish({
+    eventType: "CapabilityRequested",
+    originatingObjectType: "SEU",
+    originatingObjectId: seu.id,
     seuId: seu.id,
     correlationId: eventBus.newCorrelationId(),
-    actorId: authorId,
-    authorityBadge: authorBadge,
-    payload: { participantType: resolved.type, participantMasterId: resolved.participantMasterId },
+    actorId: input.actorId,
+    authorityBadge: input.authorBadge,
+    payload: { capabilityId: seuCapability.capability_id, ...(input.participantMasterIds?.length ? { participantMasterIds: input.participantMasterIds } : {}) },
   });
+}
 
-  console.log(`[capabilities] fulfilOne complete seuId=${seu.id} capabilityId=${seuCapability.capability_id} participantId=${participant.id} at t=${Date.now()}`);
+// Consumes CapabilityRequested: identifies the Participants (the Participants named by a manual pick, otherwise the
+// whole eligible pool), fulfils the Capability with them, then publishes one CapabilityFulfilled for the request as
+// its last statement. An empty pool publishes CapabilityUnavailable instead.
+export async function fulfilRequestedCapability(event: EventRow): Promise<void> {
+  const requested = event.payload as { capabilityId?: string; participantMasterIds?: string[] } | null;
+  if (!event.seu_id || !requested?.capabilityId) throw new Error(`CapabilityRequested event ${event.id} carries no seuId/capabilityId`);
+  const { seu, seuCapability } = await loadContext(event.seu_id, requested.capabilityId);
+  const { data: excludeParticipantMasterIds } = await capabilityFulfilmentsDB.findReleasedParticipantMasterIds(seuCapability.id);
+
+  const named = requested.participantMasterIds ?? [];
+  const participants: ResolvedParticipant[] = named.length > 0
+    ? await Promise.all(named.map((id) => resolveMasterParticipant(seu, seuCapability, id, excludeParticipantMasterIds ?? [])))
+    : (await loadEligiblePool(seu, seuCapability, excludeParticipantMasterIds ?? [])).map((p) => ({ type: p.type, displayName: p.display_name, participantMasterId: p.id }));
+
+  if (participants.length === 0) {
+    await eventBus.publish({
+      eventType: "CapabilityUnavailable",
+      originatingObjectType: "SEU",
+      originatingObjectId: seu.id,
+      seuId: seu.id,
+      correlationId: event.correlation_id,
+      causationId: event.id,
+      actorId: event.actor_id,
+      authorityBadge: event.authority_badge,
+      payload: { capabilityId: seuCapability.capability_id },
+    });
+    return;
+  }
+
+  const strategy: FulfilmentStrategy | undefined = participants.length > 1 ? "Composite" : undefined;
+  const fulfilled: Array<{ result: FulfilCapabilityResult; resolved: ResolvedParticipant }> = [];
+  for (const resolved of participants) {
+    fulfilled.push({ result: await fulfilOne(seu, seuCapability, resolved, event.actor_id, event.authority_badge, strategy), resolved });
+  }
+
+  for (const { result, resolved } of fulfilled) {
+    await eventBus.publish({
+      eventType: "ParticipantCreated",
+      originatingObjectType: "Participant",
+      originatingObjectId: result.participant.id,
+      seuId: seu.id,
+      correlationId: event.correlation_id,
+      causationId: event.id,
+      actorId: result.authorId,
+      authorityBadge: event.authority_badge,
+      payload: { participantType: resolved.type, participantMasterId: resolved.participantMasterId },
+    });
+  }
   await eventBus.publish({
     eventType: "CapabilityFulfilled",
     originatingObjectType: "SEU",
     originatingObjectId: seu.id,
     seuId: seu.id,
-    correlationId: eventBus.newCorrelationId(),
-    actorId: authorId,
-    authorityBadge: authorBadge,
-    payload: { capabilityId: seuCapability.capability_id, participantId: participant.id },
+    correlationId: event.correlation_id,
+    causationId: event.id,
+    actorId: event.actor_id,
+    authorityBadge: event.authority_badge,
+    payload: { capabilityId: seuCapability.capability_id, participantIds: fulfilled.map((f) => f.result.participant.id) },
   });
-
-  return { fulfilment, participant, seuCapabilityId: seuCapability.id, capabilityCode: seuCapability.capability_code };
-}
-
-export async function fulfilCapability(input: {
-  seuId: string;
-  capabilityId: string;
-  participantMasterId?: string;
-  participantType?: ParticipantType;
-  displayName?: string;
-  actorId: string;
-  authorBadge: string;
-}): Promise<FulfilCapabilityResult> {
-  const { seu, seuCapability } = await loadContext(input.seuId, input.capabilityId);
-
-  if (input.participantMasterId) {
-    const { data: excludeParticipantMasterIds } = await capabilityFulfilmentsDB.findReleasedParticipantMasterIds(seuCapability.id);
-    const resolved = await resolveMasterParticipant(seu, seuCapability, input.participantMasterId, excludeParticipantMasterIds ?? []);
-    return fulfilOne(seu, seuCapability, resolved, input.actorId, input.authorBadge);
-  }
-  if (input.participantType && input.displayName) {
-    await assertCanonicalCategory("participant-types", input.participantType);
-    return fulfilOne(seu, seuCapability, { type: input.participantType, displayName: input.displayName, participantMasterId: null }, input.actorId, input.authorBadge);
-  }
-  throw new Error("either participantMasterId or participantType+displayName is required");
-}
-
-export async function fulfilCapabilityWithParticipants(input: {
-  seuId: string;
-  capabilityId: string;
-  participantMasterIds: string[];
-  actorId: string;
-  authorBadge: string;
-}): Promise<FulfilCapabilityResult[]> {
-  if (input.participantMasterIds.length === 0) throw new Error("at least one Participant is required");
-
-  const { seu, seuCapability } = await loadContext(input.seuId, input.capabilityId);
-  const strategy: FulfilmentStrategy | undefined = input.participantMasterIds.length > 1 ? "Composite" : undefined;
-  const { data: excludeParticipantMasterIds } = await capabilityFulfilmentsDB.findReleasedParticipantMasterIds(seuCapability.id);
-
-  const results: FulfilCapabilityResult[] = [];
-  for (const participantMasterId of input.participantMasterIds) {
-    const resolved = await resolveMasterParticipant(seu, seuCapability, participantMasterId, excludeParticipantMasterIds ?? []);
-    results.push(await fulfilOne(seu, seuCapability, resolved, input.actorId, input.authorBadge, strategy));
-  }
-  return results;
 }
 
 export async function releaseParticipants(input: {

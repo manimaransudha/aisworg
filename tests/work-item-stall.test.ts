@@ -61,7 +61,7 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
     authorBadge: svc.author_badge,
   });
 
-  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, capabilityCodes: ["requirements-analysis"] });
 
   // Dispatch and DO NOT complete — the Work Item is now genuinely outstanding.
   // The target is the SLA-derived default.

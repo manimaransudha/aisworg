@@ -45,7 +45,7 @@ import { transitionDeliverableDefinition, listInheritableDeliverableDefinitions,
 import { transitionServiceDefinition, listInheritableServiceDefinitions, inheritedServiceDefinitionContent } from "../core/serviceDefinitions.js";
 import { transitionPolicyDefinition } from "../core/policyDefinitions.js";
 import { transitionCapabilityDefinition } from "../core/capabilityDefinitions.js";
-import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition, updateTransitionDefinition } from "../core/transitionDefinitions.js";
+import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition, updateTransitionDefinition, listRequirablePolicyCodes } from "../core/transitionDefinitions.js";
 import {
   listAuthorityNouns, listAuthorityVerbs, listAuthorityMapping,
   listActiveNouns, listActiveVerbs, activeMappingByNoun,
@@ -206,6 +206,7 @@ router.get("/sdk/:slug", requireAuthoring("any"), attachVM("seu/sdk/authoring/in
       req.vm.opt.canWriteAuthority = await canWriteAuthority(req);
       req.vm.opt.activeNouns = await listActiveNouns();
       req.vm.opt.mappingByNoun = await activeMappingByNoun();
+      req.vm.opt.policyCodeOptions = await listRequirablePolicyCodes();
     }
 
     req.vm.opt.flash = getFlash(req);
@@ -343,9 +344,10 @@ router.post("/authority/mapping/edit-trigger", async (req: Request, res: Respons
 
 router.post("/authority/transition-definitions/add", async (req: Request, res: Response) => {
   const { entityType, fromState, toState, verb } = req.body ?? {};
+  const policyCodes = ([] as unknown[]).concat(req.body?.policyCodes ?? []).map(String);
   const author = await resolveAuthorityVocabAuthor(req);
   if ("error" in author) return redirects.seu.authorityTransitionDefinitions.error(req, res, author.error);
-  wrote(req, res, await addTransitionDefinition({ entityType: String(entityType ?? ""), fromState: String(fromState ?? ""), toState: String(toState ?? ""), verb: String(verb ?? ""), authorId: author.authorId, authorBadge: author.authorBadge }), `Transition ${entityType} ${fromState} → ${toState} added.`);
+  wrote(req, res, await addTransitionDefinition({ entityType: String(entityType ?? ""), fromState: String(fromState ?? ""), toState: String(toState ?? ""), verb: String(verb ?? ""), policyCodes, authorId: author.authorId, authorBadge: author.authorBadge }), `Transition ${entityType} ${fromState} → ${toState} added.`);
 });
 router.post("/authority/transition-definitions/retire", async (req: Request, res: Response) => {
   const { id } = req.body ?? {};
@@ -373,6 +375,7 @@ router.get("/authority/transition-definitions/:id/edit", attachVM("seu/sdk/autho
     if (!detail) return next();
     req.vm.req.title = `Edit — ${detail.entityType} ${detail.fromState} → ${detail.toState}`;
     req.vm.req.detail = detail;
+    req.vm.opt.policyCodeOptions = await listRequirablePolicyCodes();
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/sdk/authority/edit", req.vm);
   } catch (err) {
@@ -386,7 +389,11 @@ router.post("/authority/transition-definitions/:id/update", async (req: Request,
   wrote(
     req,
     res,
-    await updateTransitionDefinition(id, { createsObligation: createsObligation != null ? String(createsObligation) : null, category: category != null ? String(category) : null }),
+    await updateTransitionDefinition(id, {
+      createsObligation: createsObligation != null ? String(createsObligation) : null,
+      category: category != null ? String(category) : null,
+      policyCodes: ([] as unknown[]).concat(req.body?.policyCodes ?? []).map(String),
+    }),
     "Transition definition updated."
   );
 });

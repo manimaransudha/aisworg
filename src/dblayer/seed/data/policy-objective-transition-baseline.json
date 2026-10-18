@@ -1,0 +1,26 @@
+{
+  "code": "policy-objective-transition-baseline",
+  "name": "Objective Transition Baseline",
+  "description": "Every governed transition of a Objective passes through the Transition Engine, which records the transition, its actor and its authority badge.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every transition of a Objective governed by this Policy is applied by the Transition Engine with a recorded actor and authority badge.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Objective Transition Record",
+        "category": "Validation Evidence",
+        "description": "The transition record written by the Transition Engine when the Objective transition is applied.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

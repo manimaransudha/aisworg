@@ -36,6 +36,31 @@ pool.on("error", (err) => {
     logger.error("Unexpected PG error", err);
 });
 
+// DB_POOL_TRACE=1 logs this process's pool usage so connection exhaustion can be traced to a caller and a test file.
+// Every line carries the process id and the entry file (the test file under node --test) with the pool's
+// total/idle/waiting counts. A query is logged when it had to wait for a connection or when it failed.
+if (process.env.DB_POOL_TRACE) {
+    const tag = () => `[poolTrace pid=${process.pid} ${path.basename(process.argv[1] ?? "?")}] total=${pool.totalCount}/${pool.options.max} idle=${pool.idleCount} waiting=${pool.waitingCount}`;
+    const caller = () => (new Error().stack ?? "").split("\n").slice(2).map((l) => l.trim()).find((l) => /\/src\/(dblayer|routes|domain)\//.test(l) && !l.includes("utils/db.ts")) ?? "(no src frame)";
+    pool.on("connect", () => logger.info(`${tag()} event=connect`));
+    pool.on("remove", () => logger.info(`${tag()} event=remove`));
+    const originalQuery = pool.query.bind(pool) as (...args: unknown[]) => Promise<unknown>;
+    (pool as unknown as { query: (...args: unknown[]) => Promise<unknown> }).query = (...args: unknown[]) => {
+        const at = caller();
+        const waited = pool.waitingCount > 0 || pool.idleCount === 0;
+        if (waited) logger.info(`${tag()} event=query-no-idle caller=${at}`);
+        return originalQuery(...args).catch((err: unknown) => {
+            logger.error(`${tag()} event=query-failed caller=${at} message=${(err as Error).message}`);
+            throw err;
+        });
+    };
+    const originalConnect = pool.connect.bind(pool) as (...args: unknown[]) => unknown;
+    (pool as unknown as { connect: (...args: unknown[]) => unknown }).connect = (...args: unknown[]) => {
+        logger.info(`${tag()} event=client-checkout caller=${caller()}`);
+        return originalConnect(...args);
+    };
+}
+
 export default pool;
 export const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> => pool.query<T>(text, params);
 

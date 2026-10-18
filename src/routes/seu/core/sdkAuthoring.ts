@@ -91,13 +91,14 @@ function normalizeFeatureFlagCodes(raw: unknown): string[] {
   return normalizeReferentialCodes(raw, "featureCode");
 }
 
-function normalizeServiceContributions(raw: unknown): Array<{ code: string; serviceLevel: Array<{ code: string; target: number }> }> {
+function normalizeServiceContributions(raw: unknown): Array<{ code: string; serviceDefinitionId: string; serviceLevel: Array<{ code: string; target: number }> }> {
   if (!Array.isArray(raw)) return [];
   return raw.map((entry) => {
     const e = (entry && typeof entry === "object" ? entry : {}) as Record<string, unknown>;
     const levels = Array.isArray(e.serviceLevel) ? e.serviceLevel : [];
     return {
       code: typeof e.code === "string" ? e.code : "",
+      serviceDefinitionId: typeof e.serviceDefinitionId === "string" ? e.serviceDefinitionId : "",
       serviceLevel: levels
         .filter((sl): sl is Record<string, unknown> => typeof sl === "object" && sl !== null)
         .map((sl) => ({ code: typeof sl.code === "string" ? sl.code : "", target: typeof sl.target === "number" ? sl.target : Number(sl.target) }))
@@ -651,15 +652,7 @@ export async function inheritedProfileContent(parentProfileId: string, viewerTen
     return { ok: false, error: "parent Profile is not visible to this tenant" };
   }
   const { data: template } = await templatesDB.findById(parent.base_template_id);
-  const [optionalPackCodes, technologyPackCodes, domainPackCodes, compliancePackCodes, integrationPackCodes, engineeringPackCodes, organisationPackCodes] = await Promise.all([
-    profilesDB.getPackSelection(parent.id, "optional"),
-    profilesDB.getPackSelection(parent.id, "technology"),
-    profilesDB.getPackSelection(parent.id, "domain"),
-    profilesDB.getPackSelection(parent.id, "compliance"),
-    profilesDB.getPackSelection(parent.id, "integration"),
-    profilesDB.getPackSelection(parent.id, "engineering"),
-    profilesDB.getPackSelection(parent.id, "organisation"),
-  ]);
+  const packSelections = packSelectionsToFormShape(await getProfilePackSelections(parent.id));
   const priorContent = (parent.draft_content ?? {}) as Record<string, unknown>;
   const content: Record<string, unknown> = {
     code: parent.code,
@@ -673,13 +666,7 @@ export async function inheritedProfileContent(parentProfileId: string, viewerTen
     deploymentTargets: typeof priorContent.deploymentTargets === "object" && priorContent.deploymentTargets ? priorContent.deploymentTargets : {},
     participatingOrganisationCodes: Array.isArray(priorContent.participatingOrganisationCodes) ? priorContent.participatingOrganisationCodes : [],
     environmentConfiguration: typeof priorContent.environmentConfiguration === "object" && priorContent.environmentConfiguration ? priorContent.environmentConfiguration : {},
-    optionalPackCodes: (optionalPackCodes.data ?? []).map((packCode) => ({ packCode })),
-    technologyPackCodes: (technologyPackCodes.data ?? []).map((packCode) => ({ packCode })),
-    domainPackCodes: (domainPackCodes.data ?? []).map((packCode) => ({ packCode })),
-    compliancePackCodes: (compliancePackCodes.data ?? []).map((packCode) => ({ packCode })),
-    integrationPackCodes: (integrationPackCodes.data ?? []).map((packCode) => ({ packCode })),
-    engineeringPackCodes: (engineeringPackCodes.data ?? []).map((packCode) => ({ packCode })),
-    organisationPackCodes: (organisationPackCodes.data ?? []).map((packCode) => ({ packCode })),
+    ...packSelections,
   };
   for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
     const priorValue = priorContent[cp.field as string];
@@ -703,10 +690,21 @@ async function emitConceptCreatedForCompetencies(packId: string, packCode: strin
   }
 }
 
+// The form posts a service by code only. The Pack records the id of the Active Service Definition that code names for
+// the tenant, so it pins that exact version. An entry that already carries an id keeps it.
+async function stampServiceDefinitionIds(seed: PackSeedInput, tenantId: string): Promise<void> {
+  for (const svc of seed.contributions.services ?? []) {
+    if (svc.serviceDefinitionId || !svc.code) continue;
+    const { data: definition } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(svc.code, tenantId);
+    if (definition) svc.serviceDefinitionId = definition.id;
+  }
+}
+
 export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; actorId: string; authorBadge: string; tenantId?: string; parentTemplateId?: string; parentProfileId?: string; parentDeliverableDefinitionId?: string; parentServiceDefinitionId?: string; parentPolicyDefinitionId?: string; parentCapabilityDefinitionId?: string; content: Record<string, unknown>; schemaDefinitionId: string }): Promise<AuthoringResult> {
   const authoredBy = input.actorId;
   if (input.kind === "Pack") {
     const seed = toPackSeedInput(input.content);
+    await stampServiceDefinitionIds(seed, input.tenantId ?? (await getPlatformTenantId()));
     const { data: packMaster } = await participantsMasterDB.findById(authoredBy);
     if (!packMaster) return { ok: false, errors: [`No superuser provisioned.`] };
     if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Pack write"] };
@@ -945,6 +943,17 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     if (capabilitySchema) {
       await proposeComposableOntologyValues(capabilitySchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Capability", originatingObjectId: c.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: input.authorBadge, tenantId });
     }
+    await eventBus.publish({
+      eventType: "CapabilityRegistered",
+      originatingObjectType: "CapabilityDefinition",
+      originatingObjectId: c.id,
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      actorId: capabilityMaster.id,
+      authorityBadge: input.authorBadge,
+      payload: { code: c.code, version: c.version },
+      tenantId,
+    });
     return { ok: true, draftId: c.id };
   }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
@@ -955,6 +964,7 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     const { data: existingPack } = await packsDB.findById(input.id);
     if (!existingPack) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
     const seed = toPackSeedInput({ ...input.content });
+    await stampServiceDefinitionIds(seed, existingPack.tenant_id);
     const { data, error } = await packsDB.updateDraftContent(input.id, {
       code: seed.code,
       name: (seed.name as string) || "(untitled Pack)",
@@ -1215,6 +1225,11 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
       });
       const validation = await validateCapabilityDefinitionSeed({ ...seed, tenantId: c.tenant_id, parentCapabilityDefinitionId: c.parent_capability_definition_id ?? undefined }, c.id);
       if (!validation.ok) return { ok: false, errors: validation.errors };
+      const { data: capabilitySchema } = c.schema_definition_id ? await schemaDefinitionsDB.findById(c.schema_definition_id) : { data: null };
+      if (capabilitySchema) {
+        const errors = await validateComposableFieldsAgainstSchema(capabilitySchema.schema as JsonSchemaDocument, { code: c.code, category: c.category, roles: c.roles }, { isRoot: false, tenantId: c.tenant_id });
+        if (errors.length > 0) return { ok: false, errors };
+      }
     }
     const advanced = await advanceCapabilityDefinitionOneStep(c, input.actorId);
     if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };

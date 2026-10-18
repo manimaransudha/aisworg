@@ -10,6 +10,9 @@ import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
 import type { EventRow, DeliverableRow } from "../../dblayer/seuTypes.js";
 import { seuCapabilitiesDB } from "../../dblayer/seuCapabilitiesDB.js";
+import { obligationsDB } from "../../dblayer/obligationsDB.js";
+import { createObligation } from "../../routes/seu/core/obligations.js";
+import { raiseAttentionItem } from "../../routes/seu/core/attentionItems.js";
 import { capabilityFulfilmentsDB } from "../../dblayer/capabilityFulfilmentsDB.js";
 
 export const deliverableKickoffHandler: EventHandler = async (event: EventRow) => {
@@ -43,6 +46,29 @@ export const deliverableKickoffHandler: EventHandler = async (event: EventRow) =
         requestedBy: systemActor.actorId,
       });
     }
+  }
+
+  if (event.event_type === "ObligationTransitioned") {
+    // A resolved blocking Obligation lifts the block on a producing Command that was held back while it was open.
+    for (const deliverable of deliverables ?? []) {
+      if (deliverable.producing_capability_id) await reissueProducingCommand(seu.id, deliverable, event, systemActor);
+    }
+  }
+
+  if (event.event_type === "CapabilityUnavailable") {
+    // The producing Capability of an In Progress Deliverable has no eligible Participant. The Deliverable is held by a
+    // blocking Obligation, with an AttentionItem for the UI, until the Capability is fulfilled and the Obligation resolves.
+    const unavailable = event.payload as { capabilityId?: string } | null;
+    if (!unavailable?.capabilityId) throw new Error(`CapabilityUnavailable event ${event.id} carries no capabilityId`);
+    const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(seu.id, unavailable.capabilityId);
+    if (!seuCapability) throw new Error(`CapabilityUnavailable event ${event.id}: SEU ${seu.id} does not require Capability ${unavailable.capabilityId}`);
+    const { data: capabilities } = await seuCapabilitiesDB.findBySeuId(seu.id);
+    const capabilityCode = (capabilities ?? []).find((c) => c.id === seuCapability.id)?.capability_code ?? unavailable.capabilityId;
+    for (const deliverable of deliverables ?? []) {
+      if (deliverable.producing_capability_id !== unavailable.capabilityId || deliverable.lifecycle_state !== DELIVERABLE_PRODUCING_STATE) continue;
+      await blockDeliverableForUnavailableCapability(seu.id, deliverable, capabilityCode, event, systemActor);
+    }
+    return;
   }
 
   if (event.event_type === "CapabilityFulfilled") {
@@ -85,6 +111,7 @@ export const deliverableKickoffHandler: EventHandler = async (event: EventRow) =
   }
   await withDeliverableLock(produced.id, async () => {
     if (await hasLiveProducingCommand(seu.id, produced.id)) return;
+    if (await hasOpenBlockingObligation(produced.id)) return;
     await executionEngine.execute({
       seuId: seu.id,
       entityType: "Deliverable",
@@ -138,6 +165,7 @@ async function reissueProducingCommandLocked(
   systemActor: Awaited<ReturnType<typeof getSystemActor>>
 ): Promise<void> {
   if (deliverable.lifecycle_state !== DELIVERABLE_PRODUCING_STATE || !deliverable.producing_capability_id) return;
+  if (await hasOpenBlockingObligation(deliverable.id)) return;
   const { data: commands } = await commandsDB.findBySeuId(seuId);
   const own = (commands ?? []).filter((c) => c.entity_id === deliverable.id);
   if (own.some((c) => c.from_state === DELIVERABLE_PRODUCING_STATE && c.to_state === DELIVERABLE_PRODUCING_STATE && c.status !== "Failed")) return;
@@ -159,5 +187,46 @@ async function reissueProducingCommandLocked(
     actingBadgeType: transitionCommand.acting_badge_type,
     correlationId: event.correlation_id,
     governanceOutcomeId: transitionCommand.governance_outcome_id,
+  });
+}
+
+async function hasOpenBlockingObligation(deliverableId: string): Promise<boolean> {
+  const { data: obligations } = await obligationsDB.findByRelatedObject("Deliverable", deliverableId);
+  return (obligations ?? []).some((o) => o.blocked_from_state && o.blocked_to_state && !RESOLVED_OBLIGATION_STATUSES.has(o.status));
+}
+
+async function blockDeliverableForUnavailableCapability(
+  seuId: string,
+  deliverable: DeliverableRow,
+  capabilityCode: string,
+  event: EventRow,
+  systemActor: Awaited<ReturnType<typeof getSystemActor>>
+): Promise<void> {
+  const title = `Capability "${capabilityCode}" is unavailable for Deliverable "${deliverable.name}"`;
+  const { data: obligations } = await obligationsDB.findByRelatedObject("Deliverable", deliverable.id);
+  const alreadyOpen = (obligations ?? []).some((o) => o.title === title && o.blocked_from_state && !RESOLVED_OBLIGATION_STATUSES.has(o.status));
+  if (!alreadyOpen) {
+    await createObligation({
+      relatedObjectType: "Deliverable",
+      relatedObjectId: deliverable.id,
+      category: "Operational",
+      title,
+      description: `No eligible Participant was found for Capability "${capabilityCode}". The Deliverable cannot be produced until the Capability is fulfilled. Resolve the Obligation once addressed.`,
+      blockedFromState: DELIVERABLE_PRODUCING_STATE,
+      blockedToState: DELIVERABLE_PRODUCING_STATE,
+      actorId: systemActor.actorId,
+      authorBadge: systemActor.authorBadge,
+    });
+  }
+  await raiseAttentionItem({
+    seuId,
+    category: "Action Required",
+    priority: "High",
+    title,
+    description: `Capability "${capabilityCode}" is not fulfilled. The Deliverable is held until it is.`,
+    relatedObjectType: "Deliverable",
+    relatedObjectId: deliverable.id,
+    triggeringEventId: event.id,
+    ...systemActor,
   });
 }

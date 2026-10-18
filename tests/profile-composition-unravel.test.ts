@@ -24,7 +24,7 @@ import { unravelComposition, detectCompositionConflicts } from "../src/domain/en
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
 import type { PackContributions } from "../src/dblayer/seuTypes.js";
-import { ROOT_ACTOR_ID } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, serviceDefinitionIdFor } from "./testFixtures.js";
 
 // Bug fix, found by running this file: packsDB.create() always inserts as
 // Draft (hardcoded in its own INSERT) — but unravelComposition resolves
@@ -78,13 +78,13 @@ async function createTemplateAndProfile(mandatoryPackCodes: string[]): Promise<{
 }
 
 test("Service Level conflict: two Packs adopt the same Service with a different override target, reported at the precise nested path", async () => {
-  const packA = await createPack({ contributions: { services: [{ code: "code-review-service", serviceLevel: [{ code: "coverage", target: 80 }] }] } });
-  const packB = await createPack({ contributions: { services: [{ code: "code-review-service", serviceLevel: [{ code: "coverage", target: 90 }] }] } });
+  const packA = await createPack({ contributions: { services: [{ code: "architectural-review-service", serviceDefinitionId: await serviceDefinitionIdFor("architectural-review-service"), serviceLevel: [{ code: "compliance-with-architecture-principle", target: 80 }] }] } });
+  const packB = await createPack({ contributions: { services: [{ code: "architectural-review-service", serviceDefinitionId: await serviceDefinitionIdFor("architectural-review-service"), serviceLevel: [{ code: "compliance-with-architecture-principle", target: 90 }] }] } });
   const { templateId, profileId } = await createTemplateAndProfile([packA, packB]);
 
   const unraveled = await unravelComposition({ templateIds: [templateId], profileIds: [profileId] }, PLATFORM_TENANT_ID);
   const conflicts = detectCompositionConflicts(unraveled);
-  const found = conflicts.find((c) => c.propertyName === "code-review-service.serviceLevel[code=coverage].target");
+  const found = conflicts.find((c) => c.propertyName === "architectural-review-service.serviceLevel[code=compliance-with-architecture-principle].target");
   assert.ok(found, `expected the target disagreement at the precise nested path, got: ${JSON.stringify(conflicts.map((c) => c.propertyName))}`);
   assert.equal(found!.options.length, 2);
   assert.equal(found!.hasAction, true);
@@ -215,31 +215,31 @@ test("A clean selection (no fixture disagreement) reports no conflicts, and the 
   // already be a real concept. Nothing else in this file's own fixtures
   // declares it, so it stays exactly as "clean" (uncontested) as the
   // synthetic code this replaces.
-  const pack = await createPack({ contributions: { capabilities: [{ code: "learning" }], services: [{ code: "fixture-clean-service", serviceLevel: [{ code: "metric", target: 42 }] }] } });
+  const pack = await createPack({ contributions: { capabilities: [{ code: "learning" }], services: [{ code: "availability-assurance-service", serviceDefinitionId: await serviceDefinitionIdFor("availability-assurance-service"), serviceLevel: [{ code: "uptime", target: 42 }] }] } });
   const { templateId, profileId } = await createTemplateAndProfile([pack]);
 
   const unraveled = await unravelComposition({ templateIds: [templateId], profileIds: [profileId] }, PLATFORM_TENANT_ID);
   const conflicts = detectCompositionConflicts(unraveled);
-  assert.equal(conflicts.filter((c) => c.propertyName === "learning" || c.propertyName === "fixture-clean-service").length, 0);
+  assert.equal(conflicts.filter((c) => c.propertyName === "learning" || c.propertyName === "availability-assurance-service").length, 0);
 
   const capEntry = unraveled.pool.find((e) => e.propertyName === "learning");
   assert.ok(capEntry, "expected the Capability to appear in the pool");
   assert.equal(capEntry!.source.kind, "pack");
   assert.equal(capEntry!.source.code, pack);
 
-  const svcEntry = unraveled.pool.find((e) => e.propertyName === "fixture-clean-service");
+  const svcEntry = unraveled.pool.find((e) => e.propertyName === "availability-assurance-service");
   assert.ok(svcEntry, "expected the Service to appear in the pool");
-  assert.deepEqual(svcEntry!.value, { code: "fixture-clean-service", serviceLevel: [{ code: "metric", target: 42 }] });
+  assert.deepEqual(svcEntry!.value, { code: "availability-assurance-service", serviceLevel: [{ code: "uptime", target: 42 }] });
 });
 
 test("Resolved conflicts (owner's own picks from a prior round) are excluded, not re-flagged", async () => {
-  const packA = await createPack({ contributions: { services: [{ code: "resolve-me-service", serviceLevel: [{ code: "m", target: 1 }] }] } });
-  const packB = await createPack({ contributions: { services: [{ code: "resolve-me-service", serviceLevel: [{ code: "m", target: 2 }] }] } });
+  const packA = await createPack({ contributions: { services: [{ code: "asset-reuse-service", serviceDefinitionId: await serviceDefinitionIdFor("asset-reuse-service"), serviceLevel: [{ code: "fitness-for-purpose-accuracy", target: 1 }] }] } });
+  const packB = await createPack({ contributions: { services: [{ code: "asset-reuse-service", serviceDefinitionId: await serviceDefinitionIdFor("asset-reuse-service"), serviceLevel: [{ code: "fitness-for-purpose-accuracy", target: 2 }] }] } });
   const { templateId, profileId } = await createTemplateAndProfile([packA, packB]);
 
   const unraveled = await unravelComposition({ templateIds: [templateId], profileIds: [profileId] }, PLATFORM_TENANT_ID);
   const before = detectCompositionConflicts(unraveled);
-  const path = "resolve-me-service.serviceLevel[code=m].target";
+  const path = "asset-reuse-service.serviceLevel[code=fitness-for-purpose-accuracy].target";
   assert.ok(before.some((c) => c.propertyName === path));
 
   const after1 = detectCompositionConflicts(unraveled, { [path]: 1 });
