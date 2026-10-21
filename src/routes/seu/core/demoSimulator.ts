@@ -28,6 +28,7 @@ import { createFinding, transitionFinding, convertFindingToObligation, listFindi
 import { createObligation } from "./obligations.js";
 import { approveConcept } from "./ontology.js";
 import { publishAuthoringDraft } from "./sdkAuthoring.js";
+import { INITIAL_VERSION } from "../../../dblayer/constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "..", "..", "..", "dblayer", "seed", "data", "demo");
@@ -63,7 +64,6 @@ async function authorBadgeFor(ctx: SimulatorContext, method: string, fullPath: s
   if (found && found.badges.length > 0) await grantRouteBadges(ctx.participantId, method, fullPath);
   const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(ctx.participantId);
   const badge = resolveAuthorBadge(found, { isRoot, badgeTypes, has: (b) => isRoot || badgeTypes.has(b) });
-  if (!badge) throw new Error(`no held badge authorises ${method} ${fullPath}`);
   return badge;
 }
 
@@ -222,22 +222,19 @@ const handlers: Record<string, Handler> = {
   async "raise-finding"(ctx, sc) {
     const seuId = await seuFor(ctx, sc.target);
     const deliverable = await deliverableFor(seuId, str(sc.target.deliverableCode, "target.deliverableCode"));
-    const reviewBadge = await authorBadgeFor(ctx, "POST", `/aisworg/seu/seus/${seuId}/reviews`);
     const review = await createReview({
       seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id,
       category: str(sc.payload.reviewCategory, "payload.reviewCategory"), name: str(sc.payload.reviewName, "payload.reviewName"),
-      actorId: ctx.participantId, authorBadge: reviewBadge,
+      actorId: ctx.participantId,
     });
-    const findingBadge = await authorBadgeFor(ctx, "POST", `/aisworg/seu/seus/${seuId}/reviews/${review.id}/findings`);
-    await createFinding({ reviewId: review.id, severity: str(sc.severity, "severity"), title: sc.title, description: sc.description, actorId: ctx.participantId, authorBadge: findingBadge });
+    await createFinding({ reviewId: review.id, severity: str(sc.severity, "severity"), title: sc.title, description: sc.description, actorId: ctx.participantId });
     return `Raised ${sc.severity} Finding "${sc.title}" on "${deliverable.name}".`;
   },
 
   async "convert-finding"(ctx, sc) {
     const seuId = await seuFor(ctx, sc.target);
     const finding = await findingFor(seuId, str(sc.target.findingTitle, "target.findingTitle"));
-    const authorBadge = await authorBadgeFor(ctx, "POST", `/aisworg/seu/seus/${seuId}/findings/${finding.id}/convert`);
-    const result = await convertFindingToObligation({ findingId: finding.id, category: typeof sc.payload.category === "string" ? sc.payload.category : undefined, actorId: ctx.participantId, authorBadge });
+    const result = await convertFindingToObligation({ findingId: finding.id, category: typeof sc.payload.category === "string" ? sc.payload.category : undefined, actorId: ctx.participantId });
     if (!result.ok) throw new Error(result.detail);
     return `Converted Finding "${finding.title}" to an Obligation.`;
   },
@@ -256,7 +253,7 @@ const handlers: Record<string, Handler> = {
     const code = str(sc.payload.code, "payload.code");
     await grantTransitionBadge(ctx.participantId, "Ontology", "Draft", "Active");
     await approveConcept(conceptType, code, ctx.tenantId, { isRoot: false, tenantId: ctx.tenantId, actorId: ctx.participantId, actorBadge: "ontology_define" });
-    const { data: pack } = await packsDB.findByCodeAndVersion(str(sc.payload.packCode, "payload.packCode"), "1.0.0", ctx.tenantId);
+    const { data: pack } = await packsDB.findByCodeAndVersion(str(sc.payload.packCode, "payload.packCode"), INITIAL_VERSION, ctx.tenantId);
     if (!pack) throw new Error("the reader privacy Pack is not seeded; reset the demo data");
     let status: string = pack.status;
     while (status !== "Active") {

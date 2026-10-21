@@ -61,7 +61,7 @@
         "statement": "The Privacy Officer confirms that age gating, VPC verification, and ad tracker blocking meet COPPA requirements.",
         "prompt": "Does the privacy audit evidence confirm full COPPA compliance for child user data?",
         "participant": "human",
-        "outputContract": "coppa-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "COPPA Children's Privacy Audit Checklist"
         ]

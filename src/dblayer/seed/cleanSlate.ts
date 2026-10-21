@@ -64,7 +64,6 @@ const USAGE_DATA_TABLES = [
   "checklists",
   "compliance_requirements",
   "compliance_frameworks",
-  "pack_comments",
   "packs",
   "dependency_definitions",
   "metric_definitions",
@@ -76,6 +75,9 @@ const USAGE_DATA_TABLES = [
   "capabilities",
   "authority_rules",
   "capability_definitions",
+  "service_definitions",
+  "policy_definitions",
+  "deliverable_definitions",
   "ontology_concepts",
 ];
 

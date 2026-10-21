@@ -50,14 +50,14 @@
     ],
     "reviewGates": [
       {
-        "code": "fcpa-ethics-compliance-gate",
+        "code": "vendor-assessment",
         "name": "FCPA Anti-Corruption Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Chief Compliance Officer confirms that third-party due diligence and financial record controls satisfy FCPA and UK Bribery Act requirements.",
         "prompt": "Does the anti-bribery audit evidence confirm compliance with FCPA and UK Bribery Act standards?",
         "participant": "human",
-        "outputContract": "fcpa-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "FCPA & Anti-Bribery Compliance Audit Checklist"
         ]

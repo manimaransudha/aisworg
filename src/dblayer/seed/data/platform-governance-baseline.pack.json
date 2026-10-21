@@ -7,7 +7,12 @@
   "description": "Mandatory baseline governance. A Deliverable moves from Defined to In Progress only after the Capability that produces it is fulfilled.",
   "contributions": {
     "policies": [
-      "policy-capability-fulfilled-before-start"
+      "policy-capability-fulfilled-before-start",
+      "policy-ontology-values-present",
+      "policy-validate-schema",
+      "policy-comment-required",
+      "policy-materialise-template",
+      "policy-materialise-profile"
     ]
   }
 }

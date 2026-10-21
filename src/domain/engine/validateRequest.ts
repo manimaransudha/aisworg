@@ -65,7 +65,7 @@ async function runValidation(seu: SeuRow, objective: ObjectiveRow, template: Tem
     : {
         item: "Authority (badge seu_commission)",
         status: "dead",
-        detail: gate.reason === "authority_denied" ? `missing badge ${gate.authorityRuleCode}` : gate.reason === "policy_blocked" ? `policy "${gate.policyCode}" blocked` : gate.reason,
+        detail: gate.reason === "policy_blocked" ? `policy "${gate.policyCode}" blocked` : gate.reason,
       };
   if (!gate.allowed) {
     await seusDB.updateLifecycleState(seu.id, "Failed");

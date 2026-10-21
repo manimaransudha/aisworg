@@ -21,6 +21,7 @@ import { policyEngine } from "../../../domain/engine/policyEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { logger } from "../../../utils/logger.js";
 import { createObjective, ensureOneShotContainer } from "./objectives.js";
+import { transitionEntity } from "../../../domain/engine/entityTransition.js";
 import { raiseAttentionItem, resolveAuthor } from "./attentionItems.js";
 import { raiseObligationForBlockedTransition, raiseObligationsForPackDefinitions } from "./obligations.js";
 import { findCandidateTemplates } from "./templates.js";
@@ -197,7 +198,7 @@ export async function commissionSeu(input: {
       seuId: seu.id,
       correlationId,
       actorId: input.actorId,
-      authorityBadge: "seu_commission",
+      authorityBadge: await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, "seu_commission"),
       payload: { seuId: seu.id },
     });
     causationId = requestedEvent.id;
@@ -253,6 +254,9 @@ export async function finalizeCommissioning(input: {
     for (const seed of t.deliverable_catalogue) deliverableCatalogueByCode.set(seed.code, seed);
   }
   const deliverableAuthorId = systemActor.authorId;
+  // The starting state of a Deliverable is the to-state of its birth row. Commissioning creates the Deliverables as the SEU's system participant, as before.
+  const { data: deliverableBirth } = await transitionDefinitionsDB.findBirth("Deliverable");
+  if (!deliverableBirth) throw new Error("no birth Transition Definition for Deliverable");
   const deliverableIdByName = new Map<string, string>();
   for (const seed of deliverableCatalogueByCode.values()) {
     const producingCapability = producingCapabilityByDeliverableCode.get(seed.code);
@@ -262,6 +266,7 @@ export async function finalizeCommissioning(input: {
       name,
       code: seed.code,
       producingCapabilityId: producingCapability?.id ?? null,
+      state: deliverableBirth.to_state,
       authorId: deliverableAuthorId,
       authorBadge: systemActor.authorBadge,
     });
@@ -322,16 +327,9 @@ export async function attemptSeuCommenceWork(input: { seuId: string; correlation
     logger.error(`[executionEngine] attemptSeuCommenceWork: no Transition Definition for SEU Activated -> Operational (SEU ${seu.id})`);
     return;
   }
-  if (definition.verb) {
-    const requiredBadge = `seu_${definition.verb}`;
-    const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId, requiredBadge });
-    if (!auth.allowed) {
-      logger.info(`[executionEngine] attemptSeuCommenceWork: SEU ${seu.id} not authorised under ${requiredBadge} — leaving Activated`);
-      return;
-    }
-  }
+  const commenceBadge = definition.verb ? await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, `seu_${definition.verb}`) : "system";
 
-  const commenceWorkPolicy = await policyEngine.evaluate({ entityType: "SEU", seuId: seu.id, fromState: "Activated", toState: "Operational", context: {}, authorId: input.actorId, authorBadge: definition.verb ? `seu_${definition.verb}` : "system" });
+  const commenceWorkPolicy = await policyEngine.evaluate({ entityType: "SEU", seuId: seu.id, fromState: "Activated", toState: "Operational", context: {}, authorId: input.actorId, authorBadge: commenceBadge });
   if (commenceWorkPolicy.outcome === "Blocked") {
     await raiseObligationForBlockedTransition({
       seuId: seu.id, relatedObjectType: "SEU", relatedObjectId: seu.id,
@@ -352,7 +350,7 @@ export async function attemptSeuCommenceWork(input: { seuId: string; correlation
   await eventBus.publish({
     eventType: definition.event_type ?? "SEUOperational", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id,
     correlationId: input.correlationId, causationId: input.causationId, actorId: input.actorId,
-    authorityBadge: definition.verb ? `seu_${definition.verb}` : "system",
+    authorityBadge: commenceBadge,
   });
 }
 
@@ -367,7 +365,7 @@ function describeRejection(outcome: { reason: string } & Record<string, unknown>
 export type TransitionEbmResult =
   | { ok: true; ebm: EbmRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
-  | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
+  | { ok: false; reason: "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
   | { ok: false; reason: "ebm_retired"; detail: string };
 
 export async function transitionEbm(input: { ebmId: string; targetState: string; actorId: string }): Promise<TransitionEbmResult> {
@@ -385,7 +383,6 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
   });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for EBM ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "policy_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
@@ -459,13 +456,16 @@ export async function commissionFromForm(input: {
 }): Promise<CommissionFromFormResult> {
   const container = await ensureOneShotContainer(input.requestedBy);
 
-  const { objective } = await createObjective({
+  const { objective: created } = await createObjective({
     statement: input.statement,
     requiredCapabilityCodes: input.requiredCapabilityCodes,
     parentObjectiveId: container.id,
     requestedBy: input.requestedBy,
     skipParentValidation: true,
   });
+  const activated = await transitionEntity({ entityType: "Objective", entityId: created.id, targetState: "Active", actorId: input.requestedBy });
+  if (!activated.ok) throw new Error(`commissionFromForm: ${"detail" in activated ? activated.detail : activated.reason}`);
+  const objective = activated.row as ObjectiveRow;
 
   const candidates = await findCandidateTemplates(input.requiredCapabilityCodes, input.tenantId);
   const template = candidates.find((c) => c.satisfies);

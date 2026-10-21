@@ -1,0 +1,36 @@
+{
+  "code": "policy-materialise-profile",
+  "name": "Materialise Profile",
+  "description": "The parameter values a Profile sets are values the parameters allow. The check changes nothing; the unravel step writes the rows.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every parameter value set on the Profile is allowed by the parameter before the Profile moves from Draft to Validated.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "",
+          "transitions": [
+            "Profile|Draft|Validated"
+          ],
+          "governingCondition": {
+            "type": "implemented"
+          }
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Profile Materialisation Check Record",
+        "category": "Validation Evidence",
+        "description": "The result of the materialisation check run when the Profile is validated.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

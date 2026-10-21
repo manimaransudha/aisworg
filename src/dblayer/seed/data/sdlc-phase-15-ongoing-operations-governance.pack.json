@@ -76,7 +76,7 @@
     ],
     "reviewGates": [
       {
-        "code": "sre-playbook",
+        "code": "runbook-operational-documentation",
         "name": "Operational Readiness Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

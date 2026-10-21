@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "pmo-director-signoff-gate",
+        "code": "project-plan",
         "name": "Enterprise PMO Director Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The PMO Director confirms that project charters, milestone schedules, and RAID risk mitigations comply with PPM standards.",
         "prompt": "Does the PPM documentation confirm project plan feasibility and risk mitigation effectiveness?",
         "participant": "human",
-        "outputContract": "ppm-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Project & Portfolio Management Audit Checklist"
         ]

@@ -7,7 +7,7 @@ import { ontologyDB } from "../ontologyDB.js";
 import { tenantsDB } from "../tenantsDB.js";
 import type { OntologyConceptRow } from "../seuTypes.js";
 import { userDB } from "../userDB.js";
-import { getPlatformTenantId } from "../constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -50,8 +50,8 @@ export async function seedOntologyConcepts(actor: SeedActor): Promise<void> {
   const rows = seeds.map((s) => {
       const tenantId = s.tenant === undefined ? PLATFORM_TENANT_ID : tenantIdByName.get(s.tenant);
       if (!tenantId) throw new Error(`[seedOntologyConcepts] ${s.concept_type}|${s.code}: unknown tenant "${s.tenant}"`);
-      const key = `${s.concept_type}|${s.code}|${tenantId}|${s.version ?? "1.0.0"}`;
-      if (seen.has(key)) duplicates.push(`${s.concept_type}|${s.code}|${s.tenant ?? "(platform)"}|${s.version ?? "1.0.0"}`);
+      const key = `${s.concept_type}|${s.code}|${tenantId}|${s.version ?? INITIAL_VERSION}`;
+      if (seen.has(key)) duplicates.push(`${s.concept_type}|${s.code}|${s.tenant ?? "(platform)"}|${s.version ?? INITIAL_VERSION}`);
       seen.add(key);
       return {
         conceptType: s.concept_type, code: s.code, defaultLabel: s.default_label, description: s.description,

@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "dpdp-data-protection-gate",
+        "code": "data-migration-verification-report",
         "name": "India DPDP Act & CERT-In Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Data Protection Officer and CISO confirm that DPDP consent flows, 180-day log retention, and CERT-In incident escalation satisfy Indian law.",
         "prompt": "Does the compliance review confirm full alignment with DPDP Act 2023 and CERT-In directions?",
         "participant": "human",
-        "outputContract": "dpdp-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "India DPDP Act & CERT-In Compliance Audit Checklist"
         ]

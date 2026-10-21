@@ -13,6 +13,7 @@ import { assertCanonicalCategory } from "./ontology.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { createParticipantMaster } from "./participantsMaster.js";
 import type { BadgeTypeRow, TenantRow } from "../../../dblayer/seuTypes.js";
+import { NO_EXPIRY_DATE } from "../../../dblayer/constants.js";
 
 export interface PlatformUserView {
   id: string;
@@ -145,7 +146,7 @@ export async function setAuthorisedRoles(input: { id: string; roles: string[]; a
   const selected = new Set(input.roles);
   const kept = master.authorised_role.filter((entry) => entry.seu_ids.length > 0 || selected.has(entry.role) || NON_REVOCABLE_ROLES.has(entry.role));
   const alreadyKeptRoles = new Set(kept.filter((entry) => entry.seu_ids.length === 0).map((entry) => entry.role));
-  const added = [...selected].filter((role) => !alreadyKeptRoles.has(role)).map((role) => ({ role, effective_till: "9999-12-31", seu_ids: [] as string[] }));
+  const added = [...selected].filter((role) => !alreadyKeptRoles.has(role)).map((role) => ({ role, effective_till: NO_EXPIRY_DATE, seu_ids: [] as string[] }));
 
   const { error } = await participantsMasterDB.setAuthorisedRole(master.id, [...kept, ...added]);
   if (error) return { ok: false, detail: error.message };
@@ -183,7 +184,7 @@ export async function setAuthorisedBadges(input: { id: string; badges: string[];
   const selected = new Set(input.badges);
   const kept = master.authorised_badges.filter((entry) => entry.seu_ids.length > 0 || selected.has(entry.badge));
   const alreadyKeptBadges = new Set(kept.filter((entry) => entry.seu_ids.length === 0).map((entry) => entry.badge));
-  const added = [...selected].filter((badge) => !alreadyKeptBadges.has(badge)).map((badge) => ({ badge, effective_till: "9999-12-31", seu_ids: [] as string[] }));
+  const added = [...selected].filter((badge) => !alreadyKeptBadges.has(badge)).map((badge) => ({ badge, effective_till: NO_EXPIRY_DATE, seu_ids: [] as string[] }));
 
   const { error } = await participantsMasterDB.setAuthorisedBadges(master.id, [...kept, ...added]);
   if (error) return { ok: false, detail: error.message };

@@ -62,14 +62,14 @@
     ],
     "reviewGates": [
       {
-        "code": "servicenow-integration-review-gate",
+        "code": "change-request",
         "name": "ServiceNow Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The ITSM Administrator confirms that ServiceNow REST API connections and Change Request workflows operate properly.",
         "prompt": "Does the ServiceNow integration verify Incident creation and Change Request CAB workflow synchronization?",
         "participant": "human",
-        "outputContract": "servicenow-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "ServiceNow Integration Verification Checklist"
         ]

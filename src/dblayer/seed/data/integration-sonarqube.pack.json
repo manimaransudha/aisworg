@@ -62,14 +62,14 @@
     ],
     "reviewGates": [
       {
-        "code": "sonarqube-integration-review-gate",
+        "code": "technical-debt-register",
         "name": "SonarQube Quality Gate Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Quality Lead confirms that SonarQube Quality Gates and SAST security scans satisfy software quality standards.",
         "prompt": "Does the SonarQube integration confirm Quality Gate enforcement and PR code decoration?",
         "participant": "human",
-        "outputContract": "sonarqube-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "SonarQube Integration Verification Checklist"
         ]

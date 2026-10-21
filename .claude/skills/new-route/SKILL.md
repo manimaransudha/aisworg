@@ -15,6 +15,8 @@ Follow `coding_principles.md` for the controller template.
 - A page route uses `attachVM("<view name>")`, sets `req.vm.req` and `req.vm.opt`, sets `req.vm.opt.flash = getFlash(req)`, and ends with `renderView`.
 - A list on the page uses `parseListParams`, `paginateList`, `listControls` and `sortLink`.
 - Authority comes from the route's `route_authority` row. The handler does not check a badge, a role or a tenant in its own code. Use `requireBadge`, `requireRole` and `requireTenantScope` only for what the row cannot express, and pass them no destination.
+- A route registered in `route_authority` has a session. `gatekeeper` and `routeAuthorityGate` run before the handler, so the handler does not check that `req.session.user` exists. It reads `String(req.session.user.id)` directly.
+- An author id (`actorId`, `authorId`, `userId` or any other name for the acting user) and an author badge can never be null, empty or undefined. The handler never writes `? ... : null`, `?? null`, `?? ""` or a default badge such as `"general"` or the first held badge. It takes the badge from `resolveAuthorBadge` and returns a 403 when none is resolved.
 - Every redirect that carries a message goes through `redirects` (step 5). The handler never calls `flashError` or `flashSuccess`, and never assigns `req.session.flash`.
 - Transition buttons and links follow the badge-gated mechanism: core computes `possibleNextStates` filtered by `trigger === "manual"`, and the web layer filters by held badge.
 
@@ -52,5 +54,6 @@ Follow `coding_principles.md` for the controller template.
 
 - The route has a `route_authority` row, a registered ViewModel, a view and a `redirects.ts` entry.
 - No file outside `redirects.ts` calls `flashError`, `flashSuccess` or assigns `req.session.flash`.
+- The handler has no session-presence check, no null fallback on an author id, and no default author badge.
 - Tests that insert `route_authority` rows or assert on a redirect `Location` are updated in the same pass.
 - `tsc`, `db:clean-slate` and the tests run only when the user says so.

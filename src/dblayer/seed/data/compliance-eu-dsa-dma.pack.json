@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "dsa-dma-compliance-gate",
+        "code": "risk-assessment-report",
         "name": "EU Digital Services Act Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Head of Trust & Safety confirms that content moderation notice-and-action, dark pattern checks, and recommender transparency comply with the DSA.",
         "prompt": "Does the platform compliance review confirm full alignment with EU DSA and DMA requirements?",
         "participant": "human",
-        "outputContract": "dsa-dma-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "EU Digital Services & Markets Act Audit Checklist"
         ]

@@ -23,7 +23,7 @@ import { reviewGatesDB } from "../src/dblayer/reviewGatesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot, getEmptyPoolTenantId } from "./testFixtures.js";
-import { TESTER_ALL_ID } from "./testFixtures.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
@@ -128,7 +128,7 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
   });
 
   const { seuId, deliverable } = await commissionSeu("review-gate");
-  const evalGate = () => qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root" });
+  const evalGate = () => qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: ROOT_ACTOR_BADGE });
 
   assert.equal((await evalGate()).outcome, "Blocked", "no Review yet -> blocked");
 
@@ -168,7 +168,7 @@ test("Findings: a High-severity Finding auto-surfaces an Attention Item; a Findi
   assert.equal(high.obligation_id, null, "a Finding is not auto-converted to an Obligation");
 
   // Manual conversion creates and links an Obligation.
-  const converted = await convertFindingToObligation({ findingId: high.id, category: "Security", actorId: TESTER_ALL_ID, authorBadge: "root" });
+  const converted = await convertFindingToObligation({ findingId: high.id, category: "Security", actorId: TESTER_ALL_ID });
   assert.equal(converted.ok, true, !converted.ok ? JSON.stringify(converted) : "assertion failed");
   if (converted.ok) {
     assert.ok(converted.obligationId);
@@ -177,7 +177,7 @@ test("Findings: a High-severity Finding auto-surfaces an Attention Item; a Findi
   }
 
   // Double conversion is refused.
-  const again = await convertFindingToObligation({ findingId: high.id, actorId: TESTER_ALL_ID, authorBadge: "root" });
+  const again = await convertFindingToObligation({ findingId: high.id, actorId: TESTER_ALL_ID });
   assert.equal(again.ok, false);
   if (!again.ok) assert.equal(again.reason, "already_converted");
 

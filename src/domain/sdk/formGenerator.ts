@@ -35,6 +35,7 @@ export interface JsonSchemaProperty {
   "x-show-when-values"?: string[];
   "x-label"?: string;
   "x-group"?: string;
+  "x-read-only"?: boolean;
   items?: JsonSchemaProperty & { properties?: Record<string, JsonSchemaProperty>; required?: string[]; "x-property-order"?: string[] };
   properties?: Record<string, JsonSchemaProperty>;
   required?: string[];
@@ -182,6 +183,7 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
   }
 
   for (const [name, def] of entries) {
+    if (def["x-read-only"]) continue;
     const isRequired = required.has(name);
     const rawValue = content[name];
     const group = def["x-group"];
@@ -451,6 +453,44 @@ export const VERIFIABLE_ITEM_FIELD_HELP: Record<string, string> = {
   recommendedChecklistIds: "Advisory Checklists (this Pack's own code only) — completing them does not block this gate, unlike Checklist Ids.",
 };
 
+// A seed lists a one-field list (pack codes, feature flags, capability codes) as plain strings. The schema describes each entry as a row
+// with that one field. This returns the content with every such plain string wrapped in its row, so the content has the schema's shape.
+export function toSchemaRows(schema: JsonSchemaDocument, content: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...content };
+  for (const [name, def] of Object.entries(schema.properties ?? {})) {
+    const value = out[name];
+    const fields = Object.keys(def.items?.properties ?? {});
+    if (def["x-widget"] !== "referential-list" || fields.length !== 1 || !Array.isArray(value)) continue;
+    out[name] = value.map((entry) => (typeof entry === "string" ? { [fields[0]]: entry } : entry));
+  }
+  return out;
+}
+
+// The arrays and objects nested inside a referential-list row: their required fields and enums, at any depth.
+function validateNested(def: JsonSchemaProperty, value: unknown, label: string, errors: string[]): void {
+  if (def.type === "array" && def.items?.properties && Array.isArray(value)) {
+    for (const [i, row] of value.entries()) {
+      if (!row || typeof row !== "object" || !Object.values(row as Record<string, unknown>).some((v) => v !== undefined && v !== null && isFieldFilled(v))) continue;
+      validateNestedRow(def.items.properties, def.items.required, row as Record<string, unknown>, `${label} row ${i + 1}`, errors);
+    }
+  } else if (def.type === "object" && def.properties && value && typeof value === "object" && !Array.isArray(value)) {
+    validateNestedRow(def.properties, def.required, value as Record<string, unknown>, label, errors);
+  }
+}
+
+function validateNestedRow(props: Record<string, JsonSchemaProperty>, required: string[] | undefined, row: Record<string, unknown>, label: string, errors: string[]): void {
+  for (const field of required ?? []) {
+    const value = row[field];
+    if (value === undefined || value === null || (typeof value === "string" && value.trim() === "")) errors.push(`${label}: "${field}" is required`);
+  }
+  for (const [name, def] of Object.entries(props)) {
+    const value = row[name];
+    if (value === undefined || value === null) continue;
+    if (def.enum && typeof value === "string" && value !== "" && !def.enum.includes(value)) errors.push(`${label}: "${name}" must be one of ${def.enum.join(", ")}, got: "${value}"`);
+    validateNested(def, value, `${label} "${name}"`, errors);
+  }
+}
+
 export function validateAgainstSchema(schema: JsonSchemaDocument, content: Record<string, unknown>): string[] {
   const errors: string[] = [];
   for (const name of schema.required ?? []) {
@@ -482,6 +522,17 @@ export function validateAgainstSchema(schema: JsonSchemaDocument, content: Recor
           if (!(row[requiredField] ?? "").toString().trim()) {
             errors.push(`"${name}" row ${i + 1}: "${requiredField}" is required`);
           }
+        }
+      }
+    }
+    if (def["x-widget"] === "referential-list" && Array.isArray(value)) {
+      for (const [i, row] of (value as Array<Record<string, unknown>>).entries()) {
+        for (const [fieldName, fieldDef] of Object.entries(def.items?.properties ?? {})) {
+          const itemValue = row?.[fieldName];
+          if (fieldDef.enum && typeof itemValue === "string" && itemValue !== "" && !fieldDef.enum.includes(itemValue)) {
+            errors.push(`"${name}" row ${i + 1}: "${fieldName}" must be one of ${fieldDef.enum.join(", ")}, got: "${itemValue}"`);
+          }
+          validateNested(fieldDef, itemValue, `"${name}" row ${i + 1} "${fieldName}"`, errors);
         }
       }
     }

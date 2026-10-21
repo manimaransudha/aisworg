@@ -5,7 +5,7 @@ import path from "node:path";
 import { logger } from "../../utils/logger.js";
 import { ontologyDB } from "../ontologyDB.js";
 import type { OntologyConceptRow } from "../seuTypes.js";
-import { getPlatformTenantId } from "../constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,7 +36,7 @@ export async function seedTestOntology(actor: SeedActor): Promise<void> {
   const seen = new Set<string>();
   const duplicates: string[] = [];
   const rows = seeds.map((s) => {
-    const key = `${s.concept_type}|${s.code}|${s.version ?? "1.0.0"}`;
+    const key = `${s.concept_type}|${s.code}|${s.version ?? INITIAL_VERSION}`;
     if (seen.has(key)) duplicates.push(key);
     seen.add(key);
     return {

@@ -64,7 +64,7 @@
     ],
     "reviewGates": [
       {
-        "code": "deployment-rollout-plan",
+        "code": "rollback-plan",
         "name": "Launch Readiness Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

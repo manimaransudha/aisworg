@@ -52,14 +52,14 @@
     ],
     "reviewGates": [
       {
-        "code": "datadog-integration-review-gate",
+        "code": "monitoring-alerting-configuration",
         "name": "Datadog Observability Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Site Reliability Engineer confirms that Datadog APM tracing and monitor alert webhooks function correctly.",
         "prompt": "Does the Datadog integration confirm APM trace collection and monitor alert dispatch?",
         "participant": "human",
-        "outputContract": "datadog-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Datadog Integration Verification Checklist"
         ]

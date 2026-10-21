@@ -8,6 +8,7 @@ import { userDB } from "../userDB.js";
 import { authorityVocabularyDB } from "../authorityVocabularyDB.js";
 import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
 import { ATTESTATION_REQUIRED_POLICY_CODE, getPlatformTenantId } from "../constants.js";
+import { isRegisteredAction } from "../../actions/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -32,6 +33,7 @@ interface TransitionDefinitionSeed {
   eventType?: string;
   versionEvent?: string;
   versionHop?: boolean;
+  actionCode?: string;
   submitVersionEvent?: string;
   isActive?: boolean;
   retiredAt?: string;
@@ -72,18 +74,6 @@ function findDuplicates(keys: string[]): string[] {
     seen.add(key);
   }
   return [...dupes];
-}
-
-export async function backfillPolicyCode(code: string, policyId: string): Promise<void> {
-  const wanting = loadSeeds().filter((s) => (s.requiredPolicyCodes ?? []).includes(code));
-  for (const seed of wanting) {
-    await query(
-      `UPDATE transition_definitions
-          SET required_policy_ids = CASE WHEN $4::uuid = ANY(required_policy_ids) THEN required_policy_ids ELSE array_append(required_policy_ids, $4::uuid) END
-        WHERE entity_type = $1 AND from_state = $2 AND to_state = $3`,
-      [seed.entityType, seed.fromState, seed.toState, policyId]
-    );
-  }
 }
 
 // Loads the Authority vocabulary (nouns, verbs) and the transition definitions together: each
@@ -132,6 +122,7 @@ export async function seedTransitionDefinitions(actor: SeedActor): Promise<void>
     }
     for (const code of policyCodes) if (!policyIdByCode.has(code)) problems.push(`policy code ${code}: no Active Policy Definition — seed Policy Definitions first`);
   }
+  for (const s of seeds) if (s.actionCode && !isRegisteredAction(s.actionCode)) problems.push(`transition ${s.entityType}|${s.fromState}|${s.toState}: action ${s.actionCode} has no implementation in src/actions`);
   if (problems.length) throw new Error(`[seed:transition-definitions] invalid seed data:\n  ${problems.join("\n  ")}`);
 
   const vocabulary = await authorityVocabularyDB.replaceVocabulary({
@@ -170,6 +161,7 @@ export async function seedTransitionDefinitions(actor: SeedActor): Promise<void>
       eventType: s.eventType ?? null,
       versionEvent: s.versionEvent ?? null,
       versionHop: s.versionHop ?? null,
+      actionCode: s.actionCode ?? null,
       submitVersionEvent: s.submitVersionEvent ?? null,
       isActive: s.isActive ?? true,
       retiredAt: s.retiredAt ?? null,

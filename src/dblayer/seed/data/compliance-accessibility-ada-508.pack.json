@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "accessibility-compliance-gate",
+        "code": "accessibility-conformance-report",
         "name": "Digital Accessibility Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Accessibility Lead confirms that screen reader audits, keyboard navigation, and VPAT documents satisfy ADA Section 508 & EAA standards.",
         "prompt": "Does the accessibility evaluation confirm full WCAG 2.1 AA and Section 508 VPAT compliance?",
         "participant": "human",
-        "outputContract": "accessibility-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Digital Accessibility (ADA / Sec 508 / EAA) Verification Checklist"
         ]

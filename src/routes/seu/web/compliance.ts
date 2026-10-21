@@ -12,7 +12,7 @@ import { logger } from "../../../utils/logger.js";
 import { evaluateCompliance, grantWaiver } from "../core/compliance.js";
 import { complianceDB } from "../../../dblayer/complianceDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
+import { resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
 
 router.get("/seus/:id/compliance", attachVM("seu/compliance/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -40,12 +40,9 @@ router.post("/seus/:id/compliance/waivers", async (req: Request, res: Response) 
     return redirects.seu.seusComplianceWaivers.error(req, res, "Requirement and rationale are required.");
   }
   try {
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!actorId) return redirects.seu.seusComplianceWaivers.error(req, res, "Authentication required.");
+    const { actorId, authorBadge } = await resolveActorAndBadge(req);
     const { data: master } = await participantsMasterDB.findById(actorId);
     if (!master) return redirects.seu.seusComplianceWaivers.error(req, res, "No superuser provisioned.");
-    const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(actorId);
-    const authorBadge = isRoot ? "root" : [...badgeTypes][0] ?? "general";
     await grantWaiver({ seuId, requirementCode, rationale, grantedBy: master.id, authorBadge });
     return redirects.seu.seusComplianceWaivers.success(req, res, `Waiver granted for "${requirementCode}".`);
   } catch (err) {

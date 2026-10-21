@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "eu-mdr-person-responsible-gate",
+        "code": "safety-case",
         "name": "EU MDR Person Responsible for Regulatory Compliance (PRRC) Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The PRRC confirms that clinical evaluation, technical documentation, and UDI assignments comply with EU MDR 2017/745.",
         "prompt": "Does the technical documentation package satisfy EU MDR CE mark certification requirements?",
         "participant": "human",
-        "outputContract": "eu-mdr-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "EU MDR 2017/745 Technical Audit Checklist"
         ]

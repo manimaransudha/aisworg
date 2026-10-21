@@ -6,6 +6,7 @@ const router = express.Router();
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { grantQualityGateWaiver, listQualityGateWaivers } from "../core/qualityGateWaivers.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 router.post("/seus/:id/quality-gate-waivers", async (req: Request, res: Response) => {
   try {
@@ -15,8 +16,7 @@ router.post("/seus/:id/quality-gate-waivers", async (req: Request, res: Response
       return res.status(400).json({ error: "entityType and entityId are required" });
     }
     if (typeof rationale !== "string" || !rationale.trim()) return res.status(400).json({ error: "rationale is required" });
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!actorId) return res.status(401).json({ error: "authentication required" });
+    const actorId = requireActorId(req);
 
     const result = await grantQualityGateWaiver({
       qualityGateId,

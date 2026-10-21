@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "claims-director-signoff-gate",
+        "code": "defect-log",
         "name": "Head of Claims Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Head of Claims confirms that underwriting guidelines, FNOL intake, and SIU fraud checks comply with insurance regulations.",
         "prompt": "Does the insurance documentation confirm proper underwriting rating and claims adjudication accuracy?",
         "participant": "human",
-        "outputContract": "insurance-claims-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Insurance Underwriting & Claims Audit Checklist"
         ]

@@ -21,11 +21,11 @@ import {
   reParentObjective,
   retireObjectiveSubtree,
   searchObjectives,
-  submitObjective,
-  transitionObjective,
+  objectiveInitialState,
   updateObjective,
 } from "../core/objectives.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
+import { nextActionsFor, transitionEntity } from "../../../domain/engine/entityTransition.js";
 import { parseListParams, paginateList, listResult } from "../../../utils/listQuery.js";
 import { commissionFromExistingObjective, previewCommissioningValidation, applyConflictStrategy } from "../core/commissioning.js";
 import type { LivenessCheck } from "../core/commissioning.js";
@@ -38,10 +38,9 @@ import { listConceptsForType } from "../core/ontology.js";
 import type { ObjectiveStatus, ObjectiveTier, EbmCompositionReport, EbmComposedPack } from "../../../dblayer/seuTypes.js";
 import type { UnraveledComposition, CompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
-import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
-import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
-import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
+import { resolveHeldBadges, requireActorId, resolveActorAndBadge, resolveAuthorBadgeForRequest } from "../../../domain/identity/heldBadges.js";
+import { getPlatformTenantId, PLATFORM_TENANT_NAME, OBJECTIVE_RETIRED_STATE, SUPERSEDE_OBJECTIVE_ACTION_CODE } from "../../../dblayer/constants.js";
+import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
  
 const CHILD_TIERS: Record<ObjectiveTier, ObjectiveTier[]> = {
   Strategic: ["Operational", "Engineering"],
@@ -49,18 +48,24 @@ const CHILD_TIERS: Record<ObjectiveTier, ObjectiveTier[]> = {
   Engineering: [],
 };
 
-async function getObjectiveViewerContext(req: Request): Promise<{ isRoot: boolean; tenantId: string | null; canRetireObjective: boolean; canProposeObjective: boolean; canComment: boolean; commentBadge: string | null; hasObjectiveBadge: (verb: string | null) => boolean }> {
+async function getObjectiveViewerContext(req: Request): Promise<{ isRoot: boolean; tenantId: string | null; canProposeObjective: boolean; canComment: boolean; hasObjectiveBadge: (verb: string | null) => boolean }> {
   const held = await resolveHeldBadges(req);
-  const hasObjectiveBadge = (verb: string | null): boolean => held.isRoot || (!!verb && held.badgeTypes.has(`objective_${verb}`));
+  const hasObjectiveBadge = (verb: string | null): boolean => held.hasVerb("Objective", verb);
   return {
-    isRoot: held.isRoot,
+    isRoot: (req.session?.user?.platformBadges ?? []).includes("root"),
     tenantId: req.session?.user?.tenant_id ?? null,
-    canRetireObjective: hasObjectiveBadge("retire"),
     canProposeObjective: held.has("objective_propose"),
-    canComment: held.isRoot || [...held.badgeTypes].some((b) => b.startsWith("objective_")),
-    commentBadge: held.isRoot ? "root" : ([...held.badgeTypes].find((b) => b.startsWith("objective_")) ?? null),
+    canComment: true,
     hasObjectiveBadge,
   };
+}
+
+// The states from which this viewer may retire (a subtree retire is the Retired hop of the transition definitions).
+async function retireStatusesFor(req: Request, nodes: Array<{ status: string }>): Promise<string[]> {
+  const actorId = requireActorId(req);
+  const statuses = [...new Set(nodes.map((n) => n.status))];
+  const held = await Promise.all(statuses.map(async (s) => ((await nextActionsFor("Objective", s, actorId)).some((a) => a.toState === OBJECTIVE_RETIRED_STATE) ? s : null)));
+  return held.filter((s): s is string => s !== null);
 }
 
 router.param(
@@ -81,8 +86,7 @@ router.get("/objectives", attachVM("seu/objectives/index"), async (req: Request,
     const rejectedView = req.query.view === "rejected";
     req.vm.req.mode = rejectedView ? "rejected" : q ? "search" : "browse";
 
-    const { isRoot, tenantId, canRetireObjective, canProposeObjective, hasObjectiveBadge } = await getObjectiveViewerContext(req);
-    req.vm.req.canRetireObjective = canRetireObjective;
+    const { isRoot, tenantId, canProposeObjective, hasObjectiveBadge } = await getObjectiveViewerContext(req);
     req.vm.req.canProposeObjective = canProposeObjective;
     req.vm.req.hasObjectiveBadge = hasObjectiveBadge;
 
@@ -101,6 +105,7 @@ router.get("/objectives", attachVM("seu/objectives/index"), async (req: Request,
       const params = parseListParams(req.query, { sortable: ["created"], defaultSort: "created", defaultDir: "desc" });
       const { items, total } = await getObjectiveRootsPage({ limit: params.limit, offset: params.offset, tenantId: isRoot ? undefined : tenantId });
       req.vm.req.roots = items;
+      req.vm.req.retireStatuses = await retireStatusesFor(req, items);
       req.vm.req.childTiers = CHILD_TIERS;
       req.vm.req.list = listResult(items, total, params);
     }
@@ -115,8 +120,9 @@ router.get("/objectives/:id/children", async (req: Request, res: Response, next:
   try {
     const depth = Math.max(0, Math.min(20, parseInt(String(req.query.depth ?? "1"), 10) || 1));
     const nodes = await getObjectiveChildren(String(req.params.id));
-    const { canRetireObjective, canProposeObjective, hasObjectiveBadge } = await getObjectiveViewerContext(req);
-    return res.render("seu/objectives/_nodes", { nodes, depth, csrfToken: res.locals.csrfToken, childTiers: CHILD_TIERS, canRetireObjective, canProposeObjective, hasObjectiveBadge });
+    const { canProposeObjective, hasObjectiveBadge } = await getObjectiveViewerContext(req);
+    const retireStatuses = await retireStatusesFor(req, nodes);
+    return res.render("seu/objectives/_nodes", { nodes, depth, csrfToken: res.locals.csrfToken, childTiers: CHILD_TIERS, retireStatuses, canProposeObjective, hasObjectiveBadge });
   } catch (err) {
     logger.error("[web/seu/objectives] GET /objectives/:id/children error", err as Error);
     next(err);
@@ -164,6 +170,7 @@ router.get(
     req.vm.req.capabilities = capabilities;
     req.vm.req.parent = parent;
     req.vm.req.tier = tier;
+    req.vm.req.initialState = await objectiveInitialState();
     const prior = takeFormInput(req);
     req.vm.req.statement = typeof prior?.statement === "string" ? prior.statement : "";
     if (prior) {
@@ -207,35 +214,35 @@ router.post(
     return redirects.seu.objectives.error(req, res, "Statement and at least one required Capability are required.", backToNew);
   }
 
-  if (req.session?.user?.id == null) {
-    return redirects.seu.objectives.error(req, res, "You must be logged in to create an Objective.", backToNew);
-  }
-
   try {
     const { objective } = await createObjective({
       statement,
       requiredCapabilityCodes: codes,
       tier: (tier || undefined) as ObjectiveTier | undefined,
-      status: "Proposed",
       parentObjectiveId: parentId,
-      requestedBy: String(req.session.user.id),
+      requestedBy: requireActorId(req),
     });
 
     if (supersedesId) {
-      const result = await transitionObjective({
-        objectiveId: supersedesId,
-        targetState: "Superseded",
-        actorId: String(req.session.user.id),
-        comment: supersedeComment,
-        supersedingObjectiveId: objective.id,
-      });
-      if (!result.ok) {
-        const detail = "detail" in result ? result.detail : result.reason;
-        return redirects.seu.objectives.error(req, res, `Objective created, but superseding the original was blocked: ${detail}`, `/aisworg/seu/objectives/${objective.id}`);
+      let blocked: string | null = null;
+      try {
+        const result = await transitionEntity({
+          entityType: "Objective",
+          entityId: supersedesId,
+          targetState: "Superseded",
+          actorId: requireActorId(req),
+          context: { comment: supersedeComment, supersedingObjectiveId: objective.id },
+        });
+        if (!result.ok) blocked = "detail" in result ? result.detail : result.reason;
+      } catch (err) {
+        blocked = (err as Error).message;
+      }
+      if (blocked) {
+        return redirects.seu.objectives.error(req, res, `Objective created, but superseding the original was blocked: ${blocked}`, `/aisworg/seu/objectives/${objective.id}`);
       }
     }
 
-    return redirects.seu.objectives.success(req, res, `Objective created as Proposed. Activate it before commissioning an SEU against it.`);
+    return redirects.seu.objectives.success(req, res, `Objective created as ${objective.status}. Activate it before commissioning an SEU against it.`);
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives error", err as Error);
     return redirects.seu.objectives.error(req, res, (err as Error).message, backToNew);
@@ -248,17 +255,18 @@ router.get("/objectives/:id", attachVM("seu/objectives/detail"), async (req: Req
     const detail = await getObjectiveDetail(id);
     if (!detail) return redirects.seu.objectivesById.error(req, res, "Objective not found.");
     req.vm.req.title = `Objective ${detail.objective.display_id ?? detail.objective.id.slice(0, 8)}`;
-    const { canRetireObjective, canProposeObjective, canComment, hasObjectiveBadge } = await getObjectiveViewerContext(req);
-    detail.possibleNextStates = detail.possibleNextStates.filter((s) => hasObjectiveBadge(detail.possibleTransitionVerbs[s]));
+    const { canProposeObjective, canComment } = await getObjectiveViewerContext(req);
+    // Every control comes from the transition definitions the viewer holds the badge for. The kind says which input the verb route needs.
+    req.vm.req.actions = (await nextActionsFor("Objective", detail.objective.status, requireActorId(req))).map((a) => ({
+      toState: a.toState,
+      verb: a.verb,
+      kind: a.toState === OBJECTIVE_RETIRED_STATE ? "retire" : a.actionCode === SUPERSEDE_OBJECTIVE_ACTION_CODE ? "target" : a.requiresComment ? "comment" : "plain",
+    }));
     req.vm.req.detail = detail;
     req.vm.req.childTiers = CHILD_TIERS[detail.objective.tier];
     req.vm.req.reParentOptions = detail.objective.tier === "Strategic" ? [] : await listReParentCandidates(id);
-    req.vm.req.canRetireObjective = canRetireObjective;
     req.vm.req.canProposeObjective = canProposeObjective;
-    req.vm.req.canRejectObjective = hasObjectiveBadge("reject");
-    req.vm.req.canSupersedeObjective = hasObjectiveBadge("supersede");
     req.vm.req.canComment = canComment;
-    req.vm.req.canSubmitObjective = hasObjectiveBadge(detail.submitVerb);
     req.vm.opt.renderMarkdown = renderMarkdown;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/objectives/detail", req.vm);
@@ -288,29 +296,15 @@ router.get("/objectives/:id/edit", attachVM("seu/objectives/edit"), async (req: 
       : (requiredCapabilities ?? []).map((c) => c.code);
     req.vm.req.childTiers = CHILD_TIERS[objective.tier];
     req.vm.req.reParentOptions = objective.tier === "Strategic" ? [] : await listReParentCandidates(id);
-    const { data: comments } = await objectivesDB.getComments(id);
-    req.vm.req.comments = comments ?? [];
+    req.vm.req.comments = objective.comments;
+    req.vm.req.initialState = await objectiveInitialState();
+    req.vm.req.editable = objective.status === req.vm.req.initialState;
     req.vm.req.canComment = canComment;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/objectives/edit", req.vm);
   } catch (err) {
     logger.error("[web/seu/objectives] GET /objectives/:id/edit error", err as Error);
     next(err);
-  }
-});
-
-router.post("/objectives/:id/submit", async (req: Request, res: Response) => {
-  const objectiveId = String(req.params.id);
-  try {
-    if (req.session?.user?.id == null) {
-    return redirects.seu.objectivesSubmit.error(req, res, "You must be logged in to create an Objective.");
-  }
-
-    await submitObjective(objectiveId, String(req.session.user.id));
-    return redirects.seu.objectivesSubmit.success(req, res, "Submitted — awaiting the next transition.");
-  } catch (err) {
-    logger.error("[web/seu/objectives] POST /objectives/:id/submit error", err as Error);
-    return redirects.seu.objectivesSubmit.error(req, res, (err as Error).message);
   }
 });
 
@@ -328,14 +322,11 @@ router.post("/objectives/:id/update", async (req: Request, res: Response) => {
     stashFormInput(req, { statement: "", requiredCapabilityCodes: codes });
     return redirects.seu.objectivesUpdate.error(req, res, "Statement is required.");
   }
-  if (req.session?.user?.id == null) {
-    return redirects.seu.objectivesUpdate.error(req, res, "You must be logged in to create an Objective.");
-  }
   try {
     const updated = await updateObjective(objectiveId, {
       statement,
       requiredCapabilityCodes: codes,
-      requestedBy: String(req.session.user.id),
+      requestedBy: requireActorId(req),
       bumpVersion,
     });
     const msg = bumpVersion ? `Objective updated to v${updated.version}.` : `Objective updated (still v${updated.version}).`;
@@ -375,14 +366,10 @@ router.post("/objectives/:id/delete", async (req: Request, res: Response) => {
 
 router.post("/objectives/:id/retire", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  if (req.session?.user?.id == null) {
-    return redirects.seu.objectivesRetire.error(req, res, "You must be logged in to create an Objective.");
-  }
-
   try {
     const { retired, skipped } = await retireObjectiveSubtree({
       objectiveId,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     const msg = skipped.length
       ? `Retired ${retired.length} Objective(s); skipped ${skipped.length} (not Active).`
@@ -398,17 +385,16 @@ function postObjectiveTransition(targetState: ObjectiveStatus) {
   return async (req: Request, res: Response): Promise<void> => {
     const objectiveId = String(req.params.id);
     const { comment, supersedingObjectiveId } = req.body ?? {};
-    if (req.session?.user?.id == null) {
-    return redirects.seu.objectivesRetire.error(req, res, "You must be logged in to create an Objective.");
-  }
-
     try {
-      const result = await transitionObjective({
-        objectiveId,
+      const result = await transitionEntity({
+        entityType: "Objective",
+        entityId: objectiveId,
         targetState,
-        actorId: String(req.session.user.id),
-        comment: typeof comment === "string" ? comment : undefined,
-        supersedingObjectiveId: typeof supersedingObjectiveId === "string" && supersedingObjectiveId ? supersedingObjectiveId : undefined,
+        actorId: requireActorId(req),
+        context: {
+          comment: typeof comment === "string" ? comment : undefined,
+          supersedingObjectiveId: typeof supersedingObjectiveId === "string" && supersedingObjectiveId ? supersedingObjectiveId : undefined,
+        },
       });
       if (!result.ok) {
         const detail = "detail" in result ? result.detail : result.reason;
@@ -520,20 +506,18 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
       return redirects.seu.objectivesValidateCommission.error(req, res, "No Profile chosen — a real Profile must be selected before commissioning.");
     }
     const profileId = selection.profileId;
+    const { actorId, authorBadge } = await resolveActorAndBadge(req);
     let seuTenantId = objective.sponsoring_authority?.tenant ?? null;
     if (!seuTenantId) {
       const { data: defaultTenant } = await tenantsDB.findDefault();
       seuTenantId = defaultTenant?.id ?? null;
     }
-    if (req.session?.user?.id == null) {
-    return redirects.seu.objectivesValidateCommission.error(req, res, "You must be logged in to create an Objective.");
-  }
     const { data: newSeu, error: seuErr } = await seusDB.create({
       objectiveId,
       templateId: selection.templateId,
       profileId,
-      requestedBy: String(req.session.user.id),
-      authorBadge: await badgeAuthorityEngine.resolveAuthorBadge(String(req.session.user.id), "seu_commission"),
+      requestedBy: actorId,
+      authorBadge,
       tenantId: seuTenantId,
     });
     if (seuErr || !newSeu) return redirects.seu.objectivesValidateCommission.error(req, res, (seuErr ?? new Error("failed to create SEU")).message);
@@ -544,8 +528,8 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
       seuId: newSeu.id,
       correlationId: eventBus.newCorrelationId(),
       payload: { seuId: newSeu.id },
-      actorId: String(req.session.user.id),
-      authorityBadge: "seu_commission",
+      actorId,
+      authorityBadge: authorBadge,
     });
     return redirects.seu.objectivesValidateCommission.success(req, res, "Commissioning queued — validating…", "/aisworg/seu/seus");
   } catch (err) {
@@ -594,17 +578,9 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
 
     const { compositionReport, composedPacks, profileDetails, unraveled, compositionConflicts } = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts, viewerTenantId });
     await seusDB.setCompositionReport(existingSeu.id, { selections, compositionReport, composedPacks, profileDetails, resolvedParameterOverrides, unraveled, compositionConflicts, resolvedCompositionConflicts });
-    if (req.session?.user?.id == null) {
-    return redirects.seu.objectivesComposeEbm.error(req, res, "You must be logged in to create an Objective.");
-  }
-
     if (compositionConflicts.length === 0) {
-      const actorId = String(req.session.user.id);
-      if (!actorId) return redirects.seu.objectivesComposeEbm.error(req, res, "no acting user to record as this EBM's author — log in first");
-      const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-      const held = await resolveHeldBadges(req);
-      const authorBadge = resolveAuthorBadge(authRow, held);
-      if (!authorBadge) return redirects.seu.objectivesComposeEbm.error(req, res, "no held badge authorises this action — cannot record an author badge");
+      const actorId = requireActorId(req);
+      const authorBadge = await resolveAuthorBadgeForRequest(req);
       await eventBus.publish({
         eventType: "CompositionCompleted",
         originatingObjectType: "SEU",
@@ -706,17 +682,13 @@ router.post("/objectives/:id/commission", async (req: Request, res: Response) =>
 
   try {
     const resolvedCompositionConflicts = parsePreviouslyResolvedCompositionConflicts(req.body ?? {});
-    if (req.session?.user?.id == null) {
-    return redirects.seu.objectivesCommission.error(req, res, "You must be logged in to create an Objective.");
-  }
-
     const result = await commissionFromExistingObjective({
       objectiveId,
       selections,
       resolvedParameterOverrides,
       resolvedCompositionConflicts,
-      actorId: String(req.session.user.id),
-      requestedBy:String(req.session.user.id),
+      actorId: requireActorId(req),
+      requestedBy:requireActorId(req),
     });
     if (!result.ok) {
       return redirects.seu.objectivesCommission.error(req, res, `Commissioning failed at "${result.stage}": ${result.reason}`);
@@ -731,15 +703,11 @@ router.post("/objectives/:id/commission", async (req: Request, res: Response) =>
 router.post("/objectives/:id/comments", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const { comment } = req.body ?? {};
-  if (req.session?.user?.id == null) {
-    return redirects.seu.objectivesComments.error(req, res, "You must be logged in to create an Objective.");
-  }
   try {
-    const { commentBadge } = await getObjectiveViewerContext(req);
-    if (!commentBadge) return redirects.seu.objectivesComments.error(req, res, "You don't hold a badge for this Objective.");
     if (typeof comment !== "string" || !comment.trim()) return redirects.seu.objectivesComments.error(req, res, "Comment text is required.");
 
-    const { error } = await objectivesDB.addComment(objectiveId, String(req.session.user.id), commentBadge, comment.trim());
+    const { actorId, authorBadge } = await resolveActorAndBadge(req);
+    const { error } = await objectivesDB.addComment(objectiveId, { text: comment.trim(), actorId, authorityBadge: authorBadge });
     if (error) throw error;
     return redirects.seu.objectivesComments.success(req, res, "Comment added.");
   } catch (err) {

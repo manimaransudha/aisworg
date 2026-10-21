@@ -23,7 +23,7 @@ export interface ProvenanceEntry {
   reference: string | null;
   participantLabel: string | null;
   certified: boolean;
-  actingBadgeType: string | null;
+  actingBadgeType: string;
   at: string;
 }
 
@@ -108,7 +108,7 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
       reference: ref.reference,
       participantLabel: await participantLabel(ref.participant_id),
       certified: false,
-      actingBadgeType: null,
+      actingBadgeType: ref.author_badge,
       at: ref.created_at,
     });
   }

@@ -10,8 +10,8 @@ import { randomUUID } from "node:crypto";
 
 import pool, { query } from "../src/utils/db.js";
 import { compositionEngine } from "../src/domain/engine/compositionEngine.js";
+import { objectiveInitialState } from "../src/routes/seu/core/objectives.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
-import { triggerEngine } from "../src/domain/engine/triggerEngine.js";
 import { eventBus, dispatch } from "../src/domain/engine/eventBus.js";
 import { HANDLER_REGISTRY } from "../src/domain/engine/eventHandlerRegistry.js";
 
@@ -50,11 +50,11 @@ test("compositionEngine.compose resolves a Template's mandatory Pack plus a Prof
   assert.equal(mandatory.ok, true);
   assert.equal(optional.ok, true);
 
-  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `test-compose-template-${randomUUID()}`, name: "Compose Test Template" });
+  const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `test-compose-template-${randomUUID()}`, name: "Compose Test Template" });
   assert.ok(template);
   await templatesDB.setMandatoryPacks(template!.id, [mandatory.pack!.code], ROOT_ACTOR_ID, "root");
 
-  const { data: profile } = await profilesDB.upsert({ tenantId: PLATFORM_TENANT_ID, code: `test-compose-profile-${randomUUID()}`, name: "Compose Test Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const { data: profile } = await profilesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `test-compose-profile-${randomUUID()}`, name: "Compose Test Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   assert.ok(profile);
   await profilesDB.setOptionalPacks(profile!.id, [optional.pack!.code], profile!.authored_by, "root");
 
@@ -80,15 +80,10 @@ test("transitionEngine.evaluate allows an authorised, policy-satisfied SEU trans
 });
 
 test("transitionEngine.evaluate denies an under-privileged actor", async () => {
-  const outcome = await transitionEngine.evaluate({
-    entityType: "SEU",
-    fromState: "Pending",
-    toState: "Commissioned",
-    actorId: randomUUID(),
-    context: {},
-  });
-  assert.equal(outcome.allowed, false);
-  if (!outcome.allowed) assert.equal(outcome.reason, "authority_denied");
+  await assert.rejects(
+    () => transitionEngine.evaluate({ entityType: "SEU", fromState: "Pending", toState: "Commissioned", actorId: randomUUID(), context: {} }),
+    /does not hold seu_/
+  );
 });
 
 test("transitionEngine.evaluate rejects a transition with no Transition Definition", async () => {
@@ -103,48 +98,25 @@ test("transitionEngine.evaluate rejects a transition with no Transition Definiti
 });
 
 test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phase 1 — Ch.1 lifecycle)", async () => {
-  // CR-072 — Proposed -> Active is a manual transition with a real Submit
-  // step (submit_verb "propose"): transitionEngine now denies it outright
-  // (not_submitted) until that queue event exists for this exact entityId,
-  // real enforcement, not just a UI filter. A synthetic id is enough — the
-  // events table has no FK to a real objectives row.
-  const submittedObjectiveId = randomUUID();
-  await triggerEngine.submit({ entityType: "Objective", entityId: submittedObjectiveId, fromState: "Proposed", actorId: TESTER_ALL_ID, authorityBadge: "objective_submit" });
-
+  const initialState = await objectiveInitialState();
   const allowed = await transitionEngine.evaluate({
     entityType: "Objective",
-    fromState: "Proposed",
+    fromState: initialState,
     toState: "Active",
     actorId: TESTER_ALL_ID,
     context: {},
-    entityId: submittedObjectiveId,
+    entityId: randomUUID(),
   });
   assert.equal(allowed.allowed, true, JSON.stringify(allowed));
 
-  const notSubmitted = await transitionEngine.evaluate({
-    entityType: "Objective",
-    fromState: "Proposed",
-    toState: "Active",
-    actorId: TESTER_ALL_ID,
-    context: {},
-    entityId: randomUUID(), // a different, never-submitted id
-  });
-  assert.equal(notSubmitted.allowed, false);
-  if (!notSubmitted.allowed) assert.equal(notSubmitted.reason, "not_submitted");
-
-  const denied = await transitionEngine.evaluate({
-    entityType: "Objective",
-    fromState: "Proposed",
-    toState: "Active",
-    actorId: randomUUID(),
-    context: {},
-  });
-  assert.equal(denied.allowed, false);
-  if (!denied.allowed) assert.equal(denied.reason, "authority_denied");
+  await assert.rejects(
+    () => transitionEngine.evaluate({ entityType: "Objective", fromState: initialState, toState: "Active", actorId: randomUUID(), context: {} }),
+    /does not hold objective_/
+  );
 
   const undefinedTransition = await transitionEngine.evaluate({
     entityType: "Objective",
-    fromState: "Proposed",
+    fromState: initialState,
     toState: "Retired",
     actorId: TESTER_ALL_ID,
   });

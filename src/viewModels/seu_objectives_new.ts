@@ -1,6 +1,6 @@
 import { createViewModel } from "../utils/viewModel.js";
 
 export const seu_objectives_newVM = createViewModel({
-  required: ["title", "capabilities", "tier"],
+  required: ["title", "capabilities", "tier", "initialState"],
   optional: ["flash", "parent", "statement", "selectedCodes"]
 });

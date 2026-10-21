@@ -90,7 +90,7 @@ Every request runs the same checks in this order. The first failing check stops 
 | 4 | Every Decision related to the Deliverable is Approved or beyond. | `decision_blocked` | none |
 | 5 | No Command for the same hop is in flight. | `already_in_flight` | none |
 | 6 | A Transition Definition exists for the hop and declares a verb. | `no_transition_definition` | none |
-| 7 | Authority. The requester holds `deliverable_<verb>`, or `root`. | `authority_denied` | none |
+| 7 | Authority. The requester holds `deliverable_<verb>`, or `root`. | An error is raised: the actor does not hold the badge. | none |
 | 8 | Quality Gates (section 8). | `quality_gate_blocked` | Attention Item (Action Required). Sustained-block detection |
 | 9 | Policies (section 9). | `policy_blocked` | Obligations declared by the Policy, Attention Items |
 | 10 | Submit step, when the hop defines one. | `not_submitted` | none |
@@ -405,7 +405,7 @@ Handlers react to events in the background. A page may need a reload to show the
 |---|---|---|
 | Deliverable stays Defined | Dependencies not satisfied, an open Obligation, an unapproved Decision, or SEU not Operational | Read the edges on the Deliverables tab and the Obligations and Decisions tabs. |
 | Transition button missing | The hop is not manual, or the user lacks `deliverable_<verb>` | Check the Transition Definition trigger and the user's badges. |
-| `authority_denied` | Missing badge | Grant `deliverable_<verb>`. |
+| Error "does not hold deliverable_<verb>" | Missing badge | Grant `deliverable_<verb>`. |
 | `quality_gate_blocked` | A gate criterion fails | Collect and accept Evidence, close Obligations, complete the Review, or obtain a waiver. |
 | `policy_blocked` | A Policy condition fails | Resolve the Obligations raised by the Policy. |
 | `already_in_flight` | A Command exists for the same hop | Wait for the Command or check that its Work Item has a result. |

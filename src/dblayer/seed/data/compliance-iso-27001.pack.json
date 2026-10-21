@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "iso27001-isms-audit-review",
+        "code": "review-report",
         "name": "ISO 27001 ISMS Certification Readiness Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The ISMS Lead Auditor and CISO attest that SoA, risk treatment, internal audit results, and Annex A controls satisfy ISO 27001:2022 standards.",
         "prompt": "Does the ISMS audit evidence demonstrate full readiness for ISO 27001 certification audit?",
         "participant": "human",
-        "outputContract": "iso27001-isms-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "ISO/IEC 27001:2022 ISMS Control Verification Checklist"
         ]

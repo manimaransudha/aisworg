@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "telecom-media-director-signoff-gate",
+        "code": "mobile-platform-strategy",
         "name": "Telecom & Media Operations Director Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Telecom BSS & Media Operations Director confirms that CDR rating accuracy, subscriber billing, and DRM controls satisfy industry standards.",
         "prompt": "Does the telecom & media documentation confirm rating accuracy and DRM protection?",
         "participant": "human",
-        "outputContract": "telecom-media-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Telecom BSS & Media Publishing Audit Checklist"
         ]

@@ -43,6 +43,10 @@
         <input type="checkbox" class="form-check-input" name="<%= prefix %>[configurable]" <%= w.configurable ? "checked" : "" %>>
         <label class="form-check-label small">Configurable</label>
       </div>
+      <div class="form-check form-check-inline mt-1" title="Left out of the authoring form; set only by the platform">
+        <input type="checkbox" class="form-check-input" name="<%= prefix %>[readOnly]" <%= w.readOnly ? "checked" : "" %>>
+        <label class="form-check-label small">Read only</label>
+      </div>
       <button type="button" class="btn btn-sm btn-outline-danger ms-auto wt-remove"><i class="bi bi-trash"></i></button>
     </div>
 

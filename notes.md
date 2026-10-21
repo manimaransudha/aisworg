@@ -134,3 +134,8 @@ pnpm exec tsx src/dblayer/seed/seedRouteAuthority.ts
 ----------
 
 Keep the responses short, relevant and non-repetitive. I understand English. You do not have to restate it different ways - understood ?
+
+
+The pieces are:
+
+NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts tests/pack-event-lifecycle-table.test.ts tests/pack-sdk.test.ts tests/pack-composition.test.ts tests/template-event-lifecycle-table.test.ts tests/profile-event-lifecycle-table.test.ts tests/transaction.test.ts > output.txt 2>&1

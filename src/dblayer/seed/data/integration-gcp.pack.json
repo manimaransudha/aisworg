@@ -57,14 +57,14 @@
     ],
     "reviewGates": [
       {
-        "code": "gcp-integration-review-gate",
+        "code": "test-environment-specification",
         "name": "GCP Cloud Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The GCP Cloud Architect confirms that Workload Identity and Cloud Monitoring alerts operate properly.",
         "prompt": "Does the GCP integration verify Workload Identity authentication and GKE cluster access?",
         "participant": "human",
-        "outputContract": "gcp-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "GCP Integration Verification Checklist"
         ]

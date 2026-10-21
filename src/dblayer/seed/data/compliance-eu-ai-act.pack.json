@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "eu-ai-ethics-review-gate",
+        "code": "model-card",
         "name": "EU AI Act Compliance Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The AI Officer and Ethics Committee attest that risk management, data governance, and human oversight controls satisfy the EU AI Act.",
         "prompt": "Does the AI governance documentation confirm compliance with the EU AI Act and bias audit requirements?",
         "participant": "human",
-        "outputContract": "eu-ai-act-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "EU AI Act & Algorithmic Ethics Verification Checklist"
         ]

@@ -62,14 +62,14 @@
     ],
     "reviewGates": [
       {
-        "code": "azure-devops-review-gate",
+        "code": "integration-build",
         "name": "Azure DevOps Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The DevOps Engineer confirms that Azure DevOps PAT tokens and Service Hooks satisfy pipeline requirements.",
         "prompt": "Does the Azure DevOps integration verify pipeline triggers and Azure Boards work item synchronization?",
         "participant": "human",
-        "outputContract": "azure-devops-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Azure DevOps Integration Verification Checklist"
         ]

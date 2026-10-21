@@ -61,7 +61,7 @@
         "statement": "The CISO and Head of Risk confirm that ICT risk management, TLPT testing, and third-party contracts comply with DORA & NIS2.",
         "prompt": "Does the operational resilience evidence confirm full compliance with EU DORA and NIS2 regulations?",
         "participant": "human",
-        "outputContract": "dora-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "EU DORA & NIS2 Control Verification Checklist"
         ]

@@ -1,0 +1,41 @@
+{
+  "code": "policy-comment-required",
+  "name": "Comment Required",
+  "description": "A transition that sends an entity back carries a comment that says why. Comments are added and never edited or removed.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "A comment accompanies the transition.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "",
+          "transitions": [
+            "Service|Validated|Defined",
+            "Pack|Validated|Draft",
+            "Template|Validated|Draft",
+            "Profile|Validated|Draft",
+            "Objective|Active|Reject",
+            "Objective|Active|Superseded"
+          ],
+          "governingCondition": {
+            "type": "implemented"
+          }
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Transition Comment",
+        "category": "Validation Evidence",
+        "description": "The comment recorded with the transition.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -90,66 +90,14 @@ export async function inheritedCapabilityDefinitionContent(parentCapabilityDefin
   };
 }
 
-export type TransitionCapabilityDefinitionResult = { ok: true; capabilityDefinition: CapabilityDefinitionRow } | { ok: false; reason: string; detail?: string };
-
-export async function transitionCapabilityDefinition(input: { capabilityDefinitionId: string; targetState: CapabilityDefinitionRow["status"]; actorId: string }): Promise<TransitionCapabilityDefinitionResult> {
-  const { data: capabilityDefinition } = await capabilityDefinitionsDB.findById(input.capabilityDefinitionId);
-  if (!capabilityDefinition) return { ok: false, reason: "not_found" };
-  const fromState = capabilityDefinition.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Capability", fromState, toState: input.targetState, actorId: input.actorId, entityId: capabilityDefinition.id, context: { capabilityDefinition } });
-  if (!gate.allowed) {
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Capability ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-    return { ok: false, reason: gate.reason };
-  }
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
-
-  if (!input.actorId) return { ok: false, reason: "no_actor", detail: "no actorId supplied for this transition" };
-  const { data: transitionMaster } = await participantsMasterDB.findById(input.actorId);
-  if (!transitionMaster) return { ok: false, reason: "no_actor", detail: `No superuser provisioned.` };
-
-  const { data: updated, error } = await capabilityDefinitionsDB.updateStatus(capabilityDefinition.id, input.targetState, gate.authorityBadge, transitionMaster.id);
-  if (error || !updated) throw error ?? new Error("failed to update Capability Definition status");
-
-  await eventBus.publish({
-    eventType: gate.eventType ?? "CapabilityDefinitionTransitioned",
-    originatingObjectType: "CapabilityDefinition",
-    originatingObjectId: updated.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState, code: updated.code },
-    actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
-    versionEvent: gate.versionEvent,
-    fromState,
-    toState: input.targetState,
-    tenantId: updated.tenant_id,
-  });
-  return { ok: true, capabilityDefinition: updated };
-}
-
-const AUTHORING_NEXT_STATE: Partial<Record<CapabilityDefinitionRow["status"], CapabilityDefinitionRow["status"]>> = {
-  Defined: "Published",
-  Published: "Active",
-  Active: "Deprecated",
-  Deprecated: "Retired",
-  Retired: "Archived",
-};
-
-export async function advanceCapabilityDefinitionOneStep(capabilityDefinition: CapabilityDefinitionRow, actorId: string): Promise<TransitionCapabilityDefinitionResult> {
-  const targetState = AUTHORING_NEXT_STATE[capabilityDefinition.status];
-  if (!targetState) return { ok: false, reason: "no_further_step", detail: `Capability Definition is already ${capabilityDefinition.status} — no further authoring step` };
-  return transitionCapabilityDefinition({ capabilityDefinitionId: capabilityDefinition.id, targetState, actorId });
-}
-
-export async function copyCapabilityDefinitionAsNewDraft(capabilityDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyCapabilityDefinitionAsNewDraft(capabilityDefinitionId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await capabilityDefinitionsDB.findById(capabilityDefinitionId);
   if (!source) return { ok: false, errors: ["Capability Definition not found"] };
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Capability");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Capability`] };
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
   if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const birth = await transitionEngine.beginBirth({ entityType: "Capability", actorId });
   const { data: newDraft, error } = await capabilityDefinitionsDB.createDraft({
     code: source.code,
     defaultLabel: source.default_label,
@@ -157,8 +105,9 @@ export async function copyCapabilityDefinitionAsNewDraft(capabilityDefinitionId:
     category: source.category,
     roles: source.roles,
     version: await nextAvailablePatchVersion(source.version, async (candidate) => !!(await capabilityDefinitionsDB.findByCodeAndVersion(source.code, candidate, source.tenant_id)).data),
+    status: birth.initialState as CapabilityDefinitionRow["status"],
     authoredBy: copyMaster.id,
-    authorBadge,
+    authorBadge: birth.authorityBadge,
     draftContent: { code: source.code, defaultLabel: source.default_label, description: source.description ?? "", category: source.category, roles: source.roles },
     tenantId: source.tenant_id,
     parentCapabilityDefinitionId: source.parent_capability_definition_id,
@@ -166,13 +115,14 @@ export async function copyCapabilityDefinitionAsNewDraft(capabilityDefinitionId:
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Capability Definition")).message] };
   await eventBus.publish({
-    eventType: "CapabilityRegistered",
-    originatingObjectType: "CapabilityDefinition",
+    eventType: birth.eventType,
+    originatingObjectType: "Capability",
     originatingObjectId: newDraft.id,
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
     actorId: copyMaster.id,
-    authorityBadge: authorBadge,
+    authorityBadge: birth.authorityBadge,
+    versionEvent: birth.versionEvent,
     payload: { code: newDraft.code, version: newDraft.version },
     tenantId: newDraft.tenant_id,
   });

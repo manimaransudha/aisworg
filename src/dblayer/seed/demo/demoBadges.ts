@@ -1,7 +1,7 @@
 import { participantsMasterDB } from "../../participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../../transitionDefinitionsDB.js";
 import { tenantsDB } from "../../tenantsDB.js";
-import { DEMO_TENANT_NAME } from "../../constants.js";
+import { DEMO_TENANT_NAME, NO_EXPIRY_DATE } from "../../constants.js";
 import { createParticipantMaster } from "../../../routes/seu/core/participantsMaster.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import type { TransitionEntityType } from "../../seuTypes.js";
@@ -40,7 +40,7 @@ export async function grantBadge(participantId: string, badge: string): Promise<
   if (master.authorised_badges.some((b) => b.badge === badge)) return;
   const { error } = await participantsMasterDB.setAuthorisedBadges(participantId, [
     ...master.authorised_badges,
-    { badge, effective_till: "9999-12-31", seu_ids: [] },
+    { badge, effective_till: NO_EXPIRY_DATE, seu_ids: [] },
   ]);
   if (error) throw error;
 }
@@ -80,7 +80,7 @@ export async function grantAllTransitionBadges(participantId: string): Promise<v
   if (missing.size === 0) return;
   const { error: setError } = await participantsMasterDB.setAuthorisedBadges(participantId, [
     ...master.authorised_badges,
-    ...[...missing].map((badge) => ({ badge, effective_till: "9999-12-31", seu_ids: [] as string[] })),
+    ...[...missing].map((badge) => ({ badge, effective_till: NO_EXPIRY_DATE, seu_ids: [] as string[] })),
   ]);
   if (setError) throw setError;
 }

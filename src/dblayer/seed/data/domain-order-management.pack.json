@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "order-operations-signoff-gate",
+        "code": "project-status-report",
         "name": "Order Operations Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Order Operations Manager confirms that credit validation, inventory reservation, and RMA workflows function properly.",
         "prompt": "Does the order management workflow satisfy fulfillment accuracy and credit control rules?",
         "participant": "human",
-        "outputContract": "order-management-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Order Management & Fulfillment Audit Checklist"
         ]

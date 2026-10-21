@@ -11,9 +11,9 @@ import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { listServiceDefinitionsWithNextStates, copyServiceDefinitionAsNewDraft } from "../core/serviceDefinitions.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
 
 const SERVICE_DEFINITION_STATES = ["Defined", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
@@ -36,8 +36,8 @@ router.get("/service-definitions", attachVM("seu/service-definitions/index"), as
     req.vm.opt.states = SERVICE_DEFINITION_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = await getPlatformTenantId();
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-    const canCopy = actorId ? (await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "service_define" })).allowed : false;
+    const held = await resolveHeldBadges(req);
+    const canCopy = held.has("service_define");
     req.vm.opt.canCopy = canCopy;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/service-definitions/index", req.vm);
@@ -48,13 +48,9 @@ router.get("/service-definitions", attachVM("seu/service-definitions/index"), as
 });
 
 router.post("/service-definitions/:id/copy", async (req: Request, res: Response) => {
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-  if (!actorId) return redirects.seu.serviceDefinitionsCopy.error(req, res, "Sign in required.");
-  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "service_define" });
-  if (!auth.allowed) return redirects.seu.serviceDefinitionsCopy.error(req, res, "You don't hold the service_define badge.");
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "service_define");
+  const { actorId } = await resolveActorAndBadge(req);
   try {
-    const result = await copyServiceDefinitionAsNewDraft(String(req.params.id), actorId, authorBadge);
+    const result = await copyServiceDefinitionAsNewDraft(String(req.params.id), actorId);
     if (!result.ok) return redirects.seu.serviceDefinitionsCopy.error(req, res, `Copy failed: ${result.errors.join("; ")}`);
     return redirects.seu.serviceDefinitionsCopy.success(req, res, "Service Definition copied — a new Draft is ready to edit.", `/aisworg/seu/sdk/service-authoring/${result.draftId}`);
   } catch (err) {

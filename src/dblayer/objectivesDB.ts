@@ -1,6 +1,6 @@
 import pool, { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { DbResult, ObjectiveCommentRow, ObjectiveRow, ObjectiveStatus, ObjectiveTier, SponsoringAuthority } from "./seuTypes.js";
+import type { DbResult, ObjectiveRow, ObjectiveStatus, ObjectiveTier, SponsoringAuthority } from "./seuTypes.js";
 
 const BUMP_PATCH_SQL = "split_part(version, '.', 1) || '.' || split_part(version, '.', 2) || '.' || (split_part(version, '.', 3)::int + 1)::text";
 
@@ -8,7 +8,7 @@ export const objectivesDB = {
   async create(input: {
     statement: string;
     tier?: ObjectiveTier;
-    status?: ObjectiveStatus;
+    status: ObjectiveStatus;
     parentObjectiveId?: string | null;
     requestedBy: string;
     authorId: string;
@@ -53,7 +53,7 @@ export const objectivesDB = {
         `INSERT INTO objectives (statement, tier, status, parent_objective_id, requested_by, display_id, sponsoring_authority, author_badge)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [input.statement, input.tier ?? "Engineering", input.status ?? "Active", input.parentObjectiveId ?? null, input.requestedBy, displayId, JSON.stringify(sponsoringAuthority), input.authorBadge]
+        [input.statement, input.tier ?? "Engineering", input.status, input.parentObjectiveId ?? null, input.requestedBy, displayId, JSON.stringify(sponsoringAuthority), input.authorBadge]
       );
       await client.query("COMMIT");
       return { data: rows[0] };
@@ -269,6 +269,16 @@ export const objectivesDB = {
     }
   },
 
+  async setSupersedingObjectiveId(id: string, supersedingObjectiveId: string): Promise<DbResult<ObjectiveRow>> {
+    try {
+      const { rows } = await query<ObjectiveRow>("UPDATE objectives SET superseding_objective_id = $2, updated_at = NOW() WHERE id = $1 RETURNING *", [id, supersedingObjectiveId]);
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[objectivesDB] setSupersedingObjectiveId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async addCapabilities(objectiveId: string, capabilityCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
       for (const code of capabilityCodes) {
@@ -328,30 +338,15 @@ export const objectivesDB = {
     }
   },
 
-  async addComment(objectiveId: string, actorId: string, authorityBadge: string, commentText: string): Promise<DbResult<ObjectiveCommentRow>> {
+  async addComment(id: string, comment: { text: string; actorId: string; authorityBadge: string }): Promise<DbResult<ObjectiveRow>> {
     try {
-      const { rows } = await query<ObjectiveCommentRow>(
-        `INSERT INTO objective_comments (objective_id, actor_id, authority_badge, comment_text)
-         VALUES ($1, $2, $3, $4)
-         RETURNING *`,
-        [objectiveId, actorId, authorityBadge, commentText]
+      const { rows } = await query<ObjectiveRow>(
+        "UPDATE objectives SET comments = comments || $2::jsonb WHERE id = $1 RETURNING *",
+        [id, JSON.stringify([{ ...comment, createdAt: new Date().toISOString() }])]
       );
       return { data: rows[0] };
     } catch (err) {
       logger.error("[objectivesDB] addComment error", err as Error);
-      return { error: err as Error };
-    }
-  },
-
-  async getComments(objectiveId: string): Promise<DbResult<ObjectiveCommentRow[]>> {
-    try {
-      const { rows } = await query<ObjectiveCommentRow>(
-        "SELECT * FROM objective_comments WHERE objective_id = $1 ORDER BY created_at",
-        [objectiveId]
-      );
-      return { data: rows };
-    } catch (err) {
-      logger.error("[objectivesDB] getComments error", err as Error);
       return { error: err as Error };
     }
   },

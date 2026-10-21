@@ -29,7 +29,7 @@ export type DeliverableGovernanceResult =
   | { ok: false; reason: "dependency_not_satisfied"; rows: DependencyDefinitionRow[] }
   | { ok: false; reason: "seu_blocked" | "obligation_blocked" | "decision_blocked"; detail: string }
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
-  | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
+  | { ok: false; reason: "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
   | { ok: false; reason: "empty_centre"; detail: string }
   | { ok: false; reason: "already_in_flight"; detail: string };
 
@@ -102,11 +102,7 @@ export const executionEngine = {
     if (!definition.verb) throw new Error(`Deliverable ${fromState} -> ${targetState} declares no verb — no authority badge can be resolved`);
     const requiredBadge = `deliverable_${definition.verb}`;
     const systemActor = await getSystemActor(deliverable.seu_id);
-    const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId, requiredBadge });
-    if (!auth.allowed) {
-      return { ok: false, reason: "authority_denied", detail: `acting badge check failed: ${auth.reason}` };
-    }
-    const actingBadgeType = auth.via === "root" ? "root" : requiredBadge;
+    const actingBadgeType = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, requiredBadge);
     const { data: authorityRule } = await authorityRulesDB.findByCode(requiredBadge);
     const applicableAuthorityRuleId = authorityRule?.id ?? null;
 
@@ -306,6 +302,19 @@ export const executionEngine = {
       });
     }
 
+    // The hop's own domain event (a Transition Definition names one), then DeliverableTransitioned, which every Deliverable transition publishes.
+    const domainEventType = evaluated.definition.event_type;
+    if (!domainEventType) throw new Error(`Deliverable ${fromState} -> ${toState} names no event`);
+    await eventBus.publish({
+      eventType: domainEventType,
+      originatingObjectType: "Deliverable",
+      originatingObjectId: deliverable.id,
+      seuId: deliverable.seu_id,
+      correlationId: input.correlationId,
+      actorId: systemActor.actorId,
+      authorityBadge: evaluated.authorityBadge,
+      payload: { fromState, toState, commandId: command.id },
+    });
     await eventBus.publish({
       eventType: "DeliverableTransitioned",
       originatingObjectType: "Deliverable",

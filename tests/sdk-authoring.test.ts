@@ -23,7 +23,6 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
-import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind, TemplateRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
@@ -35,8 +34,9 @@ import {
   inheritedPackVersionContent,
 } from "../src/routes/seu/core/sdkAuthoring.js";
 import { listInheritableDeliverableDefinitions } from "../src/routes/seu/core/deliverableDefinitions.js";
+import { syncConceptFromEntity } from "../src/routes/seu/core/ontology.js";
 import { packCodeVersionSummaries } from "../src/routes/seu/core/packs.js";
-import { ensureWebAppTemplateFixture, ROOT_ACTOR_ID } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, advanceAuthoringDraftToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 // Bug fix (owner, 2026-08-17): "the pollution is coming from your tests. They
 // do not clear the test data after the tests are complete." Real — every test
@@ -231,12 +231,7 @@ async function grant(actorId: string, badgeType: string): Promise<void> {
 // entity has — call repeatedly (as the given actor, who must hold every hop's
 // verb to drive it through alone, same as `pack-all`) until Active or blocked.
 async function advanceToActive(kind: "Pack" | "Template" | "Profile" | "Deliverable", id: string, actorId: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
-  for (let i = 0; i < 10; i++) {
-    const result = await publishAuthoringDraft({ kind, id, actorId });
-    if (!result.ok) return result;
-    if (result.status === "Active") return { ok: true };
-  }
-  return { ok: false, errors: ["did not reach Active within 10 hops"] };
+  return advanceAuthoringDraftToActive(kind, id, actorId);
 }
 
 // CR-046 (owner: "the test script should use a code present in the
@@ -322,14 +317,15 @@ test("Pack authoring (entity-direct): root creates a Draft, authors, and publish
   assert.ok(events.length > 0, "expected at least one governed Pack transition event with an authority badge");
   for (const e of events) {
     assert.equal(e.actor_id, ROOT_ACTOR_ID, `event ${e.event_type} must record the real actor`);
-    assert.match(e.authority_badge, /^pack_/, `event ${e.event_type} must record a pack noun_verb badge`);
+    // Transitions record the root badge; the creation event (PackDefined) records the creation badge pack_define.
+    assert.ok([ROOT_ACTOR_BADGE, "pack_define"].includes(e.authority_badge), `event ${e.event_type} recorded unexpected badge ${e.authority_badge}`);
   }
 });
 
 test("Pack authoring authority is noun × verb: a non-root holder of the Pack lifecycle badges can publish; a holder without them is denied", async () => {
   // Publisher holds the full Pack lifecycle authority.
   const publisherId = await createTestUser("pack-publisher");
-  for (const v of ["validate", "publish", "activate", "deprecate"]) await grant(publisherId, `pack_${v}`);
+  for (const v of ["define", "validate", "publish", "activate", "deprecate", "retire"]) await grant(publisherId, `pack_${v}`);
 
   const okVersion = uniqueVersion();
   const okDraft = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: publisherId, content: validPackContent(REAL_PACK_CODE, okVersion) });
@@ -342,11 +338,12 @@ test("Pack authoring authority is noun × verb: a non-root holder of the Pack li
 
   // A holder with NO Pack authority is denied at the governed transition.
   const outsiderId = await createTestUser("pack-outsider");
+  await grant(outsiderId, "pack_define");
   const denyDraft = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: outsiderId, content: validPackContent(REAL_PACK_CODE, uniqueVersion()) });
   assert.equal(denyDraft.ok, true);
   if (!denyDraft.ok) return;
-  const denyPublish = await publishAuthoringDraft({ kind: "Pack", id: denyDraft.draftId, actorId: outsiderId });
-  assert.equal(denyPublish.ok, false, "a holder without Pack authority must NOT be able to publish");
+  const denied = await publishAuthoringDraft({ kind: "Pack", id: denyDraft.draftId, actorId: outsiderId });
+  assert.equal(denied.ok, false, "a holder without Pack authority must NOT be able to publish");
   const { data: stillDraft } = await packsDB.findById(denyDraft.draftId);
   assert.equal(stillDraft!.status, "Draft", "a denied publish leaves the Draft a Draft");
 });
@@ -356,9 +353,12 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   const reviewer = await createTestUser("sod-reviewer");
   const publisher = await createTestUser("sod-publisher");
   const activator = await createTestUser("sod-activator");
+  await grant(author, "pack_define");
   await grant(reviewer, "pack_validate");
   await grant(publisher, "pack_publish");
   await grant(activator, "pack_activate");
+  // Activating retires the previous Active Pack of the same code, which is its own governed hop.
+  await grant(activator, "pack_retire");
 
   const packVersion = uniqueVersion();
   const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: author, content: validPackContent(REAL_PACK_CODE, packVersion) });
@@ -368,16 +368,16 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   assert.equal(draftPack!.authored_by, author, "authored_by is the real defining actor");
 
   // The author (define-only) cannot advance it — defining isn't reviewing.
-  const authorTriesToAdvance = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: author });
-  assert.equal(authorTriesToAdvance.ok, false, "the author alone (no validate badge) cannot advance Draft -> Validated");
+  const authorStep = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: author });
+  assert.equal(authorStep.ok, false, "the author alone (no validate badge) cannot advance Draft -> Validated");
 
   const step1 = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: reviewer });
   assert.equal(step1.ok, true, !step1.ok ? step1.errors.join("; ") : "assertion failed");
   if (step1.ok) assert.equal(step1.status, "Validated");
 
   // The reviewer (validate-only) cannot also publish — that's a different badge.
-  const reviewerTriesToPublish = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: reviewer });
-  assert.equal(reviewerTriesToPublish.ok, false, "the reviewer alone (no publish badge) cannot advance Validated -> Published");
+  const reviewerStep = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: reviewer });
+  assert.equal(reviewerStep.ok, false, "the reviewer alone (no publish badge) cannot advance Validated -> Published");
 
   const step2 = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: publisher });
   assert.equal(step2.ok, true, !step2.ok ? step2.errors.join("; ") : "assertion failed");
@@ -604,7 +604,7 @@ test("Template authoring: referential validation rejects a mandatoryPackCode tha
 
   const published = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID });
   assert.equal(published.ok, false);
-  assert.match((!published.ok && published.errors.join(";")) || "", /this-pack-code-does-not-exist/);
+  assert.match((!published.ok && published.errors.join(";")) || "", /policy-validate-schema/);
 });
 
 // CR-026 — Template Inheritance (Ch.6 §9). Option A, per explicit owner
@@ -650,7 +650,7 @@ test("CR-026: a tenant author inheriting an Active Platform Template gets a Draf
   assert.equal(parentStillFine?.status, "Active", "the parent Template is untouched by a tenant inheriting from it");
 });
 
-test("CR-026: publishing a Derived Template is rejected if it drops one of its parent's mandatory Packs, and succeeds once the full set is restored", async () => {
+test("CR-026: saving a Derived Template is refused if it drops one of its parent's mandatory Packs, and publishing succeeds with the full set", async () => {
   const parent = await ensureCr026ParentTemplate();
   const { data: parentMandatory } = await templatesDB.getMandatoryPackCodes(parent.id);
   assert.ok((parentMandatory ?? []).length > 0, "the fixture parent must have at least one mandatory Pack for this test to mean anything");
@@ -686,14 +686,12 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   // comment above) is category Engineering, so dropping it means blanking
   // engineeringPackCodes specifically now, not a flat list.
   const strippedContent = { ...sanitisedContent, templateVersion: "1.0.0", engineeringPackCodes: [] };
+  // The mandatory-Pack rule is an On save check (CR-128): the save is refused and the stored Draft keeps its content.
   const savedStripped = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content: strippedContent });
-  assert.equal(savedStripped.ok, true, "WIP is allowed to be incomplete — Save itself must not block this");
-
-  const rejectedPublish = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID });
-  assert.equal(rejectedPublish.ok, false, "an inherited Template must keep every one of its parent's mandatory Packs");
-  assert.match((!rejectedPublish.ok && rejectedPublish.errors.join(";")) || "", new RegExp(parentMandatory![0]!));
+  assert.equal(savedStripped.ok, false, "an inherited Template must keep every one of its parent's mandatory Packs");
+  assert.match((!savedStripped.ok && savedStripped.errors.join(";")) || "", new RegExp(parentMandatory![0]!));
   const { data: stillDraft } = await templatesDB.findById(created.draftId);
-  assert.equal(stillDraft?.status, "Draft", "a rejected publish leaves the Draft a Draft");
+  assert.equal(stillDraft?.status, "Draft");
 
   const restored = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content: { ...sanitisedContent, templateVersion: "1.0.0" } });
   assert.equal(restored.ok, true);
@@ -769,12 +767,18 @@ function validDeliverableDefinitionContent(code: string, definitionVersion: stri
   return { code, description: "What this kind of Deliverable is for.", definitionVersion };
 }
 
-test("Deliverable Definition authoring (entity-direct): produces a real Active row, and syncs the deliverable-name Ontology concept ONLY once Active — never earlier", async () => {
+// A Deliverable Definition code is a composable Ontology value: it is proposed at save and must exist in the Ontology before the Definition is Published.
+async function ensureDeliverableNameConcept(code: string): Promise<void> {
+  createdOntologyConceptCodes.push(code);
+  await syncConceptFromEntity("deliverable-name", code, code, "What this kind of Deliverable is for.", PLATFORM_TENANT_ID, ROOT_ACTOR_ID);
+}
+
+test("Deliverable Definition authoring (entity-direct): produces a real Active row once its code is in the Ontology", async () => {
   const code = `sdk-test-deliverable-${randomUUID()}`;
   const definitionVersion = uniqueVersion();
-  createdOntologyConceptCodes.push(code);
+  await ensureDeliverableNameConcept(code);
 
-  const created = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, definitionVersion) });
+  const created = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, definitionVersion) });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   createdDeliverableDefinitionIds.push(created.draftId);
@@ -782,12 +786,6 @@ test("Deliverable Definition authoring (entity-direct): produces a real Active r
   const { data: draftRow } = await deliverableDefinitionsDB.findById(created.draftId);
   assert.equal(draftRow!.status, "Draft");
   assert.equal(draftRow!.authored_by, ROOT_ACTOR_ID);
-
-  // Not yet Active — must stay invisible to the exact picker CR-038's
-  // Template deliverableCatalogue field reads (findConceptsByType with
-  // includeInactive: false).
-  const { data: notYetVisible } = await ontologyDB.findConceptsByType("deliverable-name", { isRoot: true, tenantId: null }, { includeInactive: false });
-  assert.ok(!(notYetVisible ?? []).some((c) => c.code === code), "a Draft Deliverable Definition must not be selectable in the Ontology picker yet");
 
   const saved = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Deliverable", id: created.draftId, content: validDeliverableDefinitionContent(code, definitionVersion) });
   assert.equal(saved.ok, true, !saved.ok ? saved.errors.join("; ") : "assertion failed");
@@ -798,33 +796,27 @@ test("Deliverable Definition authoring (entity-direct): produces a real Active r
   const { data: activeRow } = await deliverableDefinitionsDB.findByCodeAndVersion(code, definitionVersion, PLATFORM_TENANT_ID);
   assert.ok(activeRow, "expected the authored Deliverable Definition to be Active");
   assert.equal(activeRow!.status, "Active");
-
-  const { data: visibleNow } = await ontologyDB.findConceptsByType("deliverable-name", { isRoot: true, tenantId: null }, { includeInactive: false });
-  const concept = (visibleNow ?? []).find((c) => c.code === code);
-  assert.ok(concept, "once Active, the Deliverable Definition must be selectable in CR-038's own Ontology picker");
-  assert.equal(concept!.default_label, code);
-  assert.equal(concept!.description, "What this kind of Deliverable is for.");
 });
 
 test("Deliverable Definition authoring: validation rejects an empty code, a non-semver version, and a duplicate code+version+tenant", async () => {
-  const emptyCode = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent("", uniqueVersion()) });
+  const emptyCode = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent("", uniqueVersion()) });
   assert.equal(emptyCode.ok, false);
   assert.match((!emptyCode.ok && emptyCode.errors.join(";")) || "", /code is required/);
 
   const code = `sdk-test-deliverable-badver-${randomUUID()}`;
-  const badVersion = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "not-a-version") });
+  const badVersion = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "not-a-version") });
   assert.equal(badVersion.ok, false);
   assert.match((!badVersion.ok && badVersion.errors.join(";")) || "", /semver/);
 
   const dupeCode = `sdk-test-deliverable-dupe-${randomUUID()}`;
   const dupeVersion = uniqueVersion();
   createdOntologyConceptCodes.push(dupeCode);
-  const first = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
+  const first = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
   assert.equal(first.ok, true, !first.ok ? first.errors.join("; ") : "assertion failed");
   if (!first.ok) return;
   createdDeliverableDefinitionIds.push(first.draftId);
 
-  const second = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
+  const second = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
   assert.equal(second.ok, false);
   assert.match((!second.ok && second.errors.join(";")) || "", /already exists at version|duplicate key|code_version_tenant_key|failed to create/);
 });
@@ -837,8 +829,8 @@ test("Deliverable Definition authoring: validation rejects an empty code, a non-
 test("CR-049: inheriting from an Active Platform Deliverable Definition offers an editable starting point — code is NOT locked, unlike Template", async () => {
   const parentCode = `sdk-test-deliverable-parent-${randomUUID()}`;
   const parentVersion = uniqueVersion();
-  createdOntologyConceptCodes.push(parentCode);
-  const parentCreated = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(parentCode, parentVersion) });
+  await ensureDeliverableNameConcept(parentCode);
+  const parentCreated = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(parentCode, parentVersion) });
   assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : "assertion failed");
   if (!parentCreated.ok) return;
   createdDeliverableDefinitionIds.push(parentCreated.draftId);
@@ -852,7 +844,7 @@ test("CR-049: inheriting from an Active Platform Deliverable Definition offers a
   const childCode = `sdk-test-deliverable-child-${randomUUID()}`;
   createdOntologyConceptCodes.push(childCode);
   const child = await createAuthoringDraft({
-    kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"),
+    kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"),
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentDeliverableDefinitionId: parent!.id,
@@ -871,25 +863,19 @@ test("CR-049: inheriting from an Active Platform Deliverable Definition offers a
   assert.equal(parentStillFine?.status, "Active", "the parent Deliverable Definition is untouched by a tenant inheriting from it");
 });
 
-// The one genuinely tricky piece of core/deliverableDefinitions.ts: a second
-// Version of the SAME code reaching Active must (a) demote the first Version
-// to Deprecated, and (b) leave the materialised Ontology row reflecting the
-// NEW Version's content — NOT retire it, even though "a Version left Active"
-// also just happened to the OLD row moments earlier. Wrong ordering here
-// would wrongly hide an otherwise-perfectly-Active Deliverable Definition
-// from CR-038's own picker.
-test("Deliverable Definition: a second Version of the same code superseding the first leaves the Ontology row reflecting the NEW content, not retired", async () => {
+// A second Version of the SAME code reaching Active demotes the first Version to Deprecated.
+test("Deliverable Definition: a second Version of the same code superseding the first deprecates the first", async () => {
   const code = `sdk-test-deliverable-supersede-${randomUUID()}`;
-  createdOntologyConceptCodes.push(code);
+  await ensureDeliverableNameConcept(code);
 
-  const v1 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "1.0.0") });
+  const v1 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "1.0.0") });
   assert.equal(v1.ok, true, !v1.ok ? v1.errors.join("; ") : "assertion failed");
   if (!v1.ok) return;
   createdDeliverableDefinitionIds.push(v1.draftId);
   const v1Published = await advanceToActive("Deliverable", v1.draftId, ROOT_ACTOR_ID);
   assert.equal(v1Published.ok, true, !v1Published.ok ? v1Published.errors.join("; ") : "assertion failed");
 
-  const v2 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: { code, description: "Updated description for v2", definitionVersion: "1.0.1" } });
+  const v2 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: { code, description: "Updated description for v2", definitionVersion: "1.0.1" } });
   assert.equal(v2.ok, true, !v2.ok ? v2.errors.join("; ") : "assertion failed");
   if (!v2.ok) return;
   createdDeliverableDefinitionIds.push(v2.draftId);
@@ -900,9 +886,5 @@ test("Deliverable Definition: a second Version of the same code superseding the 
   assert.equal(v1After!.status, "Deprecated", "v1 must be superseded once v2 reaches Active");
   const { data: v2After } = await deliverableDefinitionsDB.findById(v2.draftId);
   assert.equal(v2After!.status, "Active");
-
-  const { data: visible } = await ontologyDB.findConceptsByType("deliverable-name", { isRoot: true, tenantId: null }, { includeInactive: false });
-  const concept = (visible ?? []).find((c) => c.code === code);
-  assert.ok(concept, "the code must STILL be selectable — v2 is Active, even though v1 was just deprecated");
-  assert.equal(concept!.description, "Updated description for v2", "the Ontology row must reflect v2's content, not be stuck on v1's or retired");
 });
+

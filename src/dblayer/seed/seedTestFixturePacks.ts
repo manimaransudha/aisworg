@@ -3,7 +3,7 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import pool from "../../utils/db.js";
+import pool, { query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js";
 import { userDB } from "../userDB.js";
@@ -114,9 +114,26 @@ async function publishBatch(files: string[], actorId: string, serviceDefinitionI
   );
 }
 
+// A failed earlier run leaves a fixture Pack part-way through its lifecycle, with the content it was created with. Those rows
+// are removed with everything that names them, so the Pack is published again from the current JSON. Active Packs and the
+// Packs other tests create are left alone.
+async function purgeUnfinishedFixturePacks(): Promise<void> {
+  const codes = TEST_FIXTURE_PACK_FILES.map((file) => loadJson<PackSeedInput>(file).code);
+  const { rows: packs } = await query<{ id: string }>("SELECT id FROM packs WHERE code = ANY($1::text[]) AND status IN ('Draft', 'Validated', 'Published')", [codes]);
+  if (packs.length === 0) return;
+  const ids = packs.map((p) => p.id);
+  const { rows: owned } = await query<{ table_name: string; column_name: string }>(
+    "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name IN ('originating_pack_id', 'pack_id') AND table_name <> 'packs'"
+  );
+  for (const { table_name, column_name } of owned) await query(`DELETE FROM "${table_name}" WHERE "${column_name}" = ANY($1::uuid[])`, [ids]);
+  await query("DELETE FROM packs WHERE id = ANY($1::uuid[])", [ids]);
+  logger.info(`[seed:test-fixture-packs] removed ${ids.length} unfinished fixture Pack(s) from an earlier run.`);
+}
+
 export async function seedAllTestFixturePacks(): Promise<void> {
   const { actorId, actorBadge } = await userDB.getSuperuserId();
   await seedTestOntology({ authoredBy: actorId, authorBadge: actorBadge });
+  await purgeUnfinishedFixturePacks();
   const serviceDefinitionIdByCode = await loadServiceDefinitionIdByCode(await getPlatformTenantId());
   const independentResults = await publishBatch(INDEPENDENT_TEST_FIXTURE_PACK_FILES, actorId, serviceDefinitionIdByCode);
   const independentFailures = independentResults.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);

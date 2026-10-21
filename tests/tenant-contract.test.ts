@@ -17,9 +17,9 @@ import type { AddressInfo } from "node:net";
 import pool from "../src/utils/db.js";
 import { commissionSeu } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
+import { fulfilCapabilityAsRoot as fulfilCapability, transitionObjective } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
-import { createObjective, submitObjective, transitionObjective } from "../src/routes/seu/core/objectives.js";
+import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
@@ -98,9 +98,8 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
   assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
-  const { objective: tcRoot } = await createObjective({ statement: `tenant-contract-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: tcRoot.id, requestedBy: TESTER_ALL_ID, status: "Proposed" });
-  await submitObjective(objective.id, TESTER_ALL_ID);
+  const { objective: tcRoot } = await createObjective({ statement: `tenant-contract-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
+  const { objective } = await createObjective({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: tcRoot.id, requestedBy: TESTER_ALL_ID, });
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 

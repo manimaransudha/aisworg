@@ -26,7 +26,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective } from "./testFixtures.js";
 import type { SeuRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
@@ -68,7 +68,7 @@ async function commissionBlockedSeu(run: string) {
   // rely on a since-removed generic fallback.
   await ensurePolicyDefinitionWithObligation({ code: policyCode, name: `CR-107 commence-work policy ${run}`, category: "Compliance", title: `CR-107 commence-work blocker ${run}` });
 
-  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
+  const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,
     code: `cr107-tpl-${run}`, name: "CR-107 Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
@@ -76,8 +76,8 @@ async function commissionBlockedSeu(run: string) {
   await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `cr107-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `cr107-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
+  const { objective: root } = await createObjective({ statement: `cr107-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
+  const { objective } = await createActiveObjective({ statement: `cr107-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
       code: `cr107-profile-${run}`,

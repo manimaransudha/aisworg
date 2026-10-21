@@ -2,7 +2,7 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validatePackWriteAgainstSchema } from "../routes/seu/core/packWriteValidator.js";
-import type { DbResult, PackCategory, PackClassification, PackCommentRow, PackContributions, PackRow, PackStatus } from "./seuTypes.js";
+import type { DbResult, PackCategory, PackClassification, PackContributions, PackRow, PackStatus } from "./seuTypes.js";
 import { getPlatformTenantId } from "./constants.js";
  
 export const packsDB = {
@@ -16,6 +16,7 @@ export const packsDB = {
     dependencies?: Array<{ packCode: string; version: string; type: "required" | "optional" | "conditional" | "incompatible" }>;
     compositionSources?: Array<{ packCode: string }>;
     metadata?: Record<string, unknown>;
+    status: PackStatus;
     authoredBy: string;
     authorBadge: string;
     tenantId: string;
@@ -42,7 +43,7 @@ export const packsDB = {
 
       const { rows } = await query<PackRow>(
         `INSERT INTO packs (code, name, category, pack_version, status, installation_classification, contributions, dependencies, composition_sources, metadata, authored_by, author_badge, tenant_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         VALUES ($1, $2, $3, $4, $14, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING *`,
         [
           input.code,
@@ -58,6 +59,7 @@ export const packsDB = {
           input.authorBadge,
           input.tenantId,
           schemaRow?.id ?? null,
+          input.status,
         ]
       );
       return { data: rows[0] };
@@ -119,30 +121,6 @@ export const packsDB = {
       return { data: rows[0] };
     } catch (err) {
       logger.error("[packsDB] updateDraftContent error", err as Error);
-      return { error: err as Error };
-    }
-  },
-
-  async findByStatusActedBy(status: PackStatus, authorityBadge: string, actorId: string | null): Promise<DbResult<PackRow[]>> {
-    try {
-      const { rows } = actorId == null
-        ? await query<PackRow>(
-            `SELECT DISTINCT p.* FROM packs p
-             JOIN events e ON e.originating_object_type = 'Pack' AND e.originating_object_id = p.id
-             WHERE p.status = $1 AND e.authority_badge = $2
-             ORDER BY p.created_at DESC`,
-            [status, authorityBadge]
-          )
-        : await query<PackRow>(
-            `SELECT DISTINCT p.* FROM packs p
-             JOIN events e ON e.originating_object_type = 'Pack' AND e.originating_object_id = p.id
-             WHERE p.status = $1 AND e.authority_badge = $2 AND e.actor_id = $3
-             ORDER BY p.created_at DESC`,
-            [status, authorityBadge, String(actorId)]
-          );
-      return { data: rows };
-    } catch (err) {
-      logger.error("[packsDB] findByStatusActedBy error", err as Error);
       return { error: err as Error };
     }
   },
@@ -345,30 +323,15 @@ export const packsDB = {
     }
   },
 
-  async addComment(packId: string, actorId: string, authorityBadge: string, commentText: string): Promise<DbResult<PackCommentRow>> {
+  async addComment(id: string, comment: { text: string; actorId: string; authorityBadge: string }): Promise<DbResult<PackRow>> {
     try {
-      const { rows } = await query<PackCommentRow>(
-        `INSERT INTO pack_comments (pack_id, actor_id, authority_badge, comment_text)
-         VALUES ($1, $2, $3, $4)
-         RETURNING *`,
-        [packId, actorId, authorityBadge, commentText]
+      const { rows } = await query<PackRow>(
+        "UPDATE packs SET comments = comments || $2::jsonb WHERE id = $1 RETURNING *",
+        [id, JSON.stringify([{ ...comment, createdAt: new Date().toISOString() }])]
       );
       return { data: rows[0] };
     } catch (err) {
       logger.error("[packsDB] addComment error", err as Error);
-      return { error: err as Error };
-    }
-  },
-
-  async getComments(packId: string): Promise<DbResult<PackCommentRow[]>> {
-    try {
-      const { rows } = await query<PackCommentRow>(
-        "SELECT * FROM pack_comments WHERE pack_id = $1 ORDER BY created_at",
-        [packId]
-      );
-      return { data: rows };
-    } catch (err) {
-      logger.error("[packsDB] getComments error", err as Error);
       return { error: err as Error };
     }
   },

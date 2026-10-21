@@ -1,6 +1,6 @@
 import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "./constants.js";
+import { getPlatformTenantId, PLATFORM_TENANT_NAME, INITIAL_VERSION } from "./constants.js";
 import { userDB } from "./userDB.js";
 import type { DbResult, OntologyConceptRow, OntologyConceptCommentRow, TenantConceptAliasRow } from "./seuTypes.js";
 import { tenantsDB } from "./tenantsDB.js"
@@ -212,7 +212,7 @@ export const ontologyDB = {
         ["concept_type", "code", "default_label", "description", "tenant_id", "is_mandatory", "text_type", "ui_grouping", "contributed_by_pack", "version", "status", "composition_strategy", "composition_sources", "author_id", "author_badge"],
         rows.map((r) => [
           r.conceptType, r.code, r.defaultLabel, r.description, r.tenantId, r.isMandatory, r.textType, r.uiGrouping,
-          r.contributedByPack ?? null, r.version ?? "1.0.0", r.status ?? "Active", r.compositionStrategy ?? null, JSON.stringify(r.compositionSources ?? []), r.authorId, r.authorBadge,
+          r.contributedByPack ?? null, r.version ?? INITIAL_VERSION, r.status ?? "Active", r.compositionStrategy ?? null, JSON.stringify(r.compositionSources ?? []), r.authorId, r.authorBadge,
         ]),
         {
           onConflict: `ON CONFLICT (concept_type, code, tenant_id, version) DO UPDATE SET

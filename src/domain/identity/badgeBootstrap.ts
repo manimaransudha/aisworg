@@ -2,7 +2,7 @@ import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
 import { ontologyDB } from "../../dblayer/ontologyDB.js";
 import { badgeAuthorityEngine } from "../engine/badgeAuthorityEngine.js";
 import { logger } from "../../utils/logger.js";
-import { getPlatformTenantId  } from "../../dblayer/constants.js";
+import { getPlatformTenantId, NO_EXPIRY_DATE } from "../../dblayer/constants.js";
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
 
@@ -48,7 +48,7 @@ export async function ensureBadgeBootstrap(user: { id: string | string; email: s
     }
 
     if (master.authorised_badges.some((b) => b.badge === "root")) return;
-    const { error } = await participantsMasterDB.setAuthorisedBadges(master.id, [...master.authorised_badges, { badge: "root", effective_till: "9999-12-31", seu_ids: [] }]);
+    const { error } = await participantsMasterDB.setAuthorisedBadges(master.id, [...master.authorised_badges, { badge: "root", effective_till: NO_EXPIRY_DATE, seu_ids: [] }]);
     if (error) {
       logger.error(`[badgeBootstrap] root grant failed for ${user.email}: ${error.message}`);
     } else {

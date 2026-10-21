@@ -2,6 +2,7 @@ import { ontologyDB } from "../../dblayer/ontologyDB.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
 import type { EventRow } from "../../dblayer/seuTypes.js";
+import { INITIAL_VERSION } from "../../dblayer/constants.js";
 
 interface ConceptCreatedPayload {
   code: string;
@@ -25,7 +26,7 @@ export const conceptCreatedHandler: EventHandler = async (event: EventRow) => {
   if (existing) return;
 
   const { error } = await ontologyDB.insertConceptVersion({
-    conceptType, code, tenantId, version: "1.0.0", defaultLabel: code, status: "Draft",
+    conceptType, code, tenantId, version: INITIAL_VERSION, defaultLabel: code, status: "Draft",
     authorId: event.actor_id, authorBadge: event.authority_badge,
   });
   if (error) logger.error(`[conceptCreated] failed to insert Draft concept ${conceptType}/${code} (tenant ${tenantId})`, error);

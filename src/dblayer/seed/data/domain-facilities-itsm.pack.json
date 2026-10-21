@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "vp-it-operations-signoff-gate",
+        "code": "disaster-recovery-plan",
         "name": "VP of IT & Facilities Operations Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The VP of IT & Facilities Operations confirms that facilities maintenance, fleet tracking, and ITIL CAB change controls satisfy operational benchmarks.",
         "prompt": "Does the documentation confirm ITIL change control compliance and facilities SLA performance?",
         "participant": "human",
-        "outputContract": "facilities-itsm-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Facilities, Fleet & ITSM Audit Checklist"
         ]

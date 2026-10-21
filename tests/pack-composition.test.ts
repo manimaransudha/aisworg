@@ -76,7 +76,7 @@ test("composeAuthoringDraft — specialization pre-fills a new Draft from an Act
   const draft = await createPackDraft({
     code: childCode, name: "Child Draft (before compose)", category: "Engineering", packVersion: childVersion, installationClassification: "Optional",
     contributions: {}, compositionStrategy: "specialization", compositionSources: [{ packCode: parentCode }], tenantId: PLATFORM_TENANT_ID,
-  }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  }, ROOT_ACTOR_ID);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
@@ -117,7 +117,7 @@ test("composeAuthoringDraft — union combines two distinct Active Packs' fields
   const draft = await createPackDraft({
     code: childCode, name: "Union Draft", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: {}, compositionStrategy: "union", compositionSources: [{ packCode: codeA }, { packCode: codeB }], tenantId: PLATFORM_TENANT_ID,
-  }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  }, ROOT_ACTOR_ID);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
@@ -164,7 +164,7 @@ test("composeAuthoringDraft — merge with a code entered twice self-merges clea
   const draft = await createPackDraft({
     code: childCode, name: "Merge Draft", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: {}, compositionStrategy: "merge", compositionSources: [{ packCode: sharedCode }, { packCode: sharedCode }], tenantId: PLATFORM_TENANT_ID,
-  }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  }, ROOT_ACTOR_ID);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
@@ -200,7 +200,7 @@ test("composeAuthoringDraft — intersection keeps only unanimous fields, drops 
   const draft = await createPackDraft({
     code: childCode, name: "Intersection Draft", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: {}, compositionStrategy: "intersection", compositionSources: [{ packCode: codeA }, { packCode: codeB }], tenantId: PLATFORM_TENANT_ID,
-  }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  }, ROOT_ACTOR_ID);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
@@ -240,7 +240,7 @@ test("composeAuthoringDraft — supplement adds only what the base lacks, reject
   const draft = await createPackDraft({
     code: childCode, name: "Supplement Draft", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: {}, compositionStrategy: "supplement", compositionSources: [{ packCode: baseCode }, { packCode: extraCode }], tenantId: PLATFORM_TENANT_ID,
-  }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  }, ROOT_ACTOR_ID);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
@@ -272,7 +272,7 @@ test("composeAuthoringDraft — override points the author at the existing versi
   const draft = await createPackDraft({
     code: draftCode, name: "Override Draft", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: {}, compositionStrategy: "override", tenantId: PLATFORM_TENANT_ID,
-  }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  }, ROOT_ACTOR_ID);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 

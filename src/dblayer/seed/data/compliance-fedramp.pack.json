@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "fedramp-3pao-authorization-gate",
+        "code": "security-assessment-report",
         "name": "FedRAMP 3PAO Authorization Readiness Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Federal CISO and 3PAO Lead Assessor attest that SSP, FIPS 140-3 cryptography, and ConMon packages satisfy FedRAMP ATO requirements.",
         "prompt": "Does the 3PAO Security Assessment Report confirm readiness for FedRAMP Agency or JAB ATO?",
         "participant": "human",
-        "outputContract": "fedramp-ato-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "FedRAMP Security Controls & ConMon Verification Checklist"
         ]

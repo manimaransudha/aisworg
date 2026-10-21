@@ -4,7 +4,10 @@ import type { SchemaDefinitionEntityKind, SchemaDefinitionRow } from "../../../d
 import { diffSchemaVersions, type SchemaDifference } from "../../../domain/sdk/schemaCompiler.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { BIRTH_STATE } from "../../../dblayer/constants.js";
 
 async function resolveAuthorParticipantId(actorId: string): Promise<string> {
   const { data: master } = await participantsMasterDB.findById(actorId);
@@ -77,36 +80,19 @@ export async function reviewSchemaVersion(input: { entityKind: string; schemaJso
   return { ok: true, entityKind: validated.kind, schemaJson: input.schemaJson, report };
 }
 
-async function autoAdvanceToPackaged(schema: SchemaDefinitionRow, actorId: string): Promise<SchemaDefinitionRow> {
-  const hops: Array<["Created", "Validated"] | ["Validated", "Tested"] | ["Tested", "Packaged"]> = [
-    ["Created", "Validated"],
-    ["Validated", "Tested"],
-    ["Tested", "Packaged"],
-  ];
+// Follows the governed next transition of the row's state until none remains. The hop order is the data.
+async function autoAdvanceGoverned(schema: SchemaDefinitionRow, actorId: string): Promise<SchemaDefinitionRow> {
   let current = schema;
-  for (const [from, to] of hops) {
-    const gate = await transitionEngine.evaluate({ entityType: "SchemaDefinition", fromState: from, toState: to, actorId, entityId: current.id });
-    if (!gate.allowed) throw new Error(`cannot advance ${current.entity_kind} schema v${current.version} from ${from} to ${to}`);
-    if (!gate.authorityBadge) throw new Error(`no authority badge resolved for SchemaDefinition ${from} -> ${to} — the Transition Definition declares no verb`);
-    const { data: updated, error } = await schemaDefinitionsDB.advanceLifecycle(current.id, to, gate.authorityBadge, actorId);
-    if (error || !updated) throw error ?? new Error(`failed to advance schema ${current.id} to ${to}`);
-    current = updated;
-    await eventBus.publish({
-      eventType: gate.eventType ?? `SchemaDefinition${to}`,
-      originatingObjectType: "SchemaDefinition",
-      originatingObjectId: current.id,
-      seuId: null,
-      correlationId: eventBus.newCorrelationId(),
-      payload: { entityKind: current.entity_kind, version: current.version, fromState: from, toState: to },
-      actorId,
-      authorityBadge: gate.authorityBadge,
-      versionEvent: gate.versionEvent,
-      fromState: from,
-      toState: to,
-      tenantId: null,
-    });
+  for (;;) {
+    const { data: next, error } = await transitionDefinitionsDB.findPossibleNextTransitions("SchemaDefinition", current.lifecycle_state);
+    if (error) throw error;
+    const governed = (next ?? []).filter((t) => t.trigger === "governed");
+    if (governed.length === 0) return current;
+    if (governed.length > 1) throw new Error(`SchemaDefinition state ${current.lifecycle_state} has ${governed.length} governed next transitions: ${governed.map((t) => t.toState).join(", ")}`);
+    const result = await transitionEntity({ entityType: "SchemaDefinition", entityId: current.id, targetState: governed[0].toState, actorId });
+    if (!result.ok) throw new Error(`cannot advance ${current.entity_kind} schema v${current.version} from ${current.lifecycle_state} to ${governed[0].toState}: ${"detail" in result ? result.detail : result.reason}`);
+    current = result.row as SchemaDefinitionRow;
   }
-  return current;
 }
 
 export async function createSchemaVersion(input: { entityKind: string; schemaJson: string; actorId: string }): Promise<CreateSchemaVersionResult> {
@@ -120,10 +106,35 @@ export async function createSchemaVersion(input: { entityKind: string; schemaJso
   const incompatibleVersions = report.filter((e) => !e.compatible).map((e) => e.version);
 
   const authorId = await resolveAuthorParticipantId(input.actorId);
-  const { data: created, error } = await schemaDefinitionsDB.create({ entityKind: kind, version: nextVersion, schema: parsed as Record<string, unknown>, compatibleVersions, incompatibleVersions, authorId, authorBadge: "root" });
+  const birth = await transitionEngine.beginBirth({ entityType: "SchemaDefinition", actorId: input.actorId });
+  const { data: created, error } = await schemaDefinitionsDB.create({
+    entityKind: kind,
+    version: nextVersion,
+    schema: parsed as Record<string, unknown>,
+    compatibleVersions,
+    incompatibleVersions,
+    lifecycleState: birth.initialState as SchemaDefinitionRow["lifecycle_state"],
+    authorId,
+    authorBadge: birth.authorityBadge,
+  });
   if (error || !created) return { ok: false, errors: [(error ?? new Error("failed to create schema version")).message] };
 
-  const schema = await autoAdvanceToPackaged(created, input.actorId);
+  await eventBus.publish({
+    eventType: birth.eventType,
+    originatingObjectType: "SchemaDefinition",
+    originatingObjectId: created.id,
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    payload: { entityKind: created.entity_kind, version: created.version },
+    actorId: input.actorId,
+    authorityBadge: birth.authorityBadge,
+    versionEvent: birth.versionEvent,
+    fromState: BIRTH_STATE,
+    toState: birth.initialState,
+    tenantId: null,
+  });
+
+  const schema = await autoAdvanceGoverned(created, input.actorId);
   return { ok: true, schema };
 }
 
@@ -137,7 +148,6 @@ async function transitionPackagedSchema(id: string, toState: "Published" | "Publ
   if (!actorId) return { ok: false, error: "actorId is required to publish/reject a Schema Definition" };
   const gate = await transitionEngine.evaluate({ entityType: "SchemaDefinition", fromState: "Packaged", toState, actorId, entityId: id });
   if (!gate.allowed) {
-    if (gate.reason === "authority_denied") return { ok: false, error: `requires badge ${gate.authorityRuleCode}` };
     return { ok: false, error: gate.reason };
   }
   if (!gate.authorityBadge) return { ok: false, error: `no authority badge resolved for SchemaDefinition Packaged -> ${toState}` };

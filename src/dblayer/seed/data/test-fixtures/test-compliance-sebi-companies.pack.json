@@ -57,7 +57,7 @@
         "statement": "The Company Secretary (CS) confirms that SDD logs, SEBI LODR filings, and Companies Act statutory records satisfy regulatory requirements.",
         "prompt": "Does the secretarial audit evidence confirm full compliance with SEBI and Companies Act 2013 regulations?",
         "participant": "human",
-        "outputContract": "sebi-cs-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "India Companies Act & SEBI Statutory Audit Checklist"
         ]

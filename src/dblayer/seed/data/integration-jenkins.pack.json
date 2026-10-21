@@ -52,14 +52,14 @@
     ],
     "reviewGates": [
       {
-        "code": "jenkins-integration-review-gate",
+        "code": "build-artefact",
         "name": "Jenkins Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The DevOps Engineer confirms that Jenkins API tokens, webhook triggers, and agent nodes operate cleanly.",
         "prompt": "Does the Jenkins integration verification confirm pipeline execution and build status notification?",
         "participant": "human",
-        "outputContract": "jenkins-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Jenkins Integration Verification Checklist"
         ]

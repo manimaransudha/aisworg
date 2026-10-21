@@ -70,7 +70,7 @@
     ],
     "reviewGates": [
       {
-        "code": "product-requirements-document",
+        "code": "requirements-analysis-model",
         "name": "Product Requirements Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

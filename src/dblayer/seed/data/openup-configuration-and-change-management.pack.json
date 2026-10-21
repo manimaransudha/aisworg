@@ -76,7 +76,7 @@
     ],
     "reviewGates": [
       {
-        "code": "configuration-management-plan",
+        "code": "release-package",
         "name": "Configuration Management Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "statement": "The Configuration Management Plan and Change Request procedures have been reviewed and accepted.",

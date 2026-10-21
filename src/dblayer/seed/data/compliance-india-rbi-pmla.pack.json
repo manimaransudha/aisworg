@@ -50,14 +50,14 @@
     ],
     "reviewGates": [
       {
-        "code": "rbi-pmla-audit-gate",
+        "code": "risk-register",
         "name": "RBI & PMLA Compliance Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Principal Officer (AML) and Chief Information Security Officer confirm that payment data localization, CKYC, and SOC monitoring meet RBI and PMLA standards.",
         "prompt": "Does the audit evidence confirm full compliance with RBI Cyber Security directions and PMLA AML rules?",
         "participant": "human",
-        "outputContract": "rbi-pmla-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "RBI Cyber Security & PMLA AML Audit Checklist"
         ]

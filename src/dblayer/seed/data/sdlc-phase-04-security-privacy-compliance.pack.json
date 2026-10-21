@@ -73,7 +73,7 @@
     ],
     "reviewGates": [
       {
-        "code": "threat-model-stride",
+        "code": "threat-model",
         "name": "Security Assessment Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

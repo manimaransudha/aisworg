@@ -61,7 +61,7 @@
         "statement": "The Consumer Legal Counsel confirms that price displays, cancellation mechanics, and grievance workflows satisfy FTC and EU consumer laws.",
         "prompt": "Does the e-commerce audit evidence confirm full compliance with consumer protection and e-commerce regulations?",
         "participant": "human",
-        "outputContract": "ecommerce-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "E-Commerce & Consumer Protection Audit Checklist"
         ]

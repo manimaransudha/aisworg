@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "procurement-director-signoff-gate",
+        "code": "vendor-performance-record",
         "name": "Procurement Director Sourcing Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Head of Procurement confirms that competitive sourcing, vendor evaluation, and 3-way matching rules are satisfied.",
         "prompt": "Does the procurement documentation confirm competitive bidding and 3-way match validation?",
         "participant": "human",
-        "outputContract": "procurement-sourcing-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Procurement & Sourcing Audit Checklist"
         ]

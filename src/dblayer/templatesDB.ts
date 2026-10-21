@@ -13,7 +13,7 @@ export const templatesDB = {
     templateVersion?: string;
     deliverableCatalogue?: TemplateDeliverableSeed[];
     tenantId: string;
-    status?: TemplateRow["status"];
+    status: TemplateRow["status"];
   }): Promise<DbResult<TemplateRow>> {
     try {
       const { actorId, actorBadge } = await userDB.getSuperuserId();
@@ -23,7 +23,7 @@ export const templatesDB = {
          ON CONFLICT (code, template_version, tenant_id) DO UPDATE
            SET name = EXCLUDED.name, deliverable_catalogue = EXCLUDED.deliverable_catalogue
          RETURNING *`,
-        [input.code, input.name, input.templateVersion ?? INITIAL_VERSION, JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId, input.status ?? "Active", actorId, actorBadge]
+        [input.code, input.name, input.templateVersion ?? INITIAL_VERSION, JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId, input.status, actorId, actorBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -32,7 +32,7 @@ export const templatesDB = {
     }
   },
 
-  async createDraft(input: { code: string; name: string; templateVersion?: string; authoredBy: string; authorBadge: string; draftContent?: Record<string, unknown>; tenantId: string; parentTemplateId?: string | null; schemaDefinitionId: string }): Promise<DbResult<TemplateRow>> {
+  async createDraft(input: { code: string; name: string; templateVersion?: string; status: TemplateRow["status"]; authoredBy: string; authorBadge: string; draftContent?: Record<string, unknown>; tenantId: string; parentTemplateId?: string | null; schemaDefinitionId: string }): Promise<DbResult<TemplateRow>> {
     try {
       const templateVersion = input.templateVersion ?? INITIAL_VERSION;
       const draftContent = input.draftContent ?? {};
@@ -52,9 +52,9 @@ export const templatesDB = {
 
       const { rows } = await query<TemplateRow>(
         `INSERT INTO templates (code, name, template_version, status, deliverable_catalogue, authored_by, author_badge, draft_content, tenant_id, parent_template_id, schema_definition_id)
-         VALUES ($1, $2, $3, 'Draft', '[]', $4, $5, $6, $7, $8, $9)
+         VALUES ($1, $2, $3, $10, '[]', $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [input.code, input.name, templateVersion, input.authoredBy, input.authorBadge, JSON.stringify(draftContent), input.tenantId, input.parentTemplateId ?? null, schemaRow?.id ?? null]
+        [input.code, input.name, templateVersion, input.authoredBy, input.authorBadge, JSON.stringify(draftContent), input.tenantId, input.parentTemplateId ?? null, schemaRow?.id ?? null, input.status]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -137,30 +137,6 @@ export const templatesDB = {
       return { data: rows[0] };
     } catch (err) {
       logger.error("[templatesDB] updateStatus error", err as Error);
-      return { error: err as Error };
-    }
-  },
-
-  async findByStatusActedBy(status: TemplateRow["status"], authorityBadge: string, actorId: string | null): Promise<DbResult<TemplateRow[]>> {
-    try {
-      const { rows } = actorId == null
-        ? await query<TemplateRow>(
-            `SELECT DISTINCT t.* FROM templates t
-             JOIN events e ON e.originating_object_type = 'Template' AND e.originating_object_id = t.id
-             WHERE t.status = $1 AND e.authority_badge = $2
-             ORDER BY t.created_at DESC`,
-            [status, authorityBadge]
-          )
-        : await query<TemplateRow>(
-            `SELECT DISTINCT t.* FROM templates t
-             JOIN events e ON e.originating_object_type = 'Template' AND e.originating_object_id = t.id
-             WHERE t.status = $1 AND e.authority_badge = $2 AND e.actor_id = $3
-             ORDER BY t.created_at DESC`,
-            [status, authorityBadge, String(actorId)]
-          );
-      return { data: rows };
-    } catch (err) {
-      logger.error("[templatesDB] findByStatusActedBy error", err as Error);
       return { error: err as Error };
     }
   },
@@ -348,6 +324,19 @@ export const templatesDB = {
       return { data: undefined };
     } catch (err) {
       logger.error("[templatesDB] setPackSelection error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async addComment(id: string, comment: { text: string; actorId: string; authorityBadge: string }): Promise<DbResult<TemplateRow>> {
+    try {
+      const { rows } = await query<TemplateRow>(
+        "UPDATE templates SET comments = comments || $2::jsonb WHERE id = $1 RETURNING *",
+        [id, JSON.stringify([{ ...comment, createdAt: new Date().toISOString() }])]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[templatesDB] addComment error", err as Error);
       return { error: err as Error };
     }
   },

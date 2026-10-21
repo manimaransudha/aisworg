@@ -61,7 +61,7 @@
         "statement": "The SOX Audit Lead confirms that change management, segregation of duties, and access control evidence satisfies SOX Section 404 ITGC standards.",
         "prompt": "Has Internal Audit verified change records, SoD rules, and ITGC evidence for SOX 404 compliance?",
         "participant": "human",
-        "outputContract": "sox-itgc-audit-signoff",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "SOX 404 IT General Controls (ITGC) Audit Checklist"
         ]

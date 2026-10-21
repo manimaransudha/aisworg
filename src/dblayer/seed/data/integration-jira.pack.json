@@ -62,14 +62,14 @@
     ],
     "reviewGates": [
       {
-        "code": "jira-integration-review-gate",
+        "code": "work-breakdown-structure",
         "name": "Jira Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Agile Delivery Lead confirms that Jira API credentials and field mappings enable bi-directional issue sync.",
         "prompt": "Does the Jira integration test confirm bi-directional issue synchronization and webhook delivery?",
         "participant": "human",
-        "outputContract": "jira-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Jira Integration Verification Checklist"
         ]

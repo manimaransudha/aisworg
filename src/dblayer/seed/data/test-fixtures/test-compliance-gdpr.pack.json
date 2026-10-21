@@ -61,7 +61,7 @@
         "statement": "The Data Protection Officer (DPO) and Legal Counsel attest that personal data processing, DPIA, consent mechanics, and DSAR workflows satisfy GDPR requirements.",
         "prompt": "Does the Data Protection Officer confirm that DPIA, DSAR automation, and GDPR privacy controls are fully compliant?",
         "participant": "human",
-        "outputContract": "gdpr-dpo-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "GDPR Privacy & Data Subject Rights Verification Checklist"
         ]

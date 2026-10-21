@@ -9,13 +9,40 @@ export const DEMO_TENANT_NAME = "Demo";
 export const ATHENS_TENANT_NAME = "Athens AI-Native";
 export const BABYLON_TENANT_NAME = "Babylon AI-Native";
 export const CAMBODIA_TENANT_NAME = "Cambodia AI-Native";
+export const NO_EXPIRY_DATE = "9999-12-31";
 export const RESERVED_TENANT_CODES = ["default", "platform", "demo"];
 export const INITIAL_VERSION = "1.0.0";
+// The from-state of a birth row in transition_definitions (CR-128). transition_definitions_schema_recovery.sql repeats this literal in its partial unique index.
+export const BIRTH_STATE = "None";
+// Published after the event `UNDEFINED_EVENT` when a transition row names no event (CR-128). No consumer yet.
+export const SDK_ATTENTION_EVENT = "SDKAttention";
+export const UNDEFINED_EVENT = "Undefined";
+// A Policy condition of this type is decided by a function in src/policies (CR-128).
+export const IMPLEMENTED_CONDITION_TYPE = "implemented";
+export const ONTOLOGY_VALUES_PRESENT_POLICY_CODE = "policy-ontology-values-present";
+export const VALIDATE_SCHEMA_POLICY_CODE = "policy-validate-schema";
+// A Pack a Template, Profile or Pack may reference: Active, or a state after Active (CR-128).
+export const REFERENCEABLE_PACK_STATUSES = ["Active", "Retired", "Archived"] as const;
+
+// The transition entity type of an authoring kind whose name differs from it (CR-128). The Deliverable Definition has its own lifecycle apart from the runtime Deliverable.
+export const AUTHORING_KIND_ENTITY_TYPE = { Deliverable: "DeliverableDefinition" } as const;
+
+export const COMMENT_REQUIRED_POLICY_CODE = "policy-comment-required";
+export const MATERIALISE_TEMPLATE_POLICY_CODE = "policy-materialise-template";
+export const MATERIALISE_PROFILE_POLICY_CODE = "policy-materialise-profile";
+export const UNRAVEL_TEMPLATE_ACTION_CODE = "unravel-template";
+export const UNRAVEL_PROFILE_ACTION_CODE = "unravel-profile";
+export const SUPERSEDE_OBJECTIVE_ACTION_CODE = "supersede-objective";
 export const SYSTEM_ACTOR_NAME = "System";
 export const SYSTEM_ACTOR_BADGE = "system";
 export const DELIVERABLE_BADGE_PREFIX = "deliverable_";
 export const DELIVERABLE_PRODUCING_STATE = "In Progress";
 export const PRODUCE_COMMAND_VERB = "produce";
+export const TRANSITION_DEFINITION_DEFINE_BADGE = "transitiondefinition_define";
+export const OBJECTIVE_ACTIVE_STATE = "Active";
+export const OBJECTIVE_RETIRED_STATE = "Retired";
+export const OBJECTIVE_REJECT_STATE = "Reject";
+export const OBJECTIVE_SUPERSEDED_STATE = "Superseded";
 export const CAPABILITY_RETRY_DELAY_SECONDS = 300;
 export const ATTESTATION_REQUIRED_POLICY_CODE = "policy-attestation-required";
 
@@ -54,7 +81,6 @@ export async function getPlatformTenantId(): Promise<string> {
 export async function getTesterId(email: string): Promise<string> {
     const result = await userDB.findByEmail(email);
 
-    console.log(JSON.stringify(result))
     if (!result) {
         logger.error(
             `[seed:fetch-tester] ${email} not provisioned`
@@ -94,7 +120,7 @@ export async function ensurePlatformSystemActor(): Promise<string> {
     return created.id;
 }
 
-async function findPlatformSystemActorId(): Promise<string> {
+export async function findPlatformSystemActorId(): Promise<string> {
     const platformTenantId = await getPlatformTenantId();
     const { data, error } = await participantsMasterDB.findByTenantId(platformTenantId);
     if (error) throw error;

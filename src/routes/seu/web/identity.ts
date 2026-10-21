@@ -8,8 +8,7 @@ import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
-import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
-import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
+import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
 import {
@@ -124,12 +123,7 @@ router.post("/identity/tenants", async (req: Request, res: Response) => {
   if (typeof code !== "string" || !code.trim() || typeof name !== "string" || !name.trim()) {
     return redirects.seu.identityTenants.error(req, res, "Tenant code and name are required.");
   }
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-  if (!actorId) return redirects.seu.identityTenants.error(req, res, "No actor resolved for this Tenant creation.");
-  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-  const held = await resolveHeldBadges(req);
-  const authorBadge = resolveAuthorBadge(authRow, held);
-  if (!authorBadge) return redirects.seu.identityTenants.error(req, res, "No author badge resolved for this Tenant creation.");
+  const { actorId, authorBadge } = await resolveActorAndBadge(req);
   try {
     const result = await createTenant({ code: code.trim(), name: name.trim(), authorId: actorId, authorBadge, is_system: false });
     if (!result.ok) return redirects.seu.identityTenants.error(req, res, `Could not create Tenant: ${result.detail}`);

@@ -8,7 +8,7 @@
     .section-header { background: #0f172a; color: #fff; font-weight: 600; font-size: 0.9rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
     .state-badge { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0.22rem 0.6rem; border-radius: 999px; }
     .state-Active { background: #dcfce7; color: #166534; }
-    .state-Proposed { background: #fef9c3; color: #854d0e; }
+    .state-Defined { background: #fef9c3; color: #854d0e; }
     .state-Achieved { background: #dbeafe; color: #1e40af; }
     .state-Superseded, .state-Retired, .state-Archived { background: #f1f5f9; color: #64748b; }
     .state-Reject { background: #fee2e2; color: #991b1b; }
@@ -30,36 +30,21 @@
 
     <div class="mb-4" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
         <div class="d-flex align-items-center gap-2 flex-wrap">
-          <%# CR-072: the manual-trigger queue step, shown ahead of the Transition
-               control below — while not yet submitted, this is the only lifecycle
-               action available even to a viewer who already holds the next
-               transition's own badge. A queue/submit button never performs a
-               transition, it only marks readiness for one. %>
-          <% if (detail.submitVerb && !detail.alreadySubmitted) { %>
-            <% if (locals.canSubmitObjective) { %>
-              <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/submit" class="d-inline">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-send me-1"></i>Submit</button>
-              </form>
-            <% } %>
-          <% } else { %>
-          <%# CR-071: possibleNextStates is already filtered (web/objectives.ts) down to
-               options this viewer actually holds the specific noun_verb badge for, so an
-               empty list here already means "nothing this viewer can do," not just
-               "nothing possible" — no separate badge check needed in the view itself.
-               CR-076 — one small form per option, each posting to its own
-               verb-specific route. %>
-          <% if (detail.possibleNextStates.length === 0) { %>
-            <span class="text-muted small">No further transitions defined from <%= detail.objective.status %>.</span>
-          <% } else { %>
-            <% detail.possibleNextStates.forEach(function(s) { %>
-              <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/transition/<%= detail.possibleTransitionVerbs[s] %>" class="d-inline">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <button type="submit" class="btn btn-sm btn-outline-primary">Transition to <%= s %></button>
-              </form>
-            <% }) %>
+          <%# Every control below comes from the transition definitions the viewer holds the badge for
+               (nextActionsFor). Each posts to its own verb route, which owns any extra input. %>
+          <% const plainActions = actions.filter(function(a) { return a.kind === 'plain'; });
+             const retireAction = actions.find(function(a) { return a.kind === 'retire'; });
+             const targetAction = actions.find(function(a) { return a.kind === 'target'; });
+             const commentActions = actions.filter(function(a) { return a.kind === 'comment'; }); %>
+          <% if (actions.length === 0) { %>
+            <span class="text-muted small">No further transitions available from <%= detail.objective.status %>.</span>
           <% } %>
-          <% } %>
+          <% plainActions.forEach(function(a) { %>
+            <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/transition/<%= a.verb %>" class="d-inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="btn btn-sm btn-outline-primary">Transition to <%= a.toState %></button>
+            </form>
+          <% }) %>
 
           <% if (detail.objective.status === 'Active' && detail.objective.tier !== 'Strategic' && detail.isLeaf) { %>
             <%# Bug fix (owner: "The commission SEU should get onto the SEU
@@ -83,24 +68,19 @@
           <%# Edit is not a transition — no lifecycle-state gating, same badge as
                Delete (objective_propose). A separate page, not an inline form
                here (owner: "The view should not allow edit. There has to be a
-               separate button to edit"). CR-075 exception: locked once
-               submitted for activation. %>
+               separate button to edit"). %>
           <% if (locals.canProposeObjective) { %>
-            <% if (detail.editLocked) { %>
-              <span class="btn btn-outline-secondary btn-sm disabled" title="Submitted for activation — editing is locked until the activate badge holder acts on it."><i class="bi bi-lock me-1"></i>Edit Objective</span>
-            <% } else { %>
-              <a href="/aisworg/seu/objectives/<%= detail.objective.id %>/edit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil me-1"></i>Edit Objective</a>
-            <% } %>
+            <a href="/aisworg/seu/objectives/<%= detail.objective.id %>/edit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil me-1"></i>Edit Objective</a>
           <% } %>
 
-          <%# CR-012/CR-071: removal — Delete a Proposed leaf (badge-gated on objective_propose),
+          <%# CR-012/CR-071: removal — Delete a leaf in the initial state (badge-gated on objective_propose),
                or Retire (node + subtree) an Active Objective (badge-gated on objective_retire). %>
           <% if (detail.deletable && locals.canProposeObjective) { %>
-            <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/delete" class="d-inline" onsubmit="return confirm('Delete this Proposed Objective? This cannot be undone.');">
+            <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/delete" class="d-inline" onsubmit="return confirm('Delete this Objective? This cannot be undone.');">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>Delete Objective</button>
             </form>
-          <% } else if (detail.retirable && locals.canRetireObjective) { %>
+          <% } else if (retireAction) { %>
             <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/retire" class="d-inline" onsubmit="return confirm('Retire this Objective and its subtree? Retired Objectives keep their history and SEUs.');">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button type="submit" class="btn btn-outline-warning btn-sm"><i class="bi bi-archive me-1"></i>Retire Objective &amp; subtree</button>
@@ -113,37 +93,33 @@
                dropdown" treatment Reject already gets. A modal, not an inline
                form, since it bundles a searchable picker AND a create-new
                link in one place. %>
-          <% if (detail.supersedable && locals.canSupersedeObjective) { %>
+          <% if (targetAction) { %>
             <button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#supersedeModal">
               <i class="bi bi-arrow-repeat me-1"></i>Supersede
             </button>
           <% } %>
         </div>
 
-        <%# CR-073 — Reject (Active -> Reject, a real distinct status) needs its
-             own mandatory-comment form: excluded from the row above (which
-             has no comment field), and requires genuinely new text every
-             time (owner: "not just presence of value in the field"),
-             enforced server-side in transitionObjective, not just here. %>
-        <% if (detail.rejectable && locals.canRejectObjective) { %>
-          <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/transition/reject" class="mt-3">
+        <%# A transition that requires a comment posts it to its verb route; the comment-required Policy enforces it there. %>
+        <% commentActions.forEach(function(a) { %>
+          <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/transition/<%= a.verb %>" class="mt-3">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <label class="form-label small fw-semibold mb-1">Reject</label>
-            <textarea name="comment" rows="2" class="form-control form-control-sm mb-2" placeholder="What needs to change before this is reconsidered?" required></textarea>
-            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-arrow-counterclockwise me-1"></i>Reject</button>
+            <label class="form-label small fw-semibold mb-1"><%= a.verb.charAt(0).toUpperCase() + a.verb.slice(1) %></label>
+            <textarea name="comment" rows="2" class="form-control form-control-sm mb-2" placeholder="Why? (required)" required></textarea>
+            <button type="submit" class="btn btn-outline-danger btn-sm"><%= a.verb.charAt(0).toUpperCase() + a.verb.slice(1) %></button>
           </form>
-        <% } %>
+        <% }) %>
     </div>
 
     <%# CR-116 — Supersede modal: pick an existing Active Objective in the
          same tenant (searchable <select>), or follow the "create new" link
          into the regular create-objective form with ?supersedes= set — both
          end with this Objective moving to Superseded, one post away. %>
-    <% if (detail.supersedable && locals.canSupersedeObjective) { %>
+    <% if (targetAction) { %>
       <div class="modal fade" id="supersedeModal" tabindex="-1" aria-labelledby="supersedeModalLabel" aria-hidden="true">
         <div class="modal-dialog">
           <div class="modal-content">
-            <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/transition/supersede">
+            <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/transition/<%= targetAction.verb %>">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <div class="modal-header">
                 <h5 class="modal-title" id="supersedeModalLabel">Supersede this Objective</h5>
@@ -259,8 +235,8 @@
           <ul class="list-unstyled mb-0">
             <% detail.comments.forEach(function(c) { %>
               <li class="mb-2 pb-2 border-bottom">
-                <div class="small text-muted"><%= new Date(c.created_at).toLocaleString() %><% if (c.actor_id) { %> &middot; user <%= c.actor_id %><% } %></div>
-                <div class="small"><%= c.comment_text %></div>
+                <div class="small text-muted"><%= new Date(c.createdAt).toLocaleString() %><% if (c.actorId) { %> &middot; user <%= c.actorId %><% } %></div>
+                <div class="small"><%= c.text %></div>
               </li>
             <% }) %>
           </ul>

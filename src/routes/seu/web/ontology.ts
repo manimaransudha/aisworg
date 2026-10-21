@@ -14,34 +14,31 @@ import { listConceptTypes, listConceptsForType, addConcept, deprecateConcept, re
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
 import { getPlatformTenantId  } from "../../../dblayer/constants.js";
+import { requireActorId, resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
  
 const backTo = "/aisworg/seu/sdk/ontology";
 
 async function heldBadges(req: Request): Promise<Set<string>> {
   const set = new Set<string>(req.session?.user?.platformBadges ?? []);
-  const userId = req.session?.user?.id;
-  if (userId != null) {
-    const { badgeTypes } = await badgeAuthorityEngine.getHeldBadges(String(userId));
-    for (const b of badgeTypes) set.add(b);
-  }
+  const { badgeTypes } = await resolveHeldBadges(req);
+  for (const b of badgeTypes) set.add(b);
   return set;
 }
 
-function actorFrom(req: Request, held: Set<string>): OntologyActor {
-  const userId = req.session?.user?.id;
-  if (userId == null) throw new Error("no acting user to record as this concept's author — log in first.");
+async function actorFrom(req: Request, held: Set<string>): Promise<OntologyActor> {
+  const actorId = requireActorId(req);
   return {
     isRoot: held.has("root"),
     tenantId: req.session?.user?.tenant_id ?? null,
-    actorId: String(userId),
-    actorBadge: held.has("root") ? "root" : "ontology_define",
+    actorId,
+    actorBadge: await badgeAuthorityEngine.resolveAuthorBadge(actorId, "ontology_define"),
   };
 }
 
 router.get("/sdk/ontology", attachVM("seu/sdk/ontology/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     const conceptTypes = await listConceptTypes(actor);
     const nav = await getConceptTypeNav(actor, conceptTypes);
     const topLevelTypes = nav.topLevel.map((t) => t.type);
@@ -99,7 +96,7 @@ router.get("/sdk/ontology", attachVM("seu/sdk/ontology/index"), async (req: Requ
 router.get("/sdk/ontology/metadata", attachVM("seu/sdk/ontology/metadata"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     const allConcepts = await listAllConceptsForPicker(actor);
 
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
@@ -149,7 +146,7 @@ router.post("/sdk/ontology/add", async (req: Request, res: Response) => {
   const type = String(conceptType ?? "").trim();
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     await addConcept(
       {
         conceptType: type, code: String(code ?? ""), defaultLabel: String(defaultLabel ?? ""),
@@ -170,7 +167,7 @@ router.post("/sdk/ontology/deprecate", async (req: Request, res: Response) => {
   const type = String(conceptType ?? "").trim();
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     await deprecateConcept(type, String(code ?? ""), String(tenantId ?? ""), actor);
     return redirects.seu.sdkOntologyDeprecate.success(req, res, `Concept "${code}" deprecated.`, `${backTo}?type=${encodeURIComponent(type)}`);
   } catch (err) {
@@ -183,7 +180,7 @@ router.post("/sdk/ontology/retire", async (req: Request, res: Response) => {
   const type = String(conceptType ?? "").trim();
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     await retireConcept(type, String(code ?? ""), String(tenantId ?? ""), actor);
     return redirects.seu.sdkOntologyRetire.success(req, res, `Concept "${code}" retired.`, `${backTo}?type=${encodeURIComponent(type)}`);
   } catch (err) {
@@ -196,7 +193,7 @@ router.post("/sdk/ontology/archive", async (req: Request, res: Response) => {
   const type = String(conceptType ?? "").trim();
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     await archiveConcept(type, String(code ?? ""), String(tenantId ?? ""), actor);
     return redirects.seu.sdkOntologyArchive.success(req, res, `Concept "${code}" archived.`, `${backTo}?type=${encodeURIComponent(type)}`);
   } catch (err) {
@@ -209,7 +206,7 @@ router.post("/sdk/ontology/compose", async (req: Request, res: Response) => {
   const type = String(conceptType ?? "").trim();
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     await composeConcept(
       {
         conceptType: type,
@@ -232,7 +229,7 @@ router.post("/sdk/ontology/update-meta", async (req: Request, res: Response) => 
   const type = String(conceptType ?? "").trim();
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     await updateConceptMeta(
       type,
       String(code ?? ""),
@@ -250,7 +247,7 @@ router.post("/sdk/ontology/quick-retire", async (req: Request, res: Response) =>
   const { conceptType, code, tenantId } = req.body ?? {};
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     await quickRetireConcept(String(conceptType ?? "").trim(), String(code ?? ""), String(tenantId ?? ""), actor);
     return redirects.seu.sdkOntologyQuickRetire.success(req, res, `Concept "${code}" retired.`);
   } catch (err) {
@@ -262,7 +259,7 @@ router.get("/sdk/ontology/approvals", attachVM("seu/sdk/ontology/approvals"), as
   const PLATFORM_TENANT_ID = await getPlatformTenantId();
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     const drafts = await listDraftConceptsForApproval(actor);
     const rows = drafts.map((c) => ({
       id: c.id,
@@ -294,7 +291,7 @@ router.post("/sdk/ontology/approvals/approve", async (req: Request, res: Respons
   const { conceptType, code, tenantId } = req.body ?? {};
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     await approveConcept(String(conceptType ?? "").trim(), String(code ?? ""), String(tenantId ?? ""), actor);
     return redirects.seu.sdkOntologyApprovals.success(req, res, `Concept "${code}" approved.`);
   } catch (err) {
@@ -306,7 +303,7 @@ router.post("/sdk/ontology/approvals/reject", async (req: Request, res: Response
   const { conceptType, code, tenantId, comment } = req.body ?? {};
   try {
     const held = await heldBadges(req);
-    const actor = actorFrom(req, held);
+    const actor = await actorFrom(req, held);
     await rejectConcept(String(conceptType ?? "").trim(), String(code ?? ""), String(tenantId ?? ""), String(comment ?? ""), actor);
     return redirects.seu.sdkOntologyApprovals.success(req, res, `Concept "${code}" rejected.`);
   } catch (err) {

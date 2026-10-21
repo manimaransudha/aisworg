@@ -5,14 +5,10 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
+import { readTargetState } from "../../../utils/transitionRequest.js";
 import { createObligation, listObligationsBySeu, transitionObligation, reviseObligation } from "../core/obligations.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import type { TransitionEntityType } from "../../../dblayer/seuTypes.js";
-
-async function resolveObligationAuthorBadge(actorId: string): Promise<string> {
-  const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(actorId);
-  return isRoot ? "root" : [...badgeTypes][0] ?? "general";
-}
+import { requireActorId, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
 
 router.post("/obligations", async (req: Request, res: Response) => {
   try {
@@ -20,9 +16,7 @@ router.post("/obligations", async (req: Request, res: Response) => {
     if (typeof relatedObjectType !== "string" || typeof relatedObjectId !== "string" || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ error: "relatedObjectType, relatedObjectId, category and title are required" });
     }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
-    const actorId = String(req.session.user.id);
-    const authorBadge = await resolveObligationAuthorBadge(actorId);
+    const { actorId, authorBadge } = await resolveActorAndBadge(req);
     const obligation = await createObligation({ relatedObjectType: relatedObjectType as TransitionEntityType, relatedObjectId, category, title, description, severity, actorId, authorBadge });
     res.status(201).json({ obligation });
   } catch (err) {
@@ -44,12 +38,9 @@ router.get("/obligations", async (req: Request, res: Response) => {
 
 router.post("/obligations/:id/transition", async (req: Request, res: Response) => {
   try {
-    const { targetState } = req.body ?? {};
-    if (typeof targetState !== "string" || !targetState.trim()) {
-      return res.status(400).json({ error: "targetState is required" });
-    }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
-    const actorId = String(req.session.user.id);
+    const targetState = readTargetState(req, res);
+    if (targetState === null) return;
+    const actorId = requireActorId(req);
     const result = await transitionObligation({ obligationId: String(req.params.id), targetState, actorId });
 
     if (!result.ok) {
@@ -66,8 +57,7 @@ router.post("/obligations/:id/transition", async (req: Request, res: Response) =
 router.patch("/obligations/:id", async (req: Request, res: Response) => {
   try {
     const { title, description, category, severity, priority, completionCriteria, assignedEntityType, assignedEntityId } = req.body ?? {};
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
-    const actorId = String(req.session.user.id);
+    const actorId = requireActorId(req);
     const obligation = await reviseObligation({ obligationId: String(req.params.id), actorId, title, description, category, severity, priority, completionCriteria, assignedEntityType, assignedEntityId });
     if (!obligation) return res.status(404).json({ error: "Obligation not found" });
     res.status(200).json({ obligation });

@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "ecommerce-director-signoff-gate",
+        "code": "requirements-prioritisation-record",
         "name": "E-Commerce Commerce Director Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The E-Commerce Director confirms that cart pricing, tax engine, fraud screening, and fulfillment workflows satisfy retail benchmarks.",
         "prompt": "Does the e-commerce platform package confirm cart calculation accuracy and fraud screening enforcement?",
         "participant": "human",
-        "outputContract": "retail-ecommerce-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Retail & E-Commerce Audit Checklist"
         ]

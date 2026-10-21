@@ -64,7 +64,7 @@
     ],
     "reviewGates": [
       {
-        "code": "product-analytics-specification",
+        "code": "experiment-design",
         "name": "Growth Optimization Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

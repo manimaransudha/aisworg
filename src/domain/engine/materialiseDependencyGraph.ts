@@ -18,7 +18,8 @@ export async function materialiseDependencyGraph(input: {
   const labelByCode = await resolveLabels(input.tenantId, "deliverable-name");
   const toLabel = (code: string) => labelByCode[code] ?? code;
 
-  await dependencyDefinitionsDB.deleteByOwner(input.owningEntityType, input.owningEntityId);
+  const { error: deleteError } = await dependencyDefinitionsDB.deleteByOwner(input.owningEntityType, input.owningEntityId);
+  if (deleteError) throw deleteError;
 
   const created: DependencyDefinitionRow[] = [];
   for (const entry of input.dependencyGraph) {
@@ -26,7 +27,7 @@ export async function materialiseDependencyGraph(input: {
 
     if (entry.fromType === "Deliverable") {
       if (!entry.fromCode || !validCodes.has(entry.fromCode)) continue;
-      const { data } = await dependencyDefinitionsDB.create({
+      const { data, error } = await dependencyDefinitionsDB.create({
         owningEntityType: input.owningEntityType,
         owningEntityId: input.owningEntityId,
         fromEntityType: "Deliverable",
@@ -39,6 +40,7 @@ export async function materialiseDependencyGraph(input: {
         authorId: input.authorId,
         authorBadge: input.authorBadge,
       });
+      if (error) throw error;
       if (data) created.push(data);
       continue;
     }

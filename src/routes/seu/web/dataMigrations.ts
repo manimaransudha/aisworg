@@ -12,6 +12,7 @@ import { requireBadge } from "../../../middleware/requireBadge.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { DATA_MIGRATION_TARGETS, resolveRootActor, runDataMigrations } from "../core/dataMigrations.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 const backTo = "/aisworg/seu/data-migrations";
 const gate = requireBadge(["root"]);
@@ -35,8 +36,7 @@ router.get("/data-migrations", gate, attachVM("seu/data-migrations/index"), asyn
 
 router.post("/data-migrations/run", gate, async (req: Request, res: Response) => {
   try {
-    const userId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!userId) return redirects.seu.dataMigrationsRun.error(req, res, "No logged-in user on this session.");
+    const userId = requireActorId(req);
 
     const rawCodes = req.body?.codes;
     const codes = Array.isArray(rawCodes) ? rawCodes.map(String) : rawCodes != null ? [String(rawCodes)] : [];

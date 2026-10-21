@@ -15,7 +15,7 @@ ALTER TABLE schema_definitions
   ADD COLUMN IF NOT EXISTS compatible_versions INTEGER[] NOT NULL DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS incompatible_versions INTEGER[] NOT NULL DEFAULT '{}';
 ALTER TABLE schema_definitions
-  ADD COLUMN IF NOT EXISTS lifecycle_state TEXT NOT NULL DEFAULT 'Created',
+  ADD COLUMN IF NOT EXISTS lifecycle_state TEXT NOT NULL,
   ADD COLUMN IF NOT EXISTS author_id UUID,
   ADD COLUMN IF NOT EXISTS author_badge TEXT;
 ALTER TABLE schema_definitions DROP CONSTRAINT IF EXISTS schema_definitions_author_id_fkey;

@@ -57,14 +57,14 @@
     ],
     "reviewGates": [
       {
-        "code": "kubernetes-integration-review-gate",
+        "code": "deployment-package",
         "name": "Kubernetes Infrastructure Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Container Platform Lead confirms that Kubernetes ServiceAccount RBAC and Helm release deployments operate properly.",
         "prompt": "Does the Kubernetes integration verify cluster API authentication and Helm release rollout status?",
         "participant": "human",
-        "outputContract": "kubernetes-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Kubernetes Integration Verification Checklist"
         ]

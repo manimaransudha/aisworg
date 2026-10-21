@@ -7,43 +7,47 @@ import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import {
-  advancePackOneStep, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource, packCodeVersionSummaries, alternateBadgesForPackTransition,
+  activatePackSupersedingPrevious, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource, packCodeVersionSummaries,
   type PackSeedInput,
 } from "./packs.js";
-import { advanceTemplateOneStep, materialiseTemplateDraft, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
-import { advanceProfileOneStep, materialiseProfileDraft, validateProfileSeed, getProfilePackSelections, CONFIGURATION_PARAMETER_FIELDS, type ProfileSeedInput } from "./profiles.js";
+import { activateTemplateSupersedingPrevious, validateTemplateOnSave, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
+import { activateProfileSupersedingPrevious, validateProfileOnSave, validateProfileSeed, getProfilePackSelections, CONFIGURATION_PARAMETER_FIELDS, type ProfileSeedInput } from "./profiles.js";
 import {
-  advanceDeliverableDefinitionOneStep, validateDeliverableDefinitionSeed,
+  activateDeliverableDefinitionSupersedingPrevious, validateDeliverableDefinitionSeed,
   inheritedDeliverableDefinitionContent,
   type DeliverableDefinitionSeedInput,
 } from "./deliverableDefinitions.js";
 import {
-  advanceServiceDefinitionOneStep, validateServiceDefinitionSeed,
+  validateServiceDefinitionSeed,
   inheritedServiceDefinitionContent,
   type ServiceDefinitionSeedInput,
 } from "./serviceDefinitions.js";
 import {
-  advancePolicyDefinitionOneStep, validatePolicyDefinitionSeed,
+  validatePolicyDefinitionSeed,
   inheritedPolicyDefinitionContent,
   type PolicyDefinitionSeedInput,
 } from "./policyDefinitions.js";
 import {
-  advanceCapabilityDefinitionOneStep, validateCapabilityDefinitionSeed,
+  validateCapabilityDefinitionSeed,
   inheritedCapabilityDefinitionContent,
   type CapabilityDefinitionSeedInput,
 } from "./capabilityDefinitions.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
-import { emitConceptCreated, proposeComposableOntologyValues, validateComposableFieldsAgainstSchema } from "./ontology.js";
+import { emitConceptCreated, proposeComposableOntologyValues } from "./ontology.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine, type CompositionSource } from "../../../domain/engine/compositionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { listCurrentTransitionDefinitions } from "./transitionDefinitions.js";
-import type { CapabilityRole, EvidenceDefinition, PackContributions, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
+import type { CapabilityDefinitionRow, CapabilityRole, DeliverableDefinitionRow, PolicyDefinitionRow, ServiceDefinitionRow, EvidenceDefinition, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
+import { nextActionsFor, transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { packContent } from "../../../domain/engine/entityAdapters.js";
+import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { randomUUID } from "node:crypto";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { getPlatformTenantId, INITIAL_VERSION } from "../../../dblayer/constants.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
+import { getPlatformTenantId, INITIAL_VERSION, AUTHORING_KIND_ENTITY_TYPE } from "../../../dblayer/constants.js";
  
 
 export function toPackSeedInput(content: Record<string, unknown>): PackSeedInput {
@@ -337,31 +341,7 @@ export async function validateAuthoredContent(kind: SchemaDefinitionEntityKind, 
   return { ok: false, errors: [`no validator wired for kind "${kind}"`] };
 }
 
-function packRowToContent(pack: PackRow): Record<string, unknown> {
-  const c = (pack.contributions ?? {}) as PackContributions & Record<string, unknown[]>;
-  return {
-    code: pack.code,
-    name: pack.name,
-    category: pack.category,
-    packVersion: pack.pack_version,
-    installationClassification: pack.installation_classification,
-    tenantId: pack.tenant_id,
-    schemaVersion: pack.schema_definition_id,
-    contributionCapabilities: c.capabilities ?? [],
-    contributionServices: c.services ?? [],
-    contributionAuthorityRules: c.authorityRules ?? [],
-    contributionPolicies: c.policies ?? [],
-    contributionQualityGates: c.qualityGates ?? [],
-    contributionChecklists: (c as Record<string, unknown[]>).checklists ?? [],
-    contributionReviewGates: (c as Record<string, unknown[]>).reviewGates ?? [],
-    contributionObligationDefinitions: (c as Record<string, unknown[]>).obligationDefinitions ?? [],
-    contributionEngineeringCapital: (c as Record<string, unknown[]>).engineeringCapital ?? [],
-    contributionCompetencies: (c as Record<string, unknown[]>).competencies ?? [],
-    dependencies: pack.dependencies ?? [],
-    compositionSources: pack.composition_sources ?? [],
-    ...(pack.metadata ?? {}),
-  };
-}
+const packRowToContent = packContent;
 
 const NEVER_COMPOSABLE_FIELDS = new Set(["compositionStrategy", "compositionSources", "packVersion", "tenantId"]);
 
@@ -447,11 +427,16 @@ export interface AuthoringRowAction {
   requiresComment: boolean;
 }
 
+// The transition entity type of an authoring kind: the kind itself, unless it is named differently in AUTHORING_KIND_ENTITY_TYPE.
+export function entityTypeForKind(kind: SchemaDefinitionEntityKind): TransitionEntityType {
+  return (AUTHORING_KIND_ENTITY_TYPE as Partial<Record<string, TransitionEntityType>>)[kind] ?? (kind as TransitionEntityType);
+}
+
 async function canonicalForwardEdges(kind: SchemaDefinitionEntityKind): Promise<Set<string>> {
   const allTds = await listCurrentTransitionDefinitions();
   const byFromState = new Map<string, Array<{ toState: string }>>();
   for (const d of allTds) {
-    if (d.entityType !== kind || !d.isActive || !d.verb) continue;
+    if (d.entityType !== entityTypeForKind(kind) || !d.isActive || !d.verb) continue;
     if (!byFromState.has(d.fromState)) byFromState.set(d.fromState, []);
     byFromState.get(d.fromState)!.push({ toState: d.toState });
   }
@@ -470,7 +455,7 @@ async function canonicalForwardEdges(kind: SchemaDefinitionEntityKind): Promise<
 
 async function possibleRowActions(kind: SchemaDefinitionEntityKind, status: string): Promise<AuthoringRowAction[]> {
   const canonical = await canonicalForwardEdges(kind);
-  const { data } = await transitionDefinitionsDB.findPossibleNextTransitions(kind as TransitionEntityType, status);
+  const { data } = await transitionDefinitionsDB.findPossibleNextTransitions(entityTypeForKind(kind), status);
   return (data ?? [])
     .filter((t) => t.verb)
     .map((t) => ({
@@ -481,24 +466,22 @@ async function possibleRowActions(kind: SchemaDefinitionEntityKind, status: stri
     }));
 }
 
-export async function computeRowActions(kind: SchemaDefinitionEntityKind, status: string, held: Set<string>, isRoot: boolean): Promise<AuthoringRowAction[]> {
+export async function computeRowActions(kind: SchemaDefinitionEntityKind, status: string, actorId: string): Promise<AuthoringRowAction[]> {
+  if (kind === "Capability" || kind === "Service" || kind === "Pack" || kind === "Template" || kind === "Profile" || kind === "Policy" || kind === "Deliverable") {
+    const next = await nextActionsFor(entityTypeForKind(kind), status, actorId);
+    return next.map((n) => ({ verb: n.verb, toState: n.toState, endpoint: "transition" as const, requiresComment: n.requiresComment }));
+  }
   const actions = await possibleRowActions(kind, status);
-  return actions.filter((a) => {
-    if (isRoot) return true;
-    const canonical = `${kind.toLowerCase()}_${a.verb}`;
-    if (held.has(canonical)) return true;
-    const alternates = kind === "Pack" ? alternateBadgesForPackTransition(status, a.toState) : undefined;
-    return (alternates ?? []).some((b) => held.has(b));
-  });
+  const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(actorId);
+  return actions.filter((a) => isRoot || badgeTypes.has(`${entityTypeForKind(kind).toLowerCase()}_${a.verb}`));
 }
 
 export async function requiredBadgeForRowAction(kind: SchemaDefinitionEntityKind, status: string, target: { endpoint: "publish" } | { endpoint: "transition"; toState: string }): Promise<string[] | null> {
   const actions = await possibleRowActions(kind, status);
   const action = target.endpoint === "publish" ? actions.find((a) => a.endpoint === "publish") : actions.find((a) => a.toState === target.toState);
   if (!action) return null;
-  const canonical = `${kind.toLowerCase()}_${action.verb}`;
-  const alternates = kind === "Pack" ? alternateBadgesForPackTransition(status, action.toState) : undefined;
-  return alternates?.length ? [canonical, ...alternates] : [canonical];
+  const canonical = `${entityTypeForKind(kind).toLowerCase()}_${action.verb}`;
+  return [canonical];
 }
 
 function toPackCodeRows(codes: string[] | undefined): Array<{ packCode: string }> {
@@ -519,7 +502,7 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
   if (kind === "Template") {
     const { data: t } = await templatesDB.findById(id);
     if (!t) return null;
-    const materialised = t.status === "Draft" ? {} : {
+    const materialised = t.status === "Draft" || t.status === "Validated" ? {} : {
       ...packSelectionsToFormShape(await getPackSelectionsByCategory(t.id)),
       deliverableCatalogue: t.deliverable_catalogue,
       dependencyGraph: await getDependencyGraphContent(t.id, t.tenant_id),
@@ -529,7 +512,7 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
   if (kind === "Profile") {
     const { data: p } = await profilesDB.findById(id);
     if (!p) return null;
-    const materialised = p.status === "Draft" ? {} : packSelectionsToFormShape(await getProfilePackSelections(p.id));
+    const materialised = p.status === "Draft" || p.status === "Validated" ? {} : packSelectionsToFormShape(await getProfilePackSelections(p.id));
     return { id: p.id, code: p.code, name: p.name, status: p.status, content: { code: p.code, name: p.name, ...(p.draft_content ?? {}), ...materialised, profileVersion: p.profile_version, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id, schemaVersion: p.schema_definition_id } };
   }
   if (kind === "Deliverable") {
@@ -707,7 +690,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     await stampServiceDefinitionIds(seed, input.tenantId ?? (await getPlatformTenantId()));
     const { data: packMaster } = await participantsMasterDB.findById(authoredBy);
     if (!packMaster) return { ok: false, errors: [`No superuser provisioned.`] };
-    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Pack write"] };
+    const birth = await transitionEngine.beginBirth({ entityType: "Pack", actorId: input.actorId });
     const { data: pack, error } = await packsDB.create({
       code: seed.code,
       name: (seed.name as string) || "(untitled Pack)",
@@ -718,27 +701,28 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       dependencies: seed.dependencies,
       compositionSources: seed.compositionSources,
       metadata: packMetadataFromSeed(seed),
+      status: birth.initialState as PackRow["status"],
       authoredBy: packMaster.id,
-      authorBadge: input.authorBadge,
+      authorBadge: birth.authorityBadge,
       tenantId: input.tenantId ?? (await getPlatformTenantId()),
       schemaDefinitionId: input.schemaDefinitionId,
     });
     if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create Pack draft")).message] };
+    const { data: packSchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
+    if (packSchema) {
+      await proposeComposableOntologyValues(packSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Pack", originatingObjectId: pack.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: birth.authorityBadge, tenantId: input.tenantId });
+    }
+    await emitConceptCreatedForCompetencies(pack.id, seed.code, seed.contributions.competencies, { actorId: input.actorId, badge: birth.authorityBadge, tenantId: input.tenantId });
     await eventBus.publish({
-      eventType: "PackRegistered",
+      eventType: birth.eventType,
       originatingObjectType: "Pack",
       originatingObjectId: pack.id,
       seuId: null,
       correlationId: eventBus.newCorrelationId(),
       payload: { code: pack.code, packVersion: pack.pack_version },
       actorId: input.actorId,
-      authorityBadge: input.authorBadge,
+      authorityBadge: birth.authorityBadge,
     });
-    const { data: packSchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
-    if (packSchema) {
-      await proposeComposableOntologyValues(packSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Pack", originatingObjectId: pack.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "pack_define", tenantId: input.tenantId });
-    }
-    await emitConceptCreatedForCompetencies(pack.id, seed.code, seed.contributions.competencies, { actorId: input.actorId, badge: "pack_define", tenantId: input.tenantId });
     return { ok: true, draftId: pack.id };
   }
   if (input.kind === "Template") {
@@ -755,13 +739,23 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     const draftContent = await withDefaultTemplatePurpose({ ...input.content, code }, code, tenantId);
     const { data: templateMaster } = await participantsMasterDB.findById(authoredBy);
     if (!templateMaster) return { ok: false, errors: [`No superuser provisioned.`] };
-    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Template write"] };
-    const { data: t, error } = await templatesDB.createDraft({ code, name: (draftContent.name as string) || "(untitled Template)", templateVersion, authoredBy: templateMaster.id, authorBadge: input.authorBadge, draftContent, tenantId, parentTemplateId: input.parentTemplateId ?? null, schemaDefinitionId: input.schemaDefinitionId });
+    const birth = await transitionEngine.beginBirth({ entityType: "Template", actorId: input.actorId });
+    const { data: t, error } = await templatesDB.createDraft({ code, name: (draftContent.name as string) || "(untitled Template)", templateVersion, status: birth.initialState as TemplateRow["status"], authoredBy: templateMaster.id, authorBadge: birth.authorityBadge, draftContent, tenantId, parentTemplateId: input.parentTemplateId ?? null, schemaDefinitionId: input.schemaDefinitionId });
     if (error || !t) return { ok: false, errors: [(error ?? new Error("failed to create Template draft")).message] };
     const { data: templateSchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
     if (templateSchema) {
-      await proposeComposableOntologyValues(templateSchema.schema as JsonSchemaDocument, draftContent, { originatingObjectType: "Template", originatingObjectId: t.id, originatingEntityCode: code, actorId: input.actorId, badge: "template_define", tenantId });
+      await proposeComposableOntologyValues(templateSchema.schema as JsonSchemaDocument, draftContent, { originatingObjectType: "Template", originatingObjectId: t.id, originatingEntityCode: code, actorId: input.actorId, badge: birth.authorityBadge, tenantId });
     }
+    await eventBus.publish({
+      eventType: birth.eventType,
+      originatingObjectType: "Template",
+      originatingObjectId: t.id,
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      payload: { code: t.code, templateVersion: t.template_version },
+      actorId: input.actorId,
+      authorityBadge: birth.authorityBadge,
+    });
     return { ok: true, draftId: t.id };
   }
   if (input.kind === "Profile") {
@@ -784,14 +778,15 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
 
     const { data: profileMaster } = await participantsMasterDB.findById(authoredBy);
     if (!profileMaster) return { ok: false, errors: [`No superuser provisioned.`] };
-    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Profile write"] };
+    const birth = await transitionEngine.beginBirth({ entityType: "Profile", actorId: input.actorId });
     const { data: p, error } = await profilesDB.createDraft({
       code,
       name: (input.content.name as string) || "(untitled Profile)",
       baseTemplateId: template.id,
       environment: (input.content.environment as string) || "development",
+      status: birth.initialState as ProfileRow["status"],
       authoredBy: profileMaster.id,
-      authorBadge: input.authorBadge,
+      authorBadge: birth.authorityBadge,
       draftContent: { ...input.content, code },
       profileVersion,
       tenantId,
@@ -801,8 +796,18 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     if (error || !p) return { ok: false, errors: [(error ?? new Error("failed to create Profile draft")).message] };
     const { data: profileSchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
     if (profileSchema) {
-      await proposeComposableOntologyValues(profileSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Profile", originatingObjectId: p.id, originatingEntityCode: code, actorId: input.actorId, badge: "profile_define", tenantId });
+      await proposeComposableOntologyValues(profileSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Profile", originatingObjectId: p.id, originatingEntityCode: code, actorId: input.actorId, badge: birth.authorityBadge, tenantId });
     }
+    await eventBus.publish({
+      eventType: birth.eventType,
+      originatingObjectType: "Profile",
+      originatingObjectId: p.id,
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      payload: { code: p.code, profileVersion: p.profile_version },
+      actorId: input.actorId,
+      authorityBadge: birth.authorityBadge,
+    });
     return { ok: true, draftId: p.id };
   }
   if (input.kind === "Deliverable") {
@@ -818,19 +823,36 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     if (!validation.ok) return { ok: false, errors: validation.errors };
     const { data: deliverableMaster } = await participantsMasterDB.findById(authoredBy);
     if (!deliverableMaster) return { ok: false, errors: [`No superuser provisioned.`] };
-    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Deliverable Definition write"] };
+    const birth = await transitionEngine.beginBirth({ entityType: "DeliverableDefinition", actorId: input.actorId });
     const { data: d, error } = await deliverableDefinitionsDB.createDraft({
       code: seed.code,
       description: seed.description ?? null,
       version: seed.definitionVersion,
+      status: birth.initialState as DeliverableDefinitionRow["status"],
       authoredBy: deliverableMaster.id,
-      authorBadge: input.authorBadge,
+      authorBadge: birth.authorityBadge,
       draftContent: input.content,
       tenantId,
       parentDeliverableDefinitionId: input.parentDeliverableDefinitionId ?? null,
       schemaDefinitionId: input.schemaDefinitionId,
     });
     if (error || !d) return { ok: false, errors: [(error ?? new Error("failed to create Deliverable Definition draft")).message] };
+    const { data: deliverableSchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
+    if (deliverableSchema) {
+      await proposeComposableOntologyValues(deliverableSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "DeliverableDefinition", originatingObjectId: d.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: birth.authorityBadge, tenantId });
+    }
+    await eventBus.publish({
+      eventType: birth.eventType,
+      originatingObjectType: "DeliverableDefinition",
+      originatingObjectId: d.id,
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      actorId: deliverableMaster.id,
+      authorityBadge: birth.authorityBadge,
+      versionEvent: birth.versionEvent,
+      payload: { code: d.code, version: d.version },
+      tenantId,
+    });
     return { ok: true, draftId: d.id };
   }
   if (input.kind === "Service") {
@@ -848,7 +870,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     if (!validation.ok) return { ok: false, errors: validation.errors };
     const { data: serviceMaster } = await participantsMasterDB.findById(authoredBy);
     if (!serviceMaster) return { ok: false, errors: [`No superuser provisioned.`] };
-    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Service Definition write"] };
+    const birth = await transitionEngine.beginBirth({ entityType: "Service", actorId: input.actorId });
     const { data: s, error } = await serviceDefinitionsDB.createDraft({
       code: seed.code,
       name: seed.name,
@@ -861,14 +883,27 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       success: seed.success ?? null,
       consumers: seed.consumers ?? [],
       version: seed.version,
+      status: birth.initialState as ServiceDefinitionRow["status"],
       authoredBy: serviceMaster.id,
-      authorBadge: input.authorBadge,
+      authorBadge: birth.authorityBadge,
       draftContent: input.content,
       tenantId,
       parentServiceDefinitionId: input.parentServiceDefinitionId ?? null,
       schemaDefinitionId: input.schemaDefinitionId,
     });
     if (error || !s) return { ok: false, errors: [(error ?? new Error("failed to create Service Definition draft")).message] };
+    await eventBus.publish({
+      eventType: birth.eventType,
+      originatingObjectType: "Service",
+      originatingObjectId: s.id,
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      actorId: serviceMaster.id,
+      authorityBadge: birth.authorityBadge,
+      versionEvent: birth.versionEvent,
+      payload: { code: s.code, version: s.version },
+      tenantId,
+    });
     return { ok: true, draftId: s.id };
   }
   if (input.kind === "Policy") {
@@ -885,7 +920,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     if (!validation.ok) return { ok: false, errors: validation.errors };
     const { data: policyMaster } = await participantsMasterDB.findById(authoredBy);
     if (!policyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
-    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Policy Definition write"] };
+    const birth = await transitionEngine.beginBirth({ entityType: "Policy", actorId: input.actorId });
     const { data: p, error } = await policyDefinitionsDB.createDraft({
       code: seed.code,
       name: seed.name,
@@ -896,8 +931,9 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       conditions: seed.conditions ?? [],
       scope: seed.scope,
       version: seed.version,
+      status: birth.initialState as PolicyDefinitionRow["status"],
       authoredBy: policyMaster.id,
-      authorBadge: input.authorBadge,
+      authorBadge: birth.authorityBadge,
       draftContent: input.content,
       tenantId,
       parentPolicyDefinitionId: input.parentPolicyDefinitionId ?? null,
@@ -906,8 +942,20 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     if (error || !p) return { ok: false, errors: [(error ?? new Error("failed to create Policy Definition draft")).message] };
     const { data: policySchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
     if (policySchema) {
-      await proposeComposableOntologyValues(policySchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Policy", originatingObjectId: p.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "policy_define", tenantId });
+      await proposeComposableOntologyValues(policySchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Policy", originatingObjectId: p.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: birth.authorityBadge, tenantId });
     }
+    await eventBus.publish({
+      eventType: birth.eventType,
+      originatingObjectType: "Policy",
+      originatingObjectId: p.id,
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      actorId: policyMaster.id,
+      authorityBadge: birth.authorityBadge,
+      versionEvent: birth.versionEvent,
+      payload: { code: p.code, version: p.version },
+      tenantId,
+    });
     return { ok: true, draftId: p.id };
   }
   if (input.kind === "Capability") {
@@ -923,7 +971,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     if (!validation.ok) return { ok: false, errors: validation.errors };
     const { data: capabilityMaster } = await participantsMasterDB.findById(authoredBy);
     if (!capabilityMaster) return { ok: false, errors: [`No superuser provisioned.`] };
-    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Capability Definition write"] };
+    const birth = await transitionEngine.beginBirth({ entityType: "Capability", actorId: input.actorId });
     const { data: c, error } = await capabilityDefinitionsDB.createDraft({
       code: seed.code,
       defaultLabel: seed.defaultLabel,
@@ -931,8 +979,9 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       category: seed.category,
       roles: seed.roles ?? [],
       version: seed.version,
+      status: birth.initialState as CapabilityDefinitionRow["status"],
       authoredBy: capabilityMaster.id,
-      authorBadge: input.authorBadge,
+      authorBadge: birth.authorityBadge,
       draftContent: input.content,
       tenantId,
       parentCapabilityDefinitionId: input.parentCapabilityDefinitionId ?? null,
@@ -941,16 +990,17 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     if (error || !c) return { ok: false, errors: [(error ?? new Error("failed to create Capability Definition draft")).message] };
     const { data: capabilitySchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
     if (capabilitySchema) {
-      await proposeComposableOntologyValues(capabilitySchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Capability", originatingObjectId: c.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: input.authorBadge, tenantId });
+      await proposeComposableOntologyValues(capabilitySchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Capability", originatingObjectId: c.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: birth.authorityBadge, tenantId });
     }
     await eventBus.publish({
-      eventType: "CapabilityRegistered",
-      originatingObjectType: "CapabilityDefinition",
+      eventType: birth.eventType,
+      originatingObjectType: "Capability",
       originatingObjectId: c.id,
       seuId: null,
       correlationId: eventBus.newCorrelationId(),
       actorId: capabilityMaster.id,
-      authorityBadge: input.authorBadge,
+      authorityBadge: birth.authorityBadge,
+      versionEvent: birth.versionEvent,
       payload: { code: c.code, version: c.version },
       tenantId,
     });
@@ -990,6 +1040,10 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     if (!existingTemplate) return { ok: false, errors: ["draft not found or no longer editable"] };
     const seed = toTemplateSeedInput({ ...input.content });
     if (existingTemplate.parent_template_id) seed.code = existingTemplate.code;
+    seed.tenantId = existingTemplate.tenant_id;
+    seed.parentTemplateId = existingTemplate.parent_template_id ?? undefined;
+    const saveErrors = await validateTemplateOnSave(seed);
+    if (saveErrors.length > 0) return { ok: false, errors: saveErrors };
     const draftContent = await withDefaultTemplatePurpose({ ...input.content, code: seed.code, templateVersion: seed.templateVersion }, seed.code, existingTemplate.tenant_id);
     const { data, error } = await templatesDB.updateDraftContent(input.id, { code: seed.code, name: (draftContent.name as string) || "(untitled Template)", templateVersion: seed.templateVersion, draftContent });
     if (error) return { ok: false, errors: [error.message] };
@@ -1011,6 +1065,10 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
 
     const seed = toProfileSeedInput({ ...input.content });
     if (existingProfile.parent_profile_id) seed.code = existingProfile.code;
+    seed.tenantId = existingProfile.tenant_id;
+    seed.parentProfileId = existingProfile.parent_profile_id ?? undefined;
+    const saveErrors = await validateProfileOnSave(seed);
+    if (saveErrors.length > 0) return { ok: false, errors: saveErrors };
 
     const { data, error } = await profilesDB.updateDraftContent(input.id, {
       name: (input.content.name as string) || "(untitled Profile)",
@@ -1036,6 +1094,10 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     const { data, error } = await deliverableDefinitionsDB.updateDraftContent(input.id, { code: seed.code, description: seed.description ?? null, version: seed.definitionVersion, draftContent: input.content });
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
+    const { data: deliverableSchema } = existing.schema_definition_id ? await schemaDefinitionsDB.findById(existing.schema_definition_id) : await schemaDefinitionsDB.findLatest("Deliverable");
+    if (deliverableSchema) {
+      await proposeComposableOntologyValues(deliverableSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "DeliverableDefinition", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: existing.author_badge, tenantId: existing.tenant_id });
+    }
     return { ok: true };
   }
   if (input.kind === "Service") {
@@ -1100,140 +1162,85 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
   if (input.kind === "Pack") {
     const { data: pack } = await packsDB.findById(input.id);
     if (!pack) return { ok: false, errors: ["Pack draft not found"] };
-    if (pack.status === "Draft") {
-      const seed = toPackSeedInput(packRowToContent(pack));
-      const validation = await validatePackSeed(seed, { skipComposableChecks: true });
-      if (!validation.ok) return { ok: false, errors: validation.errors };
+    const next = await nextActionsFor("Pack", pack.status, input.actorId);
+    if (next.length !== 1) return { ok: false, errors: [`Pack is ${pack.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
+    if (next[0].toState === "Active") {
+      const activated = await activatePackSupersedingPrevious(pack, input.actorId);
+      if (!activated.ok || !activated.pack) return { ok: false, errors: activated.errors ?? ["advance failed"] };
+      return { ok: true, status: activated.pack.status };
     }
-    if (pack.status === "Validated") {
-      const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
-      if (packSchema) {
-        const errors = await validateComposableFieldsAgainstSchema(packSchema.schema as JsonSchemaDocument, {
-          code: pack.code, category: pack.category,
-          contributionObligationDefinitions: pack.contributions.obligationDefinitions,
-          contributionEngineeringCapital: pack.contributions.engineeringCapital,
-          contributionQualityGates: pack.contributions.qualityGates,
-        }, { isRoot: false, tenantId: pack.tenant_id });
-        if (errors.length > 0) return { ok: false, errors };
-      }
-    }
-    const advanced = await advancePackOneStep(pack, input.actorId);
-    if (!advanced.ok || !advanced.pack) return { ok: false, errors: advanced.errors ?? ["advance failed"] };
-    return { ok: true, status: advanced.pack.status };
+    const advanced = await transitionEntity({ entityType: "Pack", entityId: pack.id, targetState: next[0].toState, actorId: input.actorId });
+    if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Template") {
     const { data: t } = await templatesDB.findById(input.id);
     if (!t) return { ok: false, errors: ["Template draft not found"] };
-    if (t.status === "Draft") {
-      const seed = toTemplateSeedInput({ code: t.code, name: t.name, ...(t.draft_content ?? {}), templateVersion: t.template_version, tenantId: t.tenant_id, parentTemplateId: t.parent_template_id });
-      const validation = await validateTemplateSeed(seed, { skipComposableChecks: true });
-      if (!validation.ok) return { ok: false, errors: validation.errors };
-      const materialiseResult = await materialiseTemplateDraft(t.id, seed, t.authored_by, t.author_badge);
-      if (!materialiseResult.ok) return materialiseResult;
+    const next = await nextActionsFor("Template", t.status, input.actorId);
+    if (next.length !== 1) return { ok: false, errors: [`Template is ${t.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
+    if (next[0].toState === "Active") {
+      const activated = await activateTemplateSupersedingPrevious(t, input.actorId);
+      if (!activated.ok) return activated;
+      return { ok: true, status: activated.template.status };
     }
-    if (t.status === "Validated") {
-      const { data: templateSchema } = await schemaDefinitionsDB.findLatest("Template");
-      if (templateSchema) {
-        const errors = await validateComposableFieldsAgainstSchema(templateSchema.schema as JsonSchemaDocument, { code: t.code, deliverableCatalogue: t.deliverable_catalogue }, { isRoot: false, tenantId: t.tenant_id });
-        if (errors.length > 0) return { ok: false, errors };
-      }
-    }
-    const advanced = await advanceTemplateOneStep(t, input.actorId);
-    if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
-    return { ok: true, status: advanced.template.status };
+    const advanced = await transitionEntity({ entityType: "Template", entityId: t.id, targetState: next[0].toState, actorId: input.actorId });
+    if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Profile") {
     const { data: p } = await profilesDB.findById(input.id);
     if (!p) return { ok: false, errors: ["Profile draft not found"] };
-    if (p.status === "Draft") {
-      const seed = toProfileSeedInput({ code: p.code, name: p.name, ...(p.draft_content ?? {}), profileVersion: p.profile_version, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id });
-      const validation = await validateProfileSeed(seed);
-      if (!validation.ok) return { ok: false, errors: validation.errors };
-      const materialiseResult = await materialiseProfileDraft(p.id, seed, p.authored_by, p.author_badge);
-      if (!materialiseResult.ok) return materialiseResult;
+    const next = await nextActionsFor("Profile", p.status, input.actorId);
+    if (next.length !== 1) return { ok: false, errors: [`Profile is ${p.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
+    if (next[0].toState === "Active") {
+      const activated = await activateProfileSupersedingPrevious(p, input.actorId);
+      if (!activated.ok) return activated;
+      return { ok: true, status: activated.profile.status };
     }
-    if (p.status === "Validated") {
-      const { data: profileSchema } = await schemaDefinitionsDB.findLatest("Profile");
-      if (profileSchema) {
-        const errors = await validateComposableFieldsAgainstSchema(profileSchema.schema as JsonSchemaDocument, { ...(p.draft_content ?? {}), environment: p.environment }, { isRoot: false, tenantId: p.tenant_id });
-        if (errors.length > 0) return { ok: false, errors };
-      }
-    }
-    const advanced = await advanceProfileOneStep(p, input.actorId);
-    if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
-    return { ok: true, status: advanced.profile.status };
+    const advanced = await transitionEntity({ entityType: "Profile", entityId: p.id, targetState: next[0].toState, actorId: input.actorId });
+    if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Deliverable") {
     const { data: d } = await deliverableDefinitionsDB.findById(input.id);
     if (!d) return { ok: false, errors: ["Deliverable Definition draft not found"] };
-    if (d.status === "Draft") {
-      const seed = toDeliverableDefinitionSeedInput({ code: d.code, description: d.description ?? undefined, definitionVersion: d.version, ...(d.draft_content ?? {}) });
-      const validation = await validateDeliverableDefinitionSeed({ ...seed, tenantId: d.tenant_id, parentDeliverableDefinitionId: d.parent_deliverable_definition_id ?? undefined }, d.id);
-      if (!validation.ok) return { ok: false, errors: validation.errors };
+    const next = await nextActionsFor("DeliverableDefinition", d.status, input.actorId);
+    if (next.length !== 1) return { ok: false, errors: [`Deliverable Definition is ${d.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
+    if (next[0].toState === "Active") {
+      const activated = await activateDeliverableDefinitionSupersedingPrevious(d, input.actorId);
+      if (!activated.ok) return activated;
+      return { ok: true, status: activated.deliverableDefinition.status };
     }
-    const advanced = await advanceDeliverableDefinitionOneStep(d, input.actorId);
-    if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
-    return { ok: true, status: advanced.deliverableDefinition.status };
+    const advanced = await transitionEntity({ entityType: "DeliverableDefinition", entityId: d.id, targetState: next[0].toState, actorId: input.actorId });
+    if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Service") {
     const { data: s } = await serviceDefinitionsDB.findById(input.id);
     if (!s) return { ok: false, errors: ["Service Definition draft not found"] };
-    if (s.status === "Defined") {
-      const seed = toServiceDefinitionSeedInput({
-        code: s.code, name: s.name, capabilityCode: s.capability_code, purpose: s.purpose ?? undefined, inputs: s.inputs ?? undefined,
-        outputs: s.outputs ?? undefined, serviceLevel: s.service_level, governance: s.governance ?? undefined, success: s.success ?? undefined,
-        consumers: s.consumers, version: s.version, ...(s.draft_content ?? {}),
-      });
-      const validation = await validateServiceDefinitionSeed({ ...seed, tenantId: s.tenant_id, parentServiceDefinitionId: s.parent_service_definition_id ?? undefined }, s.id);
-      if (!validation.ok) return { ok: false, errors: validation.errors };
-    }
-    const advanced = await advanceServiceDefinitionOneStep(s, input.actorId);
-    if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
-    return { ok: true, status: advanced.serviceDefinition.status };
+    const next = await nextActionsFor("Service", s.status, input.actorId);
+    if (next.length !== 1) return { ok: false, errors: [`Service Definition is ${s.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
+    const advanced = await transitionEntity({ entityType: "Service", entityId: s.id, targetState: next[0].toState, actorId: input.actorId });
+    if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Policy") {
     const { data: p } = await policyDefinitionsDB.findById(input.id);
     if (!p) return { ok: false, errors: ["Policy Definition draft not found"] };
-    if (p.status === "Draft") {
-      const seed = toPolicyDefinitionSeedInput({
-        ...(p.draft_content ?? {}),
-        code: p.code, name: p.name, description: p.description ?? undefined, category: p.category, constraintType: p.constraint_type,
-        applicabilityEnvironments: p.applicability_environments,
-        conditions: JSON.stringify(p.conditions), version: p.version,
-        scope: p.scope,
-      });
-      const validation = await validatePolicyDefinitionSeed({ ...seed, tenantId: p.tenant_id, parentPolicyDefinitionId: p.parent_policy_definition_id ?? undefined }, p.id, false, true);
-      if (!validation.ok) return { ok: false, errors: validation.errors };
-    }
-    if (p.status === "Validated") {
-      const { data: policySchema } = await schemaDefinitionsDB.findLatest("Policy");
-      if (policySchema) {
-        const errors = await validateComposableFieldsAgainstSchema(policySchema.schema as JsonSchemaDocument, { applicabilityEnvironments: p.applicability_environments, category: p.category }, { isRoot: false, tenantId: p.tenant_id });
-        if (errors.length > 0) return { ok: false, errors };
-      }
-    }
-    const advanced = await advancePolicyDefinitionOneStep(p, input.actorId);
-    if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
-    return { ok: true, status: advanced.policyDefinition.status };
+    const next = await nextActionsFor("Policy", p.status, input.actorId);
+    if (next.length !== 1) return { ok: false, errors: [`Policy Definition is ${p.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
+    const advanced = await transitionEntity({ entityType: "Policy", entityId: p.id, targetState: next[0].toState, actorId: input.actorId });
+    if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Capability") {
     const { data: c } = await capabilityDefinitionsDB.findById(input.id);
     if (!c) return { ok: false, errors: ["Capability Definition draft not found"] };
-    if (c.status === "Defined") {
-      const seed = toCapabilityDefinitionSeedInput({
-        code: c.code, defaultLabel: c.default_label, description: c.description ?? undefined, category: c.category, roles: c.roles, version: c.version, ...(c.draft_content ?? {}),
-      });
-      const validation = await validateCapabilityDefinitionSeed({ ...seed, tenantId: c.tenant_id, parentCapabilityDefinitionId: c.parent_capability_definition_id ?? undefined }, c.id);
-      if (!validation.ok) return { ok: false, errors: validation.errors };
-      const { data: capabilitySchema } = c.schema_definition_id ? await schemaDefinitionsDB.findById(c.schema_definition_id) : { data: null };
-      if (capabilitySchema) {
-        const errors = await validateComposableFieldsAgainstSchema(capabilitySchema.schema as JsonSchemaDocument, { code: c.code, category: c.category, roles: c.roles }, { isRoot: false, tenantId: c.tenant_id });
-        if (errors.length > 0) return { ok: false, errors };
-      }
-    }
-    const advanced = await advanceCapabilityDefinitionOneStep(c, input.actorId);
-    if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
-    return { ok: true, status: advanced.capabilityDefinition.status };
+    const next = await nextActionsFor("Capability", c.status, input.actorId);
+    if (next.length !== 1) return { ok: false, errors: [`Capability Definition is ${c.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
+    const advanced = await transitionEntity({ entityType: "Capability", entityId: c.id, targetState: next[0].toState, actorId: input.actorId });
+    if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    return { ok: true, status: advanced.appliedTransition.toState };
   }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
 }

@@ -66,14 +66,14 @@
     ],
     "reviewGates": [
       {
-        "code": "github-integration-review-gate",
+        "code": "branching-strategy",
         "name": "GitHub Integration Readiness Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The DevOps Engineer confirms that GitHub Webhook endpoints and API tokens satisfy security & connectivity standards.",
         "prompt": "Does the GitHub integration setup confirm API token validity and webhook event delivery?",
         "participant": "human",
-        "outputContract": "github-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "GitHub Integration Verification Checklist"
         ]

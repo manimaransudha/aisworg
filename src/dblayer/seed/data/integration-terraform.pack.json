@@ -57,14 +57,14 @@
     ],
     "reviewGates": [
       {
-        "code": "terraform-integration-review-gate",
+        "code": "infrastructure-as-code-environment-configuration",
         "name": "Terraform IaC Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Infrastructure Lead confirms that Terraform Cloud API tokens and speculative plan checks operate correctly.",
         "prompt": "Does the Terraform integration verify remote state lock enforcement and speculative plan output?",
         "participant": "human",
-        "outputContract": "terraform-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Terraform Integration Verification Checklist"
         ]

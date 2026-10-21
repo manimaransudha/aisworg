@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "chief-medical-officer-signoff-gate",
+        "code": "failure-mode-and-effects-analysis",
         "name": "Chief Medical Officer Clinical Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Chief Medical Officer and Head of Pharmacovigilance confirm that EHR clinical safety and trial SAE workflows comply with GCP guidelines.",
         "prompt": "Does the healthcare documentation confirm clinical safety and pharmacovigilance compliance?",
         "participant": "human",
-        "outputContract": "healthcare-pharma-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Healthcare & Pharmaceutical Clinical Audit Checklist"
         ]

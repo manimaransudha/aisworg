@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "nydfs-ciso-certification-gate",
+        "code": "impact-analysis-report",
         "name": "NYDFS Section 500.17 CISO Certification Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The CISO confirms that MFA, penetration testing, and incident reporting comply with NYDFS 23 NYCRR 500 requirements.",
         "prompt": "Does the cybersecurity audit package support full CISO certification under NYDFS Part 500?",
         "participant": "human",
-        "outputContract": "nydfs-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "NYDFS 23 NYCRR 500 Control Verification Checklist"
         ]

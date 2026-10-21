@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "payroll-hr-director-signoff-gate",
+        "code": "skills-matrix",
         "name": "Payroll & HR Director Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The HR & Payroll Director confirms that payroll calculations, statutory tax filings, and offboarding steps satisfy labor laws.",
         "prompt": "Does the HR & Payroll audit package confirm calculation accuracy and regulatory compliance?",
         "participant": "human",
-        "outputContract": "hr-payroll-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Human Resources & Payroll Audit Checklist"
         ]

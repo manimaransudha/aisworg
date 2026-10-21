@@ -11,8 +11,8 @@ import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { listCapabilityDefinitionsWithNextStates, copyCapabilityDefinitionAsNewDraft } from "../core/capabilityDefinitions.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
  
 const CAPABILITY_DEFINITION_STATES = ["Defined", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
@@ -35,8 +35,8 @@ router.get("/capability-definitions", attachVM("seu/capability-definitions/index
     req.vm.opt.states = CAPABILITY_DEFINITION_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = (await getPlatformTenantId());
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-    const canCopy = actorId ? (await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "capability_define" })).allowed : false;
+    const held = await resolveHeldBadges(req);
+    const canCopy = held.has("capability_define");
     req.vm.opt.canCopy = canCopy;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/capability-definitions/index", req.vm);
@@ -47,13 +47,9 @@ router.get("/capability-definitions", attachVM("seu/capability-definitions/index
 });
 
 router.post("/capability-definitions/:id/copy", async (req: Request, res: Response) => {
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-  if (!actorId) return redirects.seu.capabilityDefinitionsCopy.error(req, res, "Sign in required.");
-  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "capability_define" });
-  if (!auth.allowed) return redirects.seu.capabilityDefinitionsCopy.error(req, res, "You don't hold the capability_define badge.");
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "capability_define");
+  const { actorId } = await resolveActorAndBadge(req);
   try {
-    const result = await copyCapabilityDefinitionAsNewDraft(String(req.params.id), actorId, authorBadge);
+    const result = await copyCapabilityDefinitionAsNewDraft(String(req.params.id), actorId);
     if (!result.ok) return redirects.seu.capabilityDefinitionsCopy.error(req, res, `Copy failed: ${result.errors.join("; ")}`);
     return redirects.seu.capabilityDefinitionsCopy.success(req, res, "Capability Definition copied — a new Draft is ready to edit.", `/aisworg/seu/sdk/capability-authoring/${result.draftId}`);
   } catch (err) {

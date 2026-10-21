@@ -5,9 +5,9 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
+import { readTargetState } from "../../../utils/transitionRequest.js";
 import { createExternalInteraction, listExternalInteractionsBySeu, transitionExternalInteraction } from "../core/externalInteractions.js";
-import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
-import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
+import { requireActorId, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
 import type { InteractionDirection } from "../../../dblayer/seuTypes.js";
 
 router.post("/external-interactions", async (req: Request, res: Response) => {
@@ -21,12 +21,7 @@ router.post("/external-interactions", async (req: Request, res: Response) => {
     ) {
       return res.status(400).json({ error: "seuId, interactionType, direction ('Inbound'|'Outbound') and targetSystem are required" });
     }
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!actorId) return res.status(401).json({ error: "no acting user to record as this External Interaction's author — log in first" });
-    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-    const held = await resolveHeldBadges(req);
-    const authorBadge = resolveAuthorBadge(authRow, held);
-    if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
+    const { actorId, authorBadge } = await resolveActorAndBadge(req);
     const interaction = await createExternalInteraction({ seuId, deliverableId, interactionType, direction: direction as InteractionDirection, targetSystem, purpose, actorId, authorBadge });
     res.status(201).json({ interaction });
   } catch (err) {
@@ -48,12 +43,9 @@ router.get("/external-interactions", async (req: Request, res: Response) => {
 
 router.post("/external-interactions/:id/transition", async (req: Request, res: Response) => {
   try {
-    const { targetState } = req.body ?? {};
-    if (typeof targetState !== "string" || !targetState.trim()) {
-      return res.status(400).json({ error: "targetState is required" });
-    }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
-    const actorId = String(req.session.user.id);
+    const targetState = readTargetState(req, res);
+    if (targetState === null) return;
+    const actorId = requireActorId(req);
     const result = await transitionExternalInteraction({ interactionId: String(req.params.id), targetState, actorId });
 
     if (!result.ok) {

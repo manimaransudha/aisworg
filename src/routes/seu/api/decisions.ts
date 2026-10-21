@@ -5,7 +5,9 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
+import { readTargetState } from "../../../utils/transitionRequest.js";
 import { createDecision, listDecisionsBySeu, transitionDecision } from "../core/decisions.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 router.post("/decisions", async (req: Request, res: Response) => {
   try {
@@ -13,8 +15,7 @@ router.post("/decisions", async (req: Request, res: Response) => {
     if (typeof seuId !== "string" || !Array.isArray(relatedObjects) || relatedObjects.length === 0 || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ error: "seuId, relatedObjects (non-empty array), category and title are required" });
     }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
-    const actorId = String(req.session.user.id);
+    const actorId = requireActorId(req);
     const decision = await createDecision({
       seuId,
       actorId,
@@ -49,12 +50,9 @@ router.get("/decisions", async (req: Request, res: Response) => {
 
 router.post("/decisions/:id/transition", async (req: Request, res: Response) => {
   try {
-    const { targetState } = req.body ?? {};
-    if (typeof targetState !== "string" || !targetState.trim()) {
-      return res.status(400).json({ error: "targetState is required" });
-    }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
-    const actorId = String(req.session.user.id);
+    const targetState = readTargetState(req, res);
+    if (targetState === null) return;
+    const actorId = requireActorId(req);
     const result = await transitionDecision({ decisionId: String(req.params.id), targetState, actorId });
 
     if (!result.ok) {

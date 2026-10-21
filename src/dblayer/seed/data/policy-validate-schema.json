@@ -1,0 +1,49 @@
+{
+  "code": "policy-validate-schema",
+  "name": "Validate Schema",
+  "description": "The content of a schema-governed entity validates against the schema version its row pinned, before the entity moves to Validated and again before it moves to Published.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The content of the entity validates against its pinned schema version before it moves to Validated and before it moves to Published.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "",
+          "transitions": [
+            "Capability|Defined|Validated",
+            "Capability|Validated|Published",
+            "Service|Defined|Validated",
+            "Service|Validated|Published",
+            "Pack|Draft|Validated",
+            "Pack|Validated|Published",
+            "Template|Draft|Validated",
+            "Template|Validated|Published",
+            "Profile|Draft|Validated",
+            "Profile|Validated|Published",
+            "Policy|Draft|Validated",
+            "Policy|Validated|Published",
+            "DeliverableDefinition|Draft|Validated",
+            "DeliverableDefinition|Validated|Published"
+          ],
+          "governingCondition": {
+            "type": "implemented"
+          }
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Schema Validation Record",
+        "category": "Validation Evidence",
+        "description": "The result of validating the entity content against its pinned schema version.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

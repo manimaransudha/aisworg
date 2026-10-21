@@ -13,6 +13,7 @@ export const capabilityDefinitionsDB = {
     category: string;
     roles?: CapabilityRole[];
     version?: string;
+    status: CapabilityDefinitionRow["status"];
     authoredBy: string;
     authorBadge: string;
     draftContent?: Record<string, unknown>;
@@ -44,7 +45,7 @@ export const capabilityDefinitionsDB = {
 
       const { rows } = await query<CapabilityDefinitionRow>(
         `INSERT INTO capability_definitions (code, default_label, description, category, roles, version, status, authored_by, author_badge, draft_content, tenant_id, parent_capability_definition_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, $5, $6, 'Defined', $7, $8, $9, $10, $11, $12)
+         VALUES ($1, $2, $3, $4, $5, $6, $13, $7, $8, $9, $10, $11, $12)
          RETURNING *`,
         [
           input.code,
@@ -59,6 +60,7 @@ export const capabilityDefinitionsDB = {
           tenantId,
           input.parentCapabilityDefinitionId ?? null,
           schemaRow?.id ?? null,
+          input.status,
         ]
       );
       return { data: rows[0] };

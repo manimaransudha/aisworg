@@ -6,6 +6,7 @@ import { logger } from "../../utils/logger.js";
 import { ontologyDB } from "../ontologyDB.js";
 import { eventsDB } from "../eventsDB.js";
 import { userDB } from "../userDB.js";
+import { INITIAL_VERSION } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,7 +36,7 @@ function loadSeed(): EventSubscriptionsSeed {
   return JSON.parse(raw) as EventSubscriptionsSeed;
 }
 
-const DEFAULT_VERSION = "1.0.0";
+const DEFAULT_VERSION = INITIAL_VERSION;
 
 function findDuplicates(keys: string[]): string[] {
   const seen = new Set<string>();

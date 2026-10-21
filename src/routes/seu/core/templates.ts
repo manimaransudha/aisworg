@@ -2,6 +2,7 @@ import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { transitionEntity } from "../../../domain/engine/entityTransition.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { materialiseDependencyGraph, DEFAULT_DELIVERABLE_REQUIRED_STATE } from "../../../domain/engine/materialiseDependencyGraph.js";
@@ -16,7 +17,7 @@ import { listTransitionsForEntityType } from "./policyDefinitions.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
-import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
+import { toSchemaRows, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import type { CapabilityRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
 import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "../../../utils/version.js";
@@ -316,22 +317,7 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
 
   const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(collectAllPackCodes(seed));
 
-  const exposableCandidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()), seed.dependencyGraph ?? []);
-  for (const row of seed.exposedParameters ?? []) {
-    const candidate = exposableCandidates.find((c) => c.sourceType === row.sourceType && c.sourceCode === row.sourceCode && c.parameterName === row.parameterName);
-    if (!candidate) {
-      errors.push(`exposedParameters references "${row.parameterName}" on ${row.sourceType} "${row.sourceCode}" — not a configurable parameter this Template currently carries`);
-    } else if (candidate.valueOptions && row.value && !candidate.valueOptions.includes(row.value)) {
-      errors.push(`exposedParameters "${row.parameterName}" on ${row.sourceType} "${row.sourceCode}" has value "${row.value}" — must be one of ${candidate.valueOptions.join(", ")}`);
-    }
-  }
-
-  const seenDeliverableCodes = new Set<string>();
-  for (const entry of seed.deliverableCatalogue ?? []) {
-    if (!entry.code?.trim()) { errors.push("deliverableCatalogue entry is missing a code"); continue; }
-    if (seenDeliverableCodes.has(entry.code)) errors.push(`deliverableCatalogue entry "${entry.code}" is a duplicate — codes must be unique within one Template's catalogue`);
-    seenDeliverableCodes.add(entry.code);
-  }
+  const seenDeliverableCodes = new Set<string>((seed.deliverableCatalogue ?? []).map((entry) => entry.code).filter((code) => !!code?.trim()));
 
   for (const entry of seed.dependencyGraph ?? []) {
     if (!seenDeliverableCodes.has(entry.toCode)) {
@@ -348,6 +334,22 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
     } else {
       errors.push(`dependencyGraph entry (toCode "${entry.toCode}") has an unrecognised fromType "${entry.fromType}"`);
     }
+  }
+
+  errors.push(...(await validateTemplateOnSave(seed)));
+
+  return errors.length > 0 ? { ok: false, errors } : { ok: true };
+}
+
+// The sanity checks the schema cannot carry (CR-128). They run when the form is saved and again when the Template is created.
+// Save is not a transition: there is no gate, only an error message.
+export async function validateTemplateOnSave(seed: TemplateSeedInput): Promise<string[]> {
+  const errors: string[] = [];
+  const seenDeliverableCodes = new Set<string>();
+  for (const entry of seed.deliverableCatalogue ?? []) {
+    if (!entry.code?.trim()) { errors.push("deliverableCatalogue entry is missing a code"); continue; }
+    if (seenDeliverableCodes.has(entry.code)) errors.push(`deliverableCatalogue entry "${entry.code}" is a duplicate — codes must be unique within one Template's catalogue`);
+    seenDeliverableCodes.add(entry.code);
   }
 
   const cycle = findDeliverableDependencyCycle(seed.dependencyGraph ?? []);
@@ -397,8 +399,7 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
       }
     }
   }
-
-  return errors.length > 0 ? { ok: false, errors } : { ok: true };
+  return errors;
 }
 
 export type PackSelectionsByCategory = Pick<TemplateSeedInput, "compliancePackCodes" | "domainPackCodes" | "engineeringPackCodes" | "integrationPackCodes" | "organisationPackCodes" | "technologyPackCodes">;
@@ -447,10 +448,12 @@ export async function deriveDedupedCapabilitiesFromPackCodes(packCodes: string[]
 
 async function materialisePackSelectionsAndCapabilities(templateId: string, seed: TemplateSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   for (const slot of PACK_SELECTION_SLOTS) {
-    await templatesDB.setPackSelection(templateId, slot.listKind, (seed[slot.field] as string[] | undefined) ?? [], authorId, authorBadge);
+    const { error: selectionError } = await templatesDB.setPackSelection(templateId, slot.listKind, (seed[slot.field] as string[] | undefined) ?? [], authorId, authorBadge);
+    if (selectionError) throw selectionError;
   }
   const capabilities = await deriveDedupedCapabilitiesFromPackCodes(collectAllPackCodes(seed));
-  await templatesDB.setRequiredCapabilities(templateId, capabilities.map((c) => c.id), authorId, authorBadge);
+  const { error: capabilityError } = await templatesDB.setRequiredCapabilities(templateId, capabilities.map((c) => c.id), authorId, authorBadge);
+  if (capabilityError) throw capabilityError;
   const candidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()), seed.dependencyGraph ?? []);
   const existingByKey = new Map((seed.exposedParameters ?? []).map((e) => [`${e.sourceType}::${e.sourceCode}::${e.parameterName}`, e]));
   const exposedParameters: ExposedParameter[] = candidates.map((c) => {
@@ -458,163 +461,105 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
     return { sourceType: c.sourceType, sourceCode: c.sourceCode, parameterName: c.parameterName, value: saved?.value ?? c.defaultValue, overridable: saved ? saved.overridable : true };
   });
   const { error } = await templatesDB.setDraftContent(templateId, { ...seed, exposedParameters });
-  if (error) return { ok: false, errors: [error.message] };
+  if (error) throw error;
   return { ok: true };
+}
+
+// The value of an exposed parameter is one the parameter allows. A row for a parameter the selected Packs do not carry is not an
+// error here: the unravel step rebuilds the list from the parameters the Packs carry and drops it (CR-128).
+export async function validateExposedParameterValues(seed: TemplateSeedInput): Promise<string[]> {
+  const errors: string[] = [];
+  const candidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()), seed.dependencyGraph ?? []);
+  for (const row of seed.exposedParameters ?? []) {
+    const candidate = candidates.find((c) => c.sourceType === row.sourceType && c.sourceCode === row.sourceCode && c.parameterName === row.parameterName);
+    if (candidate?.valueOptions && row.value && !candidate.valueOptions.includes(row.value)) {
+      errors.push(`exposedParameters "${row.parameterName}" on ${row.sourceType} "${row.sourceCode}" has value "${row.value}" — must be one of ${candidate.valueOptions.join(", ")}`);
+    }
+  }
+  return errors;
 }
 
 export type PublishTemplateResult = { ok: true; templateId: string } | { ok: false; errors: string[] };
 
-export async function publishTemplate(input: { seed: TemplateSeedInput; actorId: string }): Promise<PublishTemplateResult> {
-  const { seed, actorId } = input;
+export async function createTemplateDraft(seed: TemplateSeedInput, actorId: string): Promise<{ ok: true; draft: TemplateRow } | { ok: false; errors: string[] }> {
   const validation = await validateTemplateSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
   const tenantId = seed.tenantId ?? (await getPlatformTenantId());
 
   if (!actorId) return { ok: false, errors: ["publishTemplate requires a real actorId to author the Draft"] };
-  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "template_define" });
-  if (!auth.allowed) return { ok: false, errors: [`actor "${actorId}" does not hold template_define`] };
   const { data: templateMaster } = await participantsMasterDB.findById(actorId);
   if (!templateMaster) return { ok: false, errors: [`No superuser provisioned.`] };
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "template_define");
-
 
   const { data: templateSchema } = await schemaDefinitionsDB.findLatest("Template");
   if (!templateSchema) return { ok: false, errors: [`no schema_definitions grammar for Template`] };
+  const birth = await transitionEngine.beginBirth({ entityType: "Template", actorId });
   const { data: draft, error } = await templatesDB.createDraft({
     code: seed.code,
     name: seed.name,
     templateVersion: seed.templateVersion,
+    status: birth.initialState as TemplateRow["status"],
     authoredBy: templateMaster.id,
-    authorBadge,
+    authorBadge: birth.authorityBadge,
     tenantId,
     parentTemplateId: seed.parentTemplateId,
-    draftContent: { purpose: seed.purpose },
+    draftContent: toSchemaRows(templateSchema.schema as JsonSchemaDocument, { ...seed }),
     schemaDefinitionId: templateSchema.id,
   });
   if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create template draft")).message] };
 
-  const materialiseResult = await materialiseTemplateDraft(draft.id, seed, templateMaster.id, authorBadge);
-  if (!materialiseResult.ok) return materialiseResult;
-
   await eventBus.publish({
-    eventType: "TemplateCreated",
+    eventType: birth.eventType,
     originatingObjectType: "Template",
     originatingObjectId: draft.id,
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
     actorId: templateMaster.id,
-    authorityBadge: authorBadge,
+    authorityBadge: birth.authorityBadge,
     payload: { code: draft.code, templateVersion: draft.template_version },
   });
-
-  let current = draft;
-  for (let i = 0; i < 3; i++) {
-    const result = await advanceTemplateOneStep(current, actorId);
-    if (!result.ok) return { ok: false, errors: [`advancing Template "${current.code}" from "${current.status}" failed: ${result.reason}${result.detail ? ` (${result.detail})` : ""}`] };
-    current = result.template;
-  }
-
-  return { ok: true, templateId: current.id };
+  return { ok: true, draft };
 }
 
-export type TransitionTemplateResult = { ok: true; template: TemplateRow } | { ok: false; reason: string; detail?: string };
-
-const TERMINAL_REACTIVATABLE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
-
-export async function transitionTemplate(input: { templateId: string; targetState: TemplateRow["status"]; actorId: string }): Promise<TransitionTemplateResult> {
-  const { data: template } = await templatesDB.findById(input.templateId);
-  if (!template) return { ok: false, reason: "not_found" };
-  const fromState = template.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Template", fromState, toState: input.targetState, actorId: input.actorId, entityId: template.id, context: { template } });
-  if (!gate.allowed) {
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Template ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-    return { ok: false, reason: gate.reason };
+// Moves a Template to Active and deprecates the Active version it replaces, both through the generic transition.
+export async function activateTemplateSupersedingPrevious(template: TemplateRow, actorId: string): Promise<{ ok: true; template: TemplateRow } | { ok: false; errors: string[] }> {
+  const { data: previousActive } = await templatesDB.findActiveByCode(template.code, template.tenant_id);
+  const activated = await transitionEntity({ entityType: "Template", entityId: template.id, targetState: "Active", actorId });
+  if (!activated.ok) return { ok: false, errors: [`transition to "Active" failed: ${"detail" in activated ? activated.detail : activated.reason}`] };
+  if (previousActive && previousActive.id !== template.id) {
+    await transitionEntity({ entityType: "Template", entityId: previousActive.id, targetState: "Deprecated", actorId });
   }
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
+  return { ok: true, template: activated.row as TemplateRow };
+}
 
-  if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    return reactivateAsNewVersion(template, input.actorId, gate.authorityBadge);
+// Walks a Template from Draft, Validated or Published to Active, one transition at a time.
+export async function advanceTemplateToActive(template: TemplateRow, actorId: string): Promise<{ ok: true; template: TemplateRow } | { ok: false; errors: string[] }> {
+  let current = template;
+  for (const targetState of ["Validated", "Published"]) {
+    if (current.status === "Active") break;
+    if (targetState === "Validated" && current.status !== "Draft") continue;
+    if (targetState === "Published" && current.status !== "Validated") continue;
+    const result = await transitionEntity({ entityType: "Template", entityId: current.id, targetState, actorId });
+    if (!result.ok) return { ok: false, errors: [`transition to "${targetState}" failed: ${"detail" in result ? result.detail : result.reason}`] };
+    current = result.row as TemplateRow;
   }
+  if (current.status !== "Published") return { ok: false, errors: [`Template "${current.code}" is ${current.status} and cannot be advanced to Active`] };
+  return activateTemplateSupersedingPrevious(current, actorId);
+}
 
-  const { data: updated, error } = await templatesDB.updateStatus(template.id, input.targetState);
-  if (error || !updated) throw error ?? new Error("failed to update template status");
-  await eventBus.publish({
-    eventType: gate.eventType ?? "TemplateTransitioned",
-    originatingObjectType: "Template",
-    originatingObjectId: template.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState, code: template.code },
-    actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
-    versionEvent: gate.versionEvent,
-    fromState,
-    toState: input.targetState,
-    tenantId: template.tenant_id,
-  });
-  return { ok: true, template: updated };
+export async function publishTemplate(input: { seed: TemplateSeedInput; actorId: string }): Promise<PublishTemplateResult> {
+  const created = await createTemplateDraft(input.seed, input.actorId);
+  if (!created.ok) return created;
+  const advanced = await advanceTemplateToActive(created.draft, input.actorId);
+  if (!advanced.ok) return advanced;
+  return { ok: true, templateId: advanced.template.id };
 }
 
 async function nextAvailablePatchVersion(code: string, fromVersion: string, tenantId: string): Promise<string> {
   return nextAvailableVersion(fromVersion, async (candidate) => !!(await templatesDB.findByCodeAndVersion(code, candidate, tenantId)).data);
 }
 
-async function reactivateAsNewVersion(template: TemplateRow, actorId: string, authorBadge: string | null): Promise<TransitionTemplateResult> {
-  const nextVersion = await nextAvailablePatchVersion(template.code, template.template_version, template.tenant_id);
-  const packSelections = await getPackSelectionsByCategory(template.id);
-  const seed: TemplateSeedInput = {
-    code: template.code,
-    name: template.name,
-    templateVersion: nextVersion,
-    ...packSelections,
-    deliverableCatalogue: template.deliverable_catalogue,
-    tenantId: template.tenant_id,
-    parentTemplateId: template.parent_template_id,
-    exposedParameters: extractExposedParameters(template.draft_content as Record<string, unknown> | null),
-  };
-  const purpose = typeof (template.draft_content as Record<string, unknown> | null)?.purpose === "string" ? (template.draft_content as Record<string, unknown>).purpose : undefined;
-
-  const { data: reactivationSchema } = template.schema_definition_id ? { data: { id: template.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Template");
-  if (!reactivationSchema) return { ok: false, reason: "policy_blocked", detail: `no schema_definitions grammar for Template` };
-  if (!actorId) return { ok: false, reason: "policy_blocked", detail: "reactivation requires a real actorId to author the new Version's Draft" };
-  if (!authorBadge) return { ok: false, reason: "policy_blocked", detail: "no authority badge resolved for this Template reactivation" };
-  const { data: reactivateMaster } = await participantsMasterDB.findById(actorId);
-  if (!reactivateMaster) return { ok: false, reason: "policy_blocked", detail: `No superuser provisioned.` };
-  const { data: newDraft, error } = await templatesDB.createDraft({
-    code: seed.code,
-    name: seed.name,
-    templateVersion: nextVersion,
-    authoredBy: reactivateMaster.id,
-    authorBadge,
-    draftContent: { ...seed, purpose },
-    tenantId: template.tenant_id,
-    parentTemplateId: template.parent_template_id,
-    schemaDefinitionId: reactivationSchema.id,
-  });
-  if (error || !newDraft) return { ok: false, reason: "policy_blocked", detail: (error ?? new Error("failed to create new Template version")).message };
-
-  const materialiseResult = await materialiseTemplateDraft(newDraft.id, seed, reactivateMaster.id, authorBadge);
-  if (!materialiseResult.ok) return { ok: false, reason: "policy_blocked", detail: materialiseResult.errors.join("; ") };
-
-  let current = newDraft;
-  for (const targetState of ["Validated", "Published", "Active"] as const) {
-    const result = await transitionTemplate({ templateId: current.id, targetState, actorId });
-    if (!result.ok) return result;
-    current = result.template;
-  }
-
-  const { data: previousActive } = await templatesDB.findActiveByCode(template.code, template.tenant_id);
-  if (previousActive && previousActive.id !== current.id) {
-    await transitionTemplate({ templateId: previousActive.id, targetState: "Deprecated", actorId });
-  }
-
-  return { ok: true, template: current };
-}
-
-export async function copyTemplateAsNewDraft(templateId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyTemplateAsNewDraft(templateId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await templatesDB.findById(templateId);
   if (!source) return { ok: false, errors: ["Template not found"] };
   const nextVersion = await nextAvailablePatchVersion(source.code, source.template_version, source.tenant_id);
@@ -632,49 +577,36 @@ export async function copyTemplateAsNewDraft(templateId: string, actorId: string
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Template`] };
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
   if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const birth = await transitionEngine.beginBirth({ entityType: "Template", actorId });
   const { data: newDraft, error } = await templatesDB.createDraft({
     code: source.code,
     name: source.name,
     templateVersion: nextVersion,
+    status: birth.initialState as TemplateRow["status"],
     authoredBy: copyMaster.id,
-    authorBadge,
+    authorBadge: birth.authorityBadge,
     draftContent,
     tenantId: source.tenant_id,
     parentTemplateId: source.parent_template_id,
     schemaDefinitionId: copySchema.id,
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Template")).message] };
+  await eventBus.publish({
+    eventType: birth.eventType,
+    originatingObjectType: "Template",
+    originatingObjectId: newDraft.id,
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    actorId: copyMaster.id,
+    authorityBadge: birth.authorityBadge,
+    payload: { code: newDraft.code, templateVersion: newDraft.template_version },
+  });
   return { ok: true, draftId: newDraft.id };
 }
 
-const AUTHORING_NEXT_STATE: Partial<Record<TemplateRow["status"], TemplateRow["status"]>> = {
-  Draft: "Validated",
-  Validated: "Published",
-  Published: "Active",
-  Active: "Deprecated",
-  Deprecated: "Retired",
-  Retired: "Archived",
-};
-
-export async function advanceTemplateOneStep(template: TemplateRow, actorId: string): Promise<TransitionTemplateResult> {
-  const targetState = AUTHORING_NEXT_STATE[template.status];
-  if (!targetState) return { ok: false, reason: "no_further_step", detail: `Template is already ${template.status} — no further authoring step` };
-
-  if (targetState === "Active") {
-    const { data: previousActive } = await templatesDB.findActiveByCode(template.code, template.tenant_id);
-    const activateResult = await transitionTemplate({ templateId: template.id, targetState: "Active", actorId });
-    if (!activateResult.ok) return activateResult;
-    if (previousActive && previousActive.id !== activateResult.template.id) {
-      await transitionTemplate({ templateId: previousActive.id, targetState: "Deprecated", actorId });
-    }
-    return activateResult;
-  }
-
-  return transitionTemplate({ templateId: template.id, targetState, actorId });
-}
-
 export async function materialiseTemplateDraft(templateId: string, seed: TemplateSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
-  await templatesDB.setDeliverableCatalogue(templateId, seed.deliverableCatalogue ?? []);
+  const { error: catalogueError } = await templatesDB.setDeliverableCatalogue(templateId, seed.deliverableCatalogue ?? []);
+  if (catalogueError) throw catalogueError;
   const result = await materialisePackSelectionsAndCapabilities(templateId, seed, authorId, authorBadge);
   if (!result.ok) return result;
   const PLATFORM_TENANT_ID = await getPlatformTenantId();

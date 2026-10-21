@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "head-of-research-signoff-gate",
+        "code": "benchmark-report",
         "name": "Head of R&D Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Head of R&D and Chief Patent Counsel confirm that ELN records, LIMS sample tracking, and IP disclosures satisfy research integrity standards.",
         "prompt": "Does the R&D documentation confirm lab data integrity and patent protection clearance?",
         "participant": "human",
-        "outputContract": "research-lifesciences-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Research & Life Sciences LIMS Audit Checklist"
         ]

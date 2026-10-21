@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "quality-director-signoff-gate",
+        "code": "test-strategy",
         "name": "Quality Assurance Director Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Quality Assurance Director confirms that manufacturing inspections, NCR quarantines, and CAPA resolutions meet ISO 9001 standards.",
         "prompt": "Does the manufacturing quality documentation confirm product compliance and CAPA effectiveness?",
         "participant": "human",
-        "outputContract": "mfg-quality-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Manufacturing & Quality Control Audit Checklist"
         ]

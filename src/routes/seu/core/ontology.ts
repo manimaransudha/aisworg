@@ -2,12 +2,13 @@ import { ontologyDB, type OntologyViewer } from "../../../dblayer/ontologyDB.js"
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import type { JsonSchemaDocument, JsonSchemaProperty } from "../../../domain/sdk/formGenerator.js";
 import type { OntologyConceptRow } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { getPlatformTenantId, INITIAL_VERSION } from "../../../dblayer/constants.js";
 
 export interface OntologyActor extends OntologyViewer {
   actorId: string;
@@ -55,20 +56,31 @@ function resolveByValueConceptType(def: JsonSchemaProperty, topLevelContent: Rec
   return resolved.source;
 }
 
+// One read per concept type, then every value is checked in memory.
+async function checkAgainstCanonicalSets(pending: Array<{ conceptType: string; value: string; label: string }>, viewer: OntologyViewer): Promise<string[]> {
+  const sets = new Map<string, string[]>();
+  for (const conceptType of new Set(pending.map((p) => p.conceptType))) {
+    const { data } = await ontologyDB.findConceptsByType(conceptType, viewer);
+    sets.set(conceptType, (data ?? []).map((c) => c.code));
+  }
+  const errors: string[] = [];
+  for (const { conceptType, value, label } of pending) {
+    const allowed = sets.get(conceptType) ?? [];
+    if (!allowed.includes(value)) errors.push(`${label}: "${value}" is not a canonical ${conceptType} concept. Allowed: ${allowed.join(", ") || "(none registered)"}`);
+  }
+  return errors;
+}
+
 export async function validateOntologyFieldsAgainstSchema(
   schema: JsonSchemaDocument,
   content: Record<string, unknown>,
   viewer: OntologyViewer
 ): Promise<string[]> {
-  const errors: string[] = [];
+  const pending: Array<{ conceptType: string; value: string; label: string }> = [];
 
   async function checkValue(conceptType: string, value: unknown, label: string): Promise<void> {
     if (typeof value !== "string" || !value.trim()) return;
-    try {
-      await assertCanonicalCategory(conceptType, value, viewer);
-    } catch (err) {
-      errors.push(`${label}: ${(err as Error).message}`);
-    }
+    pending.push({ conceptType, value, label });
   }
 
   async function checkMulti(conceptType: string, values: unknown, label: string): Promise<void> {
@@ -116,7 +128,7 @@ export async function validateOntologyFieldsAgainstSchema(
   }
 
   await walk(schema.properties ?? {}, content, content, "");
-  return errors;
+  return checkAgainstCanonicalSets(pending, viewer);
 }
 
 export async function emitConceptCreated(input: {
@@ -226,15 +238,11 @@ export async function validateComposableFieldsAgainstSchema(
   content: Record<string, unknown>,
   viewer: OntologyViewer
 ): Promise<string[]> {
-  const errors: string[] = [];
-  await collectComposableValues(schema.properties ?? {}, content, content, async (conceptType, value, _fieldName, label) => {
-    try {
-      await assertCanonicalCategory(conceptType, value, viewer);
-    } catch (err) {
-      errors.push(`${label}: ${(err as Error).message}`);
-    }
+  const pending: Array<{ conceptType: string; value: string; label: string }> = [];
+  await collectComposableValues(schema.properties ?? {}, content, content, (conceptType, value, _fieldName, label) => {
+    pending.push({ conceptType, value, label });
   }, "");
-  return errors;
+  return checkAgainstCanonicalSets(pending, viewer);
 }
 
 const ONTOLOGY_CODE_RE = /^[a-z][a-z0-9-]*$/;
@@ -318,7 +326,7 @@ export async function addConcept(
 
   const { data: latest } = await ontologyDB.findLatestVersion(conceptType, code, tenantId);
   if (!latest) {
-    const version = "1.0.0";
+    const version = INITIAL_VERSION;
     const { authorId, authorBadge } = await resolveAuthor(actor);
     const { data: created, error } = await ontologyDB.insertConceptVersion({
       conceptType, code, tenantId, version, defaultLabel, description: description || null,
@@ -357,7 +365,7 @@ async function createConceptVersion(
   const { data: previousActive } = await ontologyDB.findActiveConcept(input.conceptType, input.code, input.tenantId);
   const { data: latest } = await ontologyDB.findLatestVersion(input.conceptType, input.code, input.tenantId);
   const base = previousActive ?? latest;
-  const nextVersion = base ? await nextAvailableVersion(input.conceptType, input.code, input.tenantId, base.version) : "1.0.0";
+  const nextVersion = base ? await nextAvailableVersion(input.conceptType, input.code, input.tenantId, base.version) : INITIAL_VERSION;
 
   const { authorId, authorBadge } = await resolveAuthor(actor);
   const { data: created, error } = await ontologyDB.insertConceptVersion({
@@ -425,10 +433,9 @@ async function transitionConcept(
 
   const gate = await transitionEngine.evaluate({
     entityType: "Ontology", fromState, toState, actorId: actor.actorId,
-    entityId: concept.id, alternateBadges: ["ontology_define"],
+    entityId: concept.id,
   });
   if (!gate.allowed) {
-    if (gate.reason === "authority_denied") throw new Error(`requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})`);
     if (gate.reason === "no_transition_definition") throw new Error(`cannot move ${conceptType}/${code} from ${fromState} to ${toState}`);
     throw new Error(gate.reason);
   }
@@ -543,7 +550,7 @@ export async function listDistinctUiGroupings(viewer: OntologyViewer): Promise<s
 }
 
 export async function syncConceptFromEntity(conceptType: string, code: string, defaultLabel: string, description: string | null, tenantId: string, actorId: string): Promise<OntologyConceptRow> {
-  return createConceptVersion({ conceptType, code, tenantId, defaultLabel, description }, { isRoot: true, tenantId, actorId, actorBadge: "root" });
+  return createConceptVersion({ conceptType, code, tenantId, defaultLabel, description }, { isRoot: true, tenantId, actorId, actorBadge: await badgeAuthorityEngine.resolveAuthorBadge(actorId, "ontology_define") });
 }
 
 export async function retireConceptForEntity(conceptType: string, code: string, tenantId: string, actorId: string, actorBadge: string): Promise<void> {

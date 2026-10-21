@@ -1,6 +1,6 @@
 # Chapter 1 — Objective: Implementation Traceability
 
-**Date of report: 4-10-2026**
+**Date of report: 4-10-2026. Updated 21-10-2026 for CR-129 (Objective transition).**
 
 ---
 
@@ -83,7 +83,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Objectives may be reviewed/reaffirmed/superseded without invalidating historical Deliverables/Decisions/Capabilities<br> Ref: §5 OBJ-006, §12</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:1009-1072<br>src/dblayer/migrations/007_trust_pipeline.sql:79-93</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionObjective</code> only updates <code>objectives.status</code><br>it never touches <code>seus</code>, <code>deliverables</code>, or <code>decisions</code>, which reference the Objective (via <code>seu_id</code>) independently of its current status.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEntity</code> only updates <code>objectives.status</code> (and appends a comment or runs the transition's action code)<br>it never touches <code>seus</code>, <code>deliverables</code>, or <code>decisions</code>, which reference the Objective (via <code>seu_id</code>) independently of its current status.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -112,14 +112,14 @@
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Objective state changes are governed and fully traceable<br> Ref: §6 FR-1.6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:1009-1072<br>src/domain/engine/transitionEngine.ts (evaluate)<br>src/domain/engine/eventBus.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every <code>transitionObjective</code> call runs through <code>transitionEngine.evaluate</code> and <br>publishes an event.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/entityTransition.ts (<code>transitionEntity</code>)<br>src/domain/engine/transitionEngine.ts (evaluate, beginBirth)<br>src/domain/engine/eventBus.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Objective transition runs through the generic <code>transitionEntity</code> (CR-129), which calls <code>transitionEngine.evaluate</code>, <br>writes the comment and runs the action code inside one transaction, and publishes the Transition Definition's event as its last step. <br>The birth is evaluated by <code>transitionEngine.beginBirth</code> from the <code>None → Defined</code> row.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">An Objective referenced by an active Deliverable remains immutable except through governed supersession<br> Ref: §6 FR-1.7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:688-717 <br>(<code>updateObjective</code> throws unless <code>status === "Proposed"</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Free-text/Capability edits are blocked once an Objective leaves Proposed,<br> i.e. before it could ever be referenced by a Deliverable<br> (Deliverables require a commissioned, Active-Objective-derived SEU). <br>The rule is enforced by status-gating rather than by checking for referencing Deliverables directly, but the observable guarantee holds under the platform's own lifecycle ordering.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:688-717 <br>(<code>updateObjective</code> throws unless <code>status</code> equals the initial state of the birth row, <code>Defined</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Free-text/Capability edits are blocked once an Objective leaves Defined,<br> i.e. before it could ever be referenced by a Deliverable<br> (Deliverables require a commissioned, Active-Objective-derived SEU). <br>The rule is enforced by status-gating rather than by checking for referencing Deliverables directly, but the observable guarantee holds under the platform's own lifecycle ordering.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -183,21 +183,21 @@
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Lifecycle: Proposed → Active → Achieved → Archived<br> Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Lifecycle: Defined → Active → Achieved → Archived<br> Ref: §12</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (Objective rows)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All four states and edges exist as transition_definitions rows</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">All four states and edges exist as transition_definitions rows, with the birth row <code>None → Defined</code> (verb <code>propose</code>, event <code>ObjectiveCreated</code>). The initial state is read from the birth row, never written in code. <br>Active → Achieved is still <code>governed</code>; who drives it is open (CR-129 D6).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Active may transition to Superseded or Retired, preserving full historical traceability<br> Ref: §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (Active→Superseded, Active→Retired rows)<br>src/routes/seu/core/objectives.ts:1009-1072</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (Active→Superseded, Active→Retired rows)<br>src/actions/supersedeObjective.ts (action code <code>supersede-objective</code>)</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Both edges exist and are governed the same way as other transitions. <br> Refer CR-116</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">§12 An Objective can be returned to Proposed before Active, for rework<br> Ref: §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:688-717 (<code>updateObjective</code> throws unless <code>status === "Proposed"</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">"Before Active" means the Objective has not yet left Proposed, not a transition back into it.<br> <code>updateObjective</code> permits edits any number of times while status remains Proposed, which is the rework path. <br>No Active→Proposed/Reject→Proposed transition exists.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">§12 An Objective can be returned to the initial state before Active, for rework<br> Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:688-717 (<code>updateObjective</code> throws unless the status is the birth row's initial state, <code>Defined</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">"Before Active" means the Objective has not yet left Defined, not a transition back into it.<br> <code>updateObjective</code> permits edits any number of times while status remains Defined, which is the rework path. <br>No Active→Defined/Reject→Defined transition exists.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -209,13 +209,13 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Objective preserves decomposition history (parent/child)<br> Ref: §13</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:150-274 <br>(<code>findChildren</code>, <code>findAncestorPath</code>, <code>findDescendantIds</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Full parent/child graph is queryable<br>re-parent (<code>reParentObjective</code>) changes only <code>parent_objective_id</code>, never erasing history since Objectives are never hard-deleted once decomposed/committed<br> <br>(delete is restricted to Proposed leaves only).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Full parent/child graph is queryable<br>re-parent (<code>reParentObjective</code>) changes only <code>parent_objective_id</code>, never erasing history since Objectives are never hard-deleted once decomposed/committed<br> <br>(delete is restricted to leaves in the initial state, Defined).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Objective preserves derived or declared required Capabilities<br> Ref: §13</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:336-374, 393-404</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>objective_capabilities</code> join table, append/replace via <code>addCapabilities</code>/<code>setRequiredCapabilities</code>, queryable via <code>getRequiredCapabilities</code>. Edits are further restricted to Proposed status only (updateObjective), so the set is effectively frozen once Active.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>objective_capabilities</code> join table, append/replace via <code>addCapabilities</code>/<code>setRequiredCapabilities</code>, queryable via <code>getRequiredCapabilities</code>. Edits are further restricted to the Defined status only (updateObjective), so the set is effectively frozen once Active.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -232,8 +232,8 @@
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Objective preserves supersession history<br> Ref: §13, CR-116</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:1009-1072<br>objective_comments table</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Queryable chain of Objective versions.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">objectives.superseding_objective_id (written by the <code>supersede-objective</code> action)<br>objectives.comments (JSONB column; the <code>objective_comments</code> table is removed)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Queryable chain of Objective versions. The supersede comment is appended to <code>objectives.comments</code> through the Objective adapter.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -243,33 +243,33 @@
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Events: ObjectiveProposed<br> Ref: §14</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/triggerEngine.ts:27-42<br>src/routes/seu/core/objectives.ts:636-651 <br>(<code>submitObjective</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Published via <code>triggerEngine.submit</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Events: ObjectiveProposed (published as ObjectiveCreated)<br> Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (birth row <code>None → Defined</code>, <code>eventType: "ObjectiveCreated"</code>)<br>src/routes/seu/core/objectives.ts (<code>createObjective</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Published as the last statement of <code>createObjective</code> with the birth row's event, version event and badge. The submit step (<code>submitObjective</code>, <code>ObjectiveDefined</code>) is deleted (CR-129 D9); the event each transition publishes is the record.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Events: ObjectiveActivated<br> Ref: §14</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (Proposed→Active <code>eventType: "ObjectiveActivated"</code>)<br>src/routes/seu/core/objectives.ts:1060-1069</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Published by <code>transitionObjective</code> on the Proposed→Active transition.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (Defined→Active <code>eventType: "ObjectiveActivated"</code>)<br>src/domain/engine/entityTransition.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Published by <code>transitionEntity</code> on the Defined→Active transition.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Events: ObjectiveRejected<br> Ref: §14</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (Active→Reject <code>eventType: "ObjectiveRejected"</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Published on Active→Reject, with the added CR-073 mandatory-new-comment rule (objectives.ts:1031-1045) not specified in Chapter 1 but not contradicting it either.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Published on Active→Reject, with a mandatory comment enforced by the <code>policy-comment-required</code> Policy on the transition row (CR-129 D4). The earlier rule that the comment must differ from the latest one is dropped, as for Pack.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Events: ObjectiveAchieved, ObjectiveSuperseded, ObjectiveRetired, ObjectiveArchived<br> Ref: §14</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All four are wired as <code>eventType</code> on their respective transition_definitions rows and published via the same <code>transitionObjective</code> path.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">All four are wired as <code>eventType</code> on their respective transition_definitions rows and published via the same <code>transitionEntity</code> path.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Preserve complete historical traceability<br> Ref: §15</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/eventsDB.ts<br>src/routes/seu/core/objectives.ts (comments, events)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Events table + comments provide an append-only history<br>no code path deletes historical events or comments for a non-Proposed Objective.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Events table + comments provide an append-only history<br>no code path deletes historical events or comments for a non-Defined Objective. Comments are stored in the <code>objectives.comments</code> JSONB column.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>

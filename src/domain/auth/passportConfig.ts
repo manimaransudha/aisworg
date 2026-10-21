@@ -9,7 +9,7 @@ import { userDB }  from '../../dblayer/userDB.js';
 import type { UserRow } from '../../dblayer/userDB.js';
 import { tenantsDB } from '../../dblayer/tenantsDB.js';
 import {participantsMasterDB} from '../../dblayer/participantsMasterDB.js';
-import {DEMO_TENANT_NAME, ensurePlatformSystemActor} from '../../dblayer/constants.js';
+import {DEMO_TENANT_NAME, ensurePlatformSystemActor, NO_EXPIRY_DATE } from '../../dblayer/constants.js';
 import { logger }  from '../../utils/logger.js';
 
 interface GoogleProfile {
@@ -106,9 +106,9 @@ export function configurePassport() {
               type: 'Human',
               displayName: user.name || user.email,
               authorisedRole: isSuper
-                ? [{role: 'superuser', effective_till: '9999-12-31', seu_ids: []}]
-                : [{role: 'general', effective_till: '9999-12-31', seu_ids: []}, {role: 'demo', effective_till: '9999-12-31', seu_ids: []}],
-              authorisedBadges: isSuper ? [{badge: 'root', effective_till: '9999-12-31', seu_ids: []}] : [],
+                ? [{role: 'superuser', effective_till: NO_EXPIRY_DATE, seu_ids: []}]
+                : [{role: 'general', effective_till: NO_EXPIRY_DATE, seu_ids: []}, {role: 'demo', effective_till: NO_EXPIRY_DATE, seu_ids: []}],
+              authorisedBadges: isSuper ? [{badge: 'root', effective_till: NO_EXPIRY_DATE, seu_ids: []}] : [],
               userId: user.id,
             });
             if (participantCreateErr) return done(participantCreateErr);

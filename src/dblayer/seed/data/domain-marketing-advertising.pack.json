@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "marketing-director-signoff-gate",
+        "code": "product-roadmap",
         "name": "Marketing Director Campaign Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Marketing Director confirms that audience targeting, creative approvals, and media spend budgets satisfy marketing guidelines.",
         "prompt": "Does the marketing campaign documentation confirm audience consent compliance and creative approval?",
         "participant": "human",
-        "outputContract": "marketing-campaign-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Marketing Automation & Advertising Audit Checklist"
         ]

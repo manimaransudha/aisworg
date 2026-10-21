@@ -5,10 +5,10 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
+import { readTargetState } from "../../../utils/transitionRequest.js";
 import { createEvidence, listEvidenceBySeu, transitionEvidence, linkEvidenceToObject, recordValidationAssessment } from "../core/evidence.js";
 import type { TransitionEntityType } from "../../../dblayer/seuTypes.js";
-import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
-import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
+import { requireActorId, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
 
 router.post("/evidence", async (req: Request, res: Response) => {
   try {
@@ -16,12 +16,7 @@ router.post("/evidence", async (req: Request, res: Response) => {
     if (typeof seuId !== "string" || typeof relatedObjectType !== "string" || typeof relatedObjectId !== "string" || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ error: "seuId, relatedObjectType, relatedObjectId, category and title are required" });
     }
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!actorId) return res.status(401).json({ error: "no acting user to record as this Evidence's author — log in first" });
-    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-    const held = await resolveHeldBadges(req);
-    const authorBadge = resolveAuthorBadge(authRow, held);
-    if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
+    const { actorId, authorBadge } = await resolveActorAndBadge(req);
 
     const evidence = await createEvidence({
       seuId, relatedObjectType: relatedObjectType as TransitionEntityType, relatedObjectId, category, title, description, source,
@@ -62,12 +57,9 @@ router.get("/evidence", async (req: Request, res: Response) => {
 
 router.post("/evidence/:id/transition", async (req: Request, res: Response) => {
   try {
-    const { targetState } = req.body ?? {};
-    if (typeof targetState !== "string" || !targetState.trim()) {
-      return res.status(400).json({ error: "targetState is required" });
-    }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
-    const actorId = String(req.session.user.id);
+    const targetState = readTargetState(req, res);
+    if (targetState === null) return;
+    const actorId = requireActorId(req);
     const result = await transitionEvidence({ evidenceId: String(req.params.id), targetState, actorId });
 
     if (!result.ok) {
@@ -87,12 +79,7 @@ router.post("/evidence/:id/link", async (req: Request, res: Response) => {
     if (typeof relatedObjectType !== "string" || typeof relatedObjectId !== "string") {
       return res.status(400).json({ error: "relatedObjectType and relatedObjectId are required" });
     }
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!actorId) return res.status(401).json({ error: "no acting user to record as this link's author — log in first" });
-    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-    const held = await resolveHeldBadges(req);
-    const authorBadge = resolveAuthorBadge(authRow, held);
-    if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
+    const { actorId, authorBadge } = await resolveActorAndBadge(req);
 
     const result = await linkEvidenceToObject(String(req.params.id), relatedObjectType as TransitionEntityType, relatedObjectId, actorId, authorBadge);
     if (!result.ok) {

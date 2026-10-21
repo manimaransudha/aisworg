@@ -62,14 +62,14 @@
     ],
     "reviewGates": [
       {
-        "code": "gitlab-integration-review-gate",
+        "code": "code-review-record",
         "name": "GitLab Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The DevOps Engineer confirms that GitLab API tokens and runner configurations satisfy connectivity requirements.",
         "prompt": "Does the GitLab integration verification confirm pipeline trigger capability and access scope?",
         "participant": "human",
-        "outputContract": "gitlab-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "GitLab Integration Verification Checklist"
         ]

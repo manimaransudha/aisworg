@@ -73,7 +73,7 @@
     ],
     "reviewGates": [
       {
-        "code": "vision-one-pager",
+        "code": "vision",
         "name": "Product Vision One-Pager Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
@@ -86,7 +86,7 @@
         ]
       },
       {
-        "code": "lean-business-model-canvas",
+        "code": "business-case",
         "name": "Lean Canvas & Viability Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

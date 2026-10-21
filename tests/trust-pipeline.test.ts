@@ -20,7 +20,7 @@ import { evidenceDB } from "../src/dblayer/evidenceDB.js";
 import { addKnowledgeValidationNote, createKnowledgeItem, listKnowledgeValidationNotes, transitionKnowledgeItem, updateKnowledgeReferences } from "../src/routes/seu/core/knowledge.js";
 import { createDecision, transitionDecision } from "../src/routes/seu/core/decisions.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
-import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
@@ -233,7 +233,8 @@ test("Knowledge Item captures §8/§10/§14 structure: structured references, ve
 
   // author_id/authority_badge update on every governed transition thereafter
   // — the row always reflects the most recent actor, full history stays in `events`.
-  const toProposed = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Proposed", actorId: TESTER_ALL_ID });
+  await ensureActorParticipant(seuId, TESTER_ACCEPTANCE_JOURNEY.participantId);
+  const toProposed = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Proposed", actorId: TESTER_ACCEPTANCE_JOURNEY.participantId });
   assert.equal(toProposed.ok, true, !toProposed.ok ? JSON.stringify(toProposed) : "assertion failed");
   if (toProposed.ok) assert.equal(toProposed.knowledgeItem.authority_badge, "knowledge_propose");
 

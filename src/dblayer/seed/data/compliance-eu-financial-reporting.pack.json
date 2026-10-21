@@ -50,14 +50,14 @@
     ],
     "reviewGates": [
       {
-        "code": "eu-fin-regulatory-gate",
+        "code": "compliance-audit-evidence",
         "name": "EU Financial Markets Attestation Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Head of Regulatory Compliance confirms that MAR insider tracking, MiFID II reporting, and CSRD ESG data meet EU directives.",
         "prompt": "Does the regulatory audit evidence verify full compliance with EU MAR, MiFID II, and CSRD directives?",
         "participant": "human",
-        "outputContract": "eu-fin-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "EU Financial Markets & CSRD Compliance Audit Checklist"
         ]

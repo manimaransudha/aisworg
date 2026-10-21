@@ -4,6 +4,8 @@ import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { toSchemaRows, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
+import { transitionEntity } from "../../../domain/engine/entityTransition.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
@@ -231,16 +233,6 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
     if (!template) errors.push(`baseTemplateCode "${seed.baseTemplateCode}" does not resolve to a real Template`);
   }
 
-  if (seed.baseTemplateCode?.trim()) {
-    const overridableCandidates = await deriveOverridableParameterCandidates(seed.baseTemplateCode, ontologyViewer.tenantId);
-    const overridableByKey = new Map(overridableCandidates.map((c) => [`${c.sourceType}::${c.sourceCode}::${c.parameterName}`, c]));
-    for (const row of seed.exposedParameterOverrides ?? []) {
-      const candidate = overridableByKey.get(`${row.sourceType}::${row.sourceCode}::${row.parameterName}`);
-      if (!candidate) errors.push(`exposedParameterOverrides references "${row.parameterName}" on ${row.sourceType} "${row.sourceCode}" — not a parameter this Profile's base Template flags overridable`);
-      else if (candidate.valueOptions && !candidate.valueOptions.includes(row.value)) errors.push(`exposedParameterOverrides "${row.parameterName}" has value "${row.value}" — must be one of ${candidate.valueOptions.join(", ")}`);
-    }
-  }
-
   for (const code of seed.optionalPackCodes ?? []) {
     const { data } = await packsDB.findByCode(code);
     if (!data) errors.push(`optionalPackCodes references unknown Pack code "${code}"`);
@@ -271,6 +263,48 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
       const { data: valueConcept } = await ontologyDB.findConcept(cp.parameterCode, value, ontologyViewer);
       if (!valueConcept) errors.push(`${String(cp.field)} references unknown ${cp.parameterCode} code "${value}"`);
     }
+  }
+
+  for (const code of seed.participatingOrganisationCodes ?? []) {
+    const { data: concept } = await ontologyDB.findConcept("participating-organisations", code, ontologyViewer);
+    if (!concept) errors.push(`participatingOrganisationCodes references unknown participating-organisations code "${code}"`);
+  }
+
+  for (const [i, loc] of (seed.knowledgeLocations ?? []).entries()) {
+    const hasDeliverable = !!loc.deliverableCode?.trim();
+    const hasCapability = !!loc.capabilityCode?.trim();
+    if (hasDeliverable === hasCapability) continue;
+    if (hasDeliverable) {
+      const { data: concept } = await ontologyDB.findConcept("deliverable-name", loc.deliverableCode!.trim(), ontologyViewer);
+      if (!concept) errors.push(`knowledgeLocations[${i}] references unknown deliverable-name code "${loc.deliverableCode}"`);
+    } else {
+      const { data: concept } = await ontologyDB.findConcept("capability-name", loc.capabilityCode!.trim(), ontologyViewer);
+      if (!concept) errors.push(`knowledgeLocations[${i}] references unknown capability-name code "${loc.capabilityCode}"`);
+    }
+  }
+
+  for (const [i, entry] of (seed.dispatchStrategyPreference ?? []).entries()) {
+    if (!entry.strategy?.trim()) {
+      errors.push(`dispatchStrategyPreference[${i}] must name a strategy`);
+    } else {
+      const { data: concept } = await ontologyDB.findConcept("dispatch-strategy-preference", entry.strategy.trim(), ontologyViewer);
+      if (!concept) errors.push(`dispatchStrategyPreference[${i}] references unknown dispatch-strategy-preference code "${entry.strategy}"`);
+    }
+  }
+
+  errors.push(...(await validateProfileOnSave(seed)));
+
+  return errors.length > 0 ? { ok: false, errors } : { ok: true };
+}
+
+// The sanity checks the schema cannot carry (CR-128). They run when the form is saved and again when the Profile is created.
+// Save is not a transition: there is no gate, only an error message.
+export async function validateProfileOnSave(seed: ProfileSeedInput): Promise<string[]> {
+  const errors: string[] = [];
+  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? (await getPlatformTenantId()) };
+
+  for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
+    const value = (seed[cp.field] as string | undefined)?.trim();
     const { data: parameterConcept } = await ontologyDB.findConcept("profile-configuration", cp.parameterCode, ontologyViewer);
     if (parameterConcept?.is_mandatory && !value) {
       errors.push(`${String(cp.field)} is required (a mandatory Configuration Parameter for this tenant)`);
@@ -284,35 +318,14 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
     }
   }
 
-  for (const code of seed.participatingOrganisationCodes ?? []) {
-    const { data: concept } = await ontologyDB.findConcept("participating-organisations", code, ontologyViewer);
-    if (!concept) errors.push(`participatingOrganisationCodes references unknown participating-organisations code "${code}"`);
-  }
-
   for (const [i, loc] of (seed.knowledgeLocations ?? []).entries()) {
-    const hasDeliverable = !!loc.deliverableCode?.trim();
-    const hasCapability = !!loc.capabilityCode?.trim();
-    if (hasDeliverable === hasCapability) {
+    if (!!loc.deliverableCode?.trim() === !!loc.capabilityCode?.trim()) {
       errors.push(`knowledgeLocations[${i}] must name exactly one of deliverableCode/capabilityCode`);
-      continue;
-    }
-    if (hasDeliverable) {
-      const { data: concept } = await ontologyDB.findConcept("deliverable-name", loc.deliverableCode!.trim(), ontologyViewer);
-      if (!concept) errors.push(`knowledgeLocations[${i}] references unknown deliverable-name code "${loc.deliverableCode}"`);
-    } else {
-      const { data: concept } = await ontologyDB.findConcept("capability-name", loc.capabilityCode!.trim(), ontologyViewer);
-      if (!concept) errors.push(`knowledgeLocations[${i}] references unknown capability-name code "${loc.capabilityCode}"`);
     }
   }
 
   const seenOrders = new Set<number>();
   for (const [i, entry] of (seed.dispatchStrategyPreference ?? []).entries()) {
-    if (!entry.strategy?.trim()) {
-      errors.push(`dispatchStrategyPreference[${i}] must name a strategy`);
-    } else {
-      const { data: concept } = await ontologyDB.findConcept("dispatch-strategy-preference", entry.strategy.trim(), ontologyViewer);
-      if (!concept) errors.push(`dispatchStrategyPreference[${i}] references unknown dispatch-strategy-preference code "${entry.strategy}"`);
-    }
     if (seenOrders.has(entry.order)) errors.push(`dispatchStrategyPreference[${i}] duplicates order ${entry.order} — each entry needs a distinct order`);
     seenOrders.add(entry.order);
   }
@@ -332,13 +345,27 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
     }
   }
 
-  return errors.length > 0 ? { ok: false, errors } : { ok: true };
+  return errors;
+}
+
+// The value of an override is one the base Template's parameter allows. A row for a parameter the base Template does not flag overridable
+// is not an error here: the unravel step drops it (CR-128).
+export async function validateOverrideValues(seed: ProfileSeedInput): Promise<string[]> {
+  const errors: string[] = [];
+  if (!seed.baseTemplateCode?.trim()) return errors;
+  const candidates = await deriveOverridableParameterCandidates(seed.baseTemplateCode, seed.tenantId ?? (await getPlatformTenantId()));
+  for (const row of seed.exposedParameterOverrides ?? []) {
+    const candidate = candidates.find((c) => c.sourceType === row.sourceType && c.sourceCode === row.sourceCode && c.parameterName === row.parameterName);
+    if (candidate?.valueOptions && !candidate.valueOptions.includes(row.value)) {
+      errors.push(`exposedParameterOverrides "${row.parameterName}" has value "${row.value}" — must be one of ${candidate.valueOptions.join(", ")}`);
+    }
+  }
+  return errors;
 }
 
 export type PublishProfileResult = { ok: true; profileId: string } | { ok: false; errors: string[] };
 
-export async function publishProfile(input: { seed: ProfileSeedInput; actorId: string }): Promise<PublishProfileResult> {
-  const { seed, actorId } = input;
+export async function createProfileDraft(seed: ProfileSeedInput, actorId: string): Promise<{ ok: true; draft: ProfileRow } | { ok: false; errors: string[] }> {
   const validation = await validateProfileSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
@@ -350,178 +377,77 @@ export async function publishProfile(input: { seed: ProfileSeedInput; actorId: s
   const { data: profileSchema } = await schemaDefinitionsDB.findLatest("Profile");
   if (!profileSchema) return { ok: false, errors: [`no schema_definitions grammar for Profile`] };
   if (!actorId) return { ok: false, errors: ["publishProfile requires a real actorId to author the Draft"] };
-  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "profile_define" });
-  if (!auth.allowed) return { ok: false, errors: [`actor "${actorId}" does not hold profile_define`] };
   const { data: profileMaster } = await participantsMasterDB.findById(actorId);
   if (!profileMaster) return { ok: false, errors: [`No superuser provisioned.`] };
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "profile_define");
+  const birth = await transitionEngine.beginBirth({ entityType: "Profile", actorId });
   const { data: draft, error } = await profilesDB.createDraft({
     code: seed.code,
     name: seed.name,
     baseTemplateId: template.id,
+    status: birth.initialState as ProfileRow["status"],
     authoredBy: profileMaster.id,
-    authorBadge,
+    authorBadge: birth.authorityBadge,
     environment: seed.environment,
     profileVersion: seed.profileVersion,
     tenantId,
     parentProfileId: seed.parentProfileId,
-    draftContent: { baseTemplateCode: seed.baseTemplateCode },
+    draftContent: toSchemaRows(profileSchema.schema as JsonSchemaDocument, { ...seed }),
     schemaDefinitionId: profileSchema.id,
   });
   if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create profile draft")).message] };
 
-  const materialiseResult = await materialiseProfileDraft(draft.id, seed, profileMaster.id, authorBadge);
-  if (!materialiseResult.ok) return materialiseResult;
-
   await eventBus.publish({
-    eventType: "ProfileCreated",
+    eventType: birth.eventType,
     originatingObjectType: "Profile",
     originatingObjectId: draft.id,
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
     actorId: profileMaster.id,
-    authorityBadge: authorBadge,
+    authorityBadge: birth.authorityBadge,
     payload: { code: draft.code, profileVersion: draft.profile_version },
   });
-
-  let current = draft;
-  for (let i = 0; i < 3; i++) {
-    const result = await advanceProfileOneStep(current, actorId);
-    if (!result.ok) return { ok: false, errors: [`advancing Profile "${current.code}" from "${current.status}" failed: ${result.reason}${result.detail ? ` (${result.detail})` : ""}`] };
-    current = result.profile;
-  }
-
-  return { ok: true, profileId: current.id };
+  return { ok: true, draft };
 }
 
-export type TransitionProfileResult = { ok: true; profile: ProfileRow } | { ok: false; reason: string; detail?: string };
-
-const TERMINAL_REACTIVATABLE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
-
-export async function transitionProfile(input: { profileId: string; targetState: ProfileRow["status"]; actorId: string }): Promise<TransitionProfileResult> {
-  const { data: profile } = await profilesDB.findById(input.profileId);
-  if (!profile) return { ok: false, reason: "not_found" };
-  const fromState = profile.status;
-  if (!input.actorId) throw new Error("actorId is required to transition a Profile");
-  const gate = await transitionEngine.evaluate({ entityType: "Profile", fromState, toState: input.targetState, actorId: input.actorId, entityId: profile.id, context: { profile } });
-  if (!gate.allowed) {
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Profile ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-    return { ok: false, reason: gate.reason };
+// Moves a Profile to Active and deprecates the Active version it replaces, both through the generic transition.
+export async function activateProfileSupersedingPrevious(profile: ProfileRow, actorId: string): Promise<{ ok: true; profile: ProfileRow } | { ok: false; errors: string[] }> {
+  const { data: previousActive } = await profilesDB.findActiveByCode(profile.code, profile.tenant_id);
+  const activated = await transitionEntity({ entityType: "Profile", entityId: profile.id, targetState: "Active", actorId });
+  if (!activated.ok) return { ok: false, errors: [`transition to "Active" failed: ${"detail" in activated ? activated.detail : activated.reason}`] };
+  if (previousActive && previousActive.id !== profile.id) {
+    await transitionEntity({ entityType: "Profile", entityId: previousActive.id, targetState: "Deprecated", actorId });
   }
+  return { ok: true, profile: activated.row as ProfileRow };
+}
 
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
-
-  if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    return reactivateAsNewVersion(profile, input.actorId, gate.authorityBadge);
+// Walks a Profile from Draft, Validated or Published to Active, one transition at a time.
+export async function advanceProfileToActive(profile: ProfileRow, actorId: string): Promise<{ ok: true; profile: ProfileRow } | { ok: false; errors: string[] }> {
+  let current = profile;
+  for (const targetState of ["Validated", "Published"]) {
+    if (current.status === "Active") break;
+    if (targetState === "Validated" && current.status !== "Draft") continue;
+    if (targetState === "Published" && current.status !== "Validated") continue;
+    const result = await transitionEntity({ entityType: "Profile", entityId: current.id, targetState, actorId });
+    if (!result.ok) return { ok: false, errors: [`transition to "${targetState}" failed: ${"detail" in result ? result.detail : result.reason}`] };
+    current = result.row as ProfileRow;
   }
+  if (current.status !== "Published") return { ok: false, errors: [`Profile "${current.code}" is ${current.status} and cannot be advanced to Active`] };
+  return activateProfileSupersedingPrevious(current, actorId);
+}
 
-  const { data: updated, error } = await profilesDB.updateStatus(profile.id, input.targetState);
-  if (error || !updated) throw error ?? new Error("failed to update profile status");
-  await eventBus.publish({
-    eventType: gate.eventType ?? "ProfileTransitioned",
-    originatingObjectType: "Profile",
-    originatingObjectId: profile.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState, code: profile.code },
-    actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
-    versionEvent: gate.versionEvent,
-    fromState,
-    toState: input.targetState,
-    tenantId: profile.tenant_id,
-  });
-  return { ok: true, profile: updated };
+export async function publishProfile(input: { seed: ProfileSeedInput; actorId: string }): Promise<PublishProfileResult> {
+  const created = await createProfileDraft(input.seed, input.actorId);
+  if (!created.ok) return created;
+  const advanced = await advanceProfileToActive(created.draft, input.actorId);
+  if (!advanced.ok) return advanced;
+  return { ok: true, profileId: advanced.profile.id };
 }
 
 async function nextAvailablePatchVersion(code: string, fromVersion: string, tenantId: string): Promise<string> {
   return nextAvailableVersion(fromVersion, async (candidate) => !!(await profilesDB.findByCodeAndVersion(code, candidate, tenantId)).data);
 }
 
-async function reactivateAsNewVersion(profile: ProfileRow, actorId: string, authorBadge: string): Promise<TransitionProfileResult> {
-  const nextVersion = await nextAvailablePatchVersion(profile.code, profile.profile_version, profile.tenant_id);
-  const { data: template } = await templatesDB.findById(profile.base_template_id);
-  if (!template) return { ok: false, reason: "policy_blocked", detail: `base Template ${profile.base_template_id} no longer exists` };
-
-  const packSelections = await getProfilePackSelections(profile.id);
-
-  const priorContent = (profile.draft_content ?? {}) as Record<string, unknown>;
-  const seed: ProfileSeedInput = {
-    code: profile.code,
-    name: profile.name,
-    baseTemplateCode: template.code,
-    environment: profile.environment,
-    profileVersion: nextVersion,
-    tenantId: profile.tenant_id,
-    parentProfileId: profile.parent_profile_id,
-    description: typeof priorContent.description === "string" ? priorContent.description : undefined,
-    compositionOptions: typeof priorContent.compositionOptions === "object" && priorContent.compositionOptions ? (priorContent.compositionOptions as Record<string, unknown>) : undefined,
-    deploymentTargets: typeof priorContent.deploymentTargets === "object" && priorContent.deploymentTargets ? (priorContent.deploymentTargets as Record<string, unknown>) : undefined,
-    environmentConfiguration: typeof priorContent.environmentConfiguration === "object" && priorContent.environmentConfiguration ? (priorContent.environmentConfiguration as Record<string, unknown>) : undefined,
-    readme: typeof priorContent.readme === "string" ? priorContent.readme : undefined,
-    redispatchMaxAttempts: typeof priorContent.redispatchMaxAttempts === "number" ? priorContent.redispatchMaxAttempts : undefined,
-    redispatchAttentionThreshold: typeof priorContent.redispatchAttentionThreshold === "number" ? priorContent.redispatchAttentionThreshold : undefined,
-    ...packSelections,
-  };
-  seed.featureFlagCodes = Array.isArray(priorContent.featureFlagCodes)
-    ? (priorContent.featureFlagCodes as unknown[]).map((v) => (typeof v === "string" ? v : (v as { featureCode?: string })?.featureCode ?? "")).filter((v) => v !== "")
-    : [];
-  seed.additionalCapabilityCodes = Array.isArray(priorContent.additionalCapabilityCodes)
-    ? (priorContent.additionalCapabilityCodes as unknown[]).map((v) => (typeof v === "string" ? v : (v as { capabilityCode?: string })?.capabilityCode ?? "")).filter((v) => v !== "")
-    : [];
-  seed.participatingOrganisationCodes = Array.isArray(priorContent.participatingOrganisationCodes)
-    ? (priorContent.participatingOrganisationCodes as unknown[]).map((v) => (typeof v === "string" ? v : (v as { organisationCode?: string })?.organisationCode ?? "")).filter((v) => v !== "")
-    : [];
-  seed.knowledgeLocations = Array.isArray(priorContent.knowledgeLocations) ? (priorContent.knowledgeLocations as KnowledgeLocation[]) : [];
-  seed.dispatchStrategyPreference = Array.isArray(priorContent.dispatchStrategyPreference) ? (priorContent.dispatchStrategyPreference as DispatchStrategyPreferenceEntry[]) : [];
-  for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
-    const priorValue = priorContent[cp.field as string];
-    if (typeof priorValue === "string") (seed as unknown as Record<string, unknown>)[cp.field as string] = priorValue;
-  }
-  seed.exposedParameterOverrides = Array.isArray(priorContent.exposedParameterOverrides) ? (priorContent.exposedParameterOverrides as ExposedParameterOverride[]) : [];
-
-  const { data: reactivationSchema } = profile.schema_definition_id ? { data: { id: profile.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Profile");
-  if (!reactivationSchema) return { ok: false, reason: "policy_blocked", detail: `no schema_definitions grammar for Profile` };
-  if (!actorId) return { ok: false, reason: "policy_blocked", detail: "reactivation requires a real actorId to author the new Version's Draft" };
-  if (!authorBadge) return { ok: false, reason: "policy_blocked", detail: "no authority badge resolved for this Profile reactivation" };
-  const { data: reactivateMaster } = await participantsMasterDB.findById(actorId);
-  if (!reactivateMaster) return { ok: false, reason: "policy_blocked", detail: `No superuser provisioned.` };
-  const { data: newDraft, error } = await profilesDB.createDraft({
-    code: seed.code,
-    name: seed.name,
-    baseTemplateId: template.id,
-    environment: seed.environment,
-    authoredBy: reactivateMaster.id,
-    authorBadge,
-    draftContent: { ...seed },
-    profileVersion: nextVersion,
-    tenantId: profile.tenant_id,
-    parentProfileId: profile.parent_profile_id,
-    schemaDefinitionId: reactivationSchema.id,
-  });
-  if (error || !newDraft) return { ok: false, reason: "policy_blocked", detail: (error ?? new Error("failed to create new Profile version")).message };
-
-  const materialiseResult = await materialiseProfileDraft(newDraft.id, seed, reactivateMaster.id, authorBadge);
-  if (!materialiseResult.ok) return { ok: false, reason: "policy_blocked", detail: materialiseResult.errors.join("; ") };
-
-  let current = newDraft;
-  for (const targetState of ["Validated", "Published", "Active"] as const) {
-    const result = await transitionProfile({ profileId: current.id, targetState, actorId });
-    if (!result.ok) return result;
-    current = result.profile;
-  }
-
-  const { data: previousActive } = await profilesDB.findActiveByCode(profile.code, profile.tenant_id);
-  if (previousActive && previousActive.id !== current.id) {
-    await transitionProfile({ profileId: previousActive.id, targetState: "Deprecated", actorId });
-  }
-
-  return { ok: true, profile: current };
-}
-
-export async function copyProfileAsNewDraft(profileId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyProfileAsNewDraft(profileId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await profilesDB.findById(profileId);
   if (!source) return { ok: false, errors: ["Profile not found"] };
   const nextVersion = await nextAvailablePatchVersion(source.code, source.profile_version, source.tenant_id);
@@ -569,13 +495,15 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string, 
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Profile`] };
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
   if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const birth = await transitionEngine.beginBirth({ entityType: "Profile", actorId });
   const { data: newDraft, error } = await profilesDB.createDraft({
     code: source.code,
     name: source.name,
     baseTemplateId: template.id,
     environment: source.environment,
+    status: birth.initialState as ProfileRow["status"],
     authoredBy: copyMaster.id,
-    authorBadge,
+    authorBadge: birth.authorityBadge,
     draftContent,
     profileVersion: nextVersion,
     tenantId: source.tenant_id,
@@ -583,45 +511,34 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string, 
     schemaDefinitionId: copySchema.id,
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Profile")).message] };
+  await eventBus.publish({
+    eventType: birth.eventType,
+    originatingObjectType: "Profile",
+    originatingObjectId: newDraft.id,
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    actorId: copyMaster.id,
+    authorityBadge: birth.authorityBadge,
+    payload: { code: newDraft.code, profileVersion: newDraft.profile_version },
+  });
   return { ok: true, draftId: newDraft.id };
 }
 
-const AUTHORING_NEXT_STATE: Partial<Record<ProfileRow["status"], ProfileRow["status"]>> = {
-  Draft: "Validated",
-  Validated: "Published",
-  Published: "Active",
-  Active: "Deprecated",
-  Deprecated: "Retired",
-  Retired: "Archived",
-};
-
-export async function advanceProfileOneStep(profile: ProfileRow, actorId: string ): Promise<TransitionProfileResult> {
-  const targetState = AUTHORING_NEXT_STATE[profile.status];
-  if (!targetState) return { ok: false, reason: "no_further_step", detail: `Profile is already ${profile.status} — no further authoring step` };
-
-  if (targetState === "Active") {
-    const { data: previousActive } = await profilesDB.findActiveByCode(profile.code, profile.tenant_id);
-    const activateResult = await transitionProfile({ profileId: profile.id, targetState: "Active", actorId });
-    if (!activateResult.ok) return activateResult;
-    if (previousActive && previousActive.id !== activateResult.profile.id) {
-      await transitionProfile({ profileId: previousActive.id, targetState: "Deprecated", actorId });
-    }
-    return activateResult;
-  }
-
-  return transitionProfile({ profileId: profile.id, targetState, actorId });
-}
-
 export async function materialiseProfileDraft(profileId: string, seed: ProfileSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
-  await profilesDB.setPackSelection(profileId, "optional", seed.optionalPackCodes ?? [], authorId, authorBadge);
-  await profilesDB.setPackSelection(profileId, "technology", seed.technologyPackCodes ?? [], authorId, authorBadge);
-  await profilesDB.setPackSelection(profileId, "domain", seed.domainPackCodes ?? [], authorId, authorBadge);
-  await profilesDB.setPackSelection(profileId, "compliance", seed.compliancePackCodes ?? [], authorId, authorBadge);
-  await profilesDB.setPackSelection(profileId, "integration", seed.integrationPackCodes ?? [], authorId, authorBadge);
-  await profilesDB.setPackSelection(profileId, "engineering", seed.engineeringPackCodes ?? [], authorId, authorBadge);
-  await profilesDB.setPackSelection(profileId, "organisation", seed.organisationPackCodes ?? [], authorId, authorBadge);
-  const { error } = await profilesDB.setDraftContent(profileId, { ...seed });
-  if (error) return { ok: false, errors: [error.message] };
+  const slots: Array<[string, string[] | undefined]> = [
+    ["optional", seed.optionalPackCodes], ["technology", seed.technologyPackCodes], ["domain", seed.domainPackCodes], ["compliance", seed.compliancePackCodes],
+    ["integration", seed.integrationPackCodes], ["engineering", seed.engineeringPackCodes], ["organisation", seed.organisationPackCodes],
+  ];
+  for (const [listKind, codes] of slots) {
+    const { error: selectionError } = await profilesDB.setPackSelection(profileId, listKind, codes ?? [], authorId, authorBadge);
+    if (selectionError) throw selectionError;
+  }
+  // The overrides are rebuilt from the parameters the base Template flags overridable; a row for any other parameter is dropped (CR-128).
+  const candidates = seed.baseTemplateCode?.trim() ? await deriveOverridableParameterCandidates(seed.baseTemplateCode, seed.tenantId ?? (await getPlatformTenantId())) : [];
+  const overridable = new Set(candidates.map((c) => `${c.sourceType}::${c.sourceCode}::${c.parameterName}`));
+  const exposedParameterOverrides = (seed.exposedParameterOverrides ?? []).filter((row) => overridable.has(`${row.sourceType}::${row.sourceCode}::${row.parameterName}`));
+  const { error } = await profilesDB.setDraftContent(profileId, { ...seed, exposedParameterOverrides });
+  if (error) throw error;
   return { ok: true };
 }
 

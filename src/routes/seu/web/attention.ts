@@ -11,6 +11,7 @@ import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { listAttentionItems, listAttentionItemsWithNextStates, transitionAttentionItem } from "../core/attentionItems.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 router.get("/attention", attachVM("seu/attention/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -44,11 +45,10 @@ router.post("/attention/:id/transition", async (req: Request, res: Response) => 
   }
 
   try {
-    if (req.session?.user?.id == null) return redirects.seu.attentionTransition.error(req, res, "Authentication required.");
     const result = await transitionAttentionItem({
       attentionItemId: String(req.params.id),
       targetState,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;

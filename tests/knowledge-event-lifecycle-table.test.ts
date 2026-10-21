@@ -27,7 +27,7 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { createKnowledgeItem, transitionKnowledgeItem, promoteKnowledgeItemScope } from "../src/routes/seu/core/knowledge.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ROOT_ACTOR_ID, ensureActorParticipant } from "./testFixtures.js";
-import { TESTER_ALL_ID } from "./testFixtures.js";
+import { TESTER_ALL_ID, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
 import type { AcquisitionScope, KnowledgeItemRow } from "../src/dblayer/seuTypes.js";
 
 async function commissionTestSeuAndDeliverable(): Promise<{ seuId: string; deliverableId: string }> {
@@ -106,8 +106,10 @@ test("DRIVEN: every Knowledge lifecycle hop publishes its matching event, in ord
   assert.equal(knowledgeItem.authority_badge, "root", "creation records the badge the author acted under");
 
   let last: KnowledgeItemRow = knowledgeItem;
+  await ensureActorParticipant(seuId, TESTER_ACCEPTANCE_JOURNEY.participantId);
+  // TESTER_ALL_ID resolves to root, which records "root". A non-root holder of every noun_verb badge records the hop's own badge.
   for (const row of KNOWLEDGE_TABLE) {
-    const result = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: row.toState, actorId: TESTER_ALL_ID });
+    const result = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: row.toState, actorId: TESTER_ACCEPTANCE_JOURNEY.participantId });
     assert.equal(result.ok, true, result.ok ? "" : `row ${row.row} (${row.description}): ${result.reason}: ${JSON.stringify(result)}`);
     if (result.ok) {
       // Ch.5 §19.13's own noun_verb badge convention: entityType_verb.

@@ -5,7 +5,7 @@ import { participantsMasterDB } from "../dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../dblayer/transitionDefinitionsDB.js";
 import type { TenantRow, BadgeTypeRow } from "../dblayer/seuTypes.js";
 import { logger } from "../utils/logger.js";
-import { getPlatformTenantId } from "../dblayer/constants.js";
+import { getPlatformTenantId, NO_EXPIRY_DATE } from "../dblayer/constants.js";
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
 
@@ -104,7 +104,7 @@ export async function setActingNounVerbBadge(
 
   let badges = toRemove ? master.authorised_badges.filter((b) => b.badge !== toRemove) : master.authorised_badges;
   if (toAdd && !badges.some((b) => b.badge === toAdd)) {
-    badges = [...badges, { badge: toAdd, effective_till: "9999-12-31", seu_ids: [] }];
+    badges = [...badges, { badge: toAdd, effective_till: NO_EXPIRY_DATE, seu_ids: [] }];
   }
 
   const { error } = await participantsMasterDB.setAuthorisedBadges(master.id, badges);

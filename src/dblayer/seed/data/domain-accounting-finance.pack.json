@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "financial-controller-signoff-gate",
+        "code": "cost-variance-report",
         "name": "Financial Controller Period Close Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Financial Controller confirms that trial balances, bank reconciliations, and ASC 606 revenue schedules satisfy GAAP/IFRS standards.",
         "prompt": "Does the financial documentation confirm trial balance integrity and period close accuracy?",
         "participant": "human",
-        "outputContract": "financial-close-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Accounting & Financial Close Audit Checklist"
         ]

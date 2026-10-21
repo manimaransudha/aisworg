@@ -57,14 +57,14 @@
     ],
     "reviewGates": [
       {
-        "code": "azure-cloud-review-gate",
+        "code": "configuration-files",
         "name": "Azure Cloud Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Azure Cloud Architect confirms that Entra ID authentication and Azure Monitor alerts satisfy cloud standards.",
         "prompt": "Does the Azure integration verify Workload Identity authentication and Key Vault secret retrieval?",
         "participant": "human",
-        "outputContract": "azure-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Azure Cloud Integration Verification Checklist"
         ]

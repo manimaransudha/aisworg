@@ -6,7 +6,7 @@ import pool, { query } from "../src/utils/db.js";
 import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
-import { publishTemplate, PACK_SELECTION_SLOTS, advanceTemplateOneStep, transitionTemplate } from "../src/routes/seu/core/templates.js";
+import { publishTemplate, PACK_SELECTION_SLOTS, advanceTemplateToActive } from "../src/routes/seu/core/templates.js";
 import { transitionDeliverable, type TransitionDeliverableResult } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
@@ -24,13 +24,17 @@ import { seusDB } from "../src/dblayer/seusDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { transitionRequiresAttestation } from "../src/domain/engine/transitionEngine.js";
-import type { TransitionEntityType } from "../src/dblayer/seuTypes.js";
+import type { ObjectiveRow, TransitionEntityType } from "../src/dblayer/seuTypes.js";
+import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { lookupRouteAuthority } from "../src/domain/identity/routeAuthorityCache.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { requestCapabilityFulfilment } from "../src/routes/seu/core/capabilities.js";
 import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
 import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
-import type { CapabilityFulfilmentRow, ParticipantRow } from "../src/dblayer/seuTypes.js";
+import type { CapabilityFulfilmentRow, ParticipantRow, SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
+import { publishAuthoringDraft, entityTypeForKind } from "../src/routes/seu/core/sdkAuthoring.js";
+import { nextActionsFor, transitionEntity } from "../src/domain/engine/entityTransition.js";
+import { getEntityAdapter } from "../src/domain/engine/entityAdapters.js";
 import { createEvidence } from "../src/routes/seu/core/evidence.js";
 import { createReview } from "../src/routes/seu/core/reviews.js";
 import { createFinding } from "../src/routes/seu/core/findings.js";
@@ -426,7 +430,7 @@ export async function driveCommissioningToActive(input: {
   beforeCommenceWork?: (seuId: string) => Promise<void>;
   // Deterministic alternative to beforeCommenceWork's race: the acting actor is deliberately NOT granted the SEU
   // Activated -> Operational badge up front, so the engine's own commence-work attempt (attemptSeuCommenceWork, off
-  // SEUActivated) finds it unauthorised and leaves the SEU at Activated. This callback runs once the SEU is Activated,
+  // SEUActivated) fails to resolve the badge (the throw is caught and logged by the event bus) and leaves the SEU at Activated. This callback runs once the SEU is Activated,
   // with the Deliverables and Capabilities already created and the engine's governed hops not yet made. The badge is
   // granted after it returns and commence-work is attempted again, as a human would.
   holdAtActivated?: (seuId: string) => Promise<void>;
@@ -849,10 +853,10 @@ export async function createEvidenceAsRoot(
 // reviews.author_id/author_badge (schema recovery pass, reviewsDB.ts) — same
 // root/"1" convention as createEvidenceAsRoot above.
 export async function createReviewAsRoot(
-  input: Omit<Parameters<typeof createReview>[0], "actorId" | "authorBadge">
+  input: Omit<Parameters<typeof createReview>[0], "actorId">
 ): ReturnType<typeof createReview> {
   await ensureRootActorParticipant(input.seuId);
-  return createReview({ ...input, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  return createReview({ ...input, actorId: ROOT_ACTOR_ID });
 }
 
 // findings.author_id/author_badge (schema recovery pass, findingsDB.ts) —
@@ -861,12 +865,12 @@ export async function createReviewAsRoot(
 // this resolves the Review's seu_id first before ensuring root's participants
 // row in it.
 export async function createFindingAsRoot(
-  input: Omit<Parameters<typeof createFinding>[0], "actorId" | "authorBadge">
+  input: Omit<Parameters<typeof createFinding>[0], "actorId">
 ): ReturnType<typeof createFinding> {
   const { data: review } = await reviewsDB.findById(input.reviewId);
   if (!review) throw new Error(`review not found: ${input.reviewId}`);
   await ensureRootActorParticipant(review.seu_id);
-  return createFinding({ ...input, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  return createFinding({ ...input, actorId: ROOT_ACTOR_ID });
 }
 
 // obligations.author_id/author_badge (schema recovery pass, obligationsDB.ts)
@@ -946,11 +950,14 @@ export async function ensurePolicyDefinitionWithObligation(input: {
   if (!policySchema) throw new Error("no schema_definitions grammar for Policy");
   const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
   if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("ensurePolicyDefinitionWithObligation(): no participants_master row for the superuser — is db:clean-slate seeded?");
+  const { data: birth } = await transitionDefinitionsDB.findBirth("Policy");
+  if (!birth) throw new Error("ensurePolicyDefinitionWithObligation(): no birth Transition Definition for Policy");
   const { data: draft, error } = await policyDefinitionsDB.createDraft({ tenantId: PLATFORM_TENANT_ID,
     code: input.code,
     name: input.name,
     category: input.category,
     scope: "Transition",
+    status: birth.to_state as never,
     authoredBy: rootMaster.id,
     authorBadge: "root",
     schemaDefinitionId: policySchema.id,
@@ -1097,7 +1104,7 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
     if (!templateResult.ok && templateResult.errors.some((e) => e.includes("templates_code_version_tenant_key") || e.includes("already exists at version"))) {
       // The winner's row exists by now, but its own publishTemplate call is
       // still walking Draft -> Validated -> Published -> Active in its own
-      // process (advanceTemplateOneStep x3, templates.ts) — grabbing it the
+      // process (advanceTemplateToActive, templates.ts) — grabbing it the
       // instant it's findable can catch it mid-walk, still non-Active, which
       // the commissioning picker's own status='Active' filter then silently
       // excludes (picker test failures with no DB error at all). Poll for
@@ -1123,25 +1130,19 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   // can hand back an already-existing row that isn't Active any more — a
   // later full-suite run elsewhere activated a newer patch of this same
   // (code, tenant) and superseded this 1.0.0 row to Deprecated (same
-  // advanceTemplateOneStep "Published -> Active supersedes the previous
+  // advanceTemplateToActive "Published -> Active supersedes the previous
   // holder" step, templates.ts), or it's still sitting mid-walk at
   // Draft/Validated/Published from a prior run that never finished. Neither
   // is "found" in any sense a caller expecting an Active Template can use —
   // self-heal here instead of handing back a non-Active row silently.
   if (template.status !== "Active") {
+    // A Template past Active cannot be reactivated (CR-128 removed the reactivation rows). Run db:clean-slate.
     if (TERMINAL_TEMPLATE_STATES.has(template.status)) {
-      const reactivated = await transitionTemplate({ templateId: template.id, targetState: "Active", actorId: ROOT_ACTOR_ID });
-      if (!reactivated.ok) throw new Error(`seed(): could not reactivate template "${templateSeed.code}" from "${template.status}": ${reactivated.reason}${reactivated.detail ? ` (${reactivated.detail})` : ""}`);
-      template = reactivated.template;
-    } else {
-      let current = template;
-      while (current.status !== "Active") {
-        const stepped = await advanceTemplateOneStep(current, ROOT_ACTOR_ID);
-        if (!stepped.ok) throw new Error(`seed(): could not advance template "${templateSeed.code}" past "${current.status}": ${stepped.reason}${stepped.detail ? ` (${stepped.detail})` : ""}`);
-        current = stepped.template;
-      }
-      template = current;
+      throw new Error(`seed(): template "${templateSeed.code}" is "${template.status}" and cannot be reactivated — run db:clean-slate`);
     }
+    const advanced = await advanceTemplateToActive(template, ROOT_ACTOR_ID);
+    if (!advanced.ok) throw new Error(`seed(): could not advance template "${templateSeed.code}" past "${template.status}": ${advanced.errors.join("; ")}`);
+    template = advanced.template;
   }
 
   // Real authoring path (publishProfile), not a raw profilesDB.upsert — the
@@ -1255,4 +1256,46 @@ export async function serviceDefinitionIdFor(code: string): Promise<string> {
   const { data, error } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(code, await getPlatformTenantId());
   if (error || !data) throw error ?? new Error(`no Active Service Definition "${code}" -- run db:clean-slate`);
   return data.id;
+}
+
+// publishAuthoringDraft advances one governed hop and refuses to choose where a state has two next steps. Validated has the
+// forward hop and the reject hop, so a holder of both is moved on the hop that needs no comment, and the loop goes on.
+export async function advanceAuthoringDraftToActive(kind: SchemaDefinitionEntityKind, id: string, actorId: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
+  const entityType = entityTypeForKind(kind);
+  for (let i = 0; i < 10; i++) {
+    const result = await publishAuthoringDraft({ kind, id, actorId });
+    if (result.ok) {
+      if (result.status === "Active") return { ok: true };
+      continue;
+    }
+    if (!result.errors.some((e) => /more than one next step/.test(e))) return result;
+    const adapter = getEntityAdapter(entityType);
+    const row = await adapter.findById(id);
+    if (!row) return { ok: false, errors: [`${kind} ${id} not found`] };
+    const forward = (await nextActionsFor(entityType, adapter.getState(row), actorId)).filter((a) => !a.requiresComment);
+    if (forward.length !== 1) return result;
+    const moved = await transitionEntity({ entityType, entityId: id, targetState: forward[0].toState, actorId });
+    if (!moved.ok) return { ok: false, errors: ["detail" in moved ? moved.detail : moved.reason] };
+  }
+  return { ok: false, errors: ["did not reach Active within 10 hops"] };
+}
+
+// An Objective is born into the initial state of its birth row. A test that needs an Active one walks it through the governed hop.
+export async function createActiveObjective(input: Parameters<typeof createObjective>[0]): Promise<Awaited<ReturnType<typeof createObjective>>> {
+  const created = await createObjective(input);
+  const moved = await transitionEntity({ entityType: "Objective", entityId: created.objective.id, targetState: "Active", actorId: input.requestedBy });
+  if (!moved.ok) throw new Error(`createActiveObjective: ${"detail" in moved ? moved.detail : moved.reason}`);
+  return { ...created, objective: moved.row as ObjectiveRow };
+}
+
+// The old per-entity transition call, over the generic function, for tests written against it.
+export async function transitionObjective(input: { objectiveId: string; targetState: string; actorId: string; comment?: string; supersedingObjectiveId?: string }) {
+  const result = await transitionEntity({
+    entityType: "Objective",
+    entityId: input.objectiveId,
+    targetState: input.targetState,
+    actorId: input.actorId,
+    context: { comment: input.comment, supersedingObjectiveId: input.supersedingObjectiveId },
+  });
+  return result.ok ? { ...result, objective: result.row as ObjectiveRow } : result;
 }

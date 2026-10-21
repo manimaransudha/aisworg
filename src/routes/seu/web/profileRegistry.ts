@@ -12,9 +12,9 @@ import { logger } from "../../../utils/logger.js";
 import { listProfilesWithNextStates, copyProfileAsNewDraft } from "../core/profiles.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
  
 const PROFILE_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
@@ -55,8 +55,8 @@ router.get("/profiles", attachVM("seu/profiles/index"), async (req: Request, res
     req.vm.opt.states = PROFILE_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = await getPlatformTenantId();
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-    const canCopy = actorId ? (await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "profile_define" })).allowed : false;
+    const held = await resolveHeldBadges(req);
+    const canCopy = held.has("profile_define");
     req.vm.opt.canCopy = canCopy;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/profiles/index", req.vm);
@@ -67,13 +67,9 @@ router.get("/profiles", attachVM("seu/profiles/index"), async (req: Request, res
 });
 
 router.post("/profiles/:id/copy", async (req: Request, res: Response) => {
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-  if (!actorId) return redirects.seu.profilesCopy.error(req, res, "Sign in required.");
-  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "profile_define" });
-  if (!auth.allowed) return redirects.seu.profilesCopy.error(req, res, "You don't hold the profile_define badge.");
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "profile_define");
+  const { actorId } = await resolveActorAndBadge(req);
   try {
-    const result = await copyProfileAsNewDraft(String(req.params.id), actorId, authorBadge);
+    const result = await copyProfileAsNewDraft(String(req.params.id), actorId);
     if (!result.ok) return redirects.seu.profilesCopy.error(req, res, `Copy failed: ${result.errors.join("; ")}`);
     return redirects.seu.profilesCopy.success(req, res, "Profile copied — a new Draft is ready to edit.", `/aisworg/seu/sdk/profile-authoring/${result.draftId}`);
   } catch (err) {

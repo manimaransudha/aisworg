@@ -52,14 +52,14 @@
     ],
     "reviewGates": [
       {
-        "code": "sentry-integration-review-gate",
+        "code": "known-error-record",
         "name": "Sentry Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Site Reliability Engineer confirms that Sentry DSN tracking and release source maps operate properly.",
         "prompt": "Does the Sentry integration verify crash reporting and symbol map resolution?",
         "participant": "human",
-        "outputContract": "sentry-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Sentry Integration Verification Checklist"
         ]

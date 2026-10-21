@@ -3,11 +3,10 @@ import { seusDB } from "../../../dblayer/seusDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { executionEngine } from "../../../domain/engine/executionEngine.js";
 import type { DeliverableGovernanceResult } from "../../../domain/engine/executionEngine.js";
-import type { GateRejectionResult } from "../../../domain/engine/transitionEngine.js";
+import { transitionEngine, type GateRejectionResult } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
 import { resolveAuthor } from "./attentionItems.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import type { DeliverableRow } from "../../../dblayer/seuTypes.js";
 
 export async function createDeliverable(input: { seuId: string; name: string; category: string; actorId: string }): Promise<{ deliverable: DeliverableRow }> {
@@ -28,11 +27,21 @@ export async function createDeliverable(input: { seuId: string; name: string; ca
   }
 
   const { authorId } = await resolveAuthor(input.seuId, input.actorId);
-  const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(input.actorId);
-  const authorBadge = isRoot ? "root" : [...badgeTypes][0] ?? "general";
-  const { data: deliverable, error } = await deliverablesDB.create({ seuId: input.seuId, name: input.name, category: input.category, authorId, authorBadge });
+  const birth = await transitionEngine.beginBirth({ entityType: "Deliverable", actorId: input.actorId });
+  const { data: deliverable, error } = await deliverablesDB.create({ seuId: input.seuId, name: input.name, category: input.category, state: birth.initialState, authorId, authorBadge: birth.authorityBadge });
   if (error || !deliverable) throw error ?? new Error("failed to create deliverable");
 
+  await eventBus.publish({
+    eventType: birth.eventType,
+    originatingObjectType: "Deliverable",
+    originatingObjectId: deliverable.id,
+    seuId: input.seuId,
+    correlationId: eventBus.newCorrelationId(),
+    actorId: input.actorId,
+    authorityBadge: birth.authorityBadge,
+    versionEvent: birth.versionEvent,
+    payload: { name: deliverable.name, category: deliverable.category },
+  });
   return { deliverable };
 }
 

@@ -5,11 +5,11 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
+import { readTargetState } from "../../../utils/transitionRequest.js";
 import { createReview, listReviewsWithNextStates, transitionReview } from "../core/reviews.js";
 import { createFinding, listFindingsByReview, transitionFinding, convertFindingToObligation } from "../core/findings.js";
 import type { ReviewOutcome, TransitionEntityType } from "../../../dblayer/seuTypes.js";
-import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
-import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 router.post("/reviews", async (req: Request, res: Response) => {
   try {
@@ -17,12 +17,7 @@ router.post("/reviews", async (req: Request, res: Response) => {
     if (typeof seuId !== "string" || typeof relatedObjectType !== "string" || typeof relatedObjectId !== "string" || typeof category !== "string" || !category.trim() || typeof name !== "string" || !name.trim()) {
       return res.status(400).json({ error: "seuId, relatedObjectType, relatedObjectId, category and name are required" });
     }
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!actorId) return res.status(401).json({ error: "no acting user to record as this Review's author — log in first" });
-    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-    const held = await resolveHeldBadges(req);
-    const authorBadge = resolveAuthorBadge(authRow, held);
-    if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
+    const actorId = requireActorId(req);
 
     const review = await createReview({
       seuId,
@@ -33,7 +28,6 @@ router.post("/reviews", async (req: Request, res: Response) => {
       criteria: typeof criteria === "object" && criteria ? criteria : undefined,
       reviewer: typeof reviewer === "string" ? reviewer : null,
       actorId,
-      authorBadge,
     });
     res.status(201).json({ review });
   } catch (err) {
@@ -54,14 +48,14 @@ router.get("/reviews", async (req: Request, res: Response) => {
 });
 
 router.post("/reviews/:id/transition", async (req: Request, res: Response) => {
-  if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
   try {
-    const { targetState, outcome } = req.body ?? {};
-    if (typeof targetState !== "string" || !targetState.trim()) return res.status(400).json({ error: "targetState is required" });
+    const targetState = readTargetState(req, res);
+    if (targetState === null) return;
+    const { outcome } = req.body ?? {};
     const result = await transitionReview({
       reviewId: String(req.params.id),
       targetState,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
       outcome: typeof outcome === "string" ? (outcome as ReviewOutcome) : undefined,
     });
     if (!result.ok) {
@@ -79,12 +73,7 @@ router.post("/reviews/:id/findings", async (req: Request, res: Response) => {
   try {
     const { severity, title, description } = req.body ?? {};
     if (typeof title !== "string" || !title.trim()) return res.status(400).json({ error: "title is required" });
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (!actorId) return res.status(401).json({ error: "no acting user to record as this Finding's author — log in first" });
-    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-    const held = await resolveHeldBadges(req);
-    const authorBadge = resolveAuthorBadge(authRow, held);
-    if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
+    const actorId = requireActorId(req);
 
     const finding = await createFinding({
       reviewId: String(req.params.id),
@@ -92,7 +81,6 @@ router.post("/reviews/:id/findings", async (req: Request, res: Response) => {
       title,
       description: typeof description === "string" ? description : null,
       actorId,
-      authorBadge,
     });
     res.status(201).json({ finding });
   } catch (err) {
@@ -111,11 +99,10 @@ router.get("/reviews/:id/findings", async (req: Request, res: Response) => {
 });
 
 router.post("/findings/:id/transition", async (req: Request, res: Response) => {
-  if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
   try {
-    const { targetState } = req.body ?? {};
-    if (typeof targetState !== "string" || !targetState.trim()) return res.status(400).json({ error: "targetState is required" });
-    const result = await transitionFinding({ findingId: String(req.params.id), targetState, actorId: String(req.session.user.id) });
+    const targetState = readTargetState(req, res);
+    if (targetState === null) return;
+    const result = await transitionFinding({ findingId: String(req.params.id), targetState, actorId: requireActorId(req) });
     if (!result.ok) {
       const status = result.reason === "not_found" ? 404 : 409;
       return res.status(status).json({ reason: result.reason, ...("detail" in result ? { detail: result.detail } : {}) });
@@ -130,16 +117,12 @@ router.post("/findings/:id/transition", async (req: Request, res: Response) => {
 router.post("/findings/:id/convert-to-obligation", async (req: Request, res: Response) => {
   try {
     const { category, severity } = req.body ?? {};
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
-    const actorId = String(req.session.user.id);
-    const held = await resolveHeldBadges(req);
-    const authorBadge = held.isRoot ? "root" : [...held.badgeTypes][0] ?? "general";
+    const actorId = requireActorId(req);
     const result = await convertFindingToObligation({
       findingId: String(req.params.id),
       category: typeof category === "string" ? category : undefined,
       severity: typeof severity === "string" ? severity : undefined,
       actorId,
-      authorBadge,
     });
     if (!result.ok) {
       const status = result.reason === "not_found" ? 404 : 409;

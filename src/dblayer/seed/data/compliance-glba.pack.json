@@ -50,14 +50,14 @@
     ],
     "reviewGates": [
       {
-        "code": "glba-ciso-attestation-gate",
+        "code": "penetration-test-report",
         "name": "GLBA Safeguards Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The CISO attests that NPI technical safeguards, MFA enforcement, and vendor monitoring satisfy GLBA FTC Safeguards Rule standards.",
         "prompt": "Does the security assessment confirm full compliance with GLBA FTC Safeguards Rule requirements?",
         "participant": "human",
-        "outputContract": "glba-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "GLBA FTC Safeguards Rule Verification Checklist"
         ]

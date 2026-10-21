@@ -934,7 +934,7 @@ Rows 1–4 are genuinely ungoverned — no `transition_definitions` row exists f
 
 Row 4's Event column names only `OntologyComposed`, the composition-specific signal — the SAME action also fires row 1's or row 2's own `ConceptCreated`/`ConceptUpdated` from the underlying version-write it performs (`composeConcept` calls the identical `createConceptVersion` path `addConcept` does) — two real, distinct events from one action, not a typo.
 
-Rows 5-7's **Badge** column names the canonical `noun_verb` badge (`transitionEngine`'s own derivation); each also accepts `ontology_define` as an `alternateBadges` fallback (`transitionConcept`, `core/ontology.ts`) so every existing `ontology_define`/root holder keeps full access without a separate badge grant — not a second, independent authority tier, a deliberate one-way compatibility bridge.
+Rows 5-7's **Badge** column names the canonical `noun_verb` badge, which `transitionEngine` derives from the `verb` of the Transition Definition row. The badge is the only authority for the hop. A change of authority is a change of the verb on that row.
 
 Rows 8-10 are CR-097's own scope (not built, explicitly deferred — "we will pick this later"): a review queue for `OntologyComposed` proposals originating from something other than a tenant's own direct Compose action (Pack-contributed codes today, `core/sdkAuthoring.ts`'s `emitOntologyComposedIfUnregistered`). Versioning/Transition Defined are marked *open* rather than guessed — CR-097 itself flags whether Accept should be a real governed `transition_definitions` hop (there's no `ontology_concepts` row to gate a transition on before Accept actually creates one) as an unresolved open question.
 

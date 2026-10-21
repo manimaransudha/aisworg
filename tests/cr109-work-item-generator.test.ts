@@ -14,7 +14,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
+import { fulfilCapabilityAsRoot as fulfilCapability, createActiveObjective } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
@@ -115,8 +115,8 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
   // commissionSeu rejects a Strategic Objective directly ("a programme
   // umbrella... decompose it into Operational/Engineering objectives") — a
   // Strategic root + Engineering child, same as commissionIsolatedSeu below.
-  const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
-  const { objective } = await createObjective({
+  const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
+  const { objective } = await createActiveObjective({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "software-construction", "software-release"],
     tier: "Engineering",
@@ -190,7 +190,7 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
 
   if (beforeCommission) await beforeCommission(packRow!.id);
 
-  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
+  const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,
     code: `cr109-tpl-${run}`, name: "CR-109 Isolated Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
@@ -203,8 +203,8 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
   await templatesDB.setRequiredCapabilities(template!.id, (requiredCapabilities ?? []).map((c) => c.id), rootMasterForCapabilities.id, "root");
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `cr109-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `cr109-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
+  const { objective: root } = await createObjective({ statement: `cr109-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
+  const { objective } = await createActiveObjective({ statement: `cr109-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
       code: `cr109-profile-${run}`,

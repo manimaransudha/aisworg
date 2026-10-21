@@ -32,7 +32,7 @@ import pool from "../src/utils/db.js";
 import { commissionSeu } from "../src/routes/seu/core/commissioning.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
-import { createObligationAsRoot as createObligation } from "./testFixtures.js";
+import { createObligationAsRoot as createObligation, grantBadge, createActiveObjective } from "./testFixtures.js";
 import { raiseMyObligation } from "../src/routes/seu/core/participantHome.js";
 import { transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
@@ -97,7 +97,7 @@ async function commissionSeuBlockedByPackObligation(run: string) {
   assert.ok(published.ok, `pack obligation pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(pack.code);
 
-  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
+  const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,
     code: `cr108-tpl-${run}`, name: "CR-108 Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
@@ -105,8 +105,8 @@ async function commissionSeuBlockedByPackObligation(run: string) {
   await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `cr108-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `cr108-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
+  const { objective: root } = await createObjective({ statement: `cr108-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
+  const { objective } = await createActiveObjective({ statement: `cr108-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
       code: `cr108-profile-${run}`,
@@ -205,7 +205,7 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   // a relatedObligations[] entry.
   await ensurePolicyDefinitionWithObligation({ code: policyCode, name: `CR-108 commence-work policy ${run}`, category: "Compliance", title: `CR-108 attention blocker ${run}` });
 
-  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
+  const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,
     code: `cr108-attn-tpl-${run}`, name: "CR-108 Attention Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
@@ -213,8 +213,8 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `cr108-attn-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `cr108-attn-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
+  const { objective: root } = await createObjective({ statement: `cr108-attn-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
+  const { objective } = await createActiveObjective({ statement: `cr108-attn-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
       code: `cr108-attn-profile-${run}`, name: "CR-108 Attention Profile", baseTemplateCode: template!.code,
@@ -325,6 +325,8 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
       assert.ok(capability);
       participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
       await attachUserToParticipantMaster(participantMasterId, userId);
+      // raiseMyObligation resolves obligation_create for this Participant; the row is test-owned and deactivated in finally.
+      await grantBadge(participantMasterId, "obligation_create");
       await fulfilCapability({ seuId, capabilityId: capability!.capabilityId, participantMasterId });
     }
   );
@@ -409,7 +411,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
   }
 
   const { data: requiredCapabilities } = await capabilitiesDB.findByOriginatingPackIds([packId]);
-  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
+  const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,
     code: `cr108-ec-tpl-${run}`, name: "CR-108 Execution Context Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
@@ -419,8 +421,8 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
   await templatesDB.setRequiredCapabilities(template!.id, (requiredCapabilities ?? []).map((c) => c.id), rootMaster.id, "root");
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `cr108-ec-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `cr108-ec-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
+  const { objective: root } = await createObjective({ statement: `cr108-ec-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
+  const { objective } = await createActiveObjective({ statement: `cr108-ec-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
       code: `cr108-ec-profile-${run}`, name: "CR-108 Execution Context Profile", baseTemplateCode: template!.code,

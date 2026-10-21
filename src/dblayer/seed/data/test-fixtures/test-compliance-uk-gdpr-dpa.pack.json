@@ -57,7 +57,7 @@
         "statement": "The UK Data Protection Officer confirms that UK IDTA agreements, PECR cookie controls, and OSA risk assessments meet UK legal standards.",
         "prompt": "Does the UK privacy audit evidence confirm full compliance with UK GDPR and the Online Safety Act?",
         "participant": "human",
-        "outputContract": "uk-gdpr-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "UK GDPR & Online Safety Act Verification Checklist"
         ]

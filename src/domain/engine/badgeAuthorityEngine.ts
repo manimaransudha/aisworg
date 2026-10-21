@@ -31,20 +31,7 @@ export const badgeAuthorityEngine = {
     const { isRoot, badgeTypes } = await getHeldBadges(actorId);
     if (isRoot) return ROOT_BADGE_CODE;
     if (badgeTypes.has(requiredBadge)) return requiredBadge;
+    if (requiredBadge.startsWith(DELIVERABLE_BADGE_PREFIX) && (await isPlatformSystemActor(actorId))) return requiredBadge;
     throw new Error(`actor "${actorId}" does not hold ${requiredBadge}`);
-  },
-
-  async authorise(input: { actorId: string; requiredBadge: string | string[] }): Promise<
-    { allowed: true; via: "root" | "badge"; matchedBadge?: string } | { allowed: false; reason: "missing_badge" }
-  > {
-    const { isRoot, badgeTypes } = await getHeldBadges(input.actorId);
-    if (isRoot) return { allowed: true, via: "root" };
-    const required = Array.isArray(input.requiredBadge) ? input.requiredBadge : [input.requiredBadge];
-    if (required.every((b) => b.startsWith(DELIVERABLE_BADGE_PREFIX)) && (await isPlatformSystemActor(input.actorId))) {
-      return { allowed: true, via: "badge", matchedBadge: required[0] };
-    }
-    const matched = required.find((b) => badgeTypes.has(b));
-    if (matched) return { allowed: true, via: "badge", matchedBadge: matched };
-    return { allowed: false, reason: "missing_badge" };
   },
 };

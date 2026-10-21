@@ -61,7 +61,7 @@
         "statement": "The Qualified Security Assessor (QSA) or PCI Internal Security Assessor (ISA) attests that CDE controls, tokenization, and ASV scans comply with PCI-DSS v4.0.",
         "prompt": "Has the Qualified Security Assessor verified CDE isolation, tokenization, and PCI-DSS v4.0 compliance?",
         "participant": "human",
-        "outputContract": "pci-qsa-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "PCI-DSS v4.0 Security Controls & Audit Checklist"
         ]

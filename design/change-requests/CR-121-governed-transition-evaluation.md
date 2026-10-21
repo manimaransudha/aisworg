@@ -54,7 +54,7 @@
 Facts from the code:
 - None of the remaining transition functions evaluates category-matched Quality Gates. Definition-level entities (Pack, Profile, Template, Capability, Policy, Service, Deliverable Definition, Ontology, SchemaDefinition, Objective) pass no `seuId`, so even the pinned gates do not run for them.
 - Participant, Finding, EBM and the SEU hops are SEU-scoped. Participant and the SEU commissioning hops pass a `seuId`. Finding and EBM pass none.
-- `alternateBadges` is used by the Pack (via `alternateBadgesForPackTransition`) and Ontology transitions.
+- `alternateBadges` is removed. `transitionEngine` derives one badge, `<entity>_<verb>`, from the `verb` of the Transition Definition row. The Pack and Ontology transitions use the same derivation, and the authority of a hop is changed by changing that verb in `transitionDefinitions.json`. CR-095 still describes the `alternateBadges` fallback for the Ontology lifecycle. This bullet supersedes that description.
 - `executionEngine.evaluateDeliverableTransition` does not call `transitionEngine.evaluate`. It resolves the Transition Definition, authority, dependency, obligation and decision blocks, and policy outcomes itself, and records a governance outcome draft.
 
 Principle (design papers: Technical Manifesto, Short Communications; owner, 2026-10-15): the platform has a declaration part (`01_Engineering Definition`: Pack, Capability, Service, Template, Profile and the other definitions) and an execution part (an SEU composes behaviour from the definitions to execute an Objective). Execution is governed by authority, policy and Quality Gates, so that no Deliverable is ever self-certified. One generic evaluation applies to every governed execution entity.
@@ -150,6 +150,19 @@ Proposed design:
 - Tests: `transitionDeliverableSync` accepts `no_transition_definition` or `already_in_flight` when the Deliverable is at the target state. `clickTransitionAfterLag` simulates a person's click after the engine's kickoff, and `produceDeliverable` waits for it. `review-model`, `compliance-model` assert the state is unchanged from the state read beforehand. `acceptance.e2e` and `command-pipeline` accept `Defined` or `In Progress` after commissioning. `web-flow.e2e` Flow 4 accepts the in-flight message for a repeated In Progress click.
 - Open: the lock is per process, like the Deliverable turn above. `cr109` §5a (open Decision keeps the requirements Deliverable `Defined`) is unconfirmed. The fourth-pass changes have not been run.
 
+## Actor and badge resolution in the web layer (fifth pass, 2026-10-19)
+
+- Scope: checks of the actor id and held badges that bypassed the shared resolvers (`resolveHeldBadges`, `badgeAuthorityEngine`). Findings were reviewed with the owner and the items below were built.
+- `HeldBadges.hasVerb(entityType, verb)` in `heldBadges.ts` builds `<entityType>_<verb>` with the same rule as `transitionEngine` and checks it through `has()`. `web/objectives.ts` and `web/seus.ts` use it. The inline `objective_` and `seu_` prefixes and the `held.isRoot` badge checks are removed.
+- `web/objectives.ts` reads the Active-state transitions of the Objective from `transition_definitions` and takes the retire, reject and supersede verbs from them. The literals `"retire"`, `"reject"` and `"supersede"` are removed. The four state names are in `constants.ts` (`OBJECTIVE_ACTIVE_STATE`, `OBJECTIVE_RETIRED_STATE`, `OBJECTIVE_REJECT_STATE`, `OBJECTIVE_SUPERSEDED_STATE`).
+- `canComment` in `web/objectives.ts` is `true`. The `route_authority` row for `POST /objectives/:id/comments` lists no badge, so the former `startsWith("objective_")` gate was stricter than the route.
+- `web/sdkAuthoring.ts` drops its local `heldBadges()` set and every `held.has("root")` test. It uses `resolveHeldBadges`, whose `has()` returns true for a root holder. The `platform_manage` to `root` alias is removed. `TRANSITION_DEFINITION_DEFINE_BADGE` is in `constants.ts`.
+- `computeRowActions` in `core/sdkAuthoring.ts` takes `actorId` and resolves the held badges through `badgeAuthorityEngine.getHeldBadges`.
+- Where `isRoot` selects the tenant scope of data, the code reads `session.user.platformBadges`.
+- No change by decision: `HeldBadges.isRoot` stays for `requireBadge`, `routeAuthorityGate`, `navRouteAccess` and `demoSimulator`. The `isAdmin` filter in `web/seus.ts`, the `"root"` literals in `userDB.ts` and `dataMigrations.ts`, the `ROUTE_AUTHORITY_ADMIN_BADGE` default, the `badgeBootstrap` root grant and the `superuser` check in `heldRoles.ts` are unchanged.
+- Test fixtures: none changed. Any test that calls `computeRowActions` with the former `held` and `isRoot` arguments needs `actorId` instead. A search of `src` found no other caller.
+- Verification: `tsc`, `db:clean-slate` and the tests were not run.
+
 ## Still open
 
 - The Deliverable turn in `applyDeliverableTransition` holds within one server process. Several instances would need a database lock around the outcome, Command and state writes.
@@ -158,3 +171,4 @@ Proposed design:
 - Whether the Execution Engine should use `transitionEngine.evaluateGoverned` for its authority and Quality Gate chain (divergence 1).
 - The evidence definition on the Deliverable Definition, which replaces the hard-coded `empty_centre` check.
 - Whether the Quality Gate result should be returned for traceability (Ch.26 §14) in the allowed outcome.
+- The Objective state names remain as literals in `postObjectiveTransition(...)` routes and in `core/objectives.ts`. Whether they move onto the new constants is undecided.

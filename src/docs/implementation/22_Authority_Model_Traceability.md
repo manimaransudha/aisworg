@@ -25,13 +25,13 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Authority is permission to perform a governed action, not a Participant attribute<br> Ref: §1 Purpose, §4 Definition</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:1-5<br>src/domain/engine/transitionEngine.ts:8-12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>authorise({actorId, requiredBadge})</code> is a relationship between an action's required <code>noun_verb</code> badge and an actor's held badges, not a field on the Participant record.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>resolveAuthorBadge(actorId, requiredBadge)</code> is a relationship between an action's required <code>noun_verb</code> badge and an actor's held badges, not a field on the Participant record.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Authority is contextual (depends on EBM, Deliverable state, Governance Model, Policies, Obligations, Authority Packs)<br> Ref: §4 Definition, §9</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/transitionEngine.ts:83-99<br>src/domain/engine/badgeAuthorityEngine.ts:55-73</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEngine.evaluate()</code> derives which badge is required from the matched <code>transition_definitions</code> row (so context selects *which* badge), but <code>badgeAuthorityEngine.authorise()</code> itself takes only <code>actorId</code> and <code>requiredBadge</code>. Policy and Quality Gate are separate sequential checks after authority, not inputs to the authority decision itself.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEngine.evaluate()</code> derives which badge is required from the matched <code>transition_definitions</code> row (so context selects *which* badge), but <code>badgeAuthorityEngine.resolveAuthorBadge()</code> itself takes only <code>actorId</code> and <code>requiredBadge</code>. Policy and Quality Gate are separate sequential checks after authority, not inputs to the authority decision itself.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -67,7 +67,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">AM-006 Authority independent of organisational titles<br> Ref: §5</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:16-24</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Badges are verb-shaped (<code>entityType_verb</code>, e.g. <code>pack_define</code>), not role/title-shaped; <code>authorise()</code> takes a bare <code>actorId</code>, never a role or title.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Badges are verb-shaped (<code>entityType_verb</code>, e.g. <code>pack_define</code>), not role/title-shaped; <code>resolveAuthorBadge()</code> takes a bare <code>actorId</code>, never a role or title.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -127,7 +127,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Authority Evaluation considers requested action, Deliverable state, Participant identity, fulfilled Capabilities, Governance Model, Policies, Obligations, engineering stage<br> Ref: §9</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:55-73<br>src/domain/engine/transitionEngine.ts:83-128</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>authorise()</code> consults exactly <code>actorId</code> (Participant identity) and <code>requiredBadge</code> (action, indirectly, via the resolved transition row). Deliverable state is used only to select the transition row, not passed into the authority check. Capabilities, Governance Model, Obligations, and engineering stage are not read by the authority check; Policies are a separate, sequential check after authority, not folded into the authority decision.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>resolveAuthorBadge()</code> consults exactly <code>actorId</code> (Participant identity) and <code>requiredBadge</code> (action, indirectly, via the resolved transition row). Deliverable state is used only to select the transition row, not passed into the authority check. Capabilities, Governance Model, Obligations, and engineering stage are not read by the authority check; Policies are a separate, sequential check after authority, not folded into the authority decision.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -139,7 +139,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Authority Outcomes: Authorised / Authorised with Conditions / Not Authorised / Escalation Required / Delegation Required / Waiver Required, each with rationale<br> Ref: §10</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:63-73</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>authorise()</code> returns exactly <code>{allowed:true, via, matchedBadge?}</code> or <code>{allowed:false, reason:"missing_badge"}</code>. Multi-badge support exists (<code>requiredBadge</code> may be an array, with <code>matchedBadge</code> reported — e.g. Pack's Draft→Validated reachable by <code>pack_validate</code> OR <code>pack_define</code> OR <code>pack_reject</code>), but this is still a binary allowed/denied outcome, not the chapter's multi-tier outcome set. No free-text rationale field; the closest is the required badge code plus the fixed string <code>"missing_badge"</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>resolveAuthorBadge(actorId, requiredBadge)</code> returns the badge the actor authors under: <code>root</code> for a root holder, the required badge for a holder, and the required <code>deliverable_*</code> badge for the platform system actor. It throws <code>actor "&lt;id&gt;" does not hold &lt;badge&gt;</code> for anyone else. One badge is required per call and the verb of the Transition Definition row selects it. The outcome is a badge or an error, not the chapter's multi-tier outcome set. No free-text rationale field; the closest is the required badge code in the error message.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
@@ -194,7 +194,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: remain independent of Participant implementations<br> Ref: §16</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:55,63</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>authorise()</code>/<code>getHeldBadges()</code> take a bare <code>actorId: string</code> and resolve via <code>participantsMasterDB.findById</code>, with no Participant-type-specific branching.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>resolveAuthorBadge()</code>/<code>getHeldBadges()</code> take a bare <code>actorId: string</code> and resolve via <code>participantsMasterDB.findById</code>, with no Participant-type-specific branching.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -286,7 +286,7 @@
 
 ## Major gaps (unranked, in spec order)
 
-1. The authority check itself (`badgeAuthorityEngine.authorise`) consults only `actorId` + `requiredBadge` — Capabilities, Governance Model, Obligations, and engineering stage are never read; "contextual" holds only in that different transitions require different badges (§4, §9).
+1. The authority check itself (`badgeAuthorityEngine.resolveAuthorBadge`) consults only `actorId` + `requiredBadge` — Capabilities, Governance Model, Obligations, and engineering stage are never read; "contextual" holds only in that different transitions require different badges (§4, §9).
 2. Delegation does not exist anywhere in `src/` (§5 AM-005, §6 FR-22.5, §11, §16, §17).
 3. The live `noun_verb` badge vocabulary has no Pack or tenant dimension; a real Composition Engine and conflict detector exist but operate on the separate, disconnected `authority_rules` table (§5 AM-003, §6 FR-22.3/FR-22.7, §8, §12, §17).
 4. No `Authority*` event is ever published; authority denial is a synchronous return value only (§15).

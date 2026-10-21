@@ -31,7 +31,7 @@ import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
-import { createObligationAsRoot as createObligation } from "./testFixtures.js";
+import { createObligationAsRoot as createObligation, createActiveObjective } from "./testFixtures.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { commissionSeu as commissionSeuCore } from "../src/routes/seu/core/commissioning.js";
@@ -42,7 +42,7 @@ import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
-import { deactivateParticipants, waitForCapabilityFulfilled, settleCapabilityRequests, ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_USER_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, TESTER_OBJECTIVE_ACHIEVE_ONLY, grantRouteBadges, ensureSeuRequesterParticipant, ensureActorParticipant } from "./testFixtures.js";
+import { deactivateParticipants, waitForCapabilityFulfilled, settleCapabilityRequests, ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_USER_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, TESTER_OBJECTIVE_ACHIEVE_ONLY, grantBadge, grantRouteBadges, ensureSeuRequesterParticipant, ensureActorParticipant } from "./testFixtures.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import type { CommandRow, WorkItemRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
@@ -85,6 +85,20 @@ after(async () => {
 // app.ts test shim's own no-header path is intentionally a no-op (an
 // unauthenticated request should stay unauthenticated, not silently default
 // to root), so omitting the id here leaves the session logged out, not root.
+// assert.match/doesNotMatch print the whole page as the failure message. These print the pattern and the page's
+// alert texts instead.
+function pageAlerts(html: string): string[] {
+  return [...html.matchAll(/class="alert[^"]*alert-(?:success|danger|warning)[^"]*"[^>]*>([\s\S]*?)<\/div>/g)].map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+}
+
+function assertPageMatches(html: string, pattern: RegExp, message?: string): void {
+  assert.ok(pattern.test(html), `${message ?? "page does not match"}: ${pattern}. Alerts on the page: ${JSON.stringify(pageAlerts(html))}`);
+}
+
+function assertPageDoesNotMatch(html: string, pattern: RegExp, message?: string): void {
+  assert.ok(!pattern.test(html), `${message ?? "page matches"}: ${pattern}. Alerts on the page: ${JSON.stringify(pageAlerts(html))}`);
+}
+
 function newSession(testUserId?: string): Session {
   if (testUserId === undefined) return fetchCookie(fetch, new CookieJar());
   const jarFetch = fetchCookie(fetch, new CookieJar());
@@ -179,13 +193,13 @@ async function postForm(
 // `sponsor` owns the Objectives and so decides the SEU's tenant: Athens by default, Babylon where the pool must be empty.
 async function commissionSeu(request: Session, statementPrefix: string, sponsor: { participantId: string } = TESTER_OBJECTIVE_ATHENS, withFixtureParticipant = true): Promise<{ seuId: string; csrf: string }> {
   const { template: fixtureTemplate, profile: fixtureProfile } = await ensureWebAppTemplateFixture();
-  const { objective: root } = await createObjective({
+  const { objective: root } = await createActiveObjective({
     statement: `${statementPrefix}-root-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Strategic",
     requestedBy: sponsor.participantId,
   });
-  const { objective } = await createObjective({
+  const { objective } = await createActiveObjective({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     tier: "Engineering",
@@ -418,8 +432,8 @@ test("Flow 1 — commission an SEU end to end: redirects to its detail page, rea
 
   const detail = await getPage(request, `/seu/seus/${seuId}`);
   assert.equal(detail.status, 200);
-  assert.match(detail.html, /state-badge state-Operational fs-6">Operational</);
-  assert.match(detail.html, /SEUOperational/);
+  assertPageMatches(detail.html, /state-badge state-Operational fs-6">Operational</);
+  assertPageMatches(detail.html, /SEUOperational/);
 });
 
 test("Flow 2 — Capability Fulfilment: fulfilling a Capability flips its status to Fulfilled", async () => {
@@ -453,15 +467,22 @@ test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Delivera
   // completeOutstanding below finds the producing Command, which dispatches once the Capability is fulfilled.
   const afterDispatch = await getPage(request, `/seu/seus/${seuId}`);
   assert.ok(
-    /alert-success[\s\S]*?completed by the Execution Engine/.test(afterDispatch.html) || /alert-danger[\s\S]*?no Transition Definition for Deliverable In Progress/.test(afterDispatch.html) || /alert-danger[\s\S]*?a Command for this exact hop is already Dispatched/.test(afterDispatch.html),
-    afterDispatch.html
+    /alert-success[\s\S]*?completed by the Execution Engine/.test(afterDispatch.html) || /alert-danger[\s\S]*?no Transition Definition for Deliverable In Progress/.test(afterDispatch.html) || /alert-danger[\s\S]*?a Command for this exact hop is already (?:Generated|Dispatched)/.test(afterDispatch.html),
+    `unexpected result of the manual transition. Alerts on the page: ${JSON.stringify(pageAlerts(afterDispatch.html))}`
   );
-  assert.match(afterDispatch.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/, "the Execution Engine made the transition");
+  // A Command still Generated has not dispatched yet, so the Deliverable moves a moment later: poll for it.
+  const stateOf = (html: string) => /Requirements Analysis Model<br[\s\S]*?state-badge state-([A-Za-z-]+)">/.exec(html)?.[1];
+  let requirementsState = stateOf(afterDispatch.html);
+  await waitUntilAsync(async () => {
+    requirementsState = stateOf((await getPage(request, `/seu/seus/${seuId}`)).html);
+    return requirementsState === "In-Progress";
+  });
+  assert.equal(requirementsState, "In-Progress", "the Execution Engine made the transition");
 
   // The Participant reports `done` on the producing Work Item -> the result-in callback records the reference.
   await completeOutstanding(request, seuId, deliverableId, "In Progress");
   const after1 = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(after1.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/);
+  assertPageMatches(after1.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/);
 });
 
 test("Flow 4 — Deliverable transition, invalid: rejected with an explicit error, not silently accepted and not a 500", async () => {
@@ -483,10 +504,10 @@ test("Flow 4 — Deliverable transition, invalid: rejected with an explicit erro
   assert.equal(result.status, 302, "an invalid transition must still be a graceful redirect, not a 500");
 
   const after1 = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(after1.html, /alert-danger/);
+  assertPageMatches(after1.html, /alert-danger/);
   // In Progress -> In Progress is the producing Command's hop: with the engine's own Command still in flight the
   // repeat click is refused as already in flight; once it has completed there is no Transition Definition.
-  assert.match(after1.html, /no Transition Definition for Deliverable In Progress -&gt; In Progress|a Command for this exact hop is already/);
+  assertPageMatches(after1.html, /no Transition Definition for Deliverable In Progress -&gt; In Progress|a Command for this exact hop is already/);
 });
 
 test("Flow 5 — Deliverable transition, dependency gating (regression: must never go green by accident)", async () => {
@@ -515,11 +536,11 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   const blocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${architectureDocId}/transition`, csrf, { targetState: "In Progress" });
   assert.equal(blocked.status, 302);
   const afterBlocked = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterBlocked.html, /alert-danger/);
-  assert.match(afterBlocked.html, /one or more dependencies aren&#39;t Satisfied yet/);
+  assertPageMatches(afterBlocked.html, /alert-danger/);
+  assertPageMatches(afterBlocked.html, /one or more dependencies aren&#39;t Satisfied yet/);
   // The regression itself: Architecture Decision Record must still show 'Defined',
   // not have silently moved while displaying a blocked-looking dependency note.
-  assert.match(afterBlocked.html, /Architecture Decision Record<br[\s\S]*?state-badge state-Defined">Defined/);
+  assertPageMatches(afterBlocked.html, /Architecture Decision Record<br[\s\S]*?state-badge state-Defined">Defined/);
 
   // Move A all the way to 'Approved' (each transition dispatched + reported).
   await webTransitionAndComplete(request, seuId, csrf, requirementsSpecId, "In Progress");
@@ -528,7 +549,7 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   // Now B must succeed.
   await webTransitionAndComplete(request, seuId, csrf, architectureDocId, "In Progress");
   const afterUnblocked = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterUnblocked.html, /Architecture Decision Record<br[\s\S]*?state-badge state-In-Progress">In Progress/);
+  assertPageMatches(afterUnblocked.html, /Architecture Decision Record<br[\s\S]*?state-badge state-In-Progress">In Progress/);
 });
 
 // Post-MVP Phase 3 addition: the web route's externally-visible contract (form POST -> 302 + flash) is unchanged, but
@@ -551,7 +572,7 @@ test("Phase 3 — the Deliverable stays in Defined until the Capability is fulfi
     return (events ?? []).some((e) => e.event_type === "CapabilityUnavailable");
   });
   const afterUnavailable = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterUnavailable.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Defined">Defined/, "no hop without a fulfilled Capability");
+  assertPageMatches(afterUnavailable.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Defined">Defined/, "no hop without a fulfilled Capability");
   const { data: commandsBefore } = await commandsDB.findBySeuId(seuId);
   assert.equal((commandsBefore ?? []).filter((c) => c.entity_id === deliverableId && c.status === "Completed").length, 0, "no Command completed for the Deliverable while its Capability is unfulfilled");
 
@@ -640,9 +661,9 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   const blocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
   assert.equal(blocked.status, 302, "a blocked transition is still a graceful redirect, not a 500");
   const afterBlocked = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterBlocked.html, /alert-danger/);
-  assert.match(afterBlocked.html, /Quality Gate &#34;No Unresolved Obligations&#34; blocked: 1 unresolved Obligation\(s\) \(WebFlow Phase4 obligation\)/);
-  assert.match(afterBlocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/, "the Deliverable must not have moved while the Quality Gate blocked it");
+  assertPageMatches(afterBlocked.html, /alert-danger/);
+  assertPageMatches(afterBlocked.html, /Quality Gate &#34;No Unresolved Obligations&#34; blocked: 1 unresolved Obligation\(s\) \(WebFlow Phase4 obligation\)/);
+  assertPageMatches(afterBlocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/, "the Deliverable must not have moved while the Quality Gate blocked it");
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
     const step = await postForm(request, `/seu/seus/${seuId}/obligations/${obligationId}/transition`, csrf, { targetState });
@@ -658,7 +679,7 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
 
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "Approved");
   const afterUnblocked = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterUnblocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Approved">Approved/);
+  assertPageMatches(afterUnblocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Approved">Approved/);
 });
 
 // Post-MVP Phase 5 addition, per the brief's "How this expands" section: "a
@@ -684,12 +705,12 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
   const blocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Baselined" });
   assert.equal(blocked.status, 302, "a blocked transition is still a graceful redirect, not a 500");
   const afterBlocked = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterBlocked.html, /alert-danger/);
-  assert.match(
+  assertPageMatches(afterBlocked.html, /alert-danger/);
+  assertPageMatches(
     afterBlocked.html,
     /Quality Gate &#34;Requires Accepted Evidence or Approved Decision&#34; blocked: no accepted Evidence of category &#34;Validation Evidence&#34; or approved Decision found for this entity/
   );
-  assert.match(afterBlocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Approved">Approved/, "the Deliverable must not have moved while the Quality Gate blocked it");
+  assertPageMatches(afterBlocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Approved">Approved/, "the Deliverable must not have moved while the Quality Gate blocked it");
 
   const created = await postForm(request, `/seu/seus/${seuId}/evidence`, csrf, {
     deliverableId,
@@ -700,7 +721,7 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
   });
   assert.equal(created.status, 302);
   const afterCreate = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterCreate.html, /alert-success/);
+  assertPageMatches(afterCreate.html, /alert-success/);
   const evidenceId = findEvidenceId(afterCreate.html);
 
   for (const targetState of ["Validated", "Accepted"]) {
@@ -710,7 +731,7 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
 
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "Baselined");
   const afterUnblocked = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterUnblocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Baselined">Baselined/);
+  assertPageMatches(afterUnblocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Baselined">Baselined/);
 });
 
 // Post-MVP Phase 6 addition, per the brief's "How this expands" section: "a
@@ -735,8 +756,8 @@ test("Phase 6 — promoting a Published Knowledge Item's scope raises a visible 
   const tooEarly = await postForm(request, `/seu/seus/${seuId}/knowledge/${knowledgeItemId}/promote-scope`, csrf, { targetScope: "Capability" });
   assert.equal(tooEarly.status, 302, "a blocked promotion is still a graceful redirect, not a 500");
   const afterTooEarly = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterTooEarly.html, /alert-danger/);
-  assert.match(afterTooEarly.html, /must be Published before its Acquisition Scope can be promoted/);
+  assertPageMatches(afterTooEarly.html, /alert-danger/);
+  assertPageMatches(afterTooEarly.html, /must be Published before its Acquisition Scope can be promoted/);
 
   for (const targetState of ["Proposed", "Validated", "Accepted", "Published"]) {
     const step = await postForm(request, `/seu/seus/${seuId}/knowledge/${knowledgeItemId}/transition`, csrf, { targetState });
@@ -746,15 +767,15 @@ test("Phase 6 — promoting a Published Knowledge Item's scope raises a visible 
   const promoted = await postForm(request, `/seu/seus/${seuId}/knowledge/${knowledgeItemId}/promote-scope`, csrf, { targetScope: "Capability" });
   assert.equal(promoted.status, 302);
   const afterPromoted = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterPromoted.html, /alert-success/);
-  assert.match(afterPromoted.html, /Organisational Learning Obligation raised/);
+  assertPageMatches(afterPromoted.html, /alert-success/);
+  assertPageMatches(afterPromoted.html, /Organisational Learning Obligation raised/);
   // The visible, real Obligation the brief asks for — not just a success message.
-  assert.match(afterPromoted.html, /Organisational Learning &middot; \w+<\/td>\s*<td><span class="state-badge state-Identified">Identified/);
+  assertPageMatches(afterPromoted.html, /Organisational Learning &middot; \w+<\/td>\s*<td><span class="state-badge state-Identified">Identified/);
 
   const capitalPage = await getPage(request, "/seu/knowledge/capital");
   assert.equal(capitalPage.status, 200);
-  assert.match(capitalPage.html, /WebFlow Phase6 knowledge/);
-  assert.match(capitalPage.html, /scope-badge scope-Capability">Capability/);
+  assertPageMatches(capitalPage.html, /WebFlow Phase6 knowledge/);
+  assertPageMatches(capitalPage.html, /scope-badge scope-Capability">Capability/);
 });
 
 // Post-MVP Phase 7 addition. No explicit "How this expands" pointer exists
@@ -774,7 +795,7 @@ test("Phase 7 — Flow and Governance Telemetry are real, and a sustained patter
   // A real Flow metric: this Deliverable now has a measurable cycle time.
   const telemetryBefore = await getPage(request, "/seu/telemetry");
   assert.equal(telemetryBefore.status, 200);
-  assert.match(telemetryBefore.html, /Requirements Analysis Model/);
+  assertPageMatches(telemetryBefore.html, /Requirements Analysis Model/);
 
   // CR-108 item 3 — manual create route removed; see Phase 4's own comment
   // above for why this now calls the core function directly.
@@ -791,8 +812,8 @@ test("Phase 7 — Flow and Governance Telemetry are real, and a sustained patter
   }
 
   const afterSustained = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterSustained.html, /Recurring friction: Quality Gate/);
-  assert.match(afterSustained.html, /Organisational Learning &middot; High<\/td>\s*<td><span class="state-badge state-Identified">Identified/);
+  assertPageMatches(afterSustained.html, /Recurring friction: Quality Gate/);
+  assertPageMatches(afterSustained.html, /Organisational Learning &middot; High<\/td>\s*<td><span class="state-badge state-Identified">Identified/);
 
   // A 4th attempt must not raise a second one. Asserted against real data,
   // not by counting substring occurrences in the rendered HTML: a single
@@ -810,7 +831,7 @@ test("Phase 7 — Flow and Governance Telemetry are real, and a sustained patter
 
   // A real Governance metric: this gate now shows non-zero average latency.
   const telemetryAfter = await getPage(request, "/seu/telemetry");
-  assert.match(telemetryAfter.html, /No Unresolved Obligations/);
+  assertPageMatches(telemetryAfter.html, /No Unresolved Obligations/);
 });
 
 function findExternalInteractionId(html: string): string {
@@ -882,7 +903,7 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
   const published = await publishPack({ seed: packSeed as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `isolated Phase8 pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
 
-  const { data: template } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
+  const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,
     code: `webflow-phase8-isolated-template-${randomUUID().slice(0, 8)}`,
     name: "WebFlow Phase8 Isolated Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
@@ -916,8 +937,8 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
-  const { objective } = await createObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
+  const { objective: root } = await createActiveObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
+  const { objective } = await createActiveObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
 
   const commissioned = await commissionSeuCore({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorId: TESTER_OBJECTIVE_ATHENS.participantId, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
   assert.equal(commissioned.ok, true, !commissioned.ok ? `Validate Request failed: ${JSON.stringify(commissioned)}` : "assertion failed");
@@ -1038,7 +1059,7 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   const attentionStep = await postForm(request, `/seu/seus/${seuId}/attention-items/${attentionItemId}/transition`, csrf, { targetState: "Delivered" });
   assert.equal(attentionStep.status, 302);
   const afterAttentionStep = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterAttentionStep.html, /alert-success/);
+  assertPageMatches(afterAttentionStep.html, /alert-success/);
 
   // External Interaction: record one against the same Deliverable, then fail it.
   const interactionCreated = await postForm(request, `/seu/seus/${seuId}/external-interactions`, csrf, {
@@ -1049,7 +1070,7 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   });
   assert.equal(interactionCreated.status, 302);
   const afterInteractionCreated = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterInteractionCreated.html, /WebFlow Phase8 Ticketing System/);
+  assertPageMatches(afterInteractionCreated.html, /WebFlow Phase8 Ticketing System/);
   const interactionId = findExternalInteractionId(afterInteractionCreated.html);
 
   const toValidated = await postForm(request, `/seu/seus/${seuId}/external-interactions/${interactionId}/transition`, csrf, { targetState: "Validated" });
@@ -1060,11 +1081,11 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   assert.equal(toFailed.status, 302, "a failing transition is still a graceful redirect, not a 500");
 
   const afterFailed = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterFailed.html, /state-badge state-Failed">Failed/);
+  assertPageMatches(afterFailed.html, /state-badge state-Failed">Failed/);
 
   const attentionAfterFailure = await getPage(request, "/seu/attention?pageSize=500");
-  assert.match(attentionAfterFailure.html, /External Interaction with[\s\S]*?WebFlow Phase8 Ticketing System[\s\S]*?failed/);
-  assert.match(attentionAfterFailure.html, /Exception/);
+  assertPageMatches(attentionAfterFailure.html, /External Interaction with[\s\S]*?WebFlow Phase8 Ticketing System[\s\S]*?failed/);
+  assertPageMatches(attentionAfterFailure.html, /Exception/);
 });
 
 // Post-MVP Phase 9 addition (Ch.5 Pack Model, Ch.38 Pack Platform
@@ -1107,8 +1128,8 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
   // accumulated Packs.
   const registryPage = await getPage(request, `/seu/packs?q=${seed.code}`);
   assert.equal(registryPage.status, 200);
-  assert.match(registryPage.html, new RegExp(seed.code));
-  assert.match(registryPage.html, new RegExp(`v${escapedVersion}`));
+  assertPageMatches(registryPage.html, new RegExp(seed.code));
+  assertPageMatches(registryPage.html, new RegExp(`v${escapedVersion}`));
 
   // Registry governance relocated to the Authoring page (owner, 2026-08-19:
   // Registry is view-only now — filters + a badge-gated Copy button, no
@@ -1124,8 +1145,8 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
   assert.equal(transition.status, 302);
 
   const afterTransition = await getPage(request, `/seu/sdk/pack-authoring/${published.pack!.id}`);
-  assert.match(afterTransition.html, /alert-success/);
-  assert.match(afterTransition.html, /state-badge state-Retired/);
+  assertPageMatches(afterTransition.html, /alert-success/);
+  assertPageMatches(afterTransition.html, /state-badge state-Retired/);
 
   // The Registry (view-only) reflects the new state too. `code` is now
   // stable/reused across runs (see above), so its own card history
@@ -1225,9 +1246,9 @@ test("Objectives — Create and the Edit page's Save both redirect to the list, 
   // page 1 regardless of how many other Objectives already exist.
   const listBefore = await getPage(request, "/seu/objectives");
   assert.equal(listBefore.status, 200);
-  assert.match(listBefore.html, new RegExp(originalStatement));
+  assertPageMatches(listBefore.html, new RegExp(originalStatement));
   const objectiveId = findObjectiveIdByStatement(listBefore.html, originalStatement);
-  assert.match(
+  assertPageMatches(
     listBefore.html,
     new RegExp(`href="/aisworg/seu/objectives/${objectiveId}/edit"`),
     "expected an Edit link on the list row, not just View"
@@ -1247,71 +1268,8 @@ test("Objectives — Create and the Edit page's Save both redirect to the list, 
   assert.equal(saved.location, "/aisworg/seu/objectives", `expected Save to redirect to the list page, got: ${saved.location}`);
 
   const listAfter = await getPage(request, "/seu/objectives");
-  assert.match(listAfter.html, new RegExp(updatedStatement), "the list must reflect the saved edit");
-  assert.doesNotMatch(listAfter.html, new RegExp(originalStatement), "the pre-edit statement text must no longer appear");
-});
-
-// CR-075 — the list is the one real UI gate for a locked (submitted-for-
-// activation) Objective: its Edit link simply doesn't appear (owner: "just
-// disable the button on the list so edit is blocked"). The Edit page itself
-// has no separate locked display — Comments (a different rule, postable any
-// time regardless of status) works normally there either way, while the
-// actual mutation (updateObjective) still refuses for real if reached
-// directly, same as objective-lifecycle.test.ts already covers at the core
-// level — this just confirms the web-layer wiring end to end.
-test("Objectives — the list hides Edit once locked; Comments still works; a direct Save attempt is still refused for real", async () => {
-  const request = newSession(TESTER_OBJECTIVE_ATHENS.userId);
-
-  const newForm = await getPage(request, "/seu/objectives/new");
-  const newCsrf = extractCsrf(newForm.html);
-  const originalStatement = `webflow-locked-edit-${randomUUID()}`;
-  const created = await postForm(request, "/seu/objectives", newCsrf, {
-    statement: originalStatement,
-    tier: "Strategic",
-    requiredCapabilityCodes: ["architecture-design"],
-  });
-  assert.equal(created.status, 302);
-  assert.equal(created.location, "/aisworg/seu/objectives");
-
-  const list = await getPage(request, "/seu/objectives");
-  const objectiveId = findObjectiveIdByStatement(list.html, originalStatement);
-
-  // Queue it (submit for activation) from the detail/view page's own form —
-  // unaffected by this change, still the right place for a lifecycle action.
-  const detailPage = await getPage(request, `/seu/objectives/${objectiveId}`);
-  assert.equal(detailPage.status, 200);
-  const submitCsrf = extractCsrf(detailPage.html);
-  const submitted = await postForm(request, `/seu/objectives/${objectiveId}/submit`, submitCsrf, {});
-  assert.equal(submitted.status, 302);
-
-  const listAfterSubmit = await getPage(request, "/seu/objectives");
-  assert.doesNotMatch(
-    listAfterSubmit.html,
-    new RegExp(`href="/aisworg/seu/objectives/${objectiveId}/edit"`),
-    "the list must not offer Edit once this Objective is locked"
-  );
-
-  // Comments must still work — a separate rule from the lock above.
-  const lockedEdit = await getPage(request, `/seu/objectives/${objectiveId}/edit`);
-  assert.equal(lockedEdit.status, 200);
-  const commentCsrf = extractCsrf(lockedEdit.html);
-  const commentText = `webflow-locked-comment-${randomUUID()}`;
-  const posted = await postForm(request, `/seu/objectives/${objectiveId}/comments`, commentCsrf, { comment: commentText });
-  assert.equal(posted.status, 302);
-  const afterComment = await getPage(request, `/seu/objectives/${objectiveId}/edit`);
-  assert.match(afterComment.html, new RegExp(commentText), "the posted comment must appear");
-
-  // A direct Save attempt (bypassing the now-hidden list link) must still be
-  // refused for real, not just hidden.
-  const saveAttempt = await postForm(request, `/seu/objectives/${objectiveId}/update`, commentCsrf, {
-    action: "save",
-    statement: "should-not-apply",
-    requiredCapabilityCodes: ["architecture-design"],
-  });
-  assert.equal(saveAttempt.status, 302);
-  assert.equal(saveAttempt.location, `/aisworg/seu/objectives/${objectiveId}/edit`);
-  const afterSaveAttempt = await getPage(request, `/seu/objectives/${objectiveId}`);
-  assert.doesNotMatch(afterSaveAttempt.html, /should-not-apply/, "the blocked Save must not have applied");
+  assertPageMatches(listAfter.html, new RegExp(updatedStatement), "the list must reflect the saved edit");
+  assertPageDoesNotMatch(listAfter.html, new RegExp(originalStatement), "the pre-edit statement text must no longer appear");
 });
 
 // TESTER_OBJECTIVE_ACHIEVE_ONLY (testFixtures.ts) — real seeded row, Athens
@@ -1327,7 +1285,7 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
   // not viewing — and it must not offer the buttons this viewer can't use.
   const list = await getPage(request, "/seu/objectives");
   assert.equal(list.status, 200);
-  assert.doesNotMatch(list.html, /New Strategic Objective/, "the create button must not render for a non-holder");
+  assertPageDoesNotMatch(list.html, /New Strategic Objective/, "the create button must not render for a non-holder");
 
   // GET /new redirects away with the real error, not a 200 with the form.
   // routeAuthorityGate denies through redirects' badgefail outcome, whose
@@ -1338,7 +1296,7 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
   const newForm = await getPage(request, "/seu/objectives");
   // EJS's default <%= %> escaping renders the apostrophe as &#39;, not a
   // literal ' — match a substring either side of it, not across it.
-  assert.match(newForm.html, /You are not authorised for this action/);
+  assertPageMatches(newForm.html, /You are not authorised for this action/);
 
   // A direct POST (bypassing the hidden button entirely) is refused too —
   // the CSRF token comes from the list page's own navbar form, since this
@@ -1354,25 +1312,35 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
   // routeAuthorityGate denies through redirects' badgefail outcome, which lands on "/aisworg".
   assert.equal(blockedCreate.location, "/aisworg");
   const listAfter = await getPage(request, "/seu/objectives");
-  assert.doesNotMatch(listAfter.html, new RegExp(blockedStatement), "the blocked create must not have applied");
+  assertPageDoesNotMatch(listAfter.html, new RegExp(blockedStatement), "the blocked create must not have applied");
 
   // GET /:id/edit — the pre-existing sibling gate — refuses the same way,
   // even for an Objective in this viewer's OWN tenant (fixture created
   // directly through the core function, same as objective-lifecycle.test.ts's
   // own fixtures, to isolate this from the create-gate just proven above).
-  const { objective: ownTenantObjective } = await createObjective({
-    statement: `webflow-badge-denied-edit-${randomUUID()}`,
-    requiredCapabilityCodes: [],
-    tier: "Strategic",
-    status: "Proposed",
-    requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId,
-  });
+  // createObjective resolves the author badge, so the fixture create briefly grants objective_propose
+  // and restores the tester's original badges before the viewer requests below.
+  const { data: viewerMaster } = await participantsMasterDB.findById(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId);
+  const viewerOriginalBadges = viewerMaster!.authorised_badges;
+  let ownTenantObjective;
+  try {
+    await grantBadge(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, "objective_propose");
+    ({ objective: ownTenantObjective } = await createObjective({
+      statement: `webflow-badge-denied-edit-${randomUUID()}`,
+      requiredCapabilityCodes: [],
+      tier: "Strategic",
+      requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId,
+    }));
+  } finally {
+    const { error } = await participantsMasterDB.setAuthorisedBadges(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, viewerOriginalBadges);
+    if (error) throw error;
+  }
   // Same badgefail destination as above.
   const editRedirect = await getRedirect(request, `/seu/objectives/${ownTenantObjective.id}/edit`);
   assert.equal(editRedirect.status, 302);
   assert.equal(editRedirect.location, "/aisworg");
   const editAttempt = await getPage(request, `/seu/objectives/${ownTenantObjective.id}`);
-  assert.match(editAttempt.html, /You are not authorised for this action/);
+  assertPageMatches(editAttempt.html, /You are not authorised for this action/);
 });
 
 // TESTER_OBJECTIVE_BABYLON (testFixtures.ts) — real seeded row, Babylon
@@ -1386,14 +1354,13 @@ test("Objectives — the web layer's own tenant-reach gate blocks a real badge h
     statement: `webflow-tenant-reach-babylon-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Strategic",
-    status: "Proposed",
     requestedBy: TESTER_OBJECTIVE_BABYLON.participantId,
   });
 
   // Positive control — the owning tenant can see it fine.
   const ownTenantView = await getPage(newSession(TESTER_OBJECTIVE_BABYLON.userId), `/seu/objectives/${babylonObjective.id}`);
   assert.equal(ownTenantView.status, 200);
-  assert.match(ownTenantView.html, new RegExp(babylonObjective.statement));
+  assertPageMatches(ownTenantView.html, new RegExp(babylonObjective.statement));
 
   // router.param("id") — a real, badge-holding, different-tenant viewer gets
   // "Objective not found," never the content, never a distinguishable 403.
@@ -1402,15 +1369,15 @@ test("Objectives — the web layer's own tenant-reach gate blocks a real badge h
   assert.equal(detailRedirect.status, 302);
   assert.equal(detailRedirect.location, "/aisworg/seu/objectives");
   const detailAttempt = await getPage(outsider, "/seu/objectives");
-  assert.match(detailAttempt.html, /Objective not found/);
-  assert.doesNotMatch(detailAttempt.html, new RegExp(babylonObjective.statement), "the other tenant's statement text must never leak");
+  assertPageMatches(detailAttempt.html, /Objective not found/);
+  assertPageDoesNotMatch(detailAttempt.html, new RegExp(babylonObjective.statement), "the other tenant's statement text must never leak");
 
   // GET /new?parent= — same gate, the query-string parent path.
   const newChildRedirect = await getRedirect(outsider, `/seu/objectives/new?parent=${babylonObjective.id}&tier=Engineering`);
   assert.equal(newChildRedirect.status, 302);
   assert.equal(newChildRedirect.location, "/aisworg/seu/objectives");
   const newChildAttempt = await getPage(outsider, "/seu/objectives");
-  assert.match(newChildAttempt.html, /Parent Objective not found/);
+  assertPageMatches(newChildAttempt.html, /Parent Objective not found/);
 
   // A direct POST naming the other tenant's Objective as parent is refused
   // too, not just the GET form — by requireTenantScope.forField's own route
@@ -1430,21 +1397,30 @@ test("Objectives — the web layer's own tenant-reach gate blocks a real badge h
 
 // CR-076 (owner: "every route has to be gated with a requireBadge... The
 // safety net will be when the router is hit and that checks for the badge
-// access again") — before this, POST /update, /move, /submit, and /delete had
+// access again") — before this, POST /update, /move, and /delete had
 // NO server-side badge check at all; only the list hiding the Edit/Delete
 // link stood between a badge-less viewer and a direct POST. Proves each one
 // now genuinely refuses, for real, in TESTER_OBJECTIVE_ACHIEVE_ONLY's own tenant (so
 // tenant-reach can't be the reason it's blocked — isolates the badge gate).
-test("Objectives — update/move/submit/delete all real-refuse a viewer without objective_propose (previously had no route-level check at all)", async () => {
+test("Objectives — update/move/delete all real-refuse a viewer without objective_propose (previously had no route-level check at all)", async () => {
   const request = newSession(TESTER_OBJECTIVE_ACHIEVE_ONLY.userId);
   const originalStatement = `webflow-no-propose-mutate-${randomUUID()}`;
-  const { objective } = await createObjective({
-    statement: originalStatement,
-    requiredCapabilityCodes: [],
-    tier: "Strategic",
-    status: "Proposed",
-    requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId,
-  });
+  // Fixture create grants objective_propose briefly; the original badges are restored before the viewer requests.
+  const { data: viewerMaster } = await participantsMasterDB.findById(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId);
+  const viewerOriginalBadges = viewerMaster!.authorised_badges;
+  let objective;
+  try {
+    await grantBadge(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, "objective_propose");
+    ({ objective } = await createObjective({
+      statement: originalStatement,
+      requiredCapabilityCodes: [],
+      tier: "Strategic",
+      requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId,
+    }));
+  } finally {
+    const { error } = await participantsMasterDB.setAuthorisedBadges(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, viewerOriginalBadges);
+    if (error) throw error;
+  }
 
   const list = await getPage(request, "/seu/objectives");
   const csrf = extractCsrf(list.html);
@@ -1455,14 +1431,11 @@ test("Objectives — update/move/submit/delete all real-refuse a viewer without 
   const move = await postForm(request, `/seu/objectives/${objective.id}/move`, csrf, { newParentId: "" });
   assert.equal(move.status, 302);
 
-  const submit = await postForm(request, `/seu/objectives/${objective.id}/submit`, csrf, {});
-  assert.equal(submit.status, 302);
-
   const del = await postForm(request, `/seu/objectives/${objective.id}/delete`, csrf, {});
   assert.equal(del.status, 302);
 
   const { data: unchanged } = await objectivesDB.findById(objective.id);
   assert.ok(unchanged, "the blocked delete must not have applied — the row still exists");
   assert.equal(unchanged?.statement, originalStatement, "the blocked update must not have applied");
-  assert.equal(unchanged?.status, "Proposed", "the blocked submit must not have queued anything");
+  assert.equal(unchanged?.status, objective.status, "the blocked requests must not have moved it");
 });

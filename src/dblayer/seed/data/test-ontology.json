@@ -2035,6 +2035,15 @@
   },
   {
     "concept_type": "engineering-name",
+    "code": "test-pack-supersede",
+    "default_label": "Test: Pack Supersede",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
     "code": "test-pack-no-active-version",
     "default_label": "Test: Pack No Active Version",
     "description": null,
@@ -2599,5 +2608,482 @@
     "is_mandatory": null,
     "text_type": "text",
     "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "Test Report / Results",
+    "default_label": "Test Report / Results",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "accessibility-compliance-gate",
+    "default_label": "Accessibility Compliance Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "aml-bsa-officer-attestation-gate",
+    "default_label": "Aml Bsa Officer Attestation Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "architecture-notebook",
+    "default_label": "Architecture Notebook",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "automotive-type-approval-gate",
+    "default_label": "Automotive Type Approval Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "beta-entry-exit-criteria",
+    "default_label": "Beta Entry Exit Criteria",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "bipa-privacy-attestation-gate",
+    "default_label": "Bipa Privacy Attestation Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "capacity-scaling-model",
+    "default_label": "Capacity Scaling Model",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "ci-cd-pipeline-specification",
+    "default_label": "CI CD Pipeline Specification",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "clickable-prototype",
+    "default_label": "Clickable Prototype",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "configuration-management-plan",
+    "default_label": "Configuration Management Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "coppa-privacy-review-gate",
+    "default_label": "Coppa Privacy Review Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "data-sovereignty-attestation-gate",
+    "default_label": "Data Sovereignty Attestation Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "deployment-rollout-plan",
+    "default_label": "Deployment Rollout Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "do178c-der-signoff-gate",
+    "default_label": "Do178c Der Signoff Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "dora-resilience-attestation-gate",
+    "default_label": "DORA Resilience Attestation Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "dpdp-data-protection-gate",
+    "default_label": "Dpdp Data Protection Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "dsa-dma-compliance-gate",
+    "default_label": "DSA DMA Compliance Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "ecommerce-compliance-gate",
+    "default_label": "ECOMMERCE Compliance Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "eu-ai-ethics-review-gate",
+    "default_label": "Eu Ai Ethics Review Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "eu-fin-regulatory-gate",
+    "default_label": "Eu Fin Regulatory Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "eu-mdr-person-responsible-gate",
+    "default_label": "Eu Mdr Person Responsible Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "fcpa-ethics-compliance-gate",
+    "default_label": "Fcpa Ethics Compliance Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "fda-part11-qa-attestation-gate",
+    "default_label": "Fda Part11 Qa Attestation Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "fedramp-3pao-authorization-gate",
+    "default_label": "Fedramp 3pao Authorization Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "fisma-iso-attestation-gate",
+    "default_label": "Fisma Iso Attestation Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "gdpr-dpo-privacy-attestation",
+    "default_label": "Gdpr DPO Privacy Attestation",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "glba-ciso-attestation-gate",
+    "default_label": "Glba Ciso Attestation Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "hipaa-security-privacy-review",
+    "default_label": "Hipaa Security Privacy Review",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "implementation-elements",
+    "default_label": "Implementation Elements",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "iso27001-isms-audit-review",
+    "default_label": "ISO27001 Isms Audit Review",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "itar-emp-officer-gate",
+    "default_label": "Itar Emp Officer Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "lean-business-model-canvas",
+    "default_label": "Lean Business Model Canvas",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "locale-language-strategy",
+    "default_label": "Locale Language Strategy",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "master-test-plan",
+    "default_label": "Master Test Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "nist-800-53-authorizing-official-gate",
+    "default_label": "Nist 800 53 Authorizing Official Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "nydfs-ciso-certification-gate",
+    "default_label": "Nydfs Ciso Certification Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "pci-dss-qsa-attestation-review",
+    "default_label": "Pci Dss Qsa Attestation Review",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "post-mortem-lessons-learned",
+    "default_label": "Post Mortem Lessons Learned",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "product-analytics-specification",
+    "default_label": "Product Analytics Specification",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "product-requirements-document",
+    "default_label": "Product Requirements Document",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "psd2-payment-security-gate",
+    "default_label": "PSD2 Payment Security Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "rbi-pmla-audit-gate",
+    "default_label": "RBI PMLA Audit Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "release-plan",
+    "default_label": "Release Plan",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "sebi-secretarial-compliance-gate",
+    "default_label": "Sebi Secretarial Compliance Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "soc2-type2-audit-readiness-gate",
+    "default_label": "Soc2 Type2 Audit Readiness Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "sox-internal-audit-signoff",
+    "default_label": "SOX Internal Audit Signoff",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "sre-playbook",
+    "default_label": "SRE Playbook",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "technical-specifications-per-feature",
+    "default_label": "Technical Specifications Per Feature",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "threat-model-stride",
+    "default_label": "Threat Model Stride",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "uk-dpo-attestation-gate",
+    "default_label": "Uk DPO Attestation Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "us-state-privacy-attestation-gate",
+    "default_label": "Us State Privacy Attestation Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "vision-one-pager",
+    "default_label": "Vision One Pager",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
   }
 ]

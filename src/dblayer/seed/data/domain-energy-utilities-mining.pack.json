@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "energy-operations-signoff-gate",
+        "code": "workload-model",
         "name": "Energy & Utilities Operations Director Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Utilities Operations Director confirms that AMI meter billing, OMS grid restoration, and SCADA safety controls comply with regulatory mandates.",
         "prompt": "Does the utility documentation confirm meter billing accuracy and grid safety compliance?",
         "participant": "human",
-        "outputContract": "energy-utilities-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Energy, Utilities & Mining Audit Checklist"
         ]

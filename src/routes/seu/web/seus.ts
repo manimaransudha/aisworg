@@ -13,8 +13,7 @@ import { logger } from "../../../utils/logger.js";
 import { listSeusPaginated, getSeuDetailView, getSeuEbmView } from "../core/seus.js";
 import { parseListParams } from "../../../utils/listQuery.js";
 import { getObjectiveDetail, listCommissionableObjectives } from "../core/objectives.js";
-import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
-import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
+import { resolveHeldBadges, requireActorId, resolveActorAndBadge, resolveAuthorBadgeForRequest } from "../../../domain/identity/heldBadges.js";
 import { requestCapabilityFulfilment, releaseParticipants } from "../core/capabilities.js";
 import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
@@ -34,11 +33,11 @@ router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Respon
     const platformBadges: string[] = req.session?.user?.platformBadges ?? [];
     const params = parseListParams(req.query, { sortable: ["objective", "state", "created"], defaultSort: "created", defaultDir: "desc" });
     const list = await listSeusPaginated(params, {
-      userId: req.session?.user?.id ?? null,
+      userId: requireActorId(req),
       isAdmin: platformBadges.includes("root") || platformBadges.includes("tenant_admin") || platformBadges.includes("tenant_manage"),
     });
     const held = await resolveHeldBadges(req);
-    const hasSeuBadge = (verb: string | null): boolean => held.isRoot || (!!verb && held.badgeTypes.has(`seu_${verb}`));
+    const hasSeuBadge = (verb: string | null): boolean => held.hasVerb("SEU", verb);
     for (const item of list.items) {
       item.possibleNextStates = item.possibleNextStates.filter((s) => hasSeuBadge(item.possibleTransitionVerbs[s]));
     }
@@ -66,8 +65,8 @@ router.get("/seus/new", attachVM("seu/seus/new"), async (req: Request, res: Resp
       return renderView(req, res, "seu/seus/new", req.vm);
     }
 
-    const held = await resolveHeldBadges(req);
-    const tenantId = held.isRoot ? undefined : req.session?.user?.tenant_id ?? null;
+    const isRoot = (req.session?.user?.platformBadges ?? []).includes("root");
+    const tenantId = isRoot ? undefined : req.session?.user?.tenant_id ?? null;
     req.vm.req.title = "Commission a new SEU";
     req.vm.req.commissionableObjectives = await listCommissionableObjectives(tenantId);
     req.vm.opt.flash = getFlash(req);
@@ -119,12 +118,7 @@ router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, 
   const raw = req.body?.participantMasterIds;
   const participantMasterIds: string[] = (Array.isArray(raw) ? raw : raw ? [raw] : []).map(String);
 
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-  if (!actorId) return redirects.seu.seusCapabilities.error(req, res, "No acting user to record as this Capability Fulfilment's author — log in first.");
-  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-  const held = await resolveHeldBadges(req);
-  const authorBadge = resolveAuthorBadge(authRow, held);
-  if (!authorBadge) return redirects.seu.seusCapabilities.error(req, res, "No held badge authorises this action — cannot record an author badge.");
+  const { actorId, authorBadge } = await resolveActorAndBadge(req);
 
   try {
     await requestCapabilityFulfilment({
@@ -149,18 +143,14 @@ router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/rep
     return redirects.seu.seusCapabilities.error(req, res, "Replacement Participant type and display name are required.");
   }
 
-  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-  const held = await resolveHeldBadges(req);
-  const authorBadge = resolveAuthorBadge(authRow, held);
-  if (!authorBadge) return redirects.seu.seusCapabilities.error(req, res, "No held badge authorises this action — cannot record an author badge.");
+  const authorBadge = await resolveAuthorBadgeForRequest(req);
 
-  if (req.session?.user?.id == null) return redirects.seu.seusCapabilities.error(req, res, "You must be logged in.");
   try {
     const result = await replaceParticipant({
       oldParticipantId: String(req.params.participantId),
       newParticipantType: participantType as ParticipantType,
       newDisplayName: displayName,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
       authorBadge,
     });
     if (!result.ok) {
@@ -182,13 +172,12 @@ router.post("/seus/:id/capabilities/:capabilityId/release", async (req: Request,
     return redirects.seu.seusCapabilities.error(req, res, "At least one Participant is required.");
   }
 
-  if (req.session?.user?.id == null) return redirects.seu.seusCapabilities.error(req, res, "You must be logged in.");
   try {
     const released = await releaseParticipants({
       seuId,
       capabilityId: String(req.params.capabilityId),
       participantIds,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     const names = released.map((p) => p.display_name).join(", ");
     return redirects.seu.seusCapabilities.success(req, res, `Released: ${names}. Capability is Unfulfilled again — pick a replacement below.`);
@@ -206,13 +195,12 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
     return redirects.seu.seusDeliverablesTransition.error(req, res, "Target state is required.");
   }
 
-  if (req.session?.user?.id == null) return redirects.seu.seusDeliverablesTransition.error(req, res, "You must be logged in.");
   try {
     const result = await transitionDeliverable({
       deliverableId: String(req.params.deliverableId),
       targetState,
-      actorId: String(req.session.user.id),
-      requestedBy: String(req.session.user.id),
+      actorId: requireActorId(req),
+      requestedBy: requireActorId(req),
     });
     if (!result.ok) {
       const reason = result.reason === "dependency_not_satisfied" ? "one or more dependencies aren't Satisfied yet" : "detail" in result ? result.detail : result.reason;
@@ -238,11 +226,10 @@ router.post("/seus/:id/ebm/transition", async (req: Request, res: Response) => {
     if (!seu || !seu.active_ebm_id) {
       return redirects.seu.seusEbmTransition.error(req, res, "This SEU has no Engineering Behavior Model to transition yet.");
     }
-    if (req.session?.user?.id == null) return redirects.seu.seusEbmTransition.error(req, res, "Authentication required.");
     const result = await transitionEbm({
       ebmId: seu.active_ebm_id,
       targetState,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     if (!result.ok) {
       const reason = result.reason === "not_found" ? "EBM not found" : result.detail;
@@ -268,11 +255,10 @@ router.post("/seus/:id/obligations/:obligationId/transition", async (req: Reques
   }
 
   try {
-    if (req.session?.user?.id == null) return redirects.seu.seusObligationsTransition.error(req, res, "Authentication required.");
     const result = await transitionObligation({
       obligationId: String(req.params.obligationId),
       targetState,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -290,10 +276,9 @@ router.post("/seus/:id/obligations/:obligationId/revise", async (req: Request, r
   const { title, description, category, severity, priority, completionCriteria, assignedEntityType, assignedEntityId } = req.body ?? {};
 
   try {
-    if (req.session?.user?.id == null) return redirects.seu.seusObligationsRevise.error(req, res, "Authentication required.");
     await reviseObligation({
       obligationId: String(req.params.obligationId),
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
       title: typeof title === "string" ? title : undefined,
       description: typeof description === "string" ? description : undefined,
       category: typeof category === "string" ? category : undefined,
@@ -318,12 +303,7 @@ router.post("/seus/:id/attention-items", async (req: Request, res: Response) => 
     return redirects.seu.seusAttentionItems.error(req, res, "Category and title are required.");
   }
 
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-  if (!actorId) return redirects.seu.seusAttentionItems.error(req, res, "No acting user to record as this Attention Item's author — log in first.");
-  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-  const held = await resolveHeldBadges(req);
-  const authorBadge = resolveAuthorBadge(authRow, held);
-  if (!authorBadge) return redirects.seu.seusAttentionItems.error(req, res, "No held badge authorises this action — cannot record an author badge.");
+  const { actorId, authorBadge } = await resolveActorAndBadge(req);
 
   try {
     const attentionItem = await createAttentionItem({
@@ -352,11 +332,10 @@ router.post("/seus/:id/attention-items/:attentionItemId/transition", async (req:
   }
 
   try {
-    if (req.session?.user?.id == null) return redirects.seu.seusAttentionItemsTransition.error(req, res, "Authentication required.");
     const result = await transitionAttentionItem({
       attentionItemId: String(req.params.attentionItemId),
       targetState,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -377,12 +356,7 @@ router.post("/seus/:id/evidence", async (req: Request, res: Response) => {
     return redirects.seu.seusEvidence.error(req, res, "Deliverable, category and title are required.");
   }
 
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-  if (!actorId) return redirects.seu.seusEvidence.error(req, res, "No acting user to record as this Evidence's author — log in first.");
-  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-  const held = await resolveHeldBadges(req);
-  const authorBadge = resolveAuthorBadge(authRow, held);
-  if (!authorBadge) return redirects.seu.seusEvidence.error(req, res, "No held badge authorises this action — cannot record an author badge.");
+  const { actorId, authorBadge } = await resolveActorAndBadge(req);
 
   try {
     const evidence = await createEvidence({
@@ -422,12 +396,11 @@ router.post("/seus/:id/evidence/:evidenceId/transition", async (req: Request, re
     return redirects.seu.seusEvidenceTransition.error(req, res, "Target state is required.");
   }
 
-  if (req.session?.user?.id == null) return redirects.seu.seusEvidenceTransition.error(req, res, "You must be logged in.");
   try {
     const result = await transitionEvidence({
       evidenceId: String(req.params.evidenceId),
       targetState,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -448,12 +421,7 @@ router.post("/seus/:id/evidence/:evidenceId/link", async (req: Request, res: Res
     return redirects.seu.seusEvidenceLink.error(req, res, "Deliverable is required.");
   }
 
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-  if (!actorId) return redirects.seu.seusEvidenceLink.error(req, res, "No acting user to record as this link's author — log in first.");
-  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-  const held = await resolveHeldBadges(req);
-  const authorBadge = resolveAuthorBadge(authRow, held);
-  if (!authorBadge) return redirects.seu.seusEvidenceLink.error(req, res, "No held badge authorises this action — cannot record an author badge.");
+  const { actorId, authorBadge } = await resolveActorAndBadge(req);
 
   try {
     const result = await linkEvidenceToObject(String(req.params.evidenceId), "Deliverable", deliverableId, actorId, authorBadge);
@@ -476,7 +444,6 @@ router.post("/seus/:id/knowledge", async (req: Request, res: Response) => {
     return redirects.seu.seusKnowledge.error(req, res, "Deliverable, category and title are required.");
   }
 
-  if (req.session?.user?.id == null) return redirects.seu.seusKnowledge.error(req, res, "You must be logged in.");
   try {
     const knowledgeItem = await createKnowledgeItem({
       seuId,
@@ -486,7 +453,7 @@ router.post("/seus/:id/knowledge", async (req: Request, res: Response) => {
       title,
       description,
       acquisitionScope: acquisitionScope as AcquisitionScope | undefined,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     return redirects.seu.seusKnowledge.success(req, res, `Knowledge Item "${knowledgeItem.title}" observed (${knowledgeItem.category}, ${knowledgeItem.acquisition_scope} scope).`);
   } catch (err) {
@@ -503,12 +470,11 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/transition", async (req: Reque
     return redirects.seu.seusKnowledgeTransition.error(req, res, "Target state is required.");
   }
 
-  if (req.session?.user?.id == null) return redirects.seu.seusKnowledgeTransition.error(req, res, "You must be logged in.");
   try {
     const result = await transitionKnowledgeItem({
       knowledgeItemId: String(req.params.knowledgeItemId),
       targetState,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -529,12 +495,11 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/promote-scope", async (req: Re
     return redirects.seu.seusKnowledgePromoteScope.error(req, res, "Target scope is required.");
   }
 
-  if (req.session?.user?.id == null) return redirects.seu.seusKnowledgePromoteScope.error(req, res, "You must be logged in.");
   try {
     const result = await promoteKnowledgeItemScope({
       knowledgeItemId: String(req.params.knowledgeItemId),
       targetScope: targetScope as AcquisitionScope,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -555,11 +520,10 @@ router.post("/seus/:id/decisions", async (req: Request, res: Response) => {
     return redirects.seu.seusDecisions.error(req, res, "Deliverable, category and title are required.");
   }
 
-  if (req.session?.user?.id == null) return redirects.seu.seusDecisions.error(req, res, "You must be logged in.");
   try {
     const decision = await createDecision({
       seuId,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
       relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }],
       knowledgeIds: knowledgeId ? [knowledgeId] : [],
       evidenceIds: evidenceId ? [evidenceId] : [],
@@ -586,12 +550,11 @@ router.post("/seus/:id/decisions/:decisionId/transition", async (req: Request, r
     return redirects.seu.seusDecisionsTransition.error(req, res, "Target state is required.");
   }
 
-  if (req.session?.user?.id == null) return redirects.seu.seusDecisionsTransition.error(req, res, "You must be logged in.");
   try {
     const result = await transitionDecision({
       decisionId: String(req.params.decisionId),
       targetState,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -612,12 +575,7 @@ router.post("/seus/:id/external-interactions", async (req: Request, res: Respons
     return redirects.seu.seusExternalInteractions.error(req, res, "Interaction type, direction and target system are required.");
   }
 
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-  if (!actorId) return redirects.seu.seusExternalInteractions.error(req, res, "No acting user to record as this External Interaction's author — log in first.");
-  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
-  const held = await resolveHeldBadges(req);
-  const authorBadge = resolveAuthorBadge(authRow, held);
-  if (!authorBadge) return redirects.seu.seusExternalInteractions.error(req, res, "No held badge authorises this action — cannot record an author badge.");
+  const { actorId, authorBadge } = await resolveActorAndBadge(req);
 
   try {
     const interaction = await createExternalInteraction({
@@ -645,12 +603,11 @@ router.post("/seus/:id/external-interactions/:interactionId/transition", async (
     return redirects.seu.seusExternalInteractionsTransition.error(req, res, "Target state is required.");
   }
 
-  if (req.session?.user?.id == null) return redirects.seu.seusExternalInteractionsTransition.error(req, res, "You must be logged in.");
   try {
     const result = await transitionExternalInteraction({
       interactionId: String(req.params.interactionId),
       targetState,
-      actorId: String(req.session.user.id),
+      actorId: requireActorId(req),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;

@@ -93,7 +93,7 @@ export type TransitionAttentionItemResult =
   | { ok: true; attentionItem: AttentionItemRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
-  | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
+  | { ok: false; reason: "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
 export async function transitionAttentionItem(input: { attentionItemId: string; targetState: string; actorId: string }): Promise<TransitionAttentionItemResult> {
   const { data: attentionItem } = await attentionItemsDB.findById(input.attentionItemId);

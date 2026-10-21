@@ -70,7 +70,7 @@
     ],
     "reviewGates": [
       {
-        "code": "architecture-notebook",
+        "code": "architecture-decision-record",
         "name": "Architecture Notebook Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "statement": "The Architecture Notebook has been reviewed and accepted as sufficient to guide implementation.",

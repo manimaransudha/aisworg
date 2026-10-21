@@ -57,7 +57,7 @@
         "statement": "The Head of Payment Security confirms that SCA 2-factor, dynamic linking, and Open Banking APIs comply with PSD2 RTS.",
         "prompt": "Does the payment security audit evidence confirm full compliance with PSD2 / PSD3 RTS requirements?",
         "participant": "human",
-        "outputContract": "psd2-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "EU PSD2 / PSD3 Payment Security Audit Checklist"
         ]

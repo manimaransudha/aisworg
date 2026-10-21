@@ -19,6 +19,7 @@ export const serviceDefinitionsDB = {
     success?: string | null;
     consumers?: string[];
     version?: string;
+    status: ServiceDefinitionRow["status"];
     authoredBy: string;
     authorBadge: string;
     draftContent?: Record<string, unknown>;
@@ -57,7 +58,7 @@ export const serviceDefinitionsDB = {
 
       const { rows } = await query<ServiceDefinitionRow>(
         `INSERT INTO service_definitions (code, name, capability_code, purpose, inputs, outputs, service_level, governance, success, consumers, version, status, authored_by, author_badge, draft_content, tenant_id, parent_service_definition_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Defined', $12, $13, $14, $15, $16, $17)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $18, $12, $13, $14, $15, $16, $17)
          RETURNING *`,
         [
           input.code,
@@ -77,6 +78,7 @@ export const serviceDefinitionsDB = {
           tenantId,
           input.parentServiceDefinitionId ?? null,
           schemaRow?.id ?? null,
+          input.status,
         ]
       );
       return { data: rows[0] };
@@ -135,6 +137,19 @@ export const serviceDefinitionsDB = {
       return { data: rows[0] };
     } catch (err) {
       logger.error("[serviceDefinitionsDB] updateStatus error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async addComment(id: string, comment: { text: string; actorId: string; authorityBadge: string }): Promise<DbResult<ServiceDefinitionRow>> {
+    try {
+      const { rows } = await query<ServiceDefinitionRow>(
+        "UPDATE service_definitions SET comments = comments || $2::jsonb WHERE id = $1 RETURNING *",
+        [id, JSON.stringify([{ ...comment, createdAt: new Date().toISOString() }])]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[serviceDefinitionsDB] addComment error", err as Error);
       return { error: err as Error };
     }
   },

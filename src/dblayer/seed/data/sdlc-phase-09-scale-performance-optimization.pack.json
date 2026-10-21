@@ -73,7 +73,7 @@
     ],
     "reviewGates": [
       {
-        "code": "capacity-scaling-model",
+        "code": "capacity-plan",
         "name": "Scale & Resilience Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

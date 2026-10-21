@@ -5,7 +5,7 @@ import { runtimeTelemetryDB } from "../../dblayer/runtimeTelemetryDB.js";
 import { knowledgeItemsDB } from "../../dblayer/knowledgeItemsDB.js";
 import { evidenceDB } from "../../dblayer/evidenceDB.js";
 import { eventBus } from "./eventBus.js";
-import { userDB } from "../../dblayer/userDB.js";
+import { findPlatformSystemActorId, SYSTEM_ACTOR_BADGE } from "../../dblayer/constants.js";
 import type { AcquisitionScope, DeliverableCycleTimeRow, DispatchLatencyRow, MetricDefinitionRow, QualityGateLatencyRow, ReworkRow, WorkItemDurationRow } from "../../dblayer/seuTypes.js";
 
 export interface FlowMetricsValue {
@@ -172,7 +172,7 @@ export const metricRegistryEngine = {
 
     const value = await method(scope);
 
-    const { actorId: metricActorId, actorBadge: metricActorBadge } = await userDB.getSuperuserId();
+    const metricActorId = await findPlatformSystemActorId();
     await eventBus.publish({
       eventType: "MetricCalculated",
       originatingObjectType: "MetricDefinition",
@@ -180,7 +180,7 @@ export const metricRegistryEngine = {
       seuId: scope.seuId ?? null,
       correlationId: eventBus.newCorrelationId(),
       actorId: metricActorId,
-      authorityBadge: metricActorBadge,
+      authorityBadge: SYSTEM_ACTOR_BADGE,
       payload: { identifier: definition.identifier, category: definition.category },
     });
 

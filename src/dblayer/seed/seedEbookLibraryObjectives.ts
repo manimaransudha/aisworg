@@ -10,7 +10,6 @@ export async function seedEbookLibraryObjectives(): Promise<void> {
     statement: "Deliver an ebook library management system enabling members to browse, borrow and return digital books.",
     requiredCapabilityCodes: [],
     tier: "Strategic",
-    status: "Proposed",
     requestedBy: REQUESTED_BY
   });
 
@@ -18,7 +17,6 @@ export async function seedEbookLibraryObjectives(): Promise<void> {
     statement: "Create system to manage flow of books",
     requiredCapabilityCodes: [],
     tier: "Operational",
-    status: "Proposed",
     parentObjectiveId: root.id,
     requestedBy: REQUESTED_BY,
   });
@@ -27,7 +25,6 @@ export async function seedEbookLibraryObjectives(): Promise<void> {
     statement: "Create system to manage library members",
     requiredCapabilityCodes: [],
     tier: "Operational",
-    status: "Proposed",
     parentObjectiveId: root.id,
     requestedBy: REQUESTED_BY,
   });
@@ -36,7 +33,6 @@ export async function seedEbookLibraryObjectives(): Promise<void> {
     statement: "Create and manage a catalog of books",
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    status: "Proposed",
     parentObjectiveId: manageBooks.id,
     requestedBy: REQUESTED_BY,
   });
@@ -45,7 +41,6 @@ export async function seedEbookLibraryObjectives(): Promise<void> {
     statement: "Create a book checkin/checkout/waitlist",
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    status: "Proposed",
     parentObjectiveId: manageBooks.id,
     requestedBy: REQUESTED_BY,
   });
@@ -54,7 +49,6 @@ export async function seedEbookLibraryObjectives(): Promise<void> {
     statement: "Create mechanisms to track waitlist and notify availability",
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    status: "Proposed",
     parentObjectiveId: manageBooks.id,
     requestedBy: REQUESTED_BY,
   });
@@ -63,7 +57,6 @@ export async function seedEbookLibraryObjectives(): Promise<void> {
     statement: "Enroll members",
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    status: "Proposed",
     parentObjectiveId: manageMembers.id,
     requestedBy: REQUESTED_BY,
   });
@@ -72,7 +65,6 @@ export async function seedEbookLibraryObjectives(): Promise<void> {
     statement: "Create a module for member account and profile.",
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    status: "Proposed",
     parentObjectiveId: manageMembers.id,
     requestedBy: REQUESTED_BY,
   });

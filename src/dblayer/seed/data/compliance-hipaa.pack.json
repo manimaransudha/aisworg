@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "hipaa-security-privacy-review",
+        "code": "data-dictionary",
         "name": "HIPAA Compliance Attestation Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The HIPAA Compliance Officer and CISO attest that ePHI technical safeguards, audit trails, and BAA agreements fully satisfy HIPAA Security & Privacy Rules.",
         "prompt": "Are ePHI encryption, audit trails, and Business Associate Agreements fully verified for HIPAA compliance?",
         "participant": "human",
-        "outputContract": "hipaa-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "HIPAA Technical Safeguards & Audit Verification Checklist"
         ]

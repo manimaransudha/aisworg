@@ -8,7 +8,7 @@ import type { ParticipantRow, ParticipantType } from "../../../dblayer/seuTypes.
 
 export type TransitionParticipantResult =
   | { ok: true; participant: ParticipantRow; appliedTransition: { fromState: string; toState: string } }
-  | { ok: false; reason: "not_found" | "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked"; detail: string };
+  | { ok: false; reason: "not_found" | "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked"; detail: string };
 
 const CH13_EVENT_BY_TRANSITION: Record<string, string> = {
   "Created->Available": "ParticipantActivated",
@@ -37,7 +37,6 @@ export async function transitionParticipant(input: { participantId: string; targ
   });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Participant ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };

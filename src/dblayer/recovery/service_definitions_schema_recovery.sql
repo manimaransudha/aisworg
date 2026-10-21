@@ -13,7 +13,8 @@ CREATE TABLE service_definitions (
   success                       TEXT,
   consumers                     TEXT[] NOT NULL DEFAULT '{}',
   version                       TEXT NOT NULL DEFAULT '1.0.0',
-  status                        TEXT NOT NULL DEFAULT 'Defined',
+  status                        TEXT NOT NULL,
+  comments                      JSONB NOT NULL DEFAULT '[]',
   draft_content                 JSONB,
   authored_by                   UUID NOT NULL REFERENCES participants_master(id),
   author_badge                   TEXT NOT NULL,
@@ -21,9 +22,6 @@ CREATE TABLE service_definitions (
   parent_service_definition_id  UUID REFERENCES service_definitions(id),
   created_at                    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-ALTER TABLE service_definitions DROP CONSTRAINT IF EXISTS service_definitions_status_check;
-ALTER TABLE service_definitions ADD CONSTRAINT service_definitions_status_check
-  CHECK (status IN ('Defined', 'Published', 'Active', 'Deprecated', 'Retired', 'Archived'));
 ALTER TABLE service_definitions DROP CONSTRAINT IF EXISTS service_definitions_code_version_tenant_key;
 ALTER TABLE service_definitions ADD CONSTRAINT service_definitions_code_version_tenant_key
   UNIQUE (code, version, tenant_id);

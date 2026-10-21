@@ -57,7 +57,7 @@
         "statement": "The Global Data Sovereignty Officer confirms that database pinning, CAC assessments, and local encryption keys meet national data residency laws.",
         "prompt": "Does the data residency audit confirm full compliance with national data localization and sovereign storage mandates?",
         "participant": "human",
-        "outputContract": "data-sovereignty-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Global Sovereign Data Residency Audit Checklist"
         ]

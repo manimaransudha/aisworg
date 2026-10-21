@@ -2,7 +2,7 @@
 export type DbResult<T> = { data: T; error?: undefined } | { data?: undefined; error: Error };
 
 export type ObjectiveTier = "Strategic" | "Operational" | "Engineering";
-export type ObjectiveStatus = "Proposed" | "Active" | "Achieved" | "Superseded" | "Retired" | "Archived" | "Reject";
+export type ObjectiveStatus = "Defined" | "Active" | "Achieved" | "Superseded" | "Retired" | "Archived" | "Reject";
 
 export interface SponsoringAuthority {
   tenant: string | null;
@@ -21,17 +21,9 @@ export interface ObjectiveRow {
   next_child_seq: number;
   sponsoring_authority: SponsoringAuthority | null;
   superseding_objective_id: string | null;
+  comments: Array<{ text: string; actorId: string; authorityBadge: string; createdAt: string }>;
   created_at: string;
   updated_at: string;
-}
-
-export interface ObjectiveCommentRow {
-  id: string;
-  objective_id: string;
-  comment_text: string;
-  actor_id: string;
-  authority_badge: string;
-  created_at: string;
 }
 
 export interface CapabilityRow {
@@ -71,15 +63,6 @@ export interface ServiceRow {
 export type PackCategory = string;
 export type PackStatus = "Draft" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 export type PackClassification = string;
-
-export interface PackCommentRow {
-  id: string;
-  pack_id: string;
-  comment_text: string;
-  actor_id: string;
-  authority_badge: string;
-  created_at: string;
-}
 
 export interface VerifiableItemFields {
   statement?: string;
@@ -138,6 +121,7 @@ export interface PackRow {
   tenant_id: string;
   created_at: string;
   schema_definition_id: string | null;
+  comments: Array<{ text: string; actorId: string; authorityBadge: string; createdAt: string }>;
 }
 
 export interface TemplateDeliverableSeed {
@@ -169,6 +153,7 @@ export interface TemplateRow {
   tenant_id: string;
   schema_definition_id: string | null;
   created_at: string;
+  comments: Array<{ text: string; actorId: string; authorityBadge: string; createdAt: string }>;
 }
 
 export interface DeliverableDefinitionRow {
@@ -186,7 +171,7 @@ export interface DeliverableDefinitionRow {
   schema_definition_id: string | null;
 }
 
-export type ServiceDefinitionStatus = "Defined" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
+export type ServiceDefinitionStatus = "Defined" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 
 export interface ServiceLevelExpectation {
   code: string;
@@ -210,6 +195,7 @@ export interface ServiceDefinitionRow {
   consumers: string[];
   version: string;
   status: ServiceDefinitionStatus;
+  comments: Array<{ text: string; actorId: string; authorityBadge: string; createdAt: string }>;
   draft_content: Record<string, unknown>;
   authored_by: string;
   author_badge: string;
@@ -219,7 +205,7 @@ export interface ServiceDefinitionRow {
   schema_definition_id: string | null;
 }
 
-export type CapabilityDefinitionStatus = "Defined" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
+export type CapabilityDefinitionStatus = "Defined" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 
 export interface CapabilityRole {
   name: string;
@@ -329,6 +315,7 @@ export interface ProfileRow {
   category: string | null;
   schema_definition_id: string | null;
   created_at: string;
+  comments: Array<{ text: string; actorId: string; authorityBadge: string; createdAt: string }>;
 }
 
 export type EbmStatus = "Composed" | "Validated" | "Active" | "Superseded" | "Retired";
@@ -533,6 +520,7 @@ export interface PolicyRow {
 export type TransitionEntityType =
   | "SEU"
   | "Deliverable"
+  | "DeliverableDefinition"
   | "Objective"
   | "Obligation"
   | "Evidence"
@@ -572,6 +560,7 @@ export interface TransitionDefinitionRow {
   event_type: string | null;
   version_event: string | null;
   version_hop: boolean | null;
+  action_code: string | null;
   submit_version_event: string | null;
 }
 

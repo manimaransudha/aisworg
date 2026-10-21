@@ -1205,15 +1205,6 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/objectives/:id/submit",
-    "badges": [
-      "objective_propose"
-    ],
-    "roles": [],
-    "match_mode": "all"
-  },
-  {
-    "method": "POST",
     "path": "/aisworg/seu/objectives/:id/transition/activate",
     "badges": [
       "objective_activate"
@@ -1651,6 +1642,15 @@
     "badges": [
       "root"
     ],
+    "roles": [
+      "sdk_author"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/schema-registry/:id/transition",
+    "badges": [],
     "roles": [
       "sdk_author"
     ],

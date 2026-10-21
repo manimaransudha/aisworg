@@ -50,6 +50,7 @@ export interface AuthoredWidget {
   rawItems: JsonSchemaProperty["items"] | undefined;
 
   configurable: boolean;
+  readOnly: boolean;
 
   rawType: string;
 
@@ -80,6 +81,7 @@ export function blankWidget(kind: WidgetKind = "text"): AuthoredWidget {
     jsonIsArray: false,
     rawItems: undefined,
     configurable: false,
+    readOnly: false,
     rawType: "",
     children: [],
     listWidgetMarker: true,
@@ -131,6 +133,7 @@ function widgetToProperty(w: AuthoredWidget, isItem: boolean): JsonSchemaPropert
     if (!isItem && w.group.trim()) prop["x-group"] = w.group.trim();
     if (w.notes.length) prop["x-schema-notes"] = w.notes.filter((n) => n.note.trim() || n.date.trim());
     if (w.configurable) prop["x-configurable"] = true;
+    if (w.readOnly) prop["x-read-only"] = true;
   }
 
   switch (w.kind) {
@@ -282,6 +285,7 @@ function propertyToWidget(name: string, def: JsonSchemaProperty, required: boole
   if (isItem) w.label = def["x-label"] ?? "";
   if (!isItem) w.group = def["x-group"] ?? "";
   w.configurable = def["x-configurable"] === true;
+  w.readOnly = def["x-read-only"] === true;
 
   if ((isItem && def.type === "array" && def.items?.properties) || (!isItem && def["x-widget"] === "referential-list")) {
     w.kind = "list";
@@ -462,6 +466,7 @@ function parseWidgetFromBody(raw: Record<string, unknown>): AuthoredWidget {
   w.label = String(raw.label ?? "");
   w.required = toBool(raw.required);
   w.configurable = toBool(raw.configurable);
+  w.readOnly = toBool(raw.readOnly);
   w.help = String(raw.help ?? "");
   w.group = String(raw.group ?? "");
   w.showWhen = String(raw.showWhen ?? "");

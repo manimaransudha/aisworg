@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "fisma-iso-attestation-gate",
+        "code": "security-design",
         "name": "FISMA Information Security Officer Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Federal Information Security Officer (ISO) confirms that FIPS 199 categorization, SBOMs, and SSDF attestations satisfy FISMA and EO 14028.",
         "prompt": "Does the federal cybersecurity audit evidence confirm compliance with FISMA and EO 14028 mandates?",
         "participant": "human",
-        "outputContract": "fisma-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "FISMA & EO 14028 Federal Audit Checklist"
         ]

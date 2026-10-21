@@ -16,14 +16,14 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { refreshRouteAuthorityCache } from "../../../domain/identity/routeAuthorityCache.js";
 import { listGrantableNounVerbBadges, listAdminSurfaceBadgeCodes } from "../core/identity.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 const backTo = "/aisworg/seu/route-authority";
 const adminBadge = process.env.ROUTE_AUTHORITY_ADMIN_BADGE || "root";
 const gate = requireBadge([adminBadge]);
 
 async function resolveRouteAuthorityAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
-  const userId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-  if (!userId) return { error: "No logged-in user on this session." };
+  const userId = requireActorId(req);
   const { data: master } = await participantsMasterDB.findById(userId);
   if (!master) return { error: `No superuser provisioned.` };
   return { authorId: master.id, authorBadge: adminBadge };

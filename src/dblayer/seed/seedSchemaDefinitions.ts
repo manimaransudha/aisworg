@@ -2,10 +2,10 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { query } from "../../utils/db.js";
+import { query, bulkInsert } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
-import { schemaDefinitionsDB } from "../schemaDefinitionsDB.js";
-import type { SchemaDefinitionEntityKind } from "../seuTypes.js";
+import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
+import type { SchemaDefinitionEntityKind, SchemaDefinitionRow } from "../seuTypes.js";
 import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,7 +21,6 @@ interface SchemaDefinitionSeed {
   schema: Record<string, unknown>;
   compatible_versions?: number[];
   incompatible_versions?: number[];
-  lifecycle_state?: "Created" | "Validated" | "Tested" | "Packaged" | "Published" | "PublicationRejected";
 }
 
 function loadSeeds(): SchemaDefinitionSeed[] {
@@ -29,43 +28,24 @@ function loadSeeds(): SchemaDefinitionSeed[] {
   return JSON.parse(raw) as SchemaDefinitionSeed[];
 }
 
+// Deletes every schema_definitions row and reloads the baseline from schemaDefinitions.json.
 export async function seedSchemaDefinitions(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
 
-  const seenKeys = new Set<string>();
-  const duplicateKeys = new Set<string>();
-  for (const s of seeds) {
-    const key = `${s.entity_kind}|${s.version}`;
-    if (seenKeys.has(key)) duplicateKeys.add(key);
-    seenKeys.add(key);
-  }
-  if (duplicateKeys.size) throw new Error(`[seedSchemaDefinitions] duplicate entity_kind|version in schemaDefinitions.json: ${[...duplicateKeys].join(", ")}`);
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("SchemaDefinition");
+  if (birthError) throw birthError;
+  if (!birth) throw new Error("[seedSchemaDefinitions] no birth Transition Definition for SchemaDefinition -- seedTransitionDefinitions must run first");
 
-  const { rows: existing } = await query<{ entity_kind: string; version: number }>(
-    "SELECT entity_kind, version FROM schema_definitions"
+  await query("DELETE FROM schema_definitions");
+  const { rows } = await bulkInsert(
+    "schema_definitions",
+    ["entity_kind", "version", "schema", "compatible_versions", "incompatible_versions", "lifecycle_state", "author_id", "author_badge"],
+    seeds.map((seed) => [
+      seed.entity_kind, seed.version, JSON.stringify(seed.schema), seed.compatible_versions ?? [], seed.incompatible_versions ?? [],
+      birth.to_state as SchemaDefinitionRow["lifecycle_state"], actor.authoredBy, actor.authorBadge,
+    ])
   );
-  const existingKeys = new Set(existing.map((r) => `${r.entity_kind}|${r.version}`));
-
-  const missing = seeds.filter((s) => !existingKeys.has(`${s.entity_kind}|${s.version}`));
-  if (missing.length === 0) {
-    logger.info("[seedSchemaDefinitions] every baseline row already present, nothing to do");
-    return;
-  }
-
-  for (const seed of missing) {
-    const { error } = await schemaDefinitionsDB.create({
-      entityKind: seed.entity_kind,
-      version: seed.version,
-      schema: seed.schema,
-      compatibleVersions: seed.compatible_versions ?? [],
-      incompatibleVersions: seed.incompatible_versions ?? [],
-      lifecycleState: seed.lifecycle_state,
-      authorId: actor.authoredBy,
-      authorBadge: actor.authorBadge,
-    });
-    if (error) throw new Error(`[seedSchemaDefinitions] failed to create ${seed.entity_kind} v${seed.version}: ${error.message}`);
-    logger.info(`[seedSchemaDefinitions] created ${seed.entity_kind} v${seed.version}`);
-  }
+  logger.info(`[seedSchemaDefinitions] ${rows.length} schema definitions reloaded`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

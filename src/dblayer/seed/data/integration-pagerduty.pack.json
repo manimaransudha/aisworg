@@ -52,14 +52,14 @@
     ],
     "reviewGates": [
       {
-        "code": "pagerduty-integration-review-gate",
+        "code": "incident-communication-log",
         "name": "PagerDuty Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The On-Call Incident Commander confirms that PagerDuty alert triggers and escalation schedules operate properly.",
         "prompt": "Does the PagerDuty integration confirm incident trigger dispatch and escalation routing?",
         "participant": "human",
-        "outputContract": "pagerduty-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "PagerDuty Integration Verification Checklist"
         ]

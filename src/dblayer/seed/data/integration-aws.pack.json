@@ -57,14 +57,14 @@
     ],
     "reviewGates": [
       {
-        "code": "aws-integration-review-gate",
+        "code": "deployment-manifest",
         "name": "AWS Cloud Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Cloud Architect confirms that AWS IAM roles, STS credentials, and CloudWatch metrics function properly.",
         "prompt": "Does the AWS integration verify STS assume-role authentication and CloudWatch metric access?",
         "participant": "human",
-        "outputContract": "aws-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "AWS Integration Verification Checklist"
         ]

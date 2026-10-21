@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "support-operations-signoff-gate",
+        "code": "support-resolution-record",
         "name": "Customer Support Operations Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Customer Support Operations Manager confirms that SLA response rates, escalation triggers, and CSAT scores meet operational standards.",
         "prompt": "Does the support documentation confirm SLA adherence and resolution quality?",
         "participant": "human",
-        "outputContract": "customer-support-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Customer Support & SLA Audit Checklist"
         ]

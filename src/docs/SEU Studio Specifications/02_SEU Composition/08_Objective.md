@@ -218,7 +218,7 @@ Objective does not evaluate Template suitability itself. It supplies the require
 Every Objective shall progress through the following lifecycle.
 
 ```
-Proposed
+Defined
 
 ↓
 

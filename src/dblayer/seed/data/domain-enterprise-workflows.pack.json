@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "enterprise-chief-architect-signoff-gate",
+        "code": "architecture-tradeoff-analysis-report",
         "name": "Enterprise Chief Architect Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Enterprise Chief Architect confirms that cross-domain value chain orchestrations maintain data integrity, correlation tracking, and policy enforcement.",
         "prompt": "Does the enterprise workflow documentation confirm end-to-end value chain integration and audit traceability?",
         "participant": "human",
-        "outputContract": "enterprise-workflows-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Cross-Domain Enterprise Workflows Audit Checklist"
         ]

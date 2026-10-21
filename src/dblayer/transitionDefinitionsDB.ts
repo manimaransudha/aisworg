@@ -1,6 +1,7 @@
 import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { userDB } from "./userDB.js";
+import { BIRTH_STATE } from "./constants.js";
 import type { DbResult, TransitionDefinitionRow, TransitionEntityType } from "./seuTypes.js";
 
 export interface TransitionDefinitionListRow {
@@ -55,6 +56,7 @@ export const transitionDefinitionsDB = {
     eventType: string | null;
     versionEvent: string | null;
     versionHop: boolean | null;
+    actionCode: string | null;
     submitVersionEvent: string | null;
     isActive: boolean;
     retiredAt: string | null;
@@ -67,11 +69,11 @@ export const transitionDefinitionsDB = {
         "transition_definitions",
         [
           "entity_type", "from_state", "to_state", "verb", "required_authority_rule_id", "required_policy_ids", "required_quality_gate_ids", "creates_obligation", "category",
-          "trigger", "submit_verb", "event_type", "version_event", "version_hop", "submit_version_event", "is_active", "retired_at", "author_id", "author_badge",
+          "trigger", "submit_verb", "event_type", "version_event", "version_hop", "action_code", "submit_version_event", "is_active", "retired_at", "author_id", "author_badge",
         ],
         inputs.map((i) => [
           i.entityType, i.fromState, i.toState, i.verb, i.requiredAuthorityRuleId, i.requiredPolicyIds, i.requiredQualityGateIds, i.createsObligation, i.category,
-          i.trigger, i.submitVerb, i.eventType, i.versionEvent, i.versionHop, i.submitVersionEvent, i.isActive, i.retiredAt, i.authorId, i.authorBadge,
+          i.trigger, i.submitVerb, i.eventType, i.versionEvent, i.versionHop, i.actionCode, i.submitVersionEvent, i.isActive, i.retiredAt, i.authorId, i.authorBadge,
         ])
       );
       return { data: rows.length };
@@ -148,6 +150,20 @@ export const transitionDefinitionsDB = {
     }
   },
 
+  // The birth row of an entity (CR-128): the one row whose from-state is BIRTH_STATE.
+  async findBirth(entityType: TransitionEntityType): Promise<DbResult<TransitionDefinitionRow | null>> {
+    try {
+      const { rows } = await query<TransitionDefinitionRow>(
+        "SELECT * FROM transition_definitions WHERE entity_type = $1 AND from_state = $2",
+        [entityType, BIRTH_STATE]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[transitionDefinitionsDB] findBirth error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findPossibleNextStates(entityType: TransitionEntityType, fromState: string): Promise<DbResult<string[]>> {
     try {
       const { rows } = await query<{ to_state: string }>(
@@ -161,13 +177,13 @@ export const transitionDefinitionsDB = {
     }
   },
 
-  async findPossibleNextTransitions(entityType: TransitionEntityType, fromState: string): Promise<DbResult<Array<{ toState: string; verb: string | null; trigger: "manual" | "governed"; submitVerb: string | null }>>> {
+  async findPossibleNextTransitions(entityType: TransitionEntityType, fromState: string): Promise<DbResult<Array<{ toState: string; verb: string | null; trigger: "manual" | "governed"; submitVerb: string | null; requiredPolicyIds: string[]; actionCode: string | null }>>> {
     try {
-      const { rows } = await query<{ to_state: string; verb: string | null; trigger: "manual" | "governed"; submit_verb: string | null }>(
-        "SELECT to_state, verb, trigger, submit_verb FROM transition_definitions WHERE entity_type = $1 AND from_state = $2 ORDER BY to_state",
+      const { rows } = await query<{ to_state: string; verb: string | null; trigger: "manual" | "governed"; submit_verb: string | null; required_policy_ids: string[]; action_code: string | null }>(
+        "SELECT to_state, verb, trigger, submit_verb, required_policy_ids, action_code FROM transition_definitions WHERE entity_type = $1 AND from_state = $2 ORDER BY to_state",
         [entityType, fromState]
       );
-      return { data: rows.map((r) => ({ toState: r.to_state, verb: r.verb, trigger: r.trigger, submitVerb: r.submit_verb })) };
+      return { data: rows.map((r) => ({ toState: r.to_state, verb: r.verb, trigger: r.trigger, submitVerb: r.submit_verb, requiredPolicyIds: r.required_policy_ids ?? [], actionCode: r.action_code })) };
     } catch (err) {
       logger.error("[transitionDefinitionsDB] findPossibleNextTransitions error", err as Error);
       return { error: err as Error };

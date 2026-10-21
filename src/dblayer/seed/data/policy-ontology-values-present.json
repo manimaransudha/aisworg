@@ -1,0 +1,41 @@
+{
+  "code": "policy-ontology-values-present",
+  "name": "Ontology Values Present",
+  "description": "A Capability Definition is published only when every composable value in it exists in the Ontology.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every composable value of the Capability Definition exists in the Ontology before the Capability Definition moves from Defined to Published.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "",
+          "transitions": [
+            "Capability|Validated|Published",
+            "Pack|Validated|Published",
+            "Template|Validated|Published",
+            "Profile|Validated|Published",
+            "Policy|Validated|Published",
+            "DeliverableDefinition|Validated|Published"
+          ],
+          "governingCondition": {
+            "type": "implemented"
+          }
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Ontology Check Record",
+        "category": "Validation Evidence",
+        "description": "The result of checking the composable values of the Capability Definition against the Ontology.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

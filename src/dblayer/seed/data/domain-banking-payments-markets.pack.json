@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "banking-operations-signoff-gate",
+        "code": "engineering-budget",
         "name": "Head of Banking & Trading Operations Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Head of Trading & Banking Operations confirms that KYC onboarding, ISO 20022 payment clearing, and pre-trade risk checks meet financial regulations.",
         "prompt": "Does the banking and trading documentation confirm transaction integrity and pre-trade risk enforcement?",
         "participant": "human",
-        "outputContract": "banking-payments-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Banking, Payments & Capital Markets Audit Checklist"
         ]

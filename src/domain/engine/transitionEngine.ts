@@ -1,6 +1,6 @@
-import { policiesDB } from "../../dblayer/policiesDB.js";
+import { loadPolicyChecks } from "./policyChecks.js";
 import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
-import { ATTESTATION_REQUIRED_POLICY_CODE, getPlatformTenantId } from "../../dblayer/constants.js";
+import { ATTESTATION_REQUIRED_POLICY_CODE, IMPLEMENTED_CONDITION_TYPE, getPlatformTenantId } from "../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { participantsDB } from "../../dblayer/participantsDB.js";
 import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
@@ -9,13 +9,13 @@ import { qualityGateEngine } from "./qualityGateEngine.js";
 import { eventBus } from "./eventBus.js";
 import { triggerEngine } from "./triggerEngine.js";
 import { evaluateCondition, type GoverningCondition } from "./governingCondition.js";
+import { evaluateImplementedPolicy } from "../../policies/index.js";
 import { bumpPatch } from "../../utils/version.js";
 import type { TransitionEntityType, TransitionDefinitionRow } from "../../dblayer/seuTypes.js";
 
 export type TransitionOutcome =
-  | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null; authorityBadge: string | null; eventType: string | null; versionEvent: string | null; nextVersion: string | null }
+  | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null; authorityBadge: string | null; eventType: string | null; versionEvent: string | null; nextVersion: string | null; actionCode: string | null }
   | { allowed: false; reason: "no_transition_definition" }
-  | { allowed: false; reason: "authority_denied"; authorityRuleCode: string; badgeDenialReason?: string }
   | { allowed: false; reason: "policy_blocked"; policyCode: string }
   | { allowed: false; reason: "not_submitted"; submitBadge: string }
   | { allowed: false; reason: "quality_gate_blocked"; gateCode: string; gateName: string; detail: string };
@@ -29,7 +29,6 @@ export interface EvaluateInput {
   entityId?: string;
   seuId?: string;
   currentVersion?: string;
-  alternateBadges?: string[];
 }
 
 // A Transition Definition requires an attestation when the Policy Definition "policy-attestation-required" is among
@@ -45,14 +44,13 @@ export type GovernedOutcome = RejectedOutcome | (Omit<AllowedOutcome, "authority
 
 export interface GateRejectionResult {
   ok: false;
-  reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked";
+  reason: "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked";
   detail: string;
 }
 
 // One mapping from a rejected governed outcome to the result every transition function returns.
 export function gateRejection(gate: RejectedOutcome, entityLabel: string, fromState: string, toState: string): GateRejectionResult {
   if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for ${entityLabel} ${fromState} -> ${toState}` };
-  if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
   if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
   if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
   return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
@@ -87,23 +85,30 @@ export const transitionEngine = {
   },
 
   // The badge check alone: the Transition Definition's verb, resolved to a badge the actor holds.
-  async authorise(input: Pick<EvaluateInput, "entityType" | "fromState" | "toState" | "actorId" | "alternateBadges">): Promise<
+  async authorise(input: Pick<EvaluateInput, "entityType" | "fromState" | "toState" | "actorId">): Promise<
     { allowed: true; authorityBadge: string | null; definition: TransitionDefinitionRow } | RejectedOutcome
   > {
     const { data: definition } = await transitionDefinitionsDB.find(input.entityType, input.fromState, input.toState);
     if (!definition) return { allowed: false, reason: "no_transition_definition" };
 
-    let authorityBadge: string | null = null;
-    if (definition.verb) {
-      const canonicalBadge = `${input.entityType.toLowerCase()}_${definition.verb}`;
-      const requiredBadge = input.alternateBadges?.length ? [canonicalBadge, ...input.alternateBadges] : canonicalBadge;
-      const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId, requiredBadge });
-      if (!auth.allowed) {
-        return { allowed: false, reason: "authority_denied", authorityRuleCode: canonicalBadge, badgeDenialReason: auth.reason };
-      }
-      authorityBadge = auth.via === "badge" ? (auth.matchedBadge ?? canonicalBadge) : canonicalBadge;
-    }
+    const authorityBadge = definition.verb
+      ? await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, `${input.entityType.toLowerCase()}_${definition.verb}`)
+      : null;
     return { allowed: true, authorityBadge, definition };
+  },
+
+  // The birth of an entity (CR-128): evaluates the entity's birth row, into its initial state. It writes
+  // nothing and publishes nothing; the caller writes its row with `initialState` and `authorityBadge`, then publishes
+  // `eventType` as its last step.
+  async beginBirth(input: Omit<EvaluateInput, "fromState" | "toState">): Promise<{ initialState: string; authorityBadge: string; eventType: string; versionEvent: string | null }> {
+    const { data: birth, error } = await transitionDefinitionsDB.findBirth(input.entityType);
+    if (error) throw error;
+    if (!birth) throw new Error(`no birth Transition Definition for ${input.entityType}`);
+    const outcome = await this.evaluate({ ...input, fromState: birth.from_state, toState: birth.to_state });
+    if (!outcome.allowed) throw new Error(`${input.entityType} birth ${birth.from_state} -> ${birth.to_state} was refused: ${outcome.reason}`);
+    if (!outcome.authorityBadge) throw new Error(`no authority badge resolved for ${input.entityType} birth ${birth.from_state} -> ${birth.to_state} — the Transition Definition declares no verb`);
+    if (!outcome.eventType) throw new Error(`${input.entityType} birth ${birth.from_state} -> ${birth.to_state} names no event`);
+    return { initialState: outcome.toState, authorityBadge: outcome.authorityBadge, eventType: outcome.eventType, versionEvent: outcome.versionEvent };
   },
 
   async evaluate(input: EvaluateInput): Promise<TransitionOutcome> {
@@ -121,9 +126,12 @@ export const transitionEngine = {
 
     if (definition.required_policy_ids.length > 0) {
       if (!authorityBadge) throw new Error(`${input.entityType} ${input.fromState} -> ${input.toState} requires policies but declares no verb — no authority badge can be resolved for the policy events`);
-      const { data: policies } = await policiesDB.findByIds(definition.required_policy_ids);
-      for (const policy of policies ?? []) {
-        const satisfied = evaluateCondition(policy.condition as GoverningCondition, input.context ?? {});
+      const policies = await loadPolicyChecks(definition.required_policy_ids, `${input.entityType}|${input.fromState}|${input.toState}`);
+      for (const policy of policies) {
+        const condition = policy.condition as GoverningCondition;
+        const satisfied = (condition as { type?: string }).type === IMPLEMENTED_CONDITION_TYPE
+          ? await evaluateImplementedPolicy(policy.code, { entityType: input.entityType, entityId: input.entityId, context: input.context ?? {} })
+          : evaluateCondition(condition, input.context ?? {});
         const payload = { policyCode: policy.code, entityType: input.entityType, fromState: input.fromState, toState: input.toState };
         if (satisfied) {
           await eventBus.publish({
@@ -193,6 +201,7 @@ export const transitionEngine = {
       authorityBadge,
       eventType: definition.event_type,
       versionEvent: definition.version_event,
+      actionCode: definition.action_code,
       nextVersion: definition.version_event && definition.version_hop !== false && input.currentVersion ? bumpPatch(input.currentVersion) : null,
     };
   },

@@ -61,7 +61,7 @@
         "statement": "The Authorizing Official (AO) and Chief Information Security Officer confirm that security control assessment results warrant formal System Authorization (ATO).",
         "prompt": "Does the Security Assessment Report (SAR) demonstrate acceptable risk to grant an ATO under NIST RMF?",
         "participant": "human",
-        "outputContract": "nist-rmf-ato-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "NIST SP 800-53 Rev. 5 Control Family Verification Checklist"
         ]

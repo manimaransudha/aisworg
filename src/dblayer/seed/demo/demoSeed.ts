@@ -14,10 +14,11 @@ import { ontologyDB } from "../../ontologyDB.js";
 import { demoScenariosDB } from "../../demoScenariosDB.js";
 import { demoPlaybooksDB } from "../../demoPlaybooksDB.js";
 import { templatesDB } from "../../templatesDB.js";
-import { getPlatformTenantId } from "../../constants.js";
+import { getPlatformTenantId, NO_EXPIRY_DATE } from "../../constants.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { publishProfile, type ProfileSeedInput } from "../../../routes/seu/core/profiles.js";
-import { createObjective, submitObjective, transitionObjective } from "../../../routes/seu/core/objectives.js";
+import { createObjective, objectiveInitialState } from "../../../routes/seu/core/objectives.js";
+import { transitionEntity } from "../../../domain/engine/entityTransition.js";
 import { participantsMasterDB } from "../../participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../../transitionDefinitionsDB.js";
 import type { ObjectiveTier } from "../../seuTypes.js";
@@ -48,7 +49,7 @@ async function prepareActor(actor: DemoActor): Promise<string> {
   const { authorisedRoles } = loadJson<{ authorisedRoles: string[] }>("demoUser.json");
   const { error } = await participantsMasterDB.setAuthorisedRole(
     actor.participantId,
-    authorisedRoles.map((role) => ({ role, effective_till: "9999-12-31", seu_ids: [] }))
+    authorisedRoles.map((role) => ({ role, effective_till: NO_EXPIRY_DATE, seu_ids: [] }))
   );
   if (error) throw error;
   return authorisedRoles[0];
@@ -61,12 +62,11 @@ async function grantAuthoringBadges(actor: DemoActor): Promise<void> {
   for (const [from, to] of PACK_HOPS) await grantTransitionBadge(actor.participantId, "Pack", from, to);
   for (const [from, to] of TEMPLATE_HOPS) await grantTransitionBadge(actor.participantId, "Template", from, to);
   for (const [from, to] of PROFILE_HOPS) await grantTransitionBadge(actor.participantId, "Profile", from, to);
-  await grantTransitionBadge(actor.participantId, "Objective", "Proposed", "Active");
-  const { data: next, error } = await transitionDefinitionsDB.findPossibleNextTransitions("Objective", "Proposed");
-  if (error) throw error;
-  const submitVerb = (next ?? []).find((t) => t.submitVerb)?.submitVerb;
-  if (!submitVerb) throw new Error("no Submit step is defined for Objective status Proposed");
-  await grantBadge(actor.participantId, `objective_${submitVerb}`);
+  const initialState = await objectiveInitialState();
+  await grantTransitionBadge(actor.participantId, "Objective", initialState, "Active");
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Objective");
+  if (birthError || !birth?.verb) throw birthError ?? new Error("no birth Transition Definition with a verb for Objective");
+  await grantBadge(actor.participantId, `objective_${birth.verb}`);
 }
 
 // Authors each Pack through the SDK authoring path. A Pack whose code is not yet a
@@ -76,9 +76,7 @@ async function seedPacks(actor: DemoActor): Promise<{ authored: Set<string>; act
   const packs = loadJson<Array<Omit<PackSeedInput, "tenantId">>>("packs.json");
   const { data: packSchema, error: schemaError } = await schemaDefinitionsDB.findLatest("Pack");
   if (schemaError || !packSchema) throw schemaError ?? new Error("no schema_definitions grammar for Pack");
-  const auth = await badgeAuthorityEngine.authorise({ actorId: actor.participantId, requiredBadge: "pack_define" });
-  if (!auth.allowed) throw new Error(`[seed:demo] Demo User does not hold pack_define`);
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "pack_define");
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(actor.participantId, "pack_define");
 
   const serviceDefinitionIdByCode = await loadServiceDefinitionIdByCode(actor.tenantId);
   const authored = new Set<string>();
@@ -117,9 +115,7 @@ async function seedTemplates(actor: DemoActor): Promise<void> {
   const baseTemplateCodes = [...new Set(profiles.map((p) => p.baseTemplateCode))];
   const { data: templateSchema, error: schemaError } = await schemaDefinitionsDB.findLatest("Template");
   if (schemaError || !templateSchema) throw schemaError ?? new Error("no schema_definitions grammar for Template");
-  const auth = await badgeAuthorityEngine.authorise({ actorId: actor.participantId, requiredBadge: "template_define" });
-  if (!auth.allowed) throw new Error(`[seed:demo] Demo User does not hold template_define`);
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "template_define");
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(actor.participantId, "template_define");
   const platformTenantId = await getPlatformTenantId();
 
   for (const code of baseTemplateCodes) {
@@ -159,7 +155,7 @@ async function seedProfiles(actor: DemoActor, packs: { authored: Set<string>; ac
 async function seedObjectives(actor: DemoActor): Promise<void> {
   const objectives = loadJson<DemoObjectiveSeed[]>("objectives.json");
   const idByKey = new Map<string, string>();
-  // All Objectives are created first: a submitted Proposed parent locks its children.
+  // All Objectives are created first: a parent cannot take children once it has left the initial state.
   for (const o of objectives) {
     const parentObjectiveId = o.parentKey ? idByKey.get(o.parentKey) : null;
     if (o.parentKey && !parentObjectiveId) throw new Error(`[seed:demo] Objective ${o.key}: parent ${o.parentKey} is not defined before it`);
@@ -167,7 +163,6 @@ async function seedObjectives(actor: DemoActor): Promise<void> {
       statement: o.statement,
       requiredCapabilityCodes: o.requiredCapabilityCodes,
       tier: o.tier,
-      status: "Proposed",
       parentObjectiveId,
       requestedBy: actor.participantId,
     });
@@ -175,8 +170,7 @@ async function seedObjectives(actor: DemoActor): Promise<void> {
   }
   for (const o of objectives) {
     const objectiveId = idByKey.get(o.key)!;
-    await submitObjective(objectiveId, actor.participantId);
-    const result = await transitionObjective({ objectiveId, targetState: "Active", actorId: actor.participantId });
+    const result = await transitionEntity({ entityType: "Objective", entityId: objectiveId, targetState: "Active", actorId: actor.participantId });
     if (!result.ok) throw new Error(`[seed:demo] Objective ${o.key} activation failed: ${result.reason}${"detail" in result ? `: ${result.detail}` : ""}`);
   }
 }
@@ -224,9 +218,7 @@ async function seedCatalogue(actor: DemoActor): Promise<void> {
   }
   if (errors.length > 0) throw new Error(`[seed:demo] scenario catalogue invalid: ${errors.join("; ")}`);
 
-  const auth = await badgeAuthorityEngine.authorise({ actorId: actor.participantId, requiredBadge: "pack_define" });
-  if (!auth.allowed) throw new Error(`[seed:demo] Demo User does not hold pack_define`);
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "pack_define");
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(actor.participantId, "pack_define");
   const common = { tenantId: actor.tenantId, authorId: actor.participantId, authorBadge };
   const inserted = await demoScenariosDB.insertMany(scenarios.map((sc) => ({ ...common, ...sc })));
   if (inserted.error) throw inserted.error;

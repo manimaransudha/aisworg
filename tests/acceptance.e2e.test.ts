@@ -15,7 +15,8 @@ import fetchCookie from "fetch-cookie";
 
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
-import { waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
+import { objectiveInitialState } from "../src/routes/seu/core/objectives.js";
+import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
 let server: ReturnType<typeof app.listen>;
@@ -81,9 +82,8 @@ after(async () => {
 
 test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a Capability, progress a Deliverable", async () => {
   // 0 — CR-009: an Engineering Objective needs a Strategic parent (only
-  // Strategic may be a root). Create the root first. CR-075 — adding a child
-  // is only allowed while the parent is Proposed (createObjective's own
-  // default status, with none given, is Active — this root needs it explicit).
+  // Strategic may be a root). Create the root first. An Objective is born into
+  // the initial state of its birth row, and a child can be added under it there.
   const rootRes = await request(`${baseUrl}/objectives`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -91,7 +91,6 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
       statement: "Acceptance test: customer portal programme",
       requiredCapabilityCodes: ["requirements-analysis"],
       tier: "Strategic",
-      status: "Proposed",
     }),
   });
   const root = await rootRes.json();
@@ -111,6 +110,11 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   const objective = await objectiveRes.json();
   assert.equal(objectiveRes.status, 201, JSON.stringify(objective));
   assert.equal(objective.requiredCapabilities.length, 3);
+
+  // Commissioning needs an Active Objective: the leaf is activated through its governed hop.
+  await grantTransitionBadge(TESTER_ACCEPTANCE_JOURNEY.participantId, "Objective", await objectiveInitialState(), "Active");
+  const activateRes = await request(`${baseUrl}/objectives/${objective.id}/transition/activate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  assert.equal(activateRes.status, 200, await activateRes.text());
 
   // 2/3 — select a Template against the Objective's required Capabilities
   // (Ch.6 §11) and apply a Profile (Ch.7). There is no JSON API for either

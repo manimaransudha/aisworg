@@ -3,19 +3,27 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { transitionEntity } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { triggerEngine } from "../../../domain/engine/triggerEngine.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
-import { supersessionEngine } from "../../../domain/engine/supersessionEngine.js";
-import { eventsDB } from "../../../dblayer/eventsDB.js";
+import { OBJECTIVE_REJECT_STATE, OBJECTIVE_SUPERSEDED_STATE } from "../../../dblayer/constants.js";
 import { findCandidateTemplates } from "./templates.js";
 import { listRealProfilesForTemplate } from "./profiles.js";
 import { listConceptsForType, resolveLabels } from "./ontology.js";
-import type { ObjectiveCommentRow, ObjectiveRow, ObjectiveStatus, ObjectiveTier, RequiredCapability } from "../../../dblayer/seuTypes.js";
+import type { ObjectiveRow, ObjectiveStatus, ObjectiveTier, RequiredCapability } from "../../../dblayer/seuTypes.js";
 
 const TIER_RANK: Record<ObjectiveTier, number> = { Strategic: 0, Operational: 1, Engineering: 2 };
 
-const DECOMPOSABLE_PARENT_STATUSES: ObjectiveStatus[] = ["Proposed", "Active"];
+// The state an Objective is born into comes from its birth Transition Definition, never from a literal.
+export async function objectiveInitialState(): Promise<ObjectiveStatus> {
+  const { data: birth, error } = await transitionDefinitionsDB.findBirth("Objective");
+  if (error) throw error;
+  if (!birth) throw new Error("no birth Transition Definition for Objective");
+  return birth.to_state as ObjectiveStatus;
+}
+
+async function decomposableParentStatuses(): Promise<ObjectiveStatus[]> {
+  return [await objectiveInitialState(), "Active"];
+}
 
 async function resolveRequiredCapabilities(codes: string[]): Promise<RequiredCapability[]> {
   const uniqueCodes = [...new Set(codes)];
@@ -31,20 +39,18 @@ async function resolveRequiredCapabilities(codes: string[]): Promise<RequiredCap
   });
 }
 
-async function resolveCapabilityAuthor(requestedBy: string): Promise<{ authorId: string; authorBadge: string }> {
+// The creation authority of an Objective is the badge of its birth row.
+async function resolveBirthAuthor(requestedBy: string): Promise<{ authorId: string; birth: Awaited<ReturnType<typeof transitionEngine.beginBirth>> }> {
   const { data: master } = await participantsMasterDB.findById(requestedBy);
   if (!master) throw new Error(`No superuser provisioned.`);
-  const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(String(requestedBy));
-  const authorBadge = isRoot ? "root" : [...badgeTypes][0];
-  if (!authorBadge) throw new Error(`participant ${master.id} holds no badge at all — cannot record an author badge`);
-  return { authorId: master.id, authorBadge };
+  const birth = await transitionEngine.beginBirth({ entityType: "Objective", actorId: String(requestedBy) });
+  return { authorId: master.id, birth };
 }
 
 export async function createObjective(input: {
   statement: string;
   requiredCapabilityCodes: string[];
   tier?: ObjectiveTier;
-  status?: ObjectiveStatus;
   parentObjectiveId?: string | null;
   requestedBy: string;
   skipParentValidation?: boolean;
@@ -66,46 +72,43 @@ export async function createObjective(input: {
       throw new Error(`child Objective tier (${tier}) cannot be more strategic than its parent's tier (${parent.tier})`);
     }
 
-    if (!input.skipParentValidation && !DECOMPOSABLE_PARENT_STATUSES.includes(parent.status)) {
-      throw new Error(`parent Objective is not Proposed or Active (status: ${parent.status}) — adding children is only allowed while it is still Proposed or Active`);
+    const decomposable = await decomposableParentStatuses();
+    if (!input.skipParentValidation && !decomposable.includes(parent.status)) {
+      throw new Error(`parent Objective is not ${decomposable.join(" or ")} (status: ${parent.status}) — adding children is only allowed while it is still ${decomposable.join(" or ")}`);
     }
 
-    if (await isObjectiveEditLocked(input.parentObjectiveId)) {
-      throw new Error(`parent Objective has already been submitted for activation — adding children is locked until the activate badge holder acts on it`);
-    }
-
-    if (!input.skipParentValidation) {
-      const { isRoot } = await badgeAuthorityEngine.getHeldBadges(input.requestedBy);
-      if (!isRoot) {
-        const { data: requester } = await participantsMasterDB.findById(input.requestedBy);
-        console.log(JSON.stringify(requester))
-        const requesterTenantId = requester?.tenant_id ?? null;
-        const parentTenantId = parent.sponsoring_authority?.tenant ?? null;
-        if (parentTenantId === null || requesterTenantId === null || parentTenantId !== requesterTenantId) {
-          throw new Error(`parent Objective not found: ${input.parentObjectiveId}`);
-        }
-      }
-    }
   }
 
-  const { authorId, authorBadge } = await resolveCapabilityAuthor(input.requestedBy!);
+  const { authorId, birth } = await resolveBirthAuthor(input.requestedBy);
 
   const { data: objective, error } = await objectivesDB.create({
     statement: input.statement,
     tier,
-    status: input.status,
+    status: birth.initialState as ObjectiveStatus,
     parentObjectiveId: input.parentObjectiveId,
     requestedBy: input.requestedBy,
     authorId,
-    authorBadge,
+    authorBadge: birth.authorityBadge,
   });
   if (error || !objective) throw error ?? new Error("failed to create objective");
 
   const requiredCapabilities = await resolveRequiredCapabilities(input.requiredCapabilityCodes);
   if (requiredCapabilities.length > 0) {
-    const { authorId, authorBadge } = await resolveCapabilityAuthor(input.requestedBy!);
-    await objectivesDB.addCapabilities(objective.id, requiredCapabilities.map((c) => c.code), authorId, authorBadge);
+    await objectivesDB.addCapabilities(objective.id, requiredCapabilities.map((c) => c.code), authorId, birth.authorityBadge);
   }
+
+  await eventBus.publish({
+    eventType: birth.eventType,
+    originatingObjectType: "Objective",
+    originatingObjectId: objective.id,
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    payload: { tier, parentObjectiveId: input.parentObjectiveId ?? null },
+    actorId: input.requestedBy,
+    authorityBadge: birth.authorityBadge,
+    versionEvent: birth.versionEvent,
+    tenantId: objective.sponsoring_authority?.tenant ?? null,
+  });
   return { objective, requiredCapabilities };
 }
 
@@ -113,15 +116,16 @@ export const ONE_SHOT_CONTAINER_STATEMENT = "Uncategorised — directly-commissi
 
 export async function ensureOneShotContainer(requestedBy:string): Promise<ObjectiveRow> {
   const { data: existing } = await objectivesDB.findStrategicByStatement(ONE_SHOT_CONTAINER_STATEMENT);
-  if (existing) return existing;
-  const { objective } = await createObjective({
+  const objective = existing ?? (await createObjective({
     statement: ONE_SHOT_CONTAINER_STATEMENT,
     requiredCapabilityCodes: [],
     tier: "Strategic",
-    status: "Active",
     requestedBy,
-  });
-  return objective;
+  })).objective;
+  if (objective.status === "Active") return objective;
+  const moved = await transitionEntity({ entityType: "Objective", entityId: objective.id, targetState: "Active", actorId: requestedBy });
+  if (!moved.ok) throw new Error(`ensureOneShotContainer: ${"detail" in moved ? moved.detail : moved.reason}`);
+  return moved.row as ObjectiveRow;
 }
 
 export interface ObjectiveListItem {
@@ -139,10 +143,6 @@ export interface ObjectiveListItem {
   commissionedSeuId: string | null;
   commissionable: boolean;
   deletable: boolean;
-  editLocked: boolean;
-  retirable: boolean;
-  submitVerb: string | null;
-  alreadySubmitted: boolean;
   nextTransitionVerb: string | null;
   nextTransitionToState: string | null;
   supersedingObjectiveId: string | null;
@@ -150,21 +150,18 @@ export interface ObjectiveListItem {
 
 function toListItem(
   o: ObjectiveRow,
+  initialState: string,
   opts: {
     commissionedSeuId?: string | null;
     hasChildren?: boolean;
-    submitVerb?: string | null;
-    alreadySubmitted?: boolean;
     nextTransitionVerb?: string | null;
     nextTransitionToState?: string | null;
-    editLocked?: boolean;
   } = {}
 ): ObjectiveListItem {
   const commissionedSeuId = opts.commissionedSeuId ?? null;
   const commissioned = commissionedSeuId !== null;
   const hasChildren = opts.hasChildren ?? false;
   const isLeaf = !hasChildren;
-  const editLocked = opts.editLocked ?? (opts.alreadySubmitted ?? false);
   return {
     id: o.id,
     displayId: o.display_id,
@@ -179,62 +176,22 @@ function toListItem(
     commissioned,
     commissionedSeuId,
     commissionable: !commissioned && o.tier !== "Strategic" && isLeaf && o.status === "Active",
-    deletable: o.status === "Proposed" && isLeaf && !commissioned && !editLocked,
-    editLocked,
-    retirable: o.status === "Active",
-    submitVerb: opts.submitVerb ?? null,
-    alreadySubmitted: opts.alreadySubmitted ?? false,
+    deletable: o.status === initialState && isLeaf && !commissioned,
     nextTransitionVerb: opts.nextTransitionVerb ?? null,
     nextTransitionToState: opts.nextTransitionToState ?? null,
     supersedingObjectiveId: o.superseding_objective_id,
   };
 }
 
-async function computeEditLockedIds(): Promise<Set<string>> {
-  const { data: proposedRows } = await objectivesDB.findByStatuses(["Proposed"]);
-  const proposedIds = (proposedRows ?? []).map((o) => o.id);
-  if (proposedIds.length === 0) return new Set();
-
-  const { data: events } = await eventsDB.findByOriginatingObjects("Objective", proposedIds);
-  const submittedIds = new Set(
-    (events ?? []).filter((e) => e.event_type === "ObjectiveProposed").map((e) => e.originating_object_id)
-  );
-  if (submittedIds.size === 0) return new Set();
-
-  const locked = new Set(submittedIds);
-  const descendantLists = await Promise.all([...submittedIds].map((id) => objectivesDB.findDescendantIds(id)));
-  for (const { data: descendantIds } of descendantLists) {
-    for (const d of descendantIds ?? []) locked.add(d);
-  }
-  return locked;
-}
-
-async function computeSubmitInfo(
-  rows: ObjectiveRow[]
-): Promise<Map<string, { submitVerb: string | null; alreadySubmitted: boolean; nextTransitionVerb: string | null; nextTransitionToState: string | null }>> {
-  const result = new Map<string, { submitVerb: string | null; alreadySubmitted: boolean; nextTransitionVerb: string | null; nextTransitionToState: string | null }>();
-  const distinctStatuses = [...new Set(rows.map((o) => o.status))];
-  const statusInfo = new Map<string, { submitVerb: string; nextTransitionVerb: string | null; nextTransitionToState: string }>();
-  await Promise.all(
-    distinctStatuses.map(async (status) => {
-      const { data: transitions } = await transitionDefinitionsDB.findPossibleNextTransitions("Objective", status);
-      const withSubmit = (transitions ?? []).find((t) => t.submitVerb);
-      if (withSubmit?.submitVerb) statusInfo.set(status, { submitVerb: withSubmit.submitVerb, nextTransitionVerb: withSubmit.verb, nextTransitionToState: withSubmit.toState });
-    })
-  );
-
-  const idsNeedingSubmitCheck = rows.filter((o) => statusInfo.has(o.status)).map((o) => o.id);
-  const { data: events } = idsNeedingSubmitCheck.length > 0 ? await eventsDB.findByOriginatingObjects("Objective", idsNeedingSubmitCheck) : { data: [] };
-  const submittedKeys = new Set((events ?? []).map((e) => `${e.originating_object_id}:${e.event_type}`));
-
+// The quick transition on a list row: the one manual hop out of the initial state.
+async function computeNextTransition(rows: ObjectiveRow[], initialState: string): Promise<Map<string, { nextTransitionVerb: string | null; nextTransitionToState: string | null }>> {
+  const result = new Map<string, { nextTransitionVerb: string | null; nextTransitionToState: string | null }>();
+  if (!rows.some((o) => o.status === initialState)) return result;
+  const { data: transitions } = await transitionDefinitionsDB.findPossibleNextTransitions("Objective", initialState);
+  const manual = (transitions ?? []).filter((t) => t.trigger === "manual");
+  if (manual.length !== 1) return result;
   for (const o of rows) {
-    const info = statusInfo.get(o.status);
-    result.set(o.id, {
-      submitVerb: info?.submitVerb ?? null,
-      alreadySubmitted: info ? submittedKeys.has(`${o.id}:Objective${o.status}`) : false,
-      nextTransitionVerb: info?.nextTransitionVerb ?? null,
-      nextTransitionToState: info?.nextTransitionToState ?? null,
-    });
+    if (o.status === initialState) result.set(o.id, { nextTransitionVerb: manual[0].verb, nextTransitionToState: manual[0].toState });
   }
   return result;
 }
@@ -247,9 +204,10 @@ async function commissionedSeuIdByObjectiveId(): Promise<Map<string, string>> {
 export async function listObjectives(tenantId?: string | null): Promise<ObjectiveListItem[]> {
   const { data } = await objectivesDB.findAll(tenantId);
   const rows = data ?? [];
+  const initialState = await objectiveInitialState();
   const commissionedSeuIds = await commissionedSeuIdByObjectiveId();
   const parentsWithChildren = new Set(rows.map((o) => o.parent_objective_id).filter((p): p is string => !!p));
-  return rows.map((o) => toListItem(o, { commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, hasChildren: parentsWithChildren.has(o.id) }));
+  return rows.map((o) => toListItem(o, initialState, { commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, hasChildren: parentsWithChildren.has(o.id) }));
 }
 
 export async function listCommissionableObjectives(tenantId?: string | null): Promise<ObjectiveListItem[]> {
@@ -258,8 +216,9 @@ export async function listCommissionableObjectives(tenantId?: string | null): Pr
 }
 
 export async function listSelectableObjectives(): Promise<ObjectiveListItem[]> {
-  const { data } = await objectivesDB.findByStatuses(["Proposed", "Active"]);
-  return (data ?? []).map((o) => toListItem(o));
+  const initialState = await objectiveInitialState();
+  const { data } = await objectivesDB.findByStatuses([initialState, "Active"]);
+  return (data ?? []).map((o) => toListItem(o, initialState));
 }
 
 export interface ObjectiveCommissioningCapabilityRef {
@@ -280,17 +239,10 @@ export interface ObjectiveDetailView {
   children: ObjectiveListItem[];
   isLeaf: boolean;
   deletable: boolean;
-  retirable: boolean;
-  rejectable: boolean;
-  supersedable: boolean;
-  editLocked: boolean;
   requiredCapabilities: RequiredCapability[];
-  comments: ObjectiveCommentRow[];
+  comments: ObjectiveRow["comments"];
   possibleNextStates: string[];
   possibleTransitionVerbs: Record<string, string | null>;
-  submitVerb: string | null;
-  submitToState: string | null;
-  alreadySubmitted: boolean;
   commissioningOptions: ObjectiveCommissioningRow[] | null;
   commissionedSeuId: string | null;
   supersedeCandidates: ObjectiveListItem[];
@@ -299,23 +251,17 @@ export interface ObjectiveDetailView {
 export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailView | null> {
   const { data: objective } = await objectivesDB.findById(id);
   if (!objective) return null;
+  const initialState = await objectiveInitialState();
 
-  const [{ data: children }, { data: requiredCapabilities }, { data: possibleTransitions }, { data: comments }, parent] = await Promise.all([
+  const [{ data: children }, { data: requiredCapabilities }, { data: possibleTransitions }, parent] = await Promise.all([
     objectivesDB.findChildren(id),
     objectivesDB.getRequiredCapabilities(id),
     transitionDefinitionsDB.findPossibleNextTransitions("Objective", objective.status),
-    objectivesDB.getComments(id),
     objective.parent_objective_id ? objectivesDB.findById(objective.parent_objective_id).then((r) => r.data ?? null) : Promise.resolve(null),
   ]);
 
-  const submitOption = (possibleTransitions ?? []).find((t) => t.submitVerb) ?? null;
-  const submitVerb = submitOption?.submitVerb ?? null;
-  const submitToState = submitOption?.toState ?? null;
-  const alreadySubmitted = submitVerb ? await triggerEngine.hasBeenSubmitted("Objective", id, objective.status) : false;
-  const eligibleTransitions = (possibleTransitions ?? []).filter(
-    (t) => t.trigger === "manual" && t.toState !== "Reject" && t.toState !== "Superseded" && (!t.submitVerb || alreadySubmitted)
-  );
-  const canSupersede = (possibleTransitions ?? []).some((t) => t.trigger === "manual" && t.toState === "Superseded" && (!t.submitVerb || alreadySubmitted));
+  const eligibleTransitions = (possibleTransitions ?? []).filter((t) => t.trigger === "manual" && t.toState !== OBJECTIVE_REJECT_STATE && t.toState !== OBJECTIVE_SUPERSEDED_STATE);
+  const canSupersede = (possibleTransitions ?? []).some((t) => t.trigger === "manual" && t.toState === OBJECTIVE_SUPERSEDED_STATE);
 
   const childRows = children ?? [];
   const isLeaf = childRows.length === 0;
@@ -361,71 +307,28 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
     });
   }
 
-  const editLocked = await isObjectiveEditLocked(id);
-
   let supersedeCandidates: ObjectiveListItem[] = [];
   if (canSupersede) {
     const { data: candidateRows } = await objectivesDB.findByStatuses(["Active"]);
     supersedeCandidates = (candidateRows ?? [])
       .filter((o) => o.id !== id && (o.sponsoring_authority?.tenant ?? null) === tenantId)
-      .map((o) => toListItem(o));
+      .map((o) => toListItem(o, initialState));
   }
 
   return {
     objective,
-    parent: parent ? toListItem(parent) : null,
-    children: childRows.map((c) => toListItem(c, { hasChildren: (childChildCounts?.get(c.id) ?? 0) > 0 })),
+    parent: parent ? toListItem(parent, initialState) : null,
+    children: childRows.map((c) => toListItem(c, initialState, { hasChildren: (childChildCounts?.get(c.id) ?? 0) > 0 })),
     isLeaf,
-    deletable: objective.status === "Proposed" && isLeaf && !editLocked,
-    retirable: objective.status === "Active",
-    rejectable: objective.status === "Active",
-    supersedable: canSupersede,
-    editLocked,
+    deletable: objective.status === initialState && isLeaf,
     requiredCapabilities: resolvedRequiredCapabilities,
-    comments: comments ?? [],
+    comments: objective.comments,
     possibleNextStates: eligibleTransitions.map((t) => t.toState),
     possibleTransitionVerbs: Object.fromEntries(eligibleTransitions.map((t) => [t.toState, t.verb])),
-    submitVerb,
-    submitToState,
-    alreadySubmitted,
     commissioningOptions,
     commissionedSeuId,
     supersedeCandidates,
   };
-}
-
-export async function submitObjective(id: string, actorId: string): Promise<void> {
-  const { data: objective } = await objectivesDB.findById(id);
-  if (!objective) throw new Error(`Objective not found: ${id}`);
-  const { data: transitions } = await transitionDefinitionsDB.findPossibleNextTransitions("Objective", objective.status);
-  const submitVerb = (transitions ?? []).find((t) => t.submitVerb)?.submitVerb ?? null;
-  if (!submitVerb) throw new Error(`no Submit step is defined for Objective status "${objective.status}"`);
-
-  const alreadySubmitted = await triggerEngine.hasBeenSubmitted("Objective", id, objective.status);
-  if (alreadySubmitted) throw new Error(`Objective ${id} has already been submitted from status "${objective.status}"`);
-
-  const requiredBadge = `objective_${submitVerb}`;
-  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge });
-  if (!auth.allowed) throw new Error(`requires badge ${requiredBadge}`);
-  const submitBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? requiredBadge);
-
-  await triggerEngine.submit({ entityType: "Objective", entityId: id, fromState: objective.status, actorId, authorityBadge: submitBadge });
-}
-
-async function isProposedAndSubmitted(o: ObjectiveRow): Promise<boolean> {
-  return o.status === "Proposed" && (await triggerEngine.hasBeenSubmitted("Objective", o.id, "Proposed"));
-}
-
-export async function isObjectiveEditLocked(id: string): Promise<boolean> {
-  const { data: objective } = await objectivesDB.findById(id);
-  if (!objective) return false;
-  if (await isProposedAndSubmitted(objective)) return true;
-
-  const { data: ancestors } = await objectivesDB.findAncestorPath(id);
-  for (const ancestor of ancestors ?? []) {
-    if (await isProposedAndSubmitted(ancestor)) return true;
-  }
-  return false;
 }
 
 export async function updateObjective(
@@ -434,17 +337,15 @@ export async function updateObjective(
 ): Promise<ObjectiveRow> {
   const { data: current } = await objectivesDB.findById(id);
   if (!current) throw new Error(`Objective not found: ${id}`);
-  if (current.status !== "Proposed") {
-    throw new Error(`Objective is not Proposed (status: ${current.status}) — only Comments can be added once it has left Proposed`);
-  }
-  if (await isObjectiveEditLocked(id)) {
-    throw new Error("this Objective has already been submitted for activation — editing is locked until the activate badge holder acts on it");
+  const initialState = await objectiveInitialState();
+  if (current.status !== initialState) {
+    throw new Error(`Objective is not ${initialState} (status: ${current.status}) — only Comments can be added once it has left ${initialState}`);
   }
 
   if (input.requiredCapabilityCodes) {
     const requiredCapabilities = await resolveRequiredCapabilities(input.requiredCapabilityCodes);
-    const { authorId, authorBadge } = await resolveCapabilityAuthor(input.requestedBy);
-    const { error: setErr } = await objectivesDB.setRequiredCapabilities(id, requiredCapabilities.map((c) => c.code), authorId, authorBadge);
+    const { authorId, birth } = await resolveBirthAuthor(input.requestedBy);
+    const { error: setErr } = await objectivesDB.setRequiredCapabilities(id, requiredCapabilities.map((c) => c.code), authorId, birth.authorityBadge);
     if (setErr) throw setErr;
   }
 
@@ -461,11 +362,9 @@ export async function reParentObjective(id: string, newParentId: string | null):
   const { data: node } = await objectivesDB.findById(id);
   if (!node) throw new Error(`Objective not found: ${id}`);
 
-  if (node.status !== "Proposed") {
-    throw new Error(`Objective is not Proposed (status: ${node.status}) — only Comments can be added once it has left Proposed`);
-  }
-  if (await isObjectiveEditLocked(id)) {
-    throw new Error("this Objective has already been submitted for activation — editing is locked until the activate badge holder acts on it");
+  const initialState = await objectiveInitialState();
+  if (node.status !== initialState) {
+    throw new Error(`Objective is not ${initialState} (status: ${node.status}) — only Comments can be added once it has left ${initialState}`);
   }
 
   if (node.tier !== "Strategic" && !newParentId) {
@@ -483,11 +382,9 @@ export async function reParentObjective(id: string, newParentId: string | null):
       throw new Error(`Objective tier (${node.tier}) cannot be more strategic than its new parent's tier (${parent.tier})`);
     }
 
-    if (!DECOMPOSABLE_PARENT_STATUSES.includes(parent.status)) {
-      throw new Error(`new parent Objective is not Proposed or Active (status: ${parent.status}) — adding children is only allowed while it is still Proposed or Active`);
-    }
-    if (await isObjectiveEditLocked(newParentId)) {
-      throw new Error(`new parent Objective has already been submitted for activation — adding children is locked until the activate badge holder acts on it`);
+    const decomposable = await decomposableParentStatuses();
+    if (!decomposable.includes(parent.status)) {
+      throw new Error(`new parent Objective is not ${decomposable.join(" or ")} (status: ${parent.status}) — adding children is only allowed while it is still ${decomposable.join(" or ")}`);
     }
 
     const nodeTenantId = node.sponsoring_authority?.tenant ?? null;
@@ -510,11 +407,9 @@ export async function reParentObjective(id: string, newParentId: string | null):
 export async function deleteObjective(id: string): Promise<void> {
   const { data: node } = await objectivesDB.findById(id);
   if (!node) throw new Error(`Objective not found: ${id}`);
-  if (node.status !== "Proposed") {
-    throw new Error(`only a Proposed Objective can be deleted (status: ${node.status}) — retire it instead`);
-  }
-  if (await isObjectiveEditLocked(id)) {
-    throw new Error("this Objective has already been submitted for activation — deletion is locked until the activate badge holder acts on it");
+  const initialState = await objectiveInitialState();
+  if (node.status !== initialState) {
+    throw new Error(`only a ${initialState} Objective can be deleted (status: ${node.status}) — retire it instead`);
   }
   const { data: children } = await objectivesDB.findChildren(id);
   if ((children ?? []).length > 0) {
@@ -535,7 +430,7 @@ export async function retireObjectiveSubtree(input: { objectiveId: string; actor
     throw new Error(`only an Active Objective can be retired (status: ${node.status})`);
   }
 
-  const rootResult = await transitionObjective({ objectiveId: node.id, targetState: "Retired", actorId: input.actorId });
+  const rootResult = await transitionEntity({ entityType: "Objective", entityId: node.id, targetState: "Retired", actorId: input.actorId });
   if (!rootResult.ok) {
     const detail = "detail" in rootResult ? rootResult.detail : rootResult.reason;
     throw new Error(`retire blocked: ${detail}`);
@@ -551,7 +446,7 @@ export async function retireObjectiveSubtree(input: { objectiveId: string; actor
       skipped.push({ id: descId, status: desc.status });
       continue;
     }
-    const res = await transitionObjective({ objectiveId: descId, targetState: "Retired", actorId: input.actorId });
+    const res = await transitionEntity({ entityType: "Objective", entityId: descId, targetState: "Retired", actorId: input.actorId });
     if (res.ok) retired.push(descId);
     else skipped.push({ id: descId, status: desc.status });
   }
@@ -562,8 +457,9 @@ export async function listReParentCandidates(movingId: string): Promise<Objectiv
   const { data: node } = await objectivesDB.findById(movingId);
   if (!node) return [];
   if (node.tier === "Strategic") return [];
+  const initialState = await objectiveInitialState();
   const [{ data: selectable }, { data: descendantIds }] = await Promise.all([
-    objectivesDB.findByStatuses(DECOMPOSABLE_PARENT_STATUSES),
+    objectivesDB.findByStatuses(await decomposableParentStatuses()),
     objectivesDB.findDescendantIds(movingId),
   ]);
   const blocked = new Set([movingId, ...(descendantIds ?? [])]);
@@ -576,42 +472,36 @@ export async function listReParentCandidates(movingId: string): Promise<Objectiv
         nodeTenantId !== null &&
         (o.sponsoring_authority?.tenant ?? null) === nodeTenantId
     )
-    .map((o) => toListItem(o));
+    .map((o) => toListItem(o, initialState));
 }
 
 export async function getObjectiveRootsPage(opts: { limit: number; offset: number; tenantId?: string | null }): Promise<{ items: ObjectiveListItem[]; total: number }> {
   const { data } = await objectivesDB.findRootsPage(opts);
   const rows = data?.items ?? [];
-  const [{ data: counts }, commissionedSeuIds, submitInfo, lockedIds] = await Promise.all([
+  const initialState = await objectiveInitialState();
+  const [{ data: counts }, commissionedSeuIds, nextTransitions] = await Promise.all([
     objectivesDB.childCounts(rows.map((o) => o.id)),
     commissionedSeuIdByObjectiveId(),
-    computeSubmitInfo(rows),
-    computeEditLockedIds(),
+    computeNextTransition(rows, initialState),
   ]);
   return {
     items: rows.map((o) =>
-      toListItem(o, { hasChildren: (counts?.get(o.id) ?? 0) > 0, commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, editLocked: lockedIds.has(o.id), ...submitInfo.get(o.id) })
+      toListItem(o, initialState, { hasChildren: (counts?.get(o.id) ?? 0) > 0, commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, ...nextTransitions.get(o.id) })
     ),
     total: data?.total ?? 0,
   };
 }
 
 export interface RejectedObjectiveListItem extends ObjectiveListItem {
-  lastComment: ObjectiveCommentRow | null;
+  lastComment: ObjectiveRow["comments"][number] | null;
 }
 
 export async function getRejectedObjectivesPage(opts: { limit: number; offset: number; tenantId?: string | null }): Promise<{ items: RejectedObjectiveListItem[]; total: number }> {
   const { data } = await objectivesDB.findRejectedPage(opts);
   const rows = data?.items ?? [];
-  const [comments, lockedIds] = await Promise.all([
-    Promise.all(rows.map((o) => objectivesDB.getComments(o.id))),
-    computeEditLockedIds(),
-  ]);
+  const initialState = await objectiveInitialState();
   return {
-    items: rows.map((o, i) => {
-      const objComments = comments[i]?.data ?? [];
-      return { ...toListItem(o, { editLocked: lockedIds.has(o.id) }), lastComment: objComments[objComments.length - 1] ?? null };
-    }),
+    items: rows.map((o) => ({ ...toListItem(o, initialState), lastComment: o.comments[o.comments.length - 1] ?? null })),
     total: data?.total ?? 0,
   };
 }
@@ -619,14 +509,14 @@ export async function getRejectedObjectivesPage(opts: { limit: number; offset: n
 export async function getObjectiveChildren(parentId: string): Promise<ObjectiveListItem[]> {
   const { data: children } = await objectivesDB.findChildren(parentId);
   const rows = children ?? [];
-  const [{ data: counts }, commissionedSeuIds, submitInfo, lockedIds] = await Promise.all([
+  const initialState = await objectiveInitialState();
+  const [{ data: counts }, commissionedSeuIds, nextTransitions] = await Promise.all([
     objectivesDB.childCounts(rows.map((o) => o.id)),
     commissionedSeuIdByObjectiveId(),
-    computeSubmitInfo(rows),
-    computeEditLockedIds(),
+    computeNextTransition(rows, initialState),
   ]);
   return rows.map((o) =>
-    toListItem(o, { hasChildren: (counts?.get(o.id) ?? 0) > 0, commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, editLocked: lockedIds.has(o.id), ...submitInfo.get(o.id) })
+    toListItem(o, initialState, { hasChildren: (counts?.get(o.id) ?? 0) > 0, commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, ...nextTransitions.get(o.id) })
   );
 }
 
@@ -637,7 +527,8 @@ export interface ObjectiveSearchHit extends ObjectiveListItem {
 export async function searchObjectives(tenantId?: string | null): Promise<ObjectiveSearchHit[]> {
   const { data } = await objectivesDB.findAll(tenantId);
   const rows = data ?? [];
-  const [commissionedSeuIds, lockedIds] = await Promise.all([commissionedSeuIdByObjectiveId(), computeEditLockedIds()]);
+  const initialState = await objectiveInitialState();
+  const commissionedSeuIds = await commissionedSeuIdByObjectiveId();
   const parentsWithChildren = new Set(rows.map((o) => o.parent_objective_id).filter((p): p is string => !!p));
   const byId = new Map(rows.map((o) => [o.id, o]));
   return rows.map((o) => {
@@ -652,98 +543,10 @@ export async function searchObjectives(tenantId?: string | null): Promise<Object
       cursor = p.parent_objective_id;
     }
     return {
-      ...toListItem(o, { commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, hasChildren: parentsWithChildren.has(o.id), editLocked: lockedIds.has(o.id) }),
+      ...toListItem(o, initialState, { commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, hasChildren: parentsWithChildren.has(o.id) }),
       path,
     };
   });
-}
-
-export type TransitionObjectiveResult =
-  | { ok: true; objective: ObjectiveRow; appliedTransition: { fromState: string; toState: string } }
-  | { ok: false; reason: "not_found" }
-  | { ok: false; reason: "quality_gate_blocked"; detail: string }
-  | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
-  | { ok: false; reason: "comment_required"; detail: string }
-  | { ok: false; reason: "superseding_target_required" | "superseding_target_not_found"; detail: string }
-  | { ok: false; reason: "superseding_target_wrong_tenant"; detail: string };
-
-export async function transitionObjective(input: { objectiveId: string; targetState: ObjectiveStatus; actorId: string; comment?: string; supersedingObjectiveId?: string }): Promise<TransitionObjectiveResult> {
-  const { data: objective } = await objectivesDB.findById(input.objectiveId);
-  if (!objective) return { ok: false, reason: "not_found" };
-
-  const fromState = objective.status;
-  const gate = await transitionEngine.evaluate({
-    entityType: "Objective",
-    fromState,
-    toState: input.targetState,
-    actorId: input.actorId,
-    context: { objective },
-    entityId: objective.id,
-  });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Objective ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
-
-  const trimmedComment = input.comment?.trim() ?? "";
-  if (fromState === "Active" && input.targetState === "Reject") {
-    if (!trimmedComment) {
-      return { ok: false, reason: "comment_required", detail: "Rejecting requires feedback — provide a comment explaining what needs to change." };
-    }
-    const { data: existingComments } = await objectivesDB.getComments(objective.id);
-    const mostRecent = existingComments?.[existingComments.length - 1];
-    if (mostRecent && mostRecent.comment_text.trim() === trimmedComment) {
-      return { ok: false, reason: "comment_required", detail: "Provide new feedback — this matches the most recent comment already on record." };
-    }
-  }
-
-  let supersedingObjectiveId: string | undefined;
-  if (input.targetState === "Superseded") {
-    const check = await supersessionEngine.check({
-      supersededId: objective.id,
-      supersedingId: input.supersedingObjectiveId,
-      comment: input.comment,
-      actorId: input.actorId,
-      authorityBadge: gate.authorityBadge,
-      findCandidate: async (candidateId) => (await objectivesDB.findById(candidateId)).data ?? null,
-    });
-    if (!check.ok) return { ok: false, reason: check.reason, detail: check.detail };
-    const { data: supersedingObjective } = await objectivesDB.findById(check.supersedingId);
-    const supersededTenantId = objective.sponsoring_authority?.tenant ?? null;
-    const supersedingTenantId = supersedingObjective?.sponsoring_authority?.tenant ?? null;
-    if (supersededTenantId === null || supersedingTenantId === null || supersededTenantId !== supersedingTenantId) {
-      return { ok: false, reason: "superseding_target_wrong_tenant", detail: "the superseding Objective belongs to a different tenant" };
-    }
-    supersedingObjectiveId = check.supersedingId;
-  }
-
-  const { data: updated, error } = await objectivesDB.updateStatus(objective.id, input.targetState, supersedingObjectiveId);
-  if (error || !updated) throw error ?? new Error("failed to update objective status");
-
-  if (trimmedComment) {
-    await objectivesDB.addComment(objective.id, input.actorId, gate.authorityBadge, trimmedComment);
-  }
-
-  await eventBus.publish({
-    eventType: gate.eventType ?? "ObjectiveTransitioned",
-    originatingObjectType: "Objective",
-    originatingObjectId: objective.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState },
-    actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
-    versionEvent: gate.versionEvent,
-    fromState,
-    toState: input.targetState,
-    tenantId: objective.sponsoring_authority?.tenant ?? null,
-  });
-
-  return { ok: true, objective: updated, appliedTransition: { fromState, toState: input.targetState } };
 }
 
 export async function suggestCapabilityCodes(statement: string): Promise<string[]> {

@@ -21,11 +21,11 @@
     <% if (locals.parent) { %>
       <p class="text-muted small mb-4">
         Decomposed under <strong><%= parent.tier %></strong>: <a href="/aisworg/seu/objectives/<%= parent.id %>"><% if (parent.display_id) { %><span class="display-id-pill me-1"><%= parent.display_id %></span><% } %><%= parent.statement %></a>.
-        Created as <strong>Proposed</strong> — activate it before commissioning an SEU against it.
+        Created as <strong><%= initialState %></strong> — activate it before commissioning an SEU against it.
       </p>
     <% } else { %>
       <p class="text-muted small mb-4">
-        A <strong>Strategic</strong> Objective is a root — it has no parent. Created as <strong>Proposed</strong>;
+        A <strong>Strategic</strong> Objective is a root — it has no parent. Created as <strong><%= initialState %></strong>;
         decompose it into Operational / Engineering children, and commission SEUs against the leaves.
       </p>
     <% } %>

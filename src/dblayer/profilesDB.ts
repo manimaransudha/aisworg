@@ -16,7 +16,7 @@ export const profilesDB = {
     environment?: string;
     profileVersion?: string;
     tenantId: string;
-    status?: ProfileRow["status"];
+    status: ProfileRow["status"];
   }): Promise<DbResult<ProfileRow>> {
     try {
       const { rows } = await query<ProfileRow>(
@@ -35,49 +35,12 @@ export const profilesDB = {
           input.environment ?? "development",
           input.profileVersion ?? INITIAL_VERSION,
           input.tenantId,
-          input.status ?? "Active",
+          input.status,
         ]
       );
       return { data: rows[0] };
     } catch (err) {
       logger.error("[profilesDB] upsert error", err as Error);
-      return { error: err as Error };
-    }
-  },
-
-  async create(input: {
-    baseTemplateId: string;
-    baseTemplateCode: string;
-    authoredBy: string;
-    authorBadge: string;
-    environment?: string;
-  }): Promise<DbResult<ProfileRow>> {
-    try {
-      const code = `profile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const name = `Custom profile for ${input.baseTemplateId}`;
-      const environment = input.environment ?? "development";
-      const profileVersion = INITIAL_VERSION;
-
-      const errors = await validateProfileWriteAgainstSchema({
-        code,
-        name,
-        environment,
-        profileVersion,
-        draftContent: { baseTemplateCode: input.baseTemplateCode },
-      });
-      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
-
-      const { data: schemaRow } = await schemaDefinitionsDB.findLatest("Profile");
-
-      const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, authored_by, author_badge, environment, status, schema_definition_id)
-         VALUES ($1, $2, $3, $4, $5, $6, 'Active', $7)
-         RETURNING *`,
-        [code, name, input.baseTemplateId, input.authoredBy, input.authorBadge, environment, schemaRow?.id ?? null]
-      );
-      return { data: rows[0] };
-    } catch (err) {
-      logger.error("[profilesDB] create error", err as Error);
       return { error: err as Error };
     }
   },
@@ -94,6 +57,7 @@ export const profilesDB = {
     tenantId: string;
     parentProfileId?: string | null;
     schemaDefinitionId: string;
+    status: ProfileRow["status"];
   }): Promise<DbResult<ProfileRow>> {
     try {
       const environment = input.environment ?? "development";
@@ -116,7 +80,7 @@ export const profilesDB = {
 
       const { rows } = await query<ProfileRow>(
         `INSERT INTO profiles (code, name, base_template_id, environment, status, authored_by, author_badge, draft_content, profile_version, tenant_id, parent_profile_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10, $11)
+         VALUES ($1, $2, $3, $4, $12, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
         [
           input.code,
@@ -130,6 +94,7 @@ export const profilesDB = {
           input.tenantId,
           input.parentProfileId ?? null,
           schemaRow?.id ?? null,
+          input.status,
         ]
       );
       return { data: rows[0] };
@@ -275,30 +240,6 @@ export const profilesDB = {
     }
   },
 
-  async findByStatusActedBy(status: ProfileRow["status"], authorityBadge: string, actorId: string | null): Promise<DbResult<ProfileRow[]>> {
-    try {
-      const { rows } = actorId == null
-        ? await query<ProfileRow>(
-            `SELECT DISTINCT p.* FROM profiles p
-             JOIN events e ON e.originating_object_type = 'Profile' AND e.originating_object_id = p.id
-             WHERE p.status = $1 AND e.authority_badge = $2
-             ORDER BY p.created_at DESC`,
-            [status, authorityBadge]
-          )
-        : await query<ProfileRow>(
-            `SELECT DISTINCT p.* FROM profiles p
-             JOIN events e ON e.originating_object_type = 'Profile' AND e.originating_object_id = p.id
-             WHERE p.status = $1 AND e.authority_badge = $2 AND e.actor_id = $3
-             ORDER BY p.created_at DESC`,
-            [status, authorityBadge, String(actorId)]
-          );
-      return { data: rows };
-    } catch (err) {
-      logger.error("[profilesDB] findByStatusActedBy error", err as Error);
-      return { error: err as Error };
-    }
-  },
-
   async findDrafts(authoredBy?: string | null): Promise<DbResult<ProfileRow[]>> {
     try {
       const { rows } = authoredBy == null
@@ -414,5 +355,18 @@ export const profilesDB = {
 
   async setOptionalPacks(profileId: string, packCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     return profilesDB.setPackSelection(profileId, "optional", packCodes, authorId, authorBadge);
+  },
+
+  async addComment(id: string, comment: { text: string; actorId: string; authorityBadge: string }): Promise<DbResult<ProfileRow>> {
+    try {
+      const { rows } = await query<ProfileRow>(
+        "UPDATE profiles SET comments = comments || $2::jsonb WHERE id = $1 RETURNING *",
+        [id, JSON.stringify([{ ...comment, createdAt: new Date().toISOString() }])]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[profilesDB] addComment error", err as Error);
+      return { error: err as Error };
+    }
   },
 };

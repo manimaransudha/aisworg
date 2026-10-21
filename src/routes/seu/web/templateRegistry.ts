@@ -11,9 +11,9 @@ import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { listTemplatesWithNextStates, copyTemplateAsNewDraft } from "../core/templates.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
  
 const TEMPLATE_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
@@ -43,8 +43,8 @@ router.get("/templates", attachVM("seu/templates/index"), async (req: Request, r
     req.vm.opt.states = TEMPLATE_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = PLATFORM_TENANT_ID;
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-    const canCopy = actorId ? (await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "template_define" })).allowed : false;
+    const held = await resolveHeldBadges(req);
+    const canCopy = held.has("template_define");
     req.vm.opt.canCopy = canCopy;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/templates/index", req.vm);
@@ -55,13 +55,9 @@ router.get("/templates", attachVM("seu/templates/index"), async (req: Request, r
 });
 
 router.post("/templates/:id/copy", async (req: Request, res: Response) => {
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-  if (!actorId) return redirects.seu.templatesCopy.error(req, res, "Sign in required.");
-  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "template_define" });
-  if (!auth.allowed) return redirects.seu.templatesCopy.error(req, res, "You don't hold the template_define badge.");
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "template_define");
+  const { actorId } = await resolveActorAndBadge(req);
   try {
-    const result = await copyTemplateAsNewDraft(String(req.params.id), actorId, authorBadge);
+    const result = await copyTemplateAsNewDraft(String(req.params.id), actorId);
     if (!result.ok) return redirects.seu.templatesCopy.error(req, res, `Copy failed: ${result.errors.join("; ")}`);
     return redirects.seu.templatesCopy.success(req, res, "Template copied — a new Draft is ready to edit.", `/aisworg/seu/sdk/template-authoring/${result.draftId}`);
   } catch (err) {

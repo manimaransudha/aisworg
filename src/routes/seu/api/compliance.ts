@@ -7,16 +7,14 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { complianceDB } from "../../../dblayer/complianceDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
-import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { requireActorId, resolveAuthorBadgeForRequest } from "../../../domain/identity/heldBadges.js";
 import { evaluateCompliance, grantWaiver, generateComplianceReport, complianceHistory } from "../core/compliance.js";
 
 async function resolveConfigAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-  if (!actorId) return { error: `No actor.` };
+  const actorId = requireActorId(req);
   const { data: master } = await participantsMasterDB.findById(actorId);
   if (!master) return { error: `No superuser provisioned.` };
-  const held = await resolveHeldBadges(req);
-  const authorBadge = held.isRoot ? "root" : [...held.badgeTypes][0] ?? "general";
+  const authorBadge = await resolveAuthorBadgeForRequest(req);
   return { authorId: master.id, authorBadge };
 }
 

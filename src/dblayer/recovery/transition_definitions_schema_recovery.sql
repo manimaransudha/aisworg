@@ -23,11 +23,13 @@ ALTER TABLE transition_definitions ADD COLUMN IF NOT EXISTS version_event TEXT
   CHECK (version_event IS NULL OR version_event IN
     ('VersionCreated', 'VersionValidated', 'VersionPublished', 'VersionActivated', 'VersionDeprecated', 'VersionSuperseded', 'VersionArchived'));
 ALTER TABLE transition_definitions ADD COLUMN IF NOT EXISTS version_hop BOOLEAN;
+ALTER TABLE transition_definitions ADD COLUMN IF NOT EXISTS action_code TEXT;
 ALTER TABLE transition_definitions ADD COLUMN IF NOT EXISTS submit_version_event TEXT
   CHECK (submit_version_event IS NULL OR submit_version_event IN
     ('VersionCreated', 'VersionValidated', 'VersionPublished', 'VersionActivated', 'VersionDeprecated', 'VersionSuperseded', 'VersionArchived'));
 ALTER TABLE transition_definitions
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants_master(id),
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS transition_definitions_one_birth_per_entity ON transition_definitions (entity_type) WHERE from_state = 'None';
 GRANT ALL PRIVILEGES ON TABLE transition_definitions TO weirdo;
 COMMIT;

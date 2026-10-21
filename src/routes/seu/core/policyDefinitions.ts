@@ -228,64 +228,14 @@ export async function inheritedPolicyDefinitionContent(parentPolicyDefinitionId:
   };
 }
 
-export type TransitionPolicyDefinitionResult = { ok: true; policyDefinition: PolicyDefinitionRow } | { ok: false; reason: string; detail?: string };
-
-export async function transitionPolicyDefinition(input: { policyDefinitionId: string; targetState: PolicyDefinitionRow["status"]; actorId: string }): Promise<TransitionPolicyDefinitionResult> {
-  const { data: policyDefinition } = await policyDefinitionsDB.findById(input.policyDefinitionId);
-  if (!policyDefinition) return { ok: false, reason: "not_found" };
-  const fromState = policyDefinition.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Policy", fromState, toState: input.targetState, actorId: input.actorId, entityId: policyDefinition.id, context: { policyDefinition } });
-  if (!gate.allowed) {
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Policy ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-    return { ok: false, reason: gate.reason };
-  }
-  if (!gate.authorityBadge) {
-    return { ok: false, reason: "not_authorised" };
-  }
-  const { data: updated, error } = await policyDefinitionsDB.updateStatus(policyDefinition.id, input.targetState);
-  if (error || !updated) throw error ?? new Error("failed to update Policy Definition status");
-
-  await eventBus.publish({
-    eventType: gate.eventType ?? "PolicyDefinitionTransitioned",
-    originatingObjectType: "PolicyDefinition",
-    originatingObjectId: updated.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState, code: updated.code },
-    actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
-    versionEvent: gate.versionEvent,
-    fromState,
-    toState: input.targetState,
-    tenantId: updated.tenant_id,
-  });
-  return { ok: true, policyDefinition: updated };
-}
-
-const AUTHORING_NEXT_STATE: Partial<Record<PolicyDefinitionRow["status"], PolicyDefinitionRow["status"]>> = {
-  Draft: "Validated",
-  Validated: "Published",
-  Published: "Active",
-  Active: "Deprecated",
-  Deprecated: "Retired",
-  Retired: "Archived",
-};
-
-export async function advancePolicyDefinitionOneStep(policyDefinition: PolicyDefinitionRow, actorId: string): Promise<TransitionPolicyDefinitionResult> {
-  const targetState = AUTHORING_NEXT_STATE[policyDefinition.status];
-  if (!targetState) return { ok: false, reason: "no_further_step", detail: `Policy Definition is already ${policyDefinition.status} — no further authoring step` };
-  return transitionPolicyDefinition({ policyDefinitionId: policyDefinition.id, targetState, actorId });
-}
-
-export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await policyDefinitionsDB.findById(policyDefinitionId);
   if (!source) return { ok: false, errors: ["Policy Definition not found"] };
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Policy");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Policy`] };
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
   if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const birth = await transitionEngine.beginBirth({ entityType: "Policy", actorId });
   const { data: newDraft, error } = await policyDefinitionsDB.createDraft({
     code: source.code,
     name: source.name,
@@ -296,8 +246,9 @@ export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string,
     conditions: source.conditions,
     scope: source.scope,
     version: await nextAvailablePatchVersion(source.version, async (candidate) => !!(await policyDefinitionsDB.findByCodeAndVersion(source.code, candidate, source.tenant_id)).data),
+    status: birth.initialState as PolicyDefinitionRow["status"],
     authoredBy: copyMaster.id,
-    authorBadge,
+    authorBadge: birth.authorityBadge,
     draftContent: {
       code: source.code, name: source.name, description: source.description ?? "", category: source.category, constraintType: source.constraint_type,
       applicabilityEnvironments: source.applicability_environments,
@@ -309,6 +260,18 @@ export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string,
     schemaDefinitionId: copySchema.id,
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Policy Definition")).message] };
+  await eventBus.publish({
+    eventType: birth.eventType,
+    originatingObjectType: "Policy",
+    originatingObjectId: newDraft.id,
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    actorId: copyMaster.id,
+    authorityBadge: birth.authorityBadge,
+    versionEvent: birth.versionEvent,
+    payload: { code: newDraft.code, version: newDraft.version },
+    tenantId: newDraft.tenant_id,
+  });
   return { ok: true, draftId: newDraft.id };
 }
 

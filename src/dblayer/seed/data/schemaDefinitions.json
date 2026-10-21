@@ -89,7 +89,10 @@
           "type": "string",
           "x-help": "The deliverable's canonical name, e.g. \"Requirements Specification\" — this is what ends up in a Template's Deliverable Catalogue picker.",
           "x-group": "metadata",
-          "minLength": 1
+          "minLength": 1,
+          "x-ontology": true,
+          "x-ontology-composable": true,
+          "x-referential-source": "deliverable-name"
         },
         "description": {
           "type": "string",
@@ -202,6 +205,23 @@
           "type": "string",
           "x-help": "migration guidance where applicable (§13)",
           "x-group": "compatibility"
+        },
+        "comments": {
+          "type": "array",
+          "x-read-only": true,
+          "x-widget": "json",
+          "x-help": "Comments added with transitions, oldest first. They are added and never edited or removed.",
+          "x-group": "metadata",
+          "items": {
+            "type": "object",
+            "required": ["text", "actorId", "authorityBadge", "createdAt"],
+            "properties": {
+              "text": { "type": "string" },
+              "actorId": { "type": "string" },
+              "authorityBadge": { "type": "string" },
+              "createdAt": { "type": "string" }
+            }
+          }
         },
         "compositionSources": {
           "type": "array",
@@ -361,7 +381,8 @@
               "code": {
                 "type": "string",
                 "x-help": "Which deliverable type this Review Gate is for — a Pack can declare several, one per deliverable type.",
-                "x-referential": "deliverable-name"
+                "x-referential": "deliverable-name",
+                "x-ontology": true
               },
               "name": {
                 "type": "string",
@@ -951,7 +972,8 @@
         "minSupportedPlatformVersion",
         "maxSupportedPlatformVersion",
         "incompatiblePackVersions",
-        "migrationGuidance"
+        "migrationGuidance",
+        "comments"
       ]
     }
   },
@@ -1471,6 +1493,23 @@
         }
       ],
       "properties": {
+        "comments": {
+          "type": "array",
+          "x-read-only": true,
+          "x-widget": "json",
+          "x-help": "Comments added with transitions, oldest first. They are added and never edited or removed.",
+          "x-group": "metadata",
+          "items": {
+            "type": "object",
+            "required": ["text", "actorId", "authorityBadge", "createdAt"],
+            "properties": {
+              "text": { "type": "string" },
+              "actorId": { "type": "string" },
+              "authorityBadge": { "type": "string" },
+              "createdAt": { "type": "string" }
+            }
+          }
+        },
         "name": {
           "type": "string",
           "x-group": "metadata",
@@ -1603,6 +1642,7 @@
               },
               "capabilityCode": {
                 "type": "string",
+                "x-ontology": true,
                 "x-referential": "capability-name"
               },
               "outputLocation": {
@@ -1610,6 +1650,7 @@
               },
               "deliverableCode": {
                 "type": "string",
+                "x-ontology": true,
                 "x-referential": "deliverable-name"
               }
             }
@@ -1865,7 +1906,8 @@
         "engineeringPackCodes",
         "integrationPackCodes",
         "organisationPackCodes",
-        "technologyPackCodes"
+        "technologyPackCodes",
+        "comments"
       ]
     }
   },
@@ -1919,6 +1961,23 @@
           "x-help": "What this Service is for.",
           "x-group": "metadata",
           "x-widget": "textarea"
+        },
+        "comments": {
+          "type": "array",
+          "x-read-only": true,
+          "x-widget": "json",
+          "x-help": "Comments added with transitions, oldest first. They are added and never edited or removed.",
+          "x-group": "metadata",
+          "items": {
+            "type": "object",
+            "required": ["text", "actorId", "authorityBadge", "createdAt"],
+            "properties": {
+              "text": { "type": "string" },
+              "actorId": { "type": "string" },
+              "authorityBadge": { "type": "string" },
+              "createdAt": { "type": "string" }
+            }
+          }
         },
         "success": {
           "type": "string",
@@ -2013,7 +2072,8 @@
         "consumers",
         "success",
         "inputs",
-        "outputs"
+        "outputs",
+        "comments"
       ]
     }
   },
@@ -2043,6 +2103,23 @@
         }
       ],
       "properties": {
+        "comments": {
+          "type": "array",
+          "x-read-only": true,
+          "x-widget": "json",
+          "x-help": "Comments added with transitions, oldest first. They are added and never edited or removed.",
+          "x-group": "metadata",
+          "items": {
+            "type": "object",
+            "required": ["text", "actorId", "authorityBadge", "createdAt"],
+            "properties": {
+              "text": { "type": "string" },
+              "actorId": { "type": "string" },
+              "authorityBadge": { "type": "string" },
+              "createdAt": { "type": "string" }
+            }
+          }
+        },
         "code": {
           "type": "string",
           "x-help": "Template category (Ch.18 Ontology, concept type template-categories; Ch.6 §8)",
@@ -2307,7 +2384,8 @@
         "organisationPackCodes",
         "technologyPackCodes",
         "deliverableCatalogue",
-        "dependencyGraph"
+        "dependencyGraph",
+        "comments"
       ]
     }
   },

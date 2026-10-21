@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "automotive-type-approval-gate",
+        "code": "platform-certification-report",
         "name": "Automotive Type-Approval Readiness Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Functional Safety & Automotive Cybersecurity Manager confirms that CSMS, SUMS, and TARA evidence satisfy UNECE WP.29 R155/R156.",
         "prompt": "Does the automotive software release package satisfy UNECE R155 CSMS and R156 SUMS type-approval requirements?",
         "participant": "human",
-        "outputContract": "automotive-type-approval-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "UNECE WP.29 R155 / R156 Automotive Verification Checklist"
         ]

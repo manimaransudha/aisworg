@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "product-director-signoff-gate",
+        "code": "business-analysis-plan",
         "name": "Product Management Director Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Product Management Director confirms that PRDs, roadmap prioritization, and telemetry plans satisfy product standards.",
         "prompt": "Does the product management package confirm feature value, requirement clarity, and release readiness?",
         "participant": "human",
-        "outputContract": "product-management-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Product Strategy & Lifecycle Audit Checklist"
         ]

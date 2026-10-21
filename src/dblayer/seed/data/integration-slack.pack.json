@@ -57,14 +57,14 @@
     ],
     "reviewGates": [
       {
-        "code": "slack-integration-review-gate",
+        "code": "stakeholder-communication-stream",
         "name": "Slack ChatOps Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Collaboration Lead confirms that Slack Bot tokens and incoming webhooks post notifications properly.",
         "prompt": "Does the Slack integration verify message delivery and Block Kit payload formatting?",
         "participant": "human",
-        "outputContract": "slack-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Slack Integration Verification Checklist"
         ]

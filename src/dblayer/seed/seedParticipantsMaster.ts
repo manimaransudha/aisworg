@@ -6,6 +6,7 @@ import { bulkInsert } from "../../utils/db.js";
 import { resolveOnboardingAdapter, listRegisteredOnboardingTypes } from "../../adapters/participantOnboardingRegistry.js";
 import { logger } from "../../utils/logger.js";
 import type { OnboardedParticipant, OnboardingOntology } from "../../adapters/participantOnboardingAdapter.js";
+import { NO_EXPIRY_DATE } from "../constants.js";
 
 const require = createRequire(import.meta.url);
 const bcrypt = require("bcryptjs");
@@ -118,7 +119,7 @@ export async function seedParticipantsMaster(): Promise<void> {
         const onboarded = await adapter.onboard({ tenantId: tenant.id, tenantLabel: tenant.name, seed: i, ontology });
         const authorisedRole = onboarded.authorisedRole.some((e) => e.role === DEFAULT_PARTICIPANT_ROLE)
           ? onboarded.authorisedRole
-          : [...onboarded.authorisedRole, { role: DEFAULT_PARTICIPANT_ROLE, effective_till: "9999-12-31", seu_ids: [] }];
+          : [...onboarded.authorisedRole, { role: DEFAULT_PARTICIPANT_ROLE, effective_till: NO_EXPIRY_DATE, seu_ids: [] }];
         validateOnboarded(type, { ...onboarded, authorisedRole }, canon);
 
         rows.push({

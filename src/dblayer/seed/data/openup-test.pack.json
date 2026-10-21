@@ -36,7 +36,7 @@
     ],
     "reviewGates": [
       {
-        "code": "Test Report / Results",
+        "code": "test-report-results",
         "name": "Test Results Evaluation",
         "governedTransition": "Deliverable|In Progress|Approved",
         "statement": "Test results have been evaluated and the solution's quality/residual risk assessed.",

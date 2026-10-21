@@ -67,7 +67,7 @@
     ],
     "reviewGates": [
       {
-        "code": "clickable-prototype",
+        "code": "prototype-evaluation-report",
         "name": "Experience Design Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

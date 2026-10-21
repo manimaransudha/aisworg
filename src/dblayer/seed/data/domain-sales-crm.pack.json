@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "revops-pipeline-signoff-gate",
+        "code": "objective-alignment-report",
         "name": "Revenue Operations Pipeline Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Revenue Operations Manager confirms that sales forecasts, pricing approvals, and account onboarding workflows satisfy business rules.",
         "prompt": "Does the sales pipeline documentation confirm forecast accuracy and pricing compliance?",
         "participant": "human",
-        "outputContract": "sales-crm-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Sales & CRM Audit Checklist"
         ]

@@ -20,8 +20,7 @@ export async function grantQualityGateWaiver(input: {
 }): Promise<GrantQualityGateWaiverResult> {
   if (!input.rationale?.trim()) return { ok: false, reason: "rationale is required" };
 
-  const authority = await badgeAuthorityEngine.authorise({ actorId: input.actorId, requiredBadge: QUALITY_GATE_WAIVE_BADGE });
-  if (!authority.allowed) return { ok: false, reason: `missing "${QUALITY_GATE_WAIVE_BADGE}" badge` };
+  const authorityBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, QUALITY_GATE_WAIVE_BADGE);
 
   const { data: gate } = await qualityGatesDB.findByIds([input.qualityGateId]);
   if (!gate || gate.length === 0) return { ok: false, reason: "quality gate not found" };
@@ -36,7 +35,7 @@ export async function grantQualityGateWaiver(input: {
     entityId: input.entityId,
     rationale: input.rationale,
     grantedBy: master.id,
-    authorityBadge: QUALITY_GATE_WAIVE_BADGE,
+    authorityBadge,
     expiresAt: input.expiresAt,
   });
   if (error || !waiver) return { ok: false, reason: (error ?? new Error("failed to grant waiver")).message };
@@ -48,7 +47,7 @@ export async function grantQualityGateWaiver(input: {
     seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
     actorId: input.actorId,
-    authorityBadge: QUALITY_GATE_WAIVE_BADGE,
+    authorityBadge,
     payload: { entityType: input.entityType, entityId: input.entityId, rationale: input.rationale },
   });
 

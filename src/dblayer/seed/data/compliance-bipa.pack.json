@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "bipa-privacy-attestation-gate",
+        "code": "privacy-impact-assessment",
         "name": "Biometric Privacy Attestation Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "Legal Counsel confirms that biometric consent flows, public retention policies, and purge schedules satisfy Illinois BIPA and state biometric statutes.",
         "prompt": "Does the legal audit confirm full compliance with BIPA biometric notice, consent, and deletion rules?",
         "participant": "human",
-        "outputContract": "bipa-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Biometric Privacy (BIPA / CUBI) Compliance Checklist"
         ]

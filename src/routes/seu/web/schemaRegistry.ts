@@ -15,6 +15,8 @@ import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { SCHEMA_KINDS, TOP_LEVEL_WIDGET_KINDS, ITEM_WIDGET_KINDS, blankDocument, blankWidget, jsonSchemaToWidgetTree, widgetTreeToJsonSchema, parseAuthoredDocumentFromBody } from "../../../domain/sdk/schemaCompiler.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind } from "../../../dblayer/seuTypes.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
+import { transitionEntity, nextActionsFor } from "../../../domain/engine/entityTransition.js";
 
 const backTo = "/aisworg/seu/sdk/schema-registry";
 
@@ -78,6 +80,7 @@ router.get("/sdk/schema-registry/:id", attachVM("seu/sdk/schema-registry/detail"
       lifecycleState: schema.lifecycle_state,
       authorBadge: schema.author_badge,
     };
+    req.vm.opt.actions = await nextActionsFor("SchemaDefinition", schema.lifecycle_state, requireActorId(req));
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/sdk/schema-registry/detail", req.vm);
   } catch (err) {
@@ -130,8 +133,7 @@ router.post("/sdk/schema-registry/publish", async (req: Request, res: Response) 
     const schemaJson = String(body.schemaJson ?? "");
     if (!entityKind || !schemaJson) return redirects.seu.sdkSchemaRegistryPublish.error(req, res, "Entity kind and schema are required.");
 
-    if (req.session?.user?.id == null) return redirects.seu.sdkSchemaRegistryPublish.error(req, res, "No logged-in user on this session.");
-    const actorId = String(req.session.user.id);
+    const actorId = requireActorId(req);
     const result = await createSchemaVersion({ entityKind, schemaJson, actorId });
     if (!result.ok) return redirects.seu.sdkSchemaRegistryPublish.error(req, res, result.errors.join("; "));
     return redirects.seu.sdkSchemaRegistryPublish.success(req, res, `${result.schema.entity_kind} schema v${result.schema.version} packaged — publish it below to make it live.`, `${backTo}/${result.schema.id}`);
@@ -141,10 +143,28 @@ router.post("/sdk/schema-registry/publish", async (req: Request, res: Response) 
   }
 });
 
+router.post("/sdk/schema-registry/:id/transition", async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  try {
+    const actorId = requireActorId(req);
+    const targetState = String(req.body?.targetState ?? "").trim();
+    if (!targetState) return redirects.seu.sdkSchemaRegistryTransition.error(req, res, "Target state is required.");
+    const schema = await getSchemaDefinition(id);
+    if (!schema) return redirects.seu.sdkSchemaRegistryTransition.error(req, res, "Schema version not found.");
+    const actions = await nextActionsFor("SchemaDefinition", schema.lifecycle_state, actorId);
+    if (!actions.some((a) => a.toState === targetState)) return redirects.seu.sdkSchemaRegistryTransition.error(req, res, `${targetState} is not an available action for a schema in ${schema.lifecycle_state}.`);
+    const result = await transitionEntity({ entityType: "SchemaDefinition", entityId: id, targetState, actorId });
+    if (!result.ok) return redirects.seu.sdkSchemaRegistryTransition.error(req, res, "detail" in result ? result.detail : "Schema version not found.");
+    return redirects.seu.sdkSchemaRegistryTransition.success(req, res, `${schema.entity_kind} schema v${schema.version} moved to ${result.appliedTransition.toState}.`);
+  } catch (err) {
+    logger.error("[web/seu/schemaRegistry] POST /sdk/schema-registry/:id/transition error", err as Error);
+    return redirects.seu.sdkSchemaRegistryTransition.error(req, res, (err as Error).message);
+  }
+});
+
 router.post("/sdk/schema-registry/:id/publish", async (req: Request, res: Response) => {
   const id = String(req.params.id);
-  if (req.session?.user?.id == null) return redirects.seu.sdkSchemaRegistryPublishById.error(req, res, "No logged-in user on this session.");
-  const actorId = String(req.session.user.id);
+  const actorId = requireActorId(req);
   const result = await publishSchemaVersion(id, actorId);
   if (!result.ok) return redirects.seu.sdkSchemaRegistryPublishById.error(req, res, result.error);
   return redirects.seu.sdkSchemaRegistryPublishById.success(req, res, `${result.schema.entity_kind} schema v${result.schema.version} published.`);
@@ -152,8 +172,7 @@ router.post("/sdk/schema-registry/:id/publish", async (req: Request, res: Respon
 
 router.post("/sdk/schema-registry/:id/reject", async (req: Request, res: Response) => {
   const id = String(req.params.id);
-  if (req.session?.user?.id == null) return redirects.seu.sdkSchemaRegistryReject.error(req, res, "No logged-in user on this session.");
-  const actorId = String(req.session.user.id);
+  const actorId = requireActorId(req);
   const result = await rejectSchemaVersion(id, actorId);
   if (!result.ok) return redirects.seu.sdkSchemaRegistryReject.error(req, res, result.error);
   return redirects.seu.sdkSchemaRegistryReject.success(req, res, `${result.schema.entity_kind} schema v${result.schema.version} publication rejected.`);

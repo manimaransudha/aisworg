@@ -13,8 +13,7 @@ CREATE TABLE policy_definitions (
   applicability_deliverable_lifecycle TEXT[] NOT NULL DEFAULT '{}',
   conditions                      JSONB NOT NULL DEFAULT '[]',
   version                         TEXT NOT NULL DEFAULT '1.0.0',
-  status                          TEXT NOT NULL DEFAULT 'Draft'
-                                     CHECK (status IN ('Draft', 'Validated', 'Published', 'Active', 'Deprecated', 'Retired', 'Archived')),
+  status                          TEXT NOT NULL,
   draft_content                   JSONB,
   authored_by                     UUID NOT NULL REFERENCES participants_master(id),
   author_badge                    TEXT NOT NULL,

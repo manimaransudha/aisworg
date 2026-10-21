@@ -123,8 +123,7 @@ export async function raiseMyObligation(input: {
     return { ok: false, reason: "not_mine", detail: "This Deliverable is not assigned to you." };
   }
 
-  const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(input.userId);
-  const authorBadge = isRoot ? "root" : [...badgeTypes][0] ?? "general";
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.userId, "obligation_create");
 
   const obligation = await createObligation({
     relatedObjectType: "Deliverable",

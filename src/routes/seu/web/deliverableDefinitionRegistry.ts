@@ -11,8 +11,8 @@ import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { listDeliverableDefinitionsWithNextStates, copyDeliverableDefinitionAsNewDraft } from "../core/deliverableDefinitions.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
  
 const DELIVERABLE_DEFINITION_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
@@ -36,8 +36,8 @@ router.get("/deliverable-definitions", attachVM("seu/deliverable-definitions/ind
     req.vm.opt.states = DELIVERABLE_DEFINITION_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = PLATFORM_TENANT_ID;
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-    const canCopy = actorId ? (await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "deliverable_define" })).allowed : false;
+    const held = await resolveHeldBadges(req);
+    const canCopy = held.has("deliverabledefinition_define");
     req.vm.opt.canCopy = canCopy;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/deliverable-definitions/index", req.vm);
@@ -48,13 +48,9 @@ router.get("/deliverable-definitions", attachVM("seu/deliverable-definitions/ind
 });
 
 router.post("/deliverable-definitions/:id/copy", async (req: Request, res: Response) => {
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-  if (!actorId) return redirects.seu.deliverableDefinitionsCopy.error(req, res, "Sign in required.");
-  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "deliverable_define" });
-  if (!auth.allowed) return redirects.seu.deliverableDefinitionsCopy.error(req, res, "You don't hold the deliverable_define badge.");
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "deliverable_define");
+  const { actorId } = await resolveActorAndBadge(req);
   try {
-    const result = await copyDeliverableDefinitionAsNewDraft(String(req.params.id), actorId, authorBadge);
+    const result = await copyDeliverableDefinitionAsNewDraft(String(req.params.id), actorId);
     if (!result.ok) return redirects.seu.deliverableDefinitionsCopy.error(req, res, `Copy failed: ${result.errors.join("; ")}`);
     return redirects.seu.deliverableDefinitionsCopy.success(req, res, "Deliverable Definition copied — a new Draft is ready to edit.", `/aisworg/seu/sdk/deliverable-authoring/${result.draftId}`);
   } catch (err) {

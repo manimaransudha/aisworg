@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { tenantsDB } from "../tenantsDB.js";
-import { ATHENS_TENANT_NAME, BABYLON_TENANT_NAME} from "../constants.js";
+import { ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, NO_EXPIRY_DATE } from "../constants.js";
 
 const require = createRequire(import.meta.url);
 const bcrypt = require("bcryptjs");
@@ -20,7 +20,7 @@ function allNounVerbBadges(): Array<{ badge: string; effective_till: string; seu
   const pairs = new Set<string>();
   for (const t of transitions) if (t.verb) pairs.add(`${t.entityType.toLowerCase()}_${t.verb}`);
   for (const m of vocab.authoringMappings ?? []) for (const v of m.verbs) pairs.add(`${m.noun.toLowerCase()}_${v}`);
-  return [...pairs].sort().map((badge) => ({ badge, effective_till: "9999-12-31", seu_ids: [] }));
+  return [...pairs].sort().map((badge) => ({ badge, effective_till: NO_EXPIRY_DATE, seu_ids: [] }));
 }
 
 interface SeedUser {
@@ -44,32 +44,32 @@ interface SeedUser {
 
 // Test-fixture users and Participants of the Athens and Babylon tenants (tests/globalSetup.ts), never seeded by db:clean-slate.
 const USERS: SeedUser[] = [
-  {email: "superadmin@athens.com", name: "Super Admin Athens", avatar_url: null, display_name: "Athens admin", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
-  {email: "superadmin@babylon.com", name: "Super Admin Babylon", avatar_url: null, display_name: "Babylon admin", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: BABYLON_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
-  {email: "tester-objective-athens@test.local", name: "Test — Objective Badges (Athens)", avatar_url: null, display_name: "Athens Test Objective Badges", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [
-    {"badge":"objective_propose","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_activate","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_reject","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_achieve","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_supersede","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_retire","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_archive","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_all","effective_till":"9999-12-31","seu_ids":[]}
+  {email: "superadmin@athens.com", name: "Super Admin Athens", avatar_url: null, display_name: "Athens admin", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}] },
+  {email: "superadmin@babylon.com", name: "Super Admin Babylon", avatar_url: null, display_name: "Babylon admin", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: BABYLON_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}] },
+  {email: "tester-objective-athens@test.local", name: "Test — Objective Badges (Athens)", avatar_url: null, display_name: "Athens Test Objective Badges", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: [
+    {"badge":"objective_propose","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_activate","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_reject","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_achieve","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_supersede","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_retire","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_archive","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_all","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}
   ] },
-  {email: "tester-objective-babylon@test.local", name: "Test — Objective Badges (Babylon)", avatar_url: null, display_name: "Babylon Test Objective Badges", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: BABYLON_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [
-    {"badge":"objective_propose","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_activate","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_reject","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_achieve","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_supersede","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_retire","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_archive","effective_till":"9999-12-31","seu_ids":[]},
-    {"badge":"objective_all","effective_till":"9999-12-31","seu_ids":[]}
+  {email: "tester-objective-babylon@test.local", name: "Test — Objective Badges (Babylon)", avatar_url: null, display_name: "Babylon Test Objective Badges", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: BABYLON_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: [
+    {"badge":"objective_propose","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_activate","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_reject","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_achieve","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_supersede","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_retire","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_archive","effective_till":NO_EXPIRY_DATE,"seu_ids":[]},
+    {"badge":"objective_all","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}
   ] },
-  {email: "tester-objective-achieve-only@test.local", name: "Test — Objective Achieve Only (Athens)", avatar_url: null, display_name: "Athens Test Objective Achieve Only", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [
-    {"badge":"objective_achieve","effective_till":"9999-12-31","seu_ids":[]}
+  {email: "tester-objective-achieve-only@test.local", name: "Test — Objective Achieve Only (Athens)", avatar_url: null, display_name: "Athens Test Objective Achieve Only", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: [
+    {"badge":"objective_achieve","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}
   ] },
-  {email: "tester-acceptance-journey@test.local", name: "Test — Acceptance Journey (Athens)", avatar_url: null, display_name: "Athens Test Acceptance Journey", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME, participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: allNounVerbBadges() },
+  {email: "tester-acceptance-journey@test.local", name: "Test — Acceptance Journey (Athens)", avatar_url: null, display_name: "Athens Test Acceptance Journey", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME, participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: allNounVerbBadges() },
 ];
 
 export async function seedTestIdentity(): Promise<void> {

@@ -11,14 +11,15 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
-import { createObjective, deleteObjective, getObjectiveChildren, getObjectiveDetail, getRejectedObjectivesPage, listReParentCandidates, reParentObjective, submitObjective, transitionObjective, updateObjective, suggestCapabilityCodes } from "../src/routes/seu/core/objectives.js";
+import { createObjective, getObjectiveDetail, listReParentCandidates, reParentObjective, updateObjective, suggestCapabilityCodes } from "../src/routes/seu/core/objectives.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { commissionSeu, commissionFromExistingObjective } from "../src/routes/seu/core/commissioning.js";
 import { findCandidateTemplates } from "../src/routes/seu/core/templates.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
-import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_BADGE } from "./testFixtures.js";
-import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, TESTER_OBJECTIVE_BABYLON, ROOT_ACTOR_ID } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_BADGE, createActiveObjective, transitionObjective } from "./testFixtures.js";
+import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, TESTER_OBJECTIVE_BABYLON, ROOT_ACTOR_ID, grantBadge } from "./testFixtures.js";
+import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 
 before(async () => {
   // Must run before this file's own first commissionSeu call — see
@@ -29,19 +30,19 @@ before(async () => {
 // CR-009: Operational/Engineering Objectives require a parent (only Strategic
 // may be a root). These tests build their fixtures under a fresh Strategic root.
 async function strategicRoot(): Promise<string> {
-  // CR-075 — createObjective now requires the parent to be Proposed when
+  // CR-075 — createObjective now requires the parent to be in the initial state or Active when
   // adding a child under it. This helper's only job is to be a parent, so
-  // it stays Proposed (never activated) rather than the old implicit-Active
+  // it stays in the initial state (never activated) rather than the old implicit-Active
   // default.
   const { objective } = await createObjective({
     statement: `phase1-root-${randomUUID()}`,
     requiredCapabilityCodes: [],
-    tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed",});
+    tier: "Strategic", requestedBy: TESTER_ALL_ID, });
   return objective.id;
 }
 
 test("createObjective rejects a child whose tier is more strategic than its parent's", async () => {
-  const { objective: parent } = await createObjective({
+  const { objective: parent } = await createActiveObjective({
     statement: `phase1-parent-${randomUUID()}`,
     requiredCapabilityCodes: ["architecture-design"],
     tier: "Operational",
@@ -49,7 +50,7 @@ test("createObjective rejects a child whose tier is more strategic than its pare
 
   await assert.rejects(
     () =>
-      createObjective({
+      createActiveObjective({
         statement: `phase1-bad-child-${randomUUID()}`,
         requiredCapabilityCodes: ["architecture-design"],
         tier: "Strategic",
@@ -62,8 +63,8 @@ test("createObjective accepts a valid child, and getObjectiveDetail shows both s
   const { objective: parent } = await createObjective({
     statement: `phase1-parent-${randomUUID()}`,
     requiredCapabilityCodes: ["architecture-design"],
-    tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed",});
-  const { objective: child } = await createObjective({
+    tier: "Strategic", requestedBy: TESTER_ALL_ID, });
+  const { objective: child } = await createActiveObjective({
     statement: `phase1-child-${randomUUID()}`,
     requiredCapabilityCodes: ["software-construction"],
     tier: "Operational",
@@ -82,10 +83,10 @@ test("updateObjective bumps the version's patch segment and applies the edit", a
     statement: `phase1-versioned-${randomUUID()}`,
     requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
-    // CR-075 — updateObjective now requires Proposed (every other status is
+    // CR-075 — updateObjective now requires the initial state (every other status is
     // Comments-only); explicit here since this test is about version-bump
     // behavior, not status gating.
-    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, status: "Proposed",});
+    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, });
   assert.equal(objective.version, "1.0.0");
 
   const updated = await updateObjective(objective.id, { statement: "phase1-revised-statement", requestedBy: TESTER_ALL_ID });
@@ -105,69 +106,24 @@ test("transitionObjective follows the Ch.1 lifecycle and rejects an undefined tr
     requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
     parentObjectiveId: await strategicRoot(),
-    status: "Proposed", requestedBy: TESTER_ALL_ID,});
+    requestedBy: TESTER_ALL_ID,});
 
   const skipAhead = await transitionObjective({ objectiveId: objective.id, targetState: "Archived", actorId: TESTER_ALL_ID });
   assert.equal(skipAhead.ok, false);
   if (!skipAhead.ok && skipAhead.reason !== "not_found") assert.equal(skipAhead.reason, "no_transition_definition");
 
-  // CR-072 — Proposed -> Active now needs its own submit_verb ("propose")
-  // queued first; transitionObjective real-gates on it (not just a UI hint).
-  await submitObjective(objective.id, TESTER_ALL_ID);
   const activate = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activate.ok, true);
   if (activate.ok) {
     assert.equal(activate.objective.status, "Active");
-    assert.deepEqual(activate.appliedTransition, { fromState: "Proposed", toState: "Active" });
+    assert.deepEqual(activate.appliedTransition, { fromState: "Defined", toState: "Active" });
   }
-});
-
-// CR-075 (owner: "Disallow Edit when the Objective has been proposed... Same
-// with Delete. Once it is queued with the active badge, it cannot be
-// deleted") — once a Proposed leaf is submitted for activation, the
-// objective_activate holder is reviewing it as a real candidate; both Edit
-// and Delete must refuse until they act on it (real checks in
-// updateObjective/deleteObjective, not just a hidden button).
-test("a submitted Proposed Objective locks both Edit and Delete until the activate badge holder acts on it", async () => {
-  const { objective } = await createObjective({
-    statement: `phase1-locked-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-design"],
-    tier: "Engineering",
-    parentObjectiveId: await strategicRoot(),
-    status: "Proposed", requestedBy: TESTER_ALL_ID,
-  });
-
-  // Before submission: both work normally.
-  const beforeDetail = await getObjectiveDetail(objective.id);
-  assert.equal(beforeDetail?.editLocked, false);
-  assert.equal(beforeDetail?.deletable, true);
-  const preSubmitEdit = await updateObjective(objective.id, { statement: "still-editable-pre-submit", requestedBy: TESTER_ALL_ID });
-  assert.equal(preSubmitEdit.statement, "still-editable-pre-submit");
-
-  await submitObjective(objective.id, TESTER_ALL_ID);
-
-  const afterDetail = await getObjectiveDetail(objective.id);
-  assert.equal(afterDetail?.editLocked, true, "the detail view must reflect the lock, not just the throw below");
-  assert.equal(afterDetail?.deletable, false);
-
-  await assert.rejects(
-    () => updateObjective(objective.id, { statement: "should-not-apply", requestedBy: TESTER_ALL_ID }),
-    /already been submitted for activation/
-  );
-  await assert.rejects(
-    () => deleteObjective(objective.id),
-    /already been submitted for activation/
-  );
-
-  // The statement from the rejected edit attempt must not have applied.
-  const { data: unchanged } = await objectivesDB.findById(objective.id);
-  assert.equal(unchanged?.statement, "still-editable-pre-submit");
 });
 
 // CR-075 (owner: "Only propose can edit every field based on rules wherever
 // applicable. All other states can only add comments in their edit form" /
 // "adding moving is all editing") — statement, required Capabilities and
-// Move are only allowed while status is Proposed; every other status can
+// Move are only allowed while status is the initial state; every other status can
 // still be commented on (a separate, status-independent rule), just nothing
 // else.
 //
@@ -179,42 +135,41 @@ test("a submitted Proposed Objective locks both Edit and Delete until the activa
 // core/objectives.ts) is meant to stay Active as a long-lived umbrella, with
 // new children proposed under it over time, not fully decomposed once, up
 // front, before it can ever be activated.
-test("only a Proposed Objective can have its own fields/lineage edited — Active still accepts new children, every other status is Comments-only", async () => {
+test("only a Defined Objective can have its own fields/lineage edited — Active still accepts new children, every other status is Comments-only", async () => {
   const { objective: root } = await createObjective({
     statement: `phase1-proposed-only-root-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Strategic",
-    status: "Proposed", requestedBy: TESTER_ALL_ID,
+    requestedBy: TESTER_ALL_ID,
   });
   const { objective: child } = await createObjective({
     statement: `phase1-proposed-only-child-${randomUUID()}`,
     requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
     parentObjectiveId: root.id,
-    status: "Proposed", requestedBy: TESTER_ALL_ID,
+    requestedBy: TESTER_ALL_ID,
   });
   const { objective: otherRoot } = await createObjective({
     statement: `phase1-proposed-only-otherroot-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Strategic",
-    status: "Proposed", requestedBy: TESTER_ALL_ID,
+    requestedBy: TESTER_ALL_ID,
   });
 
-  // While still Proposed: everything works normally.
-  await updateObjective(child.id, { statement: "still-Proposed-still-editable", requestedBy: TESTER_ALL_ID });
+  // While still Defined: everything works normally.
+  await updateObjective(child.id, { statement: "still-Defined-still-editable", requestedBy: TESTER_ALL_ID });
 
-  await submitObjective(child.id, TESTER_ALL_ID);
   const activated = await transitionObjective({ objectiveId: child.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
   // Now Active: this Objective's OWN statement/Capabilities/Move are still
   // refused — editing itself is unaffected by today's fix.
-  await assert.rejects(() => updateObjective(child.id, { statement: "should-not-apply", requestedBy: TESTER_ALL_ID }), /is not Proposed/);
-  await assert.rejects(() => reParentObjective(child.id, otherRoot.id), /is not Proposed/);
+  await assert.rejects(() => updateObjective(child.id, { statement: "should-not-apply", requestedBy: TESTER_ALL_ID }), /is not Defined/);
+  await assert.rejects(() => reParentObjective(child.id, otherRoot.id), /is not Defined/);
 
   // But adding a NEW child under it now succeeds — the actual point of the
   // fix: an Active Objective stays open to further decomposition.
-  const { objective: grandchild } = await createObjective({
+  const { objective: grandchild } = await createActiveObjective({
     statement: `phase1-proposed-only-grandchild-${randomUUID()}`,
     requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
@@ -224,14 +179,14 @@ test("only a Proposed Objective can have its own fields/lineage edited — Activ
   assert.equal(grandchild.parent_objective_id, child.id);
 
   // Comments are a separate, status-independent rule — still work.
-  const { error: commentErr } = await objectivesDB.addComment(child.id, TESTER_ALL_ID, ROOT_ACTOR_BADGE, "still commentable while Active");
+  const { error: commentErr } = await objectivesDB.addComment(child.id, { text: "still commentable while Active", actorId: TESTER_ALL_ID, authorityBadge: ROOT_ACTOR_BADGE });
   assert.equal(commentErr, undefined);
-  const { data: comments } = await objectivesDB.getComments(child.id);
-  assert.ok(comments?.some((c) => c.comment_text === "still commentable while Active"));
+  const { data: childAfter } = await objectivesDB.findById(child.id);
+  assert.ok(childAfter?.comments.some((c) => c.text === "still commentable while Active"));
 
   // The rejected edit attempt must not have applied.
   const { data: unchangedChild } = await objectivesDB.findById(child.id);
-  assert.equal(unchangedChild?.statement, "still-Proposed-still-editable");
+  assert.equal(unchangedChild?.statement, "still-Defined-still-editable");
 });
 
 // CR-075 (owner: "Check the functionality of move objectives. It should not
@@ -247,18 +202,21 @@ test("only a Proposed Objective can have its own fields/lineage edited — Activ
 // (Babylon) are the real, seeded cross-tenant test identities (CR-006,
 // seedIdentityBaseline.ts).
 test("reParentObjective refuses a cross-tenant move, and listReParentCandidates never offers one", async () => {
+  // createObjective now resolves the author badge, so the fixture creates need objective_propose.
+  // grantBadge persists on the shared tester row; restore the original list afterwards.
+  const { data: holder } = await participantsMasterDB.findById(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId);
+  const originalBadges = holder!.authorised_badges;
+  try {
+  await grantBadge(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, "objective_propose");
   const { objective: athensRoot } = await createObjective({
     statement: `phase1-tenant-move-athens-root-${randomUUID()}`,
-    requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, status: "Proposed",
-  });
+    requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, });
   const { objective: athensOtherRoot } = await createObjective({
     statement: `phase1-tenant-move-athens-other-root-${randomUUID()}`,
-    requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, status: "Proposed",
-  });
+    requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, });
   const { objective: babylonRoot } = await createObjective({
     statement: `phase1-tenant-move-babylon-root-${randomUUID()}`,
-    requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_BABYLON.participantId, status: "Proposed",
-  });
+    requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_BABYLON.participantId, });
   const { objective: athensChild } = await createObjective({
     statement: `phase1-tenant-move-athens-child-${randomUUID()}`,
     // TESTER_OBJECTIVE_ACHIEVE_ONLY only holds objective_achieve (CR-006 fixture), not
@@ -266,8 +224,7 @@ test("reParentObjective refuses a cross-tenant move, and listReParentCandidates 
     // and this test never asserts on the Capability itself, only cross-tenant
     // move behaviour, so leave it capability-less rather than fabricate one.
     requiredCapabilityCodes: [], tier: "Engineering",
-    parentObjectiveId: athensRoot.id, requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, status: "Proposed",
-  });
+    parentObjectiveId: athensRoot.id, requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, });
 
   const candidates = await listReParentCandidates(athensChild.id);
   assert.ok(candidates.some((c) => c.id === athensOtherRoot.id), "a same-tenant candidate must still be offered");
@@ -278,116 +235,34 @@ test("reParentObjective refuses a cross-tenant move, and listReParentCandidates 
   // A same-tenant move still works normally.
   const moved = await reParentObjective(athensChild.id, athensOtherRoot.id);
   assert.equal(moved.parent_objective_id, athensOtherRoot.id);
-});
-
-// CR-075 (owner: "Locked node locks its whole subtree") — submitting a root
-// locks every descendant too, not just the root itself: isObjectiveEditLocked
-// walks the ancestor chain (findAncestorPath), the existing counterpart to
-// findDescendantIds retireObjectiveSubtree already uses for the same "whole
-// subtree" pattern. A sibling subtree, unrelated to the locked root, must
-// stay completely unaffected.
-test("submitting a Proposed root locks edit/delete/move/add-child on its whole subtree, not just itself", async () => {
-  const { objective: root } = await createObjective({
-    statement: `phase1-subtree-root-${randomUUID()}`,
-    requiredCapabilityCodes: [],
-    tier: "Strategic",
-    status: "Proposed", requestedBy: TESTER_ALL_ID,
-  });
-  const { objective: child } = await createObjective({
-    statement: `phase1-subtree-child-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-design"],
-    tier: "Operational",
-    parentObjectiveId: root.id,
-    status: "Proposed", requestedBy: TESTER_ALL_ID,
-  });
-  const { objective: grandchild } = await createObjective({
-    statement: `phase1-subtree-grandchild-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-design"],
-    tier: "Engineering",
-    parentObjectiveId: child.id,
-    status: "Proposed", requestedBy: TESTER_ALL_ID,
-  });
-
-  // An unrelated sibling tree, to prove the lock doesn't leak globally.
-  const { objective: otherRoot } = await createObjective({
-    statement: `phase1-subtree-unrelated-${randomUUID()}`,
-    requiredCapabilityCodes: [],
-    tier: "Strategic",
-    status: "Proposed", requestedBy: TESTER_ALL_ID,
-  });
-
-  // Before the root is submitted: the whole subtree is freely editable.
-  assert.equal((await getObjectiveDetail(child.id))?.editLocked, false);
-  assert.equal((await getObjectiveDetail(grandchild.id))?.editLocked, false);
-
-  await submitObjective(root.id, TESTER_ALL_ID);
-
-  assert.equal((await getObjectiveDetail(root.id))?.editLocked, true);
-  assert.equal((await getObjectiveDetail(child.id))?.editLocked, true, "a submitted ancestor locks its child");
-  assert.equal((await getObjectiveDetail(grandchild.id))?.editLocked, true, "a submitted ancestor locks its grandchild too");
-  assert.equal((await getObjectiveDetail(grandchild.id))?.deletable, false);
-
-  await assert.rejects(() => updateObjective(child.id, { statement: "should-not-apply", requestedBy: TESTER_ALL_ID }), /already been submitted for activation/);
-  await assert.rejects(() => deleteObjective(grandchild.id), /already been submitted for activation/);
-  await assert.rejects(() => reParentObjective(grandchild.id, otherRoot.id), /already been submitted for activation/);
-  await assert.rejects(
-    () =>
-      createObjective({
-        statement: `phase1-subtree-new-grandchild-${randomUUID()}`,
-        requiredCapabilityCodes: ["architecture-design"],
-        tier: "Engineering",
-        parentObjectiveId: child.id,
-        requestedBy: TESTER_ALL_ID,
-      }),
-    /already been submitted for activation/
-  );
-
-  // The unrelated sibling tree is untouched by the root's own lock.
-  assert.equal((await getObjectiveDetail(otherRoot.id))?.editLocked, false);
-
-  // CR-075 (owner: "It does not extend to the tree/list rows' Delete button
-  // visibility - It has to") — the batched list-rendering path
-  // (getObjectiveChildren, used by both the tree page and its lazy-expand
-  // fragment) must reflect the same lock, not just the single-node detail
-  // page's own getObjectiveDetail call above.
-  const childrenOfChild = await getObjectiveChildren(child.id);
-  const grandchildRow = childrenOfChild.find((c) => c.id === grandchild.id);
-  assert.ok(grandchildRow, "grandchild must still appear in the list");
-  assert.equal(grandchildRow?.deletable, false, "a list row must reflect an ancestor's lock, not just its own submission state");
+  } finally {
+    const { error } = await participantsMasterDB.setAuthorisedBadges(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, originalBadges);
+    if (error) throw error;
+  }
 });
 
 // CR-073 — Active -> Reject: a real, distinct status (owner: "It is Active
-// to Reject" — not "Rejected", not a reuse of "Proposed"), its own
+// to Reject" — not "Rejected", not a reuse of the initial state), its own
 // objective_reject badge (owner: "A verb cannot denote two different
 // transitions" — not a reuse of Activate's), mandatory feedback that must be
 // genuinely new text every time, not just non-empty. TESTER_ALL_ID holds
 // every objective_* badge (seedIdentityBaseline.ts), so this
 // isn't isolating the badge check itself — just proving the transition and
 // its comment-mandatory gate.
-test("transitionObjective Active -> Reject requires new feedback every time and records it as a comment", async () => {
+test("transitionObjective Active -> Reject requires a comment and records it", async () => {
   const { objective } = await createObjective({
     statement: `phase1-reject-${randomUUID()}`,
     requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
     parentObjectiveId: await strategicRoot(),
-    status: "Proposed", requestedBy: TESTER_ALL_ID,
+    requestedBy: TESTER_ALL_ID,
   });
-  await submitObjective(objective.id, TESTER_ALL_ID);
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
   const noComment = await transitionObjective({ objectiveId: objective.id, targetState: "Reject", actorId: TESTER_ALL_ID });
   assert.equal(noComment.ok, false);
-  if (!noComment.ok) assert.equal(noComment.reason, "comment_required");
-
-  // Pre-seed a comment (as if left earlier via the general comment thread) —
-  // rejecting with that exact same text must still be refused, since a
-  // reject needs genuinely new feedback, not just a non-empty field.
-  const staleText = "needs more detail on the fraud-detection scope";
-  await objectivesDB.addComment(objective.id, TESTER_ALL_ID, ROOT_ACTOR_BADGE, staleText);
-  const staleComment = await transitionObjective({ objectiveId: objective.id, targetState: "Reject", actorId: TESTER_ALL_ID, comment: staleText });
-  assert.equal(staleComment.ok, false);
-  if (!staleComment.ok) assert.equal(staleComment.reason, "comment_required");
+  if (!noComment.ok) assert.equal(noComment.reason, "policy_blocked");
 
   const rejected = await transitionObjective({ objectiveId: objective.id, targetState: "Reject", actorId: TESTER_ALL_ID, comment: "needs a narrower fraud-detection scope before reconsidering" });
   assert.equal(rejected.ok, true);
@@ -396,57 +271,19 @@ test("transitionObjective Active -> Reject requires new feedback every time and 
     assert.deepEqual(rejected.appliedTransition, { fromState: "Active", toState: "Reject" });
   }
 
-  const { data: comments } = await objectivesDB.getComments(objective.id);
-  assert.equal(comments?.length, 2, "the stale pre-seeded comment plus the successful reject's own comment");
-  assert.equal(comments?.[1]?.comment_text, "needs a narrower fraud-detection scope before reconsidering");
+  const { data: afterReject } = await objectivesDB.findById(objective.id);
+  const comments = afterReject?.comments;
+  assert.equal(comments?.length, 1, "the refused attempt stored nothing, the successful reject stored its own comment");
+  assert.equal(comments?.[0]?.text, "needs a narrower fraud-detection scope before reconsidering");
 });
 
-// CR-075 — a Reject-status row is never self-locked (isObjectiveEditLocked
-// only fires for Proposed), but getRejectedObjectivesPage must still reflect
-// a currently-submitted ancestor's lock, same rule as every other list here
-// — this is its own code path (a distinct wiring fix), not just a re-test of
-// computeEditLockedIds itself.
-test("getRejectedObjectivesPage reflects an ancestor's lock on a Reject-status row", async () => {
-  const { objective: root } = await createObjective({
-    statement: `phase1-rejected-list-root-${randomUUID()}`,
-    requiredCapabilityCodes: [],
-    tier: "Strategic",
-    status: "Proposed", requestedBy: TESTER_ALL_ID,
-  });
-  const { objective: child } = await createObjective({
-    statement: `phase1-rejected-list-child-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-design"],
-    tier: "Engineering",
-    parentObjectiveId: root.id,
-    status: "Proposed", requestedBy: TESTER_ALL_ID,
-  });
-
-  await submitObjective(child.id, TESTER_ALL_ID);
-  await transitionObjective({ objectiveId: child.id, targetState: "Active", actorId: TESTER_ALL_ID });
-  const rejected = await transitionObjective({
-    objectiveId: child.id, targetState: "Reject", actorId: TESTER_ALL_ID,
-    comment: "needs revision before reconsidering",
-  });
-  assert.equal(rejected.ok, true);
-
-  const beforeRootSubmit = await getRejectedObjectivesPage({ limit: 100, offset: 0 });
-  assert.equal(beforeRootSubmit.items.find((o) => o.id === child.id)?.editLocked, false);
-
-  await submitObjective(root.id, TESTER_ALL_ID);
-
-  const afterRootSubmit = await getRejectedObjectivesPage({ limit: 100, offset: 0 });
-  const row = afterRootSubmit.items.find((o) => o.id === child.id);
-  assert.ok(row, "the rejected child must still appear in the list");
-  assert.equal(row?.editLocked, true, "a Reject-status row must reflect its ancestor's lock");
-});
-
-test("commissionSeu requires the Objective to be Active — blocks Proposed, succeeds once Activated", async () => {
+test("commissionSeu requires the Objective to be Active — blocks Defined, succeeds once Activated", async () => {
   const { objective } = await createObjective({
     statement: `phase1-gate-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     tier: "Engineering",
     parentObjectiveId: await strategicRoot(),
-    status: "Proposed", requestedBy: TESTER_ALL_ID,});
+    requestedBy: TESTER_ALL_ID,});
   const { template } = await ensureWebAppTemplateFixture();
   const published = await publishProfile({
     seed: {
@@ -469,7 +306,6 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
   assert.equal(blocked.ok, false);
   if (!blocked.ok) assert.ok(blocked.reason.includes("not Active"), `expected reason to mention "not Active", got: ${blocked.reason}`);
 
-  await submitObjective(objective.id, TESTER_ALL_ID);
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
@@ -498,7 +334,7 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
 // reason for this function to refuse.
 test("commissionFromExistingObjective takes an explicit Template choice — a partial-coverage match still commissions", async () => {
   const { template, profile } = await ensureWebAppTemplateFixture();
-  const { objective } = await createObjective({
+  const { objective } = await createActiveObjective({
     statement: `phase1-existing-${randomUUID()}`,
     // engineering-data-pipelines is real (capability-name) but has nothing
     // to do with the web-app fixture Template's own required set — proposed

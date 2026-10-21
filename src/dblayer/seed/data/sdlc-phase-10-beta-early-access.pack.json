@@ -64,7 +64,7 @@
     ],
     "reviewGates": [
       {
-        "code": "beta-entry-exit-criteria",
+        "code": "user-feedback-analysis-report",
         "name": "Beta Program Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

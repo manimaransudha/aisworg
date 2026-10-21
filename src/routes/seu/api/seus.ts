@@ -9,6 +9,7 @@ import { commissionSeu } from "../core/commissioning.js";
 import { getSeuStatus } from "../core/seus.js";
 import { getSeuEvents } from "../core/events.js";
 import { getEffectiveGovernanceModel } from "../core/governanceModel.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 router.post("/commission", async (req: Request, res: Response) => {
   try {
@@ -18,8 +19,7 @@ router.post("/commission", async (req: Request, res: Response) => {
     }
 
 
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
-    const actorId = String(req.session.user.id);
+    const actorId = requireActorId(req);
     const result = await commissionSeu({ objectiveId, templateIds: [templateId], profileIds: [profileId], actorId, requestedBy: actorId, tenantId: typeof tenantId === "string" ? tenantId : null });
 
     if (!result.ok) {

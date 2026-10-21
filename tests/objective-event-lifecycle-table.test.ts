@@ -8,13 +8,13 @@
 // chapter-defined lifecycle has no Validated state, see Version Feature
 // Plan.md §7 Q3). Two kinds of assertion:
 //   - DEFINITION: every row's transition_definitions record (event_type/
-//     version_event/submit_version_event) matches the table, checked
+//     version_event) matches the table, checked
 //     declaratively — including rows 7-10, whose own business logic
 //     (Supersede/Retire/Achieve/Archive) is still deferred (Implementation
 //     table), so they're checked here but not driven end-to-end.
 //   - DRIVEN: rows 1, 2, 3, 4, 6 are actually exercised through the real
-//     functions (createObjective/updateObjective/submitObjective/
-//     transitionObjective) and the events they publish are asserted against
+//     functions (createObjective/updateObjective/
+//     transitionEntity) and the events they publish are asserted against
 //     eventsDB directly — no mocking, same discipline as
 //     objective-lifecycle.test.ts.
 import "dotenv/config";
@@ -23,10 +23,10 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
-import { createObjective, submitObjective, transitionObjective, updateObjective } from "../src/routes/seu/core/objectives.js";
+import { createObjective, updateObjective } from "../src/routes/seu/core/objectives.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
-import { ensureEventSubscriptionsLoaded } from "./testFixtures.js";
+import { ensureEventSubscriptionsLoaded, transitionObjective } from "./testFixtures.js";
 import { TESTER_ALL_ID } from "./testFixtures.js";
 
 before(async () => {
@@ -37,8 +37,7 @@ async function strategicRoot(): Promise<string> {
   const { objective } = await createObjective({
     statement: `event-table-root-${randomUUID()}`,
     requiredCapabilityCodes: [],
-    tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed",
-  });
+    tier: "Strategic", requestedBy: TESTER_ALL_ID, });
   return objective.id;
 }
 
@@ -49,12 +48,11 @@ interface ObjectiveTableRow {
   toState: string;
   eventType: string;
   versionEvent: string | null;
-  submitVersionEvent?: string;
 }
 
 const OBJECTIVE_TABLE: ObjectiveTableRow[] = [
-  { row: 3, description: "Queue to Validate (submit)", fromState: "Proposed", toState: "Active", eventType: "ObjectiveProposed", versionEvent: null, submitVersionEvent: "VersionCreated" },
-  { row: 6, description: "Activate", fromState: "Proposed", toState: "Active", eventType: "ObjectiveActivated", versionEvent: "VersionActivated" },
+  { row: 1, description: "Create (birth)", fromState: "None", toState: "Defined", eventType: "ObjectiveCreated", versionEvent: "VersionCreated" },
+  { row: 6, description: "Activate", fromState: "Defined", toState: "Active", eventType: "ObjectiveActivated", versionEvent: "VersionActivated" },
   { row: 4, description: "Reject", fromState: "Active", toState: "Reject", eventType: "ObjectiveRejected", versionEvent: null },
   { row: 7, description: "Supersede (deferred)", fromState: "Active", toState: "Superseded", eventType: "ObjectiveSuperseded", versionEvent: "VersionSuperseded" },
   { row: 8, description: "Retire (deferred)", fromState: "Active", toState: "Retired", eventType: "ObjectiveRetired", versionEvent: "VersionDeprecated" },
@@ -68,49 +66,26 @@ test("DEFINITION: every Objective transition_definitions row matches Events and 
   for (const row of OBJECTIVE_TABLE) {
     const { data: def } = await transitionDefinitionsDB.find("Objective", row.fromState, row.toState);
     assert.ok(def, `no transition_definitions row for Objective ${row.fromState} -> ${row.toState} (table row ${row.row}: ${row.description})`);
-    if (row.submitVersionEvent) {
-      assert.equal(def!.submit_verb, "propose", `row ${row.row} (${row.description}): expected a submit_verb`);
-      assert.equal(def!.submit_version_event, row.submitVersionEvent, `row ${row.row} (${row.description}): submit_version_event`);
-    }
-    // Row 3 (submit) and row 6 (Activate) share the same transition_definitions
-    // row (Proposed->Active) — its own event_type/version_event belong to
-    // row 6's to_state transition, not row 3's submit step (checked via
-    // submit_version_event above; submit's own published event is the
-    // mechanical ${entityType}${fromState} triggerEngine produces, not a
-    // stored event_type — see the DRIVEN check below).
-    if (row.row !== 3) {
-      assert.equal(def!.event_type, row.eventType, `row ${row.row} (${row.description}): event_type`);
-      assert.equal(def!.version_event, row.versionEvent, `row ${row.row} (${row.description}): version_event`);
-    }
+    assert.equal(def!.submit_verb, null, `row ${row.row} (${row.description}): the submit step is deleted`);
+    assert.equal(def!.event_type, row.eventType, `row ${row.row} (${row.description}): event_type`);
+    assert.equal(def!.version_event, row.versionEvent, `row ${row.row} (${row.description}): version_event`);
   }
 });
 
-test("DRIVEN: row 1 (New) and row 2 (Edit) are pure Revisions — no event published", async () => {
+test("DRIVEN: row 1 (Create) publishes ObjectiveCreated and row 2 (Edit) is a pure Revision — no further event", async () => {
   const { objective } = await createObjective({
     statement: `event-table-revision-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, status: "Proposed",
-  });
+    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, });
   const { data: afterCreate } = await eventsDB.findByOriginatingObject("Objective", objective.id);
-  assert.deepEqual(afterCreate, [], "row 1 (New) must publish no event");
+  assert.deepEqual(afterCreate?.map((e) => e.event_type), ["ObjectiveCreated"], "row 1 (Create) publishes the birth event only");
+  assert.equal(afterCreate?.[0]?.actor_id, TESTER_ALL_ID);
+  assert.ok(afterCreate?.[0]?.authority_badge, "the birth event carries the real badge");
 
   await updateObjective(objective.id, { statement: "event-table-revision-edited", requestedBy: TESTER_ALL_ID });
   const { data: afterEdit } = await eventsDB.findByOriginatingObject("Objective", objective.id);
-  assert.deepEqual(afterEdit, [], "row 2 (Edit) must publish no event");
-});
-
-test("DRIVEN: row 3 (submit) publishes ObjectiveProposed — the VersionCreated moment", async () => {
-  const { objective } = await createObjective({
-    statement: `event-table-submit-${randomUUID()}`,
-    requiredCapabilityCodes: [],
-    tier: "Engineering",
-    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, status: "Proposed",
-  });
-  await submitObjective(objective.id, TESTER_ALL_ID);
-  const { data: events } = await eventsDB.findByOriginatingObject("Objective", objective.id);
-  assert.equal(events?.length, 1);
-  assert.equal(events?.[0]?.event_type, "ObjectiveProposed");
+  assert.equal(afterEdit?.length, 1, "row 2 (Edit) must publish no event");
 });
 
 test("DRIVEN: row 6 (Activate) publishes ObjectiveActivated, matching transition_definitions.event_type", async () => {
@@ -118,9 +93,7 @@ test("DRIVEN: row 6 (Activate) publishes ObjectiveActivated, matching transition
     statement: `event-table-activate-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, status: "Proposed",
-  });
-  await submitObjective(objective.id, TESTER_ALL_ID);
+    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, });
   const result = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true);
 
@@ -128,7 +101,7 @@ test("DRIVEN: row 6 (Activate) publishes ObjectiveActivated, matching transition
   const activated = events?.find((e) => e.event_type === "ObjectiveActivated");
   assert.ok(activated, "expected an ObjectiveActivated event");
 
-  const { data: def } = await transitionDefinitionsDB.find("Objective", "Proposed", "Active");
+  const { data: def } = await transitionDefinitionsDB.find("Objective", "Defined", "Active");
   assert.equal(activated!.event_type, def!.event_type);
 });
 
@@ -137,9 +110,7 @@ test("DRIVEN: row 4 (Reject) publishes ObjectiveRejected, matching transition_de
     statement: `event-table-reject-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, status: "Proposed",
-  });
-  await submitObjective(objective.id, TESTER_ALL_ID);
+    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, });
   await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   const result = await transitionObjective({
     objectiveId: objective.id, targetState: "Reject", actorId: TESTER_ALL_ID,

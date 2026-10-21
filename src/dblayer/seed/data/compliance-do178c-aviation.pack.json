@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "do178c-der-signoff-gate",
+        "code": "structural-coverage-report",
         "name": "DO-178C Designated Engineering Representative (DER) Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Designated Engineering Representative (DER) / Compliance Verification Engineer (CVE) attests that DO-178C life cycle objectives are satisfied.",
         "prompt": "Does the avionics software verification package confirm 100% objective completion under DO-178C?",
         "participant": "human",
-        "outputContract": "do178c-der-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "DO-178C Airborne Software Certification Checklist"
         ]

@@ -3,7 +3,7 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { assertCanonicalCategory, syncConceptFromEntity, retireConceptForEntity } from "./ontology.js";
+import { assertCanonicalCategory } from "./ontology.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
@@ -108,79 +108,14 @@ export async function inheritedServiceDefinitionContent(parentServiceDefinitionI
   };
 }
 
-export type TransitionServiceDefinitionResult = { ok: true; serviceDefinition: ServiceDefinitionRow } | { ok: false; reason: string; detail?: string };
-
-async function syncOntologyOnActivate(row: ServiceDefinitionRow, actorId: string): Promise<void> {
-  await syncConceptFromEntity("service-name", row.code, row.name, row.purpose ?? null, row.tenant_id, actorId);
-}
-
-async function demoteOntologyIfNoOtherActive(row: ServiceDefinitionRow, actorId: string, actorBadge: string): Promise<void> {
-  const { data: stillActive } = await serviceDefinitionsDB.findActiveByCode(row.code, row.tenant_id);
-  if (!stillActive) await retireConceptForEntity("service-name", row.code, row.tenant_id, actorId, actorBadge);
-}
-
-export async function transitionServiceDefinition(input: { serviceDefinitionId: string; targetState: ServiceDefinitionRow["status"]; actorId: string }): Promise<TransitionServiceDefinitionResult> {
-  const { data: serviceDefinition } = await serviceDefinitionsDB.findById(input.serviceDefinitionId);
-  if (!serviceDefinition) return { ok: false, reason: "not_found" };
-  const fromState = serviceDefinition.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Service", fromState, toState: input.targetState, actorId: input.actorId, entityId: serviceDefinition.id, context: { serviceDefinition } });
-  if (!gate.allowed) {
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Service ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-    return { ok: false, reason: gate.reason };
-  }
-
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
-  const { data: updated, error } = await serviceDefinitionsDB.updateStatus(serviceDefinition.id, input.targetState);
-  if (error || !updated) throw error ?? new Error("failed to update Service Definition status");
-
-  if (input.targetState === "Active" || fromState === "Active") {
-    if (!input.actorId) throw new Error("a real actorId is required to sync the service-name Ontology concept");
-    if (input.targetState === "Active") await syncOntologyOnActivate(updated, input.actorId);
-    else {
-      await demoteOntologyIfNoOtherActive(updated, input.actorId, gate.authorityBadge);
-    }
-  }
-
-  await eventBus.publish({
-    eventType: gate.eventType ?? "ServiceDefinitionTransitioned",
-    originatingObjectType: "ServiceDefinition",
-    originatingObjectId: updated.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState, code: updated.code },
-    actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
-    versionEvent: gate.versionEvent,
-    fromState,
-    toState: input.targetState,
-    tenantId: updated.tenant_id,
-  });
-  return { ok: true, serviceDefinition: updated };
-}
-
-const AUTHORING_NEXT_STATE: Partial<Record<ServiceDefinitionRow["status"], ServiceDefinitionRow["status"]>> = {
-  Defined: "Published",
-  Published: "Active",
-  Active: "Deprecated",
-  Deprecated: "Retired",
-  Retired: "Archived",
-};
-
-export async function advanceServiceDefinitionOneStep(serviceDefinition: ServiceDefinitionRow, actorId: string): Promise<TransitionServiceDefinitionResult> {
-  const targetState = AUTHORING_NEXT_STATE[serviceDefinition.status];
-  if (!targetState) return { ok: false, reason: "no_further_step", detail: `Service Definition is already ${serviceDefinition.status} — no further authoring step` };
-  return transitionServiceDefinition({ serviceDefinitionId: serviceDefinition.id, targetState, actorId });
-}
-
-export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await serviceDefinitionsDB.findById(serviceDefinitionId);
   if (!source) return { ok: false, errors: ["Service Definition not found"] };
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Service");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Service`] };
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
   if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const birth = await transitionEngine.beginBirth({ entityType: "Service", actorId });
   const { data: newDraft, error } = await serviceDefinitionsDB.createDraft({
     code: source.code,
     name: source.name,
@@ -193,8 +128,9 @@ export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: strin
     success: source.success,
     consumers: source.consumers,
     version: await nextAvailablePatchVersion(source.version, async (candidate) => !!(await serviceDefinitionsDB.findByCodeAndVersion(source.code, candidate, source.tenant_id)).data),
+    status: birth.initialState as ServiceDefinitionRow["status"],
     authoredBy: copyMaster.id,
-    authorBadge,
+    authorBadge: birth.authorityBadge,
     draftContent: {
       code: source.code, name: source.name, capabilityCode: source.capability_code, purpose: source.purpose ?? "", inputs: source.inputs,
       outputs: source.outputs, serviceLevel: source.service_level, governance: source.governance ?? "", success: source.success ?? "", consumers: source.consumers,
@@ -204,6 +140,18 @@ export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: strin
     schemaDefinitionId: copySchema.id,
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Service Definition")).message] };
+  await eventBus.publish({
+    eventType: birth.eventType,
+    originatingObjectType: "Service",
+    originatingObjectId: newDraft.id,
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    actorId: copyMaster.id,
+    authorityBadge: birth.authorityBadge,
+    versionEvent: birth.versionEvent,
+    payload: { code: newDraft.code, version: newDraft.version },
+    tenantId: newDraft.tenant_id,
+  });
   return { ok: true, draftId: newDraft.id };
 }
 

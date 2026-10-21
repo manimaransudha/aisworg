@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "scm-director-signoff-gate",
+        "code": "operational-intelligence-report",
         "name": "Supply Chain Operations Director Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Supply Chain Director confirms that inventory valuation, WMS bin accuracy, and order dispatch workflows satisfy operational benchmarks.",
         "prompt": "Does the supply chain documentation confirm inventory accuracy and WMS fulfillment performance?",
         "participant": "human",
-        "outputContract": "scm-wms-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Supply Chain & WMS Audit Checklist"
         ]

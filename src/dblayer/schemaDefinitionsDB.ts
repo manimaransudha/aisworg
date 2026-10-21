@@ -9,14 +9,14 @@ export const schemaDefinitionsDB = {
     schema: Record<string, unknown>;
     compatibleVersions?: number[];
     incompatibleVersions?: number[];
-    lifecycleState?: SchemaDefinitionRow["lifecycle_state"];
+    lifecycleState: SchemaDefinitionRow["lifecycle_state"];
     authorId: string;
     authorBadge: string;
   }): Promise<DbResult<SchemaDefinitionRow>> {
     try {
       const { rows } = await query<SchemaDefinitionRow>(
-        `INSERT INTO schema_definitions (entity_kind, version, schema, compatible_versions, incompatible_versions, lifecycle_state, author_id, author_badge) VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'Created'), $7, $8) RETURNING *`,
-        [input.entityKind, input.version, JSON.stringify(input.schema), input.compatibleVersions ?? [], input.incompatibleVersions ?? [], input.lifecycleState ?? null, input.authorId, input.authorBadge]
+        `INSERT INTO schema_definitions (entity_kind, version, schema, compatible_versions, incompatible_versions, lifecycle_state, author_id, author_badge) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [input.entityKind, input.version, JSON.stringify(input.schema), input.compatibleVersions ?? [], input.incompatibleVersions ?? [], input.lifecycleState, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

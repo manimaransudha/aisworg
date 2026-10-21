@@ -64,7 +64,7 @@
     ],
     "reviewGates": [
       {
-        "code": "post-mortem-lessons-learned",
+        "code": "lessons-learned-report",
         "name": "Hypercare Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

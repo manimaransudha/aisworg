@@ -1,5 +1,6 @@
 import pkg from "pg";
-import type { QueryResult, QueryResultRow } from "pg";
+import type { PoolClient, QueryResult, QueryResultRow } from "pg";
+import { AsyncLocalStorage } from "node:async_hooks";
 import * as dotenv from "dotenv";
 import path from "path";
 import {logger} from "./logger.js";
@@ -62,7 +63,35 @@ if (process.env.DB_POOL_TRACE) {
 }
 
 export default pool;
-export const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> => pool.query<T>(text, params);
+// The connection of the transaction running in the current async context, if any (CR-128).
+const transactionClient = new AsyncLocalStorage<PoolClient>();
+const executor = (): Pick<PoolClient, "query"> => transactionClient.getStore() ?? pool;
+
+// Runs `work` in one transaction. Every `query` and `bulkInsert` it makes, however deep in the DB layer, uses the
+// same connection. It commits when `work` returns and rolls back when `work` throws. A call made inside a running
+// transaction joins it. A DB-layer function that returns `{ error }` instead of throwing does not roll back by
+// itself: the caller of that function must throw on the error.
+export async function withTransaction<T>(work: () => Promise<T>): Promise<T> {
+    if (transactionClient.getStore()) return work();
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        const result = await transactionClient.run(client, work);
+        await client.query("COMMIT");
+        return result;
+    } catch (err) {
+        try {
+            await client.query("ROLLBACK");
+        } catch (rollbackErr) {
+            logger.error("Transaction rollback failed", rollbackErr as Error);
+        }
+        throw err;
+    } finally {
+        client.release();
+    }
+}
+
+export const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> => executor().query<T>(text, params);
 
 export function bulkInsert<T extends QueryResultRow = QueryResultRow>(table: string, columns: string[], rows: unknown[][], options: { onConflict?: string } = {}): Promise<QueryResult<T>> {
     if (rows.length === 0) {
@@ -76,7 +105,7 @@ export function bulkInsert<T extends QueryResultRow = QueryResultRow>(table: str
         return `(${ph.join(", ")})`;
     });
     const text = `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${placeholders.join(", ")}${options.onConflict ? ` ${options.onConflict}` : ""} RETURNING *`;
-    return pool.query<T>(text, values);
+    return executor().query<T>(text, values);
 }
 
 export class DatabaseConnectionError extends Error {

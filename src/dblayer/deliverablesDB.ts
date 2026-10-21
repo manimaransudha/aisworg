@@ -10,15 +10,16 @@ export const deliverablesDB = {
     acquisitionScope?: AcquisitionScope;
     producingCapabilityId?: string | null;
     code?: string | null;
+    state: string;
     authorId: string;
     authorBadge: string;
   }): Promise<DbResult<DeliverableRow>> {
     try {
       const { rows } = await query<DeliverableRow>(
-        `INSERT INTO deliverables (seu_id, name, category, acquisition_scope, producing_capability_id, code, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO deliverables (seu_id, name, category, acquisition_scope, producing_capability_id, code, lifecycle_state, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [input.seuId, input.name, input.category ?? null, input.acquisitionScope ?? "SEU", input.producingCapabilityId ?? null, input.code ?? null, input.authorId, input.authorBadge]
+        [input.seuId, input.name, input.category ?? null, input.acquisitionScope ?? "SEU", input.producingCapabilityId ?? null, input.code ?? null, input.state, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

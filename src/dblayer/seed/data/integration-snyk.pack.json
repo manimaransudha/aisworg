@@ -52,14 +52,14 @@
     ],
     "reviewGates": [
       {
-        "code": "snyk-integration-review-gate",
+        "code": "dependency-upgrade-plan",
         "name": "Snyk DevSecOps Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Security Lead confirms that Snyk vulnerability scans and license compliance checks satisfy security requirements.",
         "prompt": "Does the Snyk integration verify vulnerability scan triggers and PR fix recommendation delivery?",
         "participant": "human",
-        "outputContract": "snyk-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Snyk Security Integration Verification Checklist"
         ]

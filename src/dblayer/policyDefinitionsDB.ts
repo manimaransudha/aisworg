@@ -22,6 +22,7 @@ export const policyDefinitionsDB = {
     tenantId: string;
     parentPolicyDefinitionId?: string | null;
     schemaDefinitionId: string;
+    status: PolicyDefinitionRow["status"];
   }): Promise<DbResult<PolicyDefinitionRow>> {
     try {
       const constraintType = input.constraintType ?? "Policy";
@@ -50,7 +51,7 @@ export const policyDefinitionsDB = {
 
       const { rows } = await query<PolicyDefinitionRow>(
         `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, authored_by, author_badge, draft_content, tenant_id, parent_policy_definition_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Draft', $10, $11, $12, $13, $14, $15)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $16, $10, $11, $12, $13, $14, $15)
          RETURNING *`,
         [
           input.code,
@@ -68,6 +69,7 @@ export const policyDefinitionsDB = {
           input.tenantId,
           input.parentPolicyDefinitionId ?? null,
           schemaRow?.id ?? null,
+          input.status,
         ]
       );
       return { data: rows[0] };
@@ -181,6 +183,17 @@ export const policyDefinitionsDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[policyDefinitionsDB] findAllVisibleTo error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async findByIds(ids: string[]): Promise<DbResult<PolicyDefinitionRow[]>> {
+    try {
+      if (ids.length === 0) return { data: [] };
+      const { rows } = await query<PolicyDefinitionRow>("SELECT * FROM policy_definitions WHERE id = ANY($1::uuid[])", [ids]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[policyDefinitionsDB] findByIds error", err as Error);
       return { error: err as Error };
     }
   },

@@ -79,7 +79,7 @@
     ],
     "reviewGates": [
       {
-        "code": "technical-specifications-per-feature",
+        "code": "detailed-design-specification",
         "name": "Implementation Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

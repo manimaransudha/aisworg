@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "coppa-privacy-review-gate",
+        "code": "access-control-model",
         "name": "COPPA Children's Privacy Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Privacy Officer confirms that age gating, VPC verification, and ad tracker blocking meet COPPA requirements.",
         "prompt": "Does the privacy audit evidence confirm full COPPA compliance for child user data?",
         "participant": "human",
-        "outputContract": "coppa-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "COPPA Children's Privacy Audit Checklist"
         ]

@@ -7,8 +7,10 @@ import { logger } from "../../utils/logger.js";
 import { serviceDefinitionsDB } from "../serviceDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../participantsMasterDB.js";
-import { transitionServiceDefinition } from "../../routes/seu/core/serviceDefinitions.js";
-import type { ServiceLevelExpectation } from "../seuTypes.js";
+import { transitionEntity } from "../../domain/engine/entityTransition.js";
+import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
+import { eventBus } from "../../domain/engine/eventBus.js";
+import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../seuTypes.js";
 import { ontologyDB } from "../ontologyDB.js";
 import { userDB } from "../userDB.js";
 import { getPlatformTenantId } from "../constants.js";
@@ -52,6 +54,11 @@ export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
     throw new Error(`[seedServiceDefinitions] values not in Ontology deliverable-name: ${invalid.map((x) => `${x.code}.${x.field}="${x.v}"`).join(", ")}`);
   }
 
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Service");
+  if (birthError) throw birthError;
+  if (!birth) throw new Error("[seedServiceDefinitions] no birth Transition Definition for Service -- seed transition definitions first");
+  if (!birth.event_type) throw new Error("[seedServiceDefinitions] the Service birth Transition Definition names no event");
+
   const { rowCount: deleted } = await query("DELETE FROM service_definitions WHERE tenant_id = $1", [platformTenantId]);
   logger.info(`[seedServiceDefinitions] deleted ${deleted ?? 0} platform-tenant rows -- creating ${seeds.length} baseline rows now`);
 
@@ -75,6 +82,7 @@ export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
       success: seed.success,
       consumers: seed.consumers,
       version: seed.version,
+      status: birth.to_state as ServiceDefinitionRow["status"],
       authoredBy: actor.authoredBy,
       authorBadge: actor.authorBadge,
       draftContent: {
@@ -91,13 +99,28 @@ export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
       continue;
     }
 
-    const publish = await transitionServiceDefinition({ serviceDefinitionId: created.id, targetState: "Published", actorId: actor.authoredBy});
-    if (!publish.ok) throw new Error(`[seedServiceDefinitions] failed to publish ${seed.code}: ${publish.reason}${publish.detail ? ` (${publish.detail})` : ""}`);
+    await eventBus.publish({
+      eventType: birth.event_type,
+      originatingObjectType: "Service",
+      originatingObjectId: created.id,
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      actorId: actor.authoredBy,
+      authorityBadge: actor.authorBadge,
+      payload: { code: created.code, version: created.version },
+      tenantId: created.tenant_id,
+    });
 
-    const activate = await transitionServiceDefinition({ serviceDefinitionId: created.id, targetState: "Active", actorId: actor.authoredBy});
-    if (!activate.ok) throw new Error(`[seedServiceDefinitions] failed to activate ${seed.code}: ${activate.reason}${activate.detail ? ` (${activate.detail})` : ""}`);
+    const validate = await transitionEntity({ entityType: "Service", entityId: created.id, targetState: "Validated", actorId: actor.authoredBy });
+    if (!validate.ok) throw new Error(`[seedServiceDefinitions] failed to validate ${seed.code}: ${"detail" in validate ? validate.detail : validate.reason}`);
 
-    logger.info(`[seedServiceDefinitions] (${i}/${seeds.length}) ${seed.code} -- created + published + activated`);
+    const publish = await transitionEntity({ entityType: "Service", entityId: created.id, targetState: "Published", actorId: actor.authoredBy });
+    if (!publish.ok) throw new Error(`[seedServiceDefinitions] failed to publish ${seed.code}: ${"detail" in publish ? publish.detail : publish.reason}`);
+
+    const activate = await transitionEntity({ entityType: "Service", entityId: created.id, targetState: "Active", actorId: actor.authoredBy });
+    if (!activate.ok) throw new Error(`[seedServiceDefinitions] failed to activate ${seed.code}: ${"detail" in activate ? activate.detail : activate.reason}`);
+
+    logger.info(`[seedServiceDefinitions] (${i}/${seeds.length}) ${seed.code} -- created + validated + published + activated`);
   }
 }
 

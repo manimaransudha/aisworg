@@ -64,7 +64,7 @@
     ],
     "reviewGates": [
       {
-        "code": "release-plan",
+        "code": "release-notes-change-log",
         "name": "Release Planning Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

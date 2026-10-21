@@ -16,6 +16,7 @@ export const deliverableDefinitionsDB = {
     tenantId: string;
     parentDeliverableDefinitionId?: string | null;
     schemaDefinitionId: string;
+    status: DeliverableDefinitionRow["status"];
   }): Promise<DbResult<DeliverableDefinitionRow>> {
     try {
       const version = input.version ?? INITIAL_VERSION;
@@ -36,7 +37,7 @@ export const deliverableDefinitionsDB = {
 
       const { rows } = await query<DeliverableDefinitionRow>(
         `INSERT INTO deliverable_definitions (code, description, version, status, authored_by, author_badge, draft_content, tenant_id, parent_deliverable_definition_id, schema_definition_id)
-         VALUES ($1, $2, $3, 'Draft', $4, $5, $6, $7, $8, $9)
+         VALUES ($1, $2, $3, $10, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
         [
           input.code,
@@ -48,6 +49,7 @@ export const deliverableDefinitionsDB = {
           input.tenantId,
           input.parentDeliverableDefinitionId ?? null,
           schemaRow?.id ?? null,
+          input.status,
         ]
       );
       return { data: rows[0] };

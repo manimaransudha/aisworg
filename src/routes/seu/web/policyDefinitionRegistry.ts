@@ -11,9 +11,9 @@ import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { listPolicyDefinitionsWithNextStates, copyPolicyDefinitionAsNewDraft } from "../core/policyDefinitions.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
  
 const POLICY_DEFINITION_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
@@ -36,8 +36,8 @@ router.get("/policy-definitions", attachVM("seu/policy-definitions/index"), asyn
     req.vm.opt.states = POLICY_DEFINITION_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = await getPlatformTenantId();
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-    const canCopy = actorId ? (await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "policy_define" })).allowed : false;
+    const held = await resolveHeldBadges(req);
+    const canCopy = held.has("policy_define");
     req.vm.opt.canCopy = canCopy;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/policy-definitions/index", req.vm);
@@ -48,13 +48,9 @@ router.get("/policy-definitions", attachVM("seu/policy-definitions/index"), asyn
 });
 
 router.post("/policy-definitions/:id/copy", async (req: Request, res: Response) => {
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-  if (!actorId) return redirects.seu.policyDefinitionsCopy.error(req, res, "Sign in required.");
-  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "policy_define" });
-  if (!auth.allowed) return redirects.seu.policyDefinitionsCopy.error(req, res, "You don't hold the policy_define badge.");
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "policy_define");
+  const { actorId } = await resolveActorAndBadge(req);
   try {
-    const result = await copyPolicyDefinitionAsNewDraft(String(req.params.id), actorId, authorBadge);
+    const result = await copyPolicyDefinitionAsNewDraft(String(req.params.id), actorId);
     if (!result.ok) return redirects.seu.policyDefinitionsCopy.error(req, res, `Copy failed: ${result.errors.join("; ")}`);
     return redirects.seu.policyDefinitionsCopy.success(req, res, "Policy Definition copied — a new Draft is ready to edit.", `/aisworg/seu/sdk/policy-authoring/${result.draftId}`);
   } catch (err) {

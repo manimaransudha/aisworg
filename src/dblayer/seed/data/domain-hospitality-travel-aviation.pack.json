@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "travel-operations-signoff-gate",
+        "code": "effort-estimate",
         "name": "Travel & Aviation Operations Director Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Director of Travel & Aviation Operations confirms that GDS ticketing, PMS check-in, and flight operations satisfy industry standards.",
         "prompt": "Does the travel & aviation documentation confirm reservation accuracy and flight operations compliance?",
         "participant": "human",
-        "outputContract": "hospitality-travel-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Hospitality, Travel & Aviation Audit Checklist"
         ]

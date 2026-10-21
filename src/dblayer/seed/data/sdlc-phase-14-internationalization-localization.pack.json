@@ -64,7 +64,7 @@
     ],
     "reviewGates": [
       {
-        "code": "locale-language-strategy",
+        "code": "engineering-standard",
         "name": "i18n & Localization Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

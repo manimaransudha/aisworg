@@ -5,8 +5,10 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
+import { readTargetState } from "../../../utils/transitionRequest.js";
 import { createDeliverable, transitionDeliverable } from "../core/deliverables.js";
 import { explainDeliverable, impactOfDeliverable } from "../core/traceability.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 router.post("/seus/:id/deliverables", async (req: Request, res: Response) => {
   try {
@@ -14,8 +16,7 @@ router.post("/seus/:id/deliverables", async (req: Request, res: Response) => {
     if (typeof name !== "string" || !name.trim() || typeof category !== "string" || !category.trim()) {
       return res.status(400).json({ error: "name and category are required" });
     }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
-    const result = await createDeliverable({ seuId: String(req.params.id), name, category, actorId: String(req.session.user.id) });
+    const result = await createDeliverable({ seuId: String(req.params.id), name, category, actorId: requireActorId(req) });
     res.status(201).json({ deliverable: result.deliverable });
   } catch (err) {
     logger.error("[api/seu/deliverables] POST /seus/:id/deliverables error", err as Error);
@@ -25,12 +26,9 @@ router.post("/seus/:id/deliverables", async (req: Request, res: Response) => {
 
 router.post("/deliverables/:id/transition", async (req: Request, res: Response) => {
   try {
-    const { targetState } = req.body ?? {};
-    if (typeof targetState !== "string" || !targetState.trim()) {
-      return res.status(400).json({ error: "targetState is required" });
-    }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
-    const actorId = String(req.session.user.id);
+    const targetState = readTargetState(req, res);
+    if (targetState === null) return;
+    const actorId = requireActorId(req);
 
     const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorId, requestedBy: actorId });
 

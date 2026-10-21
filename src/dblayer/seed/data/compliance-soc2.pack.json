@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "soc2-type2-audit-readiness-gate",
+        "code": "backup-restore-verification-report",
         "name": "SOC 2 Type II Audit Readiness Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Compliance Officer and Head of Quality Assurance attest that continuous control evidence packages demonstrate operating effectiveness for SOC 2 Type II audit.",
         "prompt": "Does the SOC 2 evidence repository demonstrate continuous control operating effectiveness across CC1-CC9?",
         "participant": "human",
-        "outputContract": "soc2-audit-readiness-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "SOC 2 Type II Trust Services Criteria Verification Checklist"
         ]

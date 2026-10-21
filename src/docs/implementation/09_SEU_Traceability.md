@@ -67,7 +67,7 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.1 — platform permits authorised users to commission an SEU<br> Ref: §5 FR-2.1</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts (commission entry point, governed transition)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real, badge-gated via <code>transitionEngine.evaluate</code> / <code>badgeAuthorityEngine.authorise</code> (CR-006).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Real, badge-gated via <code>transitionEngine.evaluate</code> / <code>badgeAuthorityEngine.resolveAuthorBadge</code> (CR-006).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>

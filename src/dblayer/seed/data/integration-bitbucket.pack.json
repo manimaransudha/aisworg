@@ -57,14 +57,14 @@
     ],
     "reviewGates": [
       {
-        "code": "bitbucket-integration-review-gate",
+        "code": "repository-configuration",
         "name": "Bitbucket Integration Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Lead Developer confirms that Bitbucket API connections and Pull Request merge checks satisfy code review rules.",
         "prompt": "Does the Bitbucket integration verify Pull Request approval rules and webhook event delivery?",
         "participant": "human",
-        "outputContract": "bitbucket-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Bitbucket Integration Verification Checklist"
         ]

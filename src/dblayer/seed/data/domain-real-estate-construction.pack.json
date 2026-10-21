@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "construction-director-signoff-gate",
+        "code": "training-plan",
         "name": "Construction & Real Estate Director Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Construction Director and Property Manager confirm that lease contracts, change orders, and progress payments comply with industry standards.",
         "prompt": "Does the documentation confirm valid lease execution and certified construction progress billing?",
         "participant": "human",
-        "outputContract": "real-estate-construction-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Real Estate & Construction Audit Checklist"
         ]

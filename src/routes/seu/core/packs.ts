@@ -9,7 +9,6 @@ import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
-import { backfillPolicyCode } from "../../../dblayer/seed/seedTransitionDefinitions.js";
 import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
 import { reviewGatesDB } from "../../../dblayer/reviewGatesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
@@ -17,11 +16,12 @@ import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsD
 import { listActiveNouns } from "./authorityVocabulary.js";
 import { listTransitionsForEntityType } from "./policyDefinitions.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { transitionEntity } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
+import { governedTransitionsFor } from "../../../domain/engine/policyChecks.js";
 import type { PackCategory, PackClassification, PackContributions, PackRow, PolicyCondition, PolicyDefinitionRow, PolicyScope, ServiceDefinitionRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { getPlatformTenantId, INITIAL_VERSION } from "../../../dblayer/constants.js";
 import { compareSemver, nextUnusedPatchVersion, semverError } from "../../../utils/version.js";
 
@@ -45,30 +45,16 @@ async function deliverableNamesFromCapabilityCodes(capabilityCodes: string[], vi
   return names;
 }
 
-function governedTransitionsFor(scope: PolicyScope, applicabilityDeliverables: PolicyCondition["applicabilityDeliverables"]): Array<{ governedTransition: string | null; deliverableNames: string[]; governingCondition: Record<string, unknown> | null }> {
-  if (scope === "Eligibility") {
-    if (!applicabilityDeliverables.length) return [{ governedTransition: null, deliverableNames: [], governingCondition: null }];
-    return applicabilityDeliverables.map((row) => ({ governedTransition: null, deliverableNames: [row.name], governingCondition: row.governingCondition }));
-  }
-  if (!applicabilityDeliverables.length) return [{ governedTransition: "Deliverable|Approved|Baselined", deliverableNames: [], governingCondition: null }];
-  // A row with an empty name applies to every Deliverable.
-  return applicabilityDeliverables.flatMap((row) => {
-    const deliverableNames = row.name ? [row.name] : [];
-    return row.transitions.length
-      ? row.transitions.map((t) => ({ governedTransition: t, deliverableNames, governingCondition: row.governingCondition }))
-      : [{ governedTransition: "Deliverable|Approved|Baselined", deliverableNames, governingCondition: row.governingCondition }];
-  });
-}
-
 const DEFAULT_CONDITION: PolicyCondition = {
   statement: "", severity: "Medium", applicabilityDeliverables: [],
   requiredEvidence: { title: "", category: "", description: "", collectionMethod: "" }, relatedObligations: [], exceptionRules: [],
 };
 
-async function validateChecklistIds(checklistIds: string[] | undefined, seed: PackSeedInput, context: string): Promise<string[]> {
+// A Checklist reference is a name this Pack declares, or the id of a published Checklist owned by a Pack with the same code.
+export async function validateChecklistIds(checklistIds: string[] | undefined, declaredNames: string[], packCode: string, context: string): Promise<string[]> {
   const errors: string[] = [];
   for (const ref of checklistIds ?? []) {
-    const samePackMatch = (seed.contributions.checklists ?? []).some((cl) => cl.name === ref);
+    const samePackMatch = declaredNames.includes(ref);
     if (samePackMatch) continue;
     const { data: existing } = await checklistsDB.findById(ref);
     if (!existing) {
@@ -76,17 +62,18 @@ async function validateChecklistIds(checklistIds: string[] | undefined, seed: Pa
       continue;
     }
     const { data: owningPack } = await packsDB.findById(existing.originating_pack_id);
-    if (!owningPack || owningPack.code !== seed.code) {
-      errors.push(`${context} references Checklist "${existing.name}" (id ${ref}) — its owning Pack's code does not match this Pack's own code "${seed.code}"; a Checklist may only be referenced by Packs sharing the same code`);
+    if (!owningPack || owningPack.code !== packCode) {
+      errors.push(`${context} references Checklist "${existing.name}" (id ${ref}) — its owning Pack's code does not match this Pack's own code "${packCode}"; a Checklist may only be referenced by Packs sharing the same code`);
     }
   }
   return errors;
 }
 
-async function validatePolicyCodes(policyRefs: string[] | undefined, seed: PackSeedInput, context: string): Promise<string[]> {
+// A Policy reference is a code this Pack declares, or the id of a published Policy owned by a Pack with the same code.
+export async function validatePolicyCodes(policyRefs: string[] | undefined, declaredCodes: string[], packCode: string, context: string): Promise<string[]> {
   const errors: string[] = [];
   for (const ref of policyRefs ?? []) {
-    const samePackMatch = (seed.contributions.policies ?? []).includes(ref);
+    const samePackMatch = declaredCodes.includes(ref);
     if (samePackMatch) continue;
     const { data: existing } = await policiesDB.findByIds([ref]);
     const policy = existing?.[0];
@@ -95,8 +82,8 @@ async function validatePolicyCodes(policyRefs: string[] | undefined, seed: PackS
       continue;
     }
     const { data: owningPack } = await packsDB.findById(policy.originating_pack_id ?? "");
-    if (!owningPack || owningPack.code !== seed.code) {
-      errors.push(`${context} references Policy "${policy.name}" (id ${ref}) — its owning Pack's code does not match this Pack's own code "${seed.code}"; a Policy may only be referenced by Packs sharing the same code`);
+    if (!owningPack || owningPack.code !== packCode) {
+      errors.push(`${context} references Policy "${policy.name}" (id ${ref}) — its owning Pack's code does not match this Pack's own code "${packCode}"; a Policy may only be referenced by Packs sharing the same code`);
     }
   }
   return errors;
@@ -249,7 +236,7 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
       if (!gate.requiredPolicyCodes?.length) {
         errors.push(`quality gate "${gate.name}" has criteriaType requires_active_policy but no requiredPolicyCodes`);
       } else {
-        for (const err of await validatePolicyCodes(gate.requiredPolicyCodes, seed, `quality gate "${gate.name}"`)) errors.push(err);
+        for (const err of await validatePolicyCodes(gate.requiredPolicyCodes, seed.contributions.policies ?? [], seed.code, `quality gate "${gate.name}"`)) errors.push(err);
       }
     }
     if (gate.criteriaType === "requires_accepted_review") {
@@ -259,8 +246,8 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
         errors.push(`quality gate "${gate.name}" references unknown Review Gate "${gate.deliverableName}" — the Review Gate must be declared in this same Pack's contributions`);
       }
     }
-    for (const err of await validateChecklistIds(gate.checklistIds, seed, `quality gate "${gate.name}"`)) errors.push(err);
-    for (const err of await validateChecklistIds(gate.recommendedChecklistIds, seed, `quality gate "${gate.name}"`)) errors.push(err);
+    for (const err of await validateChecklistIds(gate.checklistIds, (seed.contributions.checklists ?? []).map((cl) => cl.name), seed.code, `quality gate "${gate.name}"`)) errors.push(err);
+    for (const err of await validateChecklistIds(gate.recommendedChecklistIds, (seed.contributions.checklists ?? []).map((cl) => cl.name), seed.code, `quality gate "${gate.name}"`)) errors.push(err);
   }
 
   const seenReviewGateSlots = new Set<string>();
@@ -277,8 +264,8 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
     const slotKey = `${rg.governedTransition ?? ""}::${rg.code ?? ""}`;
     if (seenReviewGateSlots.has(slotKey)) errors.push(`duplicate review gate within Pack: "${rg.governedTransition}" [${rg.code}] is targeted by more than one contribution`);
     seenReviewGateSlots.add(slotKey);
-    for (const err of await validateChecklistIds(rg.checklistIds, seed, `review gate "${rg.name}"`)) errors.push(err);
-    for (const err of await validateChecklistIds(rg.recommendedChecklistIds, seed, `review gate "${rg.name}"`)) errors.push(err);
+    for (const err of await validateChecklistIds(rg.checklistIds, (seed.contributions.checklists ?? []).map((cl) => cl.name), seed.code, `review gate "${rg.name}"`)) errors.push(err);
+    for (const err of await validateChecklistIds(rg.recommendedChecklistIds, (seed.contributions.checklists ?? []).map((cl) => cl.name), seed.code, `review gate "${rg.name}"`)) errors.push(err);
   }
 
   const seenChecklistNames = new Set<string>();
@@ -427,29 +414,43 @@ export interface PublishPackResult {
   errors?: string[];
 }
 
-export async function createPackDraft(seed: PackSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true; pack: PackRow } | { ok: false; errors: string[] }> {
+export async function createPackDraft(seed: PackSeedInput, authorId: string): Promise<{ ok: true; pack: PackRow } | { ok: false; errors: string[] }> {
   const validation = await validatePackSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
   const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
   if (!packSchema) return { ok: false, errors: [`no schema_definitions grammar for Pack`] };
-  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed), schemaDefinitionId: packSchema.id, authoredBy: authorId, authorBadge, tenantId: seed.tenantId ?? (await getPlatformTenantId()) });
+  const birth = await transitionEngine.beginBirth({ entityType: "Pack", actorId: authorId });
+  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed), schemaDefinitionId: packSchema.id, status: birth.initialState as PackRow["status"], authoredBy: authorId, authorBadge: birth.authorityBadge, tenantId: seed.tenantId ?? (await getPlatformTenantId()) });
   if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create pack")).message] };
 
   await materializeContributions(pack, seed);
 
   await eventBus.publish({
-    eventType: "PackRegistered",
+    eventType: birth.eventType,
     originatingObjectType: "Pack",
     originatingObjectId: pack.id,
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
     actorId: authorId,
-    authorityBadge: authorBadge,
+    authorityBadge: birth.authorityBadge,
     payload: { code: pack.code, packVersion: pack.pack_version },
   });
 
   return { ok: true, pack };
+}
+
+// Moves a Pack to Active and retires the Active version it replaces, both through the generic transition.
+export async function activatePackSupersedingPrevious(pack: PackRow, actorId: string): Promise<PublishPackResult> {
+  const { data: previousActive } = await packsDB.findActiveByCode(pack.code, pack.tenant_id);
+  const activated = await transitionEntity({ entityType: "Pack", entityId: pack.id, targetState: "Active", actorId });
+  if (!activated.ok) return { ok: false, pack, errors: [`transition to "Active" failed: ${"detail" in activated ? activated.detail : activated.reason}`] };
+  let supersededPack: PackRow | null = null;
+  if (previousActive && previousActive.id !== pack.id) {
+    const superseded = await transitionEntity({ entityType: "Pack", entityId: previousActive.id, targetState: "Retired", actorId });
+    if (superseded.ok) supersededPack = superseded.row as PackRow;
+  }
+  return { ok: true, pack: activated.row as PackRow, supersededPack };
 }
 
 export async function advancePackLifecycle(pack: PackRow, actorId: string, options?: { activate?: boolean }): Promise<PublishPackResult> {
@@ -457,63 +458,21 @@ export async function advancePackLifecycle(pack: PackRow, actorId: string, optio
 
   if (currentPack.status === "Draft") {
     for (const targetState of ["Validated", "Published"]) {
-      const result = await transitionPack({ packId: currentPack.id, targetState, actorId });
+      const result = await transitionEntity({ entityType: "Pack", entityId: currentPack.id, targetState, actorId });
       if (!result.ok) return { ok: false, pack: currentPack, errors: [`transition to "${targetState}" failed: ${"detail" in result ? result.detail : result.reason}`] };
-      currentPack = result.pack;
+      currentPack = result.row as PackRow;
     }
   }
 
-  let supersededPack: PackRow | null = null;
-  if (options?.activate && currentPack.status === "Published") {
-    const { data: previousActive } = await packsDB.findActiveByCode(currentPack.code, currentPack.tenant_id);
-    const activateResult = await transitionPack({ packId: currentPack.id, targetState: "Active", actorId });
-    if (!activateResult.ok) return { ok: false, pack: currentPack, errors: [`transition to "Active" failed: ${"detail" in activateResult ? activateResult.detail : activateResult.reason}`] };
-    currentPack = activateResult.pack;
-
-    if (previousActive && previousActive.id !== currentPack.id) {
-      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Retired", actorId });
-      if (supersedeResult.ok) supersededPack = supersedeResult.pack;
-    }
-  }
-
-  return { ok: true, pack: currentPack, supersededPack };
-}
-
-const AUTHORING_NEXT_STATE: Partial<Record<PackRow["status"], PackRow["status"]>> = {
-  Draft: "Validated",
-  Validated: "Published",
-  Published: "Active",
-};
-
-export async function advancePackOneStep(pack: PackRow, actorId: string): Promise<PublishPackResult> {
-  const targetState = AUTHORING_NEXT_STATE[pack.status];
-  if (!targetState) return { ok: false, pack, errors: [`Pack is already ${pack.status} — no further authoring step`] };
-
-  if (targetState === "Active") {
-    const { data: previousActive } = await packsDB.findActiveByCode(pack.code, pack.tenant_id);
-    const activateResult = await transitionPack({ packId: pack.id, targetState: "Active", actorId });
-    if (!activateResult.ok) return { ok: false, pack, errors: [`transition to "Active" failed: ${"detail" in activateResult ? activateResult.detail : activateResult.reason}`] };
-    let supersededPack: PackRow | null = null;
-    if (previousActive && previousActive.id !== activateResult.pack.id) {
-      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Retired", actorId });
-      if (supersedeResult.ok) supersededPack = supersedeResult.pack;
-    }
-    return { ok: true, pack: activateResult.pack, supersededPack };
-  }
-
-  const result = await transitionPack({ packId: pack.id, targetState, actorId });
-  if (!result.ok) return { ok: false, pack, errors: [`transition to "${targetState}" failed: ${"detail" in result ? result.detail : result.reason}`] };
-  return { ok: true, pack: result.pack };
+  if (options?.activate && currentPack.status === "Published") return activatePackSupersedingPrevious(currentPack, actorId);
+  return { ok: true, pack: currentPack, supersededPack: null };
 }
 
 export async function publishPack(input: { seed: PackSeedInput; actorId: string; activate?: boolean }): Promise<PublishPackResult> {
-  const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId, requiredBadge: "pack_define" });
-  if (!auth.allowed) return { ok: false, errors: [`actor "${input.actorId}" does not hold pack_define`] };
   const { data: packMaster } = await participantsMasterDB.findById(input.actorId);
   if (!packMaster) return { ok: false, errors: [`No superuser provisioned.`] };
-  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "pack_define");
 
-  const draft = await createPackDraft(input.seed, packMaster.id, authorBadge);
+  const draft = await createPackDraft(input.seed, packMaster.id);
   if (!draft.ok) return { ok: false, errors: draft.errors };
 
   const advanced = await advancePackLifecycle(draft.pack, input.actorId, { activate: input.activate });
@@ -613,7 +572,6 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
         });
         if (error || !created) throw error ?? new Error(`policy upsert failed: ${code}`);
         createdIds.push(created.id);
-        await backfillPolicyCode(policyCode, created.id);
       }
     }
     policyIdByCode.set(policyCode, createdIds);
@@ -681,81 +639,6 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
     if (error) throw error;
   }
 
-}
-
-export type TransitionPackResult =
-  | { ok: true; pack: PackRow; appliedTransition: { fromState: string; toState: string } }
-  | { ok: false; reason: "not_found" }
-  | { ok: false; reason: "quality_gate_blocked"; detail: string }
-  | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
-  | { ok: false; reason: "comment_required"; detail: string };
-
-export function alternateBadgesForPackTransition(fromState: string, toState: string): string[] | undefined {
-  const ALTERNATE_BADGES: Record<string, string[]> = {
-    "Draft->Validated": ["pack_define", "pack_reject"],
-    "Validated->Draft": ["pack_validate"],
-  };
-  return ALTERNATE_BADGES[`${fromState}->${toState}`];
-}
-
-export async function transitionPack(input: { packId: string; targetState: string; actorId: string; comment?: string }): Promise<TransitionPackResult> {
-  const { data: pack } = await packsDB.findById(input.packId);
-  if (!pack) return { ok: false, reason: "not_found" };
-
-  const fromState = pack.status;
-  const gate = await transitionEngine.evaluate({
-    entityType: "Pack",
-    fromState,
-    toState: input.targetState,
-    actorId: input.actorId,
-    context: { pack },
-    entityId: pack.id,
-    alternateBadges: alternateBadgesForPackTransition(fromState, input.targetState),
-  });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Pack ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
-
-  const trimmedComment = input.comment?.trim() ?? "";
-  if (fromState === "Validated" && input.targetState === "Draft") {
-    if (!trimmedComment) {
-      return { ok: false, reason: "comment_required", detail: "Rejecting requires feedback — provide a comment explaining what needs to change." };
-    }
-    const { data: existingComments } = await packsDB.getComments(pack.id);
-    const mostRecent = existingComments?.[existingComments.length - 1];
-    if (mostRecent && mostRecent.comment_text.trim() === trimmedComment) {
-      return { ok: false, reason: "comment_required", detail: "Provide new feedback — this matches the most recent comment already on record." };
-    }
-  }
-
-  const { data: updated, error } = await packsDB.updateStatus(pack.id, input.targetState as PackRow["status"]);
-  if (error || !updated) throw error ?? new Error("failed to update pack status");
-
-  if (trimmedComment) {
-    await packsDB.addComment(pack.id, input.actorId, gate.authorityBadge, trimmedComment);
-  }
-
-  await eventBus.publish({
-    eventType: gate.eventType ?? "PackTransitioned",
-    originatingObjectType: "Pack",
-    originatingObjectId: pack.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState, code: pack.code, packVersion: pack.pack_version },
-    actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
-    versionEvent: gate.versionEvent,
-    fromState,
-    toState: input.targetState,
-    tenantId: pack.tenant_id,
-  });
-
-  return { ok: true, pack: updated, appliedTransition: { fromState, toState: input.targetState } };
 }
 
 export interface PackCodeVersionSummary {

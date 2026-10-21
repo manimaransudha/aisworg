@@ -5,6 +5,7 @@ import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import type { ReviewOutcome, ReviewRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
 const PASSING_OUTCOMES = new Set<ReviewOutcome>(["Passed", "Passed with Recommendations"]);
@@ -27,7 +28,6 @@ export async function createReview(input: {
   reviewer?: string | null;
   reviewGateId?: string | null;
   actorId: string;
-  authorBadge: string;
 }): Promise<ReviewRow> {
   if (input.relatedObjectType === "Deliverable") {
     const { data: deliverable } = await deliverablesDB.findById(input.relatedObjectId);
@@ -36,6 +36,7 @@ export async function createReview(input: {
   }
 
   const authorId = await resolveAuthorId(input.seuId, input.actorId);
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, "review_create");
 
   const { data: review, error } = await reviewsDB.create({
     seuId: input.seuId,
@@ -47,7 +48,7 @@ export async function createReview(input: {
     reviewer: input.reviewer,
     reviewGateId: input.reviewGateId,
     authorId,
-    authorBadge: input.authorBadge,
+    authorBadge,
   });
   if (error || !review) throw error ?? new Error("failed to create review");
 
@@ -58,7 +59,7 @@ export async function createReview(input: {
     seuId: review.seu_id,
     correlationId: eventBus.newCorrelationId(),
     actorId: input.actorId,
-    authorityBadge: input.authorBadge,
+    authorityBadge: authorBadge,
     payload: { relatedObjectType: input.relatedObjectType, relatedObjectId: input.relatedObjectId, category: input.category },
   });
 
@@ -91,7 +92,7 @@ export type TransitionReviewResult =
   | { ok: false; reason: "outcome_required"; detail: string }
   | { ok: false; reason: "outcome_immutable"; detail: string }
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
-  | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
+  | { ok: false; reason: "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
 export async function transitionReview(input: {
   reviewId: string;

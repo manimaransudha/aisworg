@@ -79,7 +79,7 @@
     ],
     "reviewGates": [
       {
-        "code": "master-test-plan",
+        "code": "test-plan",
         "name": "Quality Engineering Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",

@@ -40,7 +40,7 @@
     ],
     "reviewGates": [
       {
-        "code": "implementation-elements",
+        "code": "source-code",
         "name": "OpenUP Development Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "statement": "The Implementation Elements have been reviewed and accepted as meeting design specifications.",

@@ -50,14 +50,14 @@
     ],
     "reviewGates": [
       {
-        "code": "data-sovereignty-attestation-gate",
+        "code": "data-migration-plan",
         "name": "Data Sovereignty & Localization Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Global Data Sovereignty Officer confirms that database pinning, CAC assessments, and local encryption keys meet national data residency laws.",
         "prompt": "Does the data residency audit confirm full compliance with national data localization and sovereign storage mandates?",
         "participant": "human",
-        "outputContract": "data-sovereignty-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Global Sovereign Data Residency Audit Checklist"
         ]

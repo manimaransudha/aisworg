@@ -18,8 +18,8 @@
 // strings this file used are replaced with real codes
 // (solution-architecture-document/database-schema-data-model). The
 // dynamically-generated phase2-* codes are unaffected — they become real
-// deliverable-name concepts via publishDeliverableDefinition's own
-// syncOntologyOnActivate before any Template references them, same as before.
+// deliverable-name concepts that publishDeliverableDefinition registers
+// in the Ontology before the Definition is published and before any Template references them.
 import "dotenv/config";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -34,8 +34,9 @@ import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
-import { createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
-import { ensureTestFixturePacks } from "./testFixtures.js";
+import { createAuthoringDraft, saveAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
+import { syncConceptFromEntity } from "../src/routes/seu/core/ontology.js";
+import { ensureTestFixturePacks, advanceAuthoringDraftToActive } from "./testFixtures.js";
 
 const createdTemplateIds: string[] = [];
 const createdDeliverableDefinitionIds: string[] = [];
@@ -95,16 +96,13 @@ async function schemaDefinitionIdFor(kind: SchemaDefinitionEntityKind): Promise<
 }
 
 async function advanceToActive(kind: "Template" | "Deliverable", id: string, actorId: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
-  for (let i = 0; i < 10; i++) {
-    const result = await publishAuthoringDraft({ kind, id, actorId });
-    if (!result.ok) return result;
-    if (result.status === "Active") return { ok: true };
-  }
-  return { ok: false, errors: ["did not reach Active within 10 hops"] };
+  return advanceAuthoringDraftToActive(kind, id, actorId);
 }
 
 async function publishDeliverableDefinition(code: string, tenantId: string, parentDeliverableDefinitionId?: string): Promise<string> {
+  // A Deliverable Definition code is a composable Ontology value: it must exist in the Ontology before the Definition is Published.
   createdOntologyConceptCodes.push(code);
+  await syncConceptFromEntity("deliverable-name", code, code, "Phase 2 test fixture", tenantId, ROOT_ACTOR_ID);
   const created = await createAuthoringDraft({
     kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"),
     actorId: ROOT_ACTOR_ID,
@@ -170,23 +168,26 @@ test("CR-049 Phase 2: a plain 'dependency' edge is unrestricted on Template Inhe
   assert.equal(childPublished.ok, true, !childPublished.ok ? childPublished.errors.join("; ") : "assertion failed");
 });
 
-test("CR-049 Phase 2: a Decomposition edge is locked — dropping it on a derived Template blocks publish", async () => {
+test("CR-049 Phase 2: a Decomposition edge is locked — dropping it on a derived Template refuses the save", async () => {
   const parent = await publishParentTemplate([DECOMPOSITION_EDGE]);
 
+  const version = uniqueVersion();
+  const catalogue = [{ code: ARCH_CODE, category: "Architecture" }, { code: DATA_ARCH_CODE, category: "Architecture" }];
   const childCreated = await createAuthoringDraft({
     kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parent.id,
-    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: ARCH_CODE, category: "Architecture" }, { code: DATA_ARCH_CODE, category: "Architecture" }], []),
+    content: templateContent(REAL_TEMPLATE_CODE, version, catalogue, [DECOMPOSITION_EDGE]),
   });
   assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : "assertion failed");
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
 
-  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID);
-  assert.equal(childPublished.ok, false, "dropping an inherited Decomposition edge must block publish");
-  assert.match((!childPublished.ok && childPublished.errors.join(";")) || "", /decomposition/);
+  // The locked-edge rule is an On save check (CR-128): save is refused and the stored content is unchanged.
+  const saved = await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: childCreated.draftId, content: templateContent(REAL_TEMPLATE_CODE, version, catalogue, []) });
+  assert.equal(saved.ok, false, "dropping an inherited Decomposition edge must refuse the save");
+  assert.match((!saved.ok && saved.errors.join(";")) || "", /decomposition/);
 });
 
 test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own Deliverable Definition, provided its lineage traces back to the parent's name", async () => {
@@ -241,7 +242,7 @@ test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own De
   assert.equal(childPublished.ok, true, !childPublished.ok ? childPublished.errors.join("; ") : "a legitimate rename (tracing back through Phase 1 lineage) must be accepted");
 });
 
-test("CR-049 Phase 2: renaming a locked edge to an UNRELATED Deliverable Definition (no lineage) still blocks publish", async () => {
+test("CR-049 Phase 2: renaming a locked edge to an UNRELATED Deliverable Definition (no lineage) still refuses the save", async () => {
   const parent = await publishParentTemplate([DECOMPOSITION_EDGE]);
 
   // A tenant Deliverable Definition with NO parent_deliverable_definition_id
@@ -249,22 +250,27 @@ test("CR-049 Phase 2: renaming a locked edge to an UNRELATED Deliverable Definit
   const unrelatedCode = `phase2-unrelated-${randomUUID()}`;
   await publishDeliverableDefinition(unrelatedCode, DEMO_TENANT_ID);
 
+  const version = uniqueVersion();
   const childCreated = await createAuthoringDraft({
     kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parent.id,
-    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: unrelatedCode, category: "Architecture" }, { code: DATA_ARCH_CODE, category: "Architecture" }], [
-      { toCode: DATA_ARCH_CODE, fromType: "Deliverable", fromCode: unrelatedCode, requiredState: "Approved", relationshipKind: "decomposition" },
-    ]),
+    content: templateContent(REAL_TEMPLATE_CODE, version, [{ code: ARCH_CODE, category: "Architecture" }, { code: DATA_ARCH_CODE, category: "Architecture" }], [DECOMPOSITION_EDGE]),
   });
   assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : "assertion failed");
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
 
-  const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID);
-  assert.equal(childPublished.ok, false, "an unrelated name with no lineage back to the parent's own must NOT count as a valid rename");
-  assert.match((!childPublished.ok && childPublished.errors.join(";")) || "", /decomposition/);
+  // The locked-edge rule is an On save check (CR-128): the rename has no lineage back to the parent's name, so the save is refused.
+  const saved = await saveAuthoringDraft({
+    actorId: ROOT_ACTOR_ID, kind: "Template", id: childCreated.draftId,
+    content: templateContent(REAL_TEMPLATE_CODE, version, [{ code: unrelatedCode, category: "Architecture" }, { code: DATA_ARCH_CODE, category: "Architecture" }], [
+      { toCode: DATA_ARCH_CODE, fromType: "Deliverable", fromCode: unrelatedCode, requiredState: "Approved", relationshipKind: "decomposition" },
+    ]),
+  });
+  assert.equal(saved.ok, false, "an unrelated name with no lineage back to the parent's own must NOT count as a valid rename");
+  assert.match((!saved.ok && saved.errors.join(";")) || "", /decomposition/);
 });
 
 test("CR-049 Phase 2: a Derivation edge is freely editable on Template Inheritance — no lock at all", async () => {

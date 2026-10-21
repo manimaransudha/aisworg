@@ -61,7 +61,7 @@
         "statement": "The US Privacy Counsel attests that GPC signal handling, sensitive data opt-ins, and state DSAR workflows satisfy CCPA/CPRA, VCDPA, and state statutes.",
         "prompt": "Does the privacy audit evidence confirm full compliance with US multi-state privacy laws?",
         "participant": "human",
-        "outputContract": "us-state-privacy-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "US Multi-State Privacy Compliance Audit Checklist"
         ]

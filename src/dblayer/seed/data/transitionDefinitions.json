@@ -162,13 +162,24 @@
   },
   {
     "entityType": "Deliverable",
+    "fromState": "None",
+    "toState": "Defined",
+    "verb": "define",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "DeliverableCreated",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Deliverable",
     "fromState": "Defined",
     "toState": "In Progress",
     "verb": "create",
     "requiredPolicyCodes": [
       "policy-deliverable-transition-baseline"
     ],
-    "trigger": "governed"
+    "trigger": "governed",
+    "eventType": "DeliverableUpdated"
   },
   {
     "entityType": "Deliverable",
@@ -178,7 +189,8 @@
     "requiredPolicyCodes": [
       "policy-deliverable-transition-baseline"
     ],
-    "attestationRequired": true
+    "attestationRequired": true,
+    "eventType": "DeliverableApproved"
   },
   {
     "entityType": "Deliverable",
@@ -188,20 +200,30 @@
     "requiredPolicyCodes": [
       "policy-deliverable-transition-baseline"
     ],
-    "attestationRequired": true
+    "attestationRequired": true,
+    "eventType": "DeliverableBaselined"
   },
   {
     "entityType": "Objective",
-    "fromState": "Proposed",
+    "fromState": "None",
+    "toState": "Defined",
+    "verb": "propose",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "ObjectiveCreated",
+    "versionEvent": "VersionCreated"
+  },
+  {
+    "entityType": "Objective",
+    "fromState": "Defined",
     "toState": "Active",
     "verb": "activate",
+    "trigger": "manual",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
-    "submitVerb": "propose",
     "eventType": "ObjectiveActivated",
-    "versionEvent": "VersionActivated",
-    "submitVersionEvent": "VersionCreated"
+    "versionEvent": "VersionActivated"
   },
   {
     "entityType": "Objective",
@@ -220,8 +242,10 @@
     "fromState": "Active",
     "toState": "Reject",
     "verb": "reject",
+    "trigger": "manual",
     "requiredPolicyCodes": [
-      "policy-objective-transition-baseline"
+      "policy-objective-transition-baseline",
+      "policy-comment-required"
     ],
     "eventType": "ObjectiveRejected"
   },
@@ -230,9 +254,12 @@
     "fromState": "Active",
     "toState": "Superseded",
     "verb": "supersede",
+    "trigger": "manual",
     "requiredPolicyCodes": [
-      "policy-objective-transition-baseline"
+      "policy-objective-transition-baseline",
+      "policy-comment-required"
     ],
+    "actionCode": "supersede-objective",
     "eventType": "ObjectiveSuperseded",
     "versionEvent": "VersionSuperseded"
   },
@@ -241,6 +268,7 @@
     "fromState": "Active",
     "toState": "Retired",
     "verb": "retire",
+    "trigger": "manual",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -252,6 +280,7 @@
     "fromState": "Achieved",
     "toState": "Archived",
     "verb": "archive",
+    "trigger": "manual",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -263,6 +292,7 @@
     "fromState": "Superseded",
     "toState": "Archived",
     "verb": "archive",
+    "trigger": "manual",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -274,6 +304,7 @@
     "fromState": "Retired",
     "toState": "Archived",
     "verb": "archive",
+    "trigger": "manual",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
@@ -747,11 +778,23 @@
   },
   {
     "entityType": "Pack",
+    "fromState": "None",
+    "toState": "Draft",
+    "verb": "define",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "PackDefined",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Pack",
     "fromState": "Draft",
     "toState": "Validated",
     "verb": "validate",
+    "trigger": "manual",
     "requiredPolicyCodes": [
-      "policy-pack-transition-baseline"
+      "policy-pack-transition-baseline",
+      "policy-validate-schema"
     ],
     "eventType": "PackValidated",
     "versionEvent": "VersionValidated"
@@ -761,8 +804,11 @@
     "fromState": "Validated",
     "toState": "Published",
     "verb": "publish",
+    "trigger": "manual",
     "requiredPolicyCodes": [
-      "policy-pack-transition-baseline"
+      "policy-pack-transition-baseline",
+      "policy-validate-schema",
+      "policy-ontology-values-present"
     ],
     "eventType": "PackPublished",
     "versionEvent": "VersionPublished"
@@ -772,6 +818,7 @@
     "fromState": "Published",
     "toState": "Active",
     "verb": "activate",
+    "trigger": "manual",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
     ],
@@ -783,6 +830,7 @@
     "fromState": "Retired",
     "toState": "Archived",
     "verb": "archive",
+    "trigger": "manual",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
     ],
@@ -794,6 +842,7 @@
     "fromState": "Active",
     "toState": "Retired",
     "verb": "retire",
+    "trigger": "manual",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
     ],
@@ -805,8 +854,10 @@
     "fromState": "Validated",
     "toState": "Draft",
     "verb": "reject",
+    "trigger": "manual",
     "requiredPolicyCodes": [
-      "policy-pack-transition-baseline"
+      "policy-pack-transition-baseline",
+      "policy-comment-required"
     ],
     "eventType": "PackRejected"
   },
@@ -951,10 +1002,21 @@
   },
   {
     "entityType": "Template",
+    "fromState": "None",
+    "toState": "Draft",
+    "verb": "define",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "TemplateDefined",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Template",
     "fromState": "Draft",
     "toState": "Validated",
     "verb": "validate",
-    "requiredPolicyCodes": [],
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema", "policy-materialise-template"],
     "eventType": "TemplateValidated",
     "versionEvent": "VersionValidated"
   },
@@ -963,15 +1025,27 @@
     "fromState": "Validated",
     "toState": "Published",
     "verb": "publish",
-    "requiredPolicyCodes": [],
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema", "policy-ontology-values-present"],
+    "actionCode": "unravel-template",
     "eventType": "TemplatePublished",
     "versionEvent": "VersionPublished"
+  },
+  {
+    "entityType": "Template",
+    "fromState": "Validated",
+    "toState": "Draft",
+    "verb": "reject",
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-comment-required"],
+    "eventType": "TemplateRejected"
   },
   {
     "entityType": "Template",
     "fromState": "Published",
     "toState": "Active",
     "verb": "activate",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "TemplateActivated",
     "versionEvent": "VersionActivated"
@@ -981,6 +1055,7 @@
     "fromState": "Active",
     "toState": "Deprecated",
     "verb": "deprecate",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "TemplateDeprecated",
     "versionEvent": "VersionDeprecated"
@@ -990,6 +1065,7 @@
     "fromState": "Deprecated",
     "toState": "Retired",
     "verb": "retire",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "TemplateRetired",
     "versionEvent": "VersionSuperseded"
@@ -999,100 +1075,98 @@
     "fromState": "Retired",
     "toState": "Archived",
     "verb": "archive",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "TemplateArchived",
     "versionEvent": "VersionArchived"
   },
   {
-    "entityType": "Template",
-    "fromState": "Deprecated",
-    "toState": "Active",
-    "verb": "activate",
-    "requiredPolicyCodes": []
+    "entityType": "DeliverableDefinition",
+    "fromState": "None",
+    "toState": "Draft",
+    "verb": "define",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "DeliverableDefinitionDefined",
+    "versionEvent": null
   },
   {
-    "entityType": "Template",
-    "fromState": "Retired",
-    "toState": "Active",
-    "verb": "activate",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "Template",
-    "fromState": "Archived",
-    "toState": "Active",
-    "verb": "activate",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "Deliverable",
+    "entityType": "DeliverableDefinition",
     "fromState": "Draft",
     "toState": "Validated",
     "verb": "validate",
-    "requiredPolicyCodes": []
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema"],
+    "eventType": "DeliverableDefinitionValidated",
+    "versionEvent": "VersionValidated"
   },
   {
-    "entityType": "Deliverable",
+    "entityType": "DeliverableDefinition",
     "fromState": "Validated",
     "toState": "Published",
     "verb": "publish",
-    "requiredPolicyCodes": []
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema", "policy-ontology-values-present"],
+    "eventType": "DeliverableDefinitionPublished",
+    "versionEvent": "VersionPublished"
   },
   {
-    "entityType": "Deliverable",
+    "entityType": "DeliverableDefinition",
     "fromState": "Published",
     "toState": "Active",
     "verb": "activate",
-    "requiredPolicyCodes": []
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "DeliverableDefinitionActivated",
+    "versionEvent": "VersionActivated"
   },
   {
-    "entityType": "Deliverable",
+    "entityType": "DeliverableDefinition",
     "fromState": "Active",
     "toState": "Deprecated",
     "verb": "deprecate",
-    "requiredPolicyCodes": []
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "DeliverableDefinitionDeprecated",
+    "versionEvent": "VersionDeprecated"
   },
   {
-    "entityType": "Deliverable",
+    "entityType": "DeliverableDefinition",
     "fromState": "Deprecated",
     "toState": "Retired",
     "verb": "retire",
-    "requiredPolicyCodes": []
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "DeliverableDefinitionRetired",
+    "versionEvent": "VersionSuperseded"
   },
   {
-    "entityType": "Deliverable",
+    "entityType": "DeliverableDefinition",
     "fromState": "Retired",
     "toState": "Archived",
     "verb": "archive",
-    "requiredPolicyCodes": []
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "DeliverableDefinitionArchived",
+    "versionEvent": "VersionArchived"
   },
   {
-    "entityType": "Deliverable",
-    "fromState": "Deprecated",
-    "toState": "Active",
-    "verb": "activate",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "Deliverable",
-    "fromState": "Retired",
-    "toState": "Active",
-    "verb": "activate",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "Deliverable",
-    "fromState": "Archived",
-    "toState": "Active",
-    "verb": "activate",
-    "requiredPolicyCodes": []
+    "entityType": "Profile",
+    "fromState": "None",
+    "toState": "Draft",
+    "verb": "define",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "ProfileDefined",
+    "versionEvent": null
   },
   {
     "entityType": "Profile",
     "fromState": "Draft",
     "toState": "Validated",
     "verb": "validate",
-    "requiredPolicyCodes": [],
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema", "policy-materialise-profile"],
     "eventType": "ProfileValidated",
     "versionEvent": "VersionValidated"
   },
@@ -1101,15 +1175,27 @@
     "fromState": "Validated",
     "toState": "Published",
     "verb": "publish",
-    "requiredPolicyCodes": [],
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema", "policy-ontology-values-present"],
+    "actionCode": "unravel-profile",
     "eventType": "ProfilePublished",
     "versionEvent": "VersionPublished"
+  },
+  {
+    "entityType": "Profile",
+    "fromState": "Validated",
+    "toState": "Draft",
+    "verb": "reject",
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-comment-required"],
+    "eventType": "ProfileRejected"
   },
   {
     "entityType": "Profile",
     "fromState": "Published",
     "toState": "Active",
     "verb": "activate",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "ProfileActivated",
     "versionEvent": "VersionActivated"
@@ -1119,6 +1205,7 @@
     "fromState": "Active",
     "toState": "Deprecated",
     "verb": "deprecate",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "ProfileDeprecated",
     "versionEvent": "VersionDeprecated"
@@ -1128,6 +1215,7 @@
     "fromState": "Deprecated",
     "toState": "Retired",
     "verb": "retire",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "ProfileRetired",
     "versionEvent": "VersionSuperseded"
@@ -1137,47 +1225,59 @@
     "fromState": "Retired",
     "toState": "Archived",
     "verb": "archive",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "ProfileArchived",
     "versionEvent": "VersionArchived"
   },
   {
-    "entityType": "Profile",
-    "fromState": "Deprecated",
-    "toState": "Active",
-    "verb": "activate",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "Profile",
-    "fromState": "Retired",
-    "toState": "Active",
-    "verb": "activate",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "Profile",
-    "fromState": "Archived",
-    "toState": "Active",
-    "verb": "activate",
-    "requiredPolicyCodes": []
+    "entityType": "Service",
+    "fromState": "None",
+    "toState": "Defined",
+    "verb": "define",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "ServiceDefined",
+    "versionEvent": null
   },
   {
     "entityType": "Service",
     "fromState": "Defined",
+    "toState": "Validated",
+    "verb": "validate",
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema"],
+    "eventType": "ServiceValidated",
+    "versionEvent": "VersionValidated"
+  },
+  {
+    "entityType": "Service",
+    "fromState": "Validated",
     "toState": "Published",
     "verb": "publish",
-    "requiredPolicyCodes": [],
-    "eventType": "ServiceDefinitionPublished",
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema"],
+    "eventType": "ServicePublished",
     "versionEvent": "VersionPublished"
+  },
+  {
+    "entityType": "Service",
+    "fromState": "Validated",
+    "toState": "Defined",
+    "verb": "reject",
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-comment-required"],
+    "eventType": "ServiceRejected",
+    "versionEvent": null
   },
   {
     "entityType": "Service",
     "fromState": "Published",
     "toState": "Active",
     "verb": "activate",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
-    "eventType": "ServiceDefinitionActivated",
+    "eventType": "ServiceActivated",
     "versionEvent": "VersionActivated"
   },
   {
@@ -1185,8 +1285,9 @@
     "fromState": "Active",
     "toState": "Deprecated",
     "verb": "deprecate",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
-    "eventType": "ServiceDefinitionDeprecated",
+    "eventType": "ServiceDeprecated",
     "versionEvent": "VersionDeprecated"
   },
   {
@@ -1194,8 +1295,9 @@
     "fromState": "Deprecated",
     "toState": "Retired",
     "verb": "retire",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
-    "eventType": "ServiceDefinitionRetired",
+    "eventType": "ServiceRetired",
     "versionEvent": "VersionSuperseded"
   },
   {
@@ -1203,16 +1305,37 @@
     "fromState": "Retired",
     "toState": "Archived",
     "verb": "archive",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
-    "eventType": "ServiceDefinitionArchived",
+    "eventType": "ServiceArchived",
     "versionEvent": "VersionArchived"
   },
   {
     "entityType": "Capability",
-    "fromState": "Defined",
-    "toState": "Published",
-    "verb": "publish",
+    "fromState": "None",
+    "toState": "Defined",
+    "verb": "define",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
+    "eventType": "CapabilityRegistered"
+  },
+  {
+    "entityType": "Capability",
+    "fromState": "Defined",
+    "toState": "Validated",
+    "verb": "validate",
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema"],
+    "eventType": "CapabilityValidated",
+    "versionEvent": "VersionValidated"
+  },
+  {
+    "entityType": "Capability",
+    "fromState": "Validated",
+    "toState": "Published",
+    "trigger": "manual",
+    "verb": "publish",
+    "requiredPolicyCodes": ["policy-validate-schema", "policy-ontology-values-present"],
     "eventType": "CapabilityPublished",
     "versionEvent": "VersionPublished"
   },
@@ -1220,6 +1343,7 @@
     "entityType": "Capability",
     "fromState": "Published",
     "toState": "Active",
+    "trigger": "manual",
     "verb": "activate",
     "requiredPolicyCodes": [],
     "eventType": "CapabilityActivated",
@@ -1229,6 +1353,7 @@
     "entityType": "Capability",
     "fromState": "Active",
     "toState": "Deprecated",
+    "trigger": "manual",
     "verb": "deprecate",
     "requiredPolicyCodes": [],
     "eventType": "CapabilityDeprecated",
@@ -1238,6 +1363,7 @@
     "entityType": "Capability",
     "fromState": "Deprecated",
     "toState": "Retired",
+    "trigger": "manual",
     "verb": "retire",
     "requiredPolicyCodes": [],
     "eventType": "CapabilityRetired",
@@ -1247,6 +1373,7 @@
     "entityType": "Capability",
     "fromState": "Retired",
     "toState": "Archived",
+    "trigger": "manual",
     "verb": "archive",
     "requiredPolicyCodes": [],
     "eventType": "CapabilityArchived",
@@ -1254,10 +1381,21 @@
   },
   {
     "entityType": "Policy",
+    "fromState": "None",
+    "toState": "Draft",
+    "verb": "define",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "PolicyDefinitionDefined",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Policy",
     "fromState": "Draft",
     "toState": "Validated",
     "verb": "validate",
-    "requiredPolicyCodes": [],
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema"],
     "eventType": "PolicyDefinitionValidated",
     "versionEvent": "VersionValidated"
   },
@@ -1266,7 +1404,8 @@
     "fromState": "Validated",
     "toState": "Published",
     "verb": "publish",
-    "requiredPolicyCodes": [],
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema", "policy-ontology-values-present"],
     "eventType": "PolicyDefinitionPublished",
     "versionEvent": "VersionPublished"
   },
@@ -1275,6 +1414,7 @@
     "fromState": "Published",
     "toState": "Active",
     "verb": "activate",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "PolicyDefinitionActivated",
     "versionEvent": "VersionActivated"
@@ -1284,6 +1424,7 @@
     "fromState": "Active",
     "toState": "Deprecated",
     "verb": "deprecate",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "PolicyDefinitionDeprecated",
     "versionEvent": "VersionDeprecated"
@@ -1293,6 +1434,7 @@
     "fromState": "Deprecated",
     "toState": "Retired",
     "verb": "retire",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "PolicyDefinitionRetired",
     "versionEvent": "VersionSuperseded"
@@ -1302,6 +1444,7 @@
     "fromState": "Retired",
     "toState": "Archived",
     "verb": "archive",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "PolicyDefinitionArchived",
     "versionEvent": "VersionArchived"
@@ -1353,6 +1496,16 @@
   },
   {
     "entityType": "SchemaDefinition",
+    "fromState": "None",
+    "toState": "Created",
+    "verb": "create",
+    "requiredPolicyCodes": [],
+    "trigger": "manual",
+    "eventType": "SDKElementSchemaCreated",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SchemaDefinition",
     "fromState": "Created",
     "toState": "Validated",
     "verb": "validate",
@@ -1387,6 +1540,7 @@
     "toState": "Published",
     "verb": "publish",
     "requiredPolicyCodes": [],
+    "trigger": "manual",
     "eventType": "SDKElementSchemaPublished",
     "versionEvent": null
   },
@@ -1396,6 +1550,7 @@
     "toState": "PublicationRejected",
     "verb": "reject",
     "requiredPolicyCodes": [],
+    "trigger": "manual",
     "eventType": "SDKElementSchemaPublicationRejected",
     "versionEvent": null
   }

@@ -26,13 +26,13 @@
     <%# CR-075 (owner: "Only propose can edit every field... All other
          states can only add comments in their edit form") — statement,
          required Capabilities, Add child and Move are only available while
-         Proposed; every other status is Comments-only. Real enforcement in
+         the initial state; every other status is Comments-only. Real enforcement in
          updateObjective/reParentObjective/createObjective either way, not
          just this. The list already hides the Edit link once locked
          (submitted for activation) — this page doesn't separately re-check
          or hide anything for that narrower case. %>
-    <% if (objective.status !== 'Proposed') { %>
-      <p class="text-muted small mb-4">Only Comments can be added — statement, required Capabilities and decomposition are only editable while Proposed (this Objective is <%= objective.status %>).</p>
+    <% if (!locals.editable) { %>
+      <p class="text-muted small mb-4">Only Comments can be added — statement, required Capabilities and decomposition are only editable while <%= initialState %> (this Objective is <%= objective.status %>).</p>
     <% } else { %>
       <p class="text-muted small mb-4">
         Tier can't be changed here — only statement, required Capabilities, decomposition and parent.
@@ -122,7 +122,7 @@
          not the view page (owner: "The view page has the post button. I
          have been saying repeatedly no edits on a view page"). Available
          regardless of status above (owner: "any time... independent of the
-         Objective's current status") — a separate rule from the Proposed-only
+         Objective's current status") — a separate rule from the initial-state-only
          gate on everything else on this page. %>
     <div class="section-card">
       <div class="section-header">Comments</div>
@@ -133,8 +133,8 @@
           <ul class="list-unstyled mb-3">
             <% comments.forEach(function(c) { %>
               <li class="mb-2 pb-2 border-bottom">
-                <div class="small text-muted"><%= new Date(c.created_at).toLocaleString() %><% if (c.actor_id) { %> &middot; user <%= c.actor_id %><% } %></div>
-                <div class="small"><%= c.comment_text %></div>
+                <div class="small text-muted"><%= new Date(c.createdAt).toLocaleString() %><% if (c.actorId) { %> &middot; user <%= c.actorId %><% } %></div>
+                <div class="small"><%= c.text %></div>
               </li>
             <% }) %>
           </ul>

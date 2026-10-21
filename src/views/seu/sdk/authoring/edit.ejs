@@ -309,8 +309,8 @@
               <% }) %>
             </select>
             <%# CR-080 — Pack's own Validated -> Draft (Reject) requires a
-                genuinely new comment every time (enforced in transitionPack
-                itself, not here) — one shared, always-optional field on this
+                comment (enforced by policy-comment-required in the generic
+                transition, not here) — one shared, always-optional field on this
                 same generic form rather than a separate Reject-only form,
                 since every other target state simply ignores it. %>
             <% if (kindLabel === 'Pack') { %>
@@ -329,8 +329,8 @@
           <ul class="list-unstyled small mb-0">
             <% locals.packComments.forEach(function(c) { %>
               <li class="mb-2 pb-2 border-bottom">
-                <div><%= c.comment_text %></div>
-                <div class="text-muted" style="font-size: .75rem;"><%= new Date(c.created_at).toLocaleString() %></div>
+                <div><%= c.text %></div>
+                <div class="text-muted" style="font-size: .75rem;"><%= new Date(c.createdAt).toLocaleString() %></div>
               </li>
             <% }) %>
           </ul>

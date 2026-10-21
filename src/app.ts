@@ -34,6 +34,7 @@ import { resolveNavRouteVisibility } from "./domain/identity/navRouteAccess.js";
 import { loadRouteAuthorityCache } from "./domain/identity/routeAuthorityCache.js";
 import { routeAuthorityGate } from "./middleware/routeAuthorityGate.js";
 
+import { requireActorId } from "./domain/identity/heldBadges.js";
 await eventBus.loadSubscriptions();
 await loadRouteAuthorityCache();
 
@@ -88,7 +89,7 @@ if (process.env.NODE_ENV === 'test') {
                 if (!user) return next(new Error(`x-test-user-id ${testUserId}: no such user`));
                 req.session.user = await buildSessionUser(user);
                 await ensureBadgeBootstrap(user);
-                req.session.user.platformBadges = await getPlatformBadges(String(req.session.user.id));
+                req.session.user.platformBadges = await getPlatformBadges(requireActorId(req));
                 next();
             })().catch(next);
             return;

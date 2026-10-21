@@ -26,7 +26,7 @@ import { getObjectiveDetail } from "../src/routes/seu/core/objectives.js";
 import { commissionFromExistingObjective } from "../src/routes/seu/core/commissioning.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { getSeuEbmView } from "../src/routes/seu/core/seus.js";
-import { ensureEventSubscriptionsLoaded, driveCommissioningToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { ensureEventSubscriptionsLoaded, driveCommissioningToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, PLATFORM_TENANT_ID, createActiveObjective } from "./testFixtures.js";
 
 before(async () => {
   // Must run before this file's own first commissionFromExistingObjective
@@ -149,7 +149,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // observed flake under concurrent test-file execution — this combination
   // isn't used as a Template's required set anywhere else in the suite.
   const templateCode = `verify-profile-choice-template-${randomUUID()}`;
-  const { data: template, error: templateErr } = await templatesDB.upsert({ tenantId: PLATFORM_TENANT_ID,
+  const { data: template, error: templateErr } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,
     code: templateCode,
     name: "Verify Profile Choice Template",
     deliverableCatalogue: [{ code: "requirements-spec" }],
@@ -186,8 +186,8 @@ test("Objective-first commissioning offers a real Profile choice when more than 
 
   // CR-009: Engineering Objectives need a Strategic parent (only Strategic may be a root).
   // CR-075 — createObjective now requires the parent to be Proposed when adding a child under it.
-  const { objective: pcRoot } = await createObjective({ statement: `verify-profile-choice-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed",});
-  const { objective } = await createObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: TESTER_ALL_ID,});
+  const { objective: pcRoot } = await createObjective({ statement: `verify-profile-choice-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
+  const { objective } = await createActiveObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: TESTER_ALL_ID,});
   assert.equal(objective.status, "Active");
 
   // 1. getObjectiveDetail surfaces both real Profiles as real candidates,

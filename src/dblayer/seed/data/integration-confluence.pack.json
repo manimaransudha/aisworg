@@ -62,14 +62,14 @@
     ],
     "reviewGates": [
       {
-        "code": "confluence-integration-review-gate",
+        "code": "user-technical-documentation",
         "name": "Confluence Knowledge Base Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Technical Writer Lead confirms that Confluence API publishing and page rendering satisfy documentation standards.",
         "prompt": "Does the Confluence integration verify page creation and Architecture Decision Record publishing?",
         "participant": "human",
-        "outputContract": "confluence-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Confluence Integration Verification Checklist"
         ]

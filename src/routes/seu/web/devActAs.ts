@@ -7,6 +7,7 @@ import type { Request, Response, NextFunction } from "express";
 import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { devActAsAvailable, currentActAs, setActingNounVerbBadge, isAssumableBadgeCode } from "../../../dev/actAs.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 router.use("/dev/act-as", (req: Request, res: Response, next: NextFunction) => {
   if (!devActAsAvailable(req)) {
@@ -30,10 +31,8 @@ router.post("/dev/act-as", async (req: Request, res: Response) => {
 
     (req.session as unknown as { actAs?: { tenantId: string | null; badgeType: string } }).actAs = { tenantId, badgeType };
 
-    const userId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (userId != null) {
-      await setActingNounVerbBadge(req, { userId, tenantId, badgeType, previousBadgeType: previous?.badgeType ?? null });
-    }
+    const userId = requireActorId(req);
+    await setActingNounVerbBadge(req, { userId, tenantId, badgeType, previousBadgeType: previous?.badgeType ?? null });
 
     const label = badgeType === "root" ? "root (full access)" : `badge "${badgeType}"`;
     return redirects.seu.devActAs.success(req, res, `Now acting as ${label}${tenantId ? "" : " · default tenant"}.`, back);
@@ -46,8 +45,8 @@ router.post("/dev/act-as", async (req: Request, res: Response) => {
 router.post("/dev/act-as/reset", async (req: Request, res: Response) => {
   const back = (req.headers.referer as string) || "/aisworg";
   const previous = currentActAs(req);
-  const userId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-  if (userId != null && previous) {
+  const userId = requireActorId(req);
+  if (previous) {
     await setActingNounVerbBadge(req, { userId, tenantId: previous.tenantId, badgeType: null, previousBadgeType: previous.badgeType });
   }
   delete (req.session as unknown as { actAs?: unknown }).actAs;

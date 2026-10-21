@@ -1,5 +1,5 @@
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
-import { syncConceptFromEntity, retireConceptForEntity } from "./ontology.js";
+import { transitionEntity } from "../../../domain/engine/entityTransition.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
@@ -55,138 +55,22 @@ export async function inheritedDeliverableDefinitionContent(parentDeliverableDef
   return { ok: true, content: { code: parent.code, description: parent.description ?? "" } };
 }
 
-export type TransitionDeliverableDefinitionResult = { ok: true; deliverableDefinition: DeliverableDefinitionRow } | { ok: false; reason: string; detail?: string };
-
-const TERMINAL_REACTIVATABLE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
-
-const EVENT_BY_TARGET_STATE: Record<string, string> = {
-  Validated: "DeliverableDefinitionValidated",
-  Published: "DeliverableDefinitionPublished",
-  Active: "DeliverableDefinitionActivated",
-  Deprecated: "DeliverableDefinitionDeprecated",
-  Retired: "DeliverableDefinitionRetired",
-  Archived: "DeliverableDefinitionArchived",
-};
-
-async function syncOntologyOnActivate(row: DeliverableDefinitionRow, actorId: string): Promise<void> {
-  await syncConceptFromEntity("deliverable-name", row.code, row.code, row.description ?? null, row.tenant_id, actorId);
-}
-
-async function demoteOntologyIfNoOtherActive(row: DeliverableDefinitionRow, actorId: string, actorBadge: string): Promise<void> {
-  const { data: stillActive } = await deliverableDefinitionsDB.findActiveByCode(row.code, row.tenant_id);
-  if (!stillActive) await retireConceptForEntity("deliverable-name", row.code, row.tenant_id, actorId, actorBadge);
-}
-
-export async function transitionDeliverableDefinition(input: { deliverableDefinitionId: string; targetState: DeliverableDefinitionRow["status"]; actorId: string }): Promise<TransitionDeliverableDefinitionResult> {
-  const { data: concept } = await deliverableDefinitionsDB.findById(input.deliverableDefinitionId);
-  if (!concept) return { ok: false, reason: "not_found" };
-  const fromState = concept.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Deliverable", fromState, toState: input.targetState, actorId: input.actorId, context: { deliverableDefinition: concept } });
-  if (!gate.allowed) {
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Deliverable ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-    return { ok: false, reason: gate.reason };
+// Moves a Published Deliverable Definition to Active and deprecates the Active version it replaces, both through the generic transition.
+export async function activateDeliverableDefinitionSupersedingPrevious(definition: DeliverableDefinitionRow, actorId: string): Promise<{ ok: true; deliverableDefinition: DeliverableDefinitionRow } | { ok: false; errors: string[] }> {
+  const { data: previousActive } = await deliverableDefinitionsDB.findActiveByCode(definition.code, definition.tenant_id);
+  const activated = await transitionEntity({ entityType: "DeliverableDefinition", entityId: definition.id, targetState: "Active", actorId });
+  if (!activated.ok) return { ok: false, errors: [`transition to "Active" failed: ${"detail" in activated ? activated.detail : activated.reason}`] };
+  if (previousActive && previousActive.id !== definition.id) {
+    await transitionEntity({ entityType: "DeliverableDefinition", entityId: previousActive.id, targetState: "Deprecated", actorId });
   }
-  if (!gate.authorityBadge) {
-    return { ok: false, reason: "not_authorised" };
-  }
-  if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    return reactivateAsNewVersion(concept, input.actorId, gate.authorityBadge);
-  }
-
-  const { data: updated, error } = await deliverableDefinitionsDB.updateStatus(concept.id, input.targetState);
-  if (error || !updated) throw error ?? new Error("failed to update Deliverable Definition status");
-
-  if (input.targetState === "Active" || fromState === "Active") {
-    if (!input.actorId) throw new Error("a real actorId is required to sync the deliverable-name Ontology concept");
-    if (input.targetState === "Active") await syncOntologyOnActivate(updated, input.actorId);
-    else {
-      if (!gate.authorityBadge) throw new Error("no resolved authority badge for this transition — cannot record the deliverable-name Ontology concept's retirement");
-      await demoteOntologyIfNoOtherActive(updated, input.actorId, gate.authorityBadge);
-    }
-  }
-
-  await eventBus.publish({
-    eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "DeliverableDefinitionTransitioned",
-    originatingObjectType: "DeliverableDefinition",
-    originatingObjectId: updated.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState, code: updated.code },
-    actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
-  });
-  return { ok: true, deliverableDefinition: updated };
+  return { ok: true, deliverableDefinition: activated.row as DeliverableDefinitionRow };
 }
 
 async function nextAvailablePatchVersion(code: string, fromVersion: string, tenantId: string): Promise<string> {
   return nextAvailableVersion(fromVersion, async (candidate) => !!(await deliverableDefinitionsDB.findByCodeAndVersion(code, candidate, tenantId)).data);
 }
 
-async function reactivateAsNewVersion(concept: DeliverableDefinitionRow, actorId: string, authorBadge: string): Promise<TransitionDeliverableDefinitionResult> {
-  const nextVersion = await nextAvailablePatchVersion(concept.code, concept.version, concept.tenant_id);
-  const { data: reactivationSchema } = concept.schema_definition_id ? { data: { id: concept.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Deliverable");
-  if (!reactivationSchema) return { ok: false, reason: "policy_blocked", detail: `no schema_definitions grammar for Deliverable` };
-  if (!actorId) return { ok: false, reason: "policy_blocked", detail: "reactivation requires a real actorId to author the new Version's Draft" };
-  if (!authorBadge) return { ok: false, reason: "policy_blocked", detail: "no authority badge resolved for this Deliverable Definition reactivation" };
-  const { data: reactivateMaster } = await participantsMasterDB.findById(actorId);
-  if (!reactivateMaster) return { ok: false, reason: "policy_blocked", detail: `No superuser provisioned.` };
-  const { data: newDraft, error } = await deliverableDefinitionsDB.createDraft({
-    code: concept.code,
-    description: concept.description,
-    version: nextVersion,
-    authoredBy: reactivateMaster.id,
-    authorBadge,
-    draftContent: { code: concept.code, description: concept.description, definitionVersion: nextVersion },
-    tenantId: concept.tenant_id,
-    parentDeliverableDefinitionId: concept.parent_deliverable_definition_id,
-    schemaDefinitionId: reactivationSchema.id,
-  });
-  if (error || !newDraft) return { ok: false, reason: "policy_blocked", detail: (error ?? new Error("failed to create new Deliverable Definition version")).message };
-
-  let current = newDraft;
-  for (const targetState of ["Validated", "Published", "Active"] as const) {
-    const result = await transitionDeliverableDefinition({ deliverableDefinitionId: current.id, targetState, actorId });
-    if (!result.ok) return result;
-    current = result.deliverableDefinition;
-  }
-
-  const { data: previousActive } = await deliverableDefinitionsDB.findActiveByCode(concept.code, concept.tenant_id);
-  if (previousActive && previousActive.id !== current.id) {
-    await transitionDeliverableDefinition({ deliverableDefinitionId: previousActive.id, targetState: "Deprecated", actorId });
-  }
-
-  return { ok: true, deliverableDefinition: current };
-}
-
-const AUTHORING_NEXT_STATE: Partial<Record<DeliverableDefinitionRow["status"], DeliverableDefinitionRow["status"]>> = {
-  Draft: "Validated",
-  Validated: "Published",
-  Published: "Active",
-  Active: "Deprecated",
-  Deprecated: "Retired",
-  Retired: "Archived",
-};
-
-export async function advanceDeliverableDefinitionOneStep(concept: DeliverableDefinitionRow, actorId: string): Promise<TransitionDeliverableDefinitionResult> {
-  const targetState = AUTHORING_NEXT_STATE[concept.status];
-  if (!targetState) return { ok: false, reason: "no_further_step", detail: `Deliverable Definition is already ${concept.status} — no further authoring step` };
-
-  if (targetState === "Active") {
-    const { data: previousActive } = await deliverableDefinitionsDB.findActiveByCode(concept.code, concept.tenant_id);
-    const activateResult = await transitionDeliverableDefinition({ deliverableDefinitionId: concept.id, targetState: "Active", actorId });
-    if (!activateResult.ok) return activateResult;
-    if (previousActive && previousActive.id !== activateResult.deliverableDefinition.id) {
-      await transitionDeliverableDefinition({ deliverableDefinitionId: previousActive.id, targetState: "Deprecated", actorId });
-    }
-    return activateResult;
-  }
-
-  return transitionDeliverableDefinition({ deliverableDefinitionId: concept.id, targetState, actorId });
-}
-
-export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await deliverableDefinitionsDB.findById(deliverableDefinitionId);
   if (!source) return { ok: false, errors: ["Deliverable Definition not found"] };
   const nextVersion = await nextAvailablePatchVersion(source.code, source.version, source.tenant_id);
@@ -194,18 +78,32 @@ export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionI
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Deliverable`] };
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
   if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const birth = await transitionEngine.beginBirth({ entityType: "DeliverableDefinition", actorId });
   const { data: newDraft, error } = await deliverableDefinitionsDB.createDraft({
     code: source.code,
     description: source.description,
     version: nextVersion,
+    status: birth.initialState as DeliverableDefinitionRow["status"],
     authoredBy: copyMaster.id,
-    authorBadge,
+    authorBadge: birth.authorityBadge,
     draftContent: { code: source.code, description: source.description, definitionVersion: nextVersion },
     tenantId: source.tenant_id,
     parentDeliverableDefinitionId: source.parent_deliverable_definition_id,
     schemaDefinitionId: copySchema.id,
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Deliverable Definition")).message] };
+  await eventBus.publish({
+    eventType: birth.eventType,
+    originatingObjectType: "DeliverableDefinition",
+    originatingObjectId: newDraft.id,
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    actorId: copyMaster.id,
+    authorityBadge: birth.authorityBadge,
+    versionEvent: birth.versionEvent,
+    payload: { code: newDraft.code, version: newDraft.version },
+    tenantId: newDraft.tenant_id,
+  });
   return { ok: true, draftId: newDraft.id };
 }
 
@@ -218,7 +116,7 @@ export async function listDeliverableDefinitionsWithNextStates(viewer?: { isRoot
   const { data: rows } = viewer && !viewer.isRoot ? await deliverableDefinitionsDB.findAllVisibleTo(viewer.tenantId) : await deliverableDefinitionsDB.findAll();
   return Promise.all(
     (rows ?? []).map(async (deliverableDefinition) => {
-      const { data: possibleNextStates } = await transitionDefinitionsDB.findPossibleNextStates("Deliverable", deliverableDefinition.status);
+      const { data: possibleNextStates } = await transitionDefinitionsDB.findPossibleNextStates("DeliverableDefinition", deliverableDefinition.status);
       return { deliverableDefinition, possibleNextStates: possibleNextStates ?? [] };
     })
   );

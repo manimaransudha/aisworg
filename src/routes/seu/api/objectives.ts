@@ -5,11 +5,13 @@ const router = express.Router();
 
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
-import { createObjective, getObjectiveDetail, listObjectives, suggestCapabilityCodes, transitionObjective, updateObjective } from "../core/objectives.js";
+import { createObjective, getObjectiveDetail, listObjectives, suggestCapabilityCodes, updateObjective } from "../core/objectives.js";
+import { transitionEntity } from "../../../domain/engine/entityTransition.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import type { ObjectiveStatus, ObjectiveTier } from "../../../dblayer/seuTypes.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { requireTenant } from "../../../middleware/requireTenant.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 router.param(
   "id",
@@ -21,19 +23,17 @@ router.post(
   requireTenantScope.forField("body", "parentObjectiveId", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, { mode: "api", notFoundMessage: "Parent Objective not found" }),
   async (req: Request, res: Response) => {
   try {
-    const { statement, requiredCapabilityCodes, tier, parentObjectiveId, status } = req.body ?? {};
+    const { statement, requiredCapabilityCodes, tier, parentObjectiveId } = req.body ?? {};
     if (typeof statement !== "string" || !statement.trim() || !Array.isArray(requiredCapabilityCodes) || requiredCapabilityCodes.length === 0) {
       return res.status(400).json({ error: "statement (string) and a non-empty requiredCapabilityCodes (string[]) are required" });
     }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
 
     const { objective, requiredCapabilities } = await createObjective({
       statement,
       requiredCapabilityCodes,
       tier: tier as ObjectiveTier | undefined,
-      status: status as ObjectiveStatus | undefined,
       parentObjectiveId: parentObjectiveId ?? null,
-      requestedBy: String(req.session.user.id),
+      requestedBy: requireActorId(req),
     });
 
     res.status(201).json({
@@ -83,11 +83,10 @@ router.get("/objectives/:id", async (req: Request, res: Response) => {
 router.post("/objectives/:id/update", async (req: Request, res: Response) => {
   try {
     const { statement, requiredCapabilityCodes, bumpVersion } = req.body ?? {};
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
     const updated = await updateObjective(String(req.params.id), {
       statement,
       requiredCapabilityCodes: Array.isArray(requiredCapabilityCodes) ? requiredCapabilityCodes : undefined,
-      requestedBy: String(req.session.user.id),
+      requestedBy: requireActorId(req),
       bumpVersion: typeof bumpVersion === "boolean" ? bumpVersion : undefined,
     });
     res.status(200).json({ objective: updated });
@@ -101,17 +100,16 @@ function postTransition(targetState: ObjectiveStatus) {
   return async (req: Request, res: Response): Promise<void> => {
     try {
       const { comment, supersedingObjectiveId } = req.body ?? {};
-      if (req.session?.user?.id == null) {
-        res.status(401).json({ error: "authentication required" });
-        return;
-      }
-      const actorId = String(req.session.user.id);
-      const result = await transitionObjective({
-        objectiveId: String(req.params.id),
+      const actorId = requireActorId(req);
+      const result = await transitionEntity({
+        entityType: "Objective",
+        entityId: String(req.params.id),
         targetState,
         actorId,
-        comment: typeof comment === "string" ? comment : undefined,
-        supersedingObjectiveId: typeof supersedingObjectiveId === "string" && supersedingObjectiveId ? supersedingObjectiveId : undefined,
+        context: {
+          comment: typeof comment === "string" ? comment : undefined,
+          supersedingObjectiveId: typeof supersedingObjectiveId === "string" && supersedingObjectiveId ? supersedingObjectiveId : undefined,
+        },
       });
 
       if (!result.ok) {
@@ -122,7 +120,7 @@ function postTransition(targetState: ObjectiveStatus) {
         res.status(409).json({ reason: result.reason, detail: result.detail });
         return;
       }
-      res.status(200).json({ objective: result.objective, appliedTransition: result.appliedTransition });
+      res.status(200).json({ objective: result.row, appliedTransition: result.appliedTransition });
     } catch (err) {
       logger.error(`[api/seu/objectives] POST /:id/transition/${targetState} error`, err as Error);
       res.status(400).json({ error: (err as Error).message });

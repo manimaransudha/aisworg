@@ -5,8 +5,7 @@ CREATE TABLE templates (
   code                   TEXT NOT NULL UNIQUE,
   name                   TEXT NOT NULL,
   template_version       INTEGER NOT NULL DEFAULT 1,
-  status                 TEXT NOT NULL DEFAULT 'Active'
-                            CHECK (status IN ('Draft', 'Validated', 'Published', 'Active', 'Deprecated', 'Retired', 'Archived')),
+  status                 TEXT NOT NULL,
   parent_template_id     UUID REFERENCES templates(id),
   deliverable_catalogue  JSONB NOT NULL DEFAULT '[]',
   created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -26,7 +25,7 @@ ALTER TABLE templates ALTER COLUMN tenant_id SET NOT NULL;
 ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_code_version_key;
 ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_code_version_tenant_key;
 ALTER TABLE templates ADD CONSTRAINT templates_code_version_tenant_key UNIQUE (code, template_version, tenant_id);
-ALTER TABLE templates ALTER COLUMN status SET DEFAULT 'Draft';
+ALTER TABLE templates ADD COLUMN IF NOT EXISTS comments JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE templates ADD COLUMN IF NOT EXISTS schema_definition_id UUID REFERENCES schema_definitions(id);
 ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_schema_definition_id_fkey;
 GRANT ALL PRIVILEGES ON TABLE templates TO weirdo;

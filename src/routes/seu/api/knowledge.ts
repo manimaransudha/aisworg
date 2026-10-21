@@ -5,8 +5,10 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
+import { readTargetState } from "../../../utils/transitionRequest.js";
 import { addKnowledgeValidationNote, createKnowledgeItem, getEngineeringCapital, listKnowledgeItemsBySeu, listKnowledgeValidationNotes, promoteKnowledgeItemScope, transitionKnowledgeItem, updateKnowledgeReferences } from "../core/knowledge.js";
 import type { AcquisitionScope, KnowledgeRelationshipReferences, KnowledgeSelfReferences } from "../../../dblayer/seuTypes.js";
+import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 router.post("/knowledge", async (req: Request, res: Response) => {
   try {
@@ -14,8 +16,7 @@ router.post("/knowledge", async (req: Request, res: Response) => {
     if (typeof seuId !== "string" || typeof deliverableId !== "string" || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ error: "seuId, deliverableId, category and title are required" });
     }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
-    const actorId = String(req.session.user.id);
+    const actorId = requireActorId(req);
     const knowledgeItem = await createKnowledgeItem({
       seuId,
       deliverableId,
@@ -57,8 +58,7 @@ router.post("/knowledge/:id/validation-notes", async (req: Request, res: Respons
     if (typeof noteText !== "string" || !noteText.trim()) {
       return res.status(400).json({ error: "noteText is required" });
     }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
-    const actorId = String(req.session.user.id);
+    const actorId = requireActorId(req);
     const note = await addKnowledgeValidationNote({ knowledgeItemId: String(req.params.id), noteText, actorId });
     res.status(201).json({ note });
   } catch (err) {
@@ -102,8 +102,7 @@ router.post("/knowledge/:id/promote-scope", async (req: Request, res: Response) 
     if (typeof targetScope !== "string" || !targetScope.trim()) {
       return res.status(400).json({ error: "targetScope is required" });
     }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
-    const actorId = String(req.session.user.id);
+    const actorId = requireActorId(req);
     const result = await promoteKnowledgeItemScope({ knowledgeItemId: String(req.params.id), targetScope: targetScope as AcquisitionScope, actorId });
 
     if (!result.ok) {
@@ -119,12 +118,9 @@ router.post("/knowledge/:id/promote-scope", async (req: Request, res: Response) 
 
 router.post("/knowledge/:id/transition", async (req: Request, res: Response) => {
   try {
-    const { targetState } = req.body ?? {};
-    if (typeof targetState !== "string" || !targetState.trim()) {
-      return res.status(400).json({ error: "targetState is required" });
-    }
-    if (req.session?.user?.id == null) return res.status(401).json({ error: "Session expired — please log in again." });
-    const actorId = String(req.session.user.id);
+    const targetState = readTargetState(req, res);
+    if (targetState === null) return;
+    const actorId = requireActorId(req);
     const result = await transitionKnowledgeItem({ knowledgeItemId: String(req.params.id), targetState, actorId });
 
     if (!result.ok) {

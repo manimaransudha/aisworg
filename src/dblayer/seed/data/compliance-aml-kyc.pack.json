@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "aml-bsa-officer-attestation-gate",
+        "code": "regulatory-obligations-register",
         "name": "BSA / AML Compliance Officer Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Designated BSA / AML Officer confirms that sanctions screening, KYC workflows, and SAR reporting comply with FinCEN and OFAC rules.",
         "prompt": "Does the AML audit evidence confirm full compliance with BSA, FinCEN CDD, and OFAC sanctions requirements?",
         "participant": "human",
-        "outputContract": "aml-compliance-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "AML / KYC & OFAC Sanctions Audit Checklist"
         ]

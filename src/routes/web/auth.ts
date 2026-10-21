@@ -18,6 +18,7 @@ import { parseListParams, paginateList } from '../../utils/listQuery.js';
 import { rateLimit }   from 'express-rate-limit';
 import type { Request, Response, NextFunction } from 'express';
 import type { UserRow } from '../../dblayer/userDB.js';
+import { requireActorId } from "../../domain/identity/heldBadges.js";
 
 const loginLimiter = rateLimit({
   windowMs:         4 * 60 * 60 * 1000,
@@ -57,7 +58,7 @@ router.post('/login', loginLimiter, (req: Request, res: Response, next: NextFunc
 
     req.session.user = await buildSessionUser(user);
     await ensureBadgeBootstrap(user);
-    req.session.user.platformBadges = await getPlatformBadges(String(req.session.user.id));
+    req.session.user.platformBadges = await getPlatformBadges(requireActorId(req));
     logger.info(`[Auth] Local login: ${user.email}`);
     return res.redirect(postLoginRedirectPath(req.session.user));
   })(req, res, next);
@@ -74,7 +75,7 @@ router.get('/google/callback',
     if (!googleUser) return res.redirect('/aisworg/auth/disabled');
     req.session.user = await buildSessionUser(googleUser);
     await ensureBadgeBootstrap(googleUser);
-    req.session.user.platformBadges = await getPlatformBadges(String(req.session.user.id));
+    req.session.user.platformBadges = await getPlatformBadges(requireActorId(req));
     logger.info(`[Auth] Google login: ${googleUser.email}`);
     res.redirect(postLoginRedirectPath(req.session.user));
   }
@@ -134,7 +135,7 @@ router.post('/verify', loginLimiter, async (req: Request, res: Response) => {
 
   req.session.user = await buildSessionUser(activated);
   await ensureBadgeBootstrap(activated);
-  req.session.user.platformBadges = await getPlatformBadges(String(req.session.user.id));
+  req.session.user.platformBadges = await getPlatformBadges(requireActorId(req));
   logger.info(`[Auth] Account activated: ${activated.email}`);
   res.redirect(postLoginRedirectPath(req.session.user));
 });

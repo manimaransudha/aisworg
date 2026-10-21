@@ -54,14 +54,14 @@
     ],
     "reviewGates": [
       {
-        "code": "sox-internal-audit-signoff",
+        "code": "configuration-baseline-record",
         "name": "SOX ITGC Internal Audit Sign-Off Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The SOX Audit Lead confirms that change management, segregation of duties, and access control evidence satisfies SOX Section 404 ITGC standards.",
         "prompt": "Has Internal Audit verified change records, SoD rules, and ITGC evidence for SOX 404 compliance?",
         "participant": "human",
-        "outputContract": "sox-itgc-audit-signoff",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "SOX 404 IT General Controls (ITGC) Audit Checklist"
         ]

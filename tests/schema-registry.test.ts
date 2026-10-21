@@ -6,9 +6,13 @@ import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 
+import { readFileSync } from "node:fs";
+
 import pool from "../src/utils/db.js";
 import { createSchemaVersion, reviewSchemaVersion, getSchemaDefinition, listSchemaDefinitions } from "../src/routes/seu/core/schemaRegistry.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
+import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
+import type { SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
 import { ROOT_ACTOR_ID } from "./testFixtures.js";
 
 // The grammar-authored kinds (Pack/Template/Profile) are all load-bearing — each
@@ -89,4 +93,17 @@ test("Schema Registry: rejects invalid JSON and an unknown entity kind, without 
   const badKind = await createSchemaVersion({ entityKind: "NotARealKind", schemaJson: "{}", actorId: ROOT_ACTOR_ID });
   assert.equal(badKind.ok, false);
   assert.match((!badKind.ok && badKind.errors.join(";")) || "", /entity kind must be one of/);
+});
+
+// CR-128 — the seed writes every baseline schema in the to_state of the SchemaDefinition birth row.
+test("Schema Registry: every seeded baseline schema is stored in the birth row's to_state", async () => {
+  const { data: birth } = await transitionDefinitionsDB.findBirth("SchemaDefinition");
+  assert.ok(birth, "no birth Transition Definition for SchemaDefinition");
+  const seeds = JSON.parse(readFileSync(new URL("../src/dblayer/seed/data/schemaDefinitions.json", import.meta.url), "utf8")) as Array<{ entity_kind: SchemaDefinitionEntityKind; version: number }>;
+  for (const seed of seeds) {
+    const versions = (await schemaDefinitionsDB.findAllVersions(seed.entity_kind)).data ?? [];
+    const row = versions.find((v) => v.version === seed.version);
+    assert.ok(row, `seeded ${seed.entity_kind} v${seed.version} not found`);
+    assert.equal(row!.lifecycle_state, birth!.to_state, `${seed.entity_kind} v${seed.version}: lifecycle_state`);
+  }
 });

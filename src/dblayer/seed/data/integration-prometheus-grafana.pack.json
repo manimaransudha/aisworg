@@ -52,14 +52,14 @@
     ],
     "reviewGates": [
       {
-        "code": "prometheus-grafana-review-gate",
+        "code": "service-level-objective-specification",
         "name": "Prometheus & Grafana Review Gate",
         "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
         "statement": "The Site Reliability Engineer confirms that Prometheus metric scraping, Alertmanager rules, and Grafana dashboards function correctly.",
         "prompt": "Does the Prometheus & Grafana integration verify PromQL metric querying and Grafana dashboard provisioning?",
         "participant": "human",
-        "outputContract": "prometheus-grafana-integration-attestation",
+        "outputContract": "assessment-acceptance",
         "checklistIds": [
           "Prometheus & Grafana Integration Verification Checklist"
         ]
