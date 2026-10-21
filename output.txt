@@ -2904,3 +2904,89 @@
 [eventBus] dispatching 'CapabilityRequested' (e9f9f05f-7de6-4332-8533-522afc82cd73) to handler 'capabilityRequested'
 [eventBus] handler 'capabilityOnReady' consumed 'SEUCommissioned' (5d819d8c-9331-410f-9e1c-7c5fe793b283)
 [2026-10-21T14:35:00.030Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79 | user: manimaransudha@gmail.com
+[eventBus] published 'PolicyViolated' (ce5590c6-4851-4cb1-b3c3-3d490bc674ca) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=09fb77f9-65d7-4c50-942f-db0dc15b2f69 at t=1792593300994 — 0 handler(s): none
+[eventBus] published 'DeliverableBlocked' (20a793d9-e361-4bd2-a4ad-572afc03a28a) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=303b1b95-0a85-4e2c-afd2-df0e6db0ec27 at t=1792593301692 — 0 handler(s): none
+[eventBus] published 'DeliverableBlocked' (269cd2ff-068e-4dff-a752-f926deb58469) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=9174dc9a-ffdb-4225-a0a0-efbc7e1e5af0 at t=1792593302120 — 0 handler(s): none
+[eventBus] handler 'deliverableKickoff' consumed 'SEUOperational' (3d398c8b-b869-487f-bc38-47e16a74116c)
+[2026-10-21T14:35:03.994Z] [DEBUG] [ViewModel] Render seu/seus/detail took 22ms
+[2026-10-21T14:35:03.996Z] [INFO] GET /seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79 200 3966ms
+[eventBus] published 'ParticipantCreated' (c5548028-6518-48cd-8b05-cf2743d70b3a) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=c82b75d4-4699-410a-be9b-f332848e8338 at t=1792593323834 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (2a876b46-03cb-4a8e-a2fa-021235b2b5a8) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=8c351c86-d281-45ae-9b58-0d7981ab742d at t=1792593323865 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (104778a3-8c8f-47e8-a604-3aa6321e3097) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=e8c6dc39-8d6a-4cac-a60d-3a31f85119ed at t=1792593323895 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (ae4d4908-6dd9-4014-b27d-1f7c6b72f35c) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=f08fef2d-a261-4329-9d44-6c70f7a226a5 at t=1792593323927 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (cd297c5f-7383-45fa-bd33-71e1247a92aa) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=9bf41abe-652f-4df3-95ea-bcffd0c51c5a at t=1792593323958 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (29e48069-56c9-49f6-9eb2-a2fa0fa9b9fa) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=840fbf9c-0f19-4353-a6c7-b6d9eee8d4d1 at t=1792593323990 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (48f8c7d9-eb8f-48cb-98af-072840d2fc98) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=d029dbef-7b28-40a0-9176-5bb0b716d901 at t=1792593324023 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (f00bc39d-88f2-4489-93f9-19eb17b88ca2) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=aff56960-2700-48ac-b166-cd059722bfe5 at t=1792593324055 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (7b609e43-c029-4443-bb4b-7a322b1bbcc7) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=3b533ac5-2dd2-4036-9ad1-7521ca9f1070 at t=1792593324089 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (e6cee0ef-1a71-4dcb-b85a-340922ed7053) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=8f53695f-88a7-42f4-9f22-ffe36d1bdaa8 at t=1792593324118 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (1cf8df50-f9b1-408b-b10e-af3ef3b68124) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=137091d2-aec2-4e1c-944d-e4658563dbcf at t=1792593324150 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (cdaf0379-f00d-420b-8d4a-e08224b1bc01) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=4fec3591-1c87-45f4-80a9-c7f404a10b8b at t=1792593324183 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (e07a1f4d-9156-4f52-b30a-c2e9925605a0) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=2454ac7b-79db-4e3f-b4b3-2333e0258e1a at t=1792593324216 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (7b61110b-f441-406f-9ca0-61a1f1fa9a31) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=fa8b4861-339c-4abd-ba83-ddfbba77867f at t=1792593324247 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (24c8ecca-f817-44a5-a2a8-d54d727de1ee) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=c45befda-6c3b-4641-8fc6-4662e9d7d94c at t=1792593324280 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (361ce2bb-82fb-4328-a29d-7c2b89ff0ada) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=5b281337-3de5-4231-8861-cc0f46d98853 at t=1792593324327 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (3491d2f5-1ed7-490c-bf8f-035de81e97c3) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=513030d6-7e70-4856-a3b9-4b8288b38fda at t=1792593324361 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (4c57b894-62eb-4251-a3d9-1354dbe2e587) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=58081a94-9194-4e54-9940-5240cad793d6 at t=1792593324392 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (1e0eefa5-951c-4128-8d62-859b76d2916c) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=20d4f596-b778-4332-920e-cc23da9edef0 at t=1792593324425 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (f364a09b-ded9-49be-80c4-a6c2578f103b) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=9d281e18-77ae-48ce-8e47-3e73a6fae743 at t=1792593324458 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (d3e00f52-3a3f-4d1a-9187-29eb5ca52bbe) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=6d860a0b-09f2-43d0-8b67-69b67357eeb9 at t=1792593324488 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (f1d612a1-d5d8-46b8-b47e-556c7019addd) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=37f64204-f361-45eb-a2de-213f93a414e9 at t=1792593324521 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (ee3e09c8-8113-4f21-b733-82160f0269a8) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=50483eff-7c0e-445f-a358-68992a8b373a at t=1792593324554 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (2961d31e-e195-4dd4-861c-53d2a9e4a111) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=c312c9d7-f7c2-4678-8b1f-32f7f7f5a947 at t=1792593324587 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (64ee2c2c-eac0-47cd-98c0-9d956468d3de) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=442299ea-3aff-4089-ac80-b00bb12cb1ee at t=1792593324616 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (d85e822c-0a62-49ec-a094-cc63805c020f) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=ce31f55b-c150-4e0d-8360-ff6cac7e52af at t=1792593324648 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (78d5c53f-f6c8-419c-9b14-22f7b04714d7) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=b524e119-3192-4471-829f-41df80fc59a0 at t=1792593324683 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (fb181c50-f8ce-4701-94f6-1c75225d50e9) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=e0abe532-4f24-4b6e-b47b-b266dba7107c at t=1792593324715 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (0d0256cb-db47-41f5-b87c-ce0074bdbab5) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=51b41c22-540b-4aa6-ade7-7a8dd1bfb554 at t=1792593324748 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (fb8fded9-05fe-452a-870f-0ed0e7914f91) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=80f67b2d-c630-469d-a8cb-9c8abaddfd7a at t=1792593324781 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (8eceb4f8-34f2-4cab-9e61-767e98a030a1) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=8c0e1110-94c9-47f7-89d8-555528003570 at t=1792593324814 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (99c48dd5-c3c6-4cfe-bd7f-b1fe4f8aa102) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=f10042d2-3756-4565-a3ad-3549fa9936da at t=1792593324843 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (7daed8ee-1ae6-4151-b1bf-0cd4895510df) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=d9660110-8d94-48b4-b0af-1c7aefc6fd98 at t=1792593324876 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (0c457091-b6f3-4566-82d4-234dfb7f57f1) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=3e78ad5b-1858-454d-94bd-516db8e112b8 at t=1792593324910 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (0c7a1af3-9e9b-44f2-b995-b56b584e94ad) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=bb14f663-1e42-422b-b9d9-7b6728186a3e at t=1792593324943 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (d4bfc8ce-002b-46c4-86b0-bdc5a211326f) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=ce1bed19-b027-49bc-a957-196ed36f0ef5 at t=1792593324977 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (eac33f61-6cf9-4f26-9562-7fd3e8ef41cb) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=77ba8f7c-bdeb-411d-ba10-8d958089224e at t=1792593325009 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (6d9da242-3f29-4c41-902f-bcc6214d2fbc) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=09fca93a-0d15-4a34-8333-bc43299eda4a at t=1792593325039 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (32260a86-5017-4e29-9a6d-a429be741135) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=4cb6d96e-6889-4b88-b0ed-3feb41b01a3f at t=1792593325072 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (86f68925-63c2-4b52-a0e2-6e53a1ef8f96) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=687b0e36-2959-47f9-9175-85ced726539f at t=1792593325104 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (84884727-fb60-4f67-8c39-3569421730e0) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=26651da7-8b61-4a44-a1aa-18f3ba7f1187 at t=1792593325138 — 0 handler(s): none
+[eventBus] published 'ParticipantCreated' (0b773b23-909a-4abc-bae7-b07ac84c6491) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=88d6183b-c081-4ae1-aa58-23a7b81ea5a5 at t=1792593325171 — 0 handler(s): none
+[eventBus] published 'CapabilityFulfilled' (d5aa9cdb-c292-4720-b409-42e80281d58e) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 at t=1792593325208 — 1 handler(s): deliverableKickoff
+[eventBus] dispatching 'CapabilityFulfilled' (d5aa9cdb-c292-4720-b409-42e80281d58e) to handler 'deliverableKickoff'
+[eventBus] handler 'capabilityRequested' consumed 'CapabilityRequested' (e9f9f05f-7de6-4332-8533-522afc82cd73)
+[2026-10-21T14:35:25.487Z] [DEBUG] Incoming path: /aisworg/seu/seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79 /aisworg/seu/seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79
+[2026-10-21T14:35:25.746Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79 | user: manimaransudha@gmail.com
+[eventBus] published 'PolicyApplied' (fa11a980-a111-4ae6-bb60-f6584ab20554) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=09fb77f9-65d7-4c50-942f-db0dc15b2f69 at t=1792593326218 — 0 handler(s): none
+[eventBus] published 'DeliverableUpdated' (d12ec629-49b8-440b-ac78-de34d4f75e43) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=b7036d13-7e87-4858-85a7-62adb3f38b28 at t=1792593326987 — 0 handler(s): none
+[eventBus] published 'DeliverableTransitioned' (09c19aba-4e35-4b4d-ba0d-fdf8cd6e0365) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=b7036d13-7e87-4858-85a7-62adb3f38b28 at t=1792593327018 — 1 handler(s): deliverableKickoff
+[eventBus] dispatching 'DeliverableTransitioned' (09c19aba-4e35-4b4d-ba0d-fdf8cd6e0365) to handler 'deliverableKickoff'
+[eventBus] published 'DeliverableBlocked' (f907d831-2a9c-4b13-8091-28f997c4d606) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=303b1b95-0a85-4e2c-afd2-df0e6db0ec27 at t=1792593327492 — 0 handler(s): none
+[eventBus] published 'DeliverableBlocked' (b91ba6e7-9188-451d-ad33-be5d521d9495) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=303b1b95-0a85-4e2c-afd2-df0e6db0ec27 at t=1792593327634 — 0 handler(s): none
+[eventBus] published 'DeliverableBlocked' (07ea5fc2-f39a-4af2-9ecd-eb4dd2e4ca51) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=9174dc9a-ffdb-4225-a0a0-efbc7e1e5af0 at t=1792593327890 — 0 handler(s): none
+[eventBus] handler 'deliverableKickoff' consumed 'CapabilityFulfilled' (d5aa9cdb-c292-4720-b409-42e80281d58e)
+[eventBus] published 'DeliverableBlocked' (5af3ef75-fd49-424a-aff9-9923ffa524c5) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=9174dc9a-ffdb-4225-a0a0-efbc7e1e5af0 at t=1792593328014 — 0 handler(s): none
+[eventBus] published 'CommandGenerated' (5f893827-8c7f-437d-ae2f-1f2626ec1850) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=d7498168-7ab5-4d51-bd9b-e259f174bf9d at t=1792593328416 — 1 handler(s): commandGenerated
+[eventBus] dispatching 'CommandGenerated' (5f893827-8c7f-437d-ae2f-1f2626ec1850) to handler 'commandGenerated'
+[eventBus] handler 'deliverableKickoff' consumed 'DeliverableTransitioned' (09c19aba-4e35-4b4d-ba0d-fdf8cd6e0365)
+[eventBus] published 'WorkItemGenerated' (b6dc35fc-8038-4df4-b912-40913bb33460) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=32a91d21-68b3-48ca-bf50-cddc5de5d017 at t=1792593328821 — 1 handler(s): workItemGenerated
+[eventBus] dispatching 'WorkItemGenerated' (b6dc35fc-8038-4df4-b912-40913bb33460) to handler 'workItemGenerated'
+[eventBus] handler 'commandGenerated' consumed 'CommandGenerated' (5f893827-8c7f-437d-ae2f-1f2626ec1850)
+[2026-10-21T14:35:29.603Z] [DEBUG] [ViewModel] Render seu/seus/detail took 28ms
+[2026-10-21T14:35:29.607Z] [INFO] GET /seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79 200 3861ms
+[2026-10-21T14:35:29.651Z] [DEBUG] Incoming path: /aisworg/seu/seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79 /aisworg/seu/seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79
+[2026-10-21T14:35:29.907Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79 | user: manimaransudha@gmail.com
+[eventBus] published 'ParticipantAssigned' (b1be99c2-5ef4-4de4-a08a-781b699a58b6) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=c82b75d4-4699-410a-be9b-f332848e8338 at t=1792593332486 — 0 handler(s): none
+[eventBus] published 'ParticipantSelected' (96376ef8-151b-4fbb-b5f8-2b3c1d886908) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=32a91d21-68b3-48ca-bf50-cddc5de5d017 at t=1792593332553 — 0 handler(s): none
+[eventBus] published 'WorkItemDispatched' (5e51f9d0-17e2-4535-af38-a9c448163efc) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=32a91d21-68b3-48ca-bf50-cddc5de5d017 at t=1792593332585 — 1 handler(s): assignmentDelivery
+[eventBus] dispatching 'WorkItemDispatched' (5e51f9d0-17e2-4535-af38-a9c448163efc) to handler 'assignmentDelivery'
+[eventBus] handler 'workItemGenerated' consumed 'WorkItemGenerated' (b6dc35fc-8038-4df4-b912-40913bb33460)
+[2026-10-21T14:35:32.943Z] [INFO] [humanOnUiAdapter] Work Item 32a91d21-68b3-48ca-bf50-cddc5de5d017 for Deliverable "Requirements Analysis Model" is available on the human-on-UI surface (In Progress -> In Progress).
+[eventBus] handler 'assignmentDelivery' consumed 'WorkItemDispatched' (5e51f9d0-17e2-4535-af38-a9c448163efc)
+[2026-10-21T14:35:33.813Z] [DEBUG] [ViewModel] Render seu/seus/detail took 25ms
+[2026-10-21T14:35:33.817Z] [INFO] GET /seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79 200 3910ms
+[2026-10-21T14:35:33.822Z] [DEBUG] Incoming path: /aisworg/seu/seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79/capabilities/7e8903c4-516d-49c8-a57f-73733d980f98/fulfil /aisworg/seu/seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79/capabilities/7e8903c4-516d-49c8-a57f-73733d980f98/fulfil
+[2026-10-21T14:35:34.093Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79/capabilities/7e8903c4-516d-49c8-a57f-73733d980f98/fulfil | user: manimaransudha@gmail.com
+[eventBus] published 'CapabilityRequested' (f01ce9e7-340d-473f-b016-1c47fd53f0cf) seuId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 originatingObjectId=73a5b77c-7f8b-43a3-8ec6-d49139cabb79 at t=1792593334256 — 1 handler(s): capabilityRequested
+[eventBus] dispatching 'CapabilityRequested' (f01ce9e7-340d-473f-b016-1c47fd53f0cf) to handler 'capabilityRequested'
+[2026-10-21T14:35:34.259Z] [INFO] POST /seus/73a5b77c-7f8b-43a3-8ec6-d49139cabb79/capabilities/7e8903c4-516d-49c8-a57f-73733d980f98/fulfil 302 165ms
