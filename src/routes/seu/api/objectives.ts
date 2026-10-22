@@ -6,7 +6,7 @@ const router = express.Router();
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { createObjective, getObjectiveDetail, listObjectives, suggestCapabilityCodes, updateObjective } from "../core/objectives.js";
-import { transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import type { ObjectiveStatus, ObjectiveTier } from "../../../dblayer/seuTypes.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
@@ -120,6 +120,7 @@ function postTransition(targetState: ObjectiveStatus) {
         res.status(409).json({ reason: result.reason, detail: result.detail });
         return;
       }
+      await publishTransition(result);
       res.status(200).json({ objective: result.row, appliedTransition: result.appliedTransition });
     } catch (err) {
       logger.error(`[api/seu/objectives] POST /:id/transition/${targetState} error`, err as Error);

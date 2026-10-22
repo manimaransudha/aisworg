@@ -14,7 +14,7 @@ ALTER TABLE ontology_concepts ALTER COLUMN tenant_id SET NOT NULL;
 ALTER TABLE ontology_concepts ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE ontology_concepts ADD COLUMN IF NOT EXISTS is_mandatory BOOLEAN;
 ALTER TABLE ontology_concepts ADD COLUMN IF NOT EXISTS version TEXT NOT NULL DEFAULT '1.0.0';
-ALTER TABLE ontology_concepts ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'Active';
+ALTER TABLE ontology_concepts ADD COLUMN IF NOT EXISTS status TEXT NOT NULL;
 ALTER TABLE ontology_concepts DROP COLUMN IF EXISTS is_active;
 ALTER TABLE ontology_concepts ADD COLUMN IF NOT EXISTS composition_strategy TEXT;
 ALTER TABLE ontology_concepts ADD COLUMN IF NOT EXISTS composition_sources JSONB NOT NULL DEFAULT '[]';

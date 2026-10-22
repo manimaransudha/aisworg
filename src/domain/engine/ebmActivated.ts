@@ -2,26 +2,14 @@ import { seusDB } from "../../dblayer/seusDB.js";
 import { templatesDB } from "../../dblayer/templatesDB.js";
 import { profilesDB } from "../../dblayer/profilesDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
-import { finalizeCommissioning } from "../../routes/seu/core/commissioning.js";
-import { eventBus } from "./eventBus.js";
+import { failSeu, finalizeCommissioning } from "../../routes/seu/core/commissioning.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
 import type { EventRow } from "../../dblayer/seuTypes.js";
 
 async function failCommissioning(seuId: string, event: EventRow, reason: string): Promise<void> {
   logger.error(`[ebmActivated] finalizeCommissioning failed for SEU ${seuId}: ${reason}`);
-  await seusDB.updateLifecycleState(seuId, "Failed");
-  await eventBus.publish({
-    eventType: "CommissionFailed",
-    originatingObjectType: "SEU",
-    originatingObjectId: seuId,
-    seuId,
-    correlationId: event.correlation_id,
-    causationId: event.id,
-    actorId: event.actor_id,
-    authorityBadge: event.authority_badge,
-    payload: { stage: "finalize_commissioning", reason },
-  });
+  await failSeu({ seuId, actorId: event.actor_id, stage: "finalize_commissioning", reason, correlationId: event.correlation_id, causationId: event.id });
 }
 
 export const ebmActivatedHandler: EventHandler = async (event: EventRow) => {

@@ -23,10 +23,10 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { getObjectiveDetail } from "../src/routes/seu/core/objectives.js";
-import { commissionFromExistingObjective } from "../src/routes/seu/core/commissioning.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { getSeuEbmView } from "../src/routes/seu/core/seus.js";
 import { ensureEventSubscriptionsLoaded, driveCommissioningToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, PLATFORM_TENANT_ID, createActiveObjective } from "./testFixtures.js";
+import { initiateAndValidateSeu } from "./testFixtures.js";
 
 before(async () => {
   // Must run before this file's own first commissionFromExistingObjective
@@ -206,7 +206,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   }
 
   // 2. Explicitly choosing the Template + nodejs Profile actually composes it.
-  const requestedChoice = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template!.id, profileId: nodejsPublished.profileId }], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requestedChoice = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: nodejsPublished.profileId, actorId: TESTER_ALL_ID });
   assert.equal(requestedChoice.ok, true, !requestedChoice.ok ? JSON.stringify(requestedChoice) : "assertion failed");
   if (!requestedChoice.ok) return;
   const chosen = await driveCommissioningToActive({ seuId: requestedChoice.seu.id, actorId: TESTER_ALL_ID });

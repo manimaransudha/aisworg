@@ -2,6 +2,7 @@ import { ontologyDB, type OntologyViewer } from "../../../dblayer/ontologyDB.js"
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
@@ -327,15 +328,17 @@ export async function addConcept(
   const { data: latest } = await ontologyDB.findLatestVersion(conceptType, code, tenantId);
   if (!latest) {
     const version = INITIAL_VERSION;
+    const birth = await transitionEngine.beginBirth({ entityType: "Ontology", actorId: actor.actorId });
     const { authorId, authorBadge } = await resolveAuthor(actor);
     const { data: created, error } = await ontologyDB.insertConceptVersion({
       conceptType, code, tenantId, version, defaultLabel, description: description || null,
-      textType: input.textType, uiGrouping: input.uiGrouping, status: "Draft",
+      textType: input.textType, uiGrouping: input.uiGrouping, status: birth.initialState as OntologyConceptRow["status"],
       authorId, authorBadge,
     });
     if (error || !created) throw error ?? new Error("failed to add concept");
     await eventBus.publish({
-      eventType: "ConceptCreated",
+      eventType: birth.eventType,
+      versionEvent: birth.versionEvent,
       originatingObjectType: "Ontology",
       originatingObjectId: created.id,
       seuId: null,
@@ -367,6 +370,7 @@ async function createConceptVersion(
   const base = previousActive ?? latest;
   const nextVersion = base ? await nextAvailableVersion(input.conceptType, input.code, input.tenantId, base.version) : INITIAL_VERSION;
 
+  const birth = await transitionEngine.beginBirth({ entityType: "Ontology", actorId: actor.actorId });
   const { authorId, authorBadge } = await resolveAuthor(actor);
   const { data: created, error } = await ontologyDB.insertConceptVersion({
     conceptType: input.conceptType, code: input.code, tenantId: input.tenantId, version: nextVersion,
@@ -374,12 +378,14 @@ async function createConceptVersion(
     compositionStrategy: input.compositionStrategy ?? null, compositionSources: input.compositionSources ?? [],
     textType: input.textType ?? base?.text_type ?? "markdown",
     uiGrouping: input.uiGrouping !== undefined ? input.uiGrouping : (base?.ui_grouping ?? null),
+    status: birth.initialState as OntologyConceptRow["status"],
     authorId, authorBadge,
   });
   if (error || !created) throw error ?? new Error("failed to create concept version");
 
   await eventBus.publish({
-    eventType: latest ? "ConceptUpdated" : "ConceptCreated",
+    eventType: birth.eventType,
+    versionEvent: birth.versionEvent,
     originatingObjectType: "Ontology",
     originatingObjectId: created.id,
     seuId: null,
@@ -388,20 +394,6 @@ async function createConceptVersion(
     actorId: authorId,
     authorityBadge: authorBadge,
   });
-
-  if (previousActive && previousActive.id !== created.id) {
-    await ontologyDB.updateConceptStatus(previousActive.id, "Deprecated");
-    await eventBus.publish({
-      eventType: "ConceptDeprecated",
-      originatingObjectType: "Ontology",
-      originatingObjectId: previousActive.id,
-      seuId: null,
-      correlationId: eventBus.newCorrelationId(),
-      payload: { conceptType: input.conceptType, code: input.code, version: previousActive.version, reason: "superseded by new version" },
-      actorId: authorId,
-      authorityBadge: authorBadge,
-    });
-  }
 
   return created;
 }
@@ -429,54 +421,14 @@ async function transitionConcept(
   }
   const { data: concept } = await ontologyDB.findLatestVersion(conceptType, code, targetTenantId);
   if (!concept) throw new Error(`no such concept ${conceptType}/${code} for that tenant`);
-  const fromState = concept.status;
 
-  const gate = await transitionEngine.evaluate({
-    entityType: "Ontology", fromState, toState, actorId: actor.actorId,
-    entityId: concept.id,
+  const moved = await transitionEntity({
+    entityType: "Ontology", entityId: concept.id, targetState: toState, actorId: actor.actorId,
+    context: opts?.comment !== undefined ? { comment: opts.comment } : undefined,
   });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") throw new Error(`cannot move ${conceptType}/${code} from ${fromState} to ${toState}`);
-    throw new Error(gate.reason);
-  }
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
-
-  const trimmedComment = opts?.comment?.trim() ?? "";
-  if (fromState === "Draft" && toState === "Draft") {
-    if (!trimmedComment) {
-      throw new Error("Rejecting requires feedback — provide a comment explaining what needs to change.");
-    }
-    const { data: existingComments } = await ontologyDB.getConceptComments(concept.id);
-    const mostRecent = existingComments?.[existingComments.length - 1];
-    if (mostRecent && mostRecent.comment_text.trim() === trimmedComment) {
-      throw new Error("Provide new feedback — this matches the most recent comment already on record.");
-    }
-  }
-
-  const { data: updated, error } = await ontologyDB.updateConceptStatus(concept.id, toState);
-  if (error || !updated) throw error ?? new Error("failed to update concept status");
-
-  if (fromState === "Draft" && toState === "Draft") {
-    await ontologyDB.addConceptComment(concept.id, actor.actorId, gate.authorityBadge, trimmedComment);
-  }
-
-  const { authorId } = await resolveAuthor(actor);
-  await eventBus.publish({
-    eventType: gate.eventType ?? `OntologyConcept${toState}`,
-    originatingObjectType: "Ontology",
-    originatingObjectId: concept.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { conceptType, code, fromState, toState, version: concept.version },
-    actorId: authorId,
-    authorityBadge: gate.authorityBadge,
-    versionEvent: gate.versionEvent,
-    fromState,
-    toState,
-    tenantId: targetTenantId,
-  });
-
-  return updated;
+  if (!moved.ok) throw new Error(`cannot move ${conceptType}/${code} from ${concept.status} to ${toState}: ${"detail" in moved ? moved.detail : moved.reason}`);
+  await publishTransition(moved);
+  return moved.row as OntologyConceptRow;
 }
 
 export async function deprecateConcept(conceptType: string, code: string, targetTenantId: string, actor: OntologyActor) {
@@ -491,8 +443,16 @@ export async function archiveConcept(conceptType: string, code: string, targetTe
   return transitionConcept(conceptType, code, targetTenantId, "Archived", actor);
 }
 
+// Draft -> Active. The version that was Active until now moves to Deprecated through its own row.
 export async function approveConcept(conceptType: string, code: string, targetTenantId: string, actor: OntologyActor) {
-  return transitionConcept(conceptType, code, targetTenantId, "Active", actor);
+  const { data: previousActive } = await ontologyDB.findActiveConcept(conceptType, code, targetTenantId);
+  const approved = await transitionConcept(conceptType, code, targetTenantId, "Active", actor);
+  if (previousActive && previousActive.id !== approved.id) {
+    const deprecated = await transitionEntity({ entityType: "Ontology", entityId: previousActive.id, targetState: "Deprecated", actorId: actor.actorId });
+    if (!deprecated.ok) throw new Error(`cannot deprecate the previous version of ${conceptType}/${code}: ${"detail" in deprecated ? deprecated.detail : deprecated.reason}`);
+    await publishTransition(deprecated);
+  }
+  return approved;
 }
 
 export async function rejectConcept(conceptType: string, code: string, targetTenantId: string, comment: string, actor: OntologyActor) {
@@ -549,24 +509,11 @@ export async function listDistinctUiGroupings(viewer: OntologyViewer): Promise<s
   return data ?? [];
 }
 
+// No human is involved, so the new version takes the approve hop at once with the same actor.
 export async function syncConceptFromEntity(conceptType: string, code: string, defaultLabel: string, description: string | null, tenantId: string, actorId: string): Promise<OntologyConceptRow> {
-  return createConceptVersion({ conceptType, code, tenantId, defaultLabel, description }, { isRoot: true, tenantId, actorId, actorBadge: await badgeAuthorityEngine.resolveAuthorBadge(actorId, "ontology_define") });
-}
-
-export async function retireConceptForEntity(conceptType: string, code: string, tenantId: string, actorId: string, actorBadge: string): Promise<void> {
-  const { data: concept } = await ontologyDB.findActiveConcept(conceptType, code, tenantId);
-  if (!concept) return;
-  await ontologyDB.updateConceptStatus(concept.id, "Retired");
-  await eventBus.publish({
-    eventType: "OntologyConceptRetired",
-    originatingObjectType: "Ontology",
-    originatingObjectId: concept.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { conceptType, code, version: concept.version, reason: "no other Version of this code remains Active" },
-    actorId: actorId,
-    authorityBadge: actorBadge,
-  });
+  const actor: OntologyActor = { isRoot: true, tenantId, actorId, actorBadge: await badgeAuthorityEngine.resolveAuthorBadge(actorId, "ontology_define") };
+  await createConceptVersion({ conceptType, code, tenantId, defaultLabel, description }, actor);
+  return approveConcept(conceptType, code, tenantId, actor);
 }
 
 export async function composeConcept(

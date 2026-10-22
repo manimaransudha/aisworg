@@ -24,7 +24,6 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
-import { commissionSeu } from "../src/routes/seu/core/commissioning.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { findEligibleParticipants, resolveEligibilityPolicies } from "../src/routes/seu/core/participantEligibility.js";
@@ -40,11 +39,12 @@ import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { getPlatformTenantId, ensureSeuSystemParticipant } from "../src/dblayer/constants.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective } from "./testFixtures.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective, seuBirthState } from "./testFixtures.js";
+import { initiateAndValidateSeu } from "./testFixtures.js";
 
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+    "INSERT INTO ontology_concepts (concept_type, code, default_label, status, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, 'Active', $3, $4, $5) ON CONFLICT DO NOTHING",
     [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
 }
@@ -138,7 +138,7 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
   const { objective: root } = await createObjective({ statement: `cr104-seu-policy-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
   const { objective } = await createActiveObjective({ statement: `cr104-seu-policy-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const { data: profile } = await profilesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-seu-policy-profile-${run}`, name: "CR-104 SEU Policy Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
@@ -203,7 +203,7 @@ test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directl
   // directly, with no active_ebm_id at all, proving the "never through the
   // EBM" design point concretely, not just by omission.
   const { objective } = await createObjective({ statement: `cr104-eligibility-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
-  const { data: seu } = await seusDB.create({ authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective.id, templateId: template!.id, profileId: profile!.id, tenantId: PLATFORM_TENANT_ID, requestedBy: TESTER_ALL_ID });
+  const { data: seu } = await seusDB.create({ lifecycleState: await seuBirthState(), authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective.id, templateId: template!.id, profileId: profile!.id, tenantId: PLATFORM_TENANT_ID, requestedBy: TESTER_ALL_ID });
   await ensureSeuSystemParticipant(seu!.id);
   assert.ok(seu);
   assert.equal(seu!.active_ebm_id, null, "sanity check: this SEU genuinely has no EBM yet");

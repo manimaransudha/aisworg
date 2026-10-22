@@ -3,24 +3,30 @@ import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
 import { runAction } from "../../actions/index.js";
 import { withTransaction } from "../../utils/db.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
-import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
+import type { EventRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
-import { eventBus } from "./eventBus.js";
+import { eventBus, type PublishInput } from "./eventBus.js";
 import { getEntityAdapter } from "./entityAdapters.js";
 import { gateRejection, transitionEngine, type GateRejectionResult } from "./transitionEngine.js";
 
+// The event a hop names. The caller publishes it after the call (see publishTransition); the function publishes nothing.
+// eventType is null when the Transition Definition names no event.
+export type TransitionEvent = Omit<PublishInput, "eventType" | "correlationId"> & { eventType: string | null };
+
 export type TransitionEntityResult =
-  | { ok: true; row: object; appliedTransition: { fromState: string; toState: string } }
+  | { ok: true; row: object; appliedTransition: { fromState: string; toState: string }; event: TransitionEvent }
   | { ok: false; reason: "not_found" }
   | GateRejectionResult;
 
 // One governed transition for any entity (CR-128). The from-state is the row's own state; the event, badge and verb
-// come from the Transition Definition. The only entity-specific part is the adapter.
+// come from the Transition Definition. The only entity-specific part is the adapter. The caller publishes the returned
+// event after a successful call.
 export async function transitionEntity(input: {
   entityType: TransitionEntityType;
   entityId: string;
   targetState: string;
   actorId: string;
+  seuId?: string | null;
   context?: Record<string, unknown>;
 }): Promise<TransitionEntityResult> {
   const adapter = getEntityAdapter(input.entityType);
@@ -50,11 +56,12 @@ export async function transitionEntity(input: {
     return adapter.setState(input.entityId, input.targetState, badge, input.actorId);
   });
 
-  const event = {
+  const event: TransitionEvent = {
+    eventType: gate.eventType ?? null,
+    versionEvent: gate.versionEvent,
     originatingObjectType: input.entityType,
     originatingObjectId: input.entityId,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
+    seuId: input.seuId ?? null,
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge,
@@ -62,13 +69,22 @@ export async function transitionEntity(input: {
     toState: input.targetState,
     tenantId: adapter.tenantId(updated),
   };
-  if (gate.eventType) {
-    await eventBus.publish({ ...event, eventType: gate.eventType, versionEvent: gate.versionEvent });
-  } else {
-    await eventBus.publish({ ...event, eventType: UNDEFINED_EVENT, versionEvent: gate.versionEvent });
-    await eventBus.publish({ ...event, eventType: SDK_ATTENTION_EVENT });
-  }
-  return { ok: true, row: updated, appliedTransition: { fromState, toState: input.targetState } };
+  return { ok: true, row: updated, appliedTransition: { fromState, toState: input.targetState }, event };
+}
+
+// Publishes the event of a successful hop. A row that names no event publishes UNDEFINED_EVENT and then SDK_ATTENTION_EVENT.
+// A caller that needs two events, another payload or an id chain publishes from result.event itself.
+// The options replace the default payload and chain the event to the id of a commissioning. It returns the first event published.
+export async function publishTransition(
+  result: Extract<TransitionEntityResult, { ok: true }>,
+  options?: { payload?: Record<string, unknown>; correlationId?: string; causationId?: string | null }
+): Promise<EventRow> {
+  const { eventType, ...event } = result.event;
+  const common = { ...event, payload: options?.payload ?? event.payload, correlationId: options?.correlationId ?? eventBus.newCorrelationId(), causationId: options?.causationId };
+  if (eventType) return eventBus.publish({ ...common, eventType });
+  const first = await eventBus.publish({ ...common, eventType: UNDEFINED_EVENT });
+  await eventBus.publish({ ...common, eventType: SDK_ATTENTION_EVENT, versionEvent: undefined });
+  return first;
 }
 
 export interface NextAction {

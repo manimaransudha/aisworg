@@ -43,6 +43,13 @@
         <p class="text-muted small mb-0 font-monospace"><%= detail.seu.id %></p>
       </div>
       <span class="state-badge state-<%= detail.seu.lifecycle_state %> fs-6"><%= detail.seu.lifecycle_state %></span>
+      <%# One button per next action of the SEU transition definitions the viewer holds the badge for (CR-128). %>
+      <% (locals.seuActions || []).forEach(function(a) { %>
+        <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/transition/<%= a.verb %>" class="mb-0 ms-2">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-sm btn-primary"><%= a.verb.charAt(0).toUpperCase() + a.verb.slice(1) %></button>
+        </form>
+      <% }) %>
       <% if (detail.blockedTransition) { %>
         <span class="state-badge state-Blocked fs-6 ms-1" title="<%= detail.blockedTransition.obligationTitle %>">Blocked</span>
       <% } %>

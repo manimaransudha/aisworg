@@ -68,9 +68,23 @@
            available" message below — that reads as a Template gap, not as
            "already done." %>
       <% if (fromObjective.commissionedSeuId) { %>
-        <div class="alert alert-success mb-0">
+        <div class="alert alert-success mb-3">
           This Objective has already been commissioned. <a href="/aisworg/seu/seus/<%= fromObjective.commissionedSeuId %>">View the SEU</a>.
         </div>
+        <%# The saved SEU shows its next actions, read from the SEU transition definitions the viewer holds the badge for (CR-128). %>
+        <% if (locals.savedSeu) { %>
+          <div class="section-card">
+            <div class="section-header">Saved SEU <span class="state-badge state-<%= savedSeu.lifecycle_state %> ms-2"><%= savedSeu.lifecycle_state %></span></div>
+            <div class="component-row d-flex align-items-center gap-2">
+              <% (locals.savedSeuActions || []).forEach(function(a) { %>
+                <form method="POST" action="/aisworg/seu/seus/<%= savedSeu.id %>/transition/<%= a.verb %>" class="mb-0">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn btn-sm btn-primary"><%= a.verb.charAt(0).toUpperCase() + a.verb.slice(1) %></button>
+                </form>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
       <% } else if (!fromObjective.commissioningOptions || !fromObjective.commissioningOptions.length) { %>
         <div class="alert alert-warning mb-0">No Template is currently available to commission against.</div>
       <% } else { %>
@@ -105,12 +119,15 @@
              change needed). commissionSeu's own guard
              (core/commissioning.ts) is the real backstop; this is just the
              form matching that rule. %>
-        <form method="POST" action="/aisworg/seu/objectives/<%= fromObjective.objective.id %>/validate-commission">
+        <form method="POST" action="/aisworg/seu/seus">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="objectiveId" value="<%= fromObjective.objective.id %>">
           <div class="d-flex align-items-center justify-content-between gap-3 mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
-            <span class="small text-muted">Choose one Profile below, then Submit.</span>
+            <span class="small text-muted">Choose one Profile below, then Save.</span>
             <div class="d-flex gap-2 flex-shrink-0">
-              <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-clipboard-check me-1"></i>Submit</button>
+              <% if (locals.canSave) { %>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save</button>
+              <% } %>
               <a href="/aisworg/seu/objectives/<%= fromObjective.objective.id %>" class="btn btn-link text-muted btn-sm">Cancel</a>
             </div>
           </div>

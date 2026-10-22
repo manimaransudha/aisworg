@@ -10,7 +10,6 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
-import { commissionSeu } from "../src/routes/seu/core/commissioning.js";
 import { getEffectiveGovernanceModel } from "../src/routes/seu/core/governanceModel.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
@@ -23,6 +22,8 @@ import { qualityGateEvaluationsDB } from "../src/dblayer/qualityGateEvaluationsD
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, ensureStaleTestPackConcepts, uniqueTestPackVersion, commissionFromFormSync, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, PLATFORM_TENANT_ID, createActiveObjective, transitionObjective } from "./testFixtures.js";
+import { initiateAndValidateSeu } from "./testFixtures.js";
+import { initiateSeu, validateSeu } from "../src/routes/seu/core/commissioning.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import type { EventRow, SeuRow } from "../src/dblayer/seuTypes.js";
 
@@ -63,7 +64,7 @@ test("FR-21.1: an SEU exposes one effective Governance Model derived from its EB
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `commissioning failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
   const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID });
@@ -116,7 +117,7 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
   // Rules per governedTransition first, so this is still a real, genuine
   // cross-Pack role-SET disagreement (general vs super), not a false
   // positive from Pack A's/B's own internal multiplicity.
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
@@ -136,7 +137,7 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
     // ever reaches Failed (src/domain/engine/validateRequest.ts). The SEU
     // stays Pending, blocked from progressing until a human resolves it.
     const { data: blockedSeu } = await seusDB.findById(requested.seu.id);
-    assert.equal(blockedSeu?.lifecycle_state, "Pending", "a Compose EBM conflict leaves the SEU Pending, awaiting human resolution — not a hard Failed");
+    assert.equal(blockedSeu?.lifecycle_state, "Validated", "a Compose EBM conflict leaves the SEU Validated, awaiting human resolution — not a hard Failed");
   }
 });
 
@@ -174,9 +175,11 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
   const { objective: retryRoot } = await createObjective({ statement: `retry-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
   const { objective } = await createActiveObjective({ statement: `retry-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: retryRoot.id, requestedBy: TESTER_ALL_ID });
 
-  const firstAttempt = await commissionSeu({ objectiveId: objective.id, templateIds: [conflictTemplate!.id], profileIds: [conflictProfile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const firstAttempt = await initiateSeu({ objectiveId: objective.id, profileId: conflictProfile!.id, actorId: TESTER_ALL_ID });
   assert.equal(firstAttempt.ok, true, !firstAttempt.ok ? `SEU creation itself failed: ${firstAttempt.reason}` : "assertion failed");
   if (!firstAttempt.ok) throw new Error("unreachable");
+  const firstValidation = await validateSeu({ seuId: firstAttempt.seu.id, actorId: TESTER_ALL_ID });
+  assert.equal(firstValidation.ok, false, "a retired mandatory Pack fails the Validate hop");
 
   // Validate Request runs asynchronously (validateRequestHandler, off
   // CommissionRequested) — poll for its real CommissionFailed outcome.
@@ -204,7 +207,7 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
   // The Objective must not be permanently stuck on this one Failed attempt —
   // migration 179's partial unique index (active states only) plus
   // seusDB.findByObjectiveId's own matching filter.
-  const secondAttempt = await commissionSeu({ objectiveId: objective.id, templateIds: [cleanTemplate!.id], profileIds: [cleanProfile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const secondAttempt = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: cleanProfile!.id, actorId: TESTER_ALL_ID });
   assert.equal(secondAttempt.ok, true, !secondAttempt.ok ? `retry blocked: ${secondAttempt.reason}` : "assertion failed");
   if (!secondAttempt.ok) throw new Error("unreachable");
   assert.notEqual(secondAttempt.seu.id, firstAttempt.seu.id, "retry creates its own new SEU row — the Failed one is never reused or deleted");
@@ -253,9 +256,11 @@ test("Validate Request: a Template mandating a since-Retired Pack fails commissi
   // asynchronously in validateRequestHandler, off that event. Poll for its
   // real, async CommissionFailed outcome instead of checking commissionSeu's
   // own synchronous return value.
-  const result = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const result = await initiateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true, !result.ok ? `SEU creation itself failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
+  const validation = await validateSeu({ seuId: result.seu.id, actorId: TESTER_ALL_ID });
+  assert.equal(validation.ok, false, "a retired mandatory Pack fails the Validate hop");
 
   let failedEvent: EventRow | undefined;
   await waitUntilAsync(async () => {

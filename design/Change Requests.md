@@ -4,6 +4,7 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-130](design/change-requests/CR-130-seu-unwired-transition-rows.md) | SEU transition rows with no implementation: the seven rows and four verbs left out of CR-128 | 🟡 Raised |
 | [CR-129](design/change-requests/CR-129-objective-transition.md) | Objective transition: birth row, creation badge and event from data, and the move to the shared transition function, carried forward from CR-128 | ✅ Built |
 | [CR-128](design/change-requests/CR-128-birth-transition-rows.md) | Birth rows in `transition_definitions`: the creation badge for Review and Finding is read from data, not written as a literal | 🟡 Raised |
 | [CR-127](design/change-requests/CR-127-state-literal-comparisons.md) | State literal comparisons removed from code: each classified as Constant (`constants.ts`), Ontology driven, or Leave | 🟡 Raised — design in progress |

@@ -5,7 +5,7 @@
   <style>
     .state-badge { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0.22rem 0.6rem; border-radius: 999px; }
     .state-Operational { background: #dcfce7; color: #166534; }
-    .state-Pending, .state-Commissioned, .state-Configured, .state-Activated { background: #fef9c3; color: #854d0e; }
+    .state-Pending, .state-Initiated, .state-Commissioned, .state-Configured, .state-Activated { background: #fef9c3; color: #854d0e; }
     .state-Suspended, .state-Retired, .state-Archived { background: #f1f5f9; color: #64748b; }
   </style>
 </head>
@@ -82,8 +82,11 @@
                          below (already routing to the Compose EBM page while
                          activeEbmId is null) is the real next action, not
                          Validate again. %>
-                    <% if (s.possibleNextStates.includes('Commissioned') && !s.commissionValidated) { %>
-                      <a href="/aisworg/seu/objectives/<%= s.objectiveId %>/validate-commission" class="btn btn-sm btn-outline-secondary">Validate</a>
+                    <% if (s.possibleNextStates.includes('Validated')) { %>
+                      <form method="POST" action="/aisworg/seu/seus/<%= s.id %>/transition/validate" class="d-inline mb-0">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Validate</button>
+                      </form>
                     <% } %>
                     <%# design/mvp-build-plan/SEU Composition.md — owner
                          reversed the earlier "remove View EBM" call: "There

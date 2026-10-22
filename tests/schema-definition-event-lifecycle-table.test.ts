@@ -23,7 +23,8 @@ import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import type { SchemaDefinitionRow, TransitionEntityType } from "../src/dblayer/seuTypes.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
-import { transitionEntity, nextActionsFor } from "../src/domain/engine/entityTransition.js";
+import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
+import { transitionAndPublish } from "./testFixtures.js";
 import { createSchemaVersion } from "../src/routes/seu/core/schemaRegistry.js";
 import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, grantBadge } from "./testFixtures.js";
 
@@ -141,7 +142,7 @@ test("DRIVEN: createSchemaVersion births a row in Created, then auto-advances Va
 test("DRIVEN: transitionEntity moves a Packaged row to Published, records the badge, and publishes the event", async () => {
   const packaged = await packagedSchema();
 
-  const published = await transitionEntity({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "Published", actorId: TESTER_ALL_ID });
+  const published = await transitionAndPublish({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "Published", actorId: TESTER_ALL_ID });
   assert.equal(published.ok, true);
   if (!published.ok) return;
 
@@ -158,7 +159,7 @@ test("DRIVEN: transitionEntity moves a Packaged row to Published, records the ba
 test("DRIVEN: transitionEntity moves a Packaged row to PublicationRejected and records the reject badge", async () => {
   const packaged = await packagedSchema();
 
-  const rejected = await transitionEntity({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "PublicationRejected", actorId: TESTER_ALL_ID });
+  const rejected = await transitionAndPublish({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "PublicationRejected", actorId: TESTER_ALL_ID });
   assert.equal(rejected.ok, true);
   if (!rejected.ok) return;
 
@@ -170,13 +171,13 @@ test("DRIVEN: transitionEntity moves a Packaged row to PublicationRejected and r
 test("GUARD: publish/reject only fires from Packaged — a row already at Published cannot be re-decided", async () => {
   const packaged = await packagedSchema();
 
-  const published = await transitionEntity({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "Published", actorId: TESTER_ALL_ID });
+  const published = await transitionAndPublish({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "Published", actorId: TESTER_ALL_ID });
   assert.equal(published.ok, true);
 
-  const secondPublish = await transitionEntity({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "Published", actorId: TESTER_ALL_ID });
+  const secondPublish = await transitionAndPublish({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "Published", actorId: TESTER_ALL_ID });
   assert.deepEqual({ ok: secondPublish.ok, reason: secondPublish.ok ? null : secondPublish.reason }, { ok: false, reason: "no_transition_definition" });
 
-  const rejectAfterPublish = await transitionEntity({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "PublicationRejected", actorId: TESTER_ALL_ID });
+  const rejectAfterPublish = await transitionAndPublish({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "PublicationRejected", actorId: TESTER_ALL_ID });
   assert.deepEqual({ ok: rejectAfterPublish.ok, reason: rejectAfterPublish.ok ? null : rejectAfterPublish.reason }, { ok: false, reason: "no_transition_definition" });
 });
 
@@ -184,7 +185,7 @@ test("AUTHORITY: an actor without schemadefinition_publish/_reject is denied, an
   const packaged = await packagedSchema();
 
   const stampBeforeDenial = packaged.author_badge;
-  await assert.rejects(() => transitionEntity({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "Published", actorId: NO_BADGE_ACTOR_ID }), /does not hold schemadefinition_publish/);
+  await assert.rejects(() => transitionAndPublish({ entityType: "SchemaDefinition", entityId: packaged.id, targetState: "Published", actorId: NO_BADGE_ACTOR_ID }), /does not hold schemadefinition_publish/);
 
   const { data: stillPackaged } = await schemaDefinitionsDB.findById(packaged.id);
   assert.equal(stillPackaged!.lifecycle_state, "Packaged");
@@ -194,7 +195,7 @@ test("AUTHORITY: an actor without schemadefinition_publish/_reject is denied, an
 });
 
 test("AUTHORITY: an unknown schema id is rejected before any authority check", async () => {
-  const denied = await transitionEntity({ entityType: "SchemaDefinition", entityId: UNKNOWN_ID, targetState: "Published", actorId: NO_BADGE_ACTOR_ID });
+  const denied = await transitionAndPublish({ entityType: "SchemaDefinition", entityId: UNKNOWN_ID, targetState: "Published", actorId: NO_BADGE_ACTOR_ID });
   assert.deepEqual({ ok: denied.ok, reason: denied.ok ? null : denied.reason }, { ok: false, reason: "not_found" });
 });
 
@@ -237,7 +238,7 @@ test("GENERIC: a transition row with no event publishes Undefined and then SDKAt
   const toState = "TestNoEvent";
   await transitionDefinitionsDB.upsert({ entityType: "SchemaDefinition", fromState: "Created", toState, verb: "validate" });
   try {
-    const result = await transitionEntity({ entityType: "SchemaDefinition", entityId: created.id, targetState: toState, actorId: ROOT_ACTOR_ID });
+    const result = await transitionAndPublish({ entityType: "SchemaDefinition", entityId: created.id, targetState: toState, actorId: ROOT_ACTOR_ID });
     assert.equal(result.ok, true);
     const { data: events } = await eventsDB.findByOriginatingObject("SchemaDefinition", created.id);
     assert.deepEqual((events ?? []).map((e) => e.event_type), [UNDEFINED_EVENT, SDK_ATTENTION_EVENT]);
@@ -247,5 +248,5 @@ test("GENERIC: a transition row with no event publishes Undefined and then SDKAt
 });
 
 test("GENERIC: an entity type with no adapter throws", async () => {
-  await assert.rejects(() => transitionEntity({ entityType: "Review", entityId: UNKNOWN_ID, targetState: "Prepared", actorId: ROOT_ACTOR_ID }), /no entity adapter for Review/);
+  await assert.rejects(() => transitionAndPublish({ entityType: "Review", entityId: UNKNOWN_ID, targetState: "Prepared", actorId: ROOT_ACTOR_ID }), /no entity adapter for Review/);
 });

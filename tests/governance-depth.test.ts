@@ -173,10 +173,15 @@ test("Constraint Type (Ch.24): a Standard-type Policy violation doesn't block a 
   await transitionDefinitionsDB.upsert({ entityType: "Deliverable", fromState: `StdFrom-${unique}`, toState: `StdTo-${unique}`, requiredPolicyIds: [standardPolicy.id], verb: "approve" });
   await transitionDefinitionsDB.upsert({ entityType: "Deliverable", fromState: `PolFrom-${unique}`, toState: `PolTo-${unique}`, requiredPolicyIds: [blockingPolicy.id], verb: "approve" });
 
-  const standardOutcome = await transitionEngine.evaluate({ entityType: "Deliverable", fromState: `StdFrom-${unique}`, toState: `StdTo-${unique}`, actorId: TESTER_ALL_ID, context: {} });
-  assert.equal(standardOutcome.allowed, true, "a Standard deviation must proceed, not block");
+  // The two rows are removed when the test ends: the Deliverable lifecycle tests count the Deliverable rows exactly.
+  try {
+    const standardOutcome = await transitionEngine.evaluate({ entityType: "Deliverable", fromState: `StdFrom-${unique}`, toState: `StdTo-${unique}`, actorId: TESTER_ALL_ID, context: {} });
+    assert.equal(standardOutcome.allowed, true, "a Standard deviation must proceed, not block");
 
-  const policyOutcome = await transitionEngine.evaluate({ entityType: "Deliverable", fromState: `PolFrom-${unique}`, toState: `PolTo-${unique}`, actorId: TESTER_ALL_ID, context: {} });
-  assert.equal(policyOutcome.allowed, false, "a Policy (mandatory) violation must block");
-  if (!policyOutcome.allowed) assert.equal(policyOutcome.reason, "policy_blocked");
+    const policyOutcome = await transitionEngine.evaluate({ entityType: "Deliverable", fromState: `PolFrom-${unique}`, toState: `PolTo-${unique}`, actorId: TESTER_ALL_ID, context: {} });
+    assert.equal(policyOutcome.allowed, false, "a Policy (mandatory) violation must block");
+    if (!policyOutcome.allowed) assert.equal(policyOutcome.reason, "policy_blocked");
+  } finally {
+    await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'Deliverable' AND from_state = ANY($1::text[])", [[`StdFrom-${unique}`, `PolFrom-${unique}`]]);
+  }
 });

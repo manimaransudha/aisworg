@@ -41,7 +41,7 @@ import { compositionEngine, type CompositionSource } from "../../../domain/engin
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { listCurrentTransitionDefinitions } from "./transitionDefinitions.js";
 import type { CapabilityDefinitionRow, CapabilityRole, DeliverableDefinitionRow, PolicyDefinitionRow, ServiceDefinitionRow, EvidenceDefinition, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
-import { nextActionsFor, transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { packContent } from "../../../domain/engine/entityAdapters.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { randomUUID } from "node:crypto";
@@ -1171,6 +1171,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     }
     const advanced = await transitionEntity({ entityType: "Pack", entityId: pack.id, targetState: next[0].toState, actorId: input.actorId });
     if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    await publishTransition(advanced);
     return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Template") {
@@ -1185,6 +1186,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     }
     const advanced = await transitionEntity({ entityType: "Template", entityId: t.id, targetState: next[0].toState, actorId: input.actorId });
     if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    await publishTransition(advanced);
     return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Profile") {
@@ -1199,6 +1201,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     }
     const advanced = await transitionEntity({ entityType: "Profile", entityId: p.id, targetState: next[0].toState, actorId: input.actorId });
     if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    await publishTransition(advanced);
     return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Deliverable") {
@@ -1213,6 +1216,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     }
     const advanced = await transitionEntity({ entityType: "DeliverableDefinition", entityId: d.id, targetState: next[0].toState, actorId: input.actorId });
     if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    await publishTransition(advanced);
     return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Service") {
@@ -1222,6 +1226,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     if (next.length !== 1) return { ok: false, errors: [`Service Definition is ${s.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
     const advanced = await transitionEntity({ entityType: "Service", entityId: s.id, targetState: next[0].toState, actorId: input.actorId });
     if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    await publishTransition(advanced);
     return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Policy") {
@@ -1231,6 +1236,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     if (next.length !== 1) return { ok: false, errors: [`Policy Definition is ${p.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
     const advanced = await transitionEntity({ entityType: "Policy", entityId: p.id, targetState: next[0].toState, actorId: input.actorId });
     if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    await publishTransition(advanced);
     return { ok: true, status: advanced.appliedTransition.toState };
   }
   if (input.kind === "Capability") {
@@ -1240,6 +1246,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     if (next.length !== 1) return { ok: false, errors: [`Capability Definition is ${c.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
     const advanced = await transitionEntity({ entityType: "Capability", entityId: c.id, targetState: next[0].toState, actorId: input.actorId });
     if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    await publishTransition(advanced);
     return { ok: true, status: advanced.appliedTransition.toState };
   }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };

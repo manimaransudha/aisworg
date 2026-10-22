@@ -4,6 +4,8 @@ import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { dependencyDefinitionsDB, type DependencyOwningScope } from "../../../dblayer/dependencyDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { nextActionsFor } from "../../../domain/engine/entityTransition.js";
+import { SEU_VALIDATED_STATE } from "../../../dblayer/constants.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
@@ -99,7 +101,7 @@ async function withPossibleNextStates<T extends { lifecycleState: string }>(rows
 }
 
 async function withCommissionValidated<T extends { id: string; lifecycleState: string }>(rows: T[]): Promise<Array<T & Pick<SeuListItem, "commissionValidated">>> {
-  const pendingIds = rows.filter((r) => r.lifecycleState === "Pending").map((r) => r.id);
+  const pendingIds = rows.filter((r) => r.lifecycleState === "Initiated" || r.lifecycleState === SEU_VALIDATED_STATE).map((r) => r.id);
   const { data: events } = pendingIds.length ? await eventsDB.findByOriginatingObjects("SEU", pendingIds) : { data: [] };
   const validatedIds = new Set((events ?? []).filter((e) => e.event_type === "CommissionValidated").map((e) => e.originating_object_id));
   return rows.map((row) => ({ ...row, commissionValidated: validatedIds.has(row.id) }));
@@ -490,13 +492,13 @@ export interface SeuEbmView {
   objectiveId: string;
   objectiveStatement: string;
   composedPacks: EbmComposedPack[];
-  ebm: { id: string; status: string; possibleNextStates: string[] } | null;
+  ebm: { id: string; status: string; actions: Array<{ toState: string; verb: string }> } | null;
   template: { code: string; name: string; version: string } | null;
   profile: { code: string; name: string; version: string } | null;
   ebmPool: PoolEntry[];
 }
 
-export async function getSeuEbmView(seuId: string): Promise<SeuEbmView | null> {
+export async function getSeuEbmView(seuId: string, actorId: string): Promise<SeuEbmView | null> {
   const { data: seu } = await seusDB.findById(seuId);
   if (!seu) return null;
 
@@ -510,15 +512,14 @@ export async function getSeuEbmView(seuId: string): Promise<SeuEbmView | null> {
   const template = templateRow ? { code: templateRow.code, name: templateRow.name, version: templateRow.template_version } : null;
   const profile = profileRow ? { code: profileRow.code, name: profileRow.name, version: profileRow.profile_version } : null;
   const ebmPool = ((ebm?.behaviors as { pool?: PoolEntry[] } | null)?.pool ?? []) as PoolEntry[];
-  const { data: ebmTransitions } = ebm ? await transitionDefinitionsDB.findPossibleNextTransitions("EBM", ebm.status) : { data: [] };
-  const ebmPossibleNextStates = (ebmTransitions ?? []).filter((t) => t.verb).map((t) => t.toState);
+  const ebmActions = ebm ? (await nextActionsFor("EBM", ebm.status, actorId)).map((a) => ({ toState: a.toState, verb: a.verb })) : [];
 
   return {
     seuId: seu.id,
     objectiveId: seu.objective_id,
     objectiveStatement: objective?.statement ?? "(objective not found)",
     composedPacks: ebm?.composed_packs ?? [],
-    ebm: ebm ? { id: ebm.id, status: ebm.status, possibleNextStates: ebmPossibleNextStates } : null,
+    ebm: ebm ? { id: ebm.id, status: ebm.status, actions: ebmActions } : null,
     template,
     profile,
     ebmPool,

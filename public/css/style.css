@@ -273,7 +273,7 @@ a:hover { color: var(--primary); text-decoration: underline; }
 .state-Closed, .state-Accepted, .state-Published, .state-Referenced,
 .state-Applied, .state-Baselined, .state-Active, .state-Achieved,
 .status-live { background: #dcfce7; color: #166534; }
-.state-Pending, .state-Commissioned, .state-Configured, .state-Activated,
+.state-Pending, .state-Initiated, .state-Commissioned, .state-Configured, .state-Activated,
 .state-Defined, .state-Unfulfilled, .state-Generated, .state-Assigned,
 .state-Executing, .state-Identified, .state-Analysed, .state-Collected,
 .state-Observed, .state-Proposed, .state-Validated, .state-Reviewed,
@@ -292,7 +292,7 @@ a:hover { color: var(--primary); text-decoration: underline; }
 .state-Closed, .state-Accepted, .state-Published, .state-Referenced,
 .state-Applied, .state-Baselined, .state-Active, .state-Achieved,
 .status-live { background: #dcfce7; color: #14532d; }
-.state-Pending, .state-Commissioned, .state-Configured, .state-Activated,
+.state-Pending, .state-Initiated, .state-Commissioned, .state-Configured, .state-Activated,
 .state-Defined, .state-Unfulfilled, .state-Generated, .state-Assigned,
 .state-Executing, .state-Identified, .state-Analysed, .state-Collected,
 .state-Observed, .state-Proposed, .state-Validated, .state-Reviewed,

@@ -17,7 +17,11 @@ import { resolveHeldBadges, requireActorId, resolveActorAndBadge, resolveAuthorB
 import { requestCapabilityFulfilment, releaseParticipants } from "../core/capabilities.js";
 import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
-import { transitionEbm } from "../core/commissioning.js";
+import { validateEbm, validateSeu, initiateSeu } from "../core/commissioning.js";
+import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
+import { ebmsDB } from "../../../dblayer/ebmsDB.js";
+import { EBM_ACTIVE_STATE, EBM_VALIDATED_STATE, SEU_VALIDATED_STATE } from "../../../dblayer/constants.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { transitionObligation, reviseObligation } from "../core/obligations.js";
 import { createAttentionItem, transitionAttentionItem } from "../core/attentionItems.js";
@@ -61,6 +65,15 @@ router.get("/seus/new", attachVM("seu/seus/new"), async (req: Request, res: Resp
       }
       req.vm.req.title = "Commission SEU from Objective";
       req.vm.req.fromObjective = fromObjective;
+      // The Save button is the birth row's action (CR-128): shown to a holder of its badge. A saved SEU shows its next actions.
+      const actorId = requireActorId(req);
+      const { data: birth } = await transitionDefinitionsDB.findBirth("SEU");
+      req.vm.req.canSave = (await resolveHeldBadges(req)).hasVerb("SEU", birth?.verb ?? null);
+      if (fromObjective.commissionedSeuId) {
+        const { data: seu } = await seusDB.findById(fromObjective.commissionedSeuId);
+        req.vm.req.savedSeu = seu;
+        req.vm.req.savedSeuActions = seu ? await nextActionsFor("SEU", seu.lifecycle_state, actorId) : [];
+      }
       req.vm.opt.flash = getFlash(req);
       return renderView(req, res, "seu/seus/new", req.vm);
     }
@@ -77,6 +90,53 @@ router.get("/seus/new", attachVM("seu/seus/new"), async (req: Request, res: Resp
   }
 });
 
+router.post("/seus", async (req: Request, res: Response) => {
+  const objectiveId = typeof req.body?.objectiveId === "string" && req.body.objectiveId ? req.body.objectiveId : null;
+  const profileId = String(req.body?.templateProfile ?? "").split("|")[1] || null;
+  const back = `/aisworg/seu/seus/new${objectiveId ? `?objectiveId=${objectiveId}` : ""}`;
+  try {
+    const result = await initiateSeu({ objectiveId, profileId, actorId: requireActorId(req) });
+    if (!result.ok) return redirects.seu.seusSave.error(req, res, result.reason, back);
+    return redirects.seu.seusSave.success(req, res, "SEU saved. Validate it to continue commissioning.", back);
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus error", err as Error);
+    return redirects.seu.seusSave.error(req, res, (err as Error).message, back);
+  }
+});
+
+router.post("/seus/:id/transition/:verb", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const verb = String(req.params.verb);
+  try {
+    const actorId = requireActorId(req);
+    const { data: seu } = await seusDB.findById(seuId);
+    if (!seu) return redirects.seu.seusTransition.error(req, res, "SEU not found.", "/aisworg/seu/seus");
+    const action = (await nextActionsFor("SEU", seu.lifecycle_state, actorId)).find((a) => a.verb === verb);
+    const back = `/aisworg/seu/seus/new?objectiveId=${seu.objective_id}`;
+    if (!action) return redirects.seu.seusTransition.error(req, res, `SEU transition blocked: no "${verb}" step from ${seu.lifecycle_state}`);
+
+    if (action.toState === SEU_VALIDATED_STATE) {
+      const validated = await validateSeu({ seuId, actorId });
+      if (!validated.ok) {
+        const reason = validated.reason === "not_found" ? "SEU not found" : validated.detail;
+        return redirects.seu.seusTransition.error(req, res, `Validation failed: ${reason}`, back);
+      }
+      return redirects.seu.seusTransition.success(req, res, "SEU validated — compose the Engineering Behavior Model next.", `/aisworg/seu/objectives/${seu.objective_id}/validate-commission`);
+    }
+
+    const result = await transitionEntity({ entityType: "SEU", entityId: seuId, targetState: action.toState, actorId, seuId });
+    if (!result.ok) {
+      const reason = result.reason === "not_found" ? "SEU not found" : result.detail;
+      return redirects.seu.seusTransition.error(req, res, `SEU transition blocked: ${reason}`);
+    }
+    await publishTransition(result);
+    return redirects.seu.seusTransition.success(req, res, `SEU moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus/:id/transition/:verb error", err as Error);
+    return redirects.seu.seusTransition.error(req, res, (err as Error).message);
+  }
+});
+
 router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const detail = await getSeuDetailView(String(req.params.id));
@@ -88,6 +148,7 @@ router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: R
     const sessionUser = req.session.user;
     if (!sessionUser) throw new Error("[web/seu/seus] GET /seus/:id reached without a session user");
     req.vm.req.isSuperuser = (await resolveHeldRoles(sessionUser.id)).isSuperuser;
+    req.vm.req.seuActions = await nextActionsFor("SEU", detail.seu.lifecycle_state, requireActorId(req));
     req.vm.req.activeTab = typeof req.query.tab === "string" ? req.query.tab : undefined;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/detail", req.vm);
@@ -99,7 +160,7 @@ router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: R
 
 router.get("/seus/:id/ebm", attachVM("seu/seus/ebm"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ebmView = await getSeuEbmView(String(req.params.id));
+    const ebmView = await getSeuEbmView(String(req.params.id), requireActorId(req));
     if (!ebmView) {
       return redirects.seu.seusEbm.error(req, res, "SEU not found.");
     }
@@ -213,35 +274,39 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
   }
 });
 
-router.post("/seus/:id/ebm/transition", async (req: Request, res: Response) => {
+router.post("/seus/:id/ebm/transition/:verb", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
-  const { targetState } = req.body ?? {};
-
-  if (typeof targetState !== "string" || !targetState.trim()) {
-    return redirects.seu.seusEbmTransition.error(req, res, "Target state is required.");
-  }
+  const verb = String(req.params.verb);
 
   try {
     const { data: seu } = await seusDB.findById(seuId);
     if (!seu || !seu.active_ebm_id) {
       return redirects.seu.seusEbmTransition.error(req, res, "This SEU has no Engineering Behavior Model to transition yet.");
     }
-    const result = await transitionEbm({
-      ebmId: seu.active_ebm_id,
-      targetState,
-      actorId: requireActorId(req),
-    });
+    const actorId = requireActorId(req);
+    const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
+    if (!ebm) return redirects.seu.seusEbmTransition.error(req, res, "EBM not found");
+    const action = (await nextActionsFor("EBM", ebm.status, actorId)).find((a) => a.verb === verb);
+    if (!action) return redirects.seu.seusEbmTransition.error(req, res, `EBM transition blocked: no "${verb}" step from ${ebm.status}`);
+
+    let result;
+    if (action.toState === EBM_VALIDATED_STATE) {
+      result = await validateEbm({ ebmId: ebm.id, actorId });
+    } else {
+      result = await transitionEntity({ entityType: "EBM", entityId: ebm.id, targetState: action.toState, actorId, seuId: seu.id });
+      if (result.ok) await publishTransition(result);
+    }
     if (!result.ok) {
       const reason = result.reason === "not_found" ? "EBM not found" : result.detail;
       return redirects.seu.seusEbmTransition.error(req, res, `EBM transition blocked: ${reason}`);
     }
     const message =
-      result.appliedTransition.toState === "Active"
+      result.appliedTransition.toState === EBM_ACTIVE_STATE
         ? `Engineering Behavior Model activated — commissioning is proceeding in the background. Refresh this page shortly to see the SEU's lifecycle state.`
         : `Engineering Behavior Model moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`;
     return redirects.seu.seusEbmTransition.success(req, res, message);
   } catch (err) {
-    logger.error("[web/seu/seus] POST /seus/:id/ebm/transition error", err as Error);
+    logger.error("[web/seu/seus] POST /seus/:id/ebm/transition/:verb error", err as Error);
     return redirects.seu.seusEbmTransition.error(req, res, (err as Error).message);
   }
 });

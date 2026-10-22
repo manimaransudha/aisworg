@@ -25,9 +25,9 @@ import {
   updateObjective,
 } from "../core/objectives.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
-import { nextActionsFor, transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { parseListParams, paginateList, listResult } from "../../../utils/listQuery.js";
-import { commissionFromExistingObjective, previewCommissioningValidation, applyConflictStrategy } from "../core/commissioning.js";
+import { previewCommissioningValidation, applyConflictStrategy } from "../core/commissioning.js";
 import type { LivenessCheck } from "../core/commissioning.js";
 import type { ProfileDetail } from "../core/profiles.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
@@ -39,7 +39,7 @@ import type { ObjectiveStatus, ObjectiveTier, EbmCompositionReport, EbmComposedP
 import type { UnraveledComposition, CompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { resolveHeldBadges, requireActorId, resolveActorAndBadge, resolveAuthorBadgeForRequest } from "../../../domain/identity/heldBadges.js";
-import { getPlatformTenantId, PLATFORM_TENANT_NAME, OBJECTIVE_RETIRED_STATE, SUPERSEDE_OBJECTIVE_ACTION_CODE } from "../../../dblayer/constants.js";
+import { getPlatformTenantId, PLATFORM_TENANT_NAME, OBJECTIVE_RETIRED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_OBJECTIVE_ACTION_CODE } from "../../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
  
 const CHILD_TIERS: Record<ObjectiveTier, ObjectiveTier[]> = {
@@ -234,6 +234,7 @@ router.post(
           context: { comment: supersedeComment, supersedingObjectiveId: objective.id },
         });
         if (!result.ok) blocked = "detail" in result ? result.detail : result.reason;
+        else await publishTransition(result);
       } catch (err) {
         blocked = (err as Error).message;
       }
@@ -401,6 +402,7 @@ function postObjectiveTransition(targetState: ObjectiveStatus) {
         redirects.seu.objectivesRetire.error(req, res, `Transition blocked: ${detail}`);
         return;
       }
+      await publishTransition(result);
       redirects.seu.objectivesRetire.success(req, res, `Objective moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
     } catch (err) {
       logger.error(`[web/seu/objectives] POST /objectives/:id/transition/${targetState} error`, err as Error);
@@ -479,64 +481,6 @@ function parseCompositionSourceSelections(body: Record<string, unknown>): { chec
   }
   return { checked, base };
 }
-
-router.post("/objectives/:id/validate-commission", async (req: Request, res: Response) => {
-  const objectiveId = String(req.params.id);
-  const selections = parseTemplateProfileSelections(req.body ?? {});
-  const resolvedParameterOverrides = parseResolvedParameterOverrides(req.body ?? {});
-
-  if (selections.length === 0) {
-    return redirects.seu.objectivesValidateCommission.error(req, res, "Choose at least one Template/Profile to validate.");
-  }
-  if (selections.length > 1) {
-    return redirects.seu.objectivesValidateCommission.error(req, res, "Only one Profile may be selected.");
-  }
-
-  try {
-    const viewerTenantId = req.session?.user?.tenant_id ?? (await getPlatformTenantId());
-
-    const selection = selections[0];
-    const { data: objective } = await objectivesDB.findById(objectiveId);
-    if (!objective) return redirects.seu.objectivesValidateCommission.error(req, res, "Objective not found.");
-    const { data: existingSeu } = await seusDB.findByObjectiveId(objectiveId);
-    if (existingSeu) {
-      return res.redirect("/aisworg/seu/seus");
-    }
-    if (!selection.profileId) {
-      return redirects.seu.objectivesValidateCommission.error(req, res, "No Profile chosen — a real Profile must be selected before commissioning.");
-    }
-    const profileId = selection.profileId;
-    const { actorId, authorBadge } = await resolveActorAndBadge(req);
-    let seuTenantId = objective.sponsoring_authority?.tenant ?? null;
-    if (!seuTenantId) {
-      const { data: defaultTenant } = await tenantsDB.findDefault();
-      seuTenantId = defaultTenant?.id ?? null;
-    }
-    const { data: newSeu, error: seuErr } = await seusDB.create({
-      objectiveId,
-      templateId: selection.templateId,
-      profileId,
-      requestedBy: actorId,
-      authorBadge,
-      tenantId: seuTenantId,
-    });
-    if (seuErr || !newSeu) return redirects.seu.objectivesValidateCommission.error(req, res, (seuErr ?? new Error("failed to create SEU")).message);
-    await eventBus.publish({
-      eventType: "CommissionRequested",
-      originatingObjectType: "SEU",
-      originatingObjectId: newSeu.id,
-      seuId: newSeu.id,
-      correlationId: eventBus.newCorrelationId(),
-      payload: { seuId: newSeu.id },
-      actorId,
-      authorityBadge: authorBadge,
-    });
-    return redirects.seu.objectivesValidateCommission.success(req, res, "Commissioning queued — validating…", "/aisworg/seu/seus");
-  } catch (err) {
-    logger.error("[web/seu/objectives] POST /objectives/:id/validate-commission error", err as Error);
-    return redirects.seu.objectivesValidateCommission.error(req, res, (err as Error).message);
-  }
-});
 
 router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
@@ -655,7 +599,7 @@ router.get("/objectives/:id/compose-ebm", attachVM("seu/seus/compose"), async (r
   req.vm.req.objectiveId = objectiveId;
   req.vm.req.seuId = seu.id;
   req.vm.req.ebmComposed = false;
-  req.vm.req.pending = seu.lifecycle_state === "Pending" && !stashed;
+  req.vm.req.pending = seu.lifecycle_state === SEU_VALIDATED_STATE && !stashed;
   req.vm.req.selections = stashed?.selections ?? [{ templateId: seu.template_id, profileId: seu.profile_id }];
   req.vm.req.compositionReport = stashed?.compositionReport ?? { warnings: [], conflicts: [], parameterConflicts: [], resolutions: [] };
   req.vm.req.composedPacks = stashed?.composedPacks ?? [];
@@ -668,37 +612,38 @@ router.get("/objectives/:id/compose-ebm", attachVM("seu/seus/compose"), async (r
   return renderView(req, res, "seu/seus/compose", req.vm);
 });
 
-router.post("/objectives/:id/commission", async (req: Request, res: Response) => {
-  const objectiveId = String(req.params.id);
-  const selections = parseTemplateProfileSelections(req.body ?? {});
-  const resolvedParameterOverrides = parseResolvedParameterOverrides(req.body ?? {});
-
-  if (selections.length === 0) {
-    return redirects.seu.objectivesCommission.error(req, res, "Choose at least one Template/Profile to commission against.");
-  }
-  if (selections.length > 1) {
-    return redirects.seu.objectivesCommission.error(req, res, "Only one Profile may be selected.");
-  }
-
-  try {
-    const resolvedCompositionConflicts = parsePreviouslyResolvedCompositionConflicts(req.body ?? {});
-    const result = await commissionFromExistingObjective({
-      objectiveId,
-      selections,
-      resolvedParameterOverrides,
-      resolvedCompositionConflicts,
-      actorId: requireActorId(req),
-      requestedBy:requireActorId(req),
-    });
-    if (!result.ok) {
-      return redirects.seu.objectivesCommission.error(req, res, `Commissioning failed at "${result.stage}": ${result.reason}`);
-    }
-    return redirects.seu.objectivesCommission.success(req, res, `Commissioning request validated — composing the Engineering Behavior Model. Check back on this SEU to validate and activate it once composed.`, `/aisworg/seu/seus/${result.seu.id}`);
-  } catch (err) {
-    logger.error("[web/seu/objectives] POST /objectives/:id/commission error", err as Error);
-    return redirects.seu.objectivesCommission.error(req, res, (err as Error).message);
-  }
-});
+// Commented out (owner): dead code, no view posts to it. Kept for reference.
+// router.post("/objectives/:id/commission", async (req: Request, res: Response) => {
+//   const objectiveId = String(req.params.id);
+//   const selections = parseTemplateProfileSelections(req.body ?? {});
+//   const resolvedParameterOverrides = parseResolvedParameterOverrides(req.body ?? {});
+//
+//   if (selections.length === 0) {
+//     return redirects.seu.objectivesCommission.error(req, res, "Choose at least one Template/Profile to commission against.");
+//   }
+//   if (selections.length > 1) {
+//     return redirects.seu.objectivesCommission.error(req, res, "Only one Profile may be selected.");
+//   }
+//
+//   try {
+//     const resolvedCompositionConflicts = parsePreviouslyResolvedCompositionConflicts(req.body ?? {});
+//     const result = await commissionFromExistingObjective({
+//       objectiveId,
+//       selections,
+//       resolvedParameterOverrides,
+//       resolvedCompositionConflicts,
+//       actorId: requireActorId(req),
+//       requestedBy:requireActorId(req),
+//     });
+//     if (!result.ok) {
+//       return redirects.seu.objectivesCommission.error(req, res, `Commissioning failed at "${result.stage}": ${result.reason}`);
+//     }
+//     return redirects.seu.objectivesCommission.success(req, res, `Commissioning request validated — composing the Engineering Behavior Model. Check back on this SEU to validate and activate it once composed.`, `/aisworg/seu/seus/${result.seu.id}`);
+//   } catch (err) {
+//     logger.error("[web/seu/objectives] POST /objectives/:id/commission error", err as Error);
+//     return redirects.seu.objectivesCommission.error(req, res, (err as Error).message);
+//   }
+// });
 
 router.post("/objectives/:id/comments", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);

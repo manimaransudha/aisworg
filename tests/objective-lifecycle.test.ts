@@ -13,11 +13,11 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { createObjective, getObjectiveDetail, listReParentCandidates, reParentObjective, updateObjective, suggestCapabilityCodes } from "../src/routes/seu/core/objectives.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
-import { commissionSeu, commissionFromExistingObjective } from "../src/routes/seu/core/commissioning.js";
 import { findCandidateTemplates } from "../src/routes/seu/core/templates.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_BADGE, createActiveObjective, transitionObjective } from "./testFixtures.js";
+import { initiateAndValidateSeu } from "./testFixtures.js";
 import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, TESTER_OBJECTIVE_BABYLON, ROOT_ACTOR_ID, grantBadge } from "./testFixtures.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 
@@ -277,7 +277,7 @@ test("transitionObjective Active -> Reject requires a comment and records it", a
   assert.equal(comments?.[0]?.text, "needs a narrower fraud-detection scope before reconsidering");
 });
 
-test("commissionSeu requires the Objective to be Active — blocks Defined, succeeds once Activated", async () => {
+test("validateSeu requires the Objective to be Active — blocks Defined, succeeds once Activated", async () => {
   const { objective } = await createObjective({
     statement: `phase1-gate-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
@@ -302,7 +302,7 @@ test("commissionSeu requires the Objective to be Active — blocks Defined, succ
   if (!published.ok) throw new Error("unreachable");
   const profile = { id: published.profileId };
 
-  const blocked = await commissionSeu({ objectiveId: objective.id, templateIds: [template.id], profileIds: [profile.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const blocked = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ALL_ID });
   assert.equal(blocked.ok, false);
   if (!blocked.ok) assert.ok(blocked.reason.includes("not Active"), `expected reason to mention "not Active", got: ${blocked.reason}`);
 
@@ -314,7 +314,7 @@ test("commissionSeu requires the Objective to be Active — blocks Defined, succ
   // Active check this test is actually about), so its own lifecycle_state
   // stays 'Pending' here; driveCommissioningToActive runs the rest (Compose
   // EBM, Validate, Activate) to confirm it genuinely completes.
-  const allowed = await commissionSeu({ objectiveId: objective.id, templateIds: [template.id], profileIds: [profile.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const allowed = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ALL_ID });
   assert.equal(allowed.ok, true);
   if (!allowed.ok) throw new Error("unreachable");
   const completed = await driveCommissioningToActive({ seuId: allowed.seu.id, actorId: TESTER_ALL_ID });
@@ -332,7 +332,7 @@ test("commissionSeu requires the Objective to be Active — blocks Defined, succ
 // cover every declared Capability is still a valid, successful choice — the
 // gap is something a Profile's own Additional Capabilities can cover, not a
 // reason for this function to refuse.
-test("commissionFromExistingObjective takes an explicit Template choice — a partial-coverage match still commissions", async () => {
+test("initiateAndValidateSeu takes an explicit Profile choice — a partial-coverage match still commissions", async () => {
   const { template, profile } = await ensureWebAppTemplateFixture();
   const { objective } = await createActiveObjective({
     statement: `phase1-existing-${randomUUID()}`,
@@ -347,7 +347,7 @@ test("commissionFromExistingObjective takes an explicit Template choice — a pa
     // status omitted — defaults Active, matching the one-shot quick-commission path
   });
 
-  const requested = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template.id, profileId: profile.id }], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? JSON.stringify(requested) : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
   const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID });

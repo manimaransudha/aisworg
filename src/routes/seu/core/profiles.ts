@@ -5,7 +5,7 @@ import { packsDB } from "../../../dblayer/packsDB.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { toSchemaRows, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
-import { transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
@@ -414,8 +414,10 @@ export async function activateProfileSupersedingPrevious(profile: ProfileRow, ac
   const { data: previousActive } = await profilesDB.findActiveByCode(profile.code, profile.tenant_id);
   const activated = await transitionEntity({ entityType: "Profile", entityId: profile.id, targetState: "Active", actorId });
   if (!activated.ok) return { ok: false, errors: [`transition to "Active" failed: ${"detail" in activated ? activated.detail : activated.reason}`] };
+  await publishTransition(activated);
   if (previousActive && previousActive.id !== profile.id) {
-    await transitionEntity({ entityType: "Profile", entityId: previousActive.id, targetState: "Deprecated", actorId });
+    const deprecated = await transitionEntity({ entityType: "Profile", entityId: previousActive.id, targetState: "Deprecated", actorId });
+    if (deprecated.ok) await publishTransition(deprecated);
   }
   return { ok: true, profile: activated.row as ProfileRow };
 }
@@ -429,6 +431,7 @@ export async function advanceProfileToActive(profile: ProfileRow, actorId: strin
     if (targetState === "Published" && current.status !== "Validated") continue;
     const result = await transitionEntity({ entityType: "Profile", entityId: current.id, targetState, actorId });
     if (!result.ok) return { ok: false, errors: [`transition to "${targetState}" failed: ${"detail" in result ? result.detail : result.reason}`] };
+    await publishTransition(result);
     current = result.row as ProfileRow;
   }
   if (current.status !== "Published") return { ok: false, errors: [`Profile "${current.code}" is ${current.status} and cannot be advanced to Active`] };

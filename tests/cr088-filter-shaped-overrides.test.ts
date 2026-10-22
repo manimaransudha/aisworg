@@ -28,7 +28,7 @@ import { checklistsDB } from "../src/dblayer/checklistsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { deriveExposableParameterCandidates, deriveOverridableParameterCandidates, publishTemplate, extractExposedParameters } from "../src/routes/seu/core/templates.js";
-import { validateProfileSeed, publishProfile, extractExposedParameterOverrides, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
+import { validateProfileSeed, validateOverrideValues, publishProfile, extractExposedParameterOverrides, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
@@ -51,7 +51,8 @@ async function buildFixturePack(): Promise<{ packId: string; packCode: string; c
     packVersion: "1.0.0",
     installationClassification: "Optional",
     contributions: {},
-    status: "Draft",
+    // Active, because a Template can reference only an Active (or past Active) Pack: pack-code:<Category> offers no Draft.
+    status: "Active",
     authoredBy: ROOT_ACTOR_ID,
     authorBadge: ROOT_ACTOR_BADGE,
     schemaDefinitionId: packSchema!.id,
@@ -204,10 +205,10 @@ test("Profile override: a value NOT in the candidate's own valueOptions is rejec
     exposedParameterOverrides: [{ sourceType: "checklist", sourceCode: checklistId, parameterName: "type", value: "not-a-real-option" }],
   };
 
-  const validation = await validateProfileSeed(seed);
-  assert.equal(validation.ok, false, "expected an override value outside the real checklist-configurable-value vocabulary to be rejected");
-  if (validation.ok) return;
-  assert.ok(validation.errors.some((e) => e.includes("must be one of")), `expected a "must be one of" error, got: ${JSON.stringify(validation.errors)}`);
+  // The value check lives in validateOverrideValues, which the Profile's materialise policy and unravel action call (CR-128).
+  const errors = await validateOverrideValues(seed);
+  assert.ok(errors.length > 0, "expected an override value outside the real checklist-configurable-value vocabulary to be rejected");
+  assert.ok(errors.some((e) => e.includes("must be one of")), `expected a "must be one of" error, got: ${JSON.stringify(errors)}`);
 });
 
 // design/mvp-build-plan/SEU Composition.md — owner: "Template should have

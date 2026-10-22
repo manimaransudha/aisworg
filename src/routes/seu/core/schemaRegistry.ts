@@ -4,7 +4,7 @@ import type { SchemaDefinitionEntityKind, SchemaDefinitionRow } from "../../../d
 import { diffSchemaVersions, type SchemaDifference } from "../../../domain/sdk/schemaCompiler.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { BIRTH_STATE } from "../../../dblayer/constants.js";
@@ -91,6 +91,7 @@ async function autoAdvanceGoverned(schema: SchemaDefinitionRow, actorId: string)
     if (governed.length > 1) throw new Error(`SchemaDefinition state ${current.lifecycle_state} has ${governed.length} governed next transitions: ${governed.map((t) => t.toState).join(", ")}`);
     const result = await transitionEntity({ entityType: "SchemaDefinition", entityId: current.id, targetState: governed[0].toState, actorId });
     if (!result.ok) throw new Error(`cannot advance ${current.entity_kind} schema v${current.version} from ${current.lifecycle_state} to ${governed[0].toState}: ${"detail" in result ? result.detail : result.reason}`);
+    await publishTransition(result);
     current = result.row as SchemaDefinitionRow;
   }
 }

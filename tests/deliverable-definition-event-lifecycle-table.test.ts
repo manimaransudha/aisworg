@@ -24,7 +24,8 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { copyDeliverableDefinitionAsNewDraft } from "../src/routes/seu/core/deliverableDefinitions.js";
 import { computeRowActions } from "../src/routes/seu/core/sdkAuthoring.js";
 import { syncConceptFromEntity } from "../src/routes/seu/core/ontology.js";
-import { transitionEntity, nextActionsFor } from "../src/domain/engine/entityTransition.js";
+import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
+import { transitionAndPublish } from "./testFixtures.js";
 import { loadPolicyChecks } from "../src/domain/engine/policyChecks.js";
 import { ONTOLOGY_VALUES_PRESENT_POLICY_CODE, VALIDATE_SCHEMA_POLICY_CODE } from "../src/dblayer/constants.js";
 import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
@@ -74,7 +75,7 @@ async function freshDefinitionDraft(options: { inOntology: boolean } = { inOntol
 }
 
 async function hop(id: string, targetState: string, actorId = TESTER_ALL_ID) {
-  return transitionEntity({ entityType: "DeliverableDefinition", entityId: id, targetState, actorId });
+  return transitionAndPublish({ entityType: "DeliverableDefinition", entityId: id, targetState, actorId });
 }
 
 function outcome(r: Awaited<ReturnType<typeof hop>>): { ok: boolean; reason: string | null } {

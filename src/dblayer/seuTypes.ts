@@ -364,7 +364,8 @@ export interface EbmRow {
 }
 
 export type SeuLifecycleState =
-  | "Pending"
+  | "Initiated"
+  | "Validated"
   | "Commissioned"
   | "Configured"
   | "Activated"

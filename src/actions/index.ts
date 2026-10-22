@@ -1,7 +1,9 @@
-import { SUPERSEDE_OBJECTIVE_ACTION_CODE, UNRAVEL_PROFILE_ACTION_CODE, UNRAVEL_TEMPLATE_ACTION_CODE } from "../dblayer/constants.js";
+import { RAISE_EBM_RETIRED_ATTENTION_ACTION_CODE, SUPERSEDE_OBJECTIVE_ACTION_CODE, VALIDATE_SEU_REQUEST_ACTION_CODE, UNRAVEL_PROFILE_ACTION_CODE, UNRAVEL_TEMPLATE_ACTION_CODE } from "../dblayer/constants.js";
+import { raiseEbmRetiredAttention } from "./raiseEbmRetiredAttention.js";
 import { supersedeObjective } from "./supersedeObjective.js";
 import { unravelProfile } from "./unravelProfile.js";
 import { unravelTemplate } from "./unravelTemplate.js";
+import { validateSeuRequest } from "./validateSeuRequest.js";
 
 export interface ActionInput {
   entityType: string;
@@ -21,6 +23,8 @@ const ACTION_IMPLEMENTATIONS: Record<string, ActionImplementation> = {
   [UNRAVEL_TEMPLATE_ACTION_CODE]: unravelTemplate,
   [UNRAVEL_PROFILE_ACTION_CODE]: unravelProfile,
   [SUPERSEDE_OBJECTIVE_ACTION_CODE]: supersedeObjective,
+  [RAISE_EBM_RETIRED_ATTENTION_ACTION_CODE]: raiseEbmRetiredAttention,
+  [VALIDATE_SEU_REQUEST_ACTION_CODE]: validateSeuRequest,
 };
 
 export function isRegisteredAction(actionCode: string): boolean {

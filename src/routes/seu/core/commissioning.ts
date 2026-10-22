@@ -21,24 +21,19 @@ import { policyEngine } from "../../../domain/engine/policyEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { logger } from "../../../utils/logger.js";
 import { createObjective, ensureOneShotContainer } from "./objectives.js";
-import { transitionEntity } from "../../../domain/engine/entityTransition.js";
-import { raiseAttentionItem, resolveAuthor } from "./attentionItems.js";
+import { transitionEntity, publishTransition, type TransitionEntityResult } from "../../../domain/engine/entityTransition.js";
 import { raiseObligationForBlockedTransition, raiseObligationsForPackDefinitions } from "./obligations.js";
 import { findCandidateTemplates } from "./templates.js";
 import { extractProfileDetails, getProfilePackCodes, extractExposedParameterOverrides, listRealProfilesForTemplate } from "./profiles.js";
 import type { ProfileDetail } from "./profiles.js";
 import { resolveLabels } from "./ontology.js";
 import type { CommissioningReport, SeuLifecycleState, SeuRow, TemplateRow, ProfileRow, ObjectiveRow, CapabilityRow, TemplateDeliverableSeed, EbmCompositionReport, EbmComposedPack, EbmRow } from "../../../dblayer/seuTypes.js";
-import { getPlatformTenantId, getSystemActor, ensureSeuSystemParticipant } from "../../../dblayer/constants.js";
+import { EBM_RETIRED_STATE, EBM_VALIDATED_STATE, SEU_ACTIVATED_STATE, SEU_COMMISSIONED_STATE, SEU_CONFIGURED_STATE, SEU_FAILED_STATE, SEU_INITIATED_STATE, SEU_OPERATIONAL_STATE, SEU_VALIDATED_STATE, getPlatformTenantId, getSystemActor, ensureSeuSystemParticipant } from "../../../dblayer/constants.js";
+import { SeuLivenessError } from "../../../actions/validateSeuRequest.js";
  
 export type CommissionResult =
   | { ok: true; seu: SeuRow }
   | { ok: false; stage: string; reason: string; seuId?: string };
-
-const PRE_ASSETS_STEPS: Array<[SeuLifecycleState, SeuLifecycleState]> = [
-  ["Pending", "Configured"],
-  ["Configured", "Commissioned"],
-];
 
 export interface LivenessCheck {
   item: string;
@@ -109,58 +104,34 @@ export async function checkEbmLiveness(ebm: EbmRow): Promise<string[]> {
   return dead;
 }
 
-export async function commissionSeu(input: {
-  objectiveId: string;
-  templateIds: string[];
-  profileIds: string[];
-  resolvedParameterOverrides?: Record<string, string>;
-  resolvedCompositionConflicts?: Record<string, unknown>;
-  actorId: string;
-  requestedBy: string;
-  tenantId?: string | null;
-}): Promise<CommissionResult> {
+export type InitiateSeuResult = { ok: true; seu: SeuRow } | { ok: false; reason: string };
+
+// The Save button of the commission form (CR-128): the birth of an SEU, `None -> Initiated`. It checks that an Objective and a
+// Profile were chosen, creates the row in the birth row's state and publishes the birth event as its last statement.
+export async function initiateSeu(input: { objectiveId?: string | null; profileId?: string | null; actorId: string; tenantId?: string | null }): Promise<InitiateSeuResult> {
+  if (!input.objectiveId) return { ok: false, reason: "Choose an Objective to commission against." };
+  if (!input.profileId) return { ok: false, reason: "Choose a Profile to commission against." };
   const { data: objective } = await objectivesDB.findById(input.objectiveId);
-  if (!objective) return { ok: false, stage: "validate_request", reason: `objective not found: ${input.objectiveId}` };
-  if (input.templateIds.length === 0) return { ok: false, stage: "validate_request", reason: "at least one Template is required" };
-  if (input.profileIds.length === 0) return { ok: false, stage: "validate_request", reason: "at least one Profile is required" };
-  if (input.profileIds.length > 1) return { ok: false, stage: "validate_request", reason: "only one Profile may be selected for commissioning" };
-
-  const templates: TemplateRow[] = [];
-  for (const templateId of input.templateIds) {
-    const { data: template } = await templatesDB.findById(templateId);
-    if (!template) return { ok: false, stage: "validate_request", reason: `template not found: ${templateId}` };
-    templates.push(template);
-  }
-  const profiles: ProfileRow[] = [];
-  for (const profileId of input.profileIds) {
-    const { data: profile } = await profilesDB.findById(profileId);
-    if (!profile) return { ok: false, stage: "validate_request", reason: `profile not found: ${profileId}` };
-    profiles.push(profile);
-  }
-  const templateIdSet = new Set(input.templateIds);
-  for (const profile of profiles) {
-    if (!templateIdSet.has(profile.base_template_id)) {
-      return { ok: false, stage: "validate_request", reason: `profile "${profile.code}" does not target any of the given Templates` };
-    }
-  }
-  const template = templates[0];
-  const profile = profiles[0];
+  if (!objective) return { ok: false, reason: `objective not found: ${input.objectiveId}` };
+  const { data: profile } = await profilesDB.findById(input.profileId);
+  if (!profile) return { ok: false, reason: `profile not found: ${input.profileId}` };
+  const { data: template } = await templatesDB.findById(profile.base_template_id);
+  if (!template) return { ok: false, reason: `template not found: ${profile.base_template_id}` };
   if (objective.status !== "Active") {
-    return { ok: false, stage: "validate_request", reason: `objective is not Active (status: ${objective.status}) — activate it before commissioning against it` };
+    return { ok: false, reason: `objective is not Active (status: ${objective.status}) — activate it before commissioning against it` };
   }
-
   if (objective.tier === "Strategic") {
-    return { ok: false, stage: "validate_request", reason: `a Strategic Objective is a programme umbrella and cannot have an SEU (decompose it into Operational/Engineering objectives)` };
+    return { ok: false, reason: `a Strategic Objective is a programme umbrella and cannot have an SEU (decompose it into Operational/Engineering objectives)` };
   }
   const { data: children } = await objectivesDB.findChildren(objective.id);
   if ((children ?? []).length > 0) {
-    return { ok: false, stage: "validate_request", reason: `objective has been decomposed further — commission an SEU against its leaf objectives, not this parent` };
+    return { ok: false, reason: `objective has been decomposed further — commission an SEU against its leaf objectives, not this parent` };
   }
-
   const { data: existingSeu } = await seusDB.findByObjectiveId(objective.id);
-  const reusingExisting = !!existingSeu && existingSeu.lifecycle_state === "Pending" && existingSeu.profile_id === profile.id && existingSeu.template_id === template.id;
-  if (existingSeu && !reusingExisting) {
-    return { ok: false, stage: "validate_request", reason: `this Objective is already assigned to an SEU (${existingSeu.id})` };
+  if (existingSeu) {
+    const reusingExisting = existingSeu.lifecycle_state === SEU_INITIATED_STATE && existingSeu.profile_id === profile.id && existingSeu.template_id === template.id;
+    if (reusingExisting) return { ok: true, seu: existingSeu };
+    return { ok: false, reason: `this Objective is already assigned to an SEU (${existingSeu.id})` };
   }
 
   let tenantId = input.tenantId ?? objective.sponsoring_authority?.tenant ?? null;
@@ -168,43 +139,83 @@ export async function commissionSeu(input: {
     const { data: defaultTenant } = await tenantsDB.findDefault();
     tenantId = defaultTenant?.id ?? null;
   }
-  const viewerTenantId = tenantId ?? (await getPlatformTenantId());
-
-  let seu: SeuRow;
-  let correlationId: string;
-  let causationId: string | undefined;
-  if (reusingExisting) {
-    seu = existingSeu!;
-    const { data: priorEvents } = await eventsDB.findByOriginatingObject("SEU", seu.id);
-    const priorRequested = (priorEvents ?? []).find((e) => e.event_type === "CommissionRequested");
-    correlationId = priorRequested?.correlation_id ?? eventBus.newCorrelationId();
-    causationId = priorRequested?.id;
-  } else {
-    const { data: created, error: seuErr } = await seusDB.create({
-      objectiveId: objective.id,
-      templateId: template.id,
-      profileId: profile.id,
-      requestedBy: input.requestedBy,
-      authorBadge: await badgeAuthorityEngine.resolveAuthorBadge(input.requestedBy, "seu_commission"),
-      tenantId,
-    });
-    if (seuErr || !created) return { ok: false, stage: "allocate_runtime", reason: (seuErr ?? new Error("failed to create SEU")).message };
-    seu = created;
-    correlationId = eventBus.newCorrelationId();
-    const requestedEvent = await eventBus.publish({
-      eventType: "CommissionRequested",
-      originatingObjectType: "SEU",
-      originatingObjectId: seu.id,
-      seuId: seu.id,
-      correlationId,
-      actorId: input.actorId,
-      authorityBadge: await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, "seu_commission"),
-      payload: { seuId: seu.id },
-    });
-    causationId = requestedEvent.id;
-  }
-
+  const birth = await transitionEngine.beginBirth({ entityType: "SEU", actorId: input.actorId });
+  const { data: seu, error } = await seusDB.create({
+    objectiveId: objective.id,
+    templateId: template.id,
+    profileId: profile.id,
+    requestedBy: input.actorId,
+    authorBadge: birth.authorityBadge,
+    lifecycleState: birth.initialState as SeuLifecycleState,
+    tenantId,
+  });
+  if (error || !seu) return { ok: false, reason: (error ?? new Error("failed to create SEU")).message };
+  await eventBus.publish({
+    eventType: birth.eventType,
+    versionEvent: birth.versionEvent,
+    originatingObjectType: "SEU",
+    originatingObjectId: seu.id,
+    seuId: seu.id,
+    correlationId: eventBus.newCorrelationId(),
+    payload: { seuId: seu.id },
+    actorId: input.actorId,
+    authorityBadge: birth.authorityBadge,
+  });
   return { ok: true, seu };
+}
+
+// The correlation and cause of an SEU's commissioning: the birth event, when it exists.
+async function commissioningChain(seuId: string): Promise<{ correlationId: string; causationId: string | null }> {
+  const { data: events } = await eventsDB.findByOriginatingObject("SEU", seuId);
+  const initiated = (events ?? []).find((e) => e.event_type === "CommissionInitiated");
+  return { correlationId: initiated?.correlation_id ?? eventBus.newCorrelationId(), causationId: initiated?.id ?? null };
+}
+
+// Moves an SEU to Failed through the governed row of its current state and publishes CommissionFailed (CR-128).
+export async function failSeu(input: {
+  seuId: string;
+  actorId: string;
+  stage: string;
+  reason: string;
+  references?: string[];
+  checks?: LivenessCheck[];
+  correlationId?: string;
+  causationId?: string | null;
+}): Promise<void> {
+  const failed = await transitionEntity({ entityType: "SEU", entityId: input.seuId, targetState: SEU_FAILED_STATE, actorId: input.actorId, seuId: input.seuId });
+  if (!failed.ok) throw new Error(`cannot move SEU ${input.seuId} to ${SEU_FAILED_STATE}: ${"detail" in failed ? failed.detail : failed.reason}`);
+  const chain = input.correlationId ? { correlationId: input.correlationId, causationId: input.causationId } : await commissioningChain(input.seuId);
+  await publishTransition(failed, {
+    payload: { stage: input.stage, reason: input.reason, references: input.references, checks: input.checks },
+    correlationId: chain.correlationId,
+    causationId: chain.causationId,
+  });
+}
+
+export type ValidateSeuResult =
+  | { ok: true; seu: SeuRow }
+  | { ok: false; reason: "commission_failed"; detail: string }
+  | Exclude<TransitionEntityResult, { ok: true }>;
+
+// The Validate button (CR-128): the hop Initiated -> Validated. Its action code checks that every reference is live. A dead
+// reference rolls the hop back and takes the governed Failed row instead, and CommissionFailed is published.
+export async function validateSeu(input: { seuId: string; actorId: string }): Promise<ValidateSeuResult> {
+  const livenessChecks: LivenessCheck[] = [];
+  const chain = await commissioningChain(input.seuId);
+  try {
+    const validated = await transitionEntity({ entityType: "SEU", entityId: input.seuId, targetState: SEU_VALIDATED_STATE, actorId: input.actorId, seuId: input.seuId, context: { livenessChecks } });
+    if (!validated.ok) return validated;
+    const seu = validated.row as SeuRow;
+    await publishTransition(validated, {
+      payload: { objectiveId: seu.objective_id, templateIds: [seu.template_id], profileIds: [seu.profile_id], viewerTenantId: seu.tenant_id ?? (await getPlatformTenantId()), checks: livenessChecks },
+      ...chain,
+    });
+    return { ok: true, seu };
+  } catch (err) {
+    if (!(err instanceof SeuLivenessError)) throw err;
+    await failSeu({ seuId: input.seuId, actorId: input.actorId, stage: "validate_request", reason: "stale_reference", references: err.references, checks: err.checks, ...chain });
+    return { ok: false, reason: "commission_failed", detail: err.message };
+  }
 }
 
 export type FinalizeCommissioningResult =
@@ -273,18 +284,11 @@ export async function finalizeCommissioning(input: {
     if (deliverable) deliverableIdByName.set(name, deliverable.id);
   }
 
-  let previousStepEvent = { id: input.causationId };
-  for (const [from, to] of PRE_ASSETS_STEPS) {
-    const step = await transitionEngine.evaluate({ entityType: "SEU", fromState: from, toState: to, actorId: input.actorId, entityId: seu.id, context: {} });
-    if (!step.allowed) {
-      return { ok: false, stage: `transition_${from}_to_${to}`, reason: describeRejection(step), seuId: seu.id };
-    }
-    if (!step.authorityBadge) throw new Error(`no authority badge resolved for SEU ${from} -> ${to} — the Transition Definition declares no verb`);
-    await seusDB.updateLifecycleState(seu.id, to);
-    previousStepEvent = await eventBus.publish({
-      eventType: step.eventType ?? `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
-      causationId: previousStepEvent.id, actorId: input.actorId, authorityBadge: step.authorityBadge,
-    });
+  let previousStepEvent: { id: string } = { id: input.causationId };
+  for (const to of [SEU_CONFIGURED_STATE, SEU_COMMISSIONED_STATE]) {
+    const step = await transitionEntity({ entityType: "SEU", entityId: seu.id, targetState: to, actorId: input.actorId, seuId: seu.id });
+    if (!step.ok) return { ok: false, stage: `transition_to_${to}`, reason: "detail" in step ? step.detail : step.reason, seuId: seu.id };
+    previousStepEvent = await publishTransition(step, { correlationId, causationId: previousStepEvent.id });
   }
 
   const report: CommissioningReport = {
@@ -298,20 +302,10 @@ export async function finalizeCommissioning(input: {
   };
   await seusDB.setCommissioningReport(seu.id, report);
 
-  const finalStep = await transitionEngine.evaluate({ entityType: "SEU", fromState: "Commissioned", toState: "Activated", actorId: input.actorId, entityId: seu.id, context: {} });
-  if (!finalStep.allowed) {
-    return { ok: false, stage: "transition_Commissioned_to_Activated", reason: describeRejection(finalStep), seuId: seu.id };
-  }
-  if (!finalStep.authorityBadge) throw new Error("no authority badge resolved for SEU Commissioned -> Activated — the Transition Definition declares no verb");
-  const { data: activatedSeu, error: activateErr } = await seusDB.updateLifecycleState(seu.id, "Activated");
-  if (activateErr || !activatedSeu) {
-    return { ok: false, stage: "transition_Commissioned_to_Activated", reason: "failed to persist Activated lifecycle_state", seuId: seu.id };
-  }
-  await eventBus.publish({
-    eventType: finalStep.eventType ?? "SEUActivated", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
-    causationId: previousStepEvent.id, actorId: input.actorId, authorityBadge: finalStep.authorityBadge,
-  });
-  return { ok: true, seu: activatedSeu, report };
+  const finalStep = await transitionEntity({ entityType: "SEU", entityId: seu.id, targetState: SEU_ACTIVATED_STATE, actorId: input.actorId, seuId: seu.id });
+  if (!finalStep.ok) return { ok: false, stage: `transition_to_${SEU_ACTIVATED_STATE}`, reason: "detail" in finalStep ? finalStep.detail : finalStep.reason, seuId: seu.id };
+  await publishTransition(finalStep, { correlationId, causationId: previousStepEvent.id });
+  return { ok: true, seu: finalStep.row as SeuRow, report };
 }
 
 export async function attemptSeuCommenceWork(input: { seuId: string; correlationId: string; causationId: string; actorId: string }): Promise<void> {
@@ -320,20 +314,21 @@ export async function attemptSeuCommenceWork(input: { seuId: string; correlation
     logger.error(`[executionEngine] attemptSeuCommenceWork: SEU not found: ${input.seuId}`);
     return;
   }
-  if (seu.lifecycle_state !== "Activated") return;
+  if (seu.lifecycle_state !== SEU_ACTIVATED_STATE) return;
 
-  const { data: definition } = await transitionDefinitionsDB.find("SEU", "Activated", "Operational");
+  // The SEU-scoped Policies the EBM composed are resolved by the policy engine from the SEU; the transition row's own
+  // Policies are checked again by transitionEntity below.
+  const { data: definition } = await transitionDefinitionsDB.find("SEU", SEU_ACTIVATED_STATE, SEU_OPERATIONAL_STATE);
   if (!definition) {
-    logger.error(`[executionEngine] attemptSeuCommenceWork: no Transition Definition for SEU Activated -> Operational (SEU ${seu.id})`);
+    logger.error(`[executionEngine] attemptSeuCommenceWork: no Transition Definition for SEU ${SEU_ACTIVATED_STATE} -> ${SEU_OPERATIONAL_STATE} (SEU ${seu.id})`);
     return;
   }
   const commenceBadge = definition.verb ? await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, `seu_${definition.verb}`) : "system";
-
-  const commenceWorkPolicy = await policyEngine.evaluate({ entityType: "SEU", seuId: seu.id, fromState: "Activated", toState: "Operational", context: {}, authorId: input.actorId, authorBadge: commenceBadge });
+  const commenceWorkPolicy = await policyEngine.evaluate({ entityType: "SEU", seuId: seu.id, fromState: SEU_ACTIVATED_STATE, toState: SEU_OPERATIONAL_STATE, context: {}, authorId: input.actorId, authorBadge: commenceBadge });
   if (commenceWorkPolicy.outcome === "Blocked") {
     await raiseObligationForBlockedTransition({
       seuId: seu.id, relatedObjectType: "SEU", relatedObjectId: seu.id,
-      fromState: "Activated", toState: "Operational", policyCode: commenceWorkPolicy.policyCode,
+      fromState: SEU_ACTIVATED_STATE, toState: SEU_OPERATIONAL_STATE, policyCode: commenceWorkPolicy.policyCode,
     });
     return;
   }
@@ -341,106 +336,48 @@ export async function attemptSeuCommenceWork(input: { seuId: string; correlation
   if (seu.active_ebm_id) {
     const packObligations = await raiseObligationsForPackDefinitions({
       seuId: seu.id, ebmId: seu.active_ebm_id, relatedObjectType: "SEU", relatedObjectId: seu.id,
-      fromState: "Activated", toState: "Operational",
+      fromState: SEU_ACTIVATED_STATE, toState: SEU_OPERATIONAL_STATE,
     });
     if (packObligations.obligations.length > 0) return;
   }
 
-  await seusDB.updateLifecycleState(seu.id, "Operational");
-  await eventBus.publish({
-    eventType: definition.event_type ?? "SEUOperational", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id,
-    correlationId: input.correlationId, causationId: input.causationId, actorId: input.actorId,
-    authorityBadge: commenceBadge,
-  });
+  const commence = await transitionEntity({ entityType: "SEU", entityId: seu.id, targetState: SEU_OPERATIONAL_STATE, actorId: input.actorId, seuId: seu.id });
+  if (!commence.ok) {
+    if (commence.reason === "policy_blocked" && commence.policyCode) {
+      await raiseObligationForBlockedTransition({
+        seuId: seu.id, relatedObjectType: "SEU", relatedObjectId: seu.id,
+        fromState: SEU_ACTIVATED_STATE, toState: SEU_OPERATIONAL_STATE, policyCode: commence.policyCode,
+      });
+      return;
+    }
+    logger.error(`[executionEngine] attemptSeuCommenceWork: ${commence.reason} for SEU ${seu.id}`);
+    return;
+  }
+  await publishTransition(commence, { correlationId: input.correlationId, causationId: input.causationId });
 }
 
-function describeRejection(outcome: { reason: string } & Record<string, unknown>): string {
-  const { reason, ...rest } = outcome;
-  const detail = Object.entries(rest)
-    .map(([k, v]) => `${k}=${String(v)}`)
-    .join(" ");
-  return detail ? `${reason} (${detail})` : reason;
-}
-
-export type TransitionEbmResult =
+export type ValidateEbmResult =
   | { ok: true; ebm: EbmRow; appliedTransition: { fromState: string; toState: string } }
-  | { ok: false; reason: "not_found" }
-  | { ok: false; reason: "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
-  | { ok: false; reason: "ebm_retired"; detail: string };
+  | { ok: false; reason: "ebm_retired"; detail: string }
+  | Exclude<TransitionEntityResult, { ok: true }>;
 
-export async function transitionEbm(input: { ebmId: string; targetState: string; actorId: string }): Promise<TransitionEbmResult> {
+// Validate attempt on a Composed EBM (CR-128). A dead reference takes the governed Composed -> Retired row instead; its action
+// raises the Attention Item in the same transaction as the state write.
+export async function validateEbm(input: { ebmId: string; actorId: string }): Promise<ValidateEbmResult> {
   const { data: ebm } = await ebmsDB.findById(input.ebmId);
   if (!ebm) return { ok: false, reason: "not_found" };
 
-  const fromState = ebm.status;
-  const gate = await transitionEngine.evaluate({
-    entityType: "EBM",
-    fromState,
-    toState: input.targetState,
-    actorId: input.actorId,
-    entityId: ebm.id,
-    context: { ebm },
-  });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for EBM ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "policy_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
+  const deadReferences = await checkEbmLiveness(ebm);
+  if (deadReferences.length > 0) {
+    const retired = await transitionEntity({ entityType: "EBM", entityId: ebm.id, targetState: EBM_RETIRED_STATE, actorId: input.actorId, seuId: ebm.seu_id, context: { deadReferences } });
+    if (!retired.ok) return retired;
+    await publishTransition(retired);
+    return { ok: false, reason: "ebm_retired", detail: `references no longer live: ${deadReferences.join("; ")}` };
   }
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for EBM ${fromState} -> ${input.targetState} — the Transition Definition declares no verb`);
-
-  if (input.targetState === "Validated") {
-    const deadReferences = await checkEbmLiveness(ebm);
-    if (deadReferences.length > 0) {
-      const { data: retired, error: retireErr } = await ebmsDB.updateStatus(ebm.id, "Retired");
-      if (retireErr || !retired) throw retireErr ?? new Error("failed to set EBM to Retired");
-      if (!input.actorId) throw new Error(`EBM ${ebm.id} retirement has no acting user to record as this Attention Item's author`);
-      const retiredCorrelationId = eventBus.newCorrelationId();
-      const retiredEvent = await eventBus.publish({
-        eventType: "EBMRetired",
-        originatingObjectType: "EBM",
-        originatingObjectId: ebm.id,
-        seuId: ebm.seu_id,
-        correlationId: retiredCorrelationId,
-        payload: { references: deadReferences },
-        actorId: input.actorId,
-        authorityBadge: gate.authorityBadge,
-      });
-      await raiseAttentionItem({
-        seuId: ebm.seu_id,
-        category: "EBM Retired",
-        priority: "High",
-        title: `EBM for this SEU was retired — references no longer live`,
-        description: deadReferences.join("; "),
-        relatedObjectType: "EBM",
-        relatedObjectId: ebm.id,
-        triggeringEventId: retiredEvent.id,
-        actorId: input.actorId,
-        authorBadge: gate.authorityBadge,
-      });
-      return { ok: false, reason: "ebm_retired", detail: `references no longer live: ${deadReferences.join("; ")}` };
-    }
-  }
-
-  const { data: updated, error } = await ebmsDB.updateStatus(ebm.id, input.targetState as EbmRow["status"]);
-  if (error || !updated) throw error ?? new Error("failed to update EBM status");
-
-  const correlationId = eventBus.newCorrelationId();
-  await eventBus.publish({
-    eventType: gate.eventType ?? "EBMTransitioned",
-    originatingObjectType: "EBM",
-    originatingObjectId: ebm.id,
-    seuId: ebm.seu_id,
-    correlationId,
-    payload: { fromState, toState: input.targetState },
-    actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
-    versionEvent: gate.versionEvent,
-    fromState,
-    toState: input.targetState,
-  });
-
-  return { ok: true, ebm: updated, appliedTransition: { fromState, toState: input.targetState } };
+  const validated = await transitionEntity({ entityType: "EBM", entityId: ebm.id, targetState: EBM_VALIDATED_STATE, actorId: input.actorId, seuId: ebm.seu_id });
+  if (!validated.ok) return validated;
+  await publishTransition(validated);
+  return { ok: true, ebm: validated.row as EbmRow, appliedTransition: validated.appliedTransition };
 }
 
 export type CommissionFromFormResult =
@@ -465,6 +402,7 @@ export async function commissionFromForm(input: {
   });
   const activated = await transitionEntity({ entityType: "Objective", entityId: created.id, targetState: "Active", actorId: input.requestedBy });
   if (!activated.ok) throw new Error(`commissionFromForm: ${"detail" in activated ? activated.detail : activated.reason}`);
+  await publishTransition(activated);
   const objective = activated.row as ObjectiveRow;
 
   const candidates = await findCandidateTemplates(input.requiredCapabilityCodes, input.tenantId);
@@ -493,45 +431,11 @@ export async function commissionFromForm(input: {
     tenantId = defaultTenant?.id ?? null;
   }
 
-  return commissionSeu({
-    objectiveId: objective.id,
-    templateIds: [template.id],
-    profileIds: [profile.id],
-    actorId: input.actorId,
-    requestedBy: input.requestedBy,
-    tenantId,
-  });
-}
-
-export async function commissionFromExistingObjective(input: {
-  objectiveId: string;
-  selections: Array<{
-    templateId: string;
-    profileId?: string;
-  }>;
-  resolvedParameterOverrides?: Record<string, string>;
-  resolvedCompositionConflicts?: Record<string, unknown>;
-  actorId: string;
-  requestedBy: string;
-}): Promise<CommissionResult> {
-  const templateIds = [...new Set(input.selections.map((s) => s.templateId))];
-  const profileIds: string[] = [];
-  for (const s of input.selections) {
-    if (!s.profileId) {
-      return { ok: false, stage: "select_profile", reason: `no Profile chosen for Template ${s.templateId} — a real Profile must be selected before commissioning` };
-    }
-    profileIds.push(s.profileId);
-  }
-
-  return commissionSeu({
-    objectiveId: input.objectiveId,
-    templateIds,
-    profileIds: [...new Set(profileIds)],
-    resolvedParameterOverrides: input.resolvedParameterOverrides,
-    resolvedCompositionConflicts: input.resolvedCompositionConflicts,
-    actorId: input.actorId,
-    requestedBy: input.requestedBy,
-  });
+  const initiated = await initiateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: input.actorId, tenantId });
+  if (!initiated.ok) return { ok: false, stage: "initiate_seu", reason: initiated.reason };
+  const validated = await validateSeu({ seuId: initiated.seu.id, actorId: input.actorId });
+  if (!validated.ok) return { ok: false, stage: "validate_request", reason: "detail" in validated ? validated.detail : validated.reason, seuId: initiated.seu.id };
+  return { ok: true, seu: validated.seu };
 }
 
 export async function previewCommissioningValidation(input: {

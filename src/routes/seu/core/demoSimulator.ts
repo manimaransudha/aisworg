@@ -20,7 +20,8 @@ import { findingsDB } from "../../../dblayer/findingsDB.js";
 import { getDemoActor, grantAllTransitionBadges, grantRouteBadges, grantTransitionBadge, type DemoActor } from "../../../dblayer/seed/demo/demoBadges.js";
 import { seedDemo } from "../../../dblayer/seed/demo/demoSeed.js";
 import { listObjectives } from "./objectives.js";
-import { commissionSeu, previewCommissioningValidation, transitionEbm } from "./commissioning.js";
+import { initiateSeu, validateSeu, previewCommissioningValidation, validateEbm } from "./commissioning.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { completeWorkItem } from "./workItems.js";
 import { transitionAttentionItem } from "./attentionItems.js";
 import { createReview, listReviewsBySeu } from "./reviews.js";
@@ -28,7 +29,7 @@ import { createFinding, transitionFinding, convertFindingToObligation, listFindi
 import { createObligation } from "./obligations.js";
 import { approveConcept } from "./ontology.js";
 import { publishAuthoringDraft } from "./sdkAuthoring.js";
-import { INITIAL_VERSION } from "../../../dblayer/constants.js";
+import { BIRTH_STATE, INITIAL_VERSION } from "../../../dblayer/constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "..", "..", "..", "dblayer", "seed", "data", "demo");
@@ -140,18 +141,18 @@ const handlers: Record<string, Handler> = {
     const { data: profiles } = await profilesDB.findActiveVisibleTo(ctx.tenantId);
     const profile = (profiles ?? []).find((p) => p.code === profileCode);
     if (!profile) throw new Error(`Profile ${profileCode} is not Active; reset the demo data`);
-    const result = await commissionSeu({
-      objectiveId: objective.id, templateIds: [template.id], profileIds: [profile.id],
-      actorId: ctx.participantId, requestedBy: ctx.participantId, tenantId: ctx.tenantId,
-    });
-    if (!result.ok) throw new Error(`commissioning stopped at ${result.stage}: ${result.reason}`);
-    const seuId = result.seu.id;
+    const initiated = await initiateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: ctx.participantId, tenantId: ctx.tenantId });
+    if (!initiated.ok) throw new Error(`commissioning stopped at initiate_seu: ${initiated.reason}`);
+    const validated = await validateSeu({ seuId: initiated.seu.id, actorId: ctx.participantId });
+    if (!validated.ok) throw new Error(`commissioning stopped at validate_request: ${"detail" in validated ? validated.detail : validated.reason}`);
+    const seuId = initiated.seu.id;
     await ensureEngagement(ctx, seuId);
 
     const selections = [{ templateId: template.id, profileId: profile.id }];
     const composition = await previewCommissioningValidation({ selections, viewerTenantId: ctx.tenantId });
     if (composition.compositionConflicts.length > 0) throw new Error(`composition has ${composition.compositionConflicts.length} unresolved conflict(s)`);
     await seusDB.setCompositionReport(seuId, { selections, ...composition, resolvedParameterOverrides: undefined, resolvedCompositionConflicts: {} });
+    await grantTransitionBadge(ctx.participantId, "EBM", BIRTH_STATE, "Composed");
     const composeBadge = await authorBadgeFor(ctx, "POST", `/aisworg/seu/objectives/${objective.id}/compose-ebm`);
     await eventBus.publish({
       eventType: "CompositionCompleted", originatingObjectType: "SEU", originatingObjectId: seuId, seuId,
@@ -162,7 +163,13 @@ const handlers: Record<string, Handler> = {
     const ebmId = await waitFor("the EBM to be composed", async () => (await seusDB.findById(seuId)).data?.active_ebm_id);
     for (const [from, to] of [["Composed", "Validated"], ["Validated", "Active"]] as const) {
       await grantTransitionBadge(ctx.participantId, "EBM", from, to);
-      const step = await transitionEbm({ ebmId, targetState: to, actorId: ctx.participantId });
+      let step;
+      if (to === "Validated") {
+        step = await validateEbm({ ebmId, actorId: ctx.participantId });
+      } else {
+        step = await transitionEntity({ entityType: "EBM", entityId: ebmId, targetState: to, actorId: ctx.participantId, seuId });
+        if (step.ok) await publishTransition(step);
+      }
       if (!step.ok) throw new Error(`EBM ${from} -> ${to} blocked: ${"detail" in step ? step.detail : step.reason}`);
     }
     const state = await waitFor("the SEU to finish commissioning", async () => {

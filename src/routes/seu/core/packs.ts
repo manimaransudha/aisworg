@@ -16,7 +16,7 @@ import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsD
 import { listActiveNouns } from "./authorityVocabulary.js";
 import { listTransitionsForEntityType } from "./policyDefinitions.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import { governedTransitionsFor } from "../../../domain/engine/policyChecks.js";
@@ -445,10 +445,14 @@ export async function activatePackSupersedingPrevious(pack: PackRow, actorId: st
   const { data: previousActive } = await packsDB.findActiveByCode(pack.code, pack.tenant_id);
   const activated = await transitionEntity({ entityType: "Pack", entityId: pack.id, targetState: "Active", actorId });
   if (!activated.ok) return { ok: false, pack, errors: [`transition to "Active" failed: ${"detail" in activated ? activated.detail : activated.reason}`] };
+  await publishTransition(activated);
   let supersededPack: PackRow | null = null;
   if (previousActive && previousActive.id !== pack.id) {
     const superseded = await transitionEntity({ entityType: "Pack", entityId: previousActive.id, targetState: "Retired", actorId });
-    if (superseded.ok) supersededPack = superseded.row as PackRow;
+    if (superseded.ok) {
+      supersededPack = superseded.row as PackRow;
+      await publishTransition(superseded);
+    }
   }
   return { ok: true, pack: activated.row as PackRow, supersededPack };
 }
@@ -460,6 +464,7 @@ export async function advancePackLifecycle(pack: PackRow, actorId: string, optio
     for (const targetState of ["Validated", "Published"]) {
       const result = await transitionEntity({ entityType: "Pack", entityId: currentPack.id, targetState, actorId });
       if (!result.ok) return { ok: false, pack: currentPack, errors: [`transition to "${targetState}" failed: ${"detail" in result ? result.detail : result.reason}`] };
+      await publishTransition(result);
       currentPack = result.row as PackRow;
     }
   }

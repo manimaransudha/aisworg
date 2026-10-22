@@ -166,6 +166,8 @@ export const redirects = {
     seusDecisions: page({ prefix: "/aisworg/seu/seus/:id/decisions", error: "/aisworg/seu/seus/:id" }),
     seusDecisionsTransition: page({ prefix: "/aisworg/seu/seus/:id/decisions/:decisionId/transition", error: "/aisworg/seu/seus/:id" }),
     seusDeliverablesTransition: page({ prefix: "/aisworg/seu/seus/:id/deliverables/:deliverableId/transition", error: "/aisworg/seu/seus/:id" }),
+    seusSave: page({ prefix: "/aisworg/seu/seus", error: "/aisworg/seu/seus/new" }),
+    seusTransition: page({ prefix: "/aisworg/seu/seus/:id/transition", error: "/aisworg/seu/seus/:id" }),
     seusEbm: page({ prefix: "/aisworg/seu/seus/:id/ebm", error: "/aisworg/seu/seus" }),
     seusEbmTransition: page({ prefix: "/aisworg/seu/seus/:id/ebm/transition", error: "/aisworg/seu/seus/:id" }),
     seusEvidence: page({ prefix: "/aisworg/seu/seus/:id/evidence", error: "/aisworg/seu/seus/:id" }),

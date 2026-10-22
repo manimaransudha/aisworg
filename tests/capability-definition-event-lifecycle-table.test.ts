@@ -19,7 +19,8 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { copyCapabilityDefinitionAsNewDraft } from "../src/routes/seu/core/capabilityDefinitions.js";
 import { computeRowActions } from "../src/routes/seu/core/sdkAuthoring.js";
-import { transitionEntity, nextActionsFor } from "../src/domain/engine/entityTransition.js";
+import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
+import { transitionAndPublish } from "./testFixtures.js";
 import { loadPolicyChecks } from "../src/domain/engine/policyChecks.js";
 import { evaluateImplementedPolicy } from "../src/policies/index.js";
 import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
@@ -160,7 +161,7 @@ test("DRIVEN: rows 2-7 (Validate, Publish, Activate, Deprecate, Retire, Archive)
   const draft = await freshCapabilityDefinitionDraft();
 
   for (const row of CAPABILITY_DEFINITION_TABLE.slice(1)) {
-    const result = await transitionEntity({ entityType: "Capability", entityId: draft.id, targetState: row.toState, actorId: TESTER_ALL_ID });
+    const result = await transitionAndPublish({ entityType: "Capability", entityId: draft.id, targetState: row.toState, actorId: TESTER_ALL_ID });
     assert.equal(result.ok, true, result.ok ? "" : `${row.description}: ${"detail" in result ? result.detail : result.reason}`);
   }
 
@@ -175,17 +176,17 @@ test("DRIVEN: rows 2-7 (Validate, Publish, Activate, Deprecate, Retire, Archive)
 
 test("GUARD: Defined cannot go straight to Published, and a repeat Validate is refused", async () => {
   const draft = await freshCapabilityDefinitionDraft();
-  const skip = await transitionEntity({ entityType: "Capability", entityId: draft.id, targetState: "Published", actorId: TESTER_ALL_ID });
+  const skip = await transitionAndPublish({ entityType: "Capability", entityId: draft.id, targetState: "Published", actorId: TESTER_ALL_ID });
   assert.deepEqual({ ok: skip.ok, reason: skip.ok ? null : skip.reason }, { ok: false, reason: "no_transition_definition" });
-  await transitionEntity({ entityType: "Capability", entityId: draft.id, targetState: "Validated", actorId: TESTER_ALL_ID });
-  const again = await transitionEntity({ entityType: "Capability", entityId: draft.id, targetState: "Validated", actorId: TESTER_ALL_ID });
+  await transitionAndPublish({ entityType: "Capability", entityId: draft.id, targetState: "Validated", actorId: TESTER_ALL_ID });
+  const again = await transitionAndPublish({ entityType: "Capability", entityId: draft.id, targetState: "Validated", actorId: TESTER_ALL_ID });
   assert.deepEqual({ ok: again.ok, reason: again.ok ? null : again.reason }, { ok: false, reason: "no_transition_definition" });
 });
 
 test("AUTHORITY: Validate is refused to an actor without capability_validate", async () => {
   const draft = await freshCapabilityDefinitionDraft();
   await assert.rejects(
-    () => transitionEntity({ entityType: "Capability", entityId: draft.id, targetState: "Validated", actorId: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId }),
+    () => transitionAndPublish({ entityType: "Capability", entityId: draft.id, targetState: "Validated", actorId: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId }),
     /does not hold capability_validate/
   );
   const { data: row } = await capabilityDefinitionsDB.findById(draft.id);
@@ -195,7 +196,7 @@ test("AUTHORITY: Validate is refused to an actor without capability_validate", a
 test("POLICY: a Capability Definition with no pinned schema cannot be Validated (policy-validate-schema)", async () => {
   const draft = await freshCapabilityDefinitionDraft();
   await query("UPDATE capability_definitions SET schema_definition_id = NULL WHERE id = $1", [draft.id]);
-  const result = await transitionEntity({ entityType: "Capability", entityId: draft.id, targetState: "Validated", actorId: TESTER_ALL_ID });
+  const result = await transitionAndPublish({ entityType: "Capability", entityId: draft.id, targetState: "Validated", actorId: TESTER_ALL_ID });
   assert.deepEqual({ ok: result.ok, reason: result.ok ? null : result.reason }, { ok: false, reason: "policy_blocked" });
   const { data: row } = await capabilityDefinitionsDB.findById(draft.id);
   assert.equal(row?.status, "Defined");
@@ -204,9 +205,9 @@ test("POLICY: a Capability Definition with no pinned schema cannot be Validated 
 test("POLICY: a Capability Definition whose code is not in the Ontology cannot reach Published, and PolicyViolated is published", async () => {
   const draft = await freshCapabilityDefinitionDraft();
   await query("UPDATE capability_definitions SET code = $2 WHERE id = $1", [draft.id, `not-a-real-capability-${randomUUID()}`]);
-  const validated = await transitionEntity({ entityType: "Capability", entityId: draft.id, targetState: "Validated", actorId: TESTER_ALL_ID });
+  const validated = await transitionAndPublish({ entityType: "Capability", entityId: draft.id, targetState: "Validated", actorId: TESTER_ALL_ID });
   const published = validated.ok
-    ? await transitionEntity({ entityType: "Capability", entityId: draft.id, targetState: "Published", actorId: TESTER_ALL_ID })
+    ? await transitionAndPublish({ entityType: "Capability", entityId: draft.id, targetState: "Published", actorId: TESTER_ALL_ID })
     : validated;
   assert.deepEqual({ ok: published.ok, reason: published.ok ? null : published.reason }, { ok: false, reason: "policy_blocked" });
   const { data: row } = await capabilityDefinitionsDB.findById(draft.id);

@@ -15,10 +15,10 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability, createActiveObjective } from "./testFixtures.js";
+import { initiateAndValidateSeu } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
-import { commissionSeu } from "../src/routes/seu/core/commissioning.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
@@ -58,7 +58,7 @@ function assertTransitionRequested(result: { ok: boolean; reason?: string }): vo
 
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+    "INSERT INTO ontology_concepts (concept_type, code, default_label, status, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, 'Active', $3, $4, $5) ON CONFLICT DO NOTHING",
     [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
 }
@@ -124,11 +124,10 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
     requestedBy: TESTER_ALL_ID,
   });
 
-  const commissioned = await commissionSeu({
+  const commissioned = await initiateAndValidateSeu({
     objectiveId: objective.id,
-    templateIds: [template!.id],
-    profileIds: [profile!.id],
-    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId,
+    profileId: profile!.id,
+    actorId: TESTER_ALL_ID, tenantId,
   });
   assert.equal(commissioned.ok, true, !commissioned.ok ? JSON.stringify(commissioned) : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
@@ -224,7 +223,7 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
 
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 

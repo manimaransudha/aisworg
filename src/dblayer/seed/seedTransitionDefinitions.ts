@@ -49,7 +49,6 @@ interface VocabItem {
 interface AuthorityVocabulary {
   nouns: VocabItem[];
   verbs: VocabItem[];
-  authoringMappings?: Array<{ noun: string; verbs: string[] }>;
   nounVerbs?: Array<{ noun: string; verb: string; defaultTrigger?: "manual" | "governed"; isActive?: boolean }>;
 }
 
@@ -77,8 +76,7 @@ function findDuplicates(keys: string[]): string[] {
 }
 
 // Loads the Authority vocabulary (nouns, verbs) and the transition definitions together: each
-// transition carries its own verb, and the noun-verb pairs are derived from the transitions plus
-// the authoring mappings. The vocabulary and the transition definitions are deleted and reloaded.
+// transition carries its own verb, and the noun-verb pairs are derived from the transitions. The vocabulary and the transition definitions are deleted and reloaded.
 export async function seedTransitionDefinitions(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
   const vocab = loadVocabulary();
@@ -105,7 +103,6 @@ export async function seedTransitionDefinitions(actor: SeedActor): Promise<void>
     pairs.push({ nounCode, verbCode, defaultTrigger: override?.defaultTrigger ?? "manual", isActive: override?.isActive ?? true });
   };
   for (const s of seeds) if (s.verb) addPair(s.entityType, s.verb, `transition ${s.entityType}|${s.fromState}|${s.toState}`);
-  for (const m of vocab.authoringMappings ?? []) for (const verb of m.verbs) addPair(m.noun, verb, "authoringMappings");
   for (const nv of vocab.nounVerbs ?? []) addPair(nv.noun, nv.verb, "nounVerbs");
   // Policy codes resolve to the Active, Platform-owned Policy Definitions seeded before this step. A code with no
   // Policy Definition is an error: it would otherwise leave the transition without the Policy it names.

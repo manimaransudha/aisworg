@@ -147,6 +147,7 @@ function widgetToProperty(w: AuthoredWidget, isItem: boolean): JsonSchemaPropert
       if (w.markdown) prop["x-format"] = "markdown";
       if (w.ontology) prop["x-ontology"] = true;
       if (w.referentialSource.trim()) prop["x-referential-source"] = w.referentialSource.trim();
+      if (w.ontologyComposable) prop["x-ontology-composable"] = true;
       common();
       break;
     }
@@ -418,6 +419,7 @@ function propertyToWidget(name: string, def: JsonSchemaProperty, required: boole
   w.defaultValue = def.default !== undefined ? String(def.default) : "";
   w.markdown = def["x-format"] === "markdown";
   w.ontology = def["x-ontology"] === true;
+  w.ontologyComposable = def["x-ontology-composable"] === true;
   w.referentialSource = def["x-referential-source"] ?? "";
   return w;
 }

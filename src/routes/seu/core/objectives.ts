@@ -3,7 +3,7 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { OBJECTIVE_REJECT_STATE, OBJECTIVE_SUPERSEDED_STATE } from "../../../dblayer/constants.js";
 import { findCandidateTemplates } from "./templates.js";
@@ -125,6 +125,7 @@ export async function ensureOneShotContainer(requestedBy:string): Promise<Object
   if (objective.status === "Active") return objective;
   const moved = await transitionEntity({ entityType: "Objective", entityId: objective.id, targetState: "Active", actorId: requestedBy });
   if (!moved.ok) throw new Error(`ensureOneShotContainer: ${"detail" in moved ? moved.detail : moved.reason}`);
+  await publishTransition(moved);
   return moved.row as ObjectiveRow;
 }
 
@@ -435,6 +436,7 @@ export async function retireObjectiveSubtree(input: { objectiveId: string; actor
     const detail = "detail" in rootResult ? rootResult.detail : rootResult.reason;
     throw new Error(`retire blocked: ${detail}`);
   }
+  await publishTransition(rootResult);
 
   const retired: string[] = [node.id];
   const skipped: Array<{ id: string; status: ObjectiveStatus }> = [];
@@ -447,8 +449,10 @@ export async function retireObjectiveSubtree(input: { objectiveId: string; actor
       continue;
     }
     const res = await transitionEntity({ entityType: "Objective", entityId: descId, targetState: "Retired", actorId: input.actorId });
-    if (res.ok) retired.push(descId);
-    else skipped.push({ id: descId, status: desc.status });
+    if (res.ok) {
+      await publishTransition(res);
+      retired.push(descId);
+    } else skipped.push({ id: descId, status: desc.status });
   }
   return { retired, skipped };
 }

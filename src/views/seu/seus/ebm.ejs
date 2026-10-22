@@ -58,39 +58,13 @@
                separate, independently human-triggered transitions on this
                EBM. This is what the EBM page exists to host ("We will need
                this to advance the EBM states"). %>
-          <%
-            function transitionLabel(s) { return s === 'Validated' ? 'Validate' : s === 'Active' ? 'Activate' : s; }
-          %>
-          <%# Bug fix (owner: "The styling is so bad. Validate looks like a
-               button" — a select+Apply pair reads as a row of pills/badges,
-               and a closed <select> showing "Validate" as its own text
-               LOOKS like a button, but isn't one — clicking it just opens a
-               dropdown, which is what read as "not clickable"). Now that
-               Retired no longer pollutes this list (previous fix), there is
-               only ever exactly one real next state at a time — a plain,
-               unambiguous button IS the real action, so render one instead
-               of a single-option dropdown. Falls back to the select+Apply
-               shape only in the (currently unreachable) case of 2+ options,
-               same as every other transition control on this page family
-               already does. %>
-          <% if (ebmView.ebm.possibleNextStates.length === 1) { %>
-            <% var only = ebmView.ebm.possibleNextStates[0]; %>
-            <form method="POST" action="/aisworg/seu/seus/<%= ebmView.seuId %>/ebm/transition" class="mb-0">
+          <%# One button per next action of the transition definitions the viewer holds the badge for (CR-128). %>
+          <% ebmView.ebm.actions.forEach(function(a) { %>
+            <form method="POST" action="/aisworg/seu/seus/<%= ebmView.seuId %>/ebm/transition/<%= a.verb %>" class="mb-0">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <input type="hidden" name="targetState" value="<%= only %>">
-              <button type="submit" class="btn btn-sm btn-primary"><%= transitionLabel(only) %></button>
+              <button type="submit" class="btn btn-sm btn-primary"><%= a.verb.charAt(0).toUpperCase() + a.verb.slice(1) %></button>
             </form>
-          <% } else if (ebmView.ebm.possibleNextStates.length > 1) { %>
-            <form method="POST" action="/aisworg/seu/seus/<%= ebmView.seuId %>/ebm/transition" class="d-flex align-items-center gap-2 mb-0">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                <% ebmView.ebm.possibleNextStates.forEach(function(s) { %>
-                  <option value="<%= s %>"><%= transitionLabel(s) %></option>
-                <% }) %>
-              </select>
-              <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
-            </form>
-          <% } %>
+          <% }) %>
         </div>
       <% } %>
     </div>

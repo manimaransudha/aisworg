@@ -6,7 +6,7 @@ const router = express.Router();
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { listPacksWithNextStates } from "../core/packs.js";
-import { transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { requireTenant } from "../../../middleware/requireTenant.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
@@ -47,6 +47,7 @@ function postPackTransition(targetState: PackStatus) {
         res.status(409).json({ reason: result.reason, detail: "detail" in result ? result.detail : undefined });
         return;
       }
+      await publishTransition(result);
       res.status(200).json({ pack: result.row, appliedTransition: result.appliedTransition });
     } catch (err) {
       logger.error(`[api/seu/packs] POST /:id/transition/${targetState} error`, err as Error);

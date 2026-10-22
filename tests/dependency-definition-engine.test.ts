@@ -22,7 +22,7 @@ import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
-import { ensureWebAppTemplateFixture, ROOT_ACTOR_ID, TESTER_ALL_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ROOT_ACTOR_ID, TESTER_ALL_ID, ROOT_ACTOR_BADGE, seuBirthState } from "./testFixtures.js";
 import { ensureSeuSystemParticipant } from "../src/dblayer/constants.js";
 
 // deliverables.author_id is a FK to participants(id) (the SEU-scoped
@@ -63,7 +63,7 @@ test("dependencyDefinitionEngine: a target with no incoming rows is ready trivia
   const objAuthorId = await rootObjectiveAuthor();
   const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", status: "Active", requestedBy: TESTER_ALL_ID, authorId: objAuthorId, authorBadge: "root" });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
-  const { data: seu } = await seusDB.create({ authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id, requestedBy: TESTER_ALL_ID });
+  const { data: seu } = await seusDB.create({ lifecycleState: await seuBirthState(), authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id, requestedBy: TESTER_ALL_ID });
   await ensureSeuSystemParticipant(seu!.id);
   assert.ok(seu);
 
@@ -95,7 +95,7 @@ test("dependencyDefinitionEngine: a Deliverable-type row gates its target, and r
   const objAuthorId = await rootObjectiveAuthor();
   const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", status: "Active", requestedBy: TESTER_ALL_ID, authorId: objAuthorId, authorBadge: "root" });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
-  const { data: seu } = await seusDB.create({ authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id, requestedBy: TESTER_ALL_ID });
+  const { data: seu } = await seusDB.create({ lifecycleState: await seuBirthState(), authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id, requestedBy: TESTER_ALL_ID });
   await ensureSeuSystemParticipant(seu!.id);
   assert.ok(seu);
 
@@ -127,7 +127,7 @@ test("dependencyDefinitionEngine.evaluateAndPublishFromTransition publishes Deli
   const objAuthorId = await rootObjectiveAuthor();
   const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", status: "Active", requestedBy: TESTER_ALL_ID, authorId: objAuthorId, authorBadge: "root" });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
-  const { data: seu } = await seusDB.create({ authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id, requestedBy: TESTER_ALL_ID });
+  const { data: seu } = await seusDB.create({ lifecycleState: await seuBirthState(), authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id, requestedBy: TESTER_ALL_ID });
   await ensureSeuSystemParticipant(seu!.id);
   assert.ok(seu);
 

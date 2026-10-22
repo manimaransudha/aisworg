@@ -1,5 +1,5 @@
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
-import { transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
@@ -60,8 +60,10 @@ export async function activateDeliverableDefinitionSupersedingPrevious(definitio
   const { data: previousActive } = await deliverableDefinitionsDB.findActiveByCode(definition.code, definition.tenant_id);
   const activated = await transitionEntity({ entityType: "DeliverableDefinition", entityId: definition.id, targetState: "Active", actorId });
   if (!activated.ok) return { ok: false, errors: [`transition to "Active" failed: ${"detail" in activated ? activated.detail : activated.reason}`] };
+  await publishTransition(activated);
   if (previousActive && previousActive.id !== definition.id) {
-    await transitionEntity({ entityType: "DeliverableDefinition", entityId: previousActive.id, targetState: "Deprecated", actorId });
+    const deprecated = await transitionEntity({ entityType: "DeliverableDefinition", entityId: previousActive.id, targetState: "Deprecated", actorId });
+    if (deprecated.ok) await publishTransition(deprecated);
   }
   return { ok: true, deliverableDefinition: activated.row as DeliverableDefinitionRow };
 }

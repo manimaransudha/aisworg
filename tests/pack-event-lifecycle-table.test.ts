@@ -20,7 +20,8 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { createPackDraft, type PackSeedInput } from "../src/routes/seu/core/packs.js";
 import { computeRowActions, publishAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
 import { validateReferentialFields } from "../src/routes/seu/core/referentialOptions.js";
-import { transitionEntity, nextActionsFor } from "../src/domain/engine/entityTransition.js";
+import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
+import { transitionAndPublish } from "./testFixtures.js";
 import { loadPolicyChecks } from "../src/domain/engine/policyChecks.js";
 import { evaluateImplementedPolicy } from "../src/policies/index.js";
 import { generateFields, type JsonSchemaDocument } from "../src/domain/sdk/formGenerator.js";
@@ -51,7 +52,7 @@ async function freshPack(overrides: Partial<PackSeedInput> = {}) {
 }
 
 async function hop(id: string, targetState: string, context?: Record<string, unknown>, actorId = TESTER_ALL_ID) {
-  return transitionEntity({ entityType: "Pack", entityId: id, targetState, actorId, context });
+  return transitionAndPublish({ entityType: "Pack", entityId: id, targetState, actorId, context });
 }
 
 function outcome(r: Awaited<ReturnType<typeof hop>>): { ok: boolean; reason: string | null } {

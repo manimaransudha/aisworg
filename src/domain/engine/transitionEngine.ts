@@ -46,6 +46,7 @@ export interface GateRejectionResult {
   ok: false;
   reason: "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked";
   detail: string;
+  policyCode?: string;
 }
 
 // One mapping from a rejected governed outcome to the result every transition function returns.
@@ -53,7 +54,7 @@ export function gateRejection(gate: RejectedOutcome, entityLabel: string, fromSt
   if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for ${entityLabel} ${fromState} -> ${toState}` };
   if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
   if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-  return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
+  return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}`, policyCode: gate.policyCode };
 }
 
 export const transitionEngine = {

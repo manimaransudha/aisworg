@@ -84,7 +84,7 @@ test("DRIVEN: a request naming no Participant is fulfilled from the eligible poo
 });
 
 test("DRIVEN: a request for a Capability no Participant holds publishes CapabilityUnavailable and leaves it Unfulfilled", async () => {
-  const { seuId, capabilityId } = await commissionSeuWithCapability("cr126-unavailable", { capabilityCode: UNHELD_CAPABILITY_CODE, withEligibleParticipant: false });
+  const { seuId, capabilityId } = await commissionSeuWithCapability("cr126-unavailable", { capabilityCode: UNHELD_CAPABILITY_CODE, withEligibleParticipant: false, tenantId: await getEmptyPoolTenantId() });
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   await requestCapabilityFulfilment({ seuId, capabilityId, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });

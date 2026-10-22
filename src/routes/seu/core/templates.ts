@@ -2,7 +2,7 @@ import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { materialiseDependencyGraph, DEFAULT_DELIVERABLE_REQUIRED_STATE } from "../../../domain/engine/materialiseDependencyGraph.js";
@@ -526,8 +526,10 @@ export async function activateTemplateSupersedingPrevious(template: TemplateRow,
   const { data: previousActive } = await templatesDB.findActiveByCode(template.code, template.tenant_id);
   const activated = await transitionEntity({ entityType: "Template", entityId: template.id, targetState: "Active", actorId });
   if (!activated.ok) return { ok: false, errors: [`transition to "Active" failed: ${"detail" in activated ? activated.detail : activated.reason}`] };
+  await publishTransition(activated);
   if (previousActive && previousActive.id !== template.id) {
-    await transitionEntity({ entityType: "Template", entityId: previousActive.id, targetState: "Deprecated", actorId });
+    const deprecated = await transitionEntity({ entityType: "Template", entityId: previousActive.id, targetState: "Deprecated", actorId });
+    if (deprecated.ok) await publishTransition(deprecated);
   }
   return { ok: true, template: activated.row as TemplateRow };
 }
@@ -541,6 +543,7 @@ export async function advanceTemplateToActive(template: TemplateRow, actorId: st
     if (targetState === "Published" && current.status !== "Validated") continue;
     const result = await transitionEntity({ entityType: "Template", entityId: current.id, targetState, actorId });
     if (!result.ok) return { ok: false, errors: [`transition to "${targetState}" failed: ${"detail" in result ? result.detail : result.reason}`] };
+    await publishTransition(result);
     current = result.row as TemplateRow;
   }
   if (current.status !== "Published") return { ok: false, errors: [`Template "${current.code}" is ${current.status} and cannot be advanced to Active`] };

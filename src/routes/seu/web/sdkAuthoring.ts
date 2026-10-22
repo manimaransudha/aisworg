@@ -43,7 +43,7 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { requireActorId, resolveAuthorBadgeForRequest, resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
 import { listInheritableDeliverableDefinitions, inheritedDeliverableDefinitionContent } from "../core/deliverableDefinitions.js";
 import { listInheritableServiceDefinitions, inheritedServiceDefinitionContent } from "../core/serviceDefinitions.js";
-import { transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition, updateTransitionDefinition, listRequirablePolicyCodes } from "../core/transitionDefinitions.js";
 import {
   listAuthorityNouns, listAuthorityVerbs, listAuthorityMapping,
@@ -883,31 +883,37 @@ router.post("/sdk/:slug/:draftId/transition", requireDraftTenantScope(), require
     if (kind === "Pack") {
       const result = await transitionEntity({ entityType: "Pack", entityId: draftId, targetState, actorId, context: typeof comment === "string" ? { comment } : undefined });
       if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
+      await publishTransition(result);
       return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
     }
     if (kind === "Template" || kind === "Profile") {
       const result = await transitionEntity({ entityType: kind, entityId: draftId, targetState, actorId, context: typeof comment === "string" ? { comment } : undefined });
       if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
+      await publishTransition(result);
       return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
     }
     if (kind === "Deliverable") {
       const result = await transitionEntity({ entityType: "DeliverableDefinition", entityId: draftId, targetState, actorId });
       if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
+      await publishTransition(result);
       return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
     }
     if (kind === "Service") {
       const result = await transitionEntity({ entityType: "Service", entityId: draftId, targetState, actorId, context: typeof comment === "string" ? { comment } : undefined });
       if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
+      await publishTransition(result);
       return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
     }
     if (kind === "Policy") {
       const result = await transitionEntity({ entityType: "Policy", entityId: draftId, targetState, actorId });
       if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
+      await publishTransition(result);
       return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
     }
     if (kind === "Capability") {
       const result = await transitionEntity({ entityType: "Capability", entityId: draftId, targetState, actorId });
       if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
+      await publishTransition(result);
       return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
     }
     return next();

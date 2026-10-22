@@ -32,6 +32,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
+import { BIRTH_STATE } from "../src/dblayer/constants.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
@@ -53,20 +54,24 @@ interface RealHop {
 }
 
 const REAL_HOPS: RealHop[] = [
-  { entityType: "SEU", description: "Configure", fromState: "Pending", toState: "Configured", eventType: "SEUConfigured" },
+  { entityType: "SEU", description: "Configure", fromState: "Validated", toState: "Configured", eventType: "SEUConfigured" },
   { entityType: "SEU", description: "Commission", fromState: "Configured", toState: "Commissioned", eventType: "SEUCommissioned" },
   { entityType: "SEU", description: "Activate", fromState: "Commissioned", toState: "Activated", eventType: "SEUActivated" },
   { entityType: "SEU", description: "Operationalise", fromState: "Activated", toState: "Operational", eventType: "SEUOperational" },
+  { entityType: "EBM", description: "Compose (birth)", fromState: BIRTH_STATE, toState: "Composed", eventType: "EBMCreated" },
   { entityType: "EBM", description: "Validate", fromState: "Composed", toState: "Validated", eventType: "EBMValidated" },
   { entityType: "EBM", description: "Activate", fromState: "Validated", toState: "Active", eventType: "EBMActivated" },
 ];
+
+// The governed Composed -> Retired row is taken by validateEbm when a Validate attempt finds a dead reference
+// (tests/ebm-event-lifecycle-table.test.ts drives it), so it is not in the driven run below.
+const EBM_RETIRE_HOP = { fromState: "Composed", toState: "Retired", eventType: "EBMRetired", actionCode: "raise-ebm-retired-attention" };
 
 // Rows CR-092 Part 4 added as vocabulary only, no code ever calls
 // transitionEngine.evaluate for any of them — checked directly, matching
 // migration 189's own reasoning, so a future accidental UPDATE against one
 // of these doesn't go unnoticed.
 const DORMANT_SEU_HOPS: Array<{ fromState: string; toState: string }> = [
-  { fromState: "Pending", toState: "Validated" },
   { fromState: "Validated", toState: "Composed" },
   { fromState: "Composed", toState: "RuntimeAllocated" },
   { fromState: "RuntimeAllocated", toState: "KnowledgeInitialised" },
@@ -77,10 +82,7 @@ const DORMANT_SEU_HOPS: Array<{ fromState: string; toState: string }> = [
 // Gate-only rows: really evaluated, but no event is ever published off their
 // own outcome (checked directly against the code) — so nothing would ever
 // read an event_type set here either.
-const GATE_ONLY_HOPS: Array<{ entityType: "SEU" | "EBM"; fromState: string; toState: string }> = [
-  { entityType: "SEU", fromState: "Pending", toState: "Commissioned" },
-  { entityType: "EBM", fromState: "Composed", toState: "Retired" },
-];
+const GATE_ONLY_HOPS: Array<{ entityType: "SEU" | "EBM"; fromState: string; toState: string }> = [];
 
 test("DEFINITION: every real SEU/EBM transition_definitions row matches Events and Lifecycles.md — event_type real, version_event always null", async () => {
   for (const row of REAL_HOPS) {
@@ -89,6 +91,12 @@ test("DEFINITION: every real SEU/EBM transition_definitions row matches Events a
     assert.equal(def!.event_type, row.eventType, `${row.entityType} ${row.description}: event_type`);
     assert.equal(def!.version_event, null, `${row.entityType} ${row.description}: version_event must be null — execution lifecycle, not a versioned definition`);
   }
+
+  const { data: retire } = await transitionDefinitionsDB.find("EBM", EBM_RETIRE_HOP.fromState, EBM_RETIRE_HOP.toState);
+  assert.ok(retire, "no transition_definitions row for EBM Composed -> Retired");
+  assert.equal(retire!.event_type, EBM_RETIRE_HOP.eventType, "EBM Retire: event_type");
+  assert.equal(retire!.trigger, "governed", "EBM Retire: trigger");
+  assert.equal(retire!.action_code, EBM_RETIRE_HOP.actionCode, "EBM Retire: action_code");
 
   for (const row of DORMANT_SEU_HOPS) {
     const { data: def } = await transitionDefinitionsDB.find("SEU", row.fromState, row.toState);

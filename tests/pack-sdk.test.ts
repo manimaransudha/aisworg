@@ -19,7 +19,7 @@ import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
 import { serviceDefinitionsDB } from "../src/dblayer/serviceDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
-import { transitionEntity } from "../src/domain/engine/entityTransition.js";
+import { transitionAndPublish } from "./testFixtures.js";
 import type { PackRow } from "../src/dblayer/seuTypes.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
@@ -49,7 +49,7 @@ const DEMO_TENANT_ID = demoTenant.id;
 // (code, packVersion, tenant_id), not code alone).
 // The old transitionPack result shape (pack, reason, detail) over the generic transition.
 async function transitionPack(input: { packId: string; targetState: string; actorId: string; comment?: string }) {
-  const result = await transitionEntity({ entityType: "Pack", entityId: input.packId, targetState: input.targetState, actorId: input.actorId, context: input.comment !== undefined ? { comment: input.comment } : undefined });
+  const result = await transitionAndPublish({ entityType: "Pack", entityId: input.packId, targetState: input.targetState, actorId: input.actorId, context: input.comment !== undefined ? { comment: input.comment } : undefined });
   return result.ok ? { ...result, pack: result.row as PackRow } : result;
 }
 
@@ -162,7 +162,7 @@ test("validatePackSeed rejects a service whose Service Definition is not Active"
 test("validatePackSeed rejects a service whose Active Service Definition belongs to another tenant", async () => {
   const demoDefinition = await freshServiceDefinition(DEMO_TENANT_ID);
   for (const targetState of ["Validated", "Published", "Active"] as const) {
-    const advanced = await transitionEntity({ entityType: "Service", entityId: demoDefinition.id, targetState, actorId: ROOT_ACTOR_ID });
+    const advanced = await transitionAndPublish({ entityType: "Service", entityId: demoDefinition.id, targetState, actorId: ROOT_ACTOR_ID });
     assert.ok(advanced.ok, !advanced.ok ? `${"detail" in advanced ? advanced.detail : advanced.reason}` : "assertion failed");
   }
   const result = await validatePackSeed(await seedWithService({ code: demoDefinition.code, serviceDefinitionId: demoDefinition.id }, "requirements-analysis"));

@@ -7,7 +7,7 @@ import { logger } from "../../utils/logger.js";
 import { serviceDefinitionsDB } from "../serviceDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../participantsMasterDB.js";
-import { transitionEntity } from "../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition } from "../../domain/engine/entityTransition.js";
 import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
 import { eventBus } from "../../domain/engine/eventBus.js";
 import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../seuTypes.js";
@@ -113,12 +113,15 @@ export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
 
     const validate = await transitionEntity({ entityType: "Service", entityId: created.id, targetState: "Validated", actorId: actor.authoredBy });
     if (!validate.ok) throw new Error(`[seedServiceDefinitions] failed to validate ${seed.code}: ${"detail" in validate ? validate.detail : validate.reason}`);
+    await publishTransition(validate);
 
     const publish = await transitionEntity({ entityType: "Service", entityId: created.id, targetState: "Published", actorId: actor.authoredBy });
     if (!publish.ok) throw new Error(`[seedServiceDefinitions] failed to publish ${seed.code}: ${"detail" in publish ? publish.detail : publish.reason}`);
+    await publishTransition(publish);
 
     const activate = await transitionEntity({ entityType: "Service", entityId: created.id, targetState: "Active", actorId: actor.authoredBy });
     if (!activate.ok) throw new Error(`[seedServiceDefinitions] failed to activate ${seed.code}: ${"detail" in activate ? activate.detail : activate.reason}`);
+    await publishTransition(activate);
 
     logger.info(`[seedServiceDefinitions] (${i}/${seeds.length}) ${seed.code} -- created + validated + published + activated`);
   }

@@ -17,6 +17,7 @@ import pool from "../src/utils/db.js";
 import app from "../src/app.js";
 import { objectiveInitialState } from "../src/routes/seu/core/objectives.js";
 import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
+import { initiateAndValidateSeu } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
 let server: ReturnType<typeof app.listen>;
@@ -125,26 +126,13 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   // same as web-flow.e2e.test.ts's own commissionSeu helper.
   const { template, profile } = await ensureWebAppTemplateFixture();
 
-  // 4 — commission: Composition Engine runs, SEU walks Pending -> ... -> Operational (Ch.8, Ch.37)
-  const commissionRes = await request(`${baseUrl}/commission`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ objectiveId: objective.id, templateId: template.id, profileId: profile.id }),
-  });
-  const commissioning = await commissionRes.json();
-  assert.equal(commissionRes.status, 201, JSON.stringify(commissioning));
-
-  const seuId = commissioning.seuId;
-
-  // design/mvp-build-plan/SEU Composition.md — commissionSeu (and so this
-  // API route) now only gets through the shallow "Validate Request" gate;
-  // it returns 'Pending', not 'Operational'. Compose EBM runs asynchronously
-  // off the CommissionValidated event it just published (the EBM Composer),
-  // and reaching Operational needs two further, separate manual actions
-  // (Validate, Activate) on top of that — driven through deterministically
-  // here, same as every other test exercising the outcome of commissioning
-  // rather than these new async/manual mechanics.
-  assert.equal(commissioning.lifecycleState, "Pending");
+  // 4 — commission: Save (the birth row) and Validate, then the Composition Engine and the hops to Operational (Ch.8, Ch.37).
+  // The API route POST /commission is commented out: an SEU is initiated only through the Save and Validate buttons.
+  const commissioned = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ACCEPTANCE_JOURNEY.participantId });
+  assert.equal(commissioned.ok, true, !commissioned.ok ? JSON.stringify(commissioned) : "assertion failed");
+  if (!commissioned.ok) throw new Error("unreachable");
+  const seuId = commissioned.seu.id;
+  assert.equal(commissioned.seu.lifecycle_state, "Validated");
   const driven = await driveCommissioningToActive({ seuId, actorId: TESTER_ACCEPTANCE_JOURNEY.participantId });
   assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
   assert.equal(driven.ok && driven.seu.lifecycle_state, "Operational");

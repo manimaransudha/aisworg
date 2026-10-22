@@ -18,7 +18,7 @@ import { getPlatformTenantId, NO_EXPIRY_DATE } from "../../constants.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { publishProfile, type ProfileSeedInput } from "../../../routes/seu/core/profiles.js";
 import { createObjective, objectiveInitialState } from "../../../routes/seu/core/objectives.js";
-import { transitionEntity } from "../../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { participantsMasterDB } from "../../participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../../transitionDefinitionsDB.js";
 import type { ObjectiveTier } from "../../seuTypes.js";
@@ -172,6 +172,7 @@ async function seedObjectives(actor: DemoActor): Promise<void> {
     const objectiveId = idByKey.get(o.key)!;
     const result = await transitionEntity({ entityType: "Objective", entityId: objectiveId, targetState: "Active", actorId: actor.participantId });
     if (!result.ok) throw new Error(`[seed:demo] Objective ${o.key} activation failed: ${result.reason}${"detail" in result ? `: ${result.detail}` : ""}`);
+    await publishTransition(result);
   }
 }
 

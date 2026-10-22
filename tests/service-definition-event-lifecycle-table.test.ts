@@ -24,7 +24,8 @@ import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { copyServiceDefinitionAsNewDraft } from "../src/routes/seu/core/serviceDefinitions.js";
 import { computeRowActions, publishAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
-import { transitionEntity, nextActionsFor } from "../src/domain/engine/entityTransition.js";
+import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
+import { transitionAndPublish } from "./testFixtures.js";
 import { loadPolicyChecks } from "../src/domain/engine/policyChecks.js";
 import { evaluateImplementedPolicy } from "../src/policies/index.js";
 import { generateFields, type JsonSchemaDocument } from "../src/domain/sdk/formGenerator.js";
@@ -66,7 +67,7 @@ async function freshServiceDefinitionDraft(): Promise<{ id: string; code: string
 }
 
 async function hop(id: string, targetState: string, context?: Record<string, unknown>, actorId = TESTER_ALL_ID) {
-  return transitionEntity({ entityType: "Service", entityId: id, targetState, actorId, context });
+  return transitionAndPublish({ entityType: "Service", entityId: id, targetState, actorId, context });
 }
 
 function outcome(r: Awaited<ReturnType<typeof hop>>): { ok: boolean; reason: string | null } {

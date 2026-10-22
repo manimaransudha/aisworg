@@ -1,23 +1,227 @@
 [
   {
     "entityType": "SEU",
-    "fromState": "Pending",
+    "fromState": "None",
+    "toState": "Initiated",
+    "verb": "commission",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "CommissionInitiated",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Initiated",
+    "toState": "Validated",
+    "verb": "validate",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "CommissionValidated",
+    "actionCode": "validate-seu-request",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Initiated",
+    "toState": "Failed",
+    "verb": "fail",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "CommissionFailed",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Validated",
+    "toState": "Failed",
+    "verb": "fail",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "CommissionFailed",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Configured",
+    "toState": "Failed",
+    "verb": "fail",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "CommissionFailed",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Commissioned",
+    "toState": "Failed",
+    "verb": "fail",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "CommissionFailed",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Validated",
+    "toState": "Configured",
+    "verb": "configure",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "SEUConfigured",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Configured",
     "toState": "Commissioned",
     "verb": "commission",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "SEUCommissioned",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Commissioned",
+    "toState": "Activated",
+    "verb": "activate",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "SEUActivated",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Activated",
+    "toState": "Operational",
+    "verb": "operationalise",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "SEUOperational",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Operational",
+    "toState": "Suspended",
+    "verb": "suspend",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "SEUSuspended",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Suspended",
+    "toState": "Operational",
+    "verb": "resume",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "SEUResumed",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Operational",
+    "toState": "Retired",
+    "verb": "retire",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "SEURetired",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Suspended",
+    "toState": "Retired",
+    "verb": "retire",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "SEURetired",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Retired",
+    "toState": "Archived",
+    "verb": "archive",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "SEUArchived",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Validated",
+    "toState": "Composed",
+    "verb": "compose",
+    "trigger": "governed",
     "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
-    "fromState": "Pending",
-    "toState": "Failed",
-    "verb": "reject",
+    "fromState": "Composed",
+    "toState": "RuntimeAllocated",
+    "verb": "allocate_runtime",
+    "trigger": "governed",
     "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "RuntimeAllocated",
+    "toState": "KnowledgeInitialised",
+    "verb": "initialise_knowledge",
+    "trigger": "governed",
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "KnowledgeInitialised",
+    "toState": "ParticipantsRecruited",
+    "verb": "recruit_participants",
+    "trigger": "governed",
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "ParticipantsRecruited",
+    "toState": "Commissioned",
+    "verb": "commission",
+    "trigger": "governed",
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Commissioned",
+    "toState": "Configured",
+    "verb": "configure",
+    "trigger": "governed",
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Configured",
+    "toState": "Activated",
+    "verb": "activate",
+    "trigger": "governed",
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "EBM",
+    "fromState": "None",
+    "toState": "Composed",
+    "verb": "compose",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "EBMCreated",
+    "versionEvent": null
   },
   {
     "entityType": "EBM",
     "fromState": "Composed",
     "toState": "Validated",
     "verb": "validate",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "EBMValidated"
   },
@@ -26,6 +230,7 @@
     "fromState": "Validated",
     "toState": "Active",
     "verb": "activate",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "EBMActivated"
   },
@@ -34,131 +239,10 @@
     "fromState": "Composed",
     "toState": "Retired",
     "verb": "retire",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Pending",
-    "toState": "Validated",
-    "verb": "validate",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Validated",
-    "toState": "Composed",
-    "verb": "compose",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Composed",
-    "toState": "RuntimeAllocated",
-    "verb": "allocate_runtime",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "RuntimeAllocated",
-    "toState": "KnowledgeInitialised",
-    "verb": "initialise_knowledge",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "KnowledgeInitialised",
-    "toState": "ParticipantsRecruited",
-    "verb": "recruit_participants",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "ParticipantsRecruited",
-    "toState": "Commissioned",
-    "verb": "commission",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Commissioned",
-    "toState": "Configured",
-    "verb": "configure",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Configured",
-    "toState": "Activated",
-    "verb": "activate",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Pending",
-    "toState": "Configured",
-    "verb": "configure",
-    "requiredPolicyCodes": [],
-    "eventType": "SEUConfigured"
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Configured",
-    "toState": "Commissioned",
-    "verb": "commission",
-    "requiredPolicyCodes": [],
-    "eventType": "SEUCommissioned"
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Commissioned",
-    "toState": "Activated",
-    "verb": "activate",
-    "requiredPolicyCodes": [],
-    "eventType": "SEUActivated"
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Activated",
-    "toState": "Operational",
-    "verb": "operationalise",
-    "requiredPolicyCodes": [],
     "trigger": "governed",
-    "eventType": "SEUOperational"
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Operational",
-    "toState": "Suspended",
-    "verb": "suspend",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Suspended",
-    "toState": "Operational",
-    "verb": "resume",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Operational",
-    "toState": "Retired",
-    "verb": "retire",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Suspended",
-    "toState": "Retired",
-    "verb": "retire",
-    "requiredPolicyCodes": []
-  },
-  {
-    "entityType": "SEU",
-    "fromState": "Retired",
-    "toState": "Archived",
-    "verb": "archive",
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "EBMRetired",
+    "actionCode": "raise-ebm-retired-attention"
   },
   {
     "entityType": "Deliverable",
@@ -1451,9 +1535,20 @@
   },
   {
     "entityType": "Ontology",
+    "fromState": "None",
+    "toState": "Draft",
+    "verb": "define",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "ConceptCreated",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Ontology",
     "fromState": "Active",
     "toState": "Deprecated",
     "verb": "deprecate",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "ConceptDeprecated",
     "versionEvent": "VersionDeprecated"
@@ -1463,6 +1558,7 @@
     "fromState": "Deprecated",
     "toState": "Retired",
     "verb": "retire",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "OntologyConceptRetired",
     "versionEvent": "VersionSuperseded"
@@ -1472,6 +1568,7 @@
     "fromState": "Retired",
     "toState": "Archived",
     "verb": "archive",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "OntologyConceptArchived",
     "versionEvent": "VersionArchived"
@@ -1481,6 +1578,7 @@
     "fromState": "Draft",
     "toState": "Active",
     "verb": "approve",
+    "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "ConceptApproved",
     "versionEvent": "VersionActivated"
@@ -1490,7 +1588,8 @@
     "fromState": "Draft",
     "toState": "Draft",
     "verb": "approve",
-    "requiredPolicyCodes": [],
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-comment-required"],
     "eventType": "ConceptRejected",
     "versionEvent": null
   },

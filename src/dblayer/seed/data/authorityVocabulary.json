@@ -1,5 +1,5 @@
 {
-  "_comment": "CR-006 noun x verb authority vocabulary. `nouns` = Work outcome, `verbs` = Work process. The verb for each transition is the `verb` field in transitionDefinitions.json; the noun->allowed-verbs mapping is DERIVED from those transitions by the seed, plus `authoringMappings` for verbs that govern authoring rather than a transition.",
+  "_comment": "CR-006 noun x verb authority vocabulary. `nouns` = Work outcome, `verbs` = Work process. The verb for each transition is the `verb` field in transitionDefinitions.json; the noun->allowed-verbs mapping is DERIVED from those transitions by the seed (CR-128: no separate authoring mappings).",
   "nouns": [
     {
       "code": "SEU",
@@ -339,92 +339,6 @@
       "code": "identify",
       "label": "Identify",
       "description": "Record a Decision as Identified (DecisionIdentified, Ch.19 §16)."
-    }
-  ],
-  "_authoringMappingsComment": "CR-014 — noun→verb mappings that are NOT lifecycle transitions: the authoring authority for each SDK-authorable entity. `{noun}_define` = author (create/edit a draft), `{noun}_publish` = publisher (approve + materialise). Seeded into authority_noun_verbs alongside the transition-derived pairs. These gate the SDK authoring surfaces (replacing the retired sdk_creator/sdk_approver Platform badges).",
-  "authoringMappings": [
-    {
-      "noun": "Objective",
-      "verbs": [
-        "propose"
-      ]
-    },
-    {
-      "noun": "Pack",
-      "verbs": [
-        "define",
-        "publish"
-      ]
-    },
-    {
-      "noun": "Template",
-      "verbs": [
-        "define",
-        "publish"
-      ]
-    },
-    {
-      "noun": "Profile",
-      "verbs": [
-        "define",
-        "publish"
-      ]
-    },
-    {
-      "noun": "Deliverable",
-      "verbs": [
-        "define",
-        "publish"
-      ]
-    },
-    {
-      "noun": "TransitionDefinition",
-      "verbs": [
-        "define",
-        "publish"
-      ]
-    },
-    {
-      "noun": "Ontology",
-      "verbs": [
-        "define"
-      ]
-    },
-    {
-      "noun": "QualityGate",
-      "verbs": [
-        "waive"
-      ]
-    },
-    {
-      "noun": "Service",
-      "verbs": [
-        "define"
-      ]
-    },
-    {
-      "noun": "Policy",
-      "verbs": [
-        "define"
-      ]
-    },
-    {
-      "noun": "Capability",
-      "verbs": [
-        "define"
-      ]
-    },
-    {
-      "noun": "Knowledge",
-      "verbs": [
-        "observe"
-      ]
-    },
-    {
-      "noun": "Decision",
-      "verbs": [
-        "identify"
-      ]
     }
   ]
 }

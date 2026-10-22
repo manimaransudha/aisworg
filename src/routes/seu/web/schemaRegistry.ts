@@ -16,7 +16,7 @@ import { SCHEMA_KINDS, TOP_LEVEL_WIDGET_KINDS, ITEM_WIDGET_KINDS, blankDocument,
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind } from "../../../dblayer/seuTypes.js";
 import { requireActorId } from "../../../domain/identity/heldBadges.js";
-import { transitionEntity, nextActionsFor } from "../../../domain/engine/entityTransition.js";
+import { transitionEntity, publishTransition, nextActionsFor } from "../../../domain/engine/entityTransition.js";
 
 const backTo = "/aisworg/seu/sdk/schema-registry";
 
@@ -155,6 +155,7 @@ router.post("/sdk/schema-registry/:id/transition", async (req: Request, res: Res
     if (!actions.some((a) => a.toState === targetState)) return redirects.seu.sdkSchemaRegistryTransition.error(req, res, `${targetState} is not an available action for a schema in ${schema.lifecycle_state}.`);
     const result = await transitionEntity({ entityType: "SchemaDefinition", entityId: id, targetState, actorId });
     if (!result.ok) return redirects.seu.sdkSchemaRegistryTransition.error(req, res, "detail" in result ? result.detail : "Schema version not found.");
+    await publishTransition(result);
     return redirects.seu.sdkSchemaRegistryTransition.success(req, res, `${schema.entity_kind} schema v${schema.version} moved to ${result.appliedTransition.toState}.`);
   } catch (err) {
     logger.error("[web/seu/schemaRegistry] POST /sdk/schema-registry/:id/transition error", err as Error);

@@ -5,32 +5,32 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
-import { commissionSeu } from "../core/commissioning.js";
 import { getSeuStatus } from "../core/seus.js";
 import { getSeuEvents } from "../core/events.js";
 import { getEffectiveGovernanceModel } from "../core/governanceModel.js";
 import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
-router.post("/commission", async (req: Request, res: Response) => {
-  try {
-    const { objectiveId, templateId, profileId, tenantId } = req.body ?? {};
-    if (!objectiveId || !templateId || !profileId) {
-      return res.status(400).json({ error: "objectiveId, templateId and profileId are all required" });
-    }
-
-
-    const actorId = requireActorId(req);
-    const result = await commissionSeu({ objectiveId, templateIds: [templateId], profileIds: [profileId], actorId, requestedBy: actorId, tenantId: typeof tenantId === "string" ? tenantId : null });
-
-    if (!result.ok) {
-      return res.status(422).json({ stage: result.stage, reason: result.reason, seuId: result.seuId });
-    }
-    res.status(201).json({ seuId: result.seu.id, lifecycleState: result.seu.lifecycle_state, ebmId: result.seu.active_ebm_id });
-  } catch (err) {
-    logger.error("[api/seu/seus] POST /commission error", err as Error);
-    res.status(400).json({ error: (err as Error).message });
-  }
-});
+// Commented out (owner): an SEU is initiated only through POST /objectives/:id/validate-commission.
+// router.post("/commission", async (req: Request, res: Response) => {
+//   try {
+//     const { objectiveId, templateId, profileId, tenantId } = req.body ?? {};
+//     if (!objectiveId || !templateId || !profileId) {
+//       return res.status(400).json({ error: "objectiveId, templateId and profileId are all required" });
+//     }
+//
+//
+//     const actorId = requireActorId(req);
+//     const result = await commissionSeu({ objectiveId, templateIds: [templateId], profileIds: [profileId], actorId, requestedBy: actorId, tenantId: typeof tenantId === "string" ? tenantId : null });
+//
+//     if (!result.ok) {
+//       return res.status(422).json({ stage: result.stage, reason: result.reason, seuId: result.seuId });
+//     }
+//     res.status(201).json({ seuId: result.seu.id, lifecycleState: result.seu.lifecycle_state, ebmId: result.seu.active_ebm_id });
+//   } catch (err) {
+//     logger.error("[api/seu/seus] POST /commission error", err as Error);
+//     res.status(400).json({ error: (err as Error).message });
+//   }
+// });
 
 router.get("/seus/:id", async (req: Request, res: Response) => {
   try {

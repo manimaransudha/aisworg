@@ -5,9 +5,11 @@ import { policiesDB } from "../../dblayer/policiesDB.js";
 import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
 import { participantsDB } from "../../dblayer/participantsDB.js";
 import { eventBus } from "./eventBus.js";
+import { transitionEngine } from "./transitionEngine.js";
+import { failSeu } from "../../routes/seu/core/commissioning.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
-import type { EventRow, EbmCompositionReport, EbmComposedPack, SeuRow } from "../../dblayer/seuTypes.js";
+import type { EventRow, EbmCompositionReport, EbmComposedPack, EbmStatus, SeuRow } from "../../dblayer/seuTypes.js";
 
 interface CompositionCompletedPayload {
   seuId: string;
@@ -22,19 +24,8 @@ async function resolveAuthorParticipantId(seuId: string, actorId: string): Promi
   return participant.id;
 }
 
-async function failComposition(seuId: string, event: EventRow, authorBadge: string, reason: string): Promise<void> {
-  await seusDB.updateLifecycleState(seuId, "Failed");
-  await eventBus.publish({
-    eventType: "CommissionFailed",
-    originatingObjectType: "SEU",
-    originatingObjectId: seuId,
-    seuId,
-    correlationId: event.correlation_id,
-    causationId: event.id,
-    actorId: event.actor_id,
-    authorityBadge: authorBadge,
-    payload: { stage: "compose_ebm", reason },
-  });
+async function failComposition(seuId: string, event: EventRow, reason: string): Promise<void> {
+  await failSeu({ seuId, actorId: event.actor_id!, stage: "compose_ebm", reason, correlationId: event.correlation_id, causationId: event.id });
 }
 
 export const compositionCompletedHandler: EventHandler = async (event: EventRow) => {
@@ -51,7 +42,7 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
   try {
     await runComposition(seu, event, authorBadge);
   } catch (err) {
-    await failComposition(seuId, event, authorBadge, (err as Error).message);
+    await failComposition(seuId, event, (err as Error).message);
   }
 };
 
@@ -80,12 +71,15 @@ async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string)
   const seuScopedPolicies = transitionPolicies.filter((p) => p.governed_transition?.startsWith("SEU|"));
   const entityScopedPolicies = transitionPolicies.filter((p) => !p.governed_transition?.startsWith("SEU|"));
 
+  const birth = await transitionEngine.beginBirth({ entityType: "EBM", actorId: event.actor_id!, seuId });
+
   const { data: ebm, error: ebmErr } = await ebmsDB.create({
     seuId,
     templateId: seu.template_id,
     profileId: seu.profile_id,
     authorId,
     authorBadge,
+    status: birth.initialState as EbmStatus,
     composedPacks: stashed?.composedPacks ?? [],
     compositionReport: stashed?.compositionReport ?? { warnings: [], conflicts: [], parameterConflicts: [], resolutions: [] },
     behaviors,
@@ -110,7 +104,8 @@ async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string)
 
   await seusDB.setActiveEbm(seuId, ebm.id);
   await eventBus.publish({
-    eventType: "EBMCreated",
+    eventType: birth.eventType,
+    versionEvent: birth.versionEvent,
     originatingObjectType: "EBM",
     originatingObjectId: ebm.id,
     seuId,

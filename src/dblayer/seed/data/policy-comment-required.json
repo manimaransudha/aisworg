@@ -20,7 +20,8 @@
             "Template|Validated|Draft",
             "Profile|Validated|Draft",
             "Objective|Active|Reject",
-            "Objective|Active|Superseded"
+            "Objective|Active|Superseded",
+            "Ontology|Draft|Draft"
           ],
           "governingCondition": {
             "type": "implemented"

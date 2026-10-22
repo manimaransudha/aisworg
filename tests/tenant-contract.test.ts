@@ -15,9 +15,9 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 
 import pool from "../src/utils/db.js";
-import { commissionSeu } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability, transitionObjective } from "./testFixtures.js";
+import { initiateAndValidateSeu } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
@@ -103,7 +103,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId });
+  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID, tenantId });
   assert.equal(requested.ok, true, !requested.ok ? `commissioning failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 

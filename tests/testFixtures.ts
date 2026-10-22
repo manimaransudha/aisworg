@@ -12,10 +12,10 @@ import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
-import { getPlatformTenantId, getTesterId, INITIAL_VERSION, BABYLON_TENANT_NAME } from "../src/dblayer/constants.js";
+import { BIRTH_STATE, getPlatformTenantId, getTesterId, INITIAL_VERSION, BABYLON_TENANT_NAME } from "../src/dblayer/constants.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { userDB } from "../src/dblayer/userDB.js";
-import { commissionFromForm, transitionEbm, previewCommissioningValidation, attemptSeuCommenceWork } from "../src/routes/seu/core/commissioning.js";
+import { commissionFromForm, validateEbm, validateSeu, initiateSeu, previewCommissioningValidation, attemptSeuCommenceWork } from "../src/routes/seu/core/commissioning.js";
 import { publishProfile, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
@@ -33,7 +33,7 @@ import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
 import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
 import type { CapabilityFulfilmentRow, ParticipantRow, SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
 import { publishAuthoringDraft, entityTypeForKind } from "../src/routes/seu/core/sdkAuthoring.js";
-import { nextActionsFor, transitionEntity } from "../src/domain/engine/entityTransition.js";
+import { nextActionsFor, transitionEntity, publishTransition, type TransitionEntityResult } from "../src/domain/engine/entityTransition.js";
 import { getEntityAdapter } from "../src/domain/engine/entityAdapters.js";
 import { createEvidence } from "../src/routes/seu/core/evidence.js";
 import { createReview } from "../src/routes/seu/core/reviews.js";
@@ -49,7 +49,7 @@ import { eventBus } from "../src/domain/engine/eventBus.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import type { CommandRow, DeliverableRow, EventRow, ObligationRow, ProfileRow, SeuRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
+import type { CommandRow, DeliverableRow, EventRow, ObligationRow, ProfileRow, SeuLifecycleState, SeuRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
 // get platform tenant id
 export const PLATFORM_TENANT_ID = await getPlatformTenantId();
   
@@ -451,7 +451,7 @@ export async function driveCommissioningToActive(input: {
   // finalizeCommissioning (commissioning.ts) runs these SEU hops as this actor, each gated by
   // the hop's own noun_verb badge — granted here, from the real transition rows, before the
   // first hop runs.
-  for (const [from, to] of [["Pending", "Configured"], ["Configured", "Commissioned"], ["Commissioned", "Activated"]] as const) {
+  for (const [from, to] of [["Validated", "Configured"], ["Configured", "Commissioned"], ["Commissioned", "Activated"]] as const) {
     await grantTransitionBadge(input.actorId, "SEU", from, to);
   }
 
@@ -505,6 +505,7 @@ export async function driveCommissioningToActive(input: {
   // row — ensure it exists right before publishing, for whichever actor this
   // call is commissioning as (not just root).
   await ensureActorParticipant(input.seuId, input.actorId);
+  await grantTransitionBadge(input.actorId, "EBM", BIRTH_STATE, "Composed");
 
   await eventBus.publish({
     eventType: "CompositionCompleted",
@@ -555,14 +556,14 @@ export async function driveCommissioningToActive(input: {
   // real transition_definitions row's own `verb` requires itself, rather than
   // leaving every caller to guess and pre-grant badge names at the call site.
   await grantTransitionBadge(input.actorId, "EBM", "Composed", "Validated");
-  const validateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Validated", actorId: input.actorId });
+  const validateResult = await validateEbm({ ebmId: composedSeu.active_ebm_id, actorId: input.actorId });
   if (!validateResult.ok) {
     return { ok: false, stage: "validate_engineering_model", reason: validateResult.reason === "not_found" ? "EBM not found" : validateResult.detail, seuId: input.seuId };
   }
 
   await grantTransitionBadge(input.actorId, "EBM", "Validated", "Active");
   if (!input.holdAtActivated) await grantTransitionBadge(input.actorId, "SEU", "Activated", "Operational");
-  const activateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Active", actorId: input.actorId });
+  const activateResult = await transitionAndPublish({ entityType: "EBM", entityId: composedSeu.active_ebm_id, targetState: "Active", actorId: input.actorId, seuId: input.seuId });
   if (!activateResult.ok) {
     return { ok: false, stage: "activate", reason: activateResult.reason === "not_found" ? "EBM not found" : activateResult.detail, seuId: input.seuId };
   }
@@ -615,7 +616,7 @@ export async function driveCommissioningToActive(input: {
   // CR-102 — Activate only publishes EBMActivated now; finalizeCommissioning
   // (Configured -> Commissioned -> Activated, Create Engineering Assets,
   // Activated -> Operational) runs asynchronously in ebmActivatedHandler, off
-  // the bus, no longer inline inside transitionEbm's own return. Wait for the
+  // the bus, no longer inline inside the EBM transition's own return. Wait for the
   // REAL, already-dispatched handler to finish — same pattern as Compose
   // EBM's own wait above — never invoke it ourselves.
   // CR-104 — commissioning.ts's own finalizeCommissioning writes
@@ -1274,7 +1275,7 @@ export async function advanceAuthoringDraftToActive(kind: SchemaDefinitionEntity
     if (!row) return { ok: false, errors: [`${kind} ${id} not found`] };
     const forward = (await nextActionsFor(entityType, adapter.getState(row), actorId)).filter((a) => !a.requiresComment);
     if (forward.length !== 1) return result;
-    const moved = await transitionEntity({ entityType, entityId: id, targetState: forward[0].toState, actorId });
+    const moved = await transitionAndPublish({ entityType, entityId: id, targetState: forward[0].toState, actorId });
     if (!moved.ok) return { ok: false, errors: ["detail" in moved ? moved.detail : moved.reason] };
   }
   return { ok: false, errors: ["did not reach Active within 10 hops"] };
@@ -1283,14 +1284,14 @@ export async function advanceAuthoringDraftToActive(kind: SchemaDefinitionEntity
 // An Objective is born into the initial state of its birth row. A test that needs an Active one walks it through the governed hop.
 export async function createActiveObjective(input: Parameters<typeof createObjective>[0]): Promise<Awaited<ReturnType<typeof createObjective>>> {
   const created = await createObjective(input);
-  const moved = await transitionEntity({ entityType: "Objective", entityId: created.objective.id, targetState: "Active", actorId: input.requestedBy });
+  const moved = await transitionAndPublish({ entityType: "Objective", entityId: created.objective.id, targetState: "Active", actorId: input.requestedBy });
   if (!moved.ok) throw new Error(`createActiveObjective: ${"detail" in moved ? moved.detail : moved.reason}`);
   return { ...created, objective: moved.row as ObjectiveRow };
 }
 
 // The old per-entity transition call, over the generic function, for tests written against it.
 export async function transitionObjective(input: { objectiveId: string; targetState: string; actorId: string; comment?: string; supersedingObjectiveId?: string }) {
-  const result = await transitionEntity({
+  const result = await transitionAndPublish({
     entityType: "Objective",
     entityId: input.objectiveId,
     targetState: input.targetState,
@@ -1298,4 +1299,29 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
     context: { comment: input.comment, supersedingObjectiveId: input.supersedingObjectiveId },
   });
   return result.ok ? { ...result, objective: result.row as ObjectiveRow } : result;
+}
+
+
+// The new commissioning path for tests: Save (initiateSeu), then Validate (validateSeu), as the two buttons do. The SEU is
+// Validated when this returns ok; a dead reference leaves it Failed.
+export async function initiateAndValidateSeu(input: { objectiveId: string; profileId: string; actorId: string; tenantId?: string | null }): Promise<{ ok: true; seu: SeuRow } | { ok: false; stage: string; reason: string; seuId?: string }> {
+  const initiated = await initiateSeu(input);
+  if (!initiated.ok) return { ok: false, stage: "initiate_seu", reason: initiated.reason };
+  const validated = await validateSeu({ seuId: initiated.seu.id, actorId: input.actorId });
+  if (!validated.ok) return { ok: false, stage: "validate_request", reason: "detail" in validated ? validated.detail : validated.reason, seuId: initiated.seu.id };
+  return { ok: true, seu: validated.seu };
+}
+
+// The starting state of an SEU: the to-state of its birth row.
+export async function seuBirthState(): Promise<SeuLifecycleState> {
+  const { data: birth } = await transitionDefinitionsDB.findBirth("SEU");
+  if (!birth) throw new Error("no birth Transition Definition for SEU");
+  return birth.to_state as SeuLifecycleState;
+}
+
+// Calls transitionEntity and publishes the returned event after a successful hop, as every production caller does.
+export async function transitionAndPublish(input: Parameters<typeof transitionEntity>[0]): Promise<TransitionEntityResult> {
+  const result = await transitionEntity(input);
+  if (result.ok) await publishTransition(result);
+  return result;
 }

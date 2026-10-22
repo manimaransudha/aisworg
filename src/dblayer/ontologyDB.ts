@@ -174,7 +174,7 @@ export const ontologyDB = {
     description?: string | null; contributedByPack?: string | null;
     compositionStrategy?: "specialization" | "override" | null; compositionSources?: Array<{ conceptId: string; code: string }>;
     textType?: "text" | "markdown"; uiGrouping?: string | null;
-    status?: OntologyConceptRow["status"];
+    status: OntologyConceptRow["status"];
     authorId: string; authorBadge: string;
   }): Promise<DbResult<OntologyConceptRow>> {
     try {
@@ -183,7 +183,7 @@ export const ontologyDB = {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14)
          RETURNING *`,
         [
-          input.conceptType, input.code, input.defaultLabel, input.tenantId, input.version, input.status ?? "Active",
+          input.conceptType, input.code, input.defaultLabel, input.tenantId, input.version, input.status,
           input.description ?? null, input.contributedByPack ?? null,
           input.compositionStrategy ?? null, JSON.stringify(input.compositionSources ?? []),
           input.textType ?? "markdown", input.uiGrouping ?? null,

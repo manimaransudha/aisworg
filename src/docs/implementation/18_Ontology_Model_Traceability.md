@@ -1,6 +1,8 @@
 # Chapter 18 – Ontology Model: Implementation Traceability
 
-**Date of report: 4-10-2026**
+**Date of report: 21-10-2026**
+
+**CR-128 update (Entity 10).** `transition_definitions` holds a birth row `None → Draft` (verb `define`, event `ConceptCreated`, trigger `governed`). Every concept Version is born Draft: a new code, a new Version of an existing code and a composed concept through `core/ontology.ts`, and a proposal from a Pack or form field through `conceptCreatedHandler`. `ConceptUpdated` is published only by `updateConceptMeta`. Approve (`Draft → Active`), Reject (`Draft → Draft`, with `policy-comment-required`), Deprecate, Retire and Archive run through `transitionEntity` and the `ontologyAdapter`. Approving a Version moves the previous Active Version to Deprecated through its own row. `syncConceptFromEntity` takes the approve hop at once. The seeds insert Active rows in bulk and are outside the birth row.
 
 <!-- multiline -->
 **Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable

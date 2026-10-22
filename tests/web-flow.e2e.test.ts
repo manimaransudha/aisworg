@@ -32,9 +32,10 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { createObligationAsRoot as createObligation, createActiveObjective } from "./testFixtures.js";
+import { initiateAndValidateSeu } from "./testFixtures.js";
+import { seusDB } from "../src/dblayer/seusDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
-import { commissionSeu as commissionSeuCore } from "../src/routes/seu/core/commissioning.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
@@ -214,7 +215,7 @@ async function commissionSeu(request: Session, statementPrefix: string, sponsor:
   // for those — granted here, at test-run time, onto its own
   // participants_master row rather than widening the seed fixture or
   // hardcoding a badge name at the call site.
-  await grantRouteBadges(sponsor.participantId, "POST", `/aisworg/seu/objectives/${objective.id}/commission`);
+  await grantRouteBadges(sponsor.participantId, "POST", "/aisworg/seu/seus");
 
   const picker = await getPage(request, `/seu/seus/new?objectiveId=${objective.id}`);
   assert.equal(picker.status, 200);
@@ -225,12 +226,15 @@ async function commissionSeu(request: Session, statementPrefix: string, sponsor:
     "expected the picker to offer this fixture's own Template+Profile — page markup may have changed since this test was written"
   );
 
-  const result = await postForm(request, `/seu/objectives/${objective.id}/commission`, csrf, {
-    templateProfile: templateProfileValue,
-  });
-  assert.equal(result.status, 302, "expected a redirect to the new SEU's detail page");
-  assert.ok(result.location?.startsWith("/aisworg/seu/seus/"), `expected a redirect to the SEU detail page, got: ${result.location}`);
-  const seuId = result.location!.split("/").pop()!;
+  // Save (the birth row), then Validate (Initiated -> Validated), as the two buttons do.
+  const saved = await postForm(request, "/seu/seus", csrf, { objectiveId: objective.id, templateProfile: templateProfileValue });
+  assert.equal(saved.status, 302, "expected a redirect back to the commission form");
+  const { data: savedSeu } = await seusDB.findByObjectiveId(objective.id);
+  assert.ok(savedSeu, "Save created the SEU");
+  const seuId = savedSeu!.id;
+  await grantRouteBadges(sponsor.participantId, "POST", `/aisworg/seu/seus/${seuId}/transition/validate`);
+  const validated = await postForm(request, `/seu/seus/${seuId}/transition/validate`, csrf, {});
+  assert.equal(validated.status, 302, "expected a redirect after Validate");
 
   // Create Engineering Assets (inside finalizeCommissioning, off
   // EBMActivated) resolves its acting participant from this SEU's own
@@ -842,7 +846,7 @@ function findExternalInteractionId(html: string): string {
 
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+    "INSERT INTO ontology_concepts (concept_type, code, default_label, status, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, 'Active', $3, $4, $5) ON CONFLICT DO NOTHING",
     [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
 }
@@ -940,7 +944,7 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
   const { objective: root } = await createActiveObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
   const { objective } = await createActiveObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
 
-  const commissioned = await commissionSeuCore({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorId: TESTER_OBJECTIVE_ATHENS.participantId, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
+  const commissioned = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_OBJECTIVE_ATHENS.participantId });
   assert.equal(commissioned.ok, true, !commissioned.ok ? `Validate Request failed: ${JSON.stringify(commissioned)}` : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
   const seuId = commissioned.seu.id;

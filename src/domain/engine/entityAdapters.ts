@@ -7,7 +7,10 @@ import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
 import { deliverableDefinitionsDB } from "../../dblayer/deliverableDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../../dblayer/schemaDefinitionsDB.js";
 import { objectivesDB } from "../../dblayer/objectivesDB.js";
-import type { CapabilityDefinitionRow, DeliverableDefinitionRow, ObjectiveRow, PackContributions, PackRow, PolicyDefinitionRow, ProfileRow, SchemaDefinitionRow, TemplateRow, ServiceDefinitionRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
+import { ebmsDB } from "../../dblayer/ebmsDB.js";
+import { ontologyDB } from "../../dblayer/ontologyDB.js";
+import { seusDB } from "../../dblayer/seusDB.js";
+import type { CapabilityDefinitionRow, EbmRow, SeuRow, OntologyConceptRow, DeliverableDefinitionRow, ObjectiveRow, PackContributions, PackRow, PolicyDefinitionRow, ProfileRow, SchemaDefinitionRow, TemplateRow, ServiceDefinitionRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 // How the generic transition function (entityTransition.ts) reaches one entity's table (CR-128). An adapter holds no rules.
 export interface EntityAdapter<Row extends object = object> {
@@ -245,6 +248,67 @@ const objectiveAdapter = adapter<ObjectiveRow>({
   tenantId: (row) => row.sponsoring_authority?.tenant ?? null,
 });
 
+// The author id and badge of a concept stay as its creation set them, so the badge and actor are not written.
+const ontologyAdapter = adapter<OntologyConceptRow>({
+  async findById(id) {
+    const { data, error } = await ontologyDB.findConceptById(id);
+    if (error) throw error;
+    return data ?? null;
+  },
+  getState: (row) => row.status,
+  async setState(id, toState) {
+    const { data, error } = await ontologyDB.updateConceptStatus(id, toState as OntologyConceptRow["status"]);
+    if (error || !data) throw error ?? new Error(`failed to set the state of Ontology concept ${id}`);
+    return data;
+  },
+  async addComment(id, comment) {
+    const { error } = await ontologyDB.addConceptComment(id, comment.actorId, comment.authorityBadge, comment.text);
+    if (error) throw error;
+  },
+  tenantId: (row) => row.tenant_id,
+});
+
+// An EBM has no tenant of its own; its tenant is its SEU's. The adapter reads it when it loads or writes the row.
+type EbmAdapterRow = EbmRow & { seu_tenant_id: string | null };
+
+async function withSeuTenant(row: EbmRow): Promise<EbmAdapterRow> {
+  const { data: seu, error } = await seusDB.findById(row.seu_id);
+  if (error) throw error;
+  return { ...row, seu_tenant_id: seu?.tenant_id ?? null };
+}
+
+const ebmAdapter = adapter<EbmAdapterRow>({
+  async findById(id) {
+    const { data, error } = await ebmsDB.findById(id);
+    if (error) throw error;
+    return data ? withSeuTenant(data) : null;
+  },
+  getState: (row) => row.status,
+  // The author id and badge of an EBM stay as the composition set them, so the badge and actor are not written.
+  async setState(id, toState) {
+    const { data, error } = await ebmsDB.updateStatus(id, toState as EbmRow["status"]);
+    if (error || !data) throw error ?? new Error(`failed to set the state of EBM ${id}`);
+    return withSeuTenant(data);
+  },
+  tenantId: (row) => row.seu_tenant_id,
+});
+
+const seuAdapter = adapter<SeuRow>({
+  async findById(id) {
+    const { data, error } = await seusDB.findById(id);
+    if (error) throw error;
+    return data;
+  },
+  getState: (row) => row.lifecycle_state,
+  // The requester and badge of an SEU stay as the birth set them, so the badge and actor are not written.
+  async setState(id, toState) {
+    const { data, error } = await seusDB.updateLifecycleState(id, toState as SeuRow["lifecycle_state"]);
+    if (error || !data) throw error ?? new Error(`failed to set the state of SEU ${id}`);
+    return data;
+  },
+  tenantId: (row) => row.tenant_id,
+});
+
 // Each entity adds its adapter in its own pass.
 const entityAdapters: Partial<Record<TransitionEntityType, EntityAdapter>> = {
   SchemaDefinition: schemaDefinitionAdapter,
@@ -256,6 +320,9 @@ const entityAdapters: Partial<Record<TransitionEntityType, EntityAdapter>> = {
   Policy: policyAdapter,
   DeliverableDefinition: deliverableDefinitionAdapter,
   Objective: objectiveAdapter,
+  EBM: ebmAdapter,
+  SEU: seuAdapter,
+  Ontology: ontologyAdapter,
 };
 
 export function getEntityAdapter(entityType: TransitionEntityType): EntityAdapter {

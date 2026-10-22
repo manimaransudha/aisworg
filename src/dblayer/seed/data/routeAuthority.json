@@ -1267,15 +1267,6 @@
     "match_mode": "all"
   },
   {
-    "method": "POST",
-    "path": "/aisworg/seu/objectives/:id/validate-commission",
-    "badges": [
-      "seu_commission"
-    ],
-    "roles": [],
-    "match_mode": "all"
-  },
-  {
     "method": "GET",
     "path": "/aisworg/seu/objectives/new",
     "badges": [
@@ -1809,8 +1800,73 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/seus/:id/ebm/transition",
-    "badges": [],
+    "path": "/aisworg/seu/seus",
+    "badges": [
+      "seu_commission"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/transition/validate",
+    "badges": [
+      "seu_validate"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/transition/suspend",
+    "badges": [
+      "seu_suspend"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/transition/resume",
+    "badges": [
+      "seu_resume"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/transition/retire",
+    "badges": [
+      "seu_retire"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/transition/archive",
+    "badges": [
+      "seu_archive"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/ebm/transition/validate",
+    "badges": [
+      "ebm_validate"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/ebm/transition/activate",
+    "badges": [
+      "ebm_activate"
+    ],
     "roles": [],
     "match_mode": "all"
   },

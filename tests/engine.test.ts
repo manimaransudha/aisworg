@@ -71,8 +71,8 @@ test("compositionEngine.compose resolves a Template's mandatory Pack plus a Prof
 test("transitionEngine.evaluate allows an authorised, policy-satisfied SEU transition", async () => {
   const outcome = await transitionEngine.evaluate({
     entityType: "SEU",
-    fromState: "Pending",
-    toState: "Commissioned",
+    fromState: "Initiated",
+    toState: "Validated",
     actorId: TESTER_ALL_ID,
     context: {},
   });
@@ -81,7 +81,7 @@ test("transitionEngine.evaluate allows an authorised, policy-satisfied SEU trans
 
 test("transitionEngine.evaluate denies an under-privileged actor", async () => {
   await assert.rejects(
-    () => transitionEngine.evaluate({ entityType: "SEU", fromState: "Pending", toState: "Commissioned", actorId: randomUUID(), context: {} }),
+    () => transitionEngine.evaluate({ entityType: "SEU", fromState: "Initiated", toState: "Validated", actorId: randomUUID(), context: {} }),
     /does not hold seu_/
   );
 });

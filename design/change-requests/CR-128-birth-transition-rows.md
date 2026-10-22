@@ -1094,6 +1094,389 @@ What was built in Part A (all rows above, plus):
 | `deliverable-event-lifecycle-table.test.ts` (new, built) | The four runtime rows with their verbs, triggers and events; the birth row; refusal of an actor without `deliverable_define`; commissioning creates the Deliverable in the birth state; the start hop and the approve hop each publish their own event followed by `DeliverableTransitioned`. |
 | Fixtures to change | `dependency-definition-engine.test.ts` (three `deliverablesDB.create` calls gain `state`, read from the birth row, built); `sdk-authoring.test.ts` and `dependency-graph-relationship-kind.test.ts` (Deliverable Definition cases: the badge name, and real `deliverable-name` codes if D3 is agreed); `acceptance.e2e.test.ts` asserts `DeliverableTransitioned`, which is still published for every hop; the commissioning event sequence of an SEU now also contains one `DeliverableCreated` per Deliverable (checked by the owner's run). |
 
+## Entity 9: EBM (Chapter 3)
+
+Status: 🟡 Built, not run. D1 to D3 are settled.
+
+The entity type `EBM` is the Engineering Behavior Model of an SEU. Its table is `ebms` and its state column is `status`. The states are `Composed`, `Validated`, `Active`, `Superseded` and `Retired`. `transitionDefinitions.json` holds three rows: `Composed → Validated` (verb validate, event `EBMValidated`), `Validated → Active` (verb activate, event `EBMActivated`) and `Composed → Retired` (verb retire, no event). The birth row `None → Composed` does not exist.
+
+### Findings
+
+| # | Finding |
+|---|---|
+| 1 | `compositionCompletedHandler` creates the EBM through `ebmsDB.create`, which writes the literal `'Composed'`. The schema recovery file also carries `DEFAULT 'Active'` and `ebms_status_check`. The handler publishes the literal `EBMCreated` after the insert. No row names that event. |
+| 2 | The author badge of the new EBM is the `authorBadge` field of the `CompositionCompleted` payload. The publisher (`POST /objectives/:id/compose-ebm`) resolves it with `resolveAuthorBadgeForRequest`. No transition definition declares the creation authority. |
+| 3 | `transitionEbm` in `core/commissioning.ts` is one more copy of the old transition steps (gate, state write, event). It publishes with `seuId: ebm.seu_id`. The generic `transitionEntity` publishes with `seuId: null` and the adapter has no SEU link. |
+| 4 | The Validate branch of `transitionEbm` runs `checkEbmLiveness`. When a Pack, Template, Profile or Ontology reference is dead, it writes `Retired` with `ebmsDB.updateStatus`, publishes the literal `EBMRetired`, raises an Attention Item (`EBM Retired`, High) and returns `ebm_retired`. This path uses no row and no gate. The row `Composed → Retired` (verb retire) is never reached by it. The row has no `eventType`. |
+| 5 | Versioning is No on every EBM row (owner, 2026-09-11: "version is not part of validation"). The birth row therefore carries no version event. The `ebms.version` column (`MAX(version) + 1` per SEU at insert) is unchanged. |
+| 6 | `EBMActivated` has a real subscriber, `ebmActivatedHandler`, which runs `finalizeCommissioning` on the SEU. The effect lands on a different entity type, so the subscriber stays. |
+| 7 | `Superseded` is in `EbmStatus` and in the status CHECK. No row and no code writes it. `EBMVersioned` is unpublished and its build is a later concern. |
+| 8 | `ebms` has no `tenant_id`. The tenant of an EBM is the tenant of its SEU. |
+| 9 | Callers of `transitionEbm`: `POST /seus/:id/ebm/transition` (`web/seus.ts`), `demoSimulator.ts` and two calls in `tests/testFixtures.ts` (`driveCommissioningToActive`). The page `seu/seus/ebm.ejs` builds its button from `ebmView.ebm.possibleNextStates` and posts `targetState`. Direct `ebmsDB.create` callers: `compositionCompleted.ts` and `tests/cr104-mandatory-seu-eligibility-policies.test.ts`. |
+| 10 | The EBM is created by an event subscriber. `compositionCompleted` is a registered handler (`eventHandlerRegistry.ts`), subscribed to `CompositionCompleted` in `eventSubscriptions.json`. The human click on the Compose EBM page publishes `CompositionCompleted` for the SEU, and `compositionCompletedHandler` then creates the row. It is the only caller of `ebmsDB.create` outside tests. The birth row is therefore `governed`. |
+
+### Decisions
+
+| # | Question | Recommendation |
+|---|---|---|
+| D1 | The birth verb and badge. The EBM is composed by the engine off `CompositionCompleted`, as the actor who triggered it. | Settled (owner): the verb is `compose`, the event is `EBMCreated`, and there is no version event. The `authorBadge` field stays in the `CompositionCompleted` payload, and the function that resolves it at the publisher returns whatever it returns. |
+| D2 | The dead-reference path (finding 4). The row `Composed → Retired` has trigger `governed`: the system takes it when a Validate attempt finds a dead reference. It is never a button. A policy cannot redirect a hop to another state and an action code runs before the state write. | Behaviour is unchanged. A function `validateEbm` in `core/commissioning.ts` runs `checkEbmLiveness`. With no dead reference it calls `transitionEntity` for `Composed → Validated`. With a dead reference it calls `transitionEntity` for `Composed → Retired` (the row publishes `EBMRetired`), and returns `ebm_retired`. The Attention Item is raised by the action code `raise-ebm-retired-attention` on the `Composed → Retired` row, which runs in the same transaction as the state write. `validateEbm` passes the dead references in `context`. The verb route for `validate` calls `validateEbm`. No new Policy. |
+| D3 | The generic event carries `seuId: null` (finding 3). | Settled (owner): `transitionEntity` takes a nullable `seuId` input and publishes it on the event. The default is `null`. The EBM callers pass the SEU id. |
+
+### Step 1: the data
+
+| # | Change |
+|---|---|
+| 1 | Add the birth row to `transitionDefinitions.json`: EBM, `None → Composed`, verb `compose`, trigger `governed` (an event subscriber creates the EBM, so the row is never a button; see finding 10), event `EBMCreated`, no version event. |
+| 2 | Write `"trigger": "manual"` on the validate and activate rows and `"trigger": "governed"` on the birth row and on `Composed → Retired`. Give `Composed → Retired` the event `EBMRetired` and the action code `raise-ebm-retired-attention`. Version events stay empty (finding 5). |
+| 3 | In `ebms_schema_recovery.sql`, remove `DEFAULT 'Active'` from `status` and drop `ebms_status_check`. |
+| 4 | `eventSubscriptions.json`: the descriptions of `EBMValidated`, `EBMActivated` and `EBMRetired` stop naming `transitionEbm` and `checkEbmLiveness`. |
+
+### Step 2: the database function
+
+| # | Change |
+|---|---|
+| 1 | `ebmsDB.create` takes a required `status` and writes it. It stops writing `'Composed'`. |
+| 2 | `ebmsDB.updateStatus` is unchanged. It writes only the status. The author id and author badge of the EBM stay as the composition set them, and the adapter's `setState` ignores its badge and actor arguments. |
+
+### Step 3: the place that creates an EBM
+
+| # | Place | After |
+|---|---|---|
+| 1 | `compositionCompletedHandler` (`runComposition`) | Calls `transitionEngine.beginBirth` for `EBM` with `event.actor_id` and the SEU, passes `initialState` to `ebmsDB.create` with the payload `authorBadge` as before, and publishes `eventType` with the actor and that badge as the last statement. A refused birth goes through `failComposition`. |
+| 2 | `tests/cr104-mandatory-seu-eligibility-policies.test.ts` | Checked: it only reads an EBM with `findById`, so no change was needed. |
+
+### Step 4: the hops
+
+| # | Change |
+|---|---|
+| 1 | Add an `ebmAdapter` to `entityAdapters.ts`: `findById`, state from `status`, `setState` through `updateStatus`, and tenant from the owning SEU (`seusDB.findById(row.seu_id).tenant_id`, read when the adapter is built for the row). The `seuId` comes from the caller (D3). |
+| 2 | `validateEbm` replaces `transitionEbm` (D2). It runs `checkEbmLiveness` and makes one `transitionEntity` call: `Composed → Validated`, or `Composed → Retired` with the dead references in `context`. It returns `ebm_retired` in the second case. It publishes the hop event itself after the call (2026-10-22 change). `checkEbmLiveness` stays. |
+| 2a | New action code `raise-ebm-retired-attention` (code in `constants.ts`, registered in `src/actions/index.ts`). It raises the `EBM Retired` Attention Item (High, related object the EBM, description the dead references from `context`) with the actor and badge it is given. The Attention Item no longer comes from `validateEbm`, so every governed retire of an EBM raises it. |
+| 3 | Delete `transitionEbm` and `TransitionEbmResult`. |
+| 4 | `POST /seus/:id/ebm/transition` becomes `POST /seus/:id/ebm/transition/:verb`. It reads `seu.active_ebm_id`, finds the target state from the verb through `nextActionsFor`, and calls `transitionEntity` with `seuId`, or `validateEbm` for the verb `validate`. It has a `route_authority` row and a `redirects.ts` entry. The old route and its row are deleted. |
+| 5 | `getSeuEbmView` returns `actions` from `nextActionsFor("EBM", status, actorId)`. `ebm.ejs` renders one button per action, posting to the verb route, and drops `transitionLabel`, the single-option and select branches and `possibleNextStates`. The message for Active ("commissioning is proceeding in the background") is chosen from the verb. The page is checked for CR-083. |
+| 6 | `demoSimulator.ts` and `tests/testFixtures.ts` call `validateEbm` for Validate and `transitionEntity` with `entityType: "EBM"` for Activate. |
+
+### EBM tests
+
+| # | Test | Covers |
+|---|---|---|
+| 1 | DEFINITION: the four rows | verb, trigger (`governed` on the birth row and on Retire), event, no version event |
+| 2 | BIRTH: composed EBM | state from the birth row, `EBMCreated` published with the real actor and badge `ebm_compose`, nothing published after it |
+| 3 | BIRTH: authority | composition without `ebm_compose` fails through `CommissionFailed` and writes no EBM |
+| 4 | DRIVEN: Validate and Activate | `EBMValidated` and `EBMActivated` published with `seuId`, final state Active, SEU reaches Operational |
+| 5 | DEAD REFERENCE | a retired Pack makes Validate move the EBM to Retired, publish `EBMRetired` from the row, return `ebm_retired`; the Attention Item is raised by the action code in the same transaction |
+| 6 | RETIRE | a Retired EBM has no next action, and Retire is never offered as a button on a Composed EBM |
+| 7 | GUARD | no skip to Active, no return from Active |
+| 8 | BUTTONS | Composed shows only Validate, for a holder of `ebm_validate` |
+| 9 | ROUTE | the verb route moves the EBM and the old route returns 404 |
+
+Fixtures to update in the same pass: `tests/testFixtures.ts` (`driveCommissioningToActive` grants `ebm_compose` through `grantTransitionBadge(actor, "EBM", BIRTH_STATE, "Composed")` and calls `transitionEntity`), `tests/cr104-mandatory-seu-eligibility-policies.test.ts` (`ebmsDB.create` status), `tests/seu-ebm-event-lifecycle-table.test.ts` (rewritten as above) and `tests/governance-ebm-sharpening.test.ts` (checked for `transitionEbm` and literal states). The recovery SQL for `ebms` drops the table with `CASCADE`, so the full recovery runs again, as for Objective.
+
+### Build progress (EBM)
+
+| # | Piece | State |
+|---|---|---|
+| 1 | Birth row, manual triggers, `EBMRetired` event (Step 1, rows 1 and 2) | Built ✅ |
+| 2 | Recovery SQL and `eventSubscriptions.json` text (Step 1, rows 3 and 4) | Built ✅ |
+| 3 | `ebmsDB.create` and `updateStatus` (Step 2) | Built ✅ |
+| 4 | `compositionCompletedHandler` uses `beginBirth` (Step 3) | Built ✅ |
+| 5 | `transitionEntity` takes a nullable `seuId` (D3), and `ebmAdapter` (Step 4, row 1) | Built ✅ |
+| 6 | `validateEbm` and the action code `raise-ebm-retired-attention` (Step 4, rows 2 and 2a, D2) | Built ✅ |
+| 7 | Delete `transitionEbm`, verb route, page buttons (Step 4, rows 3 to 5) | Built ✅ |
+| 8 | Callers: `demoSimulator.ts`, `testFixtures.ts` (Step 4, row 6) | Built ✅ |
+| 9 | Tests and fixtures | Built. Not run. |
+| 10 | `07_EBM_Traceability.md` updated | Built ✅ |
+
+## Entity 10: Ontology (Chapter 18)
+
+Status: 🟡 Built. Run by the owner, clean. D1 to D5 are settled.
+
+The entity type `Ontology` is the Concept. Its table is `ontology_concepts` (one row per version) and its state column is `status`. The states are `Draft`, `Active`, `Deprecated`, `Retired` and `Archived`. `transitionDefinitions.json` holds five rows: `Deprecated`, `Retired` and `Archived` (the forward hops), `Draft → Active` (verb approve, event `ConceptApproved`, version event `VersionActivated`) and `Draft → Draft` (verb approve, event `ConceptRejected`, the reject with a comment). The birth row does not exist. The CR-128 table lists the birth as `None → Active`, which follows the spec and not the code (finding 1).
+
+Owner direction: the two seeds (`seedOntologyConcepts`, `seedTestOntology`) keep their bulk insert into `Active` and are outside this CR. Every other concept goes through `Draft` and publishes `ConceptCreated`.
+
+### Findings
+
+| # | Finding |
+|---|---|
+| 1 | The spec (Events and Lifecycles.md Ch.18) says `Active` is the initial state with no Draft. The code has a Draft and an approval queue (`/sdk/ontology/approvals`). `addConcept` for a new code and the `conceptCreated` subscriber insert `Draft`. `createConceptVersion` (a new version of an existing code, `composeConcept` and `syncConceptFromEntity`) inserts `Active` through the default in `insertConceptVersion` and the schema. |
+| 2 | `ontologyDB.insertConceptVersion` writes `input.status ?? "Active"`. The recovery SQL carries `DEFAULT 'Active'` on `status` and `ontology_concepts_status_check`. `bulkInsertConceptVersions` (the seeds) writes `r.status ?? "Active"`. |
+| 3 | `transitionConcept` is one more copy of the old steps. It evaluates the gate, applies the comment rules of the reject, calls `updateConceptStatus`, and publishes with `tenantId`. It resolves the target concept with `findLatestVersion`, so a hop always acts on the newest version of a code. |
+| 4 | `createConceptVersion` deprecates the previous Active version at creation: a direct `updateConceptStatus(previous, "Deprecated")` and a literal `ConceptDeprecated` event, with no gate and no badge check. |
+| 5 | `retireConceptForEntity` writes `Retired` directly and publishes `OntologyConceptRetired`. It has no caller in `src` or `tests`. |
+| 6 | The Reject comment is stored in the table `ontology_concept_comments`. `transitionConcept` refuses a comment that repeats the most recent one. |
+| 7 | `quickRetireConcept` runs Deprecate and then Retire as two separate calls. |
+| 8 | `conceptCreatedHandler` is a real subscriber on `ConceptCreated`. It acts only on events whose payload has no `version`, which are proposals from a Pack or a form field, and inserts a `Draft` with the event actor and badge. Events published by the Ontology's own writes carry `version` and are ignored. |
+| 9 | The seven routes `/sdk/ontology/{add,deprecate,retire,archive,compose,quick-retire}` and `/sdk/ontology/approvals/{approve,reject}` identify a concept by type, code and tenant, not by id. Their `route_authority` rows list `ontology_define` or `ontology_manage`, and `ontology_approve` for the two approval routes. |
+| 10 | `syncConceptFromEntity` has callers only in tests (`sdk-authoring`, `dependency-graph-relationship-kind`, `deliverable-definition-event-lifecycle-table`), which need the `deliverable-name` concept to be Active when it returns. |
+| 12 | `OntologyComposed` has no subscription in `eventSubscriptions.json` and no handler. The Events and Lifecycles.md text names `emitOntologyComposedIfUnregistered` as a Pack-proposal publisher, but that function is not in `src`. The proposals from a Pack or a form field are published as `ConceptCreated` by `emitConceptCreated` (called from `sdkAuthoring.ts`), and `conceptCreatedHandler` is the subscriber that creates the Draft. `composeConcept` publishes `OntologyComposed` as an unconsumed signal after its own write. |
+| 11 | The ontology event for the hop is published with `tenantId` of the concept and `seuId` null. `transitionEntity` takes the tenant from the adapter. |
+
+### Decisions
+
+| # | Question | Recommendation |
+|---|---|---|
+| D1 | The birth row. | Settled (owner): `None → Draft`, verb `define` (the current creation badge `ontology_define` is kept), trigger `manual`, event `ConceptCreated`, no version event (the spec marks Add as Versioning No, and `VersionActivated` stays on `Draft → Active`). Every concept goes through Draft and every birth publishes `ConceptCreated`, including a new version of an existing code. `ConceptUpdated` is then published only by `updateConceptMeta`. The seeds are outside this CR. |
+| D2 | `createConceptVersion` callers that insert `Active` today: a new version through `addConcept`, `composeConcept` and `syncConceptFromEntity`. After D1 each is born Draft. Who takes `Draft → Active`? | Settled (owner): `addConcept` and `composeConcept` leave the concept Draft for the approval queue, as a new code does. `syncConceptFromEntity` has no human in its callers, so it takes the approve hop at once with its own actor. |
+| D3 | The previous Active version (finding 4). | Settled by precedent (Profile, Pack, Deliverable Definition): the function that takes `Draft → Active` (`approveConcept`) then calls `transitionEntity` for `Active → Deprecated` on the previous Active version. The direct write and the literal event in `createConceptVersion` are removed. |
+| D4 | The Reject comment (finding 6). | Settled by precedent (CR-129 D4): `Draft → Draft` lists `policy-comment-required`, the repeat rule is dropped, and the comment goes to the table through the adapter's `addComment`. No schema change. |
+| D5 | `retireConceptForEntity` (finding 5). | Delete it. It has no caller and is a direct status write that the generic function would otherwise have to carry. |
+
+### Step 1: the data
+
+| # | Change |
+|---|---|
+| 1 | Add the birth row to `transitionDefinitions.json`: Ontology, `None → Draft`, verb `define`, trigger `governed`, event `ConceptCreated`, version event null. |
+| 2 | Write `"trigger": "manual"` on every other Ontology row. `Draft → Draft` lists `policy-comment-required`. |
+| 3 | `ontology_concepts_schema_recovery.sql`: remove `DEFAULT 'Active'` from `status`. The status CHECK stays, because the seeds write the state directly and the table has five fixed states. |
+| 4 | `eventSubscriptions.json`: the `ConceptCreated` description says every concept is born Draft. |
+
+### Step 2: the database function
+
+| # | Change |
+|---|---|
+| 1 | `ontologyDB.insertConceptVersion` takes a required `status` and writes it. The seeds' `bulkInsertConceptVersions` is unchanged. |
+| 2 | `ontologyDB.updateConceptStatus` is unchanged. It writes only the status, so the author id and badge of a concept stay as its creation set them. |
+
+### Step 3: the places that create a concept
+
+| # | Place | After |
+|---|---|---|
+| 1 | `addConcept` (new code) | Calls `transitionEngine.beginBirth` for `Ontology` and writes the state it returns. It publishes the birth event last. |
+| 2 | `createConceptVersion` (new version, from `addConcept`, `composeConcept` and `syncConceptFromEntity`) | Same as place 1. The deprecation of the previous Active version moves out (D3). It publishes `ConceptCreated` for every version. |
+| 3 | `conceptCreatedHandler` | Calls `beginBirth` with `event.actor_id`, writes the state it returns, and publishes the birth event with the version in the payload, so the handler ignores it. |
+| 4 | `composeConcept` | Publishes `OntologyComposed` after the birth event, unchanged. The result is Draft. |
+| 5 | `syncConceptFromEntity` | Takes the approve hop through `transitionEntity` after the birth (D2). |
+
+### Step 4: the hops
+
+| # | Change |
+|---|---|
+| 1 | Add an `ontologyAdapter` to `entityAdapters.ts`: `findById` (`findConceptById`), state from `status`, `setState` through `updateConceptStatus`, tenant from the row, and `addComment` through `addConceptComment`. |
+| 2 | `transitionConcept` finds the latest version, then calls `transitionEntity` with the comment as context. The comment rule check and the direct status write go. `approveConcept` calls `transitionEntity` for `Draft → Active` and then deprecates the previous Active version (D3). `deprecateConcept`, `retireConcept`, `archiveConcept` and `rejectConcept` keep their signatures. |
+| 3 | Delete `retireConceptForEntity` (D5). |
+| 4 | The routes keep their paths and their `route_authority` rows. They identify a concept by type, code and tenant, so the id-based verb route of Objective does not apply. |
+
+### Ontology tests
+
+| # | Test | Covers |
+|---|---|---|
+| 1 | DEFINITION: the six rows | verb, trigger, event, version event, the comment policy on `Draft → Draft`; the earlier test asserting exactly three rows is replaced |
+| 2 | BIRTH: new code | born in the birth row's state, `ConceptCreated` published with the real actor and badge |
+| 3 | BIRTH: new version | born Draft, `ConceptCreated` published, the previous Active version unchanged until approval |
+| 4 | APPROVE | `Draft → Active` publishes `ConceptApproved` and the version event, and the previous Active version moves to Deprecated through its row |
+| 5 | REJECT | refused without a comment, stores the trimmed comment with actor and badge, keeps the concept Draft |
+| 6 | COMPOSE | the composed concept is Draft, `OntologyComposed` is published after `ConceptCreated` |
+| 7 | HOPS | Deprecate, Retire and Archive publish their events, with no skip and no way back |
+| 8 | PROPOSAL | a proposal event with no `version` creates a Draft through the birth row |
+| 9 | SYNC | `syncConceptFromEntity` returns an Active concept |
+
+Fixtures to update in the same pass: `tests/ontology-event-lifecycle-table.test.ts` (rewritten as above), `tests/cr101-domain-configuration-competency-union.test.ts` (checked for a state assumption after `addConcept`), and the three tests that call `syncConceptFromEntity`. `demoSimulator.ts` calls `approveConcept`, which keeps its signature.
+
+### Build progress (Ontology)
+
+| # | Piece | State |
+|---|---|---|
+| 1 | Birth row, manual triggers, comment policy (Step 1, rows 1 and 2) | Built ✅ |
+| 2 | Recovery SQL and `eventSubscriptions.json` text (Step 1, rows 3 and 4) | Built ✅ |
+| 3 | `insertConceptVersion` takes a required `status` (Step 2) | Built ✅ |
+| 4 | Creation places use `beginBirth` (Step 3) | Built ✅ |
+| 5 | `ontologyAdapter`, `transitionConcept` and `approveConcept` on `transitionEntity` (Step 4) | Built ✅ |
+| 6 | Delete `retireConceptForEntity` | Built ✅ |
+| 7 | Tests and fixtures | Built. Run by the owner, clean. |
+| 8 | Ontology Traceability document updated | Built ✅ |
+
+## Entity 11: SEU (Chapter 2, with Chapter 8)
+
+Status: 🟡 Built. Run by the owner, clean (2026-10-22). D1 to D7 are settled. Plan tests 6 to 8 are not written.
+
+The entity type `SEU` is the Software Engineering Unit. Its table is `seus` and its state column is `lifecycle_state` (`DEFAULT 'Pending'`, with `seus_lifecycle_state_check`). `transitionDefinitions.json` holds 19 SEU rows and no birth row. The live chain is `Pending → Configured → Commissioned → Activated → Operational`. The other states are `Failed`, `Suspended`, `Retired` and `Archived`.
+
+### Flow today (SEU with its EBM)
+
+| # | Step | Where | State written | Event published |
+|---|---|---|---|---|
+| 1 | The user clicks "Commission SEU" on an Objective, or "Commission a new SEU" on the SEU list, which opens `/seus/new`. The page lists the available Profiles (each shows its Template) as a radio group and posts the chosen Profile to `POST /objectives/:id/validate-commission`. That route checks that one Profile was chosen, that the Objective exists and that it has no SEU yet. It creates the SEU row itself, with the tenant of the Objective's sponsoring authority (or the default tenant) and the actor's author badge, then publishes `CommissionRequested`. `commissionSeu` is a second creation path, used by the API (`POST /commission`) and the tests. It adds the checks that the Objective is Active, is not Strategic, has no children, and that the Profile belongs to the Template, and it reuses an existing `Pending` SEU of the same Objective, Profile and Template without publishing. The web route `POST /objectives/:id/commission` is commented out (owner, dead code). | `web/objectives.ts`, `commissioning.ts`, `api/seus.ts` | `Pending` (column default) | `CommissionRequested` (literal) |
+| 2 | `validateRequestHandler` evaluates the gate `Pending → Commissioned` for the actor (a probe, no state written) and runs the liveness checks. | `validateRequest.ts` | none, or `Failed` on a refusal or dead reference | `CommissionValidated`, or `CommissionFailed` |
+| 3 | The user posts `compose-ebm`. The page stores the composition report on the SEU. With no unresolved conflict it publishes `CompositionCompleted` with the actor's author badge. | `web/objectives.ts` | none | `CompositionCompleted` |
+| 4 | `compositionCompletedHandler` creates the EBM through the birth row (CR-128, Entity 9) and sets `seus.active_ebm_id`. | `compositionCompleted.ts` | EBM `Composed`; SEU stays `Pending`; `Failed` on error | `EBMCreated`, or `CommissionFailed` |
+| 5 | The user validates the EBM (`validateEbm`), then activates it. | `commissioning.ts`, `web/seus.ts` | EBM `Validated`, then `Active` | `EBMValidated`, `EBMActivated` |
+| 6 | `ebmActivatedHandler` runs `finalizeCommissioning`: system participant, Capabilities, Deliverables, then the hops `Pending → Configured` and `Configured → Commissioned`, the commissioning report, and `Commissioned → Activated`. Each hop chains correlation and cause. | `ebmActivated.ts`, `commissioning.ts` | SEU `Configured`, `Commissioned`, `Activated`; `Failed` on error | `SEUConfigured`, `SEUCommissioned`, `SEUActivated` |
+| 7 | `executionEngineKickoff` takes `SEUActivated` and `attemptSeuCommenceWork` makes `Activated → Operational` when the commence-work Policy passes and no Pack Obligation is open. | `commissioning.ts` | SEU `Operational` | `SEUOperational` |
+
+The SEU stays in `Pending` from step 1 to step 6. The only fact that says validation passed (step 2) is the event `CommissionValidated`, read by `withCommissionValidated` for the list page.
+
+### Findings
+
+| # | Finding |
+|---|---|
+| 1 | Eight rows have no caller in `src` and no event type. No event subscription or handler runs them. Whether they become governed hops for event subscribers is the owner's call (D5): `Pending → Validated`, `Validated → Composed`, `Composed → RuntimeAllocated`, `RuntimeAllocated → KnowledgeInitialised`, `KnowledgeInitialised → ParticipantsRecruited`, `ParticipantsRecruited → Commissioned`, `Commissioned → Configured`, `Configured → Activated`. They are the planned commissioning chain. Their states appear in `authorityVocabulary.json` (still read by the transition-definition seed and the identity seeds), the spec text and `tests/seu-ebm-event-lifecycle-table.test.ts`. |
+| 2 | `Pending → Commissioned` (verb commission) changes no state. `validateRequestHandler` evaluates it as the authority gate for `seu_commission` with the original actor. It is also the row that makes the Validate link on `seus/index.ejs` appear (`possibleNextStates.includes('Commissioned')`, filtered by the held badge). No policy is attached to it. |
+| 3 | `seusDB.create` omits the state and relies on `DEFAULT 'Pending'`. It is called by `commissionSeu` (core), by `POST /objectives/:id/validate-commission` (`web/objectives.ts`, which repeats the creation and the event) and by three tests. Both production callers then publish the literal `CommissionRequested` with `authorBadge` resolved for `seu_commission`. |
+| 4 | `Failed` is written by `seusDB.updateLifecycleState(…, "Failed")` at five sites: `validateRequest.ts` (three), `compositionCompleted.ts` and `ebmActivated.ts`. Each then publishes the literal `CommissionFailed` with `{ stage, reason }`. The only row is `Pending → Failed` and its verb is `configure`. Failure from `Configured` or `Commissioned` (a later hop of `finalizeCommissioning` refused) has no row. |
+| 5 | `finalizeCommissioning` makes the hops `Pending → Configured`, `Configured → Commissioned` and `Commissioned → Activated` with `transitionEngine.evaluate`, `updateLifecycleState` and a literal-fallback publish. Each event carries the `correlationId` of the commissioning and the `causationId` of the previous event. `transitionEntity` sets a new correlation id and has no cause. |
+| 6 | `attemptSeuCommenceWork` makes `Activated → Operational`. It reads the row, resolves the badge, calls `policyEngine.evaluate` itself, raises an Obligation when the commence-work Policy blocks, raises Pack Obligations, then writes the state and publishes with the id chain of its caller. |
+| 7 | `Suspended`, `Retired` and `Archived` have rows (`suspend`, `resume`, `retire`, `archive`) with no event, no caller and no page. A hop on them would publish `UNDEFINED_EVENT`. |
+| 8 | Subscribers on SEU events stay: `executionEngineKickoff` on `SEUActivated`, `ebmActivated` on `EBMActivated`, `deliverableKickoff` on `SEUOperational`. Each effect lands on another entity type. |
+| 9 | `seus.tenant_id` exists. The author id (`requested_by`) and `author_badge` are not changed by the CR. |
+| 10 | The spec chapters name different states (`Requested`, `Executing`, `Monitoring`, `Completing`). The rows are marked "not in spec" in the table at the top of this CR, and the divergence is recorded there. It is not part of this entity. |
+
+### Decisions
+
+| # | Question | Recommendation |
+|---|---|---|
+| D1 | The birth row, and where an SEU is initiated. | Settled (owner): the birth row is `None → Initiated`, verb `commission` (badge `seu_commission`), trigger `manual`, event `CommissionInitiated`, no version event. An SEU is initiated only through `POST /objectives/:id/validate-commission`. The web route `POST /objectives/:id/commission` and the API route `POST /commission` are commented out. The one creation path calls `beginBirth`, passes `initialState` to `seusDB.create` and publishes `birth.eventType` as its last statement. `validateRequestHandler` drops the gate probe on finding 2, because the birth already ran authority; its report loses the item "Authority (badge seu_commission)". The creation is the Save button of D2. The remaining callers of `commissionSeu` (`demoSimulator.ts`, `commissionFromForm`, the tests) are out of scope for now (owner). |
+| D2 | The commission form (`seus/new.ejs`) and the Validate link on the SEU list (finding 2). The row `Pending → Commissioned` is deleted with D5. | Settled (owner): the form takes an Objective and a Profile and has a Save button, like Draft on the authoring pages. Save is not versioned. Save starts the birth row: it checks that the Objective and the Profile are present, then calls the create (`beginBirth`, `seusDB.create`, the birth event). The form then shows the `nextActionsFor("SEU", state, actor)` buttons, read from the transition rows. The Demo path is out of scope for now (owner). `validateRequestHandler` stops being an event subscriber and becomes the action code of the row `Initiated → Validated` (verb `validate`, trigger `manual`), which runs in the transition transaction before the state write (owner). The gate probe and its badge checks are removed, because the hop's own gate checks the badge once. The subscription `CommissionRequested → validateRequest` is removed. The event of this row is `CommissionValidated` (owner). A dead reference takes the transition to `Failed` (D3), as `validateEbm` does for the EBM, and the form shows the error through `redirects.ts`. The birth row's event is `CommissionInitiated` (owner). |
+| D3 | `Failed` (finding 4). Settled (owner): a dead reference takes the transition to `Failed`, as in the EBM, and the UI shows the error through `redirects.ts`. The liveness check is the action code of `Initiated → Validated`. On a dead reference it throws an error carrying the references. The transaction rolls back, so the SEU stays `Initiated` and nothing is published. The caller catches that error and calls `transitionEntity` for `Initiated → Failed` (the row's event `CommissionFailed` is published, published by the caller with `{ stage: "validate_request", reason, references, checks }` as its payload), then shows the error through `redirects.ts`. | Governed rows `Initiated → Failed`, `Validated → Failed` (composition and finalize failures happen while the SEU is `Validated`), `Configured → Failed` and `Commissioned → Failed`, verb `fail`, event `CommissionFailed`, no version event. The five sites call `transitionEntity` and then publish `result.event` themselves, with the payload `{ stage, reason, references, checks }` and the correlation and cause of the commissioning (the caller publishes, 2026-10-22). `transitionEntity` takes no payload input. The row with verb `configure` is replaced. |
+| D4 | The id chain (finding 5). | The three hops of `finalizeCommissioning` and `Activated → Operational` call `transitionEntity` and publish `result.event` themselves with the `correlationId` and the `causationId` of the previous event, which `eventBus.publish` already returns. No change to `transitionEntity`. The last publish stays the last statement. |
+| D1a | The rename. | `Pending` becomes `Initiated` everywhere: every row whose from-state is `Pending` (`Pending → Failed` and `Pending → Validated`). The row `Pending → Configured` becomes `Validated → Configured`, the first hop of `finalizeCommissioning`, `seus_lifecycle_state_check`, the partial unique index `idx_seus_objective_id_active_unique`, `SeuLifecycleState`, the `reusingExisting` test in `commissionSeu`, `seus/index.ejs`, the SEU tests and fixtures, the traceability text. The `DEFAULT 'Pending'` is removed. |
+| D5 | The planned rows and the probe row (findings 1 and 2). | The probe row `Pending → Commissioned` is deleted from `transitionDefinitions.json`. `Pending → Validated` becomes the live row `Initiated → Validated` (D2). The other seven unwired rows stay unchanged and are listed in CR-130 (owner). |
+| D6 | `Suspend`, `Resume`, `Retire`, `Archive` (finding 7). | Trigger `manual`. Events `SEUSuspended`, `SEUResumed`, `SEURetired` and `SEUArchived` are added to the rows and to `eventSubscriptions.json`. Versioning is No. The SEU detail page gets `actions` from `nextActionsFor("SEU", state, actor)` and one button per action, as the EBM page does. A route `POST /seus/:id/transition/:verb` calls `transitionEntity`, publishes `result.event`, and has a `route_authority` row for each verb (`seu_suspend`, `seu_resume`, `seu_retire`, `seu_archive`) and a `redirects.ts` entry. |
+| D7 | `Activated → Operational` (finding 6). | Settled (owner), corrected after the first test run: `attemptSeuCommenceWork` keeps its call to `policyEngine.evaluate`, which resolves the SEU-scoped Policies the EBM composed from the SEU (the transition row's own `required_policy_ids` cannot see them), and keeps raising the commence-work Obligation on a block. It then keeps the Pack Obligation check, calls `transitionEntity` (trigger `governed`) for the hop, and publishes `SEUOperational` from `result.event` with the id chain of its caller as its last statement. It no longer writes the state itself. The order is the original one: Policy, then Pack Obligations. |
+
+### Logic outside the rows
+
+| # | Logic today | Where | Proposed home |
+|---|---|---|---|
+| 1 | Pre-create checks: the Objective is Active, is not Strategic, has no children, has no SEU yet, and the Profile belongs to the Template. | `commissionSeu` (and, in part, the `validate-commission` route) | Policies on the birth row (`requiredPolicyCodes`), so the Save button is refused by the gate and the checks are data. |
+| 2 | The tenant of the new SEU: the Objective's sponsoring authority, else the default tenant. | The `validate-commission` route and `commissionSeu` (two copies) | The create function in core, called by the Save button. |
+| 3 | Whether validation passed or failed: read from the events `CommissionValidated` and `CommissionFailed`. | `GET validate-commission`, `withCommissionValidated` in `core/seus.ts` | Unchanged (owner). `CommissionFailed` enables the Commission SEU button again, and `CommissionValidated` opens the EBM composition. |
+| 4 | The liveness checks (dead Template, Profile or Pack reference) and the `Failed` write. | `validateRequestHandler` | Stays in the subscriber, which then calls `transitionEntity` for the `Failed` row (D3). A dead reference could raise its Attention Item through an action code on that row, as the EBM Retire row does. |
+| 5 | Create Engineering Assets (system participant, Capabilities, Deliverables) before the hops `Configured` and `Commissioned`. | `finalizeCommissioning` | An action code on the row that enters `Commissioned`, which runs in the transition transaction before the state write. |
+| 6 | Pack Obligations and the commence-work Obligation raised around `Activated → Operational`. | `attemptSeuCommenceWork` | Unchanged (D7): the SEU-scoped Policy check and the Pack Obligations stay in `attemptSeuCommenceWork`. Only the state write and the publish move to `transitionEntity` and the caller. |
+
+Settled (owner): the SEU stays `Validated` during the whole EBM flow (flow steps 3 to 5), where it stays `Pending` today. The EBM flow is already under its own Transition Definitions. The first hop of `finalizeCommissioning` is therefore `Validated → Configured`.
+
+### Step 1: the data
+
+| # | Change in `transitionDefinitions.json` (SEU) |
+|---|---|
+| 1 | Birth row `None → Initiated`: verb `commission`, trigger `manual`, event `CommissionInitiated`, no version event. |
+| 2 | `Pending → Validated` becomes `Initiated → Validated`: verb `validate`, trigger `manual`, event `CommissionValidated`, action code `validate-seu-request`, no version event. |
+| 3 | `Pending → Configured` becomes `Validated → Configured`. `Configured → Commissioned` and `Commissioned → Activated` keep their events. All three get trigger `governed`, because `finalizeCommissioning` performs them. |
+| 4 | `Pending → Failed` becomes `Initiated → Failed`. New rows `Validated → Failed`, `Configured → Failed` and `Commissioned → Failed`. All four: verb `fail`, trigger `governed`, event `CommissionFailed`, no version event. |
+| 5 | Delete `Pending → Commissioned` (the probe, finding 2). |
+| 6 | `Operational → Suspended`, `Suspended → Operational`, `Operational → Retired`, `Suspended → Retired` and `Retired → Archived`: trigger `manual` and the events `SEUSuspended`, `SEUResumed`, `SEURetired` (both Retire rows) and `SEUArchived`. Each is added to `eventSubscriptions.json` with a description. |
+| 7 | `eventSubscriptions.json`: add `CommissionInitiated`. Remove only the subscription `CommissionRequested → validateRequest` (owner: the subscriber goes, the event publishing stays). The description of `CommissionRequested` stays. Rewrite the descriptions of `CommissionValidated`, `CommissionFailed`, `SEUConfigured`, `SEUCommissioned`, `SEUActivated` and `SEUOperational` so that they name `transitionEntity` and the new publishers. |
+| 8 | The seven unwired rows keep their verbs and have no event. Their trigger is set to `governed`, so no button is offered for them (CR-130). With the seed default, `manual`, `nextActionsFor` would offer Compose on a `Validated` SEU. No new verb is needed: `commission`, `validate`, `fail`, `suspend`, `resume`, `retire`, `archive` are in `authorityVocabulary.json`. |
+
+### Step 2: the schema
+
+| # | Change |
+|---|---|
+| 1 | `seus_schema_recovery.sql`: `lifecycle_state TEXT NOT NULL` with no default, and `seus_lifecycle_state_check` removed (the set of states comes from the rows). |
+| 2 | The partial unique index `idx_seus_objective_id_active_unique` lists the active states `Initiated`, `Validated`, `Commissioned`, `Configured`, `Activated`, `Operational`, `Suspended`. `Validated` is new, because the SEU stays there during the EBM flow. |
+| 3 | The `ALTER` for the existing database: drop the default, drop the check, `UPDATE seus SET lifecycle_state = 'Initiated' WHERE lifecycle_state = 'Pending'`, drop and recreate the index. The recovery SQL drops `seus` with `CASCADE`, so the full recovery runs again, as for Objective. |
+| 4 | `SeuLifecycleState` in `seuTypes.ts` gains `Initiated` and `Validated` and loses `Pending`. `ACTIVE_LIFECYCLE_STATES` in `seusDB.ts` follows the index. |
+| 5 | Constants in `constants.ts`: `VALIDATE_SEU_REQUEST_ACTION_CODE` and the SEU state names the new code needs (`Validated`, `Configured`, `Commissioned`, `Activated`, `Operational`, `Failed`). |
+
+### Step 3: the database function
+
+| # | Change |
+|---|---|
+| 1 | `seusDB.create` takes a required `lifecycleState` and writes it. |
+| 2 | `seusDB.updateLifecycleState` is unchanged. A new `seuAdapter` in `entityAdapters.ts` uses it: `findById`, state from `lifecycle_state`, `setState` ignoring the badge and actor, tenant from `tenant_id`. |
+
+### Step 4: the commission form and Save
+
+| # | Change |
+|---|---|
+| 1 | New `initiateSeu({ objectiveId, profileId, actorId, tenantId? })` in `core/commissioning.ts`, the one place that creates an SEU. It carries every check `commissionSeu` made: both ids are present, the Objective, the Profile and the Profile's Template exist, the Objective is Active, is not Strategic and has no children, and it has no SEU yet (an `Initiated` SEU of the same Profile and Template is reused without publishing). It takes the tenant from the input, else the Objective's sponsoring authority, else the default tenant. It calls `beginBirth`, `seusDB.create` with `initialState`, and publishes `birth.eventType` as its last statement. |
+| 2 | `seus/new.ejs`: the form takes an Objective and a Profile and has a Save button that posts to `POST /seus`. The fixed "Submit" label goes. After Save the page shows the `nextActionsFor("SEU", state, actor)` buttons of the saved SEU. The Save button is shown to a holder of the birth badge (read through `findBirth`). The page is checked for CR-083. |
+| 3 | `POST /seus` (Save) has a `route_authority` row (`seu_commission`) and a `redirects.ts` entry. The web route `POST /objectives/:id/validate-commission` is deleted with its row. `GET /objectives/:id/validate-commission` stays, and keeps reading the events (owner). |
+| 4 | The SEU list: the Validate link for an `Initiated` SEU comes from `nextActionsFor`. It no longer depends on the deleted row. |
+
+### Step 5: Validate and Failed
+
+| # | Change |
+|---|---|
+| 1 | New action code `validate-seu-request` (`src/actions/validateSeuRequest.ts`, registered in `src/actions/index.ts`). It loads the SEU's Objective, Template and Profile and runs `checkRequestLiveness`. The caller passes an empty array in `context.livenessChecks`, and the action fills it. On a dead reference it throws a `SeuLivenessError` that carries the references. The transaction rolls back. |
+| 2 | New `validateSeu({ seuId, actorId })` in `core/commissioning.ts` (the caller of the Validate button). It calls `transitionEntity` for `Initiated → Validated`. On success it publishes `result.event` with the payload `{ objectiveId, templateIds, profileIds, viewerTenantId, checks }`. On a `SeuLivenessError` it calls `failSeu`. |
+| 3 | New `failSeu({ seuId, actorId, stage, reason, payload, correlationId, causationId })`. It calls `transitionEntity` for the `Failed` row from the SEU's current state, publishes `CommissionFailed` from `result.event` with the payload `{ stage, reason, references, checks }`, and returns the error for the UI. |
+| 4 | `validateRequest.ts` and its registry entry in `eventHandlerRegistry.ts` are deleted. The five direct `Failed` writes (three in `validateRequest.ts`, one in `compositionCompleted.ts`, one in `ebmActivated.ts`) call `failSeu`. |
+| 5 | `POST /seus/:id/transition/:verb` calls `nextActionsFor`, then `validateSeu` for `validate` or `transitionEntity` and `publishTransition` for the other verbs. It has a `route_authority` row per verb (`seu_validate`, `seu_suspend`, `seu_resume`, `seu_retire`, `seu_archive`) and a `redirects.ts` entry. A refused or failed hop shows its error through `redirects.ts`. |
+| 6 | The SEU detail page gets `actions` from `nextActionsFor` and one button per action (D6). |
+
+### Step 6: the commissioning hops
+
+| # | Change |
+|---|---|
+| 1 | `finalizeCommissioning` makes the hops `Validated → Configured`, `Configured → Commissioned` and `Commissioned → Activated` through `transitionEntity`, and publishes each `result.event` with the `correlationId` and the `causationId` of the previous event (D4). The assets (system participant, Capabilities, Deliverables) are still created before the first hop. The last publish, `SEUActivated`, is the last statement. |
+| 2 | `attemptSeuCommenceWork` keeps the `policyEngine.evaluate` call for the SEU-scoped Policies and the Pack Obligation check, then calls `transitionEntity` for `Activated → Operational` and publishes `SEUOperational` from `result.event` as its last statement (D7). |
+
+### Step 7: callers that keep working
+
+| # | Change |
+|---|---|
+| 1 | `commissionSeu` and `commissionFromExistingObjective` are deleted (owner). `commissionFromForm` and `demoSimulator.ts` call `initiateSeu` and then `validateSeu`; `initiateSeu` takes an optional `tenantId`, which the Demo passes. The tests call the fixture `initiateAndValidateSeu`, which does the same. `web-flow.e2e.test.ts` posts `POST /seus` and then the Validate verb route. `initiateSeu` is the one source of truth and carries every check `commissionSeu` made (owner): an Objective and a Profile are given, both exist and the Profile's Template exists, the Objective is Active, is not Strategic and has no children, and it has no SEU yet (an `Initiated` SEU of the same Profile and Template is reused). |
+| 2 | The literal `"Pending"` of the SEU in `seusDB.ts`, `core/seus.ts`, `traceability.ts`, `web/objectives.ts` and `seus/index.ejs` becomes `Initiated`, where it means the SEU. The body of `commissionSeu` is not touched. |
+
+### SEU tests
+
+| # | Test | Covers |
+|---|---|---|
+| 1 | DEFINITION: the SEU rows | birth, validate, the three governed commissioning hops, the four `Failed` rows, the five manual lifecycle rows: verb, trigger, event, no version event |
+| 2 | SAVE: birth | `initiateSeu` writes `Initiated`, publishes `CommissionInitiated` with the real actor and badge `seu_commission`, and nothing after it |
+| 3 | SAVE: refusals | no Objective, no Profile, an Objective that has an SEU, and an actor without `seu_commission` each fail and write no row |
+| 4 | VALIDATE: pass | the SEU is `Validated`, `CommissionValidated` carries the checks, and `GET validate-commission` shows them |
+| 5 | VALIDATE: dead reference | a retired Pack leaves the SEU `Failed`, publishes `CommissionFailed` once with `{ stage, reason, references, checks }`, publishes no `CommissionValidated`, and the error reaches the UI |
+| 6 | EBM FLOW | the SEU stays `Validated` through compose, EBM validate and EBM activate, then moves `Configured`, `Commissioned`, `Activated`, `Operational` with the event chain unbroken |
+| 7 | FAILURE LATER | a composition failure and a finalize failure each take the `Failed` row of the current state |
+| 8 | COMMENCE WORK | a blocking Policy raises the commence-work Obligation and the Pack Obligations, and publishes no `SEUOperational` |
+| 9 | LIFECYCLE | suspend, resume, retire and archive publish their events; buttons come from `nextActionsFor` for a holder of the badge |
+| 10 | GUARD | no skip from `Initiated` to `Activated`, no return from `Failed` |
+| 11 | BUTTONS | `Initiated` shows Validate only to a holder of `seu_validate` |
+| 12 | ROUTES | `POST /seus` and the verb route work, and the old `validate-commission` POST returns 404 |
+
+Fixtures to update in the same pass: `tests/testFixtures.ts` (`driveCommissioningToActive`: the hop badges for `Validated`, `Configured`, `Commissioned`, `Activated`, and the `Initiated` and `Validated` states); `seusDB.create` callers (`cr104-mandatory-seu-eligibility-policies.test.ts`, three in `dependency-definition-engine.test.ts`) gain `lifecycleState`; the `"Pending"` literals in `engine.test.ts`, `acceptance.e2e.test.ts`, `service-dependency.test.ts`, `governance-ebm-sharpening.test.ts` and `seu-ebm-event-lifecycle-table.test.ts`; and `web-flow.e2e.test.ts`, which posts the old form. The tests that reach `commissionSeu` (`commissionFromFormSync` and the direct callers) are not changed.
+
+### Build progress (SEU)
+
+| # | Piece | State |
+|---|---|---|
+| 1 | Rows, events and subscriptions (Step 1) | Built ✅ |
+| 2 | Schema, `SeuLifecycleState`, constants (Step 2) | Built ✅ |
+| 3 | `seusDB.create`, `seuAdapter` (Step 3) | Built ✅ |
+| 4 | `initiateSeu`, form, Save route, list link (Step 4) | Built ✅ |
+| 5 | `validate-seu-request`, `validateSeu`, `failSeu`, verb route, detail buttons (Step 5) | Built ✅ |
+| 6 | Commissioning hops, commence work (Step 6) | Built ✅ |
+| 7 | `commissionSeu` replaced and the literals (Step 7) | Built ✅ |
+| 8 | Tests and fixtures | Built. Not run. `tests/seu-event-lifecycle-table.test.ts` is new (definition, save, refusals, validate pass and fail, lifecycle, buttons, guard). The tests for the EBM flow, a later failure and commence work (plan tests 6 to 8) are not written. `web-flow.e2e.test.ts` and the direct `commissionSeu` callers use the new path. |
+| 9 | `10_SEU_Commissioning_Traceability.md` updated | Built ✅ |
+
+## Entity 12: Obligation (Chapter 23)
+
+Status: 🔴 Investigated. Decisions D1 to D6 are open. Steps are written after they settle.
+
+The entity type `Obligation` is a requirement raised against an SEU object. Its table is `obligations` (`status TEXT NOT NULL DEFAULT 'Identified'`, `version`, `revision_history`). `transitionDefinitions.json` holds 15 rows and no birth row: the chain `Identified → Analysed → Assigned → In Progress → Resolved → Verified → Closed → Archived`, `Closed → Reopened → In Progress`, and `Escalated` from every state before `Closed`. Every row has a verb, an event and the version event `VersionCreated`, carries the policy `policy-obligation-transition-baseline`, and has no `trigger` (the seed default is `manual`).
+
+### Findings
+
+| # | Finding |
+|---|---|
+| 1 | `createObligation` (`core/obligations.ts`) is the only writer. `obligationsDB.create` leaves the state to the column default `'Identified'`. The function then publishes the literal `ObligationCreated`. The caller supplies `actorId` and `authorBadge`. |
+| 2 | `createObligation` has ten callers. Engine-raised, as the SEU's system participant: `raiseObligationForBlockedTransition`, `raiseObligationsForPackDefinitions`, `dispatchEngine`, `redispatch`, `deliverableKickoff`. Raised for a user: `knowledge.ts`, `findings.ts` (convert a Finding), `participantHome.ts`, `telemetry.ts`, `POST /api/seu/obligations`, and `demoSimulator.ts`. |
+| 3 | `transitionObligation` is one more copy of the old transition steps. It calls `transitionEngine.evaluateGoverned` (which adds the Quality Gate check and requires the actor to hold a `participants` row in the SEU), writes the state with `obligationsDB.updateStatus` (which also adds 1 to `version`), then publishes the row's event and a second literal event, `ObligationTransitioned`. |
+| 4 | `ObligationTransitioned` has two subscribers, `executionEngineKickoff` and `deliverableKickoff`, which retry a blocked SEU or Deliverable when an Obligation resolves. Their effect lands on other entity types, so both stay. |
+| 5 | `evaluateGoverned` is also called by Evidence, Knowledge, AttentionItem, Decision, ExternalInteraction and Review. `transitionEntity` calls `transitionEngine.evaluate`, which has no Quality Gate check and no SEU participant check. |
+| 6 | The buttons: `listObligationsWithNextStates` reads `findPossibleNextStates`, not `nextActionsFor`, so a button shows without the badge check. The detail page renders a button or a select and posts `targetState` to `POST /seus/:id/obligations/:obligationId/transition`. The API route `POST /api/seu/obligations/:id/transition/:target` does the same. |
+| 7 | No engine code moves an Obligation. The only callers of `transitionObligation` are the web route, the API route and the tests. Every hop is taken by a human. |
+| 8 | `reviseObligation` edits fields and appends to `revision_history`. It writes no state and publishes no event. It is not a transition and stays as it is. |
+| 9 | `Escalated` has no row leaving it. |
+
+### Decisions
+
+| # | Question | Recommendation |
+|---|---|---|
+| D1 | The birth row: verb, trigger and event. | `None → Identified`, verb `identify` (badge `obligation_identify`), event `ObligationCreated`, no version event (the version column starts at 1). The trigger is open: the engine raises most Obligations, and users raise the rest. |
+| D2 | The creation badge of an engine-raised Obligation. The engine acts as the SEU's system participant, whose badge is `system`. | Open. For Deliverable, commissioning kept the system participant and read only the state from the birth row, without `beginBirth`. |
+| D3 | Hops through `transitionEntity` (finding 5). | An adapter that exposes the row's SEU makes `transitionEntity` call `evaluateGoverned` instead of `evaluate`, so the Quality Gate check and the participant check stay. The other SEU-scoped entities then use the same adapter shape in their own passes. |
+| D4 | The second event (finding 3). | The caller publishes the row's event and then `ObligationTransitioned`, after a successful call. |
+| D5 | The buttons (finding 6). | One button per action from `nextActionsFor("Obligation", state, actor)`, posting to `POST /seus/:id/obligations/:obligationId/transition/:verb`, with a `route_authority` row per verb and a `redirects.ts` entry. The API route keeps its `:target`. |
+| D6 | The schema. | `obligations_schema_recovery.sql` drops `DEFAULT 'Identified'`. `obligationsDB.create` takes the state. |
+
 ## SDK authoring: how transitions work today
 
 Scope: `core/sdkAuthoring.ts`, `web/sdkAuthoring.ts` and the seven transition functions it calls. The seven are `transitionPack`, `transitionTemplate`, `transitionProfile`, `transitionDeliverableDefinition`, `transitionServiceDefinition`, `transitionPolicyDefinition` and `transitionCapabilityDefinition`.
@@ -1147,7 +1530,7 @@ New code only. Nothing existing is changed in this pass. SchemaDefinition uses t
 | 3 | Call `transitionEngine.evaluate` and turn a refusal into a result with a text. The text is built the same way for every entity. |
 | 4 | Throw if no badge was resolved. |
 | 5 | Write the new state through the adapter. |
-| 6 | Publish the event named on the transition row, with the entity type, the row id, the tenant, the actor and the badge. If the row names no event, publish an event whose type is `Undefined`, and then publish a second event of type `SDKAttention` with the same fields. `SDKAttention` has no consumer yet. The function does not throw. Nothing else runs after the publish. |
+| 6 | Build the event named on the transition row, with the entity type, the row id, the tenant, the actor and the badge, and return it as `event`. The function publishes nothing (see "Change (owner, 2026-10-22)" below). `publishTransition(result)` publishes it for the caller. If the row names no event, it publishes an event whose type is `Undefined`, and then a second event of type `SDKAttention` with the same fields. `SDKAttention` has no consumer yet. |
 | 7 | Return the updated row and the applied from-state and to-state. |
 
 ### The adapter
@@ -1189,6 +1572,20 @@ Today 62 of the 157 rows in `transitionDefinitions.json` have no `eventType`: SE
 | 2 | Template and Profile: activating from a terminal state creates a new version. | Not built. The reactivation rows are removed (owner decision). |
 
 SchemaDefinition needs neither rule, so no column is added now.
+
+### Change (owner, 2026-10-22): the caller publishes the hop event
+
+`transitionEntity` no longer publishes. A hop sometimes needs two events, a payload of its own or a chain of correlation and cause, and the caller knows these. A refused hop or a thrown error publishes nothing.
+
+| # | Change |
+|---|---|
+| 1 | Step 6 of the function becomes: build the event the row names and return it as `event` in the result. Nothing is published. The `seuId` input stays and is carried on `event`. |
+| 2 | `event` holds `eventType` (null when the row names none), `versionEvent`, `originatingObjectType`, `originatingObjectId`, `seuId`, `actorId`, `authorityBadge`, `fromState`, `toState`, `tenantId` and the default payload `{ fromState, toState }`. |
+| 3 | Every caller (47 sites in `src`, listed in the progress table) publishes the returned event after a successful call, as its last statement. A caller that needs two events, another payload or an id chain builds them from `event`. |
+| 4 | The rule for a row without an event (`UNDEFINED_EVENT` and `SDK_ATTENTION_EVENT`) moves with the publish. |
+| 5 | Tests that call `transitionEntity` directly and assert on events publish the returned event as well. |
+
+Status: 🟡 Built, not run. `transitionEntity` returns `event`; `publishTransition` is in `entityTransition.ts`. All 47 call sites in `src` publish after a successful call. Tests call the fixture `transitionAndPublish` (in `testFixtures.ts`), which calls `transitionEntity` and then `publishTransition`. `validateEbm` publishes the EBM hop events itself.
 
 ## Build progress (SchemaDefinition)
 

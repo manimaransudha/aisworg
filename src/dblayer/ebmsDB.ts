@@ -9,6 +9,7 @@ export const ebmsDB = {
     profileId: string;
     authorId: string;
     authorBadge: string;
+    status: EbmStatus;
     composedPacks: EbmComposedPack[];
     compositionReport: EbmCompositionReport;
     behaviors?: Record<string, unknown> | null;
@@ -19,7 +20,7 @@ export const ebmsDB = {
     try {
       const { rows } = await query<EbmRow>(
         `INSERT INTO ebms (seu_id, template_id, profile_id, author_id, author_badge, composed_packs, composition_report, behaviors, applicable_quality_gate_ids, applicable_policy_ids, seu_scoped_policy_ids, status, version)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Composed', (SELECT COALESCE(MAX(version), 0) + 1 FROM ebms WHERE seu_id = $1))
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, (SELECT COALESCE(MAX(version), 0) + 1 FROM ebms WHERE seu_id = $1))
          RETURNING *`,
         [
           input.seuId,
@@ -33,6 +34,7 @@ export const ebmsDB = {
           input.applicableQualityGateIds ?? [],
           input.applicablePolicyIds ?? [],
           input.seuScopedPolicyIds ?? [],
+          input.status,
         ]
       );
       return { data: rows[0] };
