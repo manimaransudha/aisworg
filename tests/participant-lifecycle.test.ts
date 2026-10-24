@@ -72,8 +72,7 @@ test("Participant is created at Available (Ch.13 §10), not the old hardcoded As
 
 test("Participant transition graph: the full Ch.13 §9 lifecycle is seeded and enforced, including the Assigned/Executing/Idle repeat cycle", async () => {
   // Created -> Available is seeded even though no real row ever sits at
-  // Created (participantsDB.create lands directly at Available, matching
-  // every other governed entity's create-at-first-real-state precedent) —
+  // Created (the birth row lands directly at Available, CR-128 Entity 19) —
   // confirms the seed data itself, not a live transition.
   const { data: createdToAvailable } = await transitionDefinitionsDB.find("Participant", "Created", "Available");
   assert.ok(createdToAvailable, "expected a seeded Created -> Available Transition Definition");
@@ -140,6 +139,7 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
   const { data: assigned } = await participantsDB.findById(participant.id);
   assert.equal(assigned?.state, "Assigned", "dispatched: the Participant is Assigned, holding the outstanding Work Item");
   assert.ok((await participantEventTypes(participant.id)).includes("ParticipantAssigned"), "expected Assigned on dispatch");
+  assert.ok((await participantEventTypes(participant.id)).includes("ParticipantTransitioned"), "expected the generic event after the row's event");
 
   // The result callback disposes the Work Item and returns the Participant to
   // Idle, not Available (Ch.13 §9) — still held by the open Capability
@@ -150,6 +150,25 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
   const { data: after } = await participantsDB.findById(participant.id);
   assert.equal(after?.state, "Idle");
   assert.ok((await participantEventTypes(participant.id)).includes("ParticipantIdle"), "expected Idle once the Work Item completed/disposed");
+});
+
+test("CR-128 Entity 19: a failed Work Item returns the Participant to Idle through the Assigned -> Idle row and publishes ParticipantIdle", async () => {
+  const { seuId, participant } = await commissionAndFulfil("participant-lifecycle-failed");
+  const detail = await getSeuDetailView(seuId);
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  assert.ok(requirementsSpec);
+
+  const result = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
+  if (!result.ok) assert.ok(result.reason === "no_transition_definition" || result.reason === "already_in_flight", JSON.stringify(result));
+  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
+  assert.equal((await participantsDB.findById(participant.id)).data?.state, "Assigned");
+
+  const failed = await completeWorkItem({ workItemId: workItem.id, outcome: "failed" });
+  assert.equal(failed.ok, true, !failed.ok ? JSON.stringify(failed) : "assertion failed");
+  assert.equal((await participantsDB.findById(participant.id)).data?.state, "Idle");
+  const types = await participantEventTypes(participant.id);
+  assert.ok(types.includes("ParticipantIdle"), "expected ParticipantIdle on the failure path");
+  assert.ok(types.filter((t) => t === "ParticipantTransitioned").length >= 2, "ParticipantTransitioned fires for the Assigned and Idle hops");
 });
 
 test("Build order step 4: replaceParticipant hands a Capability Fulfilment from Available straight to a new Participant", async () => {

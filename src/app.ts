@@ -32,11 +32,13 @@ import { getConceptTypeNav } from "./routes/seu/core/ontology.js";
 import { listTopLevelDocFolders } from "./domain/sdk/docsTree.js";
 import { resolveNavRouteVisibility } from "./domain/identity/navRouteAccess.js";
 import { loadRouteAuthorityCache } from "./domain/identity/routeAuthorityCache.js";
+import { loadTransitionDefinitionsCache } from "./dblayer/transitionDefinitionsDB.js";
 import { routeAuthorityGate } from "./middleware/routeAuthorityGate.js";
 
 import { requireActorId } from "./domain/identity/heldBadges.js";
 await eventBus.loadSubscriptions();
 await loadRouteAuthorityCache();
+await loadTransitionDefinitionsCache();
 
 const app = express();
 const PORT = process.env.PORT || 4800;

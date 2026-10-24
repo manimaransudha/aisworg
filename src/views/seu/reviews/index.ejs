@@ -96,21 +96,24 @@
                     <span class="outcome-badge <%= oc %>"><%= r.outcome %></span>
                   <% } %>
                 </div>
-                <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/reviews/<%= r.id %>/transition" class="d-flex gap-2 align-items-center">
-                  <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" />
-                  <% if (item.possibleNextStates && item.possibleNextStates.length) { %>
-                    <select name="targetState" class="form-select form-select-sm" style="max-width: 140px;">
-                      <% item.possibleNextStates.forEach(function (s) { %><option><%= s %></option><% }); %>
-                    </select>
-                    <select name="outcome" class="form-select form-select-sm" style="max-width: 180px;" title="Required when completing">
-                      <option value="">(outcome, if completing)</option>
-                      <% ["Passed","Passed with Recommendations","Rework Required","Failed","Not Applicable","Deferred"].forEach(function (o) { %><option><%= o %></option><% }); %>
-                    </select>
-                    <button type="submit" class="btn btn-sm btn-outline-dark">Advance</button>
-                  <% } else { %>
+                <% var reviewNext = (locals.reviewActions || {})[r.id] || []; %>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                  <% if (reviewNext.length === 0) { %>
                     <span class="text-muted small">no further transitions</span>
                   <% } %>
-                </form>
+                  <% reviewNext.forEach(function (a) { %>
+                    <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/reviews/<%= r.id %>/transition/<%= a.verb %>" class="d-flex gap-2 align-items-center mb-0">
+                      <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" />
+                      <% if (a.kind === 'outcome') { %>
+                        <select name="outcome" class="form-select form-select-sm" style="max-width: 180px;" required>
+                          <option value="" disabled selected>Outcome&hellip;</option>
+                          <% ["Passed","Passed with Recommendations","Rework Required","Failed","Not Applicable","Deferred"].forEach(function (o) { %><option><%= o %></option><% }); %>
+                        </select>
+                      <% } %>
+                      <button type="submit" class="btn btn-sm btn-outline-dark" title="<%= a.toState %>"><%= a.verb %></button>
+                    </form>
+                  <% }); %>
+                </div>
               </div>
 
               <div class="mt-2">
@@ -123,22 +126,19 @@
                       <% if (f.obligation_id) { %><span class="text-muted small">→ Obligation</span><% } %>
                     </div>
                     <div class="d-flex gap-2">
-                      <% if (f.status === 'Open') { %>
-                        <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/findings/<%= f.id %>/transition">
-                          <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" /><input type="hidden" name="targetState" value="Resolved" />
-                          <button class="btn btn-sm btn-outline-success">Resolve</button>
-                        </form>
-                        <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/findings/<%= f.id %>/transition">
-                          <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" /><input type="hidden" name="targetState" value="Waived" />
-                          <button class="btn btn-sm btn-outline-secondary">Waive</button>
-                        </form>
-                        <% if (!f.obligation_id) { %>
+                      <% (((locals.findingActions || {})[f.id]) || []).forEach(function (a) { %>
+                        <% if (a.verb === 'convert') { %>
                           <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/findings/<%= f.id %>/convert">
                             <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" />
                             <button class="btn btn-sm btn-outline-danger">→ Obligation</button>
                           </form>
+                        <% } else { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/findings/<%= f.id %>/transition/<%= a.verb %>">
+                            <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" />
+                            <button class="btn btn-sm btn-outline-secondary" title="<%= a.toState %>"><%= a.verb %></button>
+                          </form>
                         <% } %>
-                      <% } %>
+                      <% }); %>
                     </div>
                   </div>
                 <% }); %>

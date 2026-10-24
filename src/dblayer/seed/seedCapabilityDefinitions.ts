@@ -13,7 +13,7 @@ import { transitionEntity, publishTransition } from "../../domain/engine/entityT
 import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
 import { eventBus } from "../../domain/engine/eventBus.js";
 import type { CapabilityDefinitionRow, CapabilityRole } from "../seuTypes.js";
-import { getPlatformTenantId, INITIAL_VERSION } from "../constants.js";
+import { getPlatformTenantId, INITIAL_VERSION, CAPABILITY_ACTIVE_STATE } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -55,6 +55,14 @@ export async function seedCapabilityDefinitions(actor: SeedActor): Promise<void>
   if (!birth) throw new Error("[seedCapabilityDefinitions] no birth Transition Definition for Capability -- seed transition definitions first");
   if (!birth.event_type) throw new Error("[seedCapabilityDefinitions] the Capability birth Transition Definition names no event");
 
+  const { data: defs, error: defsError } = await transitionDefinitionsDB.listAll();
+  if (defsError) throw defsError;
+  const nextByFrom = new Map<string, string[]>();
+  for (const d of defs ?? []) {
+    if (d.entity_type !== "Capability" || !d.is_active) continue;
+    nextByFrom.set(d.from_state, [...(nextByFrom.get(d.from_state) ?? []), d.to_state]);
+  }
+
   const { rowCount: deleted } = await query("DELETE FROM capability_definitions WHERE tenant_id = $1", [PLATFORM_TENANT_ID]);
   logger.info(`[seedCapabilityDefinitions] deleted ${deleted ?? 0} platform-tenant rows -- creating ${seeds.length} baseline rows now`);
 
@@ -92,17 +100,15 @@ export async function seedCapabilityDefinitions(actor: SeedActor): Promise<void>
       tenantId: created.tenant_id,
     });
 
-    const validate = await transitionEntity({ entityType: "Capability", entityId: created.id, targetState: "Validated", actorId: actor.authoredBy });
-    if (!validate.ok) throw new Error(`[seedCapabilityDefinitions] failed to validate ${seed.code}: ${"detail" in validate ? validate.detail : validate.reason}`);
-    await publishTransition(validate);
-
-    const publish = await transitionEntity({ entityType: "Capability", entityId: created.id, targetState: "Published", actorId: actor.authoredBy });
-    if (!publish.ok) throw new Error(`[seedCapabilityDefinitions] failed to publish ${seed.code}: ${"detail" in publish ? publish.detail : publish.reason}`);
-    await publishTransition(publish);
-
-    const activate = await transitionEntity({ entityType: "Capability", entityId: created.id, targetState: "Active", actorId: actor.authoredBy });
-    if (!activate.ok) throw new Error(`[seedCapabilityDefinitions] failed to activate ${seed.code}: ${"detail" in activate ? activate.detail : activate.reason}`);
-    await publishTransition(activate);
+    let state = birth.to_state;
+    while (state !== CAPABILITY_ACTIVE_STATE) {
+      const hops = nextByFrom.get(state) ?? [];
+      if (hops.length !== 1) throw new Error(`[seedCapabilityDefinitions] expected one active Capability hop out of ${state}, found ${hops.length}`);
+      const result = await transitionEntity({ entityType: "Capability", entityId: created.id, targetState: hops[0], actorId: actor.authoredBy });
+      if (!result.ok) throw new Error(`[seedCapabilityDefinitions] failed to move ${seed.code} to ${hops[0]}: ${"detail" in result ? result.detail : result.reason}`);
+      await publishTransition(result);
+      state = hops[0];
+    }
 
     logger.info(`[seedCapabilityDefinitions] created + activated ${seed.code}`);
   }

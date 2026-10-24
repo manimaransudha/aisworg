@@ -2,7 +2,7 @@
 export type DbResult<T> = { data: T; error?: undefined } | { data?: undefined; error: Error };
 
 export type ObjectiveTier = "Strategic" | "Operational" | "Engineering";
-export type ObjectiveStatus = "Defined" | "Active" | "Achieved" | "Superseded" | "Retired" | "Archived" | "Reject";
+export type ObjectiveStatus = string;
 
 export interface SponsoringAuthority {
   tenant: string | null;
@@ -42,7 +42,7 @@ export interface RequiredCapability {
   description: string | null;
 }
 
-export type ServiceStatus = "Defined" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
+export type ServiceStatus = string;
 
 export interface ServiceRow {
   id: string;
@@ -61,7 +61,7 @@ export interface ServiceRow {
 }
 
 export type PackCategory = string;
-export type PackStatus = "Draft" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
+export type PackStatus = string;
 export type PackClassification = string;
 
 export interface VerifiableItemFields {
@@ -171,7 +171,7 @@ export interface DeliverableDefinitionRow {
   schema_definition_id: string | null;
 }
 
-export type ServiceDefinitionStatus = "Defined" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
+export type ServiceDefinitionStatus = string;
 
 export interface ServiceLevelExpectation {
   code: string;
@@ -205,7 +205,7 @@ export interface ServiceDefinitionRow {
   schema_definition_id: string | null;
 }
 
-export type CapabilityDefinitionStatus = "Defined" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
+export type CapabilityDefinitionStatus = string;
 
 export interface CapabilityRole {
   name: string;
@@ -230,7 +230,7 @@ export interface CapabilityDefinitionRow {
   schema_definition_id: string | null;
 }
 
-export type PolicyDefinitionStatus = "Draft" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
+export type PolicyDefinitionStatus = string;
 
 export interface EvidenceDefinition {
   title: string;
@@ -318,7 +318,7 @@ export interface ProfileRow {
   comments: Array<{ text: string; actorId: string; authorityBadge: string; createdAt: string }>;
 }
 
-export type EbmStatus = "Composed" | "Validated" | "Active" | "Superseded" | "Retired";
+export type EbmStatus = string;
 
 export interface EbmComposedPack {
   packId: string;
@@ -398,7 +398,7 @@ export interface SeuRow {
   updated_at: string;
 }
 
-export type SeuCapabilityStatus = "Unfulfilled" | "Fulfilled";
+export type SeuCapabilityStatus = string;
 
 export interface SeuCapabilityRow {
   id: string;
@@ -408,7 +408,7 @@ export interface SeuCapabilityRow {
 }
 
 export type ParticipantType = string;
-export type ParticipantState = "Created" | "Available" | "Assigned" | "Executing" | "Idle" | "Released" | "Archived";
+export type ParticipantState = string;
 
 export interface ParticipantRow {
   id: string;
@@ -468,7 +468,7 @@ export interface DeliverableRow {
 }
 
 export type DependencyType = "Deliverable" | "Capability";
-export type ReadinessState = "Unknown" | "Pending" | "Satisfied" | "Blocked";
+export type ReadinessState = string;
 
 export type DependencyDefinitionEntityType = TransitionEntityType | "Capability";
 
@@ -596,7 +596,7 @@ export type GovernanceEvaluationOutcomeInput = Omit<GovernanceEvaluationOutcomeR
 
 export type GovernanceEvaluationOutcomeDraft = Omit<GovernanceEvaluationOutcomeInput, "author_id" | "author_badge">;
 
-export type CommandStatus = "Generated" | "Dispatched" | "Completed" | "Deferred" | "Cancelled" | "Failed";
+export type CommandStatus = string;
 
 export interface CommandRow {
   id: string;
@@ -706,7 +706,7 @@ export interface TenantConceptAliasRow {
   updated_at: string;
 }
 
-export type ComplianceStatus = "Compliant" | "Compliant with Exceptions" | "Partially Compliant" | "Non-Compliant" | "Compliance Unknown";
+export type ComplianceStatus = string;
 
 export interface ComplianceFrameworkRow {
   id: string;
@@ -817,7 +817,7 @@ export interface AttestationRow {
   created_at: string;
 }
 
-export type WorkItemStatus = "Generated" | "Assigned" | "Dispatched" | "Executing" | "Completed" | "Failed" | "Cancelled" | "Disposed";
+export type WorkItemStatus = string;
 
 export interface WorkItemRow {
   id: string;
@@ -1109,6 +1109,7 @@ export interface DecisionRow {
   title: string;
   engineering_question: string | null;
   status: string;
+  superseded_by: string | null;
   created_at: string;
   updated_at: string;
 }

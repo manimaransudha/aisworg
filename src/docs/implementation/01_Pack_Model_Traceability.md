@@ -1,8 +1,10 @@
-# Chapter 1 — Pack Model: Implementation Traceability
+# Implementation Traceability: Chapter 1 – Pack Model
 
-**Date of report: 4-10-2026**
+**Date of report: 23-10-2026**
 
-[Specification](../SEU%20Studio%20Specifications/01_Engineering%20Definition/01_Pack.md)
+Specification: src/docs/SEU Studio Specifications/01_Engineering Definition/01_Pack.md
+
+## Traceability Table
 
 <!-- multiline -->
 **Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
@@ -25,278 +27,284 @@
   <tbody>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A Pack contributes behaviour/knowledge/governance/services/integrations without Runtime Kernel modification<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:23-95<br>src/routes/seu/core/packs.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A Pack is a <code>packs</code> row whose behaviour lives in declarative <code>contributions</code> JSONB; no executable code path exists for a Pack. New contribution kinds, categories and Ontology values are data changes, not code changes (see category/contribution-kind rows below).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Pack is the unit of extension; new Packs are added as data rows through the governed authoring path with no Runtime Kernel change.<br>Ref: §1 Purpose, §16, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:417-442<br>src/dblayer/packsDB.ts:10-72</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Packs are created as rows validated against a schema_definitions grammar. Contributions are materialised by materializeContributions (packs.ts:499). No kernel code change is needed to add a Pack.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every EBM is produced by composing contributions from one or more Packs<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:370-448</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>compose()</code> resolves a Template's mandatory Pack codes and a Profile's optional Pack codes to Active <code>packs</code> rows and folds their contributions together; <code>composedPacks</code> records the exact Pack+version used.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every EBM is produced by composing contributions from Packs.<br>Ref: §1 Purpose, §3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:235-258<br>src/domain/engine/profileCompositionUnravel.ts:95-290</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition resolves Active Packs, unravels them into a contribution pool and records composedPacks on the EBM (src/dblayer/ebmsDB.ts:22-31).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack never executes; execution is performed only by commissioned SEUs<br> Ref: §3 Architectural Position</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts (whole file — no execution path)<br>src/domain/engine/compositionEngine.ts:370-448</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Confirmed by absence: no code path invokes Pack content as logic. <code>seedContributions</code> interprets the JSONB into vocabulary rows at publish time; those rows are then consumed by other generic engines (Quality Gate engine, Review model, Dependency engine), never by Pack itself.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Pack is versioned and composable and never holds project-specific runtime state.<br>Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/packs_schema_recovery.sql:3-26<br>src/dblayer/packsDB.ts:82-120</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The packs table holds definition fields only: contributions, dependencies, composition_sources and metadata. Content edits are limited to status Draft (updateDraftContent WHERE status = 'Draft').</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A Pack is self-contained, versioned, composable; never holds project-specific runtime state<br> Ref: §4 Definition</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:8-95 (create/updateDraftContent signature — no seu_id, no runtime-state field)<br>src/routes/seu/core/packs.ts:1133-1199 (transitionPack has no <code>seuId</code>, explicitly <code>seuId: null</code> on the published event)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>packs</code> carries no SEU/runtime-state column; the Pack-transition event payload is explicitly marked "platform catalog entity, not SEU-scoped" (packs.ts:1191).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Packs are reusable across multiple SEUs.<br>Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:108-135<br>src/dblayer/packsDB.ts:292-303</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Packs are selected by code from Templates and Profiles at composition time and are not owned by a SEU. Mandatory Packs are pulled into every Template.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-001: A Pack represents one coherent engineering concern.<br>Ref: §5 PM-001</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:142-408</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Validation checks structure, references and duplicates inside a Pack.<br>Gap: no rule checks that a Pack addresses a single concern. A Pack may combine any contribution kinds. Coherence is an authoring judgement.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-002: A Pack declares how its contributions compose with other Packs.<br>Ref: §5 PM-002</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:168-181, 158-190<br>src/domain/engine/compositionEngine.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: compositionStrategy and compositionSources are stored and validated against the composition-strategy Ontology and the strategy's source arity.<br>Gap: compositionStrategy is optional (guarded by if (seed.compositionStrategy?.trim())), so a Pack may declare none.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Packs are reusable across multiple SEUs<br> Ref: §4 Definition</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:370-448</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack rows are resolved by code from any number of Templates/Profiles across any number of SEU compositions; no SEU-exclusive binding exists on <code>packs</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-001: A Pack shall represent one coherent engineering concern<br> Ref: §5 PM-001</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">This is an authoring-discipline principle, not a mechanically checkable one; no validator enforces "one concern per Pack." Not contradicted by any code, but nothing verifies it either.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-003: Packs are versioned independently.<br>Ref: §5 PM-003, §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/packs_schema_recovery.sql:26<br>src/routes/seu/core/packs.ts:161-162</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Each row has its own pack_version, checked as semver and unique per (code, pack_version, tenant_id). Publishing one Pack does not touch other codes.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-002: A Pack shall declare how its contributions compose with other Packs<br> Ref: §5 PM-002</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:332-358 (<code>compositionStrategy</code> validation, <code>strategyRequirements</code>)<br>src/domain/engine/compositionEngine.ts:244-290 (merge/union/override)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>compositionStrategy</code> is a real, Ontology-backed, validated field (<code>category:composition-strategy</code>) with arity rules enforced at save time (merge/union source-count and same-code requirements).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-004: A Pack may be replaced without Runtime Kernel modification.<br>Ref: §5 PM-004</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:444-458</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">activatePackSupersedingPrevious activates the new version and retires the previous Active version of the same code through the generic transition engine.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-003: Packs shall be versioned independently<br> Ref: §5 PM-003; §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:23-95 (identity <code>(code, pack_version[, tenant_id])</code>, plain INSERT, no UPDATE-on-publish)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Each published version is an immutable new row; updating one Pack's version has no effect on any other Pack's row. Confirmed by schema comment at packsDB.ts:9-22 and the plain-INSERT <code>create</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-005: Every contribution is traceable to its originating Pack.<br>Ref: §5 PM-005, §16, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:250-262<br>src/domain/engine/compositionEngine.ts:243-250<br>src/dblayer/recovery/capabilities_schema_recovery.sql:8<br>src/dblayer/recovery/authority_rules_schema_recovery.sql:8<br>src/dblayer/recovery/checklists_schema_recovery.sql:7<br>src/dblayer/recovery/services_schema_recovery.sql:12<br>src/dblayer/recovery/policies_schema_recovery.sql:13<br>src/dblayer/recovery/quality_gates_schema_recovery.sql:12<br>src/dblayer/recovery/review_gates_schema_recovery.sql:10<br>src/routes/seu/core/packs.ts:508,533,545</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every contribution kind that is persisted as its own row carries originating_pack_id, stamped when the Pack is materialised: Capabilities, Services, Policies, Authority Rules, Checklists, Quality Gates and Review Gates. Obligation definitions and engineering capital stay in the Pack contributions and enter the composition pool with the Pack as source. The EBM records composedPacks with packId, packCode and packVersion.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-004: A Pack may be replaced without requiring Runtime Kernel modification<br> Ref: §5 PM-004</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:380,416 (<code>resolveActivePack</code> by code)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition resolves the Active row for a code at compose time; swapping which version/row is Active (via lifecycle transition) requires no kernel change.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-005: Every contribution shall remain traceable to its originating Pack<br> Ref: §5 PM-005</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts (seedContributions writes <code>originating_pack_id</code>)<br>§19.10 confirms FK on capabilities/services/authority_rules/policies/metric_definitions/compliance</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>originating_pack_id</code> FK exists on every materialised contribution table, confirmed by <code>db:clean-slate</code>'s own reliance on it (per §19.10, verified structurally — the FK is load-bearing for the seed-reset boundary, not merely descriptive).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack Taxonomy: 6 named categories (Platform/Organisation/Domain/Compliance/Technology/Integration) can coexist<br> Ref: §6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packCategoriesDB.ts:1-38<br>src/dblayer/seed/data/*.pack.json (compliance-*, technology-*, domain-*, integration-*, sdlc-phase-* files present)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>pack_category</code> is a real data table (code/label/is_active); real seed Pack files exist spanning Compliance (33), Technology, Domain, Integration categories, confirmed by directory listing.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">New Pack categories can be introduced without Runtime Kernel modification<br> Ref: §6; §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packCategoriesDB.ts:1-38</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">§19.6: the hardcoded <code>packs.category</code> CHECK constraint was dropped; category is now validated against active <code>pack_category</code> rows, so a new category is a data INSERT with no code change.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Mandatory Packs are required for every commissioned SEU<br> Ref: §7 Mandatory</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:389-411 (<code>findActiveMandatoryVisibleTo</code>)<br>src/domain/engine/compositionEngine.ts:370-448</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: every Active Pack marked <code>installation_classification = 'Mandatory'</code> (visible to the tenant) is folded additively into every Template's composition, per packsDB.ts:389-411's own comment citing this chapter's §7 gap directly (CR-104 closed it).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform recognises six Pack categories, and new categories can be added without kernel change.<br>Ref: §6, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packCategoriesDB.ts:12-34<br>src/dblayer/seed/data/ontologyConcepts.json</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Categories are rows in pack_category and Ontology concepts. Adding a category is a data change.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Recommended Packs: Composition Engine shall generate warnings if omitted<br> Ref: §7 Recommended</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">— (no grep match for a "Recommended"-driven warning path)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No code path checks whether a Recommended-classified Pack was omitted from a composition and raises a warning. <code>installation_classification</code> stores the value but nothing consumes "Recommended" specifically.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Optional Packs: installed only when explicitly requested or indirectly required<br> Ref: §7 Optional</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/profilesDB.ts:462-502 (<code>getOptionalPackCodes</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A Profile's <code>optionalPackCodes</code> is the explicit-request mechanism; composition includes only those codes from the optional set, not every Optional-classified Pack.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Platform Packs are maintained by the platform itself.<br>Ref: §6.1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:262-303</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Platform ownership is modelled by tenant_id equal to the platform tenant. Platform Packs are visible to all tenants.<br>Gap: no code was found that restricts maintenance of Platform Packs to the platform.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Conditional Packs: Composition Engine determines whether conditional Packs are required based on declared conditions<br> Ref: §7 Conditional</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">— (no condition-evaluation code found for Pack-level <code>installation_classification = 'Conditional'</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>installation_classification</code> stores the value "Conditional" but no code evaluates a declared condition to decide inclusion; this is open, per §19.7's own "Conditional conditions are not evaluated."</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Organisation Packs should extend Platform Packs wherever practical.<br>Ref: §6.2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">None found</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: no rule or warning relates an Organisation Pack to a Platform Pack. The statement is advisory ('should'). composition_sources can express an extension but nothing encourages it.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack Metadata: Identifier, Name, Version, Description, Category, Owner, Publisher, Dependencies, Installation Classification, Composition Strategy, Supported Platform Version, Status<br> Ref: §8</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:23-95 (code/name/category/packVersion/installationClassification/dependencies columns)<br>§19.5 (Description/Owner/Publisher/Composition Strategy/Supported Platform Version in <code>packs.metadata</code> JSONB, CR-018)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All eleven fields are present: some as first-class columns, the CR-018-added set in a validated <code>metadata</code> JSONB. <code>owner</code>/<code>publisher</code> are free text with no Identity-system linkage.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Additional metadata may be introduced without modifying the Runtime Kernel<br> Ref: §8</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts (schema-driven <code>metadata</code> validation)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Metadata is validated against the versioned schema (<code>schema_definitions</code>), which is itself form-authored (CR-017); a new metadata field is a schema change, not a Runtime Kernel code change.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Each category carries its typical contributions, which are expressed as contribution kinds.<br>Ref: §6.3 to §6.5, §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:142-408</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Contribution kinds are free to combine under any category. Category-specific contribution sets are guidance in the specification and are not enforced, consistent with the text.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack Contributions: Engineering Behaviour, Policies, Standards, Decision Rules, Ontology, Engineering Capital, Services, Reusable Components, Engineering Templates, Checklists, Quality Gates, Review Gates, Obligation Definitions, Engineering Metrics<br> Ref: §9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts (<code>PackContributions</code> type, <code>contributions</code> JSONB)<br>§19.4 (per-kind build status)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Built and Pack-contributable: Capabilities, Services, Authority/Decision Rules, Policies+Standards, Quality Gates, Checklists, Review Gates, Obligation Definitions, and a unified <code>contributionEngineeringCapital[]</code> covering Engineering Behaviour/Engineering Metrics/Reusable Components/Engineering Templates (CR-082, minimal stub: <code>type</code>+<code>url</code> only). **Not built:** Ontology and Knowledge Assets ("Engineering Capital" in the §9 sense) remain not Pack-contributable. Compliance Frameworks/Requirements as a Pack *contribution* kind was deliberately removed — Compliance is now a Pack *category* (§6.4) referenced from Template/Profile instead.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack Dependencies: Required/Optional/Conditional/Incompatible declared; required dependencies resolved before commissioning<br> Ref: §10</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:294-358 (<code>validatePackSeed</code>, dependency type validation)<br>§19.9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All four dependency types are declared and stored in <code>dependencies</code> JSONB (CR-018). <code>validatePackSeed</code> resolves *required* deps at author time only. There is **no transitive dependency resolution at composition time** — composition uses the Template's/Profile's own Pack-code lists (§19.7), not each Pack's own declared <code>dependencies</code> array; optional/conditional/incompatible dependency types are recorded but never acted on anywhere in <code>compositionEngine.ts</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Integration Packs expose services rather than engineering behaviour.<br>Ref: §6.6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:373-398</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Services are a supported contribution kind with Service Definition pinning.<br>Gap: nothing restricts an Integration Pack to service contributions only.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack Lifecycle: Draft → Validated → Published → Active → Retired → Archived, plus Validated → Draft (Reject) requiring a mandatory, always-new comment<br> Ref: §11 (as amended by Remarks)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:1133-1199 (<code>transitionPack</code>)<br>src/routes/seu/core/packs.ts:1161-1175 (comment-required check on Reject)<br>src/dblayer/packsDB.ts:433-463 (<code>addComment</code>/<code>getComments</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Six-state lifecycle (Deprecated dropped, migration 137) runs through the generic <code>transitionEngine</code>. Reject (Validated→Draft) is gated on <code>trimmedComment</code> being non-empty **and** different from the most recent existing comment (packs.ts:1166-1174) — exactly the amended requirement. No Pack-specific evaluation code; authority/policy are ordinary <code>transition_definitions</code> rows.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Pack declares an installation classification from Mandatory, Recommended, Optional or Conditional.<br>Ref: §7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:164-166<br>src/dblayer/seed/data/ontologyConcepts.json:1398-1426</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The value is validated against the installation-classification Ontology. packsDB defaults a missing value to Mandatory (packsDB.ts:23).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Historical Pack versions shall remain available for reproducing historical EBMs<br> Ref: §11</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:289-297 (<code>findVersionsByCode</code>)<br>§19.2 (EBM records exact packCode+packVersion)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every published version is its own immutable row (never deleted/overwritten); <code>findVersionsByCode</code> returns the full history. Reactivation-from-terminal-state was removed entirely (CR-080) rather than resurrecting an old row, which preserves rather than threatens this guarantee.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Packs shall be independently versioned (§12, restated)<br> Ref: §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:9-22</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as PM-003 above.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Updating one Pack shall not require version changes to unrelated Packs<br> Ref: §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:23-95 (<code>create</code> takes a single Pack's fields; no cross-Pack version coupling)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No code path ties one Pack's version bump to another Pack's version.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">EBMs shall record the exact Pack versions used during composition<br> Ref: §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:370-448 (<code>composedPacks</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Confirmed by §19.2 and by <code>compose()</code>'s resolution of Active rows by <code>(code, pack_version)</code> identity, recorded on the EBM.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Compatibility: minimum/maximum supported platform version, incompatible Pack versions, migration guidance declared; Composition Engine validates compatibility before composition<br> Ref: §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">§19.9 (fields declared, CR-018); no corresponding call found in compositionEngine.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The four fields (<code>supportedPlatformVersion</code>, <code>minSupportedPlatformVersion</code>, <code>maxSupportedPlatformVersion</code>, <code>incompatiblePackVersions</code>, <code>migrationGuidance</code>) are stored in <code>metadata</code> JSONB and schema-validated for shape at write time. **No platform-version concept exists to compare against**, and <code>compositionEngine.ts</code> has no compatibility-check call. Declaration only.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Runtime Visibility: Packs visible to Composition Engine, Pack Registry, Administration Services; commissioned SEUs shall not modify Packs<br> Ref: §14</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:319-411 (findAll/findAllVisibleTo/findActiveVisibleTo/findActiveMandatoryVisibleTo)<br>src/routes/seu/core/packs.ts:1133-1199 (<code>transitionPack</code> only mutates <code>packs.status</code>, not SEU-triggered)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Visibility queries exist for the Registry and composition. No code path lets a commissioned SEU write to a <code>packs</code> row — all Pack mutation is through the authoring/lifecycle surface (§19.11), never SEU execution.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Runtime services may query Pack metadata where necessary<br> Ref: §14</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:299-317 (findById/findByIds)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Generic read accessors exist and are used by dependency resolution/composition.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Events: PackRegistered, PackValidated, PackPublished, PackActivated, PackRetired, PackDependencyResolved, PackDependencyFailed, PackRejected (PackDeprecated dropped per Remarks)<br> Ref: §15 (as amended)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:765-766 (<code>PackRegistered</code> on draft creation)<br>src/routes/seu/core/packs.ts:1184-1196 (per-hop <code>gate.eventType</code>, Version Feature Plan wiring)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>PackRegistered</code> fires explicitly on <code>createPackDraft</code>. Every subsequent lifecycle hop (Validate/Publish/Activate/Retire/Archive/Reject) publishes through the generic <code>transitionPack</code> using <code>gate.eventType</code> resolved from the matching <code>transition_definitions</code> row (migration 184) — not a hardcoded per-state map, confirmed by the comment at packs.ts:1184-1186 explicitly replacing an older hardcoded <code>EVENT_BY_TARGET_STATE</code>. **<code>PackDependencyResolved</code>/<code>PackDependencyFailed</code> are not published anywhere** — consistent with dependency resolution at composition time not being built (see §10 row above).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Non-Functional: support concurrent Pack versions<br> Ref: §16</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:289-297,339-351</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Multiple versions of the same code coexist as distinct rows (confirmed by <code>findVersionsByCode</code>/<code>findAllVisibleTo</code> both returning every version).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Non-Functional: support deterministic composition<br> Ref: §16</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:370-448 (Override "later wins", explicit warnings, no silent drops)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">§19.8: a resolved Pack with no Active version is excluded with an explicit warning, never silently dropped; a Pack contributed more than once resolves by Override with a warning. Deterministic given fixed inputs.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Non-Functional: maintain complete traceability<br> Ref: §16</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">— (same evidence as PM-005)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same FK-based traceability as PM-005.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Non-Functional: support independent evolution<br> Ref: §16</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:9-22,23-95</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as PM-003/§12.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Mandatory Packs are required for every commissioned SEU.<br>Ref: §7 Mandatory, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:113-117<br>src/dblayer/packsDB.ts:292-303</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Active Mandatory Packs visible to the Template tenant are added to the composition roots for every Template.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Non-Functional: support backward compatibility where possible<br> Ref: §16</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">— (no code evidence; §13's compatibility validation is open)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No mechanism evaluates or enforces backward compatibility between Pack versions; this depends on the same open compatibility-validation gap as §13.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Composition Engine generates warnings when a Recommended Pack is omitted.<br>Ref: §7 Recommended</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">None found</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: no code reads the Recommended classification. Warnings in compositionEngine.ts:11-21 cover only Packs without an Active version.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Non-Functional: avoid Runtime Kernel modification for Pack additions<br> Ref: §16</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packCategoriesDB.ts:1-38 (category as data)<br>§19.4 (new contribution kinds added via schema, e.g. CR-082's <code>contributionEngineeringCapital[]</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Confirmed structurally: new categories, new contribution kinds, and new Ontology values are all data/schema changes (schema_definitions rows, pack_category rows, concept-type seeds), not Runtime Kernel edits, across every example traced in §19.4-19.6.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Packs can be independently created and versioned<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:23-95</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as PM-003.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Multiple Pack categories can coexist<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packCategoriesDB.ts:1-38; seed data across categories</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as §6 taxonomy row.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Optional Packs are installed only when explicitly requested or indirectly required.<br>Ref: §7 Optional</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:235-244<br>src/domain/engine/profileCompositionUnravel.ts:80-103</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Roots come from Template mandatory sets and Profile selections. Required dependencies are pulled in transitively.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Mandatory and conditional Packs are correctly enforced<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:389-411 (Mandatory); — (Conditional, no evaluation code)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Mandatory is enforced (CR-104). Conditional is declared only — no condition-evaluation path exists anywhere in <code>compositionEngine.ts</code> or <code>packs.ts</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Conditional Packs are required only when declared conditions are satisfied, as determined by the Composition Engine.<br>Ref: §7 Conditional, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:361-367</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a conditional dependency type is flagged as a conflict when it is not in the composed set.<br>Gap: the Conditional installation classification has no condition model and is never evaluated. Only the dependency-type usage exists, and it treats conditional like required.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Dependency resolution succeeds for compatible Packs<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:294-358 (author-time required-dep check only)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Resolution exists only at Pack *authoring* time (<code>validatePackSeed</code>), not at composition time; no composition-time dependency-graph resolution exists for any dependency type.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Incompatible Packs prevent composition<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:436-448 (<code>detectGovernanceConflicts</code>, blocks commissioning)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">§19.8: realised via *governance-conflict* detection (two Packs assigning different authorised roles to the same transition, or contributing a Quality Gate to the same <code>(entityType, fromState, toState)</code>), which blocks commissioning — not via the declared <code>incompatible</code> dependency type itself, which exists on the validator (CR-018) but is not read anywhere in <code>compositionEngine.ts</code>. The acceptance criterion is satisfied by a different, functionally equivalent mechanism than the one §10 describes.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Pack defines the twelve metadata attributes.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:93-126<br>src/dblayer/packsDB.ts:46-70</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Identifier, Name, Version, Category, Classification, Dependencies and Status are columns. Description, Owner, Publisher, Composition Strategy and Supported Platform Version go to a metadata JSON object.<br>Gap: only name is mandatory in validatePackSeed (packs.ts:145). The other attributes are optional.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Every Pack contribution remains traceable<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as PM-005</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Additional metadata can be added without kernel change.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:61-66<br>src/domain/sdk/formGenerator.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Metadata is a JSON column and the grammar is a schema_definitions row.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: New Pack categories can be introduced without changing the Runtime Kernel<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as §6/§16 row</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Pack may contribute the listed contribution kinds, and templates are treated separately.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:499-648</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">materializeContributions handles capabilities, services, policies, authority rules, quality gates, review gates, checklists, obligation definitions, engineering capital and ontology fields. Templates are a separate entity.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Pack domain model, Pack Registry, Pack metadata schema, Dependency declaration model, Version management services, Compatibility validation services, Pack lifecycle services, Pack APIs, Pack events<br> Ref: §18</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts (domain model); src/routes/seu/api/packs.ts, src/routes/seu/web/packs.ts (APIs/Registry); src/routes/seu/core/packs.ts (lifecycle services); packs.ts:1184-1196 (events)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All nine deliverables exist in some form. **Compatibility validation services** is the weak link: fields are stored and schema-validated for shape, but no service actually *validates compatibility* (no platform-version comparison exists) — matching the §13 gap above. Dependency declaration model exists (declaration only, per §10).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Pack declares dependencies of type Required, Optional, Conditional or Incompatible.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:92, 399-405</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The four types are validated.<br>Gap: Required is the only type checked for existence. Dependency version is stored but never compared against the target Pack's version.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Composition Engine resolves all required dependencies before commissioning.<br>Ref: §10, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:95-103, 258-262, 361-367</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: dependencies are followed transitively and an unmet Required or Conditional dependency becomes a composition conflict.<br>Gap: the conflict has hasAction false and no step in the files read shows it blocking commissioning. A dependency chain reaching a Pack with no Active version only yields a warning when it is a root.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Incompatible dependencies prevent composition.<br>Ref: §10, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:365</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An incompatible dependency whose target is in the composed set becomes a conflict.<br>Gap: the check ignores versions, and a conflict is reported for resolution. No evidence was found that it hard-blocks composition. Version-level incompatibility (§13) is not evaluated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Packs follow the lifecycle Draft, Validated, Published, Active, Retired, Archived, plus Validated to Draft on reject.<br>Ref: §11 and remark</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:926-1009<br>src/domain/engine/entityTransition.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Seven transition rows exist with manual triggers, event types and version events. Each runs through the generic transition engine with a real actor and badge (packs.ts:444-474, api/packs.ts:36-55).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Reject requires a mandatory, always-new comment.<br>Ref: §11 remark</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:1002-1008<br>src/routes/seu/api/packs.ts:40-43</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The reject row requires policy-comment-required. The comment is passed in the transition context.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Historical Pack versions remain available for reproducing past EBMs.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:214-221<br>src/dblayer/recovery/packs_schema_recovery.sql:26</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Retired and Archived rows are never deleted. findVersionsByCode returns all versions. Only the status changes.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Updating one Pack does not require version changes to unrelated Packs.<br>Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:444-458</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Supersession acts only on the same code and tenant.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">EBMs record the exact Pack versions used.<br>Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:247-251<br>src/dblayer/ebmsDB.ts:22-31</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">composed_packs stores packId, packCode and packVersion for every composed Pack.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Packs declare minimum and maximum platform version, incompatible Pack versions and migration guidance.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:107-126</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">All four fields are accepted and stored in metadata.<br>Gap: they are free strings with no format validation.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Composition Engine validates compatibility before composition.<br>Ref: §13, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">None found</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: no code compares the declared platform version range or incompatible Pack versions with anything. Fields are stored but never read by the engine.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Packs are visible to the Composition Engine, Pack Registry and Administration Services, and runtime services may query metadata.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/api/packs.ts:18-27, 31-38<br>src/dblayer/packsDB.ts:262-303</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Tenant-scoped listing is done with requireTenant and requireTenantScope. Composition reads Active Packs.<br>Gap: no distinct Pack Registry component exists. The packs table and the listing route serve as the registry.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioned SEUs do not modify Packs.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:82-120<br>src/dblayer/seed/data/routeAuthority.json:317-375</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Content updates are limited to Draft. State changes require pack_* badges through route_authority.<br>Gap: no rule ties Pack immutability to SEU commissioning. Protection rests on badges and Draft-only edits.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Pack subsystem publishes the nine named events.<br>Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:926-1009<br>src/routes/seu/core/packs.ts:424-435</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Published: PackDefined (in place of PackRegistered), PackValidated, PackPublished, PackActivated, PackRetired, PackRejected, plus PackArchived.<br>Gap: PackDependencyResolved and PackDependencyFailed have no definition and no publisher. PackRegistered is named PackDefined.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PackDeprecated is dropped.<br>Ref: §15 remark</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:988-996</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No Deprecated state exists. The Retired transition carries the version event VersionDeprecated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The framework supports concurrent Pack versions.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/packs_schema_recovery.sql:15, 26<br>src/dblayer/recovery/packs_schema_recovery.sql:26</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The unique key is (code, pack_version, tenant_id). Several versions coexist, and one Active version is resolved per code.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition is deterministic.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:80-103<br>src/dblayer/packsDB.ts:178-183</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Resolution picks the newest Active row per code with ordered queries and strategy rules.<br>Gap: no constraint guarantees a single Active row per code, so ordering by created_at is the tiebreak.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The framework avoids Runtime Kernel modification for Pack additions.<br>Ref: §16, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/sdk/formGenerator.ts<br>src/dblayer/seed/data/schemaDefinitions.json<br>src/dblayer/packCategoriesDB.ts:12-34<br>src/routes/seu/core/packs.ts:164-166</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack fields and categories are data driven.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Packs can be independently created and versioned.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:417-488</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">createPackDraft and publishPack each create a Pack row with its own version through the governed path.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Multiple Pack categories coexist.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/packsDB.ts:244-260</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Listing orders by category and no rule limits one category per Template.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Mandatory and conditional Packs are correctly enforced.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:113-117</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Mandatory is enforced. Conditional classification is not evaluated (see §7 Conditional).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Dependency resolution succeeds for compatible Packs and incompatible Packs prevent composition.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:77-102, 361-367<br>src/domain/engine/profileCompositionUnravel.ts:361-367</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Resolution succeeds for matching codes. See §10 and §13 for the gaps in blocking and version compatibility.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Pack domain model, Registry, metadata schema, dependency model, version management, compatibility validation, lifecycle services, APIs and events.<br>Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts<br>src/routes/seu/api/packs.ts:18-66<br>src/dblayer/packsDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Domain model, schema, dependency declaration, versioning, lifecycle services, list and transition APIs and events exist.<br>Gap: no compatibility validation service. The API offers listing and transitions only, with no create or update endpoint (creation goes through the SDK authoring routes).</td>
     </tr>
   </tbody>
 </table>
 
 ## Summary
 
-- Total intents analysed: 43
-- Fully met: 31
-- Partially met: 8
-- Not met: 3
-- Not Verifiable: 1
+- Total intents analysed: 44
+- Fully met: 24
+- Partially met: 16
+- Not met: 4
+- Not verifiable: 0
 
-## Major Implementation Gaps
+Major implementation gaps:
 
-1. **Composition-time dependency resolution is not built.** Required/optional/conditional/incompatible dependency *types* are declared and validated at author time only; `compositionEngine.ts` resolves Pack membership entirely from the Template's mandatory set and the Profile's optional set, never from a Pack's own `dependencies` array. (§10, §17 "dependency resolution", §18 "dependency declaration model")
-2. **Conditional Packs are not evaluated anywhere.** `installation_classification = 'Conditional'` is stored but no code decides whether a declared condition is satisfied. (§7, §17)
-3. **Compatibility validation (§13) is declaration-only.** The platform-version fields exist and are schema-validated for shape, but nothing compares them against an actual running platform version — because no platform-version concept exists yet to compare against. (§13, §16 backward compatibility, §18)
-4. **Recommended-Pack omission warnings are not built.** No code path checks for an omitted Recommended Pack and raises a warning. (§7)
-5. **`PackDependencyResolved`/`PackDependencyFailed` events are never published**, consistent with gap 1 — there is no dependency-resolution step at composition time to emit them from. (§15)
-6. **"Incompatible Packs prevent composition" (§17) is satisfied by a different mechanism than §10 describes** — governance-conflict detection (role/Quality-Gate clashes), not the declared `incompatible` dependency type, which is validated but never consumed by composition.
+- Compatibility validation (platform version range, incompatible Pack versions) is stored but never evaluated (§13).
+- Recommended warnings are not generated (§7).
+- Conditional classification has no condition model (§7).
+- Dependency versions are not compared, and unmet Required or Incompatible dependencies surface as conflicts with no evidence of hard blocking (§10).
+- PackDependencyResolved and PackDependencyFailed events do not exist, and PackRegistered is named PackDefined (§15).
+- Platform Pack maintenance restriction and Organisation-extends-Platform guidance are not enforced (§6).

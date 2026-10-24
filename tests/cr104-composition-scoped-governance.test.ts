@@ -188,7 +188,7 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   const policyResultWith = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWith.id, fromState: "Defined", toState: "In Progress", context: { producingCapabilityStatus: "Fulfilled" }, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   const policyResultWithout = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", context: { producingCapabilityStatus: "Fulfilled" }, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(policyResultWith.outcome, "Passed", "the composing SEU's own Policy is found and evaluated (always_true condition)");
-  assert.ok(!policyResultWithout.satisfiedPolicyIds.includes(policyRow!.id), "the non-composing SEU sees no Policy from a Pack it never selected");
+  assert.ok(!(policyResultWithout.satisfiedPolicyIds as string[]).includes(policyRow!.id), "the non-composing SEU sees no Policy from a Pack it never selected");
   assert.ok(policyResultWith.satisfiedPolicyIds.includes(policyRow!.id), "the composing SEU evaluates the Policy from its composed Pack");
 });
 

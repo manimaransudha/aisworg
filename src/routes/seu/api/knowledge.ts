@@ -5,8 +5,7 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
-import { readTargetState } from "../../../utils/transitionRequest.js";
-import { addKnowledgeValidationNote, createKnowledgeItem, getEngineeringCapital, listKnowledgeItemsBySeu, listKnowledgeValidationNotes, promoteKnowledgeItemScope, transitionKnowledgeItem, updateKnowledgeReferences } from "../core/knowledge.js";
+import { addKnowledgeValidationNote, createKnowledgeItem, getEngineeringCapital, listKnowledgeItemsBySeu, listKnowledgeValidationNotes, promoteKnowledgeItemScope, updateKnowledgeReferences } from "../core/knowledge.js";
 import type { AcquisitionScope, KnowledgeRelationshipReferences, KnowledgeSelfReferences } from "../../../dblayer/seuTypes.js";
 import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
@@ -116,22 +115,23 @@ router.post("/knowledge/:id/promote-scope", async (req: Request, res: Response) 
   }
 });
 
-router.post("/knowledge/:id/transition", async (req: Request, res: Response) => {
-  try {
-    const targetState = readTargetState(req, res);
-    if (targetState === null) return;
-    const actorId = requireActorId(req);
-    const result = await transitionKnowledgeItem({ knowledgeItemId: String(req.params.id), targetState, actorId });
-
-    if (!result.ok) {
-      if (result.reason === "not_found") return res.status(404).json({ error: "Knowledge Item not found" });
-      return res.status(409).json({ reason: result.reason, detail: result.detail });
-    }
-    res.status(200).json({ knowledgeItem: result.knowledgeItem, appliedTransition: result.appliedTransition });
-  } catch (err) {
-    logger.error("[api/seu/knowledge] POST /:id/transition error", err as Error);
-    res.status(400).json({ error: (err as Error).message });
-  }
-});
+// CR-132: no caller; the web route .../knowledge/:knowledgeItemId/transition/:verb performs the hop.
+// router.post("/knowledge/:id/transition", async (req: Request, res: Response) => {
+//   try {
+//     const targetState = readTargetState(req, res);
+//     if (targetState === null) return;
+//     const actorId = requireActorId(req);
+//     const result = await transitionKnowledgeItem({ knowledgeItemId: String(req.params.id), targetState, actorId });
+//
+//     if (!result.ok) {
+//       if (result.reason === "not_found") return res.status(404).json({ error: "Knowledge Item not found" });
+//       return res.status(409).json({ reason: result.reason, detail: result.detail });
+//     }
+//     res.status(200).json({ knowledgeItem: result.knowledgeItem, appliedTransition: result.appliedTransition });
+//   } catch (err) {
+//     logger.error("[api/seu/knowledge] POST /:id/transition error", err as Error);
+//     res.status(400).json({ error: (err as Error).message });
+//   }
+// });
 
 export { router };

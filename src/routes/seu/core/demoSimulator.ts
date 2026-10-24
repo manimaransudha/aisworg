@@ -64,8 +64,8 @@ async function authorBadgeFor(ctx: SimulatorContext, method: string, fullPath: s
   const found = lookupRouteAuthority(method, fullPath);
   if (found && found.badges.length > 0) await grantRouteBadges(ctx.participantId, method, fullPath);
   const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(ctx.participantId);
-  const badge = resolveAuthorBadge(found, { isRoot, badgeTypes, has: (b) => isRoot || badgeTypes.has(b) });
-  return badge;
+  const has = (b: string) => isRoot || badgeTypes.has(b);
+  return resolveAuthorBadge(found, { isRoot, badgeTypes, has, hasVerb: (entityType, verb) => !!verb && has(`${entityType.toLowerCase()}_${verb}`) });
 }
 
 async function objectiveFor(ctx: SimulatorContext, target: Target): Promise<{ id: string; statement: string }> {
@@ -259,7 +259,7 @@ const handlers: Record<string, Handler> = {
     const conceptType = str(sc.payload.conceptType, "payload.conceptType");
     const code = str(sc.payload.code, "payload.code");
     await grantTransitionBadge(ctx.participantId, "Ontology", "Draft", "Active");
-    await approveConcept(conceptType, code, ctx.tenantId, { isRoot: false, tenantId: ctx.tenantId, actorId: ctx.participantId, actorBadge: "ontology_define" });
+    await approveConcept(conceptType, code, ctx.tenantId, { isRoot: false, tenantId: ctx.tenantId, actorId: ctx.participantId, actorBadge: await badgeAuthorityEngine.resolveAuthorBadge(ctx.participantId, "ontology_approve") });
     const { data: pack } = await packsDB.findByCodeAndVersion(str(sc.payload.packCode, "payload.packCode"), INITIAL_VERSION, ctx.tenantId);
     if (!pack) throw new Error("the reader privacy Pack is not seeded; reset the demo data");
     let status: string = pack.status;

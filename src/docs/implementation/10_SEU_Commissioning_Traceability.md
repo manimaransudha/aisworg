@@ -1,30 +1,8 @@
-# Chapter 8 – SEU Commissioning — Implementation Traceability
+# Implementation Traceability: Chapter 10 – SEU Commissioning
 
-**Date of report: 4-10-2026**
+**Date of report: 23-10-2026**
 
-Code-verified 2026-10-04. Chapter 8 carries its own §22 "Implementation Specifics" (last updated 2026-09-07), which already documents a code-verified audit in detail. This document supersedes §22 where current code has moved past it — notably the event-flow architecture — and otherwise cross-references §22 rather than repeating it. §22 itself is not edited (per the skill's no-spec-modification rule); this file is the up-to-date record.
-
-**CR-128 update (Entity 11, 22-10-2026).** `transition_definitions` holds a birth row `None → Initiated` (verb `commission`, event `CommissionInitiated`). The Save button of the commission form (`POST /seus`, `initiateSeu`) is its only caller, and `POST /objectives/:id/validate-commission` and the API `POST /commission` no longer create an SEU. The Validate button (`POST /seus/:id/transition/validate`, `validateSeu`) takes `Initiated → Validated`; the action code `validate-seu-request` runs the liveness checks, and a dead reference takes the governed `Failed` row (`failSeu`, event `CommissionFailed`). `validateRequestHandler` and its subscription are removed. The SEU stays `Validated` during the EBM flow, then `finalizeCommissioning` takes `Validated → Configured → Commissioned → Activated` and `attemptSeuCommenceWork` takes `Activated → Operational`, all through `transitionEntity` with the callers publishing the events. Suspend, resume, retire and archive are manual rows with buttons on the SEU page. `commissionSeu` and the Demo path are not changed and are outside this pass. The paragraphs below describe the flow before this change.
-
-## Headline finding: §22's own "ebmComposer.ts" narrative is now stale
-
-§22 (2026-09-07) describes Compose EBM as a single asynchronous event-bus consumer, `ebmComposer.ts`/`ebmComposerHandler`, triggered off `CommissionValidated`. No such file exists in the repository today (`src/domain/engine/` has no `ebmComposer.ts`; `ebmComposerHandler` appears only in stale comments, never as a registered handler). The real current flow, per `src/domain/engine/eventHandlerRegistry.ts:37-49`:
-
-1. `validateRequestHandler` (`src/domain/engine/validateRequest.ts:54-157`) consumes `CommissionRequested`, runs the Authority gate + `checkRequestLiveness` (`commissioning.ts:87-137`), and publishes `CommissionValidated` or `CommissionFailed`.
-2. Compose EBM itself is **not** event-driven. It is a manual, repeatable, human-triggered web action — `POST /aisworg/seu/objectives/:id/compose-ebm` (`src/routes/seu/web/objectives.ts:777-879`) — calling `previewCommissioningValidation` directly and stashing the result on `seus.composition_report`. This is deliberate ("Apply & re-validate" — a pure recompute, not a transition).
-3. Once the human-resolved `compositionConflicts` list is empty, that same web route publishes `CompositionCompleted` itself (`objectives.ts:858-867`), carrying a resolved `authorBadge`.
-4. `compositionCompletedHandler` (`src/domain/engine/compositionCompleted.ts`) consumes `CompositionCompleted` and is the sole place `ebmsDB.create()` runs — it creates the EBM row.
-5. A human then manually transitions the EBM (`transitionEbm`, `commissioning.ts:636+`) toward `Activated`.
-6. `ebmActivatedHandler` (`src/domain/engine/ebmActivated.ts`) consumes `EBMActivated` and calls `finalizeCommissioning` (`commissioning.ts:353-521`) — Create Engineering Assets first (so Capabilities and Deliverables exist before `SEUConfigured` and `SEUCommissioned`), then the `PRE_ASSETS_STEPS` hops, then the `Commissioned → Activated` hop and `SEUActivated` publish, with nothing after per the platform's "no code after an event publish" rule.
-7. `executionEngineKickoffHandler` (off `SEUActivated`/`ObligationTransitioned`) calls `attemptSeuCommenceWork` (`commissioning.ts:538-611`), which now also raises real Obligations (Policy-based and Pack-Obligation-Definition-based) before allowing `Activated → Operational`.
-
-This is a materially different pipeline shape from §22's description: Compose EBM is human-driven and synchronous-on-request, not an automatic async consumer of `CommissionValidated`; and `CompositionCompleted`/EBM creation sit between two further human gates (resolve conflicts, then Activate), not immediately after `CommissionValidated`. §22's event-count claims and ordering descriptions in §22.2, §22.6, §22.8, §22.14 are accordingly out of date; this file's own table below reflects current code.
-
-## Also contradicted by current code: Obligations ARE now raised
-
-§22.4/§22.10/§22.12/§22.16 (FR-8.10, "Initial Obligation State") state no obligation-creation code exists in this pipeline. This is no longer true. `attemptSeuCommenceWork` (`commissioning.ts:567-603`) calls `raiseObligationForBlockedTransition` (Policy-blocked `Activated→Operational`) and `raiseObligationsForPackDefinitions` (composed Pack's own Obligation Definitions applicable to that same hop), both real DB writes gating the final lifecycle hop. This is narrower than §16's own list (mandatory compliance/governance/review/approval at commissioning time generally) — it fires only at the `Activated→Operational` hop, not at commissioning's start — but it is real, not absent.
-
----
+Specification: src/docs/SEU Studio Specifications/02_SEU Composition/10_SEU Commissioning.md
 
 ## Traceability Table
 
@@ -49,233 +27,376 @@ This is a materially different pipeline shape from §22's description: Compose E
   <tbody>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning creates an SEU from one Template and one Profile; Template-only commissioning is disallowed<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:198-227</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissionSeu</code> requires at least one Template and exactly one Profile (<code>profileIds.length > 1</code> rejected), and verifies the Profile targets one of the given Templates. Template-only commissioning is impossible — no code path creates an SEU with a Profile unresolved.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An SEU is created from a Profile. Commissioning from a Template is disallowed.<br>Ref: §1, FR-10.2, FR-10.3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:111-165<br>src/routes/seu/web/seus.ts:98-110</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>initiateSeu takes an Objective id and a Profile id only. The Template is read from profile.base_template_id. The form posts the Profile part of the Template/Profile choice. One Template and one Profile are stored on the SEU row.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning is the only mechanism by which an SEU may be created<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:298</code> (<code>seusDB.create</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No other call site in the repository invokes <code>seusDB.create</code>; confirmed by the same finding §22.1 already records.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning is the only mechanism that creates an SEU.<br>Ref: §1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seusDB.ts:19-30<br>src/routes/seu/core/commissioning.ts:111-165</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>seusDB.create is called from initiateSeu only. The API commission route is commented out.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning validates the request, composes the EBM, allocates runtime resources, establishes governance, creates initial engineering state<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>validateRequest.ts:54-157</code>; <code>objectives.ts:777-879</code>; <code>commissioning.ts:353-521</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Validate and Compose EBM are real (see headline finding); "allocating runtime resources" is real only for the SEU identifier (§22.9, unchanged); "establishing governance" is real via the Authority gate plus the newly-real Obligation raising above, thinner than "governance" implies but not absent.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning validates the request, composes the EBM, allocates runtime resources, establishes governance and creates the initial engineering state.<br>Ref: §1, §3, §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:111-309<br>src/domain/engine/compositionCompleted.ts:31-118</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Validate, Compose, Activate EBM, asset creation and SEU activation all run.<br>Gap:<br>Runtime allocation is not a step. Governance is established through EBM policies and Obligations only when the SEU commences work.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every SEU begins from a valid foundation. The Objective, Template, Profile and Packs are checked live before composition.<br>Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:44-87<br>src/actions/validateSeuRequest.ts:14-33</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The validate-seu-request action runs inside the Initiated to Validated hop. A dead reference throws and the SEU takes the governed Failed row.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Scope: commissioning workflow, validation, composition, runtime allocation, participant recruitment, initialisation, activation<br> Ref: §2 Scope</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(table rows below)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Workflow/Validation/Composition/Initialisation/Activation are real in some form; Runtime Allocation and Participant Recruitment are not (§22.9, §22.11, unchanged).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Engineering behaviour is completely defined before execution.<br>Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:49-117<br>src/routes/seu/core/commissioning.ts:311-357</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The EBM is composed, validated and activated before the SEU commences.<br>Gap:<br>Nothing stops several EBMs existing for one SEU. ebms has no uniqueness on seu_id and each CompositionCompleted creates a new EBM.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Governance is established before work begins.<br>Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:66-89<br>src/routes/seu/core/commissioning.ts:311-357</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Policies and Quality Gates are stored on the EBM. attemptSeuCommenceWork evaluates the SEU-scoped Policy and raises Obligations before Activated to Operational.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Architectural flow: Request → Template+Profile → Composition Engine → EBM → Runtime Allocation → Commissioned SEU<br> Ref: §3 Architectural Position</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts</code>; <code>validateRequest.ts</code>; <code>objectives.ts:777-879</code>; <code>compositionCompleted.ts</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The shape holds but is now a multi-hop, multi-human-gate pipeline across several files/events rather than two boxes joined by one arrow: Request → Validate (automatic, event-driven) → Compose (manual, human-triggered, repeatable) → human conflict resolution → <code>CompositionCompleted</code> (human-triggered) → EBM created (event-driven) → human Activate → Engineering Assets created (event-driven). No step from the diagram is skipped, but every arrow after "Template+Profile" is now either human-gated or event-driven rather than one synchronous call, superseding §22.2's own already-partial account.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every SEU begins from a valid engineering foundation; governance established before work begins<br> Ref: §4 Commissioning Objectives</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>validateRequest.ts:86-138</code>; <code>commissioning.ts:573-587</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A failed Authority gate, dead reference, or unresolved composition conflict blocks commissioning (SEU → <code>Failed</code>). A blocked commence-work Policy at <code>Activated→Operational</code> now also raises a real Obligation rather than silently proceeding. "Knowledge repositories initialised" and "traceability begins at SEU creation" remain unmet — no <code>knowledge_items</code> row is ever written by this pipeline (confirmed: no reference to a knowledge-item table in <code>commissioning.ts</code>, <code>validateRequest.ts</code>, <code>compositionCompleted.ts</code>, or <code>objectives.ts</code>'s compose-ebm route); traceability is only as real as the event trail.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Inputs: Authorised Requestor, Engineering Objectives, Profile (Project Metadata, Commissioning Parameters, Templates/Capabilities/Services/Packs)<br> Ref: §5 Inputs</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:166-227</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Unchanged from §22.4's own table — Template/Profile/Objective/Requestor are real; Commissioning Parameters and Project Metadata are structurally present via <code>profileId</code> but not yet consumed by any composition logic. No change found in this pass.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Runtime state is consistent. Each hop commits atomically.<br>Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/entityTransition.ts:55-62<br>src/routes/seu/core/commissioning.ts:225-309</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Each transition commits its action and state change in one transaction.<br>Gap:<br>finalizeCommissioning creates Capabilities and Deliverables outside any transaction. A later failure leaves them in place.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Optional inputs: existing Knowledge Repository, Deliverables, Legacy Code Base, Ontology, Engineering Assets<br> Ref: §5 Inputs</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No brownfield-import code path exists anywhere in <code>commissioning.ts</code>/<code>objectives.ts</code>. Unchanged from §22.4.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Knowledge repositories are initialised at commissioning.<br>Ref: §4, FR-10.8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/knowledge.ts:20-82<br>src/routes/seu/core/commissioning.ts:225-309</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>Knowledge items are created through the Knowledge API and web routes only. No commissioning step creates one, and the KnowledgeInitialised row has no performer.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Outputs: Commissioned SEU, EBM, Deliverable Catalogue, Capability Catalogue, Participant Requirements, Knowledge Repository, Dependency Graph, Obligation Register, Traceability Repository<br> Ref: §6 Outputs</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:402-475</code> (Deliverables/Capabilities); <code>compositionCompleted.ts:132</code> (EBM)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU, EBM, Deliverable Catalogue, Capability Catalogue are real. Dependency Graph is reused, not freshly produced (unchanged, §22.4). Participant Requirements, Knowledge Repository, and a distinct Traceability Repository remain absent. Obligation Register is now partially real — see the "also contradicted" finding above — but only at the <code>Activated→Operational</code> hop, not as a general commissioning output.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability begins at SEU creation.<br>Ref: §4, FR-10.11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:111-172<br>src/routes/seu/core/commissioning.ts:287-307</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The birth event starts a correlation. Each later hop carries correlationId and causationId.<br>Gap:<br>The chain is not stored as a traceability record. Traceability is derived from events at read time.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A request contains an authorised requestor, Engineering Objectives and a Profile with metadata, parameters and underlying definitions.<br>Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:111-165<br>src/routes/seu/web/objectives.ts:485-546</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>requested_by is the actor. The Objective and Profile are required. Parameter overrides are collected on the Compose step.<br>Gap:<br>Optional inputs such as an existing Knowledge Repository, Deliverables or legacy code base have no input field. Packs and parameters are the only route.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning produces the SEU, EBM, Deliverable and Capability catalogues, Participant Requirements, Knowledge Repository, Dependency Graph, Obligation Register and Traceability Repository.<br>Ref: §6, §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:225-309<br>src/domain/engine/compositionCompleted.ts:76-105</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The SEU, EBM, seu_capabilities and Deliverables are produced.<br>Gap:<br>No Role Catalogue, Knowledge Repository or Traceability Repository is created. The Dependency Graph and Obligation Register are not materialised per SEU.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.1 Only authorised users may commission<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>validateRequest.ts:86-119</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real <code>transitionEngine.evaluate</code> Authority/Policy gate, now run inside <code>validateRequestHandler</code> rather than inline in <code>commissionSeu</code> (moved since §22.5, same substance).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Only authorised users may commission an SEU.<br>Ref: FR-10.1, §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/routeAuthority.json:1156-1175<br>src/dblayer/seed/data/routeAuthority.json:1890-1910<br>src/domain/engine/entityTransition.ts:24-53</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>POST /seus, compose-ebm and validate-commission require seu_commission or seu_validate in route_authority. transitionEntity resolves the badge from the Transition Definition.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.2 Every commissioning request references one Template<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:198,208-213</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Required; existence-checked. CR-092 Part 6 allows multiple Templates to be given, with <code>templateIds[0]</code> recorded as primary — a broader-than-"one" structural allowance, but every given Template is still validated and used.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every request references one Template.<br>Ref: FR-10.2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:6<br>src/routes/seu/core/commissioning.ts:118-119</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>template_id is NOT NULL on seus and set from the Profile.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.3 Every commissioning request references one Profile<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:199,206,214-227</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Required, existence-checked, and now hard-capped at exactly one (<code>profileIds.length > 1</code> rejected) — matches the FR literally, stricter than §6's own plural "Profile consisting of" framing (an existing spec/FR tension already settled per CR-092 Part 6's reversal, not a new finding).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every request references one Profile.<br>Ref: FR-10.3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:7<br>src/routes/seu/core/commissioning.ts:111-117</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>profile_id is NOT NULL on seus. initiateSeu rejects a missing Profile.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.4 Validate mandatory Packs before composition<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:87-137</code>; <code>validateRequest.ts:121-138</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>checkRequestLiveness</code> checks every mandatory/selected Pack code's Active status before <code>CommissionValidated</code> is published, i.e. before Compose EBM can be invoked at all. Unchanged in substance from §22.5's updated finding.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">All mandatory Packs are validated before composition.<br>Ref: FR-10.4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:55-66</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>checkRequestLiveness collects the Template's mandatory Pack codes and the Profile's Pack codes. Each must have an Active version, or validation fails.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.5 Composition Engine produces exactly one EBM<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>compositionCompleted.ts:132</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">One <code>ebmsDB.create</code> call per <code>CompositionCompleted</code> event, no loop.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Composition Engine produces exactly one EBM.<br>Ref: FR-10.5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:74-105<br>src/routes/seu/web/objectives.ts:485-546</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>One EBM is created per CompositionCompleted and seus.active_ebm_id points to it.<br>Gap:<br>Re-posting compose-ebm with no conflicts publishes CompositionCompleted again and creates another EBM. No constraint prevents it.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.6 Commissioning fails if behavioural conflicts remain unresolved<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>objectives.ts:841,851-868</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>compositionConflicts.length === 0</code> gates whether <code>CompositionCompleted</code> is published at all; a non-empty conflict list simply re-renders the resolution page without ever reaching EBM creation. Functionally equivalent to failing — no <code>CommissionFailed</code> event fires for this specific case, it instead sits open and human-visible rather than terminating.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning fails if behavioural conflicts remain unresolved.<br>Ref: FR-10.6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/objectives.ts:523-535</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>CompositionCompleted is published only when compositionConflicts is empty.<br>Gap:<br>Unresolved conflicts leave the SEU in Validated. The SEU does not move to Failed and no CommissionFailed event is published.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.7 Allocate runtime resources only after successful composition<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:298</code> (<code>seusDB.create</code>, before Validate Request)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Violated, unchanged — the SEU identifier (the only real "runtime resource", §22.9) is created before Validate Request and Compose EBM even run, not after. Same headline finding §22 already records at the top of its own §22.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Runtime resources are allocated only after successful composition.<br>Ref: FR-10.7, §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:153-208</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>The SEU row, its identifier and its tenant exist from the Save step, before composition. No step allocates services, event channels, persistence, a security context or an observability context. The RuntimeAllocated row is governed and has no performer.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.8 Initialise Knowledge Repository<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No <code>knowledge_items</code> write exists anywhere in this pipeline (confirmed above). Unchanged from §22.5.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform initialises the Knowledge Repository.<br>Ref: FR-10.8, §12, §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:153-208</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No code creates the baseline knowledge items listed in §15. The KnowledgeInitialised row has no performer.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.9 Initialise Dependency Graph<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:414-420</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliberately reused from Template-authoring time, not freshly initialised per SEU — a documented design decision, unchanged from §22.5.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform initialises the Dependency Graph.<br>Ref: FR-10.9, §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dependencyDefinitionEngine.ts:96-149<br>src/routes/seu/core/templates.ts:590-607<br>src/domain/engine/materialiseDependencyGraph.ts:8-51</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Dependency definitions are materialised when a Template is authored. The Dependency Engine evaluates them against the SEU's Deliverables.<br>Gap:<br>Commissioning writes no graph for the SEU. Obligations do not join the graph.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.10 Initialise Obligation Register<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:582-603</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No longer fully unmet: real Obligations are now raised at the <code>Activated→Operational</code> hop (Policy-blocked and Pack-Obligation-Definition-based). Narrower than "initialise...at commissioning" implies — nothing is raised earlier in the pipeline, and only when that specific hop is actually blocked.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform initialises the Obligation Register.<br>Ref: FR-10.10, §12, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:311-357<br>src/routes/seu/core/obligations.ts:187-260</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Pack Obligation definitions in the EBM become Obligations when the SEU tries Activated to Operational and the definition applies to that hop.<br>Gap:<br>Nothing is created at commissioning for the other Obligation sources in §16. Obligations are raised only for matching definitions.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.11 Complete traceability before execution begins<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">event publishes throughout <code>commissioning.ts</code>, <code>validateRequest.ts</code>, <code>compositionCompleted.ts</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real via the event trail (<code>correlationId</code>/<code>causationId</code> chained across every publish) — not a dedicated traceability service or repository. Same basis as §22.5.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning establishes complete traceability before execution begins.<br>Ref: FR-10.11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:287-308<br>src/domain/engine/ebmActivated.ts:34-45</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Events from Initiated to Activated share one correlationId and a causation chain. The report records the EBM id.<br>Gap:<br>The chain breaks at CompositionCompleted, which starts a new correlation when posted from the web route.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-8.12 No engineering work begins until commissioning completes successfully<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:402-475</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables/Capabilities are only created inside <code>finalizeCommissioning</code>, itself only reachable via a successfully-created, successfully-composed EBM reaching a human Activate. A rejected or stalled commission creates neither.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No engineering work begins until commissioning completes.<br>Ref: FR-10.12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:311-357<br>src/domain/engine/executionEngineKickoff.ts:59-63</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Deliverable execution starts from SEUOperational. attemptSeuCommenceWork acts only when the SEU is Activated.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning Workflow stages (Request→Validate→Resolve Template/Profile/Packs→Compose EBM→Validate Engineering Model→Allocate Runtime→Create Engineering Assets→Recruit Participants→Activate→Ready for Execution)<br> Ref: §8</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts</code>; <code>validateRequest.ts</code>; <code>objectives.ts:777-879</code>; <code>compositionCompleted.ts</code>; <code>ebmActivated.ts</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Request/Validate/Resolve Template+Profile/Compose EBM/Create Engineering Assets/Activate are all real, per the headline finding's step-by-step mapping. Resolve Packs stays folded inside Compose EBM, not an independent step (unchanged). Validate Engineering Model is real as a distinct human-gated <code>transitionEbm</code> hop (<code>Composed→Validated</code>), matching §22.6's updated finding. Allocate Runtime remains out of order (SEU row created first) and functionally unbuilt. Recruit Participants remains entirely absent. "Ready for Execution" is never a literally-named lifecycle state — the real terminal state is <code>Operational</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The workflow runs Request, Validate, Resolve Template, Profile and Packs, Compose, Validate model, Allocate Runtime, Create Assets, Recruit Participants, Activate, Ready.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:1-105<br>src/routes/seu/core/commissioning.ts:202-309</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Initiated, Validated, EBM Composed, Validated, Active, then Configured, Commissioned and Activated run in that order.<br>Gap:<br>Allocate Runtime and Recruit Participants are not steps. Compose is a manual button, not an automatic hop after Validate.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Failure at any stage terminates commissioning.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:175-193<br>src/domain/engine/compositionCompleted.ts:27-47<br>src/domain/engine/ebmActivated.ts:10-13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Validate, compose and finalize failures call failSeu, which moves the SEU to Failed through a governed row and publishes CommissionFailed.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Template, Profile, Pack availability and authorisation are validated.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:44-87<br>src/routes/seu/core/commissioning.ts:111-135</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Template, Profile, Pack, Capability, Service and Objective liveness is checked. Authorisation is the route badge.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Request Validation: Template/Profile existence, user authorisation, Pack availability, version compatibility, commissioning parameters, mandatory configuration<br> Ref: §9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>validateRequest.ts:54-138</code>; <code>commissioning.ts:87-137</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Template/Profile existence, Authority, and Pack availability (via liveness) are real. "Version compatibility" as a distinct concept from "does an Active version exist" is not checked. Commissioning parameters and mandatory configuration are not validated — neither is consumed as an input at all (per §5 finding above). Validation failures do produce a structured list (<code>LivenessCheck[]</code>) surfaced on the Validate page, closer to a real diagnostic than a single string.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Version compatibility, commissioning parameters and mandatory configuration are validated.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:44-87<br>src/routes/seu/web/objectives.ts:523-524</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Parameter conflicts surface during composition.<br>Gap:<br>Validate checks that a Pack has an Active version only. It does not check version compatibility or that mandatory parameters have values.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Engineering Composition: discover Packs, resolve dependencies, compose behaviour, validate behaviour, produce EBM; no runtime resources allocated before successful composition<br> Ref: §10</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>objectives.ts:777-879</code>; <code>profileCompositionUnravel.ts</code> (<code>unravelComposition</code>/<code>detectCompositionConflicts</code>); <code>compositionCompleted.ts:132</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Discover/resolve/compose/validate/produce are all real, now split across a human-triggered recompute route and an event-driven EBM-creation handler rather than <code>compositionEngine.compose()</code> (confirmed: no call to <code>compositionEngine.compose()</code> found anywhere in <code>commissioning.ts</code> or <code>objectives.ts</code>). "No runtime resources allocated before successful composition" is violated by the same FR-8.7 finding — the SEU identifier already exists long before this stage runs.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Validation failures produce diagnostic reports.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:202-219<br>src/routes/seu/web/objectives.ts:548-575</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The check list and the dead references are stored in the CommissionValidated and CommissionFailed payloads and shown on the validation page.<br>Gap:<br>The report is read from the latest event and is not a stored record.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Composition Engine discovers Packs, resolves dependencies, composes and validates behaviour and produces the EBM.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:441-462<br>src/domain/engine/profileCompositionUnravel.ts:104-130<br>src/domain/engine/compositionCompleted.ts:49-105</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>previewCommissioningValidation unravels the composition and detects conflicts. The handler creates the EBM from the stored result.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Runtime Kernel allocates the SEU identifier, services, event channels, configuration, persistence, security and observability contexts and stays independent of engineering behaviour.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:3-15<br>src/dblayer/seed/data/transitionDefinitions.json:153-208</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The SEU identifier and tenant are allocated by the insert.<br>Gap:<br>No code allocates the other resources. Runtime allocation has no service.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning initialises the Deliverable and Capability Catalogues.<br>Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:241-285</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Capabilities are copied to seu_capabilities and Deliverables are created from the Template catalogue with the producing Capability linked.<br>Gap:<br>Deliverables are created outside a transaction.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Runtime Allocation: SEU identifier, runtime services, event channels, configuration, persistence, security context, observability context; allocated only after successful composition; Runtime Kernel independent of engineering behaviour<br> Ref: §11</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:298</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Unchanged from §22.9: only the SEU identifier is real, and it is created before composition, not after. No per-SEU runtime service, event channel, security context, or observability context is provisioned anywhere in the codebase.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning initialises the Role Catalogue.<br>Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:225-309</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No Role Catalogue exists for an SEU. Roles are not created by commissioning.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No runtime execution occurs during initialisation.<br>Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:272-292<br>src/domain/engine/executionEngineKickoff.ts:59-63</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>finalizeCommissioning creates rows and moves state only. Execution starts after SEUActivated through the kickoff handler.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Engineering Asset Initialisation: Deliverable Catalogue, Capability Catalogue, Role Catalogue, Knowledge Repository, Dependency Graph, Obligation Register, Traceability Repository<br> Ref: §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:402-475</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable Catalogue and Capability Catalogue are real (<code>deliverablesDB.create</code> per entry with resolved producing-Capability; <code>seuCapabilitiesDB.createMany</code>). Role Catalogue: no <code>Role</code> entity exists anywhere in the codebase. Knowledge Repository: not initialised. Dependency Graph: reused, not initialised fresh. Obligation Register: real only at <code>Activated→Operational</code>, not here. Traceability Repository: no distinct entity.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participant recruitment establishes the SEU&#x27;s initial execution capability, by automatic, manual or hybrid assignment.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:99-212<br>src/routes/seu/web/seus.ts:200-221</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Participants are recruited per Capability through the fulfil route and by the dispatch engine on Ready Deliverables.<br>Gap:<br>Recruitment is not a commissioning step. The ParticipantsRecruited row has no performer and the event is not published.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Recruitment does not modify the EBM.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:99-212</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The capability code writes seu_capabilities and fulfilment rows only.<br>Gap:<br>No rule prevents a later recomposition from changing the EBM after recruitment.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Deliverable begins in a defined lifecycle state and the Dependency Engine drives later transitions.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:268-285<br>src/domain/engine/dependencyDefinitionEngine.ts:96-149</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The initial state is the to-state of the Deliverable birth row, which is Defined. Dependency definitions publish DeliverableReady.<br>Gap:<br>The typical states in §14 (Planned, Awaiting Dependency Resolution and the others) are not used.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Participant Recruitment: determines which Participants provide Template-defined capabilities; AI/Human/External; automatic/manual/hybrid; does not modify the EBM<br> Ref: §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Entirely unbuilt within commissioning — confirmed no <code>participants</code>/<code>seuParticipants</code>-style row-creation call exists in <code>commissioning.ts</code>, <code>validateRequest.ts</code>, <code>compositionCompleted.ts</code>, or <code>finalizeCommissioning</code>. Unchanged from §22.11: participants are attached later via <code>fulfilCapability</code>, a separate mechanism outside this pipeline. Commissioning produces the Capability *requirement* only.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Knowledge Repository holds the commissioning metadata, Template, Profile, EBM and Pack references, composition report and commissioning decisions.<br>Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/knowledge.ts:20-82</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No knowledge item is written at commissioning. The same facts exist on the seus, ebms and events rows, not in the Knowledge Repository.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Initial Deliverable State: Planned / Awaiting Dependency Resolution / Awaiting Human Input / Awaiting External Asset / Ready<br> Ref: §14</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:462-475</code> (<code>deliverablesDB.create</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables are created, but no per-Deliverable initial state from this named set is asserted at creation time here — whatever <code>deliverablesDB.create</code>'s own default status is applies uniformly. Unchanged from §22.12.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning creates Obligations from compliance, governance, reviews, approvals and recommendations, and adds them to the Dependency Graph.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:336-342<br>src/routes/seu/core/obligations.ts:187-260</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Pack-defined Obligations are created by category, origin and severity at the commence hop.<br>Gap:<br>Obligations are not created at commissioning for unresolved recommendations. They do not enter the Dependency Graph.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every commissioning produces a permanent Commissioning Report.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:294-303<br>src/dblayer/seusDB.ts:111-120</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>A report is stored in seus.commissioning_report when finalizeCommissioning succeeds.<br>Gap:<br>No report is stored on failure. No page or API returns it.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The report contains Identity: SEU, Template, Profile and EBM version.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:378-379</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>seuId, Template and Profile codes and ebmId are stored.<br>Gap:<br>No EBM version field exists.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The report contains Composition: Packs, Pack versions, composition and behaviour summaries.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:380</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Pack codes, warnings and conflicts are stored.<br>Gap:<br>Pack versions and the behaviour summary are not stored.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Initial Knowledge State: commissioning metadata, Template/Profile/EBM references, Pack references, composition report, commissioning decisions<br> Ref: §15</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No <code>knowledge_items</code> row is created. The equivalent data exists only in <code>CommissioningReport</code> (<code>commissioning.ts:483-496</code>) and the <code>seus</code> row's own FK columns, never copied into a Knowledge Repository. Unchanged from §22.12.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The report contains Validation: warnings, errors, manual resolutions and outstanding recommendations.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:297</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>validation.errors is always an empty array. Warnings are held under composition. Manual resolutions and recommendations are not recorded.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Initial Obligation State: obligations from mandatory compliance/governance/review/required approvals/unresolved recommendations<br> Ref: §16</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:573-603</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Narrower than specified but no longer absent: Obligations are raised when a commence-work Policy blocks <code>Activated→Operational</code>, or when a composed Pack's own Obligation Definitions apply to that hop. Nothing is raised from "mandatory compliance/governance/review" generically, and nothing fires at commissioning time proper (only at this one later hop).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The report contains Runtime: participants, services, initial Deliverables and Obligations.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:298-301</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Initial Capability codes and Deliverable names are stored.<br>Gap:<br>Participants, runtime services and Obligations are not stored.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The report contains Traceability: decisions, composition traceability and behaviour provenance.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:378-383</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>The report type has no traceability section.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning Report: Identity, Composition, Validation, Runtime, Traceability sections<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:483-496</code>; <code>seuTypes.ts:613-632</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Four of five named sections exist (<code>identity</code>, <code>composition</code>, <code>runtime</code>, <code>validation</code>); Traceability is entirely absent from the real type. <code>validation.errors</code> is hardcoded to <code>[]</code> — nothing populates it; composition warnings/conflicts are raw arrays, not the named "Composition summary"/"Behaviour summary" fields. Pack versions, Manual resolutions, Outstanding recommendations, Participants recruited, Runtime services allocated, and Initial Obligations are all absent fields. Identity now also carries <code>templateCodes</code>/<code>profileCodes</code> (plural, CR-092 Part 6) beyond what §17 names. Unchanged in substance from §22.13.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform publishes CommissionRequested, CommissionValidated, CompositionStarted and CompositionCompleted.<br>Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/eventSubscriptions.json:4-8<br>src/routes/seu/core/commissioning.ts:202-219<br>src/domain/engine/compositionCompleted.ts:31-47</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>CommissionValidated and CompositionCompleted are published.<br>Gap:<br>CommissionRequested and CompositionStarted are registered and not published. The birth event is CommissionInitiated.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Events: CommissionRequested, CommissionValidated, CompositionStarted, CompositionCompleted, RuntimeAllocated, KnowledgeInitialised, ParticipantsRecruited, SEUActivated, CommissionCompleted, CommissionFailed<br> Ref: §18</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts:312</code>; <code>validateRequest.ts:140-156</code>; <code>objectives.ts:858-867</code>; <code>commissioning.ts:516-519</code>; <code>validateRequest.ts:41-51,107-117,126-136</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>CommissionRequested</code>, <code>CommissionValidated</code>, <code>CompositionCompleted</code>, <code>SEUActivated</code>, and <code>CommissionFailed</code> are real and exact-name matches. <code>CompositionStarted</code> is **not found** in current code (the file that used to publish it, the now-nonexistent <code>ebmComposer.ts</code>, is gone; no replacement publishes it) — a regression from §22.14's own "6 of 10" count. <code>RuntimeAllocated</code>, <code>KnowledgeInitialised</code>, and <code>ParticipantsRecruited</code> remain unpublished, consistent with the corresponding sections above. <code>CommissionCompleted</code> as a distinct terminal event still does not exist — the pipeline's last event is <code>SEUActivated</code>, then eventually <code>SEUOperational</code> (<code>commissioning.ts:607</code>). Net: 5 of 10 named events real as of this pass, down from §22.14's own "6 of 10," because <code>CompositionStarted</code>'s publisher was removed along with <code>ebmComposer.ts</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform publishes RuntimeAllocated, KnowledgeInitialised and ParticipantsRecruited.<br>Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:153-208<br>src/dblayer/seed/data/authorityVocabulary.json:149-166</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No event type of these names is registered or published. Only vocabulary and unwired governed rows exist.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: deterministic, repeatable, fully auditable, preserve complete traceability, support concurrent commissioning, support rollback upon failure<br> Ref: §19</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>objectives.ts:777-879</code> (Compose EBM recompute); event publishes throughout</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deterministic/repeatable hold (no randomness; recompute is pure over inputs). Concurrent commissioning holds (no shared mutable state between calls). Fully auditable and complete traceability remain partial, same basis as FR-8.11/§22.15. Rollback on failure: still no compensating logic anywhere — a failure partway through <code>finalizeCommissioning</code> (e.g. mid-loop) leaves already-created Deliverables/Capabilities in place. Unchanged from §22.15.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform publishes SEUActivated, CommissionCompleted and CommissionFailed.<br>Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:305-307<br>src/routes/seu/core/commissioning.ts:175-193<br>src/dblayer/seed/data/transitionDefinitions.json:84-93</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>SEUActivated and CommissionFailed are published.<br>Gap:<br>CommissionCompleted exists nowhere in the code.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance Criteria: authorised commission, EBM composed, runtime after composition, assets created, participants recruited, report generated, Ready for Execution reached<br> Ref: §20</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(rows above)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Authorised commission ✅. EBM composed ✅. Runtime-after-composition 🚩 (FR-8.7). Assets created ⚠️ (Deliverables/Capabilities yes; Role/Knowledge/Obligation-at-commissioning/Traceability no). Participants recruited 🚩. Report generated ⚠️ (thinner than specified). "Ready for Execution" ⚠️ — real terminal state is <code>Operational</code>, never literally named this. Unchanged from §22.16.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning is deterministic and repeatable.<br>Ref: §19</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/objectives.ts:485-546<br>src/domain/engine/compositionCompleted.ts:49-105</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The composition input is stored and the handler composes from it.<br>Gap:<br>Repeated composition creates new EBMs, so a repeated commission is not idempotent.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning is fully auditable.<br>Ref: §19</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:153-163<br>src/domain/engine/entityTransition.ts:64-93</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Every hop persists an event with actor, badge, from-state and to-state.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Commissioning Service, Commissioning Workflow, Commissioning Validation Service, Runtime Allocation Service, Participant Recruitment Service, Commissioning Report Generator, Commissioning APIs, Commissioning Events<br> Ref: §21</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>commissioning.ts</code> (whole file); <code>validateRequest.ts</code>; <code>compositionCompleted.ts</code>; <code>ebmActivated.ts</code>; <code>src/routes/seu/api/*</code>; <code>src/routes/seu/web/objectives.ts</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning Service and Commissioning APIs are real. Commissioning Workflow is real but now spread across one core file plus three event handlers plus a web route, not the three separate services §21 names as distinct deliverables (Validation/Runtime-Allocation/Participant-Recruitment Service) — Commissioning Validation Service exists as a named function (<code>checkRequestLiveness</code>) inside a handler, not a standalone service; Runtime Allocation Service is just <code>seusDB.create</code>; Participant Recruitment Service does not exist. Commissioning Report Generator is real (inline construction). Commissioning Events: 5 of 10 real, per the §18 finding above.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning supports concurrent commissioning.<br>Ref: §19</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:21-22</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Rows are keyed per SEU and a partial unique index allows one live SEU per Objective.<br>Gap:<br>Two parallel Saves race on the existing-SEU check before the index rejects one.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning supports rollback upon failure.<br>Ref: §19</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:175-193<br>src/routes/seu/core/commissioning.ts:247-285</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>Failure moves the SEU to Failed. Seu_capabilities and Deliverables already created are not removed.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An authorised user can commission an SEU.<br>Ref: §20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/seus.ts:98-143<br>src/dblayer/seed/data/routeAuthority.json:1890-1910</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Save, Validate, Compose and Activate run through the web form for holders of the badges.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The EBM is composed.<br>Ref: §20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:74-105</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The EBM row is created with composed Packs, behaviours, Policies and Quality Gates.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Runtime resources are allocated only after successful composition.<br>Ref: §20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:153-208</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No runtime allocation exists. See FR-10.7.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Initial engineering assets are created.<br>Ref: §20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:241-285</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Capabilities and Deliverables are created.<br>Gap:<br>Knowledge, Obligations, graph and Role assets are not.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants are recruited.<br>Ref: §20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/seus.ts:200-221</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Recruitment is available per Capability after commissioning.<br>Gap:<br>Commissioning does not recruit.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Commissioning Report is generated.<br>Ref: §20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:294-303</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>A partial report is stored.<br>Gap:<br>See §17 rows.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU enters the Ready for Execution state.<br>Ref: §20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:84-103<br>src/routes/seu/core/commissioning.ts:311-357</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The SEU reaches Activated and then Operational.<br>Gap:<br>No state is named Ready for Execution. Operational follows only when no blocking Obligation exists.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Commissioning Service, Workflow, Validation Service, Runtime Allocation Service, Participant Recruitment Service, Report Generator, APIs and Events.<br>Ref: §21</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:111-357<br>src/routes/seu/api/seus.ts:13-32</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Commissioning functions, workflow rows, validation, report writer and some events exist.<br>Gap:<br>No Runtime Allocation Service or Participant Recruitment Service. The commissioning API route is commented out.</td>
     </tr>
   </tbody>
 </table>
----
 
 ## Summary
 
-Total intents analysed: 28
+- Total intents analysed: 59
+- Fully met ✅: 16
+- Partially met ⚠️: 34
+- Not met ❌: 9
+- Not verifiable ❓: 0
 
-- Fully met: 8
-- Partially met: 15
-- Not met: 5
-- Not verifiable: 0
+### Major implementation gaps
 
-Major implementation gaps (current, superseding §22 where noted):
-
-- **§22's own "ebmComposer.ts" narrative is stale.** Compose EBM is a manual, human-triggered, repeatable web action (`objectives.ts` `/compose-ebm`), not an automatic event-bus consumer of `CommissionValidated`. There is no file named `ebmComposer.ts`; `ebmComposerHandler` exists only as a name in comments. EBM creation itself happens inside `compositionCompletedHandler`, off a `CompositionCompleted` event the web route publishes directly.
-- **`CompositionStarted` regressed to unpublished.** It was real as of §22.14's 2026-09-07 update (published from the now-deleted `ebmComposer.ts`); no current code publishes it.
-- **Runtime Allocation (§11, FR-8.7) remains fundamentally unbuilt and out of order.** The SEU identifier is created before Validate Request/Compose EBM, not after; no other named runtime resource (service, event channel, security/observability context) is per-SEU allocated anywhere.
-- **Participant Recruitment (§13) remains entirely absent** from the commissioning pipeline.
-- **Knowledge Repository initialisation (§8.8/§15) remains entirely absent.**
-- **Obligation Register (§8.10/§16) is no longer entirely absent** — real Obligations are now raised at the `Activated→Operational` hop (Policy-blocked, and Pack Obligation Definitions), a genuine build since §22 was last updated, though narrower than the specification's "at commissioning" framing.
-- **Commissioning Report (§17) stays four of five sections**, several named fields unpopulated (Pack versions, Manual resolutions, Outstanding recommendations, Participants recruited, Runtime services allocated, Initial Obligations, the entire Traceability section).
+- Runtime allocation, Knowledge Repository initialisation and Role Catalogue creation are not commissioning steps. Their governed SEU rows have no performer.
+- Participant recruitment is a post-commissioning action. The ParticipantsRecruited event is not published.
+- Events CommissionRequested, CompositionStarted, RuntimeAllocated, KnowledgeInitialised, ParticipantsRecruited and CommissionCompleted are not published.
+- The Commissioning Report is partial: no Pack versions, EBM version, manual resolutions, participants, services, Obligations or traceability section. It is stored on success only and no page or API returns it.
+- Unresolved composition conflicts leave the SEU in Validated and do not fail commissioning.
+- Nothing prevents several EBMs per SEU, and repeated Compose creates a new EBM.
+- Failure does not roll back created Capabilities and Deliverables.
+- The commissioning API route is commented out.

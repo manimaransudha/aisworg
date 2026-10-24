@@ -19,7 +19,7 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { evidenceDB } from "../src/dblayer/evidenceDB.js";
 import { addKnowledgeValidationNote, createKnowledgeItem, listKnowledgeValidationNotes, transitionKnowledgeItem, updateKnowledgeReferences } from "../src/routes/seu/core/knowledge.js";
 import { createDecision, transitionDecision } from "../src/routes/seu/core/decisions.js";
-import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot as createEvidence, supportingEvidenceReferences } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
@@ -103,7 +103,7 @@ test("Quality Gate also accepts an Approved Decision as satisfying the same prec
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-decision-gate");
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const decision = await createDecision({ actorId: ROOT_ACTOR_ID, seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Engineering Decisions", title: "Phase5 test: baseline readiness" });
+  const decision = await createDecision({ actorId: ROOT_ACTOR_ID, seuId, evidenceIds: [(await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Decision support evidence" })).id], relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Engineering Decisions", title: "Phase5 test: baseline readiness" });
   assert.equal(decision.status, "Identified");
 
   for (const targetState of ["Analysed", "Proposed", "Reviewed", "Approved"]) {
@@ -124,13 +124,13 @@ test("Evidence, Knowledge and Decision each run their own governed lifecycle and
   if (!evidenceInvalid.ok) assert.equal(evidenceInvalid.reason, "no_transition_definition");
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "Phase5 lifecycle test knowledge" });
+  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "Phase5 lifecycle test knowledge", evidenceReferences: await supportingEvidenceReferences(seuId, deliverableId) });
   const knowledgeInvalid = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Published", actorId: TESTER_ALL_ID });
   assert.equal(knowledgeInvalid.ok, false);
   if (!knowledgeInvalid.ok) assert.equal(knowledgeInvalid.reason, "no_transition_definition");
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const decision = await createDecision({ actorId: ROOT_ACTOR_ID, seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 lifecycle test decision" });
+  const decision = await createDecision({ actorId: ROOT_ACTOR_ID, seuId, evidenceIds: [(await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Decision support evidence" })).id], relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 lifecycle test decision" });
   const decisionInvalid = await transitionDecision({ decisionId: decision.id, targetState: "Approved", actorId: TESTER_ALL_ID });
   assert.equal(decisionInvalid.ok, false);
   if (!decisionInvalid.ok) assert.equal(decisionInvalid.reason, "no_transition_definition");
@@ -171,11 +171,11 @@ test("Knowledge Item inherits Acquisition Scope from its producing Deliverable b
   assert.equal(requirementsSpec.acquisitionScope, "SEU", "seeded Deliverables default to SEU scope");
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const inherited = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 scope inheritance test" });
+  const inherited = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 scope inheritance test", evidenceReferences: await supportingEvidenceReferences(seuId, deliverableId) });
   assert.equal(inherited.acquisition_scope, "SEU");
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const overridden = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 scope override test", acquisitionScope: "Capability" });
+  const overridden = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 scope override test", acquisitionScope: "Capability", evidenceReferences: await supportingEvidenceReferences(seuId, deliverableId) });
   assert.equal(overridden.acquisition_scope, "Capability");
 });
 
@@ -193,9 +193,9 @@ test("Knowledge Item captures §8/§10/§14 structure: structured references, ve
 
   const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Phase5 structure test evidence" });
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const decision = await createDecision({ actorId: ROOT_ACTOR_ID, seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 structure test decision" });
+  const decision = await createDecision({ actorId: ROOT_ACTOR_ID, seuId, evidenceIds: [(await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Decision support evidence" })).id], relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 structure test decision" });
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const otherKnowledge = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 structure test - other knowledge item" });
+  const otherKnowledge = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 structure test - other knowledge item", evidenceReferences: await supportingEvidenceReferences(seuId, deliverableId) });
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   const knowledgeItem = await createKnowledgeItem({
@@ -319,7 +319,7 @@ test("Evidence preserves its full provenance as evidence_relationships rows — 
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
   const decision = await createDecision({ actorId: ROOT_ACTOR_ID,
-    seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [requirementsSpec.id] }],
+    seuId, knowledgeIds: [(await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId: requirementsSpec.id, category: "Technical Knowledge", title: "Decision support knowledge", evidenceReferences: await supportingEvidenceReferences(seuId, requirementsSpec.id) })).id], relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [requirementsSpec.id] }],
     category: "Engineering Decisions", title: "Phase5 provenance test decision",
   });
 
@@ -434,7 +434,7 @@ test("Evidence transitions publish the correct named event for each landed state
   assert.ok(eventTypes.includes("EvidenceAccepted"));
   assert.ok(eventTypes.includes("EvidenceReferenced"));
   assert.ok(eventTypes.includes("EvidenceArchived"));
-  assert.ok(!eventTypes.includes("EvidenceTransitioned"), "the generic fallback must not fire for a target state the map covers");
+  assert.equal(eventTypes.filter((t) => t === "EvidenceTransitioned").length, 4, "EvidenceTransitioned is published once for every transition (CR-128)");
 
   // Rejected is a separate branch (Collected -> Rejected), tested independently.
   const rejectable = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Named-event test evidence (rejected)" });

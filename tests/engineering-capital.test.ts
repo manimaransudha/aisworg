@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { createKnowledgeItem, getEngineeringCapital, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, ROOT_ACTOR_ID, ensureActorParticipant } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, ROOT_ACTOR_ID, ensureActorParticipant, supportingEvidenceReferences } from "./testFixtures.js";
 import { TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string) {
@@ -40,6 +40,7 @@ async function commissionSeuWithPublishedKnowledge(statementPrefix: string) {
     deliverableId: requirementsSpec.id,
     category: "Domain Knowledge",
     title: `Phase6 test knowledge ${randomUUID()}`,
+    evidenceReferences: await supportingEvidenceReferences(seuId, requirementsSpec.id),
   });
   assert.equal(knowledgeItem.acquisition_scope, "SEU");
 
@@ -74,7 +75,7 @@ test("Acquisition Scope promotion requires the Knowledge Item to be Published fi
   assert.ok(requirementsSpec);
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId: requirementsSpec.id, category: "Technical Knowledge", title: "Phase6 unpublished knowledge" });
+  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId: requirementsSpec.id, category: "Technical Knowledge", title: "Phase6 unpublished knowledge", evidenceReferences: await supportingEvidenceReferences(seuId, requirementsSpec.id) });
   assert.equal(knowledgeItem.status, "Observed");
 
   const result = await promoteKnowledgeItemScope({ knowledgeItemId: knowledgeItem.id, targetScope: "Capability", actorId: TESTER_ALL_ID });

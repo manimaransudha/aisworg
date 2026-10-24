@@ -255,7 +255,7 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
-  const { data: decision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
+  const { data: decision } = await decisionsDB.create({ status: "Identified", participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId,
     relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [requirementsSpec!.id] }],
     category: "Engineering Decisions",
@@ -268,7 +268,7 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
     category: "Validation Evidence", title: "Stakeholder sign-off on backlog scope",
   });
 
-  const { data: knowledge } = await knowledgeItemsDB.create({ authorId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
+  const { data: knowledge } = await knowledgeItemsDB.create({ status: "Observed", authorId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId, deliverableId: requirementsSpec!.id, category: "Domain Knowledge",
     title: "Domain glossary for this backlog", acquisitionScope: "SEU",
   });
@@ -389,7 +389,7 @@ test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model 
     const activatedDetail = await getSeuDetailView(activatedSeuId);
     const req = activatedDetail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
     assert.ok(req);
-    const { data: openDecision } = await decisionsDB.create({ participantId: await rootParticipantId(activatedSeuId), authorityBadge: ROOT_ACTOR_BADGE,
+    const { data: openDecision } = await decisionsDB.create({ status: "Identified", participantId: await rootParticipantId(activatedSeuId), authorityBadge: ROOT_ACTOR_BADGE,
       seuId: activatedSeuId,
       relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [req.id] }],
       category: "Engineering Decisions",
@@ -440,13 +440,13 @@ test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation 
 
   // Content attached to Requirements Analysis Model ONLY — must never appear
   // in Source Code's own Execution Context.
-  const { data: reqDecision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
+  const { data: reqDecision } = await decisionsDB.create({ status: "Identified", participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [requirementsSpec!.id] }],
     category: "Engineering Decisions", title: "Requirements-only decision — must not leak into Source Code",
   });
   await decisionsDB.updateStatus(reqDecision!.id, "Approved", { participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE });
   await createEvidenceAsRoot({ relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec!.id, seuId, category: "Validation Evidence", title: "Requirements-only evidence" });
-  await knowledgeItemsDB.create({ authorId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE, seuId, deliverableId: requirementsSpec!.id, category: "Domain Knowledge", title: "Requirements-only knowledge", acquisitionScope: "SEU" });
+  await knowledgeItemsDB.create({ status: "Observed", authorId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE, seuId, deliverableId: requirementsSpec!.id, category: "Domain Knowledge", title: "Requirements-only knowledge", acquisitionScope: "SEU" });
 
   await driveDeliverableToApproved(requirementsSpec!.id, `cr109-source-code-scoping-${seuId}`);
 
@@ -480,13 +480,13 @@ test("CR-109 Source Code §5a: decision_blocked triggers even when only ONE of s
 
   // Both Decisions exist before Requirements Analysis Model is approved, because approving it makes the engine
   // request Source Code's own governed hop at once.
-  const { data: approvedDecision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
+  const { data: approvedDecision } = await decisionsDB.create({ status: "Identified", participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [sourceCode!.id] }],
     category: "Engineering Decisions", title: "Source Code decision 1 (already Approved)",
   });
   await decisionsDB.updateStatus(approvedDecision!.id, "Approved", { participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE });
 
-  const { data: openDecision } = await decisionsDB.create({ participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
+  const { data: openDecision } = await decisionsDB.create({ status: "Identified", participantId: await rootParticipantId(seuId), authorityBadge: ROOT_ACTOR_BADGE,
     seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [sourceCode!.id] }],
     category: "Engineering Decisions", title: "Source Code decision 2 (still open)",
   });

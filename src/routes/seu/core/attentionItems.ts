@@ -3,7 +3,7 @@ import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import type { AttentionItemRow } from "../../../dblayer/seuTypes.js";
 import { getSystemActor } from "../../../dblayer/constants.js";
@@ -29,11 +29,17 @@ export async function createAttentionItem(input: {
   authorBadge: string;
 }): Promise<AttentionItemRow> {
   const { authorId } = await resolveAuthor(input.seuId, input.actorId);
-  const { data: attentionItem, error } = await attentionItemsDB.create({ ...input, authorId, authorBadge: input.authorBadge });
+  // The state and the event come from the birth row. The author badge stays as the caller gave it.
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("AttentionItem");
+  if (birthError) throw birthError;
+  if (!birth) throw new Error("no birth Transition Definition for AttentionItem");
+  if (!birth.event_type) throw new Error("the AttentionItem birth Transition Definition names no event");
+
+  const { data: attentionItem, error } = await attentionItemsDB.create({ ...input, status: birth.to_state, authorId, authorBadge: input.authorBadge });
   if (error || !attentionItem) throw error ?? new Error("failed to create attention item");
 
   await eventBus.publish({
-    eventType: "AttentionCreated",
+    eventType: birth.event_type,
     originatingObjectType: "AttentionItem",
     originatingObjectId: attentionItem.id,
     seuId: input.seuId,
@@ -75,20 +81,6 @@ export async function listAttentionItemsBySeu(seuId: string): Promise<AttentionI
   return data ?? [];
 }
 
-export interface AttentionItemWithNextStates {
-  attentionItem: AttentionItemRow;
-  possibleNextStates: string[];
-}
-
-export async function listAttentionItemsWithNextStates(items: AttentionItemRow[]): Promise<AttentionItemWithNextStates[]> {
-  return Promise.all(
-    items.map(async (attentionItem) => {
-      const { data: possibleNextStates } = await transitionDefinitionsDB.findPossibleNextStates("AttentionItem", attentionItem.status);
-      return { attentionItem, possibleNextStates: possibleNextStates ?? [] };
-    })
-  );
-}
-
 export type TransitionAttentionItemResult =
   | { ok: true; attentionItem: AttentionItemRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
@@ -96,35 +88,20 @@ export type TransitionAttentionItemResult =
   | { ok: false; reason: "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
 export async function transitionAttentionItem(input: { attentionItemId: string; targetState: string; actorId: string }): Promise<TransitionAttentionItemResult> {
-  const { data: attentionItem } = await attentionItemsDB.findById(input.attentionItemId);
-  if (!attentionItem) return { ok: false, reason: "not_found" };
+  const result = await transitionEntity({ entityType: "AttentionItem", entityId: input.attentionItemId, targetState: input.targetState, actorId: input.actorId });
+  if (!result.ok) return result;
 
-  const fromState = attentionItem.status;
-
-  const gate = await transitionEngine.evaluateGoverned({
-    entityType: "AttentionItem",
-    fromState,
-    toState: input.targetState,
-    actorId: input.actorId,
-    context: { attentionItem },
-    gateEntityId: attentionItem.id,
-    gateSeuId: attentionItem.seu_id,
-  });
-  if (!gate.allowed) return gateRejection(gate, "AttentionItem", fromState, input.targetState);
-
-  const { data: updated, error } = await attentionItemsDB.updateStatus(attentionItem.id, input.targetState);
-  if (error || !updated) throw error ?? new Error("failed to update attention item status");
-
+  const published = await publishTransition(result);
   await eventBus.publish({
     eventType: "AttentionItemTransitioned",
     originatingObjectType: "AttentionItem",
-    originatingObjectId: attentionItem.id,
-    seuId: attentionItem.seu_id,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState },
+    originatingObjectId: input.attentionItemId,
+    seuId: result.event.seuId,
+    correlationId: published.correlation_id,
+    payload: result.event.payload,
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
+    authorityBadge: result.event.authorityBadge,
   });
 
-  return { ok: true, attentionItem: updated, appliedTransition: { fromState, toState: input.targetState } };
+  return { ok: true, attentionItem: result.row as AttentionItemRow, appliedTransition: result.appliedTransition };
 }

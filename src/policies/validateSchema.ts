@@ -17,7 +17,7 @@ export async function validateSchema(input: PolicyImplementationInput): Promise<
   if (!schemaRow) return false;
   const schema = schemaRow.schema as JsonSchemaDocument;
   const content = adapter.content(row);
-  const tenantId = adapter.tenantId(row);
+  const tenantId = await adapter.tenantId(row);
   if (validateAgainstSchema(schema, content).length > 0) return false;
   // Loaded when called: routes/seu/core/ontology.ts imports the transition engine, which imports this registry.
   const { validateOntologyFieldsAgainstSchema } = await import("../routes/seu/core/ontology.js");

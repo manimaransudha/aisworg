@@ -397,6 +397,18 @@
   },
   {
     "entityType": "Obligation",
+    "fromState": "None",
+    "toState": "Identified",
+    "verb": "identify",
+    "trigger": "governed",
+    "requiredPolicyCodes": [
+      "policy-obligation-transition-baseline"
+    ],
+    "eventType": "ObligationCreated",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Obligation",
     "fromState": "Identified",
     "toState": "Analysed",
     "verb": "analyse",
@@ -562,6 +574,18 @@
   },
   {
     "entityType": "Evidence",
+    "fromState": "None",
+    "toState": "Collected",
+    "verb": "collect",
+    "trigger": "governed",
+    "requiredPolicyCodes": [
+      "policy-evidence-transition-baseline"
+    ],
+    "eventType": "EvidenceCollected",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Evidence",
     "fromState": "Collected",
     "toState": "Validated",
     "verb": "validate",
@@ -623,6 +647,16 @@
   },
   {
     "entityType": "Knowledge",
+    "fromState": "None",
+    "toState": "Observed",
+    "verb": "observe",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "KnowledgeObserved",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Knowledge",
     "fromState": "Observed",
     "toState": "Proposed",
     "verb": "propose",
@@ -677,6 +711,16 @@
   },
   {
     "entityType": "Decision",
+    "fromState": "None",
+    "toState": "Identified",
+    "verb": "identify",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "DecisionIdentified",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Decision",
     "fromState": "Identified",
     "toState": "Analysed",
     "verb": "analyse",
@@ -725,6 +769,7 @@
     "toState": "Superseded",
     "verb": "supersede",
     "requiredPolicyCodes": [],
+    "actionCode": "supersede-decision",
     "eventType": "DecisionSuperseded",
     "versionEvent": "VersionSuperseded"
   },
@@ -763,12 +808,25 @@
   },
   {
     "entityType": "AttentionItem",
+    "fromState": "None",
+    "toState": "Created",
+    "verb": "raise",
+    "trigger": "governed",
+    "requiredPolicyCodes": [
+      "policy-attentionitem-transition-baseline"
+    ],
+    "eventType": "AttentionCreated",
+    "versionEvent": null
+  },
+  {
+    "entityType": "AttentionItem",
     "fromState": "Created",
     "toState": "Delivered",
     "verb": "deliver",
     "requiredPolicyCodes": [
       "policy-attentionitem-transition-baseline"
-    ]
+    ],
+    "eventType": "AttentionDelivered"
   },
   {
     "entityType": "AttentionItem",
@@ -777,7 +835,8 @@
     "verb": "acknowledge",
     "requiredPolicyCodes": [
       "policy-attentionitem-transition-baseline"
-    ]
+    ],
+    "eventType": "AttentionAcknowledged"
   },
   {
     "entityType": "AttentionItem",
@@ -786,7 +845,8 @@
     "verb": "start",
     "requiredPolicyCodes": [
       "policy-attentionitem-transition-baseline"
-    ]
+    ],
+    "eventType": "AttentionStarted"
   },
   {
     "entityType": "AttentionItem",
@@ -795,7 +855,8 @@
     "verb": "resolve",
     "requiredPolicyCodes": [
       "policy-attentionitem-transition-baseline"
-    ]
+    ],
+    "eventType": "AttentionResolved"
   },
   {
     "entityType": "AttentionItem",
@@ -804,7 +865,8 @@
     "verb": "close",
     "requiredPolicyCodes": [
       "policy-attentionitem-transition-baseline"
-    ]
+    ],
+    "eventType": "AttentionClosed"
   },
   {
     "entityType": "ExternalInteraction",
@@ -947,12 +1009,35 @@
   },
   {
     "entityType": "Participant",
+    "fromState": "None",
+    "toState": "Available",
+    "verb": "create",
+    "trigger": "governed",
+    "requiredPolicyCodes": [
+      "policy-participant-transition-baseline"
+    ],
+    "eventType": "ParticipantCreated",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Participant",
+    "fromState": "Assigned",
+    "toState": "Idle",
+    "verb": "idle",
+    "requiredPolicyCodes": [
+      "policy-participant-transition-baseline"
+    ],
+    "eventType": "ParticipantIdle"
+  },
+  {
+    "entityType": "Participant",
     "fromState": "Created",
     "toState": "Available",
     "verb": "make_available",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
-    ]
+    ],
+    "eventType": "ParticipantActivated"
   },
   {
     "entityType": "Participant",
@@ -961,7 +1046,8 @@
     "verb": "assign",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
-    ]
+    ],
+    "eventType": "ParticipantAssigned"
   },
   {
     "entityType": "Participant",
@@ -970,7 +1056,8 @@
     "verb": "execute",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
-    ]
+    ],
+    "eventType": "ParticipantExecuting"
   },
   {
     "entityType": "Participant",
@@ -979,7 +1066,8 @@
     "verb": "idle",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
-    ]
+    ],
+    "eventType": "ParticipantIdle"
   },
   {
     "entityType": "Participant",
@@ -988,7 +1076,8 @@
     "verb": "assign",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
-    ]
+    ],
+    "eventType": "ParticipantAssigned"
   },
   {
     "entityType": "Participant",
@@ -997,7 +1086,8 @@
     "verb": "release",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
-    ]
+    ],
+    "eventType": "ParticipantReleased"
   },
   {
     "entityType": "Participant",
@@ -1006,7 +1096,8 @@
     "verb": "archive",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
-    ]
+    ],
+    "eventType": "ParticipantArchived"
   },
   {
     "entityType": "Participant",
@@ -1015,7 +1106,8 @@
     "verb": "release",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
-    ]
+    ],
+    "eventType": "ParticipantReleased"
   },
   {
     "entityType": "Participant",
@@ -1024,7 +1116,8 @@
     "verb": "release",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
-    ]
+    ],
+    "eventType": "ParticipantReleased"
   },
   {
     "entityType": "Participant",
@@ -1033,56 +1126,94 @@
     "verb": "release",
     "requiredPolicyCodes": [
       "policy-participant-transition-baseline"
-    ]
+    ],
+    "eventType": "ParticipantReleased"
+  },
+  {
+    "entityType": "Review",
+    "fromState": "None",
+    "toState": "Planned",
+    "verb": "create",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "ReviewPlanned",
+    "versionEvent": null
   },
   {
     "entityType": "Review",
     "fromState": "Planned",
     "toState": "Prepared",
     "verb": "prepare",
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ReviewPrepared"
   },
   {
     "entityType": "Review",
     "fromState": "Prepared",
     "toState": "In Progress",
     "verb": "start",
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ReviewStarted"
   },
   {
     "entityType": "Review",
     "fromState": "In Progress",
     "toState": "Completed",
     "verb": "complete",
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ReviewCompleted",
+    "actionCode": "complete-review"
   },
   {
     "entityType": "Review",
     "fromState": "Completed",
     "toState": "Accepted",
     "verb": "accept",
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ReviewAccepted"
   },
   {
     "entityType": "Review",
     "fromState": "Accepted",
     "toState": "Archived",
     "verb": "archive",
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ReviewArchived"
+  },
+  {
+    "entityType": "Finding",
+    "fromState": "None",
+    "toState": "Open",
+    "verb": "create",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "FindingCreated",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Finding",
+    "fromState": "Open",
+    "toState": "Converted",
+    "verb": "convert",
+    "requiredPolicyCodes": [],
+    "eventType": "FindingConverted",
+    "actionCode": "convert-finding"
   },
   {
     "entityType": "Finding",
     "fromState": "Open",
     "toState": "Resolved",
     "verb": "resolve",
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "FindingResolved"
   },
   {
     "entityType": "Finding",
     "fromState": "Open",
     "toState": "Waived",
     "verb": "waive",
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "FindingWaived"
   },
   {
     "entityType": "Template",

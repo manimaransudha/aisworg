@@ -181,8 +181,14 @@ test("Findings: a High-severity Finding auto-surfaces an Attention Item; a Findi
   assert.equal(again.ok, false);
   if (!again.ok) assert.equal(again.reason, "already_converted");
 
-  // The finding can be resolved.
-  const resolved = await transitionFinding({ findingId: high.id, targetState: "Resolved", actorId: TESTER_ALL_ID });
+  // Conversion moves the Finding to Converted (CR-133); a Converted Finding has no resolve hop.
+  assert.equal((await findingsDB.findById(high.id)).data?.status, "Converted");
+  const resolveConverted = await transitionFinding({ findingId: high.id, targetState: "Resolved", actorId: TESTER_ALL_ID });
+  assert.equal(resolveConverted.ok, false);
+  if (!resolveConverted.ok) assert.equal(resolveConverted.reason, "no_transition_definition");
+
+  // An Open finding can be resolved.
+  const resolved = await transitionFinding({ findingId: low.id, targetState: "Resolved", actorId: TESTER_ALL_ID });
   assert.equal(resolved.ok, true, !resolved.ok ? JSON.stringify(resolved) : "assertion failed");
   if (resolved.ok) assert.equal(resolved.finding.status, "Resolved");
 });

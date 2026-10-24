@@ -55,15 +55,16 @@ A transition button appears only for the next states the Transition Definition m
 
 | From | To | Verb | Trigger | Attestation |
 |---|---|---|---|---|
+| (birth) | Defined | define | manual. Commissioning creates each Deliverable in this state. | no |
 | Defined | In Progress | create | governed | no |
 | In Progress | Approved | approve | manual | required |
 | Approved | Baselined | baseline | manual | required |
 
-Badges are `deliverable_create`, `deliverable_approve` and `deliverable_baseline`.
+Badges are `deliverable_define`, `deliverable_create`, `deliverable_approve` and `deliverable_baseline`.
 
 ### 3.1 Governed start
 
-The governed hops run when one of these events arrives for an Operational SEU: SEUOperational, DeliverableTransitioned, CapabilityFulfilled, DispatchRejected, or the resolution of an Obligation or Attention Item. For each Deliverable the engine requests every next hop marked governed. A Deliverable whose dependencies are not yet satisfied waits and is evaluated again on the next event.
+The governed hops run when one of these events arrives for an Operational SEU: SEUOperational, DeliverableTransitioned, CapabilityFulfilled, CapabilityUnavailable, DispatchRejected, or the resolution of an Obligation or Attention Item. For each Deliverable the engine requests every next hop marked governed. A Deliverable whose dependencies are not yet satisfied waits and is evaluated again on the next event.
 
 ### 3.2 Producing command
 
@@ -73,6 +74,8 @@ When a Deliverable reaches In Progress the engine issues one producing Command (
 - A previous producing Command failed because no Participant was eligible.
 
 Only one live producing Command exists per Deliverable.
+
+When a Capability that produces an In Progress Deliverable has no eligible Participant (CapabilityUnavailable), the engine raises a blocking Obligation (category Operational) and a High Action Required Attention Item on the Deliverable. The producing Command is issued when the Capability is fulfilled and the Obligation is resolved.
 
 ### 3.3 Approve needs a reference
 
@@ -121,7 +124,7 @@ The Command stores a pointer to the outcome. The Work Item's Execution Context r
 4. It changes the Deliverable state and marks the Command Completed.
 5. It re-evaluates dependency edges that point at the Deliverable and publishes the resulting readiness events.
 6. It records an attestation when the hop requires one (section 12).
-7. It publishes DeliverableTransitioned. Nothing follows the publication.
+7. It publishes the hop's own event, then DeliverableTransitioned. Nothing follows the publication.
 
 ## 5. Command, Work Item and Dispatch
 
@@ -173,7 +176,7 @@ Each redispatch increments the attempt counter on the Work Item. The Profile set
 
 | Setting | Effect |
 |---|---|
-| redispatchAttentionThreshold | At exactly this attempt, an Escalation Attention Item is raised. |
+| redispatchAttentionThreshold | At exactly this attempt, an Escalation Attention Item (Medium) is raised. |
 | redispatchMaxAttempts | At this attempt, the Work Item is Disposed, the Command Failed, an Obligation and an Attention Item are raised, and DispatchRejected is published. |
 
 A fulfilment that arrives later re-issues the producing Command, so a rejected Deliverable recovers when a Participant is assigned.
@@ -211,6 +214,10 @@ A Work Item reported done does not itself approve the Deliverable. A person with
 
 `POST /aisworg/api/seu/work-items/sweep-stalled` (optional query `seuId`) scans Work Items that are past their target completion time. For each, one Escalation Attention Item (High) is raised per Deliverable and WorkItemStalled is published. The platform has no scheduler for this call. Run it from an external scheduler.
 
+### 5.8 Unavailable Capabilities
+
+`POST /aisworg/api/seu/capabilities/sweep-unavailable?seuId=<id>` (the `seuId` is required) re-requests every unfulfilled Capability of the SEU whose latest request ended in CapabilityUnavailable at least 300 seconds earlier. A Capability with a request in flight is left alone. The Profile's redispatchMaxAttempts stops the re-requests, and redispatchAttentionThreshold raises one Escalation Attention Item (Medium) at exactly that attempt. The platform has no scheduler for this call. Run it from an external scheduler.
+
 ## 6. Dependencies
 
 The dependency definitions of the SEU's Template, Profile and composed Packs govern the Deliverables. Each edge states that a target Deliverable cannot move to a state until the source Deliverable (or Capability) has reached a state. The Deliverables tab shows each edge with a readiness badge. A Capability edge becomes ready when the Capability is fulfilled.
@@ -224,7 +231,7 @@ The Trust Pipeline is the set of records that make a Deliverable believable.
 | Produce | Deliverable reference | One per completed Work Item |
 | Support | Evidence | Collected, Validated, Accepted, Referenced, Archived (or Rejected) |
 | Decide | Decision | Identified, Analysed, Proposed, Reviewed, Approved, Applied, Superseded, Archived |
-| Review | Review and Finding | Planned, Prepared, In Progress, Completed, Accepted, Archived. Finding: Open, Resolved or Waived |
+| Review | Review and Finding | Planned, Prepared, In Progress, Completed, Accepted, Archived. Finding: Open, then Resolved, Waived or Converted |
 | Commit | Obligation | Identified through Closed |
 | Certify | Attestation | Created with the transition |
 | Learn | Knowledge | Observed, Proposed, Validated, Accepted, Published, Deprecated, Archived |
@@ -236,7 +243,7 @@ The Trust Pipeline is the set of records that make a Deliverable believable.
 Use the Evidence tab.
 
 1. Collect Evidence: choose the related Deliverable (or another object), the category, a title and a source. A new item may supersede an earlier one.
-2. Categories: Validation, Analytical, Operational, Review, Decision and External Evidence.
+2. Categories: Validation Evidence, Analytical Evidence, Operational Evidence, Review Evidence, Decision Evidence and External Evidence.
 3. Assess: record a status for each validation dimension (authenticity, completeness, consistency, source-credibility, engineering-relevance). A status is Not Assessed, Pass, Partial or Fail. A confidence level (Low, Medium, High) is kept.
 4. Transition: Validate, Accept, Reference, Archive, or Reject (from Collected or Validated).
 5. Link: attach existing Evidence to another object.
@@ -313,7 +320,7 @@ A holder of `qualitygate_waive` can waive a gate for one entity with a rationale
 
 ### 8.2 Sustained blocks
 
-Three Blocked evaluations of the same gate in one SEU raise an Organisational Learning Obligation and an Escalation Attention Item once.
+Three Blocked evaluations of the same gate in one SEU raise an Organisational Learning Obligation and an Escalation Attention Item once. Telemetry applies the same threshold of three to a Standard Policy whose condition fails repeatedly in one SEU, and to a Capability that has no Participant in three or more SEUs.
 
 ## 9. Policies
 
@@ -350,7 +357,7 @@ Open `seus/:id/compliance`. Frameworks come from the SEU's composed Compliance P
 
 Results per requirement are satisfied, waived or unsatisfied. The SEU status is Compliant, Compliant with Exceptions, Partially Compliant, Non-Compliant or Compliance Unknown.
 
-A waiver for a requirement is granted on the page with a rationale. Evaluations are stored. The API offers `GET /aisworg/api/seu/seus/:id/compliance`, `/compliance/report` and `/compliance/history`. Events published are ComplianceEvaluated, ComplianceStatusChanged, ComplianceSatisfied and ComplianceViolationDetected.
+A requirement may declare a conflict with another requirement. The page lists conflicts between requirements that both apply to the SEU. A waiver for a requirement is granted on the page with a rationale, or with `POST /aisworg/api/seu/seus/:id/compliance/waivers`. Evaluations are stored. The API offers `GET /aisworg/api/seu/seus/:id/compliance`, `/compliance/report` and `/compliance/history`. Events published are ComplianceEvaluated, ComplianceStatusChanged, ComplianceSatisfied and ComplianceViolationDetected.
 
 ## 12. Attestation and traceability
 
@@ -383,9 +390,9 @@ Open Events (`superuser`). Every state change publishes an event with a correlat
 
 | Event | Meaning |
 |---|---|
-| CommissionRequested, CommissionValidated, CommissionFailed | Commissioning progress |
+| CommissionInitiated, CommissionValidated, CommissionFailed | Commissioning progress |
 | CompositionCompleted, EBMCreated, EBMValidated, EBMActivated, EBMRetired | EBM progress |
-| SEUConfigured, SEUCommissioned, SEUActivated, SEUOperational | SEU hops |
+| SEUConfigured, SEUCommissioned, SEUActivated, SEUOperational, SEUSuspended, SEUResumed, SEURetired, SEUArchived | SEU hops |
 | CapabilityFulfilled | A Participant was assigned |
 | CommandGenerated, WorkItemGenerated, WorkItemDispatched, WorkItemCompleted, WorkItemFailed, WorkItemStalled, WorkItemDisposed | Execution |
 | DispatchDeferred, DispatchRejected, ParticipantUnavailable, RedispatchRequested, RedispatchCompleted | Dispatch |
@@ -414,4 +421,5 @@ Handlers react to events in the background. A page may need a reload to show the
 | Command Deferred | Every candidate is busy | Wait, or assign another Participant. Redispatch continues up to the limit. |
 | Work Item not in Work Queue | The execution target is external-orchestrator | Report the result through the API. |
 | Work Item overdue with no alert | The sweep is not scheduled | Run the sweep call on a schedule. |
+| Capability stays unfulfilled after CapabilityUnavailable | Nothing re-requests it | Run `POST /aisworg/api/seu/capabilities/sweep-unavailable?seuId=<id>` on a schedule (section 5.8). |
 | Attention Item for a failed Work Item | A Participant reported failed or blocked | Resolve the cause, then request the hop again. |

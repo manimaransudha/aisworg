@@ -66,9 +66,11 @@ The specification may be:
 - a feature description
 - a collection of specification sections
 
-The default specification path is design/foundations/03_Book 3 (Refined).
+The default specification path is src/docs/SEU Studio Specifications.
 
 If multiple possible specifications exist, ask the user to identify the correct one rather than arbitrarily selecting one.
+
+There should be nothing that should be unchecked. 
 
 ---
 
@@ -353,7 +355,7 @@ The primary output must be a traceability table with exactly these columns along
 
 Do not replace these columns with a different schema. The table has to be multiline. Use <br> to break sentences.
 
-A sample output can be seen at design/implementation/Chapter_39_SDK_Architecture_Traceability.md. 
+A sample output can be seen at src/docs/implementation/06_Composition_Engine_Traceability.md. 
 
 ## Intent
 
@@ -575,7 +577,7 @@ Do **not** modify application source code while performing this analysis.
 
 Do **not** modify the specification file while performing this analysis. 
 
-Write the analysis in the output folder design/implementation. Do not dump the analysis in the conversation. The conversation should not report the agent's workings or summary. Operate in a muted mode. Only report task completion.
+Write the analysis in the output folder src/docs/implementation. Do not dump the analysis in the conversation. The conversation should not report the agent's workings or summary. Operate in a muted mode. Only report task completion.
 
 Do not modify application source code while performing this analysis unless the user explicitly asks for implementation changes.
 

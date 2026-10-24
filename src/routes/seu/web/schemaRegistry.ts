@@ -10,7 +10,7 @@ import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import { SCHEMA_ENTITY_KINDS, createSchemaVersion, reviewSchemaVersion, getSchemaDefinition, listSchemaDefinitions, publishSchemaVersion, rejectSchemaVersion } from "../core/schemaRegistry.js";
+import { SCHEMA_ENTITY_KINDS, createSchemaVersion, reviewSchemaVersion, getSchemaDefinition, listSchemaDefinitions } from "../core/schemaRegistry.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { SCHEMA_KINDS, TOP_LEVEL_WIDGET_KINDS, ITEM_WIDGET_KINDS, blankDocument, blankWidget, jsonSchemaToWidgetTree, widgetTreeToJsonSchema, parseAuthoredDocumentFromBody } from "../../../domain/sdk/schemaCompiler.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
@@ -161,22 +161,6 @@ router.post("/sdk/schema-registry/:id/transition", async (req: Request, res: Res
     logger.error("[web/seu/schemaRegistry] POST /sdk/schema-registry/:id/transition error", err as Error);
     return redirects.seu.sdkSchemaRegistryTransition.error(req, res, (err as Error).message);
   }
-});
-
-router.post("/sdk/schema-registry/:id/publish", async (req: Request, res: Response) => {
-  const id = String(req.params.id);
-  const actorId = requireActorId(req);
-  const result = await publishSchemaVersion(id, actorId);
-  if (!result.ok) return redirects.seu.sdkSchemaRegistryPublishById.error(req, res, result.error);
-  return redirects.seu.sdkSchemaRegistryPublishById.success(req, res, `${result.schema.entity_kind} schema v${result.schema.version} published.`);
-});
-
-router.post("/sdk/schema-registry/:id/reject", async (req: Request, res: Response) => {
-  const id = String(req.params.id);
-  const actorId = requireActorId(req);
-  const result = await rejectSchemaVersion(id, actorId);
-  if (!result.ok) return redirects.seu.sdkSchemaRegistryReject.error(req, res, result.error);
-  return redirects.seu.sdkSchemaRegistryReject.success(req, res, `${result.schema.entity_kind} schema v${result.schema.version} publication rejected.`);
 });
 
 export { router };

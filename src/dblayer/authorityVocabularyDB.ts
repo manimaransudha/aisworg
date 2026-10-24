@@ -1,5 +1,6 @@
 import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
+import { reloadIfLoaded } from "./transitionDefinitionsDB.js";
 import type { DbResult } from "./seuTypes.js";
 
 export interface AuthorityNounRow {
@@ -143,6 +144,7 @@ export const authorityVocabularyDB = {
   async updateTriggerForVerb(nounCode: string, verbCode: string, trigger: "manual" | "governed"): Promise<DbResult<number>> {
     try {
       const { rowCount } = await query("UPDATE transition_definitions SET trigger = $1 WHERE entity_type = $2 AND verb = $3", [trigger, nounCode, verbCode]);
+      await reloadIfLoaded();
       return { data: rowCount ?? 0 };
     } catch (err) {
       logger.error("[authorityVocabularyDB] updateTriggerForVerb error", err as Error);

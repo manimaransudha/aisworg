@@ -3,7 +3,9 @@
 //
 //   - DEFINITION: every real transition_definitions row for Obligation
 //     carries the expected event_type and version_event ('VersionCreated' on
-//     all of them, owner-directed), and exactly these 15 rows exist.
+//     all of them, owner-directed), and exactly these 15 rows exist, plus the
+//     birth row None -> Identified (CR-128: verb identify, trigger governed,
+//     event ObligationCreated, no version event).
 //   - DRIVEN: real transitionObligation calls publish BOTH the hop's own named
 //     event and the generic ObligationTransitioned; Reopen and Escalate work;
 //     Closed cannot skip verification; reviseObligation appends only the
@@ -13,6 +15,8 @@ import "dotenv/config";
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import pool from "../src/utils/db.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
@@ -21,7 +25,8 @@ import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { transitionObligation, reviseObligation } from "../src/routes/seu/core/obligations.js";
 import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { commissionFromFormSync, ensureEventSubscriptionsLoaded, resolveDispatchRejectionObligations } from "./testFixtures.js";
-import { TESTER_ALL_ID } from "./testFixtures.js";
+import { TESTER_ALL_ID, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
+import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
 
 before(async () => {
   await ensureEventSubscriptionsLoaded();
@@ -54,7 +59,7 @@ const ESCALATE_HOPS: Hop[] = ESCALATE_FROM.map((fromState) => ({ description: `E
 
 const ALL_HOPS = [...MAIN_CHAIN, ...REOPEN_HOPS, ...ESCALATE_HOPS];
 
-test("DEFINITION: every Obligation transition_definitions row matches Events and Lifecycles.md — event_type per hop, version_event always VersionCreated, exactly 15 rows", async () => {
+test("DEFINITION: every Obligation transition_definitions row matches Events and Lifecycles.md — event_type per hop, version_event always VersionCreated, exactly 15 rows plus the birth row", async () => {
   for (const hop of ALL_HOPS) {
     const { data: def } = await transitionDefinitionsDB.find("Obligation", hop.fromState, hop.toState);
     assert.ok(def, `no transition_definitions row for Obligation ${hop.fromState} -> ${hop.toState} (${hop.description})`);
@@ -63,7 +68,15 @@ test("DEFINITION: every Obligation transition_definitions row matches Events and
   }
 
   const { rows } = await pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM transition_definitions WHERE entity_type = 'Obligation'");
-  assert.equal(Number(rows[0].count), ALL_HOPS.length, "unexpected extra/missing Obligation transition_definitions rows");
+  assert.equal(Number(rows[0].count), ALL_HOPS.length + 1, "unexpected extra/missing Obligation transition_definitions rows (the hops plus the birth row)");
+
+  const { data: birth } = await transitionDefinitionsDB.findBirth("Obligation");
+  assert.ok(birth, "the Obligation birth row exists");
+  assert.equal(birth!.to_state, "Identified");
+  assert.equal(birth!.verb, "identify");
+  assert.equal(birth!.trigger, "governed");
+  assert.equal(birth!.event_type, "ObligationCreated");
+  assert.equal(birth!.version_event, null);
 
   // Closure requires verification — no shortcut into Closed.
   for (const shortcutFrom of ["Identified", "Analysed", "Assigned", "In Progress", "Resolved"]) {
@@ -189,4 +202,57 @@ test("DRIVEN: reviseObligation appends only changed fields to revision_history, 
   assert.equal(noop!.revision_history.length, 2);
 
   assert.deepEqual(await eventTypesFor(obligation.id), eventsBefore, "a Revision publishes no event of any kind");
+});
+
+test("DRIVEN: createObligation writes the birth state and publishes ObligationCreated last; a governed birth row offers no button", async () => {
+  const obligation = await freshObligation("birth");
+  assert.equal(obligation.status, "Identified");
+  const { data: events } = await eventsDB.findByOriginatingObject("Obligation", obligation.id);
+  assert.deepEqual((events ?? []).map((e) => e.event_type), ["ObligationCreated"]);
+
+  // quality-gate-generalization.test.ts adds a throwaway hop to a "qg-" state while it runs; only the real hops are counted.
+  const actions = (await nextActionsFor("Obligation", "Identified", TESTER_ALL_ID)).filter((a) => !a.toState.startsWith("qg-"));
+  assert.ok(actions.every((a) => a.verb !== "identify"), "the birth verb is never a button");
+  assert.deepEqual(actions.map((a) => a.verb).sort(), ["analyse", "escalate"]);
+  const closedActions = await nextActionsFor("Obligation", "Closed", TESTER_ALL_ID);
+  assert.deepEqual(closedActions.map((a) => a.verb).sort(), ["archive", "reopen"]);
+});
+
+test("DRIVEN: a hop by an actor with no participant row in the SEU is refused and writes nothing", async () => {
+  const obligation = await freshObligation("no participant");
+  // Holds every badge and has no participants row in this SEU, so only the SEU participant check can refuse it.
+  await assert.rejects(
+    transitionObligation({ obligationId: obligation.id, targetState: "Analysed", actorId: TESTER_ACCEPTANCE_JOURNEY.participantId }),
+    /No participants row/
+  );
+  const { data: after } = await obligationsDB.findById(obligation.id);
+  assert.equal(after!.status, "Identified");
+});
+
+test("DRIVEN: a hop with no Transition Definition is refused and publishes nothing", async () => {
+  const obligation = await freshObligation("refused hop");
+  const before = await eventTypesFor(obligation.id);
+  const result = await transitionObligation({ obligationId: obligation.id, targetState: "Closed", actorId: TESTER_ALL_ID });
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.reason, "no_transition_definition");
+  assert.deepEqual(await eventTypesFor(obligation.id), before);
+  const { data: after } = await obligationsDB.findById(obligation.id);
+  assert.equal(after!.status, "Identified");
+  assert.equal(after!.version, obligation.version);
+});
+
+test("GUARD: only the Obligation adapter writes the status and no code names the birth event as a literal", () => {
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith(".ts")) files.push(path);
+    }
+  };
+  walk(join(process.cwd(), "src"));
+  const statusWriters = files.filter((f) => /obligationsDB\.updateStatus\(/.test(readFileSync(f, "utf8")));
+  assert.deepEqual(statusWriters.map((f) => f.slice(process.cwd().length + 1)), ["src/domain/engine/entityAdapters.ts"]);
+  const birthLiterals = files.filter((f) => /["']ObligationCreated["']/.test(readFileSync(f, "utf8")));
+  assert.deepEqual(birthLiterals, []);
 });

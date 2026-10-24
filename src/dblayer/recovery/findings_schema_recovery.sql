@@ -9,7 +9,7 @@ CREATE TABLE findings (
   severity             TEXT NOT NULL DEFAULT 'Medium',
   title                TEXT NOT NULL,
   description          TEXT,
-  status               TEXT NOT NULL DEFAULT 'Open',
+  status               TEXT NOT NULL,
   obligation_id        UUID REFERENCES obligations(id),
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()

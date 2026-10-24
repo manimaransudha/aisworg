@@ -4,6 +4,7 @@ import type { AcquisitionScope, DbResult, EngineeringCapitalRow, KnowledgeItemRo
 
 export const knowledgeItemsDB = {
   async create(input: {
+    status: string;
     seuId: string;
     deliverableId: string;
     category: string;
@@ -20,14 +21,14 @@ export const knowledgeItemsDB = {
   }): Promise<DbResult<KnowledgeItemRow>> {
     try {
       const { rows } = await query<KnowledgeItemRow>(
-        `INSERT INTO knowledge_items (seu_id, deliverable_id, category, title, description, acquisition_scope, deliverable_references, evidence_references, decision_references, knowledge_references, confidence_level, author_id, authority_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, $13)
+        `INSERT INTO knowledge_items (status, seu_id, deliverable_id, category, title, description, acquisition_scope, deliverable_references, evidence_references, decision_references, knowledge_references, confidence_level, author_id, authority_badge)
+         VALUES ($14, $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, $13)
          RETURNING *`,
         [
           input.seuId, input.deliverableId, input.category, input.title, input.description ?? null, input.acquisitionScope,
           JSON.stringify(input.deliverableReferences ?? {}), JSON.stringify(input.evidenceReferences ?? {}),
           JSON.stringify(input.decisionReferences ?? {}), JSON.stringify(input.knowledgeReferences ?? {}),
-          input.confidenceLevel ?? null, input.authorId, input.authorityBadge,
+          input.confidenceLevel ?? null, input.authorId, input.authorityBadge, input.status,
         ]
       );
       return { data: rows[0] };

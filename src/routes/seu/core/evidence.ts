@@ -3,7 +3,7 @@ import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import type { EvidenceRow, EvidenceRelationshipRow, EvidenceValidationAssessment, TransitionEntityType } from "../../../dblayer/seuTypes.js";
@@ -49,7 +49,14 @@ export async function createEvidence(input: {
 
   const { participantId: authorId, masterId: authorMasterId } = await resolveAuthorIds(input.seuId, input.actorId);
 
+  // The state and the event come from the birth row. The author badge stays as the caller gave it.
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Evidence");
+  if (birthError) throw birthError;
+  if (!birth) throw new Error("no birth Transition Definition for Evidence");
+  if (!birth.event_type) throw new Error("the Evidence birth Transition Definition names no event");
+
   const { data: evidence, error } = await evidenceDB.create({
+    status: birth.to_state,
     seuId: input.seuId,
     relatedObjectType: input.relatedObjectType,
     relatedObjectId: input.relatedObjectId,
@@ -65,7 +72,7 @@ export async function createEvidence(input: {
   if (error || !evidence) throw error ?? new Error("failed to create evidence");
 
   await eventBus.publish({
-    eventType: "EvidenceCollected",
+    eventType: birth.event_type,
     originatingObjectType: "Evidence",
     originatingObjectId: evidence.id,
     seuId: input.seuId,
@@ -176,21 +183,6 @@ export async function recordValidationAssessment(input: { evidenceId: string; di
   return { ok: true, evidence: updated };
 }
 
-export interface EvidenceWithNextStates {
-  evidence: EvidenceRow;
-  possibleNextStates: string[];
-}
-
-export async function listEvidenceWithNextStates(seuId: string): Promise<EvidenceWithNextStates[]> {
-  const items = await listEvidenceBySeu(seuId);
-  return Promise.all(
-    items.map(async (evidence) => {
-      const { data: possibleNextStates } = await transitionDefinitionsDB.findPossibleNextStates("Evidence", evidence.status);
-      return { evidence, possibleNextStates: possibleNextStates ?? [] };
-    })
-  );
-}
-
 export type TransitionEvidenceResult =
   | { ok: true; evidence: EvidenceRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
@@ -198,40 +190,20 @@ export type TransitionEvidenceResult =
   | { ok: false; reason: "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
 export async function transitionEvidence(input: { evidenceId: string; targetState: string; actorId: string }): Promise<TransitionEvidenceResult> {
-  const { data: evidence } = await evidenceDB.findById(input.evidenceId);
-  if (!evidence) return { ok: false, reason: "not_found" };
+  const result = await transitionEntity({ entityType: "Evidence", entityId: input.evidenceId, targetState: input.targetState, actorId: input.actorId });
+  if (!result.ok) return result;
 
-  const { data: relationships } = await evidenceDB.findRelationshipsByEvidenceId(evidence.id);
-  const seuId = relationships?.find((r) => r.related_object_type === "SEU")?.related_object_id ?? null;
-
-  const fromState = evidence.status;
-
-  if (!seuId) throw new Error(`Evidence ${evidence.id} has no SEU relationship — cannot resolve a governed author for its Quality Gate evaluation`);
-  const gate = await transitionEngine.evaluateGoverned({
-    entityType: "Evidence",
-    fromState,
-    toState: input.targetState,
-    actorId: input.actorId,
-    entityId: evidence.id,
-    context: { evidence },
-    gateEntityId: evidence.id,
-    gateSeuId: seuId,
-  });
-  if (!gate.allowed) return gateRejection(gate, "Evidence", fromState, input.targetState);
-
-  const { data: updated, error } = await evidenceDB.updateStatus(evidence.id, input.targetState);
-  if (error || !updated) throw error ?? new Error("failed to update evidence status");
-
+  const published = await publishTransition(result);
   await eventBus.publish({
-    eventType: gate.eventType ?? "EvidenceTransitioned",
+    eventType: "EvidenceTransitioned",
     originatingObjectType: "Evidence",
-    originatingObjectId: evidence.id,
-    seuId,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState },
+    originatingObjectId: input.evidenceId,
+    seuId: result.event.seuId,
+    correlationId: published.correlation_id,
+    payload: result.event.payload,
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
+    authorityBadge: result.event.authorityBadge,
   });
 
-  return { ok: true, evidence: updated, appliedTransition: { fromState, toState: input.targetState } };
+  return { ok: true, evidence: result.row as EvidenceRow, appliedTransition: result.appliedTransition };
 }

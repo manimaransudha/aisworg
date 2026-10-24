@@ -1,6 +1,8 @@
-# Chapter 40 – Security Architecture: Implementation Traceability
+# Implementation Traceability: Chapter 40 – Security Architecture
 
-**Date of report: 4-10-2026**
+**Date of report: 23-10-2026**
+
+## Traceability Table
 
 <!-- multiline -->
 **Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
@@ -23,320 +25,180 @@
   <tbody>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Security is pervasive and applies consistently across Runtime Services, Packs, Participants, Engineering Objects, External Interactions<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:77-144<br>src/middleware/gatekeeper.js:24-42</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A global session gate (gatekeeper) and a global route-authority gate are mounted ahead of every router, covering HTTP-reachable Participant interactions. <br>**Gap:** Pack security (publisher identity/signature) and Runtime Service-to-Runtime Service internal communication have no corresponding enforcement point — see rows below.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Security protects every platform interaction and applies across Runtime Services, Packs, Participants, Engineering Objects and External Interactions.<br>Ref: §1 Purpose, §3 Architectural Position</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/app.ts:218-227<br>src/middleware/gatekeeper.ts:24-42<br>src/middleware/routeAuthorityGate.ts:29-88</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: every HTTP request passes gatekeeper (session required) and routeAuthorityGate (route_authority row required) before any route runs. This covers human web and API interaction.<br>Gap: no layer protects Runtime Service to Runtime Service calls, which are in-process. Outbound External Interaction has only a static bearer reference. Pack publisher identity is a free text field. See the rows below.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Security does not alter engineering behaviour<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:10-25</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The gate only permits/denies a request before it reaches a route handler; it does not touch transition/composition logic.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Security does not alter engineering behaviour. Governance decides whether a transition is permitted. Security decides whether the requester may participate.<br>Ref: §1 Purpose, §4 Definition</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:29-88<br>src/domain/identity/heldBadges.ts:12-17<br>src/domain/engine/badgeAuthorityEngine.ts:16-23</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The gate runs before routes and only allows or denies the request by held badge or role. It writes no engineering state. Transition legality stays in transition_definitions, so the two layers are separate.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Security determines whether a requesting entity may participate; Governance/Authority determines whether a transition is permitted<br> Ref: §4 Definition, §10 Authorisation</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:122-141<br>src/middleware/requireBadge.ts:58-90<br>src/domain/engine/badgeAuthorityEngine.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Platform authorisation (route_authority badges/roles) and engineering authority (noun_verb badges checked inside transitionEngine via badgeAuthorityEngine) are two distinct, separately enforced checks, matching the spec's separation.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-001 Trust is explicit; no entity trusted implicitly<br> Ref: §5 SA-001</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/gatekeeper.js:24-41<br>src/middleware/routeAuthorityGate.ts:94-101</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every non-public path requires a session; a route with no <code>route_authority</code> row is denied by default ("fails closed"), not implicitly trusted. <br>**Deviation:** a <code>root</code>-badge dev/test bypass (NODE_ENV !== "production") and a superuser role bypass exist by design (documented in routeAuthorityGate.ts:17-20), which is an explicit, narrow exception rather than implicit trust.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Security is enforced before engineering execution.<br>Ref: §4 Definition</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/app.ts:218-227</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">gatekeeper and routeAuthorityGate are registered with app.use before the web and API routers (seuApiRouter is mounted at line 227). Denial returns before any handler runs.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-002 Identity precedes authority; every entity possesses a verifiable identity before participating<br> Ref: §5 SA-002, §8 Identity Model</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/auth/passportConfig.js:24-168<br>src/middleware/auth.js:56-95</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Human Participants get an identity via Google OAuth or local (bcrypt) credential, and a <code>participants_master</code> row is provisioned before any badge/authority check can occur. <br>**Gap:** AI Participants, External Systems, Connectors and Pack Publishers (also listed in §8) have no corresponding identity-issuance path in the repository — only Human Participants (via <code>users</code>/<code>participants_master</code>) are modelled. Runtime Services have no distinct service identity (FR-40.2) at all.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-003 Least privilege — every entity has only the permissions needed for its current responsibilities<br> Ref: §5 SA-003</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/requireBadge.ts:58-90<br>src/domain/engine/badgeAuthorityEngine.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Badge-based authority is scoped per noun_verb and per route; nothing resembles a blanket all-permissions grant other than the explicit <code>root</code> bypass.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-004 Security is layered; no single mechanism relied on exclusively<br> Ref: §5 SA-004</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/gatekeeper.js<br>src/middleware/routeAuthorityGate.ts<br>src/middleware/requireTenantScope.ts<br>src/middleware/requireBadge.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Four independent layers exist in sequence: session authentication, route-authority badge/role gate, tenant-scope check, and (inside transitions) badge-authority check.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-001: Trust is explicit and no entity is trusted implicitly.<br>Ref: §5 SA-001, §16 zero implicit trust</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:40-47<br>src/middleware/routeAuthorityGate.ts:38,65-66,71<br>src/middleware/routeAuthorityGate.ts:50-53</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a request with no matching route_authority row is denied. A session is required for any non-public route that has a badge or role.<br>Gap: a root badge bypasses the gate outside production (lines 38, 65, 71). A row with empty badges and roles admits any request that reaches it without a session check (lines 50-53). The public prefix list in gatekeeper.ts:4-16 is a code constant.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-005 Security is traceable; every security decision is auditable<br> Ref: §5 SA-005, §13 Auditing, FR-40.4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:41-48<br>src/middleware/requestLogger.js:1-12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Denials are written to the application logger (<code>logger.warn</code>) with actor email, method, path and reason. <br>**Gap:** this is a log line, not an audit record: it is not persisted as an immutable, queryable record, has no retention guarantee, and authentication success/failure, privilege changes, Pack publication and security-policy changes are not logged at all (searched for <code>AuthenticationSucceeded</code>, <code>AuthenticationFailed</code>, <code>AuthorisationGranted</code>, <code>AuthorisationDenied</code>, <code>SecurityViolationDetected</code>, <code>SecurityPolicyApplied</code> — no matches in the repository).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-006 Security policies are declarative wherever practical<br> Ref: §5 SA-006</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/route_authority_schema_recovery.sql<br>src/domain/identity/routeAuthorityCache.ts<br>src/dblayer/authorityRulesDB.ts:1-30</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Route-level authorisation (<code>route_authority</code> table, CR-110) and engineering authority rules (<code>authority_rules</code>, with <code>originating_pack_id</code>) are both data rows, not code literals — matches the declarative principle.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-40.1 Every Participant has a unique identity<br> Ref: §6 FR-40.1</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/participantsMasterDB.ts (findByUserId/create)<br>src/middleware/auth.js:56-71</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Each non-demo user gets its own <code>participants_master</code> row, found-or-created keyed on <code>user_id</code>; the session's <code>user.id</code> is this participant id, not the raw <code>users.id</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-40.2 Every Runtime Service has a verifiable service identity<br> Ref: §6 FR-40.2</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No construct for a Runtime Service's own identity (distinct from a human/API-calling user) was found anywhere in <code>src/domain</code>, <code>src/middleware</code>, or the dblayer. Internal services call each other as plain in-process function calls, not as separately-identified principals.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-002 and FR-40.1: Every Participant has a unique, verifiable identity before participating.<br>Ref: §5 SA-002, §6 FR-40.1, §8, §17 criterion 1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/users_schema_recovery.sql:3-22<br>src/dblayer/recovery/participants_master_schema_recovery.sql:12<br>src/middleware/auth.ts:41-59<br>src/domain/auth/passportConfig.ts:88-115</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: users.email is UNIQUE. Every signed-in user resolves to a participants_master row (created at first sign-in) and that row id is the session actor id. Sign-in verifies the identity by password hash or Google OAuth.<br>Gap: only Human Participants sign in. users.id is nullable on participants_master (user_id has no NOT NULL), so AI and External Participants carry no authenticated credential. The Demo tenant maps many sign-ins to one shared Demo User participant (auth.ts:44-45), so those identities are not unique per person.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-40.3 Every External Interaction is authenticated<br> Ref: §6 FR-40.3</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/auth/passportConfig.js:24-168</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Google OAuth and local-credential login authenticate the interactive (browser) external interaction. <br>**Gap:** no external system/API-key/service-to-service authentication path exists; the only "external interactions" the repository authenticates are human browser logins. Pack publisher authentication (§7 Pack Security) is absent (see packs.ts:13 below).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-40.4 Every security decision is traceable<br> Ref: §6 FR-40.4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:41-48</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as SA-005: decisions are logged, not persisted as audit records.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-40.5 Security policies support composition through Packs<br> Ref: §6 FR-40.5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/authorityRulesDB.ts:1-30 (originating_pack_id)<br>src/domain/engine/badgeAuthorityEngine.ts:65-69</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Engineering authority rules can be contributed by a Pack (<code>originating_pack_id</code> column) and are composed into <code>badgeAuthorityEngine</code>'s resolution. <br>**Gap:** this covers engineering-authority composition only; platform-level security policy (route_authority, confidentiality policy) has no Pack-composition path — <code>route_authority</code> rows are seeded directly, not contributed via Pack installation.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-40.2: Every Runtime Service has a verifiable service identity.<br>Ref: §6 FR-40.2, §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/constants.ts:125-160<br>src/domain/auth/passportConfig.ts:117-119<br>src/domain/engine/badgeAuthorityEngine.ts:34</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: one platform system actor row exists and is recorded as actor on system initiated events. It is the only service identity.<br>Gap: Runtime Services are in-process modules with no individual identity or verification. All services share the single system actor.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-40.6 Security credentials support rotation without service interruption<br> Ref: §6 FR-40.6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Searched the repository for rotation logic (<code>grep -rli "rotat"</code> across <code>src</code>) — the only hits are an unrelated CSS class name and unrelated pack-content keywords. No password-reset, API-key-rotation, or OAuth-token-refresh-without-interruption mechanism exists.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-40.7 The platform detects unauthorised access attempts<br> Ref: §6 FR-40.7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:41-48, 94-101, 125-141</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A denied request (missing session, missing badge/role, no route_authority row) is logged via <code>logger.warn</code>. <br>**Gap:** "detect" implies a traceable, reviewable signal distinct from best-effort stdout/log-file text; there is no stored record, no threshold-based alerting, and no <code>SecurityViolationDetected</code> event is ever published.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Participant Security — identity and authentication of AI, Human and External Participants<br> Ref: §7 Security Domains</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/auth/passportConfig.js</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Only Human Participants are authenticated (Google OAuth / local). No AI Participant or External Participant identity/authentication path exists in the repository.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Runtime Security — protection of Runtime Services and internal communications<br> Ref: §7 Security Domains</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No internal-communication authentication/authorization layer was found; Runtime Services communicate via direct in-process calls with no identity boundary.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack Security — validation of publisher identity, signatures and provenance<br> Ref: §7 Security Domains</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:1-17, 229</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The module's own header comment states explicitly: "no digital signature/provenance verification (single-trusted-operator platform ... )". <code>publisher</code> is stored as a free-text declaration-only metadata field (packMetadataFromSeed, packs.ts:229,239) with no verification.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Connectors, External Systems and Pack Publishers each hold a platform identity.<br>Ref: §8 Identity Model</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">None</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No Connector, External System or Pack Publisher identity entity exists. users and participants_master are the only identity tables. packs.publisher is a free text attribute (src/routes/seu/core/packs.ts:105) and is not linked to any identity.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Data Security — protection of engineering state and engineering knowledge<br> Ref: §7 Security Domains</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/requireTenantScope.ts:1-40<br>src/middleware/requireTenant.ts:1-18</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Tenant-scope middleware enforces that an actor can only reach rows belonging to their own tenant (or root bypass), which is the repository's substantive protection for engineering state.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Identity is independent of authority.<br>Ref: §8, §10, §17 criterion 3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_master_schema_recovery.sql:12,17,20<br>src/domain/engine/badgeAuthorityEngine.ts:16-23<br>src/domain/identity/heldRoles.ts:14-26</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The identity row (users, participants_master) is separate from authorised_role and authorised_badges JSONB grants, each with effective_till. Authority is read from the grants per request, never from the user type.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Interaction Security — protection of all external communications<br> Ref: §7 Security Domains</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/app.ts:77-82 (session cookie: httpOnly, secure in prod, sameSite)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Session cookie hardening exists for the browser channel. <br>**Gap:** no TLS/transport enforcement, API-key, or external-system interaction protection exists in-repository (infrastructure-layer concerns are explicitly out of scope per §2, but the spec's "Interaction Security" domain as a platform capability has no corresponding service here beyond cookie flags).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-40.3: Every External Interaction is authenticated.<br>Ref: §6 FR-40.3, §7 Interaction Security</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/adapters/externalOrchestratorAdapter.ts:11-19<br>src/dblayer/executionTargetsDB.ts:13,27<br>src/routes/seu/api/executionTargets.ts:33-52<br>src/app.ts:124</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: outbound delivery to an external orchestrator sends Authorization: Bearer when adapterAuthRef is set. Inbound API calls require a session and a route_authority row.<br>Gap: the bearer header is optional, so an unauthenticated outbound call is allowed. adapterAuthRef is stored as plain text in execution_targets and used as the token itself. No inbound machine credential exists, so an external system cannot authenticate except as a browser session. API paths skip CSRF (app.ts:124), which relies on session cookie alone.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Administrative Security — protection of platform administration functions<br> Ref: §7 Security Domains</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:50-75 (isSelfCrud exception)<br>src/routes/seu/web/routeAuthorityRegistry.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Administrative screens (route-authority CRUD, data-migrations) are gated by a literal root-only check as the documented, deliberate exception to the generic gate.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Identity is independent of authority<br> Ref: §8 Identity Model</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/auth.js:81-95 (buildSessionUser) vs badgeAuthorityEngine badge resolution</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Session identity (<code>id</code>, <code>email</code>, <code>role</code>) is built independently of badge/authority resolution, which happens per-request via a separate query.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">AI Participants, Connectors, External Systems, Pack Publishers possess a platform identity<br> Ref: §8 Identity Model</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Only Human Participants and (nominally) a user <code>role</code>/<code>type</code> of Platform vs Tenant are modelled. No identity record exists for AI Participants, Connectors, External Systems, or Pack Publishers.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Authentication shall verify identity before platform access is granted<br> Ref: §9 Authentication</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/gatekeeper.js:24-41</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>gatekeeper</code> redirects to login for any non-public path without <code>req.session.user</code>, mounted ahead of the route-authority gate.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-003: Least privilege. Each entity holds only the permissions its responsibilities need.<br>Ref: §5 SA-003</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:16-23<br>src/domain/identity/heldRoles.ts:17-24<br>src/middleware/routeAuthorityGate.ts:68-84</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Badges and roles are granted per Participant, filter out expired grants, and roles can be limited to named SEUs (seu_ids). The gate requires the specific badges and roles of each route, with all or any match mode. New participants hold no badges by default (passportConfig.ts:111).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Authentication supports interactive Participants, automated services, external integrations, Pack publishers<br> Ref: §9 Authentication</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/auth/passportConfig.js:24-168 (Google + Local strategies only)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Only interactive human login (OAuth/local) is implemented. <br>**Gap:** no automated-service authentication (API key/service token), no external-integration authentication, no Pack-publisher authentication exists.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Authorisation determines permitted platform operations, distinct from engineering authority<br> Ref: §10 Authorisation</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:103-141</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>route_authority</code> badges/roles gate platform operations (route access); engineering authority (whether a transition is permitted) is a separate check inside <code>transitionEngine</code>/<code>badgeAuthorityEngine</code>, confirming the spec's separation is implemented, not merely stated.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-004: Security is layered. No single mechanism is relied on alone.<br>Ref: §5 SA-004</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/gatekeeper.ts:24-42<br>src/middleware/routeAuthorityGate.ts:29-88<br>src/app.ts:65-70,109-126<br>src/middleware/requireTenantScope.ts:32-80</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: layers are session cookie (httpOnly, secure in production), CSRF double submit, session gate, route authority gate, tenant scope guard and login rate limit (routes/web/auth.ts:23-30).<br>Gap: there is no layer for service to service calls or for payload integrity. The API surface drops the CSRF layer.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Integrity preserved for engineering state, Events, Packs, Decisions, Evidence, telemetry, traceability records; violations detectable<br> Ref: §11 Integrity</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/eventBus.ts:69-90 (events persisted before dispatch)<br>src/dblayer/eventsDB.ts:71-82 (only consumption_state is ever updated post-insert)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Events are persisted first, dispatched after; the only post-insert mutation touches <code>consumption_state</code>, not the event's substantive payload, which functions as append-mostly integrity for Events specifically. <br>**Gap:** no checksum/signature or tamper-detection mechanism exists for engineering state, Packs, Decisions or Evidence — "violations shall be detectable" has no corresponding detection logic anywhere in the repository (no hash columns, no integrity-check routine found).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Confidentiality — protection of confidential engineering information, policies contributed through Packs<br> Ref: §12 Confidentiality</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Searched for confidentiality/classification handling; the only "classification" concept found (<code>installation_classification</code> = Mandatory/Optional on Pack composition, packsDB.ts) is a composition-mandatoriness flag, not an information-confidentiality control. No access-level/confidentiality-tagging mechanism for Deliverables, Knowledge, Evidence, or customer/organisational information exists.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every security-relevant activity generates an immutable audit record<br> Ref: §13 Auditing</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:41-48<br>src/middleware/requestLogger.js:1-12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Only textual log lines exist (via the application <code>logger</code>), for route-authority denials and generic request timing. <br>**Gap:** authentication (success and failure), privilege changes, Pack publication, administrative actions, and security-policy changes are not captured at all; no persisted, immutable audit table exists (no <code>audit</code> or <code>audit_log</code> table/DB module found in the repository).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Security Lifecycle — credentials support Issued → Activated → Rotated → Revoked → Archived; history retained for audit<br> Ref: §14 Security Lifecycle</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/auth/passportConfig.js:152-168 (bcrypt hash created on signup)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Only "Issued" (account/password creation) exists. <br>**Gap:** no Activated/Rotated/Revoked/Archived states or transitions for any credential (local password or OAuth token) exist; <code>users</code> has no status lifecycle column evidenced in the auth code path, and no historical security-state retention was found.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Security subsystem publishes AuthenticationSucceeded, AuthenticationFailed, AuthorisationGranted, AuthorisationDenied, CredentialRotated, SecurityViolationDetected, SecurityPolicyApplied<br> Ref: §15 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Searched the event taxonomy (<code>event_registry</code> schema, <code>eventBus.ts</code>, handler registry, and a repository-wide grep for each literal event name) — none of these seven event types exist. The only event-like signal is the plain-text log line on denial.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: zero implicit trust<br> Ref: §16 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:94-101</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fail-closed default on an unmatched route is the substantive implementation of this NFR.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: preserve engineering integrity<br> Ref: §16 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts (authorisation gate sits before route handlers)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Security enforcement runs strictly before any engineering-state mutation handler executes.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support horizontal scaling<br> Ref: §16 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/app.ts:77-82 (express-session, in-memory/store not inspected further)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Not independently verifiable from application code alone; scaling depends on the configured session store (e.g. a shared store vs in-memory), which is an infrastructure/deployment concern outside this repository's visible configuration.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: remain technology-independent<br> Ref: §16 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Not verifiable from the codebase; this is an architectural property about future portability, not something a single implementation snapshot can prove or disprove.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support regulatory compliance<br> Ref: §16 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No compliance-specific control (data residency, consent, retention policy enforcement) was found; several Pack seed files model compliance *content* (e.g. <code>compliance-eu-dora-nis2.pack.json</code>) as domain knowledge, but these are not security controls over the platform itself.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-005 and FR-40.4: Every security decision is auditable and traceable.<br>Ref: §5 SA-005, §6 FR-40.4, §17 criterion 5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:15-22<br>src/middleware/requireBadge.ts:37<br>src/middleware/requireTenantScope.ts:43-52<br>src/middleware/requestLogger.ts:4-13<br>src/domain/auth/passportConfig.ts:143-166</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: denials are written with logger.warn including user, method, path and missing badge. Successful transitions record actor and authority badge on the event row.<br>Gap: security decisions go only to the application log. No audit table row is written for authentication success, authentication failure or authorisation grant or denial. The log is not immutable or queryable by the platform.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: every participating entity possesses a verifiable identity<br> Ref: §17 Acceptance Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/auth.js:56-71</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">True for Human Participants only; false for AI Participants, Runtime Services, Connectors, External Systems, Pack Publishers (see §8 rows above).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: authentication precedes platform access<br> Ref: §17 Acceptance Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/gatekeeper.js:24-41</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Confirmed for the one implemented participant type (human session).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: platform authorisation is distinct from engineering authority<br> Ref: §17 Acceptance Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts vs src/domain/engine/badgeAuthorityEngine.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Confirmed, same evidence as §10 row.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Pack provenance is verifiable<br> Ref: §17 Acceptance Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Explicitly not implemented by design ("no digital signature/provenance verification").</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: security events are fully auditable<br> Ref: §17 Acceptance Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts:41-48</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Only a subset (route denials) is logged as text; not a full audit trail.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SA-006 and FR-40.5: Security policies are declarative and compose through Packs.<br>Ref: §5 SA-006, §6 FR-40.5, §17 criterion 6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/routeAuthority.json<br>src/domain/identity/routeAuthorityCache.ts:35-69<br>src/routes/seu/core/policyDefinitions.ts<br>src/dblayer/seed/data/compliance-gdpr.pack.json</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: route authority is declarative data in route_authority, loaded into a cache and matched by method and path. Policies and compliance Packs are declarative and compose through the Composition Engine.<br>Gap: the route_authority table is platform wide and is not contributed by a Pack, so the access rules do not compose through Packs. No Pack contribution kind is security specific.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: security policies support composition<br> Ref: §17 Acceptance Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/authorityRulesDB.ts:1-30</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">True for engineering-authority rules (Pack-originated); not true for platform-level route authorisation.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authentication verifies identity before platform access for interactive Participants.<br>Ref: §9, §17 criterion 2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/gatekeeper.ts:30-39<br>src/domain/auth/passportConfig.ts:137-181<br>src/domain/auth/passportConfig.ts:34-131<br>src/routes/web/auth.ts:50-82</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: non-public paths redirect to login without a session. Local login checks bcrypt (cost 12) and is_active. Google OAuth is supported. Sessions are created only after success.<br>Gap: in non-production a local user without a hash is activated with whatever password is entered (passportConfig.ts:148-159). An account that Google creates on first sign-in is granted participation in the Demo tenant without approval (lines 58-83).</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Identity service<br> Ref: §18 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/participantsMasterDB.ts, src/middleware/auth.js</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Exists only as an implicit by-product of login (find-or-create participant), not a standalone identity service covering all entity kinds in §8.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Authentication service<br> Ref: §18 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/auth/passportConfig.js</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Exists for human interactive login (Google OAuth + local/bcrypt).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authentication supports automated services and Pack publishers.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">None</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Only interactive sign-in (local and Google) exists. No API key, service token or publisher credential flow exists in the repository.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Platform authorisation service<br> Ref: §18 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/routeAuthorityGate.ts, src/domain/identity/routeAuthorityCache.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented as the CR-110 global gate plus cache; this is the most completely realised deliverable in the chapter.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Credential management service<br> Ref: §18 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/auth/passportConfig.js:152-168</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Only credential issuance (signup hash) exists; no management (reset, rotation, revocation) surface.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Audit service<br> Ref: §18 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Does not exist as a distinct service; only ad hoc logger calls.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authorisation follows authentication and is distinct from engineering authority.<br>Ref: §10, §17 criterion 3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/gatekeeper.ts:24-42<br>src/middleware/routeAuthorityGate.ts:29-88<br>src/middleware/requireBadge.ts:8-47</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The gate runs after the session check and decides route access from route_authority. Transition authority is a separate check by badge in the transition path. The ordering follows the §3 sequence.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Security policy framework<br> Ref: §18 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/route_authority_schema_recovery.sql, src/dblayer/authorityRulesDB.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A declarative, data-driven policy store exists for both platform-route and engineering-authority policy, consistent with SA-006.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Platform access is tenant scoped.<br>Ref: §3 and §7 Participant and Data Security, §16 zero implicit trust</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/requireTenant.ts:3-9<br>src/middleware/requireTenantScope.ts:25-80</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every request resolves a tenant scope and row lookups deny with not found when the row tenant differs from the viewer tenant. Only a root badge crosses tenants.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Integrity violations are detectable for engineering state, Events, Packs, Decisions, Evidence, telemetry and traceability records.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/events_schema_recovery.sql:3-20<br>src/dblayer/eventsDB.ts:15-52<br>src/routes/seu/core/traceability.ts:20-47,103-126</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: events are append only through the DB layer API (only consumption_state is updated), carry actor, badge, correlation and sequence. Traceability builds an ordered provenance list.<br>Gap: no hash, checksum, signature or database trigger prevents or detects modification of Events, Packs, Decisions, Evidence or telemetry. A direct SQL update is silent.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Security APIs<br> Ref: §18 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No API surface was found for managing identity, credentials, or audit records (route_authority's own CRUD is an admin screen, not a general security API).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack publisher identity, signatures and provenance are verified.<br>Ref: §7 Pack Security, §17 criterion 4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:105,115</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">publisher is an unvalidated string attribute of a Pack. No signature, digest or publisher identity check exists in any publish or import path. Pack provenance is not verifiable.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Confidentiality of Deliverables, Knowledge, Evidence and customer and organisational information is supported and may be contributed by Packs.<br>Ref: §12, §7 Data Security</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/requireTenantScope.ts:25-80<br>src/dblayer/seed/data/compliance-gdpr.pack.json<br>src/dblayer/seed/data/compliance-data-residency-localization.pack.json</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: tenant isolation protects every tenant scoped object from other tenants. Compliance Packs carry declarative confidentiality related content.<br>Gap: no per object confidentiality classification or access policy is evaluated at read time, and no encryption of stored content is performed by the platform.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every security relevant activity generates an immutable audit record (authentication, failed authentication, privilege changes, Pack publication, administrative actions, policy changes).<br>Ref: §13, §17 criterion 5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/web/auth.ts:62,79,87,209<br>src/dblayer/eventsDB.ts:26-52<br>src/dblayer/seed/data/transitionDefinitions.json</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: Pack publication, policy changes and other lifecycle transitions publish Events with actor and badge, which form a durable record. Grants of badges are stored with effective_till on participants_master.<br>Gap: authentication, failed authentication, logout, password reset, user creation and enabling or disabling users (auth.ts:235-290) write only logger.info lines. Privilege changes overwrite the JSONB grant with no history. No audit record is guaranteed immutable by the database.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Security credentials follow the lifecycle Issued, Activated, Rotated, Revoked, Archived, with history kept for audit.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/web/auth.ts:158-160,185-210,235-290<br>src/dblayer/userDB.ts:198-205<br>src/dblayer/recovery/users_schema_recovery.sql:12-20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: Issued (verification token with expiry), Activated (activateWithPassword on verify), Rotated (password reset by token), Revoked (is_active toggle) exist for user passwords.<br>Gap: Archived is absent and no credential history is kept. The old hash is overwritten on reset. Service, connector and publisher credentials have no lifecycle. Active sessions are not invalidated when a password is reset or a user is disabled.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-40.6: Credentials rotate without service interruption.<br>Ref: §6 FR-40.6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/web/auth.ts:185-210</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A password reset replaces the single hash in place. There is no overlap window with two valid credentials. SESSION_SECRET and the CSRF secret are one environment value with no rotation support (src/app.ts:66,110).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-40.7: The platform detects unauthorised access attempts.<br>Ref: §6 FR-40.7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/web/auth.ts:23-30<br>src/middleware/routeAuthorityGate.ts:15-22<br>src/middleware/requireTenantScope.ts:48-52</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: failed logins are throttled (3 failures per 4 hours per client) and denied access, tenant mismatches and missing authority are rejected and logged as warnings.<br>Gap: attempts are not recorded as a security event, counted, correlated or surfaced for review. No SecurityViolationDetected condition is evaluated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Security subsystem publishes AuthenticationSucceeded, AuthenticationFailed, AuthorisationGranted, AuthorisationDenied, CredentialRotated, SecurityViolationDetected and SecurityPolicyApplied.<br>Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">None</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">None of the seven event types exists in the event registry, the seed data or any publish call. A search of src for these names returns no code match.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Security supports horizontal scaling and technology independence.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/app.ts:65-70<br>src/domain/identity/routeAuthorityCache.ts:35-46</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Session state uses the express-session default store (no store configured), so sessions are held per process and do not scale across instances. The route authority cache is loaded once per process with no cross instance refresh. Authentication is behind passport strategies, which keeps the provider replaceable.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Security supports regulatory compliance and preserves engineering integrity.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/compliance-iso-27001.pack.json<br>src/dblayer/seed/data/compliance-soc2.pack.json<br>src/dblayer/eventsDB.ts:26-52</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: compliance Packs and an event record with actor and badge give a base for evidence. Gap: the audit and integrity gaps above limit compliance use, and no control maps compliance Pack requirements to security mechanisms.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Identity service, Authentication service, Platform authorisation service, Credential management service, Audit service, Security policy framework and Security APIs.<br>Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/auth/passportConfig.ts<br>src/domain/identity/heldBadges.ts<br>src/middleware/routeAuthorityGate.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: authentication (passportConfig.ts), identity resolution (auth.ts, heldBadges.ts) and platform authorisation (routeAuthorityGate.ts) exist as modules and middleware, and route_authority is the declarative policy store.<br>Gap: no Credential management service, no Audit service and no Security API exist. The three present parts are not exposed as services with an interface.</td>
     </tr>
   </tbody>
 </table>
+
 ## Summary
 
-- Total intents analysed: 40
-- Fully met: 13
-- Partially met: 15
-- Not met: 11
-- Not Verifiable: 2
-
-### Major implementation gaps
-
-- No identity, authentication, or service-identity construct exists for AI Participants, Runtime Services, Connectors, External Systems, or Pack Publishers — only Human Participants (via OAuth/local login) are modelled (§8, §9, FR-40.2, FR-40.3).
-- Pack provenance/signature verification is explicitly out of scope by a documented design decision (src/routes/seu/core/packs.ts:1-17), contradicting §7 Pack Security and the §17 acceptance criterion "Pack provenance is verifiable."
-- No audit service exists. Security-relevant activity is recorded only as transient application-log text (`logger.warn`/`logger.info`), not as an immutable, queryable audit record (§13, FR-40.4, FR-40.5 acceptance criterion).
-- None of the seven security domain events in §15 (AuthenticationSucceeded, AuthenticationFailed, AuthorisationGranted, AuthorisationDenied, CredentialRotated, SecurityViolationDetected, SecurityPolicyApplied) exist in the event taxonomy.
-- No credential lifecycle (Issued → Activated → Rotated → Revoked → Archived) exists beyond initial issuance; FR-40.6 (rotation without interruption) is unimplemented.
-- No confidentiality/classification mechanism exists for Deliverables, Knowledge, Evidence, or customer/organisational information (§12); the only "classification" field found is Pack installation-mandatoriness, an unrelated concept.
-- Platform-level security policy (route_authority) is not Pack-composable; only engineering-authority rules (authority_rules) carry an `originating_pack_id`, so FR-40.5 is only partially satisfied.
+- Total intents analysed: 28
+- Fully met: 6
+- Partially met: 17
+- Not met: 5
+- Not verifiable: 0
+- Major implementation gaps: no security audit record or the seven Security events; no Pack signature or provenance verification; no Connector, External System or Pack Publisher identity; no credential rotation or Archived stage; no automated service authentication; non-production root and password auto-activation bypasses.

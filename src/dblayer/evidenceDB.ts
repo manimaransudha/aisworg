@@ -12,6 +12,7 @@ export const evidenceDB = {
     description?: string | null;
     source?: string | null;
     supersedesEvidenceId?: string | null;
+    status: string;
     authorId: string;
     authorBadge: string;
     authorMasterId: string;
@@ -20,10 +21,10 @@ export const evidenceDB = {
     try {
       await client.query("BEGIN");
       const { rows } = await client.query<EvidenceRow>(
-        `INSERT INTO evidence (category, title, description, source, supersedes_evidence_id, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO evidence (category, title, description, source, supersedes_evidence_id, author_id, author_badge, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [input.category, input.title, input.description ?? null, input.source ?? null, input.supersedesEvidenceId ?? null, input.authorId, input.authorBadge]
+        [input.category, input.title, input.description ?? null, input.source ?? null, input.supersedesEvidenceId ?? null, input.authorId, input.authorBadge, input.status]
       );
       const evidence = rows[0];
       await client.query(

@@ -13,8 +13,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { createObjective, getObjectiveDetail } from "../src/routes/seu/core/objectives.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
-import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
-import { ensureEventSubscriptionsLoaded, TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, TESTER_OBJECTIVE_BABYLON, grantBadge, transitionObjective } from "./testFixtures.js";
+import { ensureEventSubscriptionsLoaded, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, transitionObjective } from "./testFixtures.js";
 
 before(async () => {
   await ensureEventSubscriptionsLoaded();
@@ -72,20 +71,10 @@ test("transitionObjective Active -> Superseded requires a real superseding Objec
 
 // CLAUDE.md tenancy rule — "every objective scoped to tenant that is Active"
 // is real enforcement, not just a candidate-list filter (reParentObjective's
-// own cross-tenant precedent). TESTER_OBJECTIVE_ACHIEVE_ONLY only holds
-// objective_achieve, so it's granted objective_supersede/objective_propose
-// here, same pattern sdk-authoring.test.ts's own grant() helper established.
+// own cross-tenant precedent). TESTER_OBJECTIVE_ATHENS holds every objective_* badge,
+// so no grant is needed and the shared ACHIEVE_ONLY row is never touched.
 test("transitionObjective refuses a cross-tenant superseding Objective", async () => {
-  // grantBadge persists on the shared tester row, so restore the original badge list afterwards —
-  // the Objectives viewer test in web-flow.e2e.test.ts needs this tester to hold objective_achieve only.
-  const { data: holder } = await participantsMasterDB.findById(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId);
-  const originalBadges = holder!.authorised_badges;
-  try {
-  await grantBadge(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, "objective_propose");
-  await grantBadge(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, "objective_activate");
-  await grantBadge(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, "objective_supersede");
-
-  const athens = await activeObjective(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, "cr116-athens");
+  const athens = await activeObjective(TESTER_OBJECTIVE_ATHENS.participantId, "cr116-athens");
   const babylon = await activeObjective(TESTER_OBJECTIVE_BABYLON.participantId, "cr116-babylon");
 
   await assert.rejects(
@@ -93,7 +82,7 @@ test("transitionObjective refuses a cross-tenant superseding Objective", async (
       transitionObjective({
         objectiveId: athens.id,
         targetState: "Superseded",
-        actorId: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId,
+        actorId: TESTER_OBJECTIVE_ATHENS.participantId,
         comment: "trying to supersede across tenants",
         supersedingObjectiveId: babylon.id,
       }),
@@ -104,10 +93,6 @@ test("transitionObjective refuses a cross-tenant superseding Objective", async (
   const { data: reloaded } = await objectivesDB.findById(athens.id);
   assert.equal(reloaded?.status, "Active");
   assert.equal(reloaded?.superseding_objective_id, null);
-  } finally {
-    const { error } = await participantsMasterDB.setAuthorisedBadges(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, originalBadges);
-    if (error) throw error;
-  }
 });
 
 test("getObjectiveDetail excludes Superseded from the generic dropdown and exposes same-tenant Active candidates", async () => {

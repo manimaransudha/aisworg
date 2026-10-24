@@ -5,8 +5,7 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
-import { readTargetState } from "../../../utils/transitionRequest.js";
-import { createEvidence, listEvidenceBySeu, transitionEvidence, linkEvidenceToObject, recordValidationAssessment } from "../core/evidence.js";
+import { createEvidence, listEvidenceBySeu, linkEvidenceToObject, recordValidationAssessment } from "../core/evidence.js";
 import type { TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { requireActorId, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
 
@@ -55,23 +54,24 @@ router.get("/evidence", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/evidence/:id/transition", async (req: Request, res: Response) => {
-  try {
-    const targetState = readTargetState(req, res);
-    if (targetState === null) return;
-    const actorId = requireActorId(req);
-    const result = await transitionEvidence({ evidenceId: String(req.params.id), targetState, actorId });
-
-    if (!result.ok) {
-      if (result.reason === "not_found") return res.status(404).json({ error: "Evidence not found" });
-      return res.status(409).json({ reason: result.reason, detail: result.detail });
-    }
-    res.status(200).json({ evidence: result.evidence, appliedTransition: result.appliedTransition });
-  } catch (err) {
-    logger.error("[api/seu/evidence] POST /:id/transition error", err as Error);
-    res.status(400).json({ error: (err as Error).message });
-  }
-});
+// CR-128 (owner): the API transition route has no caller and is commented out. Transitions go through the web route with a verb.
+// router.post("/evidence/:id/transition", async (req: Request, res: Response) => {
+//   try {
+//     const targetState = readTargetState(req, res);
+//     if (targetState === null) return;
+//     const actorId = requireActorId(req);
+//     const result = await transitionEvidence({ evidenceId: String(req.params.id), targetState, actorId });
+//
+//     if (!result.ok) {
+//       if (result.reason === "not_found") return res.status(404).json({ error: "Evidence not found" });
+//       return res.status(409).json({ reason: result.reason, detail: result.detail });
+//     }
+//     res.status(200).json({ evidence: result.evidence, appliedTransition: result.appliedTransition });
+//   } catch (err) {
+//     logger.error("[api/seu/evidence] POST /:id/transition error", err as Error);
+//     res.status(400).json({ error: (err as Error).message });
+//   }
+// });
 
 router.post("/evidence/:id/link", async (req: Request, res: Response) => {
   try {

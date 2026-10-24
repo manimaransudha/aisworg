@@ -7,7 +7,7 @@ import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { evaluateCondition, type GoverningCondition } from "../../../domain/engine/governingCondition.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
@@ -70,7 +70,15 @@ export async function createObligation(input: {
 
   const { authorId } = await resolveAuthor(seuId, input.actorId);
 
+  // The state and the event come from the birth row. The author badge stays as the caller gave it: the engine raises
+  // most Obligations as the SEU's system participant, which does not hold the creation badge.
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Obligation");
+  if (birthError) throw birthError;
+  if (!birth) throw new Error("no birth Transition Definition for Obligation");
+  if (!birth.event_type) throw new Error("the Obligation birth Transition Definition names no event");
+
   const { data: obligation, error } = await obligationsDB.create({
+    status: birth.to_state,
     seuId,
     relatedObjectType: input.relatedObjectType,
     relatedObjectId: input.relatedObjectId,
@@ -93,7 +101,7 @@ export async function createObligation(input: {
   if (error || !obligation) throw error ?? new Error("failed to create obligation");
 
   await eventBus.publish({
-    eventType: "ObligationCreated",
+    eventType: birth.event_type,
     originatingObjectType: "Obligation",
     originatingObjectId: obligation.id,
     seuId: obligation.seu_id,
@@ -309,21 +317,6 @@ export async function listObligationsBySeu(seuId: string): Promise<ObligationRow
   return data ?? [];
 }
 
-export interface ObligationWithNextStates {
-  obligation: ObligationRow;
-  possibleNextStates: string[];
-}
-
-export async function listObligationsWithNextStates(seuId: string): Promise<ObligationWithNextStates[]> {
-  const obligations = await listObligationsBySeu(seuId);
-  return Promise.all(
-    obligations.map(async (obligation) => {
-      const { data: possibleNextStates } = await transitionDefinitionsDB.findPossibleNextStates("Obligation", obligation.status);
-      return { obligation, possibleNextStates: possibleNextStates ?? [] };
-    })
-  );
-}
-
 export type TransitionObligationResult =
   | { ok: true; obligation: ObligationRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
@@ -331,48 +324,20 @@ export type TransitionObligationResult =
   | { ok: false; reason: "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
 export async function transitionObligation(input: { obligationId: string; targetState: string; actorId: string }): Promise<TransitionObligationResult> {
-  const { data: obligation } = await obligationsDB.findById(input.obligationId);
-  if (!obligation) return { ok: false, reason: "not_found" };
+  const result = await transitionEntity({ entityType: "Obligation", entityId: input.obligationId, targetState: input.targetState, actorId: input.actorId });
+  if (!result.ok) return result;
 
-  const fromState = obligation.status;
-
-  const gate = await transitionEngine.evaluateGoverned({
-    entityType: "Obligation",
-    fromState,
-    toState: input.targetState,
-    actorId: input.actorId,
-    context: { obligation },
-    gateEntityId: obligation.id,
-    gateSeuId: obligation.seu_id,
-  });
-  if (!gate.allowed) return gateRejection(gate, "Obligation", fromState, input.targetState);
-
-  const { data: updated, error } = await obligationsDB.updateStatus(obligation.id, input.targetState);
-  if (error || !updated) throw error ?? new Error("failed to update obligation status");
-
-  const correlationId = eventBus.newCorrelationId();
-  if (gate.eventType) {
-    await eventBus.publish({
-      eventType: gate.eventType,
-      originatingObjectType: "Obligation",
-      originatingObjectId: obligation.id,
-      seuId: obligation.seu_id,
-      correlationId,
-      payload: { fromState, toState: input.targetState },
-      actorId: input.actorId,
-      authorityBadge: gate.authorityBadge,
-    });
-  }
+  const published = await publishTransition(result);
   await eventBus.publish({
     eventType: "ObligationTransitioned",
     originatingObjectType: "Obligation",
-    originatingObjectId: obligation.id,
-    seuId: obligation.seu_id,
-    correlationId,
-    payload: { fromState, toState: input.targetState },
+    originatingObjectId: input.obligationId,
+    seuId: result.event.seuId,
+    correlationId: published.correlation_id,
+    payload: result.event.payload,
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
+    authorityBadge: result.event.authorityBadge,
   });
 
-  return { ok: true, obligation: updated, appliedTransition: { fromState, toState: input.targetState } };
+  return { ok: true, obligation: result.row as ObligationRow, appliedTransition: result.appliedTransition };
 }

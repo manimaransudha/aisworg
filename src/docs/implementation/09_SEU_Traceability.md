@@ -1,6 +1,10 @@
-# Chapter 2 — Software Engineering Unit (SEU) — Implementation Traceability
+# Implementation Traceability: Chapter 9 – Software Engineering Unit (SEU)
 
-**Date of report: 4-10-2026**
+**Date of report: 23-10-2026**
+
+Specification: src/docs/SEU Studio Specifications/02_SEU Composition/09_SEU.md
+
+## Traceability Table
 
 <!-- multiline -->
 **Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
@@ -22,236 +26,372 @@
   </thead>
   <tbody>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU is the primary execution entity, commissioned to achieve Objective(s); required Capabilities derive from the Objective(s)<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:5<br>src/routes/seu/core/commissioning.ts:176</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>seus.objective_id</code> is a real <code>NOT NULL</code> FK. Capability derivation at commissioning time actually reads the Template's own Deliverable Catalogue producing-capability references (<code>templates.ts</code>'s <code>getRequiredCapabilities</code>), not the Objective directly — an indirect derivation chain (Objective → Template → Capabilities), not a direct one.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU is the primary execution entity, commissioned for an Objective, with an executable runtime.<br>Ref: §1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:3-15<br>src/routes/seu/core/commissioning.ts:111-165</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The seus table holds the Objective, Template, Profile, active EBM, lifecycle state and commissioning report. initiateSeu creates the row and publishes CommissionInitiated.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU is an executable runtime entity whose behaviour is determined by a composed EBM<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:8<br>src/routes/seu/core/commissioning.ts:139-168</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>active_ebm_id</code> set once during commissioning, after <code>compose()</code> runs. Real.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every SEU&#x27;s required Capabilities derive from the Objective it is commissioned for.<br>Ref: §1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:111-135<br>src/routes/seu/core/commissioning.ts:241-249</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>finalizeCommissioning creates seu_capabilities from the Template's required Capabilities. The Template is chosen against the Objective's capabilities.<br>Chapter 8 records that no check compares the two at commission time. The derivation therefore rests on the Template choice.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU supports AI, human, and external-system participants<br> Ref: §1 Purpose, FR-2.5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql (type CHECK)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participants.type CHECK IN ('AI','Human','External')</code> — real, enforced at the DB.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU preserves knowledge, governance, traceability independently of participants<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/knowledge_items_schema_recovery.sql</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>knowledge_items.seu_id</code> carries no <code>participant_id</code> coupling; no cascade exists from a Participant row to knowledge/evidence/deliverables. Participant replacement cannot invalidate these by construction, not by an explicit guard.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU shall not interact directly with Packs; all engineering behaviour inherited through the EBM<br> Ref: §3 Architectural Position</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts (active_ebm_id only)<br>no <code>pack_id</code>/<code>packs</code> FK on <code>seus</code> table</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>seus</code> table has no direct Pack reference. Runtime consumers (governance, compliance, dependency engine) reach Pack-contributed behaviour only via <code>seu.active_ebm_id → ebms.composed_packs</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU responsibilities: execute work, maintain governance, coordinate participants, maintain dependency graphs, manage obligations, preserve knowledge, maintain traceability, report state<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts<br>src/routes/seu/core/obligations.ts<br>src/domain/engine/dependencyDefinitionEngine.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Each responsibility maps to a real, separately-owned subsystem (Dependency Engine, Obligation lifecycle, Knowledge, Events) rather than SEU-owned logic — consistent with the chapter's own framing that these are "elaborated in later chapters."</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU not responsible for: composing practices, loading Packs, authenticating users, infrastructure management<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/seus.ts (no auth/composition/pack-load logic)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Confirmed by absence — none of these concerns appear in the SEU route/core layer.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.1 — platform permits authorised users to commission an SEU<br> Ref: §5 FR-2.1</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts (commission entry point, governed transition)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real, badge-gated via <code>transitionEngine.evaluate</code> / <code>badgeAuthorityEngine.resolveAuthorBadge</code> (CR-006).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.2 — every SEU executes against exactly one EBM<br> Ref: §5 FR-2.2</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:8</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>active_ebm_id</code> is a single nullable UUID column, singular by construction.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.3 — an EBM shall exist before an SEU is commissioned<br> Ref: §5 FR-2.3</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:139-168</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Strict order: <code>compose()</code> → <code>ebmsDB.create</code> → <code>Pending→Commissioned</code> transition.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.4 — every runtime object belongs to exactly one active SEU<br> Ref: §5 FR-2.4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/deliverables_schema_recovery.sql<br>src/dblayer/recovery/obligations_schema_recovery.sql:5<br>src/dblayer/recovery/knowledge_items_schema_recovery.sql</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>seu_id</code> is <code>NOT NULL</code> and a singular FK on <code>obligations</code>, <code>deliverables</code>, <code>knowledge_items</code>, and other runtime tables inspected.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.5 — human, AI, external-system participants<br> Ref: §5 FR-2.5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as §1 row above.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An SEU is a temporary construct that reaches a retired and archived end.<br>Ref: §1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:106-155<br>src/dblayer/seusDB.ts:10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Operational or Suspended SEUs retire. A Retired SEU archives. Live-state queries exclude Retired and Archived.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.6 — SEU shall maintain complete engineering traceability<br> Ref: §5 FR-2.6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/events_schema_recovery.sql (if present)<br>eventBus.publish call sites across src/domain/engine/, src/routes/seu/core/</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability exists as a side effect of the generic <code>events</code> table and FK trails, not as a dedicated traceability service or entity. The chapter states this as a first-class SEU responsibility; the implementation treats it as emergent.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants may be AI, human or external systems, and the SEU keeps knowledge, governance and traceability independent of any participant.<br>Ref: §1, §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/ontologyConcepts.json:4395-4404<br>src/dblayer/recovery/participants_schema_recovery.sql:5-9<br>src/routes/seu/core/participants.ts:91-146</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Participant types are an Ontology set. Participants hold a seu_id. Knowledge, Evidence, Decisions and Obligations are keyed by the SEU, not by a Participant.<br>Gap:<br>The set of types is data. Nothing in the repository establishes an external-system Participant adapter beyond the type value.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.7 — knowledge preserved independently of participant lifecycle<br> Ref: §5 FR-2.7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/knowledge_items_schema_recovery.sql</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as §1 row above.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU&#x27;s scope covers lifecycle, runtime model, composition, responsibilities, interaction with the kernel and engine, commissioning and archival.<br>Ref: §2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/seus.ts:273-476</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>getSeuDetailView assembles Capabilities, Deliverables, Commands, Obligations, Attention Items, Evidence, Knowledge, Decisions, External Interactions and Events for one SEU.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.8 — SEU exposes runtime state through published services<br> Ref: §5 FR-2.8</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/api/seus.ts:1-113</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Ordinary HTTP CRUD read routes exist (list/detail). No distinct "published service" contract beyond standard REST reads — the spec's "published services" language implies more than what is built.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU does not interact directly with Packs. All engineering behaviour is inherited through the EBM.<br>Ref: §3, §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:44-87<br>src/domain/engine/ebmActivated.ts:14-52<br>src/routes/seu/core/seus.ts:292-326</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Runtime behaviour (policies, Quality Gates, competency requirements, pool, composed Pack ids) is read from the EBM row.<br>Gap:<br>checkRequestLiveness reads Packs directly through packsDB at the Validate step, before the EBM exists. checkEbmLiveness (commissioning.ts:89-105) reads Packs again. The SEU module therefore touches Packs for liveness.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU is not responsible for composing practices, loading Packs, authenticating users or managing infrastructure.<br>Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:60-105<br>src/routes/seu/web/seus.ts:112-143</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Composition is run by the Composition Engine and persisted as the EBM. The SEU receives it through setActiveEbm.<br>Gap:<br>The same SEU module (commissioning.ts) hosts the Validate-time Pack liveness reads and the previewCommissioningValidation unravel call (commissioning.ts:441-462), so composition-adjacent logic sits in the SEU core.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.9 — SEU maintains dependency relationships between deliverables<br> Ref: §5 FR-2.9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/dependency_definitions_schema_recovery.sql:3<br>src/domain/engine/dependencyDefinitionEngine.ts:1-223</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real, dedicated <code>dependency_definitions</code> table and engine, actively exercised.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU executes engineering work.<br>Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/deliverableKickoff.ts:17-45<br>src/domain/engine/executionEngine.ts:51-130<br>src/domain/engine/workItemGenerator.ts:1-180</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>On an Operational SEU, governed Deliverable hops run. The Execution Engine records a Command, generates Work Items and dispatches them to Participants.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU maintains engineering governance.<br>Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/executionEngine.ts:72-130<br>src/domain/engine/transitionEngine.ts:61-86<br>src/routes/seu/core/commissioning.ts:311-357</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Deliverable hops check open Obligations, Decisions, Quality Gates and badges. SEU hops evaluate the EBM's SEU-scoped Policies and raise Obligations on a block.<br>Gap:<br>The SEU states Monitoring (governance) and Completing have no hops, so governance evaluation ends at Operational.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.10 — execution occurs only when dependency conditions are satisfied<br> Ref: §5 FR-2.10</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts:1-232<br>src/domain/engine/dependencyDefinitionEngine.ts:211</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>dispatchEngine.ts</code> gates Work Item dispatch on <code>dependencyDefinitionEngine</code>'s readiness evaluation before publishing <code>WorkItemDispatched</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.11 — SEU manages engineering obligations<br> Ref: §5 FR-2.11</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/obligations_schema_recovery.sql:1-30<br>src/routes/seu/core/obligations.ts:120,505</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>obligations</code> table now carries <code>priority</code>, <code>assigned_entity_type/id</code> (owner), <code>completion_criteria</code>, <code>blocked_from_state</code>/<code>blocked_to_state</code> (blocking conditions) — all real columns. This is materially more complete than the chapter's own earlier §19.11 claim that owner/priority/blocking-conditions were absent; that claim is stale against the current schema. "Required evidence" as a named, dedicated field is still not present.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-2.12 — SEU preserves a complete audit history<br> Ref: §5 FR-2.12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">same evidence as FR-2.6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same basis as FR-2.6 — real via <code>events</code>, not a dedicated audit-history service.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU lifecycle: Requested → Engineering Behavior Composition → Commissioned → Executing → Monitoring → Completing → Knowledge Preservation → Archived<br> Ref: §6 SEU Lifecycle</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:9,18-20<br>src/dblayer/seusDB.ts:16</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real <code>lifecycle_state CHECK</code> enforces 9 states: <code>Pending, Commissioned, Configured, Activated, Operational, Suspended, Retired, Archived, Failed</code> — one more state (<code>Failed</code>) than the chapter's implied closed set, and a different shape entirely. Only <code>Commissioned</code> and <code>Archived</code> match the chapter's own names exactly. The chapter's 8 stages are work-progress-oriented (Executing/Monitoring/Completing); the real graph is infrastructure-readiness-oriented (Configured/Activated/Operational/Suspended), plus an unnamed <code>Failed</code> terminal state the chapter never anticipates. "Engineering Behavior Composition" is not a persisted state — composition happens synchronously inside the <code>Pending→Commissioned</code> transition (src/routes/seu/core/commissioning.ts:139-168), never independently observable.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU-Objective relationship is 1:1 (commissioning uniqueness)<br> Ref: §6 (Requested stage), cross-referenced from Ch.1</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:21-23</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The constraint is now <code>idx_seus_objective_id_active_unique</code>, a **partial** unique index scoped to <code>lifecycle_state IN ('Pending','Commissioned','Configured','Activated','Operational','Suspended')</code> — not a plain, permanent <code>UNIQUE(objective_id)</code>. An Objective can be re-commissioned into a new SEU once its prior SEU reaches <code>Retired</code>, <code>Archived</code>, or <code>Failed</code>. This directly contradicts the chapter's own earlier §19 preamble claim ("a real, enforced UNIQUE constraint... confirmed at the strongest possible level") — that claim was true of a since-dropped index (<code>idx_seus_objective_id_unique</code>, explicitly <code>DROP INDEX</code>-ed in the same recovery file) and is stale against the current schema. The 1:1 guarantee now holds only among *active* SEUs per Objective, not permanently.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU composition: Objectives, Participants, Capabilities, Services, Roles, Deliverables, Work Items, Dependency Graph, Knowledge, Evidence, Governance, Obligations, Traceability, Metrics, Runtime State<br> Ref: §7 SEU Composition</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/{deliverables,work_items,knowledge_items,evidence,obligations,dependency_definitions}_schema_recovery.sql</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">13 of 15 named components have a real, directly corresponding table/entity. <code>Roles</code> has no table or entity anywhere in the schema recovery set — confirmed by absence (no <code>roles</code>/<code>CREATE TABLE.*role</code> match). <code>Traceability</code> and <code>Runtime State</code> are real only in an emergent sense (via <code>events</code> and <code>seus.lifecycle_state</code> respectively), not as dedicated entities.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU coordinates participants.<br>Ref: §4, §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:99-212<br>src/domain/engine/dispatchEngine.ts:1-168<br>src/domain/engine/capabilityOnReady.ts:14-47</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Ready Deliverables request fulfilment of their producing Capability. Fulfilment assigns Participants. The dispatch engine selects a Participant for each Work Item.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Execution is dependency-driven, not elapsed-time-driven; Runtime Kernel executes only work items declared ready<br> Ref: §8 Execution Model</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts<br>src/domain/engine/dependencyDefinitionEngine.ts:211</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as FR-2.10. No polling/timer-based readiness check found in the dispatch path.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU inherits all engineering behaviour from its EBM; SEU shall not modify the EBM directly; changes require recomposition<br> Ref: §9 Engineering Behavior Model</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts (no EBM-mutation path from SEU side)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No SEU-side EBM-update path exists, satisfying the "shall not modify" clause trivially. "Changes require recomposition by the Composition Engine" is aspirational — no code path triggers automatic recomposition on any EBM-affecting change; this is a pre-existing, separately-documented gap in the Composition Engine chapter, inherited here by reference.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants execute capabilities within assigned roles; participants are replaceable without invalidating knowledge/traceability/completed work<br> Ref: §10 Participants</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Replaceability-without-invalidation holds by the same FK-absence argument as FR-2.7. The "within assigned roles" clause cannot be fully evaluated — no <code>Role</code> entity exists (§7 finding), so "roles" here is necessarily informal/attribute-based, not a modeled relationship.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Deliverable defines dependencies, producing capabilities, required evidence, acceptance criteria, completion status<br> Ref: §11 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/deliverables_schema_recovery.sql</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable's own required fields are a mix of real columns and Dependency-Engine-derived relationships; this chapter's own governing chapter (Deliverable Model) owns the field-by-field verification and was not re-derived here.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU maintains dependency graphs.<br>Ref: §4, §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dependencyDefinitionEngine.ts:96-149<br>src/domain/engine/materialiseDependencyGraph.ts:8-51<br>src/routes/seu/core/seus.ts:326-357</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Dependency definitions are materialised from the Template and evaluated per SEU. The detail view shows each Deliverable's edges with Satisfied or Pending.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Work Items exist solely to produce/modify Deliverables; every Work Item references one or more Deliverables; Work Items shall not exist independently of Deliverables<br> Ref: §12 Work Items</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/work_items_schema_recovery.sql</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>work_items</code> carries a required FK to a Deliverable — confirmed directly against this chapter's own claim.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU maintains a dependency graph over Deliverables, Decisions, Obligations, Knowledge, Evidence, External dependencies; execution readiness determined exclusively from this graph<br> Ref: §13 Dependency Graph</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dependencyDefinitionEngine.ts:1-223</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real and exercised for Deliverable readiness. Whether Decisions/Obligations/Knowledge/External-dependency edges are all represented in the same graph (vs. handled by separate gates, e.g. the Obligation-blocking Quality Gate mechanism) was not independently re-traced in this pass — the graph's Deliverable-centric path is confirmed; full coverage of all five named edge types is not.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU manages engineering obligations from risks, audits, customer observations, compliance, security/architecture reviews, dependency analysis; every obligation has owner, severity, priority, required evidence, blocking conditions, status<br> Ref: §14 Engineering Obligations</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/obligations_schema_recovery.sql:1-30</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>severity</code>, <code>status</code> ✅ original columns. <code>priority</code> ✅ real (<code>ALTER TABLE ... ADD COLUMN priority</code>). <code>assigned_entity_type</code>/<code>assigned_entity_id</code> ✅ real, functions as owner. <code>blocked_from_state</code>/<code>blocked_to_state</code> ✅ real, functions as blocking conditions. <code>origin</code> ✅ real, functions as the obligation-source taxonomy (risks/audits/etc.). "Required evidence" has no dedicated column.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU publishes domain events: SEUCommissioned, DeliverableReady, WorkItemStarted, WorkItemCompleted, DependencySatisfied, DependencyBlocked, ObligationRaised, ObligationResolved, KnowledgeAccepted, KnowledgeArchived, SEUArchived<br> Ref: §15 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:392 (<code>step.eventType ?? \</code>SEU${to}\``)<br>src/domain/engine/dependencyDefinitionEngine.ts:211<br>src/domain/engine/dispatchEngine.ts:210<br>src/routes/seu/core/workItems.ts:208<br>src/domain/engine/executionEngine.ts:90<br>src/routes/seu/core/obligations.ts:120<br>src/routes/seu/core/knowledge.ts:81</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>SEUCommissioned</code> is real but dynamically derived — the generic transition handler defaults <code>eventType</code> to <code>SEU${toState}</code>, so <code>Pending→Commissioned</code> yields <code>"SEUCommissioned"</code> unless the transition_definitions row overrides it; not a literal string constant in commissioning.ts. <code>DeliverableReady</code> (not <code>DependencySatisfied</code>), <code>WorkItemDispatched</code> (not <code>WorkItemStarted</code>), <code>DeliverableBlocked</code> (not <code>DependencyBlocked</code>) — same consequence under different names. <code>WorkItemCompleted</code> ✅ exact. <code>ObligationCreated</code> (not <code>ObligationRaised</code>); no <code>ObligationResolved</code> equivalent found (only a generic <code>ObligationTransitioned</code>). <code>KnowledgeObserved</code> exists; no <code>KnowledgeAccepted</code>/<code>KnowledgeArchived</code>. No event publish found for any transition reaching <code>Archived</code> — <code>SEUArchived</code> would only emerge via the same <code>SEU${to}</code> default if/when such a transition is actually invoked and no override exists; no caller in commissioning.ts/seus.ts currently drives a SEU to <code>Archived</code>, so this was not observed as exercised.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU manages engineering obligations.<br>Ref: §4, §14, FR-2.11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/obligations.ts:39-120<br>src/routes/seu/core/obligations.ts:123-260<br>src/domain/engine/executionEngine.ts:72-82</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Obligations are created manually, from Pack definitions and from blocked transitions. Open blocking Obligations stop SEU and Deliverable hops.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Multiple SEUs execute concurrently<br> Ref: §16 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql (per-row FK subtree, no shared mutable state)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No cross-SEU shared mutable state found in the inspected schema/engine files.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU preserves knowledge.<br>Ref: §4, FR-2.7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/knowledge.ts:20-82<br>src/routes/seu/core/knowledge.ts:137-196<br>src/dblayer/recovery/knowledge_items_schema_recovery.sql:5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Knowledge Items are keyed by seu_id and Deliverable, not by Participant. Scope promotion creates Engineering Capital. Replacing a Participant archives that Participant only (participants.ts:106-146).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU execution survives runtime restarts; runtime state recoverable<br> Ref: §16 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All inspected state is DB-persisted (<code>lifecycle_state</code>, <code>commissioning_report</code>, <code>composition_report</code>); no in-memory-only runtime state found in the files inspected.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All engineering decisions remain traceable; all execution externally observable<br> Ref: §16 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">same evidence as FR-2.6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same basis — real via <code>events</code>/HTTP reads, not a dedicated observability service.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU maintains traceability.<br>Ref: §4, FR-2.6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:82-210<br>src/domain/engine/executionEngine.ts:255-280</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>explainDeliverable and impactOfDeliverable return provenance and impact. Every hop records a Command, a governance outcome and events with actor and badge.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU remains independent of specific AI providers<br> Ref: §16 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/seus.ts, src/dblayer/recovery/participants_schema_recovery.sql</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No AI-provider-specific coupling found in the SEU/Participant schema or core route files inspected.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU reports engineering state.<br>Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/seus.ts:54-66<br>src/routes/seu/core/seus.ts:153-170<br>src/routes/seu/core/telemetry.ts:60-110</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Status, quickview, detail and the five telemetry metric groups report per SEU.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authorised users can commission an SEU.<br>Ref: FR-2.1, §3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/seus.ts:98-110<br>src/routes/seu/core/commissioning.ts:111-165<br>src/dblayer/seed/data/routeAuthority.json</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The Save button calls initiateSeu with the actor. Birth requires the seu_commission badge through transitionEngine.beginBirth. The route is gated by route_authority.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: SEU commissioned from EBM; participants assigned/replaced; deliverables drive execution; work items execute only when dependencies satisfied; obligations influence execution; knowledge survives archival; traceability complete<br> Ref: §17 Acceptance Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(aggregate of above rows)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Each criterion resolves to the finding already given for its underlying FR/section above; obligation-influence is real via the blocking-conditions columns now present (§14); "knowledge survives archival" has no code path that deletes <code>knowledge_items</code> on archival, but is not separately exercised/tested as a guarantee.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning is a single request that commissions an SEU from an Engineering Behavior Model.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/seus.ts:98-143<br>src/routes/seu/api/seus.ts:13-32</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Commissioning runs as Save, Validate, Compose EBM, Validate EBM and Activate EBM on the web router.<br>Gap:<br>The API commission route is commented out (api/seus.ts:13-32). No single call commissions an SEU from an EBM.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every SEU executes against exactly one EBM.<br>Ref: FR-2.2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:8<br>src/domain/engine/compositionCompleted.ts:74-105<br>src/dblayer/ebmsDB.ts:57-62</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>seus.active_ebm_id holds one EBM. The EBM is created once by compositionCompleted and the pointer is set there. Later changes only move the EBM's status.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables of this chapter: SEU domain model, lifecycle implementation, aggregate definition, dependency graph interfaces, Deliverable model, Work Item model, runtime services, event definitions, initial API spec<br> Ref: §18 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts (SeuRow)<br>src/routes/seu/core/seus.ts<br>src/domain/engine/dependencyDefinitionEngine.ts<br>src/dblayer/recovery/{deliverables,work_items}_schema_recovery.sql<br>src/routes/seu/api/*.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">7 of 9 named deliverables have a direct, unambiguous artifact. "Runtime services" has no single consolidated service — logic is scattered per-concern across <code>core/*.ts</code>. "Event definitions" are only partially complete per §15's finding (several under different names, several entirely unbuilt).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An EBM exists before an SEU is commissioned.<br>Ref: FR-2.3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:74-105<br>src/domain/engine/ebmActivated.ts:14-52<br>src/routes/seu/core/commissioning.ts:288-292</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The SEU is born Initiated and Validated without an EBM. The hop to Commissioned is made only by finalizeCommissioning, which runs off EBMActivated. An EBM exists before Commissioned.<br>Gap:<br>The SEU row exists, and an Initiated or Validated SEU is live, before any EBM exists (active_ebm_id is nullable, seus_schema_recovery.sql:8).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every runtime object belongs to exactly one active SEU.<br>Ref: FR-2.4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/commands_schema_recovery.sql:5<br>src/dblayer/recovery/deliverables_schema_recovery.sql:3-8<br>src/dblayer/recovery/knowledge_items_schema_recovery.sql:5<br>src/dblayer/recovery/evidence_schema_recovery.sql:23-30<br>src/dblayer/recovery/work_items_schema_recovery.sql:3-10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Commands, Deliverables, Obligations, Decisions, Knowledge Items, Attention Items and Participants carry a NOT NULL seu_id with a foreign key.<br>Gap:<br>Work Items hold no seu_id and reach the SEU through the Command. Evidence has no direct seu_id column and reaches the SEU through relationships. No guard stops a write to a Retired or Archived SEU.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An SEU supports human, AI and external-system participants.<br>Ref: FR-2.5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/ontologyConcepts.json:4395-4404<br>src/routes/seu/core/participants.ts:91-122</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Participant type is validated against the participant-types Ontology set when a Participant is created or replaced.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Complete engineering traceability is maintained.<br>Ref: FR-2.6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:82-210<br>src/domain/engine/executionEngine.ts:255-290</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Commands, governance outcomes, deliverable references, attestations and events are recorded per hop.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Knowledge is preserved independently of the participant lifecycle.<br>Ref: FR-2.7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:91-146<br>src/dblayer/recovery/knowledge_items_schema_recovery.sql:5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Replacement archives the old Participant and creates a new one on the same Capability fulfilment. Knowledge Items are not tied to a Participant.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU exposes runtime state through published services.<br>Ref: FR-2.8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/api/seus.ts:35-62<br>src/routes/seu/api/telemetry.ts:10-25<br>src/routes/seu/api/workItems.ts:1-60</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The API exposes the SEU status, events, governance model, telemetry and Work Item operations.<br>Gap:<br>The SEU API has no list, detail view with Obligations, Knowledge or Deliverable state, and no transition route. Those are on the web router only.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU maintains dependency relationships between Deliverables.<br>Ref: FR-2.9, §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/materialiseDependencyGraph.ts:25-48<br>src/domain/engine/dependencyDefinitionEngine.ts:55-94</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Deliverable to Deliverable rows are materialised from the Template graph. Rows for Decisions, Obligations, Evidence and Knowledge are evaluated.<br>Gap:<br>materialiseDependencyGraph skips every entry that is not Deliverable-to-Deliverable (materialiseDependencyGraph.ts:28-48). Nothing materialises External dependencies. resolveNamedNode returns null for every other node type.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Execution occurs only when dependency conditions are satisfied.<br>Ref: FR-2.10, §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/executionEngine.ts:52-70<br>src/domain/engine/dependencyDefinitionEngine.ts:99-111</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>evaluateDeliverableTransition calls isTargetReady first. Unsatisfied rows reject the hop and publish DeliverableBlocked. Producing work starts only after the hop to In Progress.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An SEU preserves a complete audit history.<br>Ref: FR-2.12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/eventBus.ts:67-104<br>src/dblayer/recovery/events_schema_recovery.sql</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Every publish appends an event row with actor, badge and correlation id before any handler runs. SEU events are listed per SEU (events.ts:6-9).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU lifecycle passes through Requested, Engineering Behavior Composition, Commissioned, Executing, Monitoring, Completing, Knowledge Preservation and Archived.<br>Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:3-148<br>src/dblayer/seusDB.ts:10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The live lifecycle is Initiated, Validated, Configured, Commissioned, Activated, Operational, Suspended, Retired, Archived, plus Failed.<br>Gap:<br>Requested maps to Initiated. Composition, Executing and Commissioned have different names or positions. Monitoring, Completing and Knowledge Preservation have no state and no transition. Retired and Suspended are not in the spec lifecycle.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Requested: the objective is defined and no runtime resources exist.<br>Ref: §6 Requested</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:111-165</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The Initiated SEU has no Capabilities, Deliverables or EBM. Those are created later.<br>Gap:<br>The state is named Initiated, not Requested. The Requested event is CommissionInitiated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Engineering Behavior Composition: the Composition Engine builds the EBM and no participants are active.<br>Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:60-115<br>src/routes/seu/core/commissioning.ts:200-219</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Compose EBM runs while the SEU is Validated. No Participants exist yet.<br>Gap:<br>No SEU state represents composition. Composed, RuntimeAllocated, KnowledgeInitialised and ParticipantsRecruited rows exist in the seed (transitionDefinitions.json:156-190) and nothing performs them.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioned: runtime resources are allocated, Capabilities become available and Participants may be recruited.<br>Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:241-249<br>src/routes/seu/core/commissioning.ts:272-292</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>finalizeCommissioning creates the SEU's Capabilities and Deliverables and moves the SEU Configured then Commissioned.<br>Gap:<br>Participants are recruited when a Deliverable becomes Ready, after Operational (capabilityOnReady.ts), not at Commissioned. Commissioned is a transient step before Activated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Executing: the SEU performs work and the Dependency Engine continuously evaluates readiness.<br>Ref: §6 Executing</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:311-357<br>src/domain/engine/dependencyDefinitionEngine.ts:115-148<br>src/domain/engine/capabilityOnReady.ts:14-47</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Operational is the executing state. Readiness is evaluated on every Deliverable or Capability transition and published as DeliverableReady.<br>Gap:<br>The state is named Operational. Evaluation is event-driven, not continuous.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Monitoring: the SEU continuously evaluates dependency health, obligations, governance, knowledge completeness and execution flow.<br>Ref: §6 Monitoring</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/telemetry.ts:60-110<br>src/routes/seu/core/workItemHeartbeat.ts:15-30</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No Monitoring state or transition exists. Metrics are computed on request. The stall sweep and the Capability retry sweep run only when their API routes are called (api/workItems.ts:52). No scheduler runs them.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Completing: outstanding work reaches a terminal state and knowledge is consolidated.<br>Ref: §6 Completing</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:106-155</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No Completing state exists. Operational moves to Suspended or Retired by a manual button. No code checks that Deliverables, Work Items and Obligations are terminal before Retired.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Knowledge Preservation: knowledge, evidence and traceability are finalised for long-term reuse.<br>Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:106-155</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No Knowledge Preservation state or step exists. Retired to Archived is a manual hop that checks no Knowledge, Evidence or traceability finalisation.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Archived: the SEU becomes read-only, runtime execution ceases and knowledge remains accessible.<br>Ref: §6 Archived</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:140-155<br>src/dblayer/seusDB.ts:10<br>src/domain/engine/deliverableKickoff.ts:35</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Archived is reachable from Retired and SEUArchived is published. Archived SEUs are excluded from the live-state set. Governed Deliverable hops run only on Operational SEUs. Knowledge rows remain and are listed per SEU.<br>Gap:<br>No guard makes an Archived SEU read-only. Web routes for Evidence, Knowledge, Decisions, Obligations and Attention Items do not check the SEU state (web/seus.ts:274-693).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU is composed of Objectives, Participants, Capabilities, Services, Roles, Deliverables, Work Items, a Dependency Graph, Knowledge, Evidence, Governance, Obligations, Traceability, Metrics and Runtime State.<br>Ref: §7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/seus.ts:244-271<br>src/dblayer/recovery/seus_schema_recovery.sql:3-15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The SEU detail view carries Capabilities, Participants, Deliverables, Commands and Work Items, Dependency edges, Obligations, Evidence, Knowledge, Decisions, Events and Governance.<br>Gap:<br>Roles are not a component; no SEU role entity or column exists. Services are looked up by code only for labels (seus.ts:323-324). Metrics are computed per SEU in telemetry and not held on the SEU.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Execution within an SEU is dependency-driven and not time-driven.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/executionEngine.ts:52-70<br>src/domain/engine/capabilityOnReady.ts:14-47</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Deliverable start is gated by isTargetReady. Capability requests are triggered by DeliverableReady or SEU commissioning events.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Dependencies may arise from deliverables, decisions, approvals, evidence, obligations, external systems and human input.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dependencyDefinitionEngine.ts:55-94<br>src/domain/engine/executionEngine.ts:72-89</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Deliverable, Decision, Obligation, Evidence and Knowledge nodes are evaluated. Open Obligations and unapproved Decisions block.<br>Gap:<br>No External dependency node type exists in the evaluator. Approvals and human input have no dedicated node type.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Runtime Kernel executes only work items declared ready by the Dependency Engine.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/executionEngine.ts:52-70<br>src/domain/engine/deliverableKickoff.ts:122-137<br>src/domain/engine/workItemGenerator.ts:1-180</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>A producing Command is issued only for an In Progress Deliverable, which could be entered only after isTargetReady passed.<br>Gap:<br>The Work Item generator and dispatch engine do not re-check readiness; they trust that the Command was issued after the check.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU inherits all behaviour from its EBM, which defines standards, governance, decision rules, Quality Gates, Review Gates, authority rules, terminology and practices.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:60-103<br>src/routes/seu/core/governanceModel.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The EBM row stores behaviours, applicable Quality Gate and Policy ids and SEU-scoped Policy ids. The governance model endpoint reads them from the EBM.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU does not modify the EBM directly. Changes require recomposition.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:57-62<br>src/domain/engine/compositionCompleted.ts:105</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The only EBM update is its status, through governed hops. Behaviours are written once at creation.<br>Gap:<br>Recomposition is not built. EBMVersioned is registered and never published (eventSubscriptions.json). A change needs a new SEU or a manual re-compose before Activate.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants execute Capabilities within assigned roles.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts:1-168<br>src/routes/seu/core/capabilities.ts:99-212</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Participants are assigned to Capabilities by fulfilment and receive Work Items for the Capability that produces a Deliverable.<br>Gap:<br>No role entity exists. The Capability is the only assignment unit.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants are replaceable, and replacement does not invalidate knowledge, traceability or completed work.<br>Ref: §10, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:91-146<br>src/routes/seu/web/seus.ts:222-248</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>replaceParticipant releases and archives the old Participant, creates the new one, revokes the old fulfilment and creates a new one, then publishes ParticipantReplaced. Work, Knowledge and Evidence rows keep their references.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Deliverable is a measurable outcome and defines dependencies, producing capabilities, required evidence, acceptance criteria and completion status.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/deliverables_schema_recovery.sql:3-14<br>src/routes/seu/core/commissioning.ts:263-285</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Deliverables hold acceptance_criteria, producing_capability_id, a lifecycle state as completion status and dependency rows by name.<br>Gap:<br>There is no required-evidence field on the Deliverable. Required evidence is held only as Quality Gate conditions.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Work Item is an executable unit that exists only to produce or modify Deliverables, references one or more Deliverables and never exists independently.<br>Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/work_items_schema_recovery.sql:3-10<br>src/routes/seu/core/workItems.ts:29-33</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Each Work Item is created from a Command whose entity is a Deliverable. completeWorkItem rejects any other entity type.<br>Gap:<br>The reference is indirect through command_id. A Work Item holds one Deliverable, never several, and the schema does not require the entity to be a Deliverable.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable dependency graph covers Deliverables, Decisions, Obligations, Knowledge, Evidence and External dependencies, and readiness comes only from this graph.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dependencyDefinitionEngine.ts:55-94<br>src/domain/engine/executionEngine.ts:52-70</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Readiness is isTargetReady over dependency rows. Deliverable nodes are named and the other types are checked by relation to the gated Deliverable.<br>Open Obligations and Decisions are also checked by direct queries in executionEngine.ts:72-89, outside the graph.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Obligation has an owner, severity, priority, required evidence, blocking conditions and status.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/obligations_schema_recovery.sql:3-26<br>src/routes/seu/core/obligations.ts:39-120</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Severity, priority, status, blocked_from_state and blocked_to_state (blocking conditions) and assigned entity (owner) exist.<br>Gap:<br>The owner is optional (assigned_entity_*) and priority is nullable. Required evidence is the free-text completion_criteria, not an Evidence reference.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Obligations originate from risks, audits, customer observations, compliance, security reviews, architecture reviews and dependency analysis.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/obligations.ts:39-260<br>src/routes/seu/core/findings.ts:132</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Obligations come from blocked transitions, Pack definitions and Review Findings (findings.ts:132). Category is an Ontology value.<br>Gap:<br>Origin is a free field. There is no source for risk, audit, customer observation, compliance, security review, architecture review or dependency analysis.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU publishes domain events SEUCommissioned, DeliverableReady, WorkItemStarted, WorkItemCompleted, DependencySatisfied, DependencyBlocked, ObligationRaised, ObligationResolved, KnowledgeAccepted, KnowledgeArchived and SEUArchived.<br>Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/eventSubscriptions.json:1-60<br>src/dblayer/seed/data/transitionDefinitions.json:144-155<br>src/routes/seu/core/workItems.ts:99-102<br>src/domain/engine/executionEngine.ts:59-68</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>SEUCommissioned, DeliverableReady, WorkItemCompleted, ObligationResolved, KnowledgeAccepted, KnowledgeArchived and SEUArchived are published.<br>Gap:<br>WorkItemStarted is never published (only queried in runtimeTelemetryDB.ts:51). DependencyBlocked is published as DeliverableBlocked. DependencySatisfied is published as DeliverableReady. ObligationRaised is published as ObligationCreated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Multiple SEUs execute concurrently.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seusDB.ts:10-22<br>src/domain/engine/executionEngine.ts:38-49</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>All state is keyed by seu_id. Per-Deliverable turn locks serialise work on one Deliverable.<br>Gap:<br>The locks are in-process maps. Two server processes would not share them.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU execution survives runtime restarts and runtime state is recoverable.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/eventBus.ts:97-101</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>Events and consumption state are persisted. Handlers run in process after commit with no replay of pending or failed consumption at start-up (app.ts:238-262). A restart between publish and dispatch leaves the event pending permanently.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">All engineering decisions remain traceable.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/decisions.ts<br>src/dblayer/recovery/decisions_schema_recovery.sql:5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Decisions are keyed by seu_id, hold related objects and author, and record events per hop.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">All execution is externally observable.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/api/telemetry.ts:10-25<br>src/routes/seu/api/seus.ts:44-53</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Events and telemetry are exposed through API and web pages.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The SEU is independent of specific AI providers.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchStrategies.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Dispatch selects Participants by Capability and strategy. No AI provider SDK is referenced in the SEU or engine modules.<br>Gap:<br>There is no adapter contract in the repository for AI or external Participants to execute Work Items; execution is reported back by completeWorkItem.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An SEU can be commissioned from an EBM, Participants can be assigned and replaced, Deliverables drive execution, Work Items execute only when dependencies are satisfied.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:225-309<br>src/domain/engine/executionEngine.ts:52-70<br>src/routes/seu/core/participants.ts:91-146</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The commissioning chain, assignment, replacement and dependency-gated start exist.<br>Gap:<br>Commissioning has several manual web steps and no API.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Engineering obligations influence execution and knowledge survives SEU archival.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/executionEngine.ts:72-89<br>src/routes/seu/core/commissioning.ts:311-357</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Open blocking Obligations stop Deliverable hops and the Activated to Operational hop. Knowledge rows are not deleted on Archive.<br>Gap:<br>No archive-time knowledge finalisation exists.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Chapter deliverables: domain model, lifecycle, aggregate, dependency graph interfaces, Deliverable and Work Item models, runtime services, event definitions and API.<br>Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/seus.ts:1-515<br>src/dblayer/seed/data/transitionDefinitions.json:3-148<br>src/dblayer/seed/data/eventSubscriptions.json:1-60<br>src/routes/seu/api/seus.ts:35-62</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Domain model, lifecycle rows, Deliverable and Work Item models, runtime services and event definitions exist.<br>Gap:<br>There is no single SEU aggregate definition. The API does not cover commissioning or lifecycle transitions.</td>
     </tr>
   </tbody>
 </table>
+
 ## Summary
 
-- Total intents analysed: 29
-- Fully met: 13
-- Partially met: 15
-- Not met: 0
-- Not verifiable: 1
+- Total intents analysed: 58
+- Fully met ✅: 24
+- Partially met ⚠️: 30
+- Not met ❌: 4
+- Not verifiable ❓: 0
 
-### Major findings
+### Major implementation gaps
 
-1. **Stale prior audit — objective_id uniqueness.** Chapter 2 §19's own preamble claims a permanent, enforced `UNIQUE(seus.objective_id)`. The current schema recovery file shows that index was explicitly dropped and replaced with `idx_seus_objective_id_active_unique`, a **partial** unique index scoped to active lifecycle states only. An Objective can be re-commissioned into a new SEU after its prior SEU reaches `Retired`/`Archived`/`Failed`. The strict, permanent 1:1 claim in §19 is no longer accurate against the live schema definition.
-2. **Stale prior audit — Obligation fields.** §19.11 claims `owner`, `priority`, and `blocking conditions` are absent from `obligations`. The current schema recovery file shows `priority`, `assigned_entity_type/id`, `completion_criteria`, and `blocked_from_state`/`blocked_to_state` all exist as real columns. Only a dedicated "required evidence" field remains absent.
-3. **Lifecycle state count.** The real `lifecycle_state` CHECK enforces 9 states (adds `Failed`, not named or anticipated anywhere in the chapter), not 8.
-4. **Roles — confirmed absent.** No `Role`/`roles` table or entity exists anywhere in the schema recovery set. This is the one SEU Composition component (§7) with no partial credit.
-5. **Event naming drift, unchanged from prior audit.** `DeliverableReady`/`WorkItemDispatched`/`DeliverableBlocked`/`ObligationCreated`/`KnowledgeObserved` are the real equivalents of `DependencySatisfied`/`WorkItemStarted`/`DependencyBlocked`/`ObligationRaised`/`KnowledgeAccepted`. `ObligationResolved`, `KnowledgeArchived`, and `SEUArchived` remain unbuilt as named events; `SEUCommissioned` is real only as a dynamic default (`SEU${toState}`), not a literal constant.
-6. **Traceability/audit history (FR-2.6, FR-2.12, NFR) remain emergent, not dedicated.** Consistent with every other chapter's own traceability claim this session — real via the generic `events` table and FK trails, never a first-class traceability service.
+- The lifecycle differs from the spec. Monitoring, Completing and Knowledge Preservation have no state or transition, and Composed, RuntimeAllocated, KnowledgeInitialised and ParticipantsRecruited rows exist in the seed with no performer.
+- No SEU is read-only after Archive. Runtime routes do not check the SEU state.
+- Restart recovery is missing. Pending and failed event consumption is not replayed at start-up.
+- Monitoring is not continuous. The sweeps and metrics run only on request.
+- Event names differ: WorkItemStarted is never published, and DependencySatisfied, DependencyBlocked and ObligationRaised are published as DeliverableReady, DeliverableBlocked and ObligationCreated.
+- The dependency graph materialises only Deliverable-to-Deliverable rows, and External dependencies have no node type.
+- Roles are not a component of the SEU. A Deliverable has no required-evidence field, and an Obligation holds required evidence as free text.
+- The SEU module reads Packs directly for liveness, and EBM recomposition is not built.
+- The API has no commissioning or lifecycle transition route.

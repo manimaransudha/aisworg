@@ -4,6 +4,7 @@ import type { DbResult, ReviewOutcome, ReviewRow, TransitionEntityType } from ".
 
 export const reviewsDB = {
   async create(input: {
+    status: string;
     seuId: string;
     relatedObjectType: TransitionEntityType;
     relatedObjectId: string;
@@ -17,10 +18,10 @@ export const reviewsDB = {
   }): Promise<DbResult<ReviewRow>> {
     try {
       const { rows } = await query<ReviewRow>(
-        `INSERT INTO reviews (seu_id, related_object_type, related_object_id, category, name, criteria, reviewer, review_gate_id, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO reviews (status, seu_id, related_object_type, related_object_id, category, name, criteria, reviewer, review_gate_id, author_id, author_badge)
+         VALUES ($11, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
-        [input.seuId, input.relatedObjectType, input.relatedObjectId, input.category, input.name, JSON.stringify(input.criteria ?? {}), input.reviewer ?? null, input.reviewGateId ?? null, input.authorId, input.authorBadge]
+        [input.seuId, input.relatedObjectType, input.relatedObjectId, input.category, input.name, JSON.stringify(input.criteria ?? {}), input.reviewer ?? null, input.reviewGateId ?? null, input.authorId, input.authorBadge, input.status]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -72,15 +73,12 @@ export const reviewsDB = {
     }
   },
 
-  async completeWithOutcome(id: string, outcome: ReviewOutcome): Promise<DbResult<ReviewRow>> {
+  async setOutcome(id: string, outcome: ReviewOutcome): Promise<DbResult<ReviewRow>> {
     try {
-      const { rows } = await query<ReviewRow>(
-        "UPDATE reviews SET outcome = $1, status = 'Completed', updated_at = NOW() WHERE id = $2 RETURNING *",
-        [outcome, id]
-      );
+      const { rows } = await query<ReviewRow>("UPDATE reviews SET outcome = $1, updated_at = NOW() WHERE id = $2 RETURNING *", [outcome, id]);
       return { data: rows[0] };
     } catch (err) {
-      logger.error("[reviewsDB] completeWithOutcome error", err as Error);
+      logger.error("[reviewsDB] setOutcome error", err as Error);
       return { error: err as Error };
     }
   },

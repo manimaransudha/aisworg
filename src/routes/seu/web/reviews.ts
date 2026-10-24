@@ -12,20 +12,34 @@ import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { requireActorId } from "../../../domain/identity/heldBadges.js";
-import { listReviewsWithNextStates, createReview, transitionReview } from "../core/reviews.js";
+import { listReviewsBySeu, createReview, transitionReview } from "../core/reviews.js";
+import { nextActionsFor } from "../../../domain/engine/entityTransition.js";
+import { reviewsDB } from "../../../dblayer/reviewsDB.js";
+import { findingsDB } from "../../../dblayer/findingsDB.js";
+import { COMPLETE_REVIEW_ACTION_CODE } from "../../../dblayer/constants.js";
 import { listFindingsByReview, createFinding, transitionFinding, convertFindingToObligation } from "../core/findings.js";
 import type { ReviewOutcome } from "../../../dblayer/seuTypes.js";
 
 router.get("/seus/:id/reviews", attachVM("seu/reviews/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const seuId = String(req.params.id);
-    const [reviewsWithStates, { data: deliverables }] = await Promise.all([
-      listReviewsWithNextStates(seuId),
+    const [reviewRows, { data: deliverables }] = await Promise.all([
+      listReviewsBySeu(seuId),
       deliverablesDB.findBySeuId(seuId),
     ]);
     const reviews = await Promise.all(
-      reviewsWithStates.map(async (r) => ({ ...r, findings: await listFindingsByReview(r.review.id) }))
+      reviewRows.map(async (review) => ({ review, findings: await listFindingsByReview(review.id) }))
     );
+    const actorId = requireActorId(req);
+    const reviewActions: Record<string, Array<Awaited<ReturnType<typeof nextActionsFor>>[number] & { kind: "outcome" | "plain" }>> = {};
+    const findingActions: Record<string, Awaited<ReturnType<typeof nextActionsFor>>> = {};
+    for (const item of reviews) {
+      const actions = await nextActionsFor("Review", item.review.status, actorId);
+      reviewActions[item.review.id] = actions.map((a) => ({ ...a, kind: a.actionCode === COMPLETE_REVIEW_ACTION_CODE ? "outcome" : "plain" }));
+      for (const f of item.findings) findingActions[f.id] = await nextActionsFor("Finding", f.status, actorId);
+    }
+    req.vm.req.reviewActions = reviewActions;
+    req.vm.req.findingActions = findingActions;
     req.vm.req.title = "Reviews";
     req.vm.req.seuId = seuId;
     const params = parseListParams(req.query, { sortable: ["name", "category", "status"], defaultSort: "name", defaultDir: "asc" });
@@ -60,15 +74,19 @@ router.post("/seus/:id/reviews", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/seus/:id/reviews/:reviewId/transition", async (req: Request, res: Response) => {
-  const seuId = String(req.params.id);
-  const { targetState, outcome } = req.body ?? {};
-  if (typeof targetState !== "string" || !targetState.trim()) return redirects.seu.seusReviewsTransition.error(req, res, "Target state is required.");
+router.post("/seus/:id/reviews/:reviewId/transition/:verb", async (req: Request, res: Response) => {
+  const { outcome } = req.body ?? {};
   try {
+    const actorId = requireActorId(req);
+    const reviewId = String(req.params.reviewId);
+    const { data: review } = await reviewsDB.findById(reviewId);
+    if (!review) return redirects.seu.seusReviewsTransition.error(req, res, "Review not found.");
+    const action = (await nextActionsFor("Review", review.status, actorId)).find((a) => a.verb === String(req.params.verb));
+    if (!action) return redirects.seu.seusReviewsTransition.error(req, res, `Review transition blocked: "${String(req.params.verb)}" is not available from ${review.status}.`);
     const result = await transitionReview({
-      reviewId: String(req.params.reviewId),
-      targetState,
-      actorId: requireActorId(req),
+      reviewId,
+      targetState: action.toState,
+      actorId,
       outcome: typeof outcome === "string" && outcome.trim() ? (outcome as ReviewOutcome) : undefined,
     });
     if (!result.ok) {
@@ -104,12 +122,15 @@ router.post("/seus/:id/reviews/:reviewId/findings", async (req: Request, res: Re
   }
 });
 
-router.post("/seus/:id/findings/:findingId/transition", async (req: Request, res: Response) => {
-  const seuId = String(req.params.id);
-  const { targetState } = req.body ?? {};
-  if (typeof targetState !== "string" || !targetState.trim()) return redirects.seu.seusFindingsTransition.error(req, res, "Target state is required.");
+router.post("/seus/:id/findings/:findingId/transition/:verb", async (req: Request, res: Response) => {
   try {
-    const result = await transitionFinding({ findingId: String(req.params.findingId), targetState, actorId: requireActorId(req) });
+    const actorId = requireActorId(req);
+    const findingId = String(req.params.findingId);
+    const { data: finding } = await findingsDB.findById(findingId);
+    if (!finding) return redirects.seu.seusFindingsTransition.error(req, res, "Finding not found.");
+    const action = (await nextActionsFor("Finding", finding.status, actorId)).find((a) => a.verb === String(req.params.verb));
+    if (!action) return redirects.seu.seusFindingsTransition.error(req, res, `Finding transition blocked: "${String(req.params.verb)}" is not available from ${finding.status}.`);
+    const result = await transitionFinding({ findingId, targetState: action.toState, actorId });
     if (!result.ok) {
       const detail = "detail" in result ? result.detail : result.reason;
       return redirects.seu.seusFindingsTransition.error(req, res, `Finding transition blocked: ${detail}`);

@@ -20,6 +20,36 @@ export interface TransitionDefinitionListRow {
   category: string | null;
 }
 
+// In-memory copy of transition_definitions, loaded at app start (like route_authority). The finders below read it
+// when loaded and fall back to the DB otherwise (seed/CLI processes). Every writer in this module reloads it.
+let cache: TransitionDefinitionRow[] | null = null;
+const byEdge = new Map<string, TransitionDefinitionRow>();
+const byFrom = new Map<string, TransitionDefinitionRow[]>();
+
+const edgeKey = (entityType: string, fromState: string, toState: string) => `${entityType}\u0000${fromState}\u0000${toState}`;
+const fromKey = (entityType: string, fromState: string) => `${entityType}\u0000${fromState}`;
+
+export async function loadTransitionDefinitionsCache(): Promise<void> {
+  try {
+    const { rows } = await query<TransitionDefinitionRow>("SELECT * FROM transition_definitions ORDER BY entity_type, from_state, to_state");
+    byEdge.clear();
+    byFrom.clear();
+    for (const r of rows) {
+      byEdge.set(edgeKey(r.entity_type, r.from_state, r.to_state), r);
+      const k = fromKey(r.entity_type, r.from_state);
+      byFrom.set(k, [...(byFrom.get(k) ?? []), r]);
+    }
+    cache = rows;
+    logger.info(`[transitionDefinitionsCache] loaded ${rows.length} transition_definitions rows.`);
+  } catch (err) {
+    logger.error("[transitionDefinitionsCache] failed to load transition_definitions -- keeping previous cache", err as Error);
+  }
+}
+
+export async function reloadIfLoaded(): Promise<void> {
+  if (cache) await loadTransitionDefinitionsCache();
+}
+
 export const transitionDefinitionsDB = {
   async listAll(): Promise<DbResult<TransitionDefinitionListRow[]>> {
     try {
@@ -76,6 +106,7 @@ export const transitionDefinitionsDB = {
           i.trigger, i.submitVerb, i.eventType, i.versionEvent, i.versionHop, i.actionCode, i.submitVersionEvent, i.isActive, i.retiredAt, i.authorId, i.authorBadge,
         ])
       );
+      await reloadIfLoaded();
       return { data: rows.length };
     } catch (err) {
       logger.error("[transitionDefinitionsDB] replaceAll error", err as Error);
@@ -130,6 +161,7 @@ export const transitionDefinitionsDB = {
           actorBadge,
         ]
       );
+      await reloadIfLoaded();
       return { data: rows[0] };
     } catch (err) {
       logger.error("[transitionDefinitionsDB] upsert error", err as Error);
@@ -138,6 +170,7 @@ export const transitionDefinitionsDB = {
   },
 
   async find(entityType: TransitionEntityType, fromState: string, toState: string): Promise<DbResult<TransitionDefinitionRow | null>> {
+    if (cache) return { data: byEdge.get(edgeKey(entityType, fromState, toState)) ?? null };
     try {
       const { rows } = await query<TransitionDefinitionRow>(
         "SELECT * FROM transition_definitions WHERE entity_type = $1 AND from_state = $2 AND to_state = $3",
@@ -152,6 +185,7 @@ export const transitionDefinitionsDB = {
 
   // The birth row of an entity (CR-128): the one row whose from-state is BIRTH_STATE.
   async findBirth(entityType: TransitionEntityType): Promise<DbResult<TransitionDefinitionRow | null>> {
+    if (cache) return { data: byFrom.get(fromKey(entityType, BIRTH_STATE))?.[0] ?? null };
     try {
       const { rows } = await query<TransitionDefinitionRow>(
         "SELECT * FROM transition_definitions WHERE entity_type = $1 AND from_state = $2",
@@ -165,6 +199,7 @@ export const transitionDefinitionsDB = {
   },
 
   async findPossibleNextStates(entityType: TransitionEntityType, fromState: string): Promise<DbResult<string[]>> {
+    if (cache) return { data: (byFrom.get(fromKey(entityType, fromState)) ?? []).map((r) => r.to_state) };
     try {
       const { rows } = await query<{ to_state: string }>(
         "SELECT to_state FROM transition_definitions WHERE entity_type = $1 AND from_state = $2 ORDER BY to_state",
@@ -178,6 +213,9 @@ export const transitionDefinitionsDB = {
   },
 
   async findPossibleNextTransitions(entityType: TransitionEntityType, fromState: string): Promise<DbResult<Array<{ toState: string; verb: string | null; trigger: "manual" | "governed"; submitVerb: string | null; requiredPolicyIds: string[]; actionCode: string | null }>>> {
+    if (cache) {
+      return { data: (byFrom.get(fromKey(entityType, fromState)) ?? []).map((r) => ({ toState: r.to_state, verb: r.verb, trigger: r.trigger, submitVerb: r.submit_verb, requiredPolicyIds: r.required_policy_ids ?? [], actionCode: r.action_code })) };
+    }
     try {
       const { rows } = await query<{ to_state: string; verb: string | null; trigger: "manual" | "governed"; submit_verb: string | null; required_policy_ids: string[]; action_code: string | null }>(
         "SELECT to_state, verb, trigger, submit_verb, required_policy_ids, action_code FROM transition_definitions WHERE entity_type = $1 AND from_state = $2 ORDER BY to_state",
@@ -230,6 +268,7 @@ export const transitionDefinitionsDB = {
          RETURNING id`,
         [input.entityType, input.fromState, input.toState, input.verb, input.trigger ?? "manual", input.requiredAuthorityRuleId ?? null, input.requiredPolicyIds ?? [], input.authorId, input.authorBadge]
       );
+      await reloadIfLoaded();
       return { data: rows[0] };
     } catch (err) {
       logger.error("[transitionDefinitionsDB] insertDefinition error", err as Error);
@@ -243,6 +282,7 @@ export const transitionDefinitionsDB = {
         "UPDATE transition_definitions SET is_active = FALSE, retired_at = NOW() WHERE id = $1 RETURNING id",
         [id]
       );
+      await reloadIfLoaded();
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[transitionDefinitionsDB] retireById error", err as Error);
@@ -256,6 +296,7 @@ export const transitionDefinitionsDB = {
         "UPDATE transition_definitions SET creates_obligation = $2, category = $3, required_policy_ids = $4::uuid[] WHERE id = $1 RETURNING id",
         [id, input.createsObligation, input.category, input.requiredPolicyIds]
       );
+      await reloadIfLoaded();
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[transitionDefinitionsDB] updateMetadata error", err as Error);

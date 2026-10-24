@@ -137,6 +137,7 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
 
   const afterResolution = await transitionEngine.evaluate(evaluateArgs);
   assert.equal(afterResolution.allowed, true);
+  await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'AttentionItem' AND to_state = $1", [toState]);
 });
 
 // Owner: "the allow now has only [noun] and [verb]. It should also include

@@ -111,7 +111,7 @@ test("VALIDATE and BUTTONS: live references validate; only manual hops are offer
 
   const verbs = (await nextActionsFor("EBM", "Composed", TESTER_ALL_ID)).map((a) => a.verb);
   assert.deepEqual(verbs, ["validate"], "Retire is governed and never a button");
-  assert.deepEqual(await nextActionsFor("EBM", "Composed", TESTER_OBJECTIVE_ACHIEVE_ONLY), [], "no badge, no button");
+  assert.deepEqual(await nextActionsFor("EBM", "Composed", TESTER_OBJECTIVE_ACHIEVE_ONLY.userId), [], "no badge, no button");
 
   const result = await validateEbm({ ebmId: live.id, actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true, result.ok ? "" : String("detail" in result ? result.detail : result.reason));

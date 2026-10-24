@@ -12,13 +12,14 @@ export const attentionItemsDB = {
     relatedObjectType?: string | null;
     relatedObjectId?: string | null;
     triggeringEventId?: string | null;
+    status: string;
     authorId: string;
     authorBadge: string;
   }): Promise<DbResult<AttentionItemRow>> {
     try {
       const { rows } = await query<AttentionItemRow>(
-        `INSERT INTO attention_items (seu_id, category, priority, title, description, related_object_type, related_object_id, triggering_event_id, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO attention_items (seu_id, category, priority, title, description, related_object_type, related_object_id, triggering_event_id, author_id, author_badge, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
         [
           input.seuId,
@@ -31,6 +32,7 @@ export const attentionItemsDB = {
           input.triggeringEventId ?? null,
           input.authorId,
           input.authorBadge,
+          input.status,
         ]
       );
       return { data: rows[0] };

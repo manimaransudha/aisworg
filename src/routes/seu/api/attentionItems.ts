@@ -5,8 +5,7 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
-import { readTargetState } from "../../../utils/transitionRequest.js";
-import { listAttentionItems, listAttentionItemsBySeu, transitionAttentionItem } from "../core/attentionItems.js";
+import { listAttentionItems, listAttentionItemsBySeu } from "../core/attentionItems.js";
 import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 router.get("/attention-items", async (req: Request, res: Response) => {
@@ -20,22 +19,23 @@ router.get("/attention-items", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/attention-items/:id/transition", async (req: Request, res: Response) => {
-  try {
-    const targetState = readTargetState(req, res);
-    if (targetState === null) return;
-    const actorId = requireActorId(req);
-    const result = await transitionAttentionItem({ attentionItemId: String(req.params.id), targetState, actorId });
-
-    if (!result.ok) {
-      if (result.reason === "not_found") return res.status(404).json({ error: "Attention Item not found" });
-      return res.status(409).json({ reason: result.reason, detail: result.detail });
-    }
-    res.status(200).json({ attentionItem: result.attentionItem, appliedTransition: result.appliedTransition });
-  } catch (err) {
-    logger.error("[api/seu/attentionItems] POST /:id/transition error", err as Error);
-    res.status(400).json({ error: (err as Error).message });
-  }
-});
+// CR-128 (owner): the API transition route has no caller and is commented out. Transitions go through the web routes with a verb.
+// router.post("/attention-items/:id/transition", async (req: Request, res: Response) => {
+//   try {
+//     const targetState = readTargetState(req, res);
+//     if (targetState === null) return;
+//     const actorId = requireActorId(req);
+//     const result = await transitionAttentionItem({ attentionItemId: String(req.params.id), targetState, actorId });
+//
+//     if (!result.ok) {
+//       if (result.reason === "not_found") return res.status(404).json({ error: "Attention Item not found" });
+//       return res.status(409).json({ reason: result.reason, detail: result.detail });
+//     }
+//     res.status(200).json({ attentionItem: result.attentionItem, appliedTransition: result.appliedTransition });
+//   } catch (err) {
+//     logger.error("[api/seu/attentionItems] POST /:id/transition error", err as Error);
+//     res.status(400).json({ error: (err as Error).message });
+//   }
+// });
 
 export { router };

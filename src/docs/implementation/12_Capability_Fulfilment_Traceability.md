@@ -1,6 +1,10 @@
-# Chapter 12 – Capability Fulfilment: Implementation Traceability
+# Implementation Traceability: Chapter 12 – Capability Fulfilment
 
-**Date of report: 4-10-2026**
+**Date of report: 23-10-2026**
+
+Specification: src/docs/SEU Studio Specifications/02_SEU Composition/12_Capability Fulfilment.md
+
+## Traceability Table
 
 <!-- multiline -->
 **Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
@@ -23,453 +27,406 @@
   <tbody>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Fulfilment ensures required engineering capabilities are available, independent of Participant implementation<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:153-174, 185-204</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilCapability</code>/<code>fulfilCapabilityWithParticipants</code> operate purely on <code>participantType</code>/<code>participants_master</code> identity, never on how a Participant actually performs work.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Fulfilment satisfies the Capabilities an SEU needs to achieve its Deliverables.<br>Ref: §1, §3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:249<br>src/domain/engine/capabilityOnReady.ts:14-49<br>src/routes/seu/core/capabilities.ts:57-97</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Commissioning creates one seu_capabilities row per Capability the Templates require. A ready Deliverable requests its producing Capability. The request creates a Participant and a capability_fulfilments row and marks the SEU Capability Fulfilled.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Fulfilment is distinct from per-Work-Item Participant selection (Dispatch Engine, Ch.33)<br> Ref: §2 Scope</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts (whole file)<br>src/domain/engine/dispatchEngine.ts:91-232</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment (this chapter) only registers eligible Participants against a SEU Capability; <code>dispatchEngine.dispatch</code> (Ch.33) is the separate runtime decision that assigns a specific WorkItem to one Participant, reading a pool this chapter produces.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Fulfilment identifies eligible Participants and does not recruit or bind them to work.<br>Ref: §1, §2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:33-38<br>src/routes/seu/core/capabilities.ts:123-153<br>src/routes/seu/core/participantEligibility.ts:47-62</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The request builds an eligible pool from the tenant Participant registry. It registers fulfilments for the pool or for the named picks. Choosing the executing Participant is left to dispatch.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Fulfilment forms a bridge between engineering intent (Deliverable → Required Capabilities) and execution (Participants)<br> Ref: §3 Architectural Position</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts (capability derivation, see row below)<br>src/routes/seu/core/capabilities.ts:74-143</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>seu_capabilities</code> rows (from commissioning) are the intent; <code>fulfilOne</code> creates the Participant/<code>capability_fulfilments</code> link and pushes dependency re-evaluation. The chain exists end to end.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants are one mechanism for fulfilling a Capability. Fulfilment is independent of how a Participant is implemented.<br>Ref: §1, CF-002</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:42-55<br>src/dblayer/participantsMasterDB.ts:177-190</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The eligible pool is read from participants_master by tenant, active flag and the Capability code in the capabilities array. Nothing in fulfilment branches on implementation or provider.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Fulfilment is the runtime process identifying suitable Participants for required competencies, and is dynamic over the SEU's life<br> Ref: §4 Definition</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:101-116<br>src/routes/seu/core/capabilities.ts:220-253 (releaseParticipants)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>findEligibleParticipants</code> re-evaluates live at fulfilment time; <code>releaseParticipants</code>/re-fulfilment let Participants change mid-SEU without touching the Capability or EBM definitions.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Fulfilment does not choose the Participant for a specific Work Item. Dispatch consumes the pool.<br>Ref: §2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/executionEngine.ts:359-377<br>src/domain/engine/dispatchEngine.ts:80-107</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The execution engine snapshots the active fulfilments into capability_fulfilment_pools for the Command. dispatchEngine reads that pool and selects the candidate.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CF-001: Capabilities are permanent, Participants are replaceable<br> Ref: §5 CF-001</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts (replaceParticipant)<br>src/routes/seu/core/capabilities.ts:220-253</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability definitions (<code>capabilities</code> table, Ch.10) are never touched by fulfilment/release/replace; only <code>participants</code>/<code>capability_fulfilments</code> rows change.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment is a runtime process and can change during the SEU lifetime without changing the EBM or Capability definitions.<br>Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:57-97<br>src/routes/seu/core/capabilities.ts:185-217</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Fulfilment and release write only capability_fulfilments, participants and seu_capabilities.status. Neither touches capabilities or ebms rows.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CF-002: Capability Fulfilment independent of Participant implementation<br> Ref: §5 CF-002</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:74-143</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilOne</code> only records <code>type</code>/<code>displayName</code>/<code>participantMasterId</code>; no code path inspects or depends on how an AI/human/external Participant actually executes work.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities are permanent and Participants are replaceable.<br>Ref: CF-001</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seu_capabilities_schema_recovery.sql:3-9<br>src/dblayer/recovery/capability_fulfilments_schema_recovery.sql:3-11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>seu_capabilities is created at commissioning and only its status changes. Participants are linked through revocable capability_fulfilments rows (revoked_at).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CF-003: AI, human and external Participants equally supported<br> Ref: §5 CF-003</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts (ParticipantType)<br>src/routes/seu/core/capabilities.ts:82-88</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participantsDB.create</code> takes a <code>ParticipantType</code> uniformly (AI/Human/Automated/External per migration 194); no branching by type anywhere in <code>fulfilOne</code>/<code>fulfilCapability</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CF-004: engineering continuity preserved when Participants change<br> Ref: §5 CF-004</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:220-253 (releaseParticipants)<br>src/routes/seu/core/participants.ts (replaceParticipant)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">See §10/§12 rows below — continuity holds because no continuity-bearing table references <code>participant_id</code> except <code>capability_fulfilments</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment supports AI, human and external Participants equally.<br>Ref: CF-003, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:40-55<br>src/dblayer/capabilityFulfilmentsDB.ts:6-25</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>fulfilOne passes the master type through for every type. The eligibility filter and the fulfilment insert have no type branch.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CF-005: Capability Fulfilment remains fully traceable<br> Ref: §5 CF-005</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilityFulfilmentsDB.ts:11-18<br>src/routes/seu/web/seus.ts:168-194, 202-233</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capability_fulfilments</code> now carries real, NOT-NULL <code>author_id</code>/<code>author_badge</code> (resolved via <code>route_authority</code>/CR-110 on the Fulfil and Replace web routes), and <code>fulfilOne</code> publishes <code>ParticipantCreated</code>/<code>CapabilityFulfilled</code> with a real <code>actorId</code>. The <code>/release</code> route (seus.ts:243-266) records no actor/badge at all — see §14 row below.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment preserves engineering continuity when Participants change.<br>Ref: CF-004, FR-12.6, §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:91-147<br>src/routes/seu/core/capabilities.ts:185-217</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Deliverable state, Knowledge and Decisions are held on other tables keyed by SEU, so a Participant row change does not remove them. Replacement revokes the old fulfilment and creates a new one in the same call.<br>Gap:<br>Nothing hands over or re-offers in-flight Work Items and Commands of the released Participant. No Obligation transfer is performed. Continuity is not verified or evented.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-12.1: platform determines capabilities required to progress a Deliverable<br> Ref: §6 FR-12.1</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts (Template <code>getRequiredCapabilities</code> union into <code>seu_capabilities</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities required are a fixed snapshot unioned from the SEU's Templates at commissioning time, not re-derived as Deliverables actually progress. The spec's wording ("to progress a Deliverable") implies a live, per-Deliverable derivation that does not exist; what's built is a one-time, Template-driven set (tracked separately as CR-011, Ch.1 §10 / Ch.5 §19.12).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every fulfilment decision is traceable.<br>Ref: CF-005, FR-12.7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/capability_fulfilments_schema_recovery.sql:3-14<br>src/dblayer/recovery/capability_fulfilment_pools_schema_recovery.sql:3-13<br>src/domain/engine/executionEngine.ts:359-392</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Each fulfilment row has author_id, author_badge, established_at and revoked_at. Each Command records the pool of Participants it was dispatched from.<br>Gap:<br>The row does not record which selection criteria or policies admitted the Participant, and not the request event. Evaluation reasons for excluded Participants are not stored.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform determines the Capabilities required to progress a Deliverable.<br>Ref: FR-12.1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/capabilityOnReady.ts:14-49</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>capabilityOnReady takes the producing Capability of each Deliverable that is ready for In Progress. It requests only those SEU Capabilities that are Unfulfilled and have no request in flight.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment identifies one or more suitable Participants.<br>Ref: FR-12.2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:129-132<br>src/routes/seu/core/participantEligibility.ts:47-62</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>A named pick is validated against the eligible pool. With no pick, the whole pool is used. An empty result takes the unavailable path.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Multiple Participants may jointly fulfil a Capability.<br>Ref: FR-12.3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:149-153<br>src/dblayer/capabilityFulfilmentsDB.ts:40-51</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>With more than one Participant each gets its own fulfilment row. The strategy is Composite. The schema allows many active rows per SEU Capability.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-12.2: Capability Fulfilment shall identify one or more suitable Participants<br> Ref: §6 FR-12.2</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:101-116<br>src/routes/seu/core/capabilities.ts:153-174</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>findEligibleParticipants</code> returns the full qualifying set (capability match + optional competency/policy filters); a human then picks from a dropdown built off that set via the Fulfil form — there is no automated best-fit selection evaluating §8's full criteria list (behavioural EBM compatibility, required knowledge/authority beyond Policy, engineering constraints, Pack-specific requirements are not implemented in this function).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-12.3: multiple Participants may jointly fulfil a Capability<br> Ref: §6 FR-12.3</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:185-204</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilCapabilityWithParticipants</code> creates one <code>participants</code> row + one <code>capability_fulfilments</code> row per selected <code>participants_master</code> id against the same SEU Capability, in one call, with <code>fulfilmentStrategy</code> set to <code>"Composite"</code> when more than one is selected.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">One Participant may fulfil multiple Capabilities.<br>Ref: FR-12.4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:57-97<br>src/dblayer/capabilityFulfilmentsDB.ts:53-64<br>src/dblayer/recovery/participants_schema_recovery.sql:3-20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>One master Participant can be fulfilled against many Capabilities. participants has no uniqueness on participant_id.<br>Gap:<br>fulfilOne creates a new participants row per fulfilment, so a runtime Participant fulfils exactly one Capability. findActiveByParticipantId returns one fulfilment per runtime Participant.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-12.4: one Participant may fulfil multiple Capabilities<br> Ref: §6 FR-12.4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:56-72, 82-88</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>resolveMasterParticipant</code>/<code>fulfilOne</code> let the same <code>participants_master</code> resource be selected for more than one SEU Capability; each call still mints its own per-Capability <code>participants</code> lifecycle row, but all such rows share one <code>participant_id</code> FK back to the master. Realised within one SEU; <code>replaceParticipant</code> (Ch.13 §13) still only creates an ad hoc identity, not wired to the registry.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment supports dynamic reassignment.<br>Ref: FR-12.5, §10, §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:91-147<br>src/routes/seu/core/capabilities.ts:185-217<br>src/routes/seu/web/seus.ts:222-272</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>replaceParticipant releases and archives the old Participant, creates the new one, revokes the old fulfilment and creates a new one. releaseParticipants plus a fresh fulfil request also works from the UI.<br>Gap:<br>The web replace route passes no master id, so the replacement has no participant_id and cannot be dispatched. replaceParticipant takes a free type and display name and runs no eligibility check on the replacement. releaseParticipants marks the Capability Unfulfilled even when other active fulfilments remain (line 215). No API route exists for either path. No reassignment is started by availability changes.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-12.5: Capability Fulfilment shall support dynamic reassignment<br> Ref: §6 FR-12.5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:220-253 (releaseParticipants)<br>src/routes/seu/core/participants.ts (replaceParticipant)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Two live mechanisms exist: <code>releaseParticipants</code> (release → revert to Unfulfilled → re-fulfil) and the older atomic <code>replaceParticipant</code> swap, both reachable from the SEU detail page.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-12.6: Capability reassignment shall preserve engineering continuity<br> Ref: §6 FR-12.6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts (replaceParticipant: Released→Archived via <code>transitionParticipant</code>, fulfilment revoke/create)<br>src/routes/seu/core/capabilities.ts:220-253</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Continuity holds because Deliverable/Knowledge/Decision/Evidence/Obligation tables carry no <code>participant_id</code> reference at all; only <code>capability_fulfilments</code> is re-pointed on reassignment.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The strategies AI, Human and External are supported.<br>Ref: §7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:78<br>src/dblayer/recovery/capability_fulfilments_schema_recovery.sql:5-8<br>src/dblayer/seuTypes.ts:441</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>fulfilment_strategy defaults to the Participant type. The strategy check constraint is dropped. The stored value is the master type, Hybrid or Composite.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-12.7: Capability Fulfilment decisions shall remain traceable<br> Ref: §6 FR-12.7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/seus.ts:168-194, 202-214<br>src/dblayer/capabilityFulfilmentsDB.ts:11-18</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfil and Replace routes resolve a real held badge through <code>route_authority</code> (CR-110) and pass it through to <code>author_id</code>/<code>author_badge</code>, now NOT NULL on <code>capability_fulfilments</code>. The <code>/release</code> route records no actor/badge (gap, see §14).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Hybrid strategy lets an AI and a Human jointly fulfil a Capability.<br>Ref: §7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:441<br>src/routes/seu/core/capabilities.ts:149</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Hybrid is a legal FulfilmentStrategy value and joint fulfilment is possible.<br>Gap:<br>No code assigns Hybrid. A mix of types is labelled Composite like any group of two or more picks.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">AI Participant fulfilment strategy<br> Ref: §7 Fulfilment Strategies</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:82-97</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilOne</code> records <code>fulfilmentStrategy</code> as the Participant's own <code>type</code> (e.g. <code>"AI"</code>) when a single Participant is selected.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Composite strategy covers multiple coordinated Participants.<br>Ref: §7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:149-153</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>More than one Participant for a request sets strategy Composite on every fulfilment row.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Human Participant fulfilment strategy<br> Ref: §7 Fulfilment Strategies</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:82-97</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same path, <code>type: "Human"</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Selection evaluates capability compatibility.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/participantsMasterDB.ts:177-190<br>src/routes/seu/core/participantEligibility.ts:47-52</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The pool is filtered on the Capability code in the master capabilities array.<br>Gap:<br>Matching is by Capability code only. No Capability Version is considered.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">External Service fulfilment strategy<br> Ref: §7 Fulfilment Strategies</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:82-97</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same path, <code>type: "External"</code> (per migration 194's widened <code>ParticipantType</code>).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Selection evaluates behavioural compatibility with the EBM.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:17-22<br>src/routes/seu/core/participantEligibility.ts:40-45</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Competency requirements stored on the active EBM are matched against the master competency by dimension.<br>Gap:<br>Other EBM behaviours are not evaluated. An SEU with no active EBM matches on no competency requirement.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Selection evaluates required knowledge.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:17-22</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Competency codes are matched per dimension.<br>Gap:<br>Proficiency is not compared. Knowledge items held in the Knowledge Repository are not used.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Hybrid fulfilment strategy (AI+Human jointly, distinctly from Composite)<br> Ref: §7 Fulfilment Strategies</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:195</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilmentStrategy</code> is hard-set to <code>"Composite"</code> whenever more than one Participant is selected together; no code path distinguishes a specifically AI+Human pairing as <code>"Hybrid"</code>. The column accepts the value (migration 002/194) but nothing ever writes it.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composite fulfilment strategy (multiple coordinated Participants)<br> Ref: §7 Fulfilment Strategies</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:185-204</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Realised exactly as described: <code>fulfilCapabilityWithParticipants</code> sets <code>fulfilmentStrategy: "Composite"</code> for any multi-Participant selection.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment Criteria: capability compatibility<br> Ref: §8 Fulfilment Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:101-102<br>src/dblayer/participantsMasterDB.ts (findEligibleForCapability)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>findEligibleParticipants</code> narrows on tenant/<code>is_active</code>/capability-containment first.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Selection evaluates required authority.<br>Ref: §8, §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:47-62</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>findEligibleParticipants does not read authorised_role or authorised_badges from the master. A Participant who lacks the authority for the Capability is still admitted.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment Criteria: behavioural compatibility with the EBM<br> Ref: §8 Fulfilment Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:94-99 (getSeuCompetencyRequirements)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Technology/Domain competency union (CR-101) is read off the EBM's <code>behaviors.competencyRequirements</code> and matched (§8's competency criterion, via <code>matchesCompetency</code>). No broader "behavioural compatibility" beyond this Technology/Domain dimension (e.g. EBM <code>applicable_policy_ids</code> as a behavioural gate) exists.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Selection evaluates availability.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/participantsMasterDB.ts:177-190<br>src/dblayer/capabilityFulfilmentsDB.ts:66-80</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Only active masters are returned. Masters whose earlier fulfilment of the same SEU Capability was revoked are excluded.<br>Gap:<br>Availability means the is_active flag only. Workload, runtime Participant state and degraded status are not evaluated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Selection evaluates engineering constraints.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:24-38</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Eligibility Policies from the composed Packs are evaluated against the master behaviour context.<br>Gap:<br>Only Policies with scope Eligibility apply. No other engineering constraints are evaluated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Selection evaluates Pack-specific requirements.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:32-38<br>src/routes/seu/core/capabilities.ts:33-38</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The SEU's composed Packs are unravelled and the Eligibility Policies they contribute must pass for each candidate.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Registering eligibility creates a runtime link between the Capability, the Participant and the EBM.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:57-97<br>src/dblayer/recovery/capability_fulfilments_schema_recovery.sql:3-14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The link row holds the SEU Capability and the Participant.<br>Gap:<br>The row has no EBM reference. The EBM is reachable only through the SEU active_ebm_id, so the link does not record which EBM was active when it was made.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Eligibility registration does not bind the Participant to a Deliverable or Work Item.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:57-97<br>src/domain/engine/dispatchEngine.ts:80-107</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The fulfilment row has no Deliverable or Work Item reference. Binding is done in dispatch, which assigns the Work Item to one candidate. With no pick, every eligible master is registered as a candidate.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Eligibility registration does not modify the Capability definition.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:57-97</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>fulfilOne writes participants, capability_fulfilments and seu_capabilities.status only.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants may be replaced during execution for reasons such as upgrade or unavailability.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:91-147<br>src/routes/seu/web/seus.ts:222-272</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Replacement and release exist as service functions and as web routes.<br>Gap:<br>Replacement can only be started by a person and it runs no eligibility check on the replacement. No path replaces a Participant on a detected unavailability. The web replace route yields an undispatchable Participant.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Reassignment preserves Deliverable state, Knowledge, Traceability and engineering history.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:91-147<br>src/dblayer/capabilityFulfilmentsDB.ts:82-93</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The old fulfilment is revoked and kept. Deliverable and knowledge rows are untouched. The old Participant is kept as Archived.<br>Gap:<br>Outstanding Obligations and open Work Items are not carried to the replacement.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Reassignment preserves Outstanding Obligations.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:91-147</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>replaceParticipant does not read or change Obligations, so Obligations on the Deliverable or SEU stay as they were.<br>Gap:<br>No check or hand-over exists for Obligations that name the replaced Participant.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment monitors available, unavailable, degraded and newly available Participants.<br>Ref: §11, §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilityRetrySweep.ts:18-69<br>src/routes/seu/api/workItems.ts:61-70<br>src/dblayer/recovery/participants_schema_recovery.sql:8-9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>A sweep re-requests Capabilities whose last request was CapabilityUnavailable after the retry delay. It is started by an API call.<br>Gap:<br>No continuous monitor exists. Degraded Participants are not modelled; the Participant state check has no such state. Newly available Participants do not trigger anything unless the sweep is called.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Availability changes may trigger re-evaluation by the Dependency Engine.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:84-94<br>src/domain/engine/deliverableKickoff.ts:74-84<br>src/routes/seu/core/capabilities.ts:185-217</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Fulfilling a Capability evaluates Dependency rows for the Services it fulfils. CapabilityFulfilled re-issues the producing Command.<br>Gap:<br>releaseParticipants marks the Capability Unfulfilled and triggers no re-evaluation. A Participant going unavailable triggers nothing.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability continuity is maintained through the Knowledge Repository, Deliverable state, traceability, EBM and Decision history.<br>Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:185-217<br>src/routes/seu/core/participants.ts:91-147<br>src/dblayer/recovery/knowledge_items_schema_recovery.sql:5<br>src/dblayer/recovery/decisions_schema_recovery.sql:5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>These records are keyed by SEU and stay when Participants change. Participants hold no knowledge store of their own.<br>Gap:<br>No continuity service exists. Nothing checks that Knowledge and Decisions are still reachable by the replacement.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants are not the primary repository of engineering knowledge.<br>Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql:3-20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The participants table holds identity, type, state and the master link only.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment detects when no suitable Participant exists.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:134-147<br>src/domain/engine/deliverableKickoff.ts:58-72</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>An empty pool publishes CapabilityUnavailable. For an In Progress Deliverable the handler creates a blocking Obligation and an Action Required Attention Item.<br>Gap:<br>Detection happens only when a request is made. A Capability needed by a Deliverable that has not yet reached In Progress is not checked.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment Criteria: required knowledge<br> Ref: §8 Fulfilment Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No code path filters eligible Participants by a "required knowledge" criterion distinct from capability/competency. Not found anywhere in <code>participantEligibility.ts</code> or its callers.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment detects when required authority cannot be satisfied.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:47-62</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>Authority is not evaluated in selection, so the case where the pool has no Participant with the required authority is never detected. A pool of unauthorised Participants counts as available.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment detects when Pack constraints cannot be met.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:32-38<br>src/routes/seu/core/capabilities.ts:134-147</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Eligibility Policies from Packs filter the pool, so an unsatisfiable set gives an empty pool and CapabilityUnavailable.<br>Gap:<br>The event does not state that a Pack constraint was the reason.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment detects when mandatory capabilities are unavailable.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seu_capabilities_schema_recovery.sql:3-9<br>src/routes/seu/core/capabilities.ts:134-147</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Every required Capability is an seu_capabilities row, and an unfulfilled one takes the unavailable path when requested.<br>Gap:<br>Mandatory is not distinguished from other Capabilities. Apart from the request handlers, only the SEU view and telemetry read the Fulfilled status, so nothing gates commissioning or Operational on it.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Failures generate engineering obligations.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/deliverableKickoff.ts:198-232<br>src/routes/seu/core/capabilityRetrySweep.ts:37-47</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>A blocking Obligation is created for an In Progress Deliverable. The sweep raises an Escalation Attention Item at the threshold.<br>Gap:<br>No Obligation is created for a Capability without an In Progress Deliverable. At the retry limit the sweep only lists the Capability as exhausted.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning or execution may be suspended depending on the affected Deliverables.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/deliverableKickoff.ts:198-232<br>src/domain/engine/deliverableKickoff.ts:165-180</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The Deliverable stays held by a blocking Obligation and its producing Command is not re-issued while the Obligation is open.<br>Gap:<br>Only the affected Deliverable is held. Commissioning is not suspended.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">CapabilityRequested is published.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:99-118<br>src/dblayer/seed/data/eventSubscriptions.json:24<br>src/dblayer/seed/data/eventSubscriptions.json:57</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Published by requestCapabilityFulfilment with a real actor and badge. Registered and handled by capabilityRequested.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment Criteria: required authority<br> Ref: §8 Fulfilment Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No eligibility-time authority check exists; authority (<code>route_authority</code>/badges) gates who may *perform the fulfil action*, not which Participants are eligible to *be* fulfilled. These are different concerns and the latter is unbuilt.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">CapabilityFulfilmentStarted is published.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:123-153</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No event of this name exists in any .ts or .json file under src. Fulfilment goes from CapabilityRequested straight to creating rows.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">CapabilityFulfilled is published.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:172-182<br>src/dblayer/seed/data/eventSubscriptions.json:26<br>src/dblayer/seed/data/eventSubscriptions.json:60</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Published once per request as the last statement with the Participant ids. Registered. deliverableKickoff consumes it.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">CapabilityUnavailable is published.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:134-147<br>src/dblayer/seed/data/eventSubscriptions.json:25<br>src/dblayer/seed/data/eventSubscriptions.json:61</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Published for an empty pool. Registered. deliverableKickoff consumes it to block the Deliverable.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment Criteria: availability<br> Ref: §8 Fulfilment Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/participantsMasterDB.ts (findEligibleForCapability: <code>is_active</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Only a coarse <code>is_active</code> tenant-level flag is checked at eligibility time; there is no availability/capacity signal (load, schedule) at Fulfilment. (A separate, later-stage availability check exists in Dispatch Engine's <code>loadAvailableCandidates</code>, Ch.33, out of this chapter's scope.)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">ParticipantAssigned is published.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:1044-1050<br>src/dblayer/seed/data/transitionDefinitions.json:1074-1080<br>src/domain/engine/dispatchEngine.ts:113-132</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The Available to Assigned and Idle to Assigned rows carry the event and dispatch hops through them.<br>Gap:<br>The event is published at dispatch of a Work Item, not when fulfilment registers the Participant. It is not in the event registry.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">ParticipantReleased is published.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:1084-1090<br>src/routes/seu/core/capabilities.ts:204-209<br>src/routes/seu/core/participants.ts:53-80</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The Released rows carry the event and release goes through them.<br>Gap:<br>The event is not in the event registry and has no subscriber.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">ParticipantReassigned is published.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:135-144</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>replaceParticipant publishes ParticipantReplaced with old and new Participant ids and the SEU Capability.<br>Gap:<br>The name differs from the specified one and the event is not in the event registry.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment Criteria: engineering constraints<br> Ref: §8 Fulfilment Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No implementation found matching "engineering constraints" as a distinct eligibility filter.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment Criteria: Pack-specific requirements<br> Ref: §8 Fulfilment Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:65-79 (resolveEligibilityPolicies)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The closest realised equivalent is CR-104's "Eligibility"-scoped Policies resolved from the SEU's composed Packs (<code>resolveEligibilityPolicies</code> + <code>matchesRequiredPolicies</code>), checked against a Participant's own <code>behaviour_context</code>. This covers Policy-declared Pack requirements, not arbitrary Pack-specific requirements generally.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Selection algorithms are implementation-defined<br> Ref: §8 Fulfilment Criteria</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:153-174</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">True in the narrow sense that none is defined: selection is "every eligible Participant, a human picks one or more from a dropdown," not an automated best-fit algorithm.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Fulfilment registers eligibility, creating a runtime relationship between Capability, Participant and EBM<br> Ref: §9 Eligibility Registration</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilityFulfilmentsDB.ts (capability_fulfilments row: seu_capability_id, participant_id)<br>src/routes/seu/core/participantEligibility.ts:94-99</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capability_fulfilments</code> links Capability↔Participant; the EBM relationship is indirect — competency requirements are read from the EBM at eligibility-check time (not stored on the fulfilment row itself) via <code>getSeuCompetencyRequirements</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Eligibility registration makes the Participant a dispatch candidate, not bound to a specific Deliverable/Work Item<br> Ref: §9 Eligibility Registration</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilityFulfilmentPoolsDB.ts:1-34<br>src/domain/engine/dispatchEngine.ts:124-133</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A <code>capability_fulfilment_pools</code> snapshot (migration 240, CR-109 §6.2) is taken per Command from the live eligible-fulfilment set; <code>dispatchEngine.dispatch</code> reads that pool and picks a Participant per WorkItem — the eligible pool itself is never bound to one WorkItem.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Eligibility registration shall not modify the Capability definition<br> Ref: §9 Eligibility Registration</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:91-100</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilOne</code> writes to <code>capability_fulfilments</code>/<code>seu_capabilities.status</code> only; the <code>capabilities</code> definition table (Ch.10) is never written by this path.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The eligible-Participant pool can genuinely hold more than one candidate<br> Ref: §9 (cf. §18.2's correction)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilityFulfilmentsDB.ts (findActiveManyBySeuCapabilityId)<br>src/dblayer/capabilityFulfilmentPoolsDB.ts:20-34</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Confirmed: the pool is a real multi-Participant set as of Composite (§7) + CR-109's persisted snapshot. The legacy singular <code>findActiveBySeuCapabilityId</code> (<code>LIMIT 1</code>) is kept only for <code>dispatchEngine.ts</code>'s own superseded direct-query path and <code>replaceParticipant</code>; <code>dispatchEngine.dispatch</code> as currently written (dispatchEngine.ts:124-133) reads the persisted pool, not the singular query.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Dynamic reassignment: Participants may be replaced during SEU execution (AI upgrade, human unavailable, etc.)<br> Ref: §10 Dynamic Reassignment</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:220-253<br>src/routes/seu/core/participants.ts (replaceParticipant)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Both the two-step release/re-fulfil flow and the older atomic replace flow are live, reachable from the SEU detail page, with no restriction on the reason for replacement.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Reassignment preserves Deliverable state, Knowledge, Traceability, Outstanding Obligations, engineering history<br> Ref: §10 Dynamic Reassignment</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts (replaceParticipant)<br>src/routes/seu/core/capabilities.ts:247-251</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Verified structurally: Deliverable/Knowledge/Obligation/Decision/Evidence tables carry no <code>participant_id</code> column; only <code>capability_fulfilments.participant_id</code> is revoked/re-created, so nothing participant-shaped is lost.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">CapabilityContinuityMaintained is published.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:91-147</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No event of this name exists. Replacement ends with ParticipantReplaced.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Continuous monitoring of available/unavailable/degraded/newly available Participants<br> Ref: §11 Capability Availability</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No implementation found. <code>ParticipantState</code> (Ch.13) has no "degraded" value; no background monitoring process polls or tracks Participant availability transitions for this chapter's purposes.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">CapabilityFulfilmentFailed is published.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:134-147</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No event of this name exists. CapabilityUnavailable is the only failure event.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Concurrent fulfilment is supported.<br>Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/capabilityOnReady.ts:35-47<br>src/dblayer/recovery/capability_fulfilments_schema_recovery.sql:3-11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Separate Capabilities are requested independently and several fulfilment rows per Capability are allowed. A request still in flight prevents a second one.<br>Gap:<br>No uniqueness or lock stops two concurrent requests for the same Capability from both creating fulfilments.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment is independent of AI providers.<br>Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:33-55<br>src/routes/seu/core/participantEligibility.ts:47-62</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Eligibility reads masters and Policies only. No provider call or setting appears in fulfilment.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Required Capabilities are identified.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/capabilityOnReady.ts:14-49<br>src/routes/seu/core/commissioning.ts:249</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>seu_capabilities holds the Capabilities the Templates require, and Deliverables name the producing Capability.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Appropriate Participants are assigned.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:123-153<br>src/routes/seu/core/participantEligibility.ts:47-62</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Participants that pass code, competency and Policy checks are registered.<br>Gap:<br>Authority is not checked and with no pick every eligible master is registered.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants can be replaced without affecting Deliverables.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:91-147<br>src/routes/seu/web/seus.ts:222-272</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Deliverable rows are not changed by replacement or release.<br>Gap:<br>In-flight Work Items are not moved. The web replace route gives a non-dispatchable replacement.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Fulfilment remains traceable.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/capability_fulfilments_schema_recovery.sql:3-14<br>src/dblayer/recovery/capability_fulfilment_pools_schema_recovery.sql:3-13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Fulfilment rows and pools are retained with actor and badge, and revoked rows are kept.<br>Gap:<br>The admission criteria and the request event are not recorded on the row.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AI, human and external Participants are equally supported.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:40-55</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Same path for every type.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability continuity is preserved during reassignment.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:91-147</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The old fulfilment, Participant and events are kept and the new fulfilment is created in the same call.<br>Gap:<br>In-flight Work Items and Obligations are not handed over and continuity is not verified.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability Fulfilment service exists.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:99-183</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>requestCapabilityFulfilment and fulfilRequestedCapability, with the capabilityRequested handler.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Participant assignment service exists.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:16-49<br>src/routes/seu/core/capabilities.ts:185-217<br>src/domain/engine/dispatchEngine.ts:105-134</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>createParticipant, release and replace exist, and dispatch assigns.<br>Gap:<br>Replace runs no eligibility check and the web path produces a non-dispatchable Participant.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Availability changes may trigger Dependency Engine re-evaluation<br> Ref: §11 Capability Availability</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:106-114</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A re-evaluation push (<code>dependencyDefinitionEngine.evaluateAndPublishFromTransition</code>) exists, but only on successful fulfilment (Capability→Fulfilled), not on an availability *change* (degradation, Participant going unavailable) — the triggering event §11 describes does not exist to fire it.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability continuity maintained through Knowledge Repository, Deliverable state, Traceability, EBM, Decision history<br> Ref: §12 Capability Continuity</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts (no participant_id on Knowledge/Decision/Evidence tables, confirmed via schema)<br>src/routes/seu/core/participants.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Holds structurally: none of Knowledge Items, Decisions, Evidence, or the EBM itself are Participant-scoped; all are SEU/Deliverable-scoped. This is a schema property, not an enforced business rule.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants shall not become the primary repository of engineering knowledge<br> Ref: §12 Capability Continuity</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer schema (participants/participants_master carry identity+lifecycle only)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Confirmed: no knowledge/decision/evidence content is stored on either Participant table.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Capability continuity service exists.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:91-147</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No service verifies or reports continuity. Continuity is a side effect of replaceParticipant.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment Failure: detect no suitable Participant exists<br> Ref: §13 Fulfilment Failure</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/telemetry.ts:149-205 (checkSustainedCapabilityShortages)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Only a cross-SEU, sustained-pattern (platform-wide, threshold-based) detection exists via Telemetry (Ch.35 §11), raising an Organisational Learning Obligation. No real-time, single-SEU-attempt detection exists — there is no selection algorithm (§8 gap) to fail from in the first place at fulfilment time.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A fulfilment registry exists.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/capability_fulfilments_schema_recovery.sql:3-14<br>src/routes/seu/core/seus.ts:296-322</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>capability_fulfilments holds the registry. The SEU detail view lists active Participants by type and the eligible pool for each Capability.<br>Gap:<br>The view reads active fulfilments only, so revoked fulfilments are not shown.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment Failure: detect required authority cannot be satisfied<br> Ref: §13 Fulfilment Failure</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No implementation; authority is not evaluated at eligibility/fulfilment time at all (see §8 "required authority" row).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Assignment APIs exist.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/api/index.ts:27-46<br>src/dblayer/seed/data/routeAuthority.json:1770-1790</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>src/routes/seu/api mounts no Capability fulfilment router and no file there has a fulfil, replace or release route. Those exist only as web routes, and their route_authority rows have empty badges and roles.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment Failure: detect Pack constraints cannot be met<br> Ref: §13 Fulfilment Failure</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:57-63, 73-78</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The nearest real behaviour: <code>matchesRequiredPolicies</code> fails closed (returns false, i.e. excludes the candidate) when a required Eligibility Policy's condition isn't satisfied — but this silently narrows the eligible set rather than surfacing a distinct "Pack constraint failure" signal or Obligation.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Fulfilment events exist.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/eventSubscriptions.json:24-26<br>src/dblayer/seed/data/eventSubscriptions.json:57-61</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Three of the nine events are registered and published.<br>Gap:<br>Started, Continuity Maintained and Failed are never published. Reassigned is published as ParticipantReplaced. Assigned, Released and Replaced are unregistered.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment Failure: detect mandatory capabilities unavailable<br> Ref: §13 Fulfilment Failure</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/telemetry.ts:149-205</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same sustained-pattern mechanism as above; no immediate single-attempt detection.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Failures shall generate engineering obligations<br> Ref: §13 Fulfilment Failure</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/telemetry.ts:205-240 (createObligation)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>raiseSustainedPatternObligation</code> creates a real Obligation, but only for the sustained cross-SEU pattern case, not for an individual failed fulfilment attempt (no such attempt is ever recorded as failed — see §8/§13 gaps above).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissioning or execution may be suspended on fulfilment failure<br> Ref: §13 Fulfilment Failure</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No implementation found suspending commissioning or execution in response to a fulfilment failure.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Event: CapabilityRequested<br> Ref: §14 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Not published anywhere in the codebase (confirmed by repository-wide search).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Event: CapabilityFulfilmentStarted<br> Ref: §14 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Not published anywhere (confirmed).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Event: CapabilityFulfilled<br> Ref: §14 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:131-140</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Published by <code>fulfilOne</code> with real <code>actorId</code>/<code>authorityBadge</code> and <code>capabilityId</code>/<code>participantId</code> payload.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Event: CapabilityUnavailable<br> Ref: §14 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Not published anywhere (confirmed). <code>dispatchEngine.ts</code> publishes a differently-scoped <code>ParticipantUnavailable</code> (Ch.33, a dispatch-time event, not this chapter's <code>CapabilityUnavailable</code>).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Event: ParticipantAssigned<br> Ref: §14 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts:186-195</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Published, but by Dispatch Engine (Ch.33) at WorkItem-assignment time, not by Capability Fulfilment itself at Capability-fulfilment time. Semantically adjacent but a different trigger than §14 implies for this chapter.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Event: ParticipantReleased<br> Ref: §14 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts (transitionParticipant Released state) + Ch.13's own Participant-lifecycle event publication</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Published via the governed Participant lifecycle transition (Ch.13), triggered from <code>releaseParticipants</code>/<code>replaceParticipant</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Event: ParticipantReassigned<br> Ref: §14 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Not published under this name. Chapter 13 publishes <code>ParticipantReplaced</code> instead for the same underlying fact — functionally equivalent, differently named, confirmed by repository search finding no <code>ParticipantReassigned</code> occurrence.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Event: CapabilityContinuityMaintained<br> Ref: §14 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Not published anywhere (confirmed). Continuity is structural (§12), never asserted via an explicit event.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Event: CapabilityFulfilmentFailed<br> Ref: §14 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Not published anywhere (confirmed), consistent with §13's gap — there is no failure detection path to publish it from.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support dynamic reassignment<br> Ref: §15 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:220-253</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as FR-12.5/§10.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support concurrent fulfilment<br> Ref: §15 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:185-204</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilCapabilityWithParticipants</code> loops sequentially per Participant within one call; no explicit concurrency control or guarantee is implemented or tested for concurrent *separate* fulfilment requests against the same Capability (e.g. two simultaneous web requests). Not verifiable from code alone whether a race is actually handled (no DB-level unique constraint found preventing duplicate active fulfilments).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: remain independent of AI providers<br> Ref: §15 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts (whole file, no provider-specific import)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No AI-provider-specific code anywhere in the fulfilment path; <code>type: "AI"</code> is a plain enum value.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: preserve engineering continuity<br> Ref: §15 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(see §10/§12 rows)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: maintain complete traceability<br> Ref: §15 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(see CF-005/FR-12.7 rows)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same partial-met evidence — real author/badge on Fulfil/Replace, absent on Release.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Required Capabilities are identified<br> Ref: §16 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Identified at commissioning time, not live per-Deliverable (same FR-12.1 gap).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Appropriate Participants are assigned<br> Ref: §16 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:74-143</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Assignment happens, but "appropriate" is a human's dropdown pick among all eligible Participants, not an automated appropriateness evaluation against §8's full criteria.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Participants can be replaced without affecting Deliverables<br> Ref: §16 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts, src/routes/seu/core/capabilities.ts:220-253</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Verified structurally (§10/§12).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Capability Fulfilment remains traceable<br> Ref: §16 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(see CF-005 row)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Partial — Release route lacks actor/badge.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: AI, human and external Participants are equally supported<br> Ref: §16 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:82-97</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Verified (§7 rows).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Capability continuity is preserved during reassignment<br> Ref: §16 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(see §10/§12 rows)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Verified.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Capability Fulfilment service<br> Ref: §17 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Exists; scope of what it evaluates is partial (§8).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Participant assignment service<br> Ref: §17 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts (transitionParticipant, replaceParticipant)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Exists.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Capability continuity service<br> Ref: §17 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">— (no dedicated module; structural property)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No dedicated service exists or is needed — continuity holds by schema construction (§12).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Fulfilment registry<br> Ref: §17 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilityFulfilmentsDB.ts<br>src/dblayer/capabilityFulfilmentPoolsDB.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capability_fulfilments</code> is a real, queryable table with no dedicated browse/registry UI page (visible only embedded in a SEU's own detail page); <code>capability_fulfilment_pools</code> is a separate point-in-time snapshot artifact with no display surface at all (by design, for Dispatch Engine consumption only).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Assignment APIs<br> Ref: §17 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/api/seus.ts (POST .../capabilities/:capabilityId/fulfil)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real JSON API exists, but only for the legacy <code>{participant:{type,displayName}}</code> shape; no API path for Replace, and none for the newer <code>participantMasterId</code>/multi-select selection.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Capability Fulfilment events<br> Ref: §17 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(see §14 rows)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>CapabilityFulfilled</code> and the Ch.13 lifecycle events (<code>ParticipantAssigned</code> via Dispatch, <code>ParticipantReleased</code>) are published; five of nine named events in §14 are not.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Runtime monitoring services<br> Ref: §17 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Not built (see §11 row). <code>ParticipantState</code> has no "degraded" value.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Runtime monitoring services exist.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilityRetrySweep.ts:18-69</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The unavailable-Capability sweep.<br>Gap:<br>It runs only on an API call. No scheduler or monitor of Participant availability.</td>
     </tr>
   </tbody>
 </table>
+
 ## Summary
 
-- Total intents analysed: 58
-- Fully met: 28
-- Partially met: 20
-- Not met: 9
-- Not verifiable: 1
+- Total intents analysed: 64
+- Fully met ✅: 23
+- Partially met ⚠️: 34
+- Not met ❌: 7
+- Not verifiable ❓: 0
 
-## Major implementation gaps
+### Major implementation gaps
 
-1. **No automated selection algorithm (§8).** Fulfilment is a human picking from an eligible-candidate dropdown. Of §8's seven criteria, only capability match, Technology/Domain competency (CR-101), and Eligibility-scoped Policy (CR-104) are evaluated; required knowledge, required authority, general availability, engineering constraints, and general Pack-specific requirements are not.
-2. **FR-12.1's "live per-Deliverable" derivation is a one-time commissioning-time snapshot** (tracked separately as CR-011).
-3. **Hybrid strategy is never distinguished from Composite** — the `"Hybrid"` enum value is dead; any multi-Participant fulfilment is written as `"Composite"`.
-4. **Five of nine §14 events are never published**: `CapabilityRequested`, `CapabilityFulfilmentStarted`, `CapabilityUnavailable`, `ParticipantReassigned` (Ch.13 publishes `ParticipantReplaced` instead), `CapabilityFulfilmentFailed`.
-5. **No real-time, single-attempt fulfilment-failure detection or suspension (§13).** Only a cross-SEU, sustained-pattern telemetry check exists; no individual failed fulfilment attempt is ever recorded, detected, or escalated, and nothing suspends commissioning/execution.
-6. **No continuous availability monitoring (§11)**: no "degraded" Participant state, no background monitoring service.
-7. **Traceability gap on the Release route**: `/seus/:id/capabilities/:capabilityId/release` (`src/routes/seu/web/seus.ts:243-266`) records no actor/badge, unlike the Fulfil and Replace routes which now resolve one through `route_authority` (CR-110).
-8. **Two corrections to the spec's own §18 narrative**: §18.2's "eligible pool capped at one via `SOLE_ELIGIBLE_PARTICIPANT`" is stale — `dispatchEngine.ts` no longer contains that constant and reads a real multi-Participant pool snapshot. §18.7's "no authority gate, no actor attribution" is stale — the Fulfil and Replace web routes now resolve a badge via `route_authority` and `capability_fulfilments.author_id`/`author_badge` are real NOT NULL columns.
+- Required authority is not part of selection or failure detection. Eligibility ignores authorised_role and authorised_badges.
+- Four specified events are not published: CapabilityFulfilmentStarted, CapabilityContinuityMaintained, CapabilityFulfilmentFailed and ParticipantReassigned (published as ParticipantReplaced). Participant events are not registered.
+- Reassignment does not move in-flight Work Items or Obligations. No continuity service exists.
+- The web replace route passes no master id, so the replacement is never dispatchable.
+- A runtime Participant fulfils one Capability. Hybrid is never assigned.
+- No Assignment API exists. Fulfil, replace and release routes have empty badges and roles.
+- Monitoring is a sweep started by an API call. Degraded Participants are not modelled and availability changes do not trigger re-evaluation.
+- Failure Obligations exist only for an In Progress Deliverable. Commissioning is not suspended.

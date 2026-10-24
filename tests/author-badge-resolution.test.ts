@@ -43,7 +43,8 @@ after(async () => {
 
 function held(isRoot: boolean, badges: string[]): HeldBadges {
   const badgeTypes = new Set(badges);
-  return { isRoot, badgeTypes, has: (b) => isRoot || badgeTypes.has(b) };
+  const has = (b: string) => isRoot || badgeTypes.has(b);
+  return { isRoot, badgeTypes, has, hasVerb: (entityType, verb) => !!verb && has(`${entityType.toLowerCase()}_${verb}`) };
 }
 
 test("requireActorId returns the session user id as a string and throws when it is missing", () => {

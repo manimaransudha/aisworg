@@ -4,9 +4,16 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
-| [CR-130](design/change-requests/CR-130-seu-unwired-transition-rows.md) | SEU transition rows with no implementation: the seven rows and four verbs left out of CR-128 | 🟡 Raised |
+| [CR-137](design/change-requests/CR-137-transition-definition-ui-event-field.md) | TransitionDefinition UI: an event field, and refusal of a row with no event, carried forward from CR-128 | 🟡 Raised — design in progress |
+| [CR-136](design/change-requests/CR-136-seed-refuses-rows-without-event.md) | seedTransitionDefinitions refuses a row with no event, and the 62 rows are given one, carried forward from CR-128 | 🟡 Raised — design in progress |
+| [CR-135](design/change-requests/CR-135-transition-definition-and-quality-gate-rows.md) | TransitionDefinition and QualityGate: states and rows for the authoring pairs that have none, carried forward from CR-128 | 🟡 Raised — design in progress |
+| [CR-134](design/change-requests/CR-134-external-interaction-transitions.md) | ExternalInteraction: birth row, generic transition and the gaps against the chapter, carried forward from CR-128 | 🟡 Raised — design in progress |
+| [CR-133](design/change-requests/CR-133-review-finding-alignment.md) | Review and Finding (Ch.25): birth rows, generic transition, and the gaps against the chapter, carried forward from CR-128 | ✅ Built 2026-10-23 |
+| [CR-132](design/change-requests/CR-132-knowledge-model-alignment.md) | Knowledge and KnowledgeScope (Ch.16): birth rows, generic transition, and the gaps against the chapter, carried forward from CR-128 | 🟡 Raised |
+| [CR-131](design/change-requests/CR-131-decision-model-alignment.md) | Decision (Ch.19): birth row, generic transition, Evidence-or-Knowledge rule, supersession pointer, version events, carried forward from CR-128 | ✅ Built |
+| [CR-130](design/change-requests/CR-130-seu-unwired-transition-rows.md) | SEU transition rows with no implementation: the seven rows and four verbs left out of CR-128 | ✅ Built 2026-10-23 |
 | [CR-129](design/change-requests/CR-129-objective-transition.md) | Objective transition: birth row, creation badge and event from data, and the move to the shared transition function, carried forward from CR-128 | ✅ Built |
-| [CR-128](design/change-requests/CR-128-birth-transition-rows.md) | Birth rows in `transition_definitions`: the creation badge for Review and Finding is read from data, not written as a literal | 🟡 Raised |
+| [CR-128](design/change-requests/CR-128-birth-transition-rows.md) | Birth rows in `transition_definitions`: the creation badge for Review and Finding is read from data, not written as a literal | ✅ Built 2026-10-23 |
 | [CR-127](design/change-requests/CR-127-state-literal-comparisons.md) | State literal comparisons removed from code: each classified as Constant (`constants.ts`), Ontology driven, or Leave | 🟡 Raised — design in progress |
 | [CR-126](design/change-requests/CR-126-capability-lifecycle-alignment.md) | Capability Definition lifecycle, verbs and events aligned to Chapter 2 (§13, §14), with the Version Feature Plan applied | ✅ Closed 2026-10-17 |
 | [CR-125](design/change-requests/CR-125-redirects-middleware-conformance.md) | Web controllers redirect through the `redirects` middleware, as `coding_principles.md` requires | 🟡 Built pending testing |

@@ -2,11 +2,9 @@
 // Knowledge lifecycle table (§9), same discipline as
 // policy-definition-event-lifecycle-table.test.ts (Ch.24) /
 // service-definition-event-lifecycle-table.test.ts (Ch.11). KNOWLEDGE_TABLE
-// covers the real 6-hop status lifecycle (Observed→...→Archived); no
-// submit/queue row (creation into Observed is ungoverned, same "creation
-// authority is not a transition" discipline as Objective/Ontology's own row
-// 1 — no transition_definitions row exists for it, so it is not in this
-// table). KNOWLEDGE_SCOPE_TABLE covers Acquisition Scope promotion
+// covers the real 6-hop status lifecycle (Observed→...→Archived); the
+// birth row None -> Observed (CR-132) is asserted separately below.
+// KNOWLEDGE_SCOPE_TABLE covers Acquisition Scope promotion
 // separately — owner-confirmed NOT version-significant (promoting scope
 // broadens an existing version's reach, it does not mint a new version),
 // so every row's versionEvent is null, the same treatment SEU/EBM's runtime
@@ -25,8 +23,13 @@ import { randomUUID } from "node:crypto";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
+import pool from "../src/utils/db.js";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { knowledgeItemsDB } from "../src/dblayer/knowledgeItemsDB.js";
+import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
 import { createKnowledgeItem, transitionKnowledgeItem, promoteKnowledgeItemScope } from "../src/routes/seu/core/knowledge.js";
-import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ROOT_ACTOR_ID, ensureActorParticipant } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ROOT_ACTOR_ID, ensureActorParticipant, supportingEvidenceReferences } from "./testFixtures.js";
 import { TESTER_ALL_ID, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
 import type { AcquisitionScope, KnowledgeItemRow } from "../src/dblayer/seuTypes.js";
 
@@ -101,7 +104,7 @@ test("DEFINITION: every KnowledgeScope transition_definitions row has event_type
 test("DRIVEN: every Knowledge lifecycle hop publishes its matching event, in order, and authority_badge tracks the most recent hop (version stays unbumped — no Edit path yet)", async () => {
   const { seuId, deliverableId } = await commissionTestSeuAndDeliverable();
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "Knowledge lifecycle-table test item" });
+  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "Knowledge lifecycle-table test item", evidenceReferences: await supportingEvidenceReferences(seuId, deliverableId) });
   assert.equal(knowledgeItem.version, "1.0.0");
   assert.equal(knowledgeItem.authority_badge, "root", "creation records the badge the author acted under");
 
@@ -122,14 +125,15 @@ test("DRIVEN: every Knowledge lifecycle hop publishes its matching event, in ord
   assert.equal(last.version, "1.0.0");
 
   const { data: events } = await eventsDB.findByOriginatingObject("Knowledge", knowledgeItem.id);
-  const eventTypes = (events ?? []).filter((e) => e.event_type !== "KnowledgeObserved").map((e) => e.event_type);
+  const eventTypes = (events ?? []).filter((e) => e.event_type !== "KnowledgeObserved" && e.event_type !== "KnowledgeTransitioned").map((e) => e.event_type);
   assert.deepEqual(eventTypes, KNOWLEDGE_TABLE.map((row) => row.eventType));
+  assert.equal((events ?? []).filter((e) => e.event_type === "KnowledgeTransitioned").length, KNOWLEDGE_TABLE.length, "KnowledgeTransitioned fires once per hop");
 });
 
 test("DRIVEN: every KnowledgeScope promotion hop publishes KnowledgeScopePromoted, in order", async () => {
   const { seuId, deliverableId } = await commissionTestSeuAndDeliverable();
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
-  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "Knowledge scope lifecycle-table test item" });
+  const knowledgeItem = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "Knowledge scope lifecycle-table test item", evidenceReferences: await supportingEvidenceReferences(seuId, deliverableId) });
 
   // Scope promotion requires "Published" (Ch.16 §9) — walk only as far as
   // row 4 (Publish), not the whole table through to Archived, or every
@@ -148,4 +152,85 @@ test("DRIVEN: every KnowledgeScope promotion hop publishes KnowledgeScopePromote
   const { data: events } = await eventsDB.findByOriginatingObject("Knowledge", knowledgeItem.id);
   const scopeEventTypes = (events ?? []).filter((e) => e.event_type === "KnowledgeScopePromoted").map((e) => e.event_type);
   assert.deepEqual(scopeEventTypes, KNOWLEDGE_SCOPE_TABLE.map((row) => row.eventType));
+});
+
+test("CR-132 DEFINITION: the Knowledge birth row None -> Observed", async () => {
+  const { data: birth } = await transitionDefinitionsDB.findBirth("Knowledge");
+  assert.ok(birth, "the Knowledge birth row exists");
+  assert.equal(birth!.to_state, "Observed");
+  assert.equal(birth!.verb, "observe");
+  assert.equal(birth!.trigger, "governed");
+  assert.equal(birth!.event_type, "KnowledgeObserved");
+  assert.equal(birth!.version_event, null);
+  const { rows } = await pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM transition_definitions WHERE entity_type = 'Knowledge' AND to_state NOT LIKE 'qg-%'");
+  assert.equal(Number(rows[0].count), KNOWLEDGE_TABLE.length + 1, "the six hops plus the birth row");
+});
+
+test("CR-132 DRIVEN: creation writes the birth state and publishes the birth event; Evidence is required on save", async () => {
+  const { seuId, deliverableId } = await commissionTestSeuAndDeliverable();
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const base = { actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge" };
+  await assert.rejects(createKnowledgeItem({ ...base, title: `no evidence ${randomUUID()}` }), /at least one supporting Evidence/);
+  await assert.rejects(createKnowledgeItem({ ...base, title: `empty evidence ${randomUUID()}`, evidenceReferences: { supports: [] } }), /at least one supporting Evidence/);
+
+  const item = await createKnowledgeItem({ ...base, title: `birth ${randomUUID()}`, evidenceReferences: await supportingEvidenceReferences(seuId, deliverableId) });
+  assert.equal(item.status, "Observed");
+  const { data: events } = await eventsDB.findByOriginatingObject("Knowledge", item.id);
+  assert.deepEqual((events ?? []).map((e) => e.event_type), ["KnowledgeObserved"]);
+  assert.deepEqual((await nextActionsFor("Knowledge", "Observed", TESTER_ALL_ID)).map((a) => a.verb), ["propose"]);
+  assert.deepEqual((await nextActionsFor("Knowledge", "Accepted", TESTER_ALL_ID)).map((a) => a.verb), ["publish"]);
+});
+
+test("CR-132 DRIVEN: every hop publishes the row's event and then KnowledgeTransitioned with one correlation id; versioned hops write version events with the SEU's tenant", async () => {
+  const { seuId, deliverableId } = await commissionTestSeuAndDeliverable();
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const item = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: `pairs ${randomUUID()}`, evidenceReferences: await supportingEvidenceReferences(seuId, deliverableId) });
+  for (const row of KNOWLEDGE_TABLE) {
+    const result = await transitionKnowledgeItem({ knowledgeItemId: item.id, targetState: row.toState, actorId: TESTER_ALL_ID });
+    assert.equal(result.ok, true, result.ok ? "" : JSON.stringify(result));
+  }
+  const { data: events } = await eventsDB.findByOriginatingObject("Knowledge", item.id);
+  const accepted = (events ?? []).find((e) => e.event_type === "KnowledgeAccepted")!;
+  const generic = (events ?? []).find((e) => e.event_type === "KnowledgeTransitioned" && (e.payload as { toState?: string }).toState === "Accepted")!;
+  assert.equal(accepted.correlation_id, generic.correlation_id);
+  assert.deepEqual(accepted.payload, generic.payload);
+
+  const { rows } = await pool.query<{ tenant_id: string }>("SELECT tenant_id FROM version_events WHERE entity_type = 'Knowledge' AND entity_id = $1", [item.id]);
+  assert.equal(rows.length, KNOWLEDGE_TABLE.length, "one version event per hop");
+  const { rows: seuRows } = await pool.query<{ tenant_id: string }>("SELECT tenant_id FROM seus WHERE id = $1", [seuId]);
+  for (const r of rows) assert.equal(r.tenant_id, seuRows[0].tenant_id);
+});
+
+test("CR-132 DRIVEN: a refused hop writes and publishes nothing; an actor with no participant row in the SEU is refused", async () => {
+  const { seuId, deliverableId } = await commissionTestSeuAndDeliverable();
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+  const item = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: `refused ${randomUUID()}`, evidenceReferences: await supportingEvidenceReferences(seuId, deliverableId) });
+  const before = ((await eventsDB.findByOriginatingObject("Knowledge", item.id)).data ?? []).length;
+
+  const skip = await transitionKnowledgeItem({ knowledgeItemId: item.id, targetState: "Published", actorId: TESTER_ALL_ID });
+  assert.equal(skip.ok, false);
+  if (!skip.ok) assert.equal(skip.reason, "no_transition_definition");
+  assert.equal(((await eventsDB.findByOriginatingObject("Knowledge", item.id)).data ?? []).length, before);
+
+  await assert.rejects(
+    transitionKnowledgeItem({ knowledgeItemId: item.id, targetState: "Proposed", actorId: TESTER_ACCEPTANCE_JOURNEY.participantId }),
+    /No participants row/
+  );
+  assert.equal((await knowledgeItemsDB.findById(item.id)).data!.status, "Observed");
+});
+
+test("CR-132 GUARD: only the Knowledge adapter writes the status and no code names the birth event as a literal", () => {
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith(".ts")) files.push(path);
+    }
+  };
+  walk(join(process.cwd(), "src"));
+  const statusWriters = files.filter((f) => /knowledgeItemsDB\.updateStatus\(/.test(readFileSync(f, "utf8")));
+  assert.deepEqual(statusWriters.map((f) => f.slice(process.cwd().length + 1)), ["src/domain/engine/entityAdapters.ts"]);
+  const birthLiterals = files.filter((f) => /["']KnowledgeObserved["']/.test(readFileSync(f, "utf8")));
+  assert.deepEqual(birthLiterals, []);
 });

@@ -10,7 +10,7 @@ CREATE TABLE knowledge_items (
   description        TEXT,
   acquisition_scope  TEXT NOT NULL DEFAULT 'SEU'
                         CHECK (acquisition_scope IN ('SEU', 'Capability', 'Enterprise', 'Platform')),
-  status             TEXT NOT NULL DEFAULT 'Observed',
+  status             TEXT NOT NULL,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

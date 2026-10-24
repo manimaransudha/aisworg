@@ -27,9 +27,7 @@
     <%- include('../../../partials/authorityTabs', { active: activeTab }) %>
     <div class="flex-grow-1" style="min-width: 0;">
 
-    <% const canWrite = locals.canWrite; %>
 
-    <% if (canWrite) { %>
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
           <% if (activeTab === 'nouns') { %>
@@ -77,7 +75,6 @@
           <% } %>
         </div>
       </div>
-    <% } %>
 
     <%- include('../../../partials/listControls', { list: list, listBasePath: listBasePath, searchPlaceholder: 'Search' }) %>
 
@@ -92,7 +89,7 @@
                 <th><%- sortLink('Allowed verbs', 'verbCount', list, listBasePath) %></th>
                 <th><%- sortLink('Transitions', 'transitionCount', list, listBasePath) %></th>
                 <th><%- sortLink('Status', 'active', list, listBasePath) %></th>
-                <% if (canWrite) { %><th></th><% } %>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -104,9 +101,9 @@
                   <td class="small text-muted"><%= n.verbCount %></td>
                   <td class="small text-muted"><%= n.transitionCount %></td>
                   <td><% if (n.isActive) { %><span class="badge bg-success-subtle text-success border border-success-subtle">Active</span><% } else { %><span class="badge bg-secondary-subtle text-secondary border">Retired</span><% } %></td>
-                  <% if (canWrite) { %><td class="text-end">
+                  <td class="text-end">
                     <% if (n.isActive) { %><form method="POST" action="/aisworg/seu/authority/nouns/retire" onsubmit="return confirm('Retire noun <%= n.code %>? Existing data is unaffected; it just won\'t be offered for new items.');"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="code" value="<%= n.code %>"><button class="btn btn-sm btn-outline-secondary">Retire</button></form><% } %>
-                  </td><% } %>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>
@@ -117,7 +114,7 @@
                 <th><%- sortLink('Label', 'label', list, listBasePath) %></th>
                 <th><%- sortLink('Used by nouns', 'nounCount', list, listBasePath) %></th>
                 <th><%- sortLink('Status', 'active', list, listBasePath) %></th>
-                <% if (canWrite) { %><th></th><% } %>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -128,9 +125,9 @@
                   <td class="small"><%= v.label %></td>
                   <td class="small text-muted"><%= v.nounCount %></td>
                   <td><% if (v.isActive) { %><span class="badge bg-success-subtle text-success border border-success-subtle">Active</span><% } else { %><span class="badge bg-secondary-subtle text-secondary border">Retired</span><% } %></td>
-                  <% if (canWrite) { %><td class="text-end">
+                  <td class="text-end">
                     <% if (v.isActive) { %><form method="POST" action="/aisworg/seu/authority/verbs/retire" onsubmit="return confirm('Retire verb <%= v.code %>?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="code" value="<%= v.code %>"><button class="btn btn-sm btn-outline-secondary">Retire</button></form><% } %>
-                  </td><% } %>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>
@@ -141,7 +138,7 @@
                 <th><%- sortLink('Verb', 'verbCode', list, listBasePath) %></th>
                 <th>Trigger</th>
                 <th><%- sortLink('Status', 'active', list, listBasePath) %></th>
-                <% if (canWrite) { %><th></th><% } %>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -160,7 +157,7 @@
                     <% if (!m.hasWiredTransitions) { %><span class="text-muted small">(default)</span><% } %>
                   </td>
                   <td><% if (m.isActive) { %><span class="badge bg-success-subtle text-success border border-success-subtle">Active</span><% } else { %><span class="badge bg-secondary-subtle text-secondary border">Retired</span><% } %></td>
-                  <% if (canWrite) { %><td class="text-end">
+                  <td class="text-end">
                     <div class="d-inline-flex gap-1 align-items-center">
                       <%# The per-row Edit control only ever changes REAL wired
                            transitions (updateMappingTrigger requires at least
@@ -183,7 +180,7 @@
                       <% } %>
                       <% if (m.isActive) { %><form method="POST" action="/aisworg/seu/authority/mapping/retire" onsubmit="return confirm('Retire mapping <%= m.nounCode %> → <%= m.verbCode %>?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="nounCode" value="<%= m.nounCode %>"><input type="hidden" name="verbCode" value="<%= m.verbCode %>"><button class="btn btn-sm btn-outline-secondary">Retire</button></form><% } %>
                     </div>
-                  </td><% } %>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>

@@ -22,11 +22,11 @@ import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDef
 import { RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGateEngine.js";
 import type { PoolEntry } from "../../../domain/engine/profileCompositionUnravel.js";
 import { getSeuEvents } from "./events.js";
-import { listObligationsWithNextStates } from "./obligations.js";
-import { listAttentionItemsBySeu, listAttentionItemsWithNextStates } from "./attentionItems.js";
-import { listEvidenceWithNextStates, listEvidenceRelationships, listEvidenceLinkedToSeu } from "./evidence.js";
-import { listKnowledgeItemsWithNextStates } from "./knowledge.js";
-import { listDecisionsWithNextStates } from "./decisions.js";
+import { listObligationsBySeu } from "./obligations.js";
+import { listAttentionItemsBySeu } from "./attentionItems.js";
+import { listEvidenceBySeu, listEvidenceRelationships, listEvidenceLinkedToSeu } from "./evidence.js";
+import { listKnowledgeItemsWithNextScopes } from "./knowledge.js";
+import { listDecisionsBySeu } from "./decisions.js";
 import { listExternalInteractionsWithNextStates } from "./externalInteractions.js";
 import type {
   AttentionItemRow,
@@ -210,34 +210,29 @@ export interface SeuDetailCommand {
 export interface SeuDetailObligation {
   obligation: ObligationRow;
   deliverableName: string;
-  possibleNextStates: string[];
 }
 
 export interface SeuDetailAttentionItem {
   attentionItem: AttentionItemRow;
   relatedName: string | null;
-  possibleNextStates: string[];
 }
 
 export interface SeuDetailEvidence {
   evidence: EvidenceRow;
   relatedObjectLabels: string[];
   relationships: EvidenceRelationshipRow[];
-  possibleNextStates: string[];
   predecessorTitle: string | null;
 }
 
 export interface SeuDetailKnowledgeItem {
   knowledgeItem: KnowledgeItemRow;
   deliverableName: string;
-  possibleNextStates: string[];
   possibleNextScopes: string[];
 }
 
 export interface SeuDetailDecision {
   decision: DecisionRow;
   relatedObjectLabels: string[];
-  possibleNextStates: string[];
 }
 
 export interface SeuDetailExternalInteraction {
@@ -398,11 +393,9 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     return `${relatedObjectType} ${relatedObjectId.slice(0, 8)}`;
   }
 
-  const obligationsWithNextStates = await listObligationsWithNextStates(seuId);
-  const obligationViews: SeuDetailObligation[] = obligationsWithNextStates.map(({ obligation, possibleNextStates }) => ({
+  const obligationViews: SeuDetailObligation[] = (await listObligationsBySeu(seuId)).map((obligation) => ({
     obligation,
     deliverableName: relatedObjectLabel(obligation.related_object_type, obligation.related_object_id),
-    possibleNextStates,
   }));
 
   const blockingObligation = obligationViews.find(
@@ -417,45 +410,40 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     : null;
 
   const attentionItemsBySeu = await listAttentionItemsBySeu(seuId);
-  const attentionItemsWithNextStates = await listAttentionItemsWithNextStates(attentionItemsBySeu);
-  const attentionItemViews: SeuDetailAttentionItem[] = attentionItemsWithNextStates.map(({ attentionItem, possibleNextStates }) => ({
+  const attentionItemViews: SeuDetailAttentionItem[] = attentionItemsBySeu.map((attentionItem) => ({
     attentionItem,
     relatedName: attentionItem.related_object_type && attentionItem.related_object_id ? relatedObjectLabel(attentionItem.related_object_type, attentionItem.related_object_id) : null,
-    possibleNextStates,
   }));
 
-  const [evidenceWithNextStates, knowledgeItemsWithNextStates, decisionsWithNextStates, evidenceSupersedeCandidates] = await Promise.all([
-    listEvidenceWithNextStates(seuId),
-    listKnowledgeItemsWithNextStates(seuId),
-    listDecisionsWithNextStates(seuId),
+  const [evidenceItems, knowledgeItemsWithNextScopes, decisionRows, evidenceSupersedeCandidates] = await Promise.all([
+    listEvidenceBySeu(seuId),
+    listKnowledgeItemsWithNextScopes(seuId),
+    listDecisionsBySeu(seuId),
     listEvidenceLinkedToSeu(seuId),
   ]);
   const evidenceTitleById = new Map([
-    ...evidenceWithNextStates.map(({ evidence }) => [evidence.id, evidence.title] as const),
+    ...evidenceItems.map((evidence) => [evidence.id, evidence.title] as const),
     ...evidenceSupersedeCandidates.map((e) => [e.id, e.title] as const),
   ]);
   const evidenceViews: SeuDetailEvidence[] = await Promise.all(
-    evidenceWithNextStates.map(async ({ evidence, possibleNextStates }) => {
+    evidenceItems.map(async (evidence) => {
       const relationships = await listEvidenceRelationships(evidence.id);
       return {
         evidence,
         relatedObjectLabels: relationships.filter((r) => r.related_object_type !== "SEU").map((r) => relatedObjectLabel(r.related_object_type, r.related_object_id)),
         relationships,
-        possibleNextStates,
         predecessorTitle: evidence.supersedes_evidence_id ? evidenceTitleById.get(evidence.supersedes_evidence_id) ?? "(unknown Evidence)" : null,
       };
     })
   );
-  const knowledgeItemViews: SeuDetailKnowledgeItem[] = knowledgeItemsWithNextStates.map(({ knowledgeItem, possibleNextStates, possibleNextScopes }) => ({
+  const knowledgeItemViews: SeuDetailKnowledgeItem[] = knowledgeItemsWithNextScopes.map(({ knowledgeItem, possibleNextScopes }) => ({
     knowledgeItem,
     deliverableName: deliverableNameById.get(knowledgeItem.deliverable_id) ?? "(unknown Deliverable)",
-    possibleNextStates,
     possibleNextScopes,
   }));
-  const decisionViews: SeuDetailDecision[] = decisionsWithNextStates.map(({ decision, possibleNextStates }) => ({
+  const decisionViews: SeuDetailDecision[] = decisionRows.map((decision) => ({
     decision,
     relatedObjectLabels: decision.related_objects.flatMap((group) => group.related_object_ids.map((id) => relatedObjectLabel(group.related_object_type, id))),
-    possibleNextStates,
   }));
 
   const externalInteractionsWithNextStates = await listExternalInteractionsWithNextStates(seuId);

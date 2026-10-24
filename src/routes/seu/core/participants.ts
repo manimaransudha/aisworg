@@ -1,6 +1,7 @@
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
-import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import { resolveAuthor } from "./attentionItems.js";
@@ -10,57 +11,76 @@ export type TransitionParticipantResult =
   | { ok: true; participant: ParticipantRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" | "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked"; detail: string };
 
-const CH13_EVENT_BY_TRANSITION: Record<string, string> = {
-  "Created->Available": "ParticipantActivated",
-  "Available->Assigned": "ParticipantAssigned",
-  "Idle->Assigned": "ParticipantAssigned",
-  "Executing->Idle": "ParticipantIdle",
-  "Idle->Released": "ParticipantReleased",
-  "Released->Archived": "ParticipantArchived",
-};
+// A Participant is born through participantsDB.create, which reads the state of the birth row. The birth event is
+// published last.
+export async function createParticipant(input: {
+  seuId: string;
+  type: ParticipantType;
+  displayName: string;
+  participantMasterId?: string | null;
+  actorId: string;
+  authorBadge: string;
+}): Promise<ParticipantRow> {
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Participant");
+  if (birthError) throw birthError;
+  if (!birth) throw new Error("no birth Transition Definition for Participant");
+  if (!birth.event_type) throw new Error("the Participant birth Transition Definition names no event");
+
+  const { data: participant, error } = await participantsDB.create({
+    seuId: input.seuId,
+    type: input.type,
+    displayName: input.displayName,
+    participantId: input.participantMasterId ?? null,
+  });
+  if (error || !participant) throw error ?? new Error("failed to create participant");
+
+  await eventBus.publish({
+    eventType: birth.event_type,
+    originatingObjectType: "Participant",
+    originatingObjectId: participant.id,
+    seuId: participant.seu_id,
+    correlationId: eventBus.newCorrelationId(),
+    actorId: input.actorId,
+    authorityBadge: input.authorBadge,
+    payload: { participantType: input.type },
+  });
+
+  return participant;
+}
+
+// One governed Participant hop: the row's event, then ParticipantTransitioned as the last statement. The engine's hops
+// (dispatch, work item completion) and transitionParticipant all go through here.
+export async function applyParticipantHop(input: {
+  participantId: string;
+  targetState: string;
+  actorId: string;
+  payload?: Record<string, unknown>;
+  correlationId?: string;
+}): Promise<TransitionParticipantResult> {
+  if (!input.actorId) throw new Error("actorId is required to transition a Participant");
+  const result = await transitionEntity({ entityType: "Participant", entityId: input.participantId, targetState: input.targetState, actorId: input.actorId });
+  if (!result.ok) {
+    if (result.reason === "not_found") return { ok: false, reason: "not_found", detail: `Participant not found: ${input.participantId}` };
+    return result;
+  }
+
+  const published = await publishTransition(result, { payload: input.payload ? { ...result.event.payload, ...input.payload } : undefined, correlationId: input.correlationId });
+  await eventBus.publish({
+    eventType: "ParticipantTransitioned",
+    originatingObjectType: "Participant",
+    originatingObjectId: input.participantId,
+    seuId: result.event.seuId,
+    correlationId: published.correlation_id,
+    payload: result.event.payload,
+    actorId: input.actorId,
+    authorityBadge: result.event.authorityBadge,
+  });
+
+  return { ok: true, participant: result.row as ParticipantRow, appliedTransition: result.appliedTransition };
+}
 
 export async function transitionParticipant(input: { participantId: string; targetState: string; actorId: string }): Promise<TransitionParticipantResult> {
-  const { data: participant } = await participantsDB.findById(input.participantId);
-  if (!participant) return { ok: false, reason: "not_found", detail: `Participant not found: ${input.participantId}` };
-
-  const fromState = participant.state;
-
-  if (!input.actorId) throw new Error("actorId is required to transition a Participant");
-  const gate = await transitionEngine.evaluate({
-    entityType: "Participant",
-    fromState,
-    toState: input.targetState,
-    actorId: input.actorId,
-    seuId: participant.seu_id,
-    entityId: participant.id,
-    context: { participant },
-  });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Participant ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
-
-  const { data: updated, error } = await participantsDB.updateStatus(participant.id, input.targetState);
-  if (error || !updated) throw error ?? new Error("failed to update participant state");
-
-  const eventType = CH13_EVENT_BY_TRANSITION[`${fromState}->${input.targetState}`];
-  if (eventType) {
-    await eventBus.publish({
-      eventType,
-      originatingObjectType: "Participant",
-      originatingObjectId: participant.id,
-      seuId: participant.seu_id,
-      correlationId: eventBus.newCorrelationId(),
-      payload: { fromState, toState: input.targetState },
-      actorId: input.actorId,
-      authorityBadge: gate.authorityBadge,
-    });
-  }
-
-  return { ok: true, participant: updated, appliedTransition: { fromState, toState: input.targetState } };
+  return applyParticipantHop(input);
 }
 
 export type ReplaceParticipantResult =
@@ -92,23 +112,13 @@ export async function replaceParticipant(input: {
 
   await assertCanonicalCategory("participant-types", input.newParticipantType);
 
-  const { data: newParticipant, error } = await participantsDB.create({
+  const newParticipant = await createParticipant({
     seuId: oldParticipant.seu_id,
     type: input.newParticipantType,
     displayName: input.newDisplayName,
-    participantId: input.newParticipantMasterId ?? null,
-  });
-  if (error || !newParticipant) throw error ?? new Error("failed to create replacement participant");
-
-  await eventBus.publish({
-    eventType: "ParticipantCreated",
-    originatingObjectType: "Participant",
-    originatingObjectId: newParticipant.id,
-    seuId: oldParticipant.seu_id,
-    correlationId: eventBus.newCorrelationId(),
+    participantMasterId: input.newParticipantMasterId ?? null,
     actorId: input.actorId,
-    authorityBadge: input.authorBadge,
-    payload: { participantType: input.newParticipantType },
+    authorBadge: input.authorBadge,
   });
 
   await capabilityFulfilmentsDB.revoke(fulfilment.id);

@@ -291,30 +291,18 @@
                       <td class="small"><%= o.obligation.category %> &middot; <%= o.obligation.severity %></td>
                       <td><span class="state-badge state-<%= o.obligation.status.replace(/\s+/g, '-') %>"><%= o.obligation.status %></span></td>
                       <td>
-                        <%# Same fix as the Deliverables tab (owner: "The
-                             styling is so bad. Validate looks like a
-                             button") — a real, unambiguous button for the
-                             common single-next-state case; the select+submit
-                             shape stays only for genuine multi-option. %>
-                        <% if (o.possibleNextStates.length === 0) { %>
-                          <span class="text-muted small">no further transitions defined</span>
-                        <% } else if (o.possibleNextStates.length === 1) { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/obligations/<%= o.obligation.id %>/transition" class="mb-0">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <input type="hidden" name="targetState" value="<%= o.possibleNextStates[0] %>">
-                            <button type="submit" class="btn btn-sm btn-primary"><%= o.possibleNextStates[0] %></button>
-                          </form>
+                        <% var obligationNext = (locals.obligationActions || {})[o.obligation.id] || []; %>
+                        <% if (obligationNext.length === 0) { %>
+                          <span class="text-muted small">no further transitions available</span>
                         <% } else { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/obligations/<%= o.obligation.id %>/transition"
-                                class="d-flex align-items-center gap-2">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                              <% o.possibleNextStates.forEach(function(s) { %>
-                                <option value="<%= s %>"><%= s %></option>
-                              <% }) %>
-                            </select>
-                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                          </form>
+                          <div class="d-flex flex-wrap gap-1">
+                            <% obligationNext.forEach(function(a) { %>
+                              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/obligations/<%= o.obligation.id %>/transition/<%= a.verb %>" class="mb-0">
+                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                <button type="submit" class="btn btn-sm btn-primary" title="<%= a.toState %>"><%= a.verb %></button>
+                              </form>
+                            <% }) %>
+                          </div>
                         <% } %>
                       </td>
                     </tr>
@@ -420,25 +408,18 @@
                       </td>
                       <td><span class="state-badge state-<%= e.evidence.status %>"><%= e.evidence.status %></span></td>
                       <td>
-                        <% if (e.possibleNextStates.length === 0) { %>
-                          <span class="text-muted small">no further transitions defined</span>
-                        <% } else if (e.possibleNextStates.length === 1) { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence/<%= e.evidence.id %>/transition" class="mb-0">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <input type="hidden" name="targetState" value="<%= e.possibleNextStates[0] %>">
-                            <button type="submit" class="btn btn-sm btn-primary"><%= e.possibleNextStates[0] %></button>
-                          </form>
+                        <% var evidenceNext = (locals.evidenceActions || {})[e.evidence.id] || []; %>
+                        <% if (evidenceNext.length === 0) { %>
+                          <span class="text-muted small">no further transitions available</span>
                         <% } else { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence/<%= e.evidence.id %>/transition"
-                                class="d-flex align-items-center gap-2">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                              <% e.possibleNextStates.forEach(function(s) { %>
-                                <option value="<%= s %>"><%= s %></option>
-                              <% }) %>
-                            </select>
-                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                          </form>
+                          <div class="d-flex flex-wrap gap-1">
+                            <% evidenceNext.forEach(function(a) { %>
+                              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence/<%= e.evidence.id %>/transition/<%= a.verb %>" class="mb-0">
+                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                <button type="submit" class="btn btn-sm btn-primary" title="<%= a.toState %>"><%= a.verb %></button>
+                              </form>
+                            <% }) %>
+                          </div>
                         <% } %>
                       </td>
                       <td>
@@ -485,6 +466,14 @@
                   </select>
                 </div>
                 <div class="col-auto">
+                  <select name="evidenceId" class="form-select form-select-sm">
+                    <option value="">(no supporting Evidence)</option>
+                    <% detail.evidence.forEach(function(e) { %>
+                      <option value="<%= e.evidence.id %>"><%= e.evidence.title %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
                   <select name="category" class="form-select form-select-sm">
                     <% ['Architecture Decisions','Design Decisions','Engineering Decisions','Operational Decisions','Governance Decisions'].forEach(function(cat) { %>
                       <option value="<%= cat %>"><%= cat %></option>
@@ -519,25 +508,27 @@
                       <td class="small"><%= dec.decision.category %></td>
                       <td><span class="state-badge state-<%= dec.decision.status %>"><%= dec.decision.status %></span></td>
                       <td>
-                        <% if (dec.possibleNextStates.length === 0) { %>
-                          <span class="text-muted small">no further transitions defined</span>
-                        <% } else if (dec.possibleNextStates.length === 1) { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/decisions/<%= dec.decision.id %>/transition" class="mb-0">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <input type="hidden" name="targetState" value="<%= dec.possibleNextStates[0] %>">
-                            <button type="submit" class="btn btn-sm btn-primary"><%= dec.possibleNextStates[0] %></button>
-                          </form>
+                        <% var decisionNext = (locals.decisionActions || {})[dec.decision.id] || []; %>
+                        <% if (decisionNext.length === 0) { %>
+                          <span class="text-muted small">no further transitions available</span>
                         <% } else { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/decisions/<%= dec.decision.id %>/transition"
-                                class="d-flex align-items-center gap-2">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                              <% dec.possibleNextStates.forEach(function(s) { %>
-                                <option value="<%= s %>"><%= s %></option>
-                              <% }) %>
-                            </select>
-                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                          </form>
+                          <div class="d-flex flex-wrap gap-1">
+                            <% decisionNext.forEach(function(a) { %>
+                              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/decisions/<%= dec.decision.id %>/transition/<%= a.verb %>" class="mb-0 d-flex gap-1">
+                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                <% if (a.kind === 'target') { %>
+                                  <select name="supersedingDecisionId" class="form-select form-select-sm" style="width: auto;" required>
+                                    <option value="" disabled selected>Superseded by&hellip;</option>
+                                    <% detail.decisions.filter(function(o) { return o.decision.id !== dec.decision.id; }).forEach(function(o) { %>
+                                      <option value="<%= o.decision.id %>"><%= o.decision.title %></option>
+                                    <% }) %>
+                                  </select>
+                                  <input type="text" name="comment" class="form-control form-control-sm" placeholder="Comment" required style="width: 160px;">
+                                <% } %>
+                                <button type="submit" class="btn btn-sm btn-primary" title="<%= a.toState %>"><%= a.verb %></button>
+                              </form>
+                            <% }) %>
+                          </div>
                         <% } %>
                       </td>
                     </tr>
@@ -563,8 +554,8 @@
                   </select>
                 </div>
                 <div class="col-auto">
-                  <select name="evidenceId" class="form-select form-select-sm">
-                    <option value="">(no supporting Evidence)</option>
+                  <select name="evidenceId" class="form-select form-select-sm" required>
+                    <option value="" disabled selected>Supporting Evidence&hellip;</option>
                     <% detail.evidence.forEach(function(e) { %>
                       <option value="<%= e.evidence.id %>"><%= e.evidence.title %></option>
                     <% }) %>
@@ -606,25 +597,18 @@
                       <td class="small"><%= k.knowledgeItem.category %> &middot; <%= k.knowledgeItem.acquisition_scope %></td>
                       <td><span class="state-badge state-<%= k.knowledgeItem.status %>"><%= k.knowledgeItem.status %></span></td>
                       <td>
-                        <% if (k.possibleNextStates.length === 0) { %>
-                          <span class="text-muted small">no further transitions defined</span>
-                        <% } else if (k.possibleNextStates.length === 1) { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge/<%= k.knowledgeItem.id %>/transition" class="mb-0">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <input type="hidden" name="targetState" value="<%= k.possibleNextStates[0] %>">
-                            <button type="submit" class="btn btn-sm btn-primary"><%= k.possibleNextStates[0] %></button>
-                          </form>
+                        <% var knowledgeNext = (locals.knowledgeActions || {})[k.knowledgeItem.id] || []; %>
+                        <% if (knowledgeNext.length === 0) { %>
+                          <span class="text-muted small">no further transitions available</span>
                         <% } else { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge/<%= k.knowledgeItem.id %>/transition"
-                                class="d-flex align-items-center gap-2">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                              <% k.possibleNextStates.forEach(function(s) { %>
-                                <option value="<%= s %>"><%= s %></option>
-                              <% }) %>
-                            </select>
-                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                          </form>
+                          <div class="d-flex flex-wrap gap-1">
+                            <% knowledgeNext.forEach(function(a) { %>
+                              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge/<%= k.knowledgeItem.id %>/transition/<%= a.verb %>" class="mb-0">
+                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                <button type="submit" class="btn btn-sm btn-primary" title="<%= a.toState %>"><%= a.verb %></button>
+                              </form>
+                            <% }) %>
+                          </div>
                         <% } %>
                       </td>
                       <td>
@@ -878,25 +862,18 @@
                       <td class="small"><%= a.attentionItem.category %> &middot; <%= a.attentionItem.priority %></td>
                       <td><span class="state-badge state-<%= a.attentionItem.status.replace(/\s+/g, '-') %>"><%= a.attentionItem.status %></span></td>
                       <td>
-                        <% if (a.possibleNextStates.length === 0) { %>
-                          <span class="text-muted small">no further transitions defined</span>
-                        <% } else if (a.possibleNextStates.length === 1) { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/attention-items/<%= a.attentionItem.id %>/transition" class="mb-0">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <input type="hidden" name="targetState" value="<%= a.possibleNextStates[0] %>">
-                            <button type="submit" class="btn btn-sm btn-primary"><%= a.possibleNextStates[0] %></button>
-                          </form>
+                        <% var attentionNext = (locals.attentionActions || {})[a.attentionItem.id] || []; %>
+                        <% if (attentionNext.length === 0) { %>
+                          <span class="text-muted small">no further transitions available</span>
                         <% } else { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/attention-items/<%= a.attentionItem.id %>/transition"
-                                class="d-flex align-items-center gap-2">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                              <% a.possibleNextStates.forEach(function(s) { %>
-                                <option value="<%= s %>"><%= s %></option>
-                              <% }) %>
-                            </select>
-                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                          </form>
+                          <div class="d-flex flex-wrap gap-1">
+                            <% attentionNext.forEach(function(n) { %>
+                              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/attention-items/<%= a.attentionItem.id %>/transition/<%= n.verb %>" class="mb-0">
+                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                <button type="submit" class="btn btn-sm btn-primary" title="<%= n.toState %>"><%= n.verb %></button>
+                              </form>
+                            <% }) %>
+                          </div>
                         <% } %>
                       </td>
                     </tr>

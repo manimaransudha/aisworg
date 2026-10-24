@@ -18,8 +18,7 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_BADGE, createActiveObjective, transitionObjective } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
-import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, TESTER_OBJECTIVE_BABYLON, ROOT_ACTOR_ID, grantBadge } from "./testFixtures.js";
-import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
+import { TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, ROOT_ACTOR_ID } from "./testFixtures.js";
 
 before(async () => {
   // Must run before this file's own first commissionSeu call — see
@@ -198,33 +197,25 @@ test("only a Defined Objective can have its own fields/lineage edited — Active
 // operation), and the "Move to" candidate list must not even offer the
 // other tenant's Objective as an option (owner-established precedent: never
 // leak another tenant's existence/statement, even where the action would
-// just fail). TESTER_OBJECTIVE_ACHIEVE_ONLY (Athens) / TESTER_OBJECTIVE_BABYLON
+// just fail). TESTER_OBJECTIVE_ATHENS / TESTER_OBJECTIVE_BABYLON
 // (Babylon) are the real, seeded cross-tenant test identities (CR-006,
 // seedIdentityBaseline.ts).
 test("reParentObjective refuses a cross-tenant move, and listReParentCandidates never offers one", async () => {
-  // createObjective now resolves the author badge, so the fixture creates need objective_propose.
-  // grantBadge persists on the shared tester row; restore the original list afterwards.
-  const { data: holder } = await participantsMasterDB.findById(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId);
-  const originalBadges = holder!.authorised_badges;
-  try {
-  await grantBadge(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, "objective_propose");
   const { objective: athensRoot } = await createObjective({
     statement: `phase1-tenant-move-athens-root-${randomUUID()}`,
-    requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, });
+    requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ATHENS.participantId, });
   const { objective: athensOtherRoot } = await createObjective({
     statement: `phase1-tenant-move-athens-other-root-${randomUUID()}`,
-    requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, });
+    requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ATHENS.participantId, });
   const { objective: babylonRoot } = await createObjective({
     statement: `phase1-tenant-move-babylon-root-${randomUUID()}`,
     requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_BABYLON.participantId, });
   const { objective: athensChild } = await createObjective({
     statement: `phase1-tenant-move-athens-child-${randomUUID()}`,
-    // TESTER_OBJECTIVE_ACHIEVE_ONLY only holds objective_achieve (CR-006 fixture), not
-    // objective_propose — no real badge to author a Capability with here,
-    // and this test never asserts on the Capability itself, only cross-tenant
+    // This test never asserts on the Capability itself, only cross-tenant
     // move behaviour, so leave it capability-less rather than fabricate one.
     requiredCapabilityCodes: [], tier: "Engineering",
-    parentObjectiveId: athensRoot.id, requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, });
+    parentObjectiveId: athensRoot.id, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId, });
 
   const candidates = await listReParentCandidates(athensChild.id);
   assert.ok(candidates.some((c) => c.id === athensOtherRoot.id), "a same-tenant candidate must still be offered");
@@ -235,10 +226,6 @@ test("reParentObjective refuses a cross-tenant move, and listReParentCandidates 
   // A same-tenant move still works normally.
   const moved = await reParentObjective(athensChild.id, athensOtherRoot.id);
   assert.equal(moved.parent_objective_id, athensOtherRoot.id);
-  } finally {
-    const { error } = await participantsMasterDB.setAuthorisedBadges(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, originalBadges);
-    if (error) throw error;
-  }
 });
 
 // CR-073 — Active -> Reject: a real, distinct status (owner: "It is Active

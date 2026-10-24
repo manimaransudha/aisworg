@@ -5,6 +5,7 @@ import { safeBack } from './safeBack.js';
 import { participantsMasterDB } from '../dblayer/participantsMasterDB.js';
 import { createParticipantMaster } from '../routes/seu/core/participantsMaster.js';
 import { tenantsDB } from '../dblayer/tenantsDB.js';
+import { ensureDemoUserRoles } from '../dblayer/seed/demo/demoBadges.js';
 import { DEMO_TENANT_NAME } from '../dblayer/constants.js';
 
 let demoTenantIdCache: string | null = null;
@@ -25,6 +26,7 @@ async function getOrCreateDemoParticipantId() {
   if (error) throw error;
   const found = (existing ?? []).find((p) => p.display_name === DEMO_PARTICIPANT_DISPLAY_NAME);
   if (found) {
+    await ensureDemoUserRoles(found.id);
     demoParticipantIdCache = found.id;
     return demoParticipantIdCache;
   }
@@ -34,6 +36,7 @@ async function getOrCreateDemoParticipantId() {
     displayName: DEMO_PARTICIPANT_DISPLAY_NAME,
     userId: null,
   });
+  await ensureDemoUserRoles(created.id);
   demoParticipantIdCache = created.id;
   return demoParticipantIdCache;
 }

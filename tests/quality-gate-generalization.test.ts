@@ -30,11 +30,23 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { createAttentionItem, transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
-import { createObligationAsRoot as createObligation } from "./testFixtures.js";
+import { createDecision, transitionDecision } from "../src/routes/seu/core/decisions.js";
+import { decisionsDB } from "../src/dblayer/decisionsDB.js";
+import { participantsDB } from "../src/dblayer/participantsDB.js";
+import { knowledgeItemsDB } from "../src/dblayer/knowledgeItemsDB.js";
+import { reviewsDB } from "../src/dblayer/reviewsDB.js";
+import { findingsDB } from "../src/dblayer/findingsDB.js";
+import { transitionReview } from "../src/routes/seu/core/reviews.js";
+import { transitionFinding } from "../src/routes/seu/core/findings.js";
+import { createKnowledgeItem, transitionKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
+import { createParticipant, transitionParticipant } from "../src/routes/seu/core/participants.js";
+import { createObligationAsRoot as createObligation, createEvidenceAsRoot, ensureActorParticipant, createReviewAsRoot, createFindingAsRoot } from "./testFixtures.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
+import { obligationsDB } from "../src/dblayer/obligationsDB.js";
+import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 import { TESTER_ALL_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
@@ -184,4 +196,249 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
   const passedResult = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState: toState, actorId: TESTER_ALL_ID });
   assert.equal(passedResult.ok, true, !passedResult.ok ? JSON.stringify(passedResult) : "assertion failed");
   if (passedResult.ok) assert.equal(passedResult.attentionItem.status, toState);
+});
+
+test("transitionObligation is genuinely wired to qualityGateEngine through transitionEntity — an Obligation hop is blocked by an unresolved Obligation attached to the same Obligation, and writes and publishes nothing", async () => {
+  // Same ordering and throwaway-pair rules as the tests above: the gate exists before the SEU is commissioned, and the
+  // (fromState, toState) pair is fabricated so no real Obligation hop gains a gate.
+  const fromState = "Identified";
+  const toState = `qg-ob-to-${randomUUID()}`;
+  const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Obligation", fromState, toState, verb: "analyse", eventType: "ObligationUpdated" });
+  assert.equal(definitionError, undefined);
+  try {
+    const { error: gateError } = await qualityGatesDB.upsert({
+      name: "QG obligation wiring test gate",
+      entityType: "Obligation",
+      fromState,
+      toState,
+      criteria: { type: "no_unresolved_obligations" },
+      originatingPackId: await anyRealPackId(),
+      authorId: ROOT_ACTOR_ID,
+      authorBadge: "root",
+    });
+    assert.equal(gateError, undefined);
+
+    const seuId = await commissionTestSeu("qg-obligation-wiring");
+    const target = await createObligation({ relatedObjectType: "SEU", relatedObjectId: seuId, category: "Engineering", title: "QG obligation wiring target" });
+    await createObligation({ relatedObjectType: "Obligation", relatedObjectId: target.id, category: "Engineering", title: "QG obligation wiring blocker (left unresolved)" });
+    const { data: eventsBefore } = await eventsDB.findByOriginatingObject("Obligation", target.id);
+
+    const result = await transitionObligation({ obligationId: target.id, targetState: toState, actorId: TESTER_ALL_ID });
+    assert.equal(result.ok, false);
+    if (result.ok) throw new Error("unreachable");
+    assert.equal(result.reason, "quality_gate_blocked");
+    assert.match(result.detail, /unresolved Obligation/);
+
+    const { data: after } = await obligationsDB.findById(target.id);
+    assert.equal(after!.status, fromState);
+    assert.equal(after!.version, target.version);
+    const { data: eventsAfter } = await eventsDB.findByOriginatingObject("Obligation", target.id);
+    assert.equal((eventsAfter ?? []).length, (eventsBefore ?? []).length, "a blocked hop publishes nothing");
+  } finally {
+    await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'Obligation' AND to_state = $1", [toState]);
+  }
+});
+
+test("transitionDecision is genuinely wired to qualityGateEngine through transitionEntity — a Decision hop is blocked by a gate that needs accepted Evidence or an Approved Decision, and writes and publishes nothing", async () => {
+  // Same ordering and throwaway-pair rules as the tests above.
+  const fromState = "Identified";
+  const toState = `qg-dec-to-${randomUUID()}`;
+  const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Decision", fromState, toState, verb: "analyse", eventType: "DecisionAnalysed" });
+  assert.equal(definitionError, undefined);
+  try {
+    const { error: gateError } = await qualityGatesDB.upsert({
+      name: "QG decision wiring test gate",
+      entityType: "Decision",
+      fromState,
+      toState,
+      category: "Validation Evidence",
+      criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+      originatingPackId: await anyRealPackId(),
+      authorId: ROOT_ACTOR_ID,
+      authorBadge: "root",
+    });
+    assert.equal(gateError, undefined);
+
+    const seuId = await commissionTestSeu("qg-decision-wiring");
+    const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
+    const deliverableId = rows[0].id;
+    await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+    const evidence = await createEvidenceAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "QG decision wiring support" });
+    const decision = await createDecision({
+      actorId: ROOT_ACTOR_ID, seuId, evidenceIds: [evidence.id],
+      relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }],
+      category: "Engineering Decisions", title: "QG decision wiring target",
+    });
+    const { data: eventsBefore } = await eventsDB.findByOriginatingObject("Decision", decision.id);
+
+    const result = await transitionDecision({ decisionId: decision.id, targetState: toState, actorId: TESTER_ALL_ID });
+    assert.equal(result.ok, false);
+    if (result.ok) throw new Error("unreachable");
+    assert.equal(result.reason, "quality_gate_blocked");
+    assert.match(result.detail, /no accepted Evidence/);
+
+    const { data: after } = await decisionsDB.findById(decision.id);
+    assert.equal(after!.status, fromState);
+    const { data: eventsAfter } = await eventsDB.findByOriginatingObject("Decision", decision.id);
+    assert.equal((eventsAfter ?? []).length, (eventsBefore ?? []).length, "a blocked hop publishes nothing");
+  } finally {
+    await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'Decision' AND to_state = $1", [toState]);
+  }
+});
+
+test("transitionParticipant is genuinely wired to qualityGateEngine through transitionEntity — a Participant hop is blocked by a gate that needs accepted Evidence or an Approved Decision, and writes and publishes nothing", async () => {
+  // Same ordering and throwaway-pair rules as the tests above.
+  const fromState = "Available";
+  const toState = `qg-part-to-${randomUUID()}`;
+  const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Participant", fromState, toState, verb: "assign", eventType: "ParticipantAssigned" });
+  assert.equal(definitionError, undefined);
+  try {
+    const { error: gateError } = await qualityGatesDB.upsert({
+      name: "QG participant wiring test gate",
+      entityType: "Participant",
+      fromState,
+      toState,
+      category: "Validation Evidence",
+      criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+      originatingPackId: await anyRealPackId(),
+      authorId: ROOT_ACTOR_ID,
+      authorBadge: "root",
+    });
+    assert.equal(gateError, undefined);
+
+    const seuId = await commissionTestSeu("qg-participant-wiring");
+    const participant = await createParticipant({ seuId, type: "Human", displayName: `QG participant wiring ${randomUUID()}`, actorId: ROOT_ACTOR_ID, authorBadge: "root" });
+    const { data: eventsBefore } = await eventsDB.findByOriginatingObject("Participant", participant.id);
+
+    const result = await transitionParticipant({ participantId: participant.id, targetState: toState, actorId: TESTER_ALL_ID });
+    assert.equal(result.ok, false);
+    if (result.ok) throw new Error("unreachable");
+    assert.equal(result.reason, "quality_gate_blocked");
+    assert.match(result.detail, /no accepted Evidence/);
+
+    assert.equal((await participantsDB.findById(participant.id)).data!.state, fromState);
+    const { data: eventsAfter } = await eventsDB.findByOriginatingObject("Participant", participant.id);
+    assert.equal((eventsAfter ?? []).length, (eventsBefore ?? []).length, "a blocked hop publishes nothing");
+  } finally {
+    await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'Participant' AND to_state = $1", [toState]);
+  }
+});
+
+test("transitionKnowledgeItem is genuinely wired to qualityGateEngine through transitionEntity — a Knowledge hop is blocked by a gate that needs accepted Evidence or an Approved Decision, and writes and publishes nothing", async () => {
+  // Same ordering and throwaway-pair rules as the tests above.
+  const fromState = "Observed";
+  const toState = `qg-know-to-${randomUUID()}`;
+  const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Knowledge", fromState, toState, verb: "propose", eventType: "KnowledgeProposed" });
+  assert.equal(definitionError, undefined);
+  try {
+    const { error: gateError } = await qualityGatesDB.upsert({
+      name: "QG knowledge wiring test gate",
+      entityType: "Knowledge",
+      fromState,
+      toState,
+      category: "Validation Evidence",
+      criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+      originatingPackId: await anyRealPackId(),
+      authorId: ROOT_ACTOR_ID,
+      authorBadge: "root",
+    });
+    assert.equal(gateError, undefined);
+
+    const seuId = await commissionTestSeu("qg-knowledge-wiring");
+    const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
+    const deliverableId = rows[0].id;
+    await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+    const evidence = await createEvidenceAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "QG knowledge wiring support" });
+    const item = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "QG knowledge wiring target", evidenceReferences: { supports: [evidence.id] } });
+    const { data: eventsBefore } = await eventsDB.findByOriginatingObject("Knowledge", item.id);
+
+    const result = await transitionKnowledgeItem({ knowledgeItemId: item.id, targetState: toState, actorId: TESTER_ALL_ID });
+    assert.equal(result.ok, false);
+    if (result.ok) throw new Error("unreachable");
+    assert.equal(result.reason, "quality_gate_blocked");
+    assert.match(result.detail, /no accepted Evidence/);
+
+    assert.equal((await knowledgeItemsDB.findById(item.id)).data!.status, fromState);
+    const { data: eventsAfter } = await eventsDB.findByOriginatingObject("Knowledge", item.id);
+    assert.equal((eventsAfter ?? []).length, (eventsBefore ?? []).length, "a blocked hop publishes nothing");
+  } finally {
+    await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'Knowledge' AND to_state = $1", [toState]);
+  }
+});
+
+test("transitionReview is genuinely wired to qualityGateEngine through transitionEntity — a Review hop is blocked by a gate that needs accepted Evidence or an Approved Decision, and writes and publishes nothing", async () => {
+  const fromState = "Planned";
+  const toState = `qg-rev-to-${randomUUID()}`;
+  const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Review", fromState, toState, verb: "prepare", eventType: "ReviewPrepared" });
+  assert.equal(definitionError, undefined);
+  try {
+    const { error: gateError } = await qualityGatesDB.upsert({
+      name: "QG review wiring test gate",
+      entityType: "Review",
+      fromState,
+      toState,
+      category: "Validation Evidence",
+      criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+      originatingPackId: await anyRealPackId(),
+      authorId: ROOT_ACTOR_ID,
+      authorBadge: "root",
+    });
+    assert.equal(gateError, undefined);
+
+    const seuId = await commissionTestSeu("qg-review-wiring");
+    const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
+    const target = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: rows[0].id, category: "Architecture", name: "QG review wiring target" });
+    const { data: eventsBefore } = await eventsDB.findByOriginatingObject("Review", target.id);
+
+    const result = await transitionReview({ reviewId: target.id, targetState: toState, actorId: TESTER_ALL_ID });
+    assert.equal(result.ok, false);
+    if (result.ok) throw new Error("unreachable");
+    assert.equal(result.reason, "quality_gate_blocked");
+    assert.match(result.detail, /no accepted Evidence/);
+
+    assert.equal((await reviewsDB.findById(target.id)).data!.status, fromState);
+    const { data: eventsAfter } = await eventsDB.findByOriginatingObject("Review", target.id);
+    assert.equal((eventsAfter ?? []).length, (eventsBefore ?? []).length, "a blocked hop publishes nothing");
+  } finally {
+    await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'Review' AND to_state = $1", [toState]);
+  }
+});
+
+test("transitionFinding is genuinely wired to qualityGateEngine through transitionEntity — a Finding hop is blocked by a gate that needs accepted Evidence or an Approved Decision, and writes and publishes nothing", async () => {
+  const fromState = "Open";
+  const toState = `qg-fnd-to-${randomUUID()}`;
+  const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Finding", fromState, toState, verb: "resolve", eventType: "FindingResolved" });
+  assert.equal(definitionError, undefined);
+  try {
+    const { error: gateError } = await qualityGatesDB.upsert({
+      name: "QG finding wiring test gate",
+      entityType: "Finding",
+      fromState,
+      toState,
+      category: "Validation Evidence",
+      criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+      originatingPackId: await anyRealPackId(),
+      authorId: ROOT_ACTOR_ID,
+      authorBadge: "root",
+    });
+    assert.equal(gateError, undefined);
+
+    const seuId = await commissionTestSeu("qg-finding-wiring");
+    const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
+    const review = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: rows[0].id, category: "Architecture", name: "QG finding wiring review" });
+    const target = await createFindingAsRoot({ reviewId: review.id, severity: "Low", title: "QG finding wiring target" });
+    const { data: eventsBefore } = await eventsDB.findByOriginatingObject("Finding", target.id);
+
+    const result = await transitionFinding({ findingId: target.id, targetState: toState, actorId: TESTER_ALL_ID });
+    assert.equal(result.ok, false);
+    if (result.ok) throw new Error("unreachable");
+    assert.equal(result.reason, "quality_gate_blocked");
+    assert.match(result.detail, /no accepted Evidence/);
+
+    assert.equal((await findingsDB.findById(target.id)).data!.status, fromState);
+    const { data: eventsAfter } = await eventsDB.findByOriginatingObject("Finding", target.id);
+    assert.equal((eventsAfter ?? []).length, (eventsBefore ?? []).length, "a blocked hop publishes nothing");
+  } finally {
+    await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'Finding' AND to_state = $1", [toState]);
+  }
 });

@@ -3,7 +3,8 @@ import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
+import { COMPLETE_REVIEW_ACTION_CODE } from "../../../dblayer/constants.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import type { ReviewOutcome, ReviewRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
@@ -38,7 +39,13 @@ export async function createReview(input: {
   const authorId = await resolveAuthorId(input.seuId, input.actorId);
   const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, "review_create");
 
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Review");
+  if (birthError) throw birthError;
+  if (!birth) throw new Error("no birth Transition Definition for Review");
+  if (!birth.event_type) throw new Error("the Review birth Transition Definition names no event");
+
   const { data: review, error } = await reviewsDB.create({
+    status: birth.to_state,
     seuId: input.seuId,
     relatedObjectType: input.relatedObjectType,
     relatedObjectId: input.relatedObjectId,
@@ -53,7 +60,7 @@ export async function createReview(input: {
   if (error || !review) throw error ?? new Error("failed to create review");
 
   await eventBus.publish({
-    eventType: "ReviewPlanned",
+    eventType: birth.event_type,
     originatingObjectType: "Review",
     originatingObjectId: review.id,
     seuId: review.seu_id,
@@ -69,21 +76,6 @@ export async function createReview(input: {
 export async function listReviewsBySeu(seuId: string): Promise<ReviewRow[]> {
   const { data } = await reviewsDB.findBySeuId(seuId);
   return data ?? [];
-}
-
-export interface ReviewWithNextStates {
-  review: ReviewRow;
-  possibleNextStates: string[];
-}
-
-export async function listReviewsWithNextStates(seuId: string): Promise<ReviewWithNextStates[]> {
-  const items = await listReviewsBySeu(seuId);
-  return Promise.all(
-    items.map(async (review) => {
-      const { data: possibleNextStates } = await transitionDefinitionsDB.findPossibleNextStates("Review", review.status);
-      return { review, possibleNextStates: possibleNextStates ?? [] };
-    })
-  );
 }
 
 export type TransitionReviewResult =
@@ -102,35 +94,35 @@ export async function transitionReview(input: {
 }): Promise<TransitionReviewResult> {
   const { data: review } = await reviewsDB.findById(input.reviewId);
   if (!review) return { ok: false, reason: "not_found" };
-
-  const fromState = review.status;
-
   if (!input.actorId) throw new Error("actorId is required to transition a Review");
-  const gate = await transitionEngine.evaluateGoverned({ entityType: "Review", fromState, toState: input.targetState, actorId: input.actorId, entityId: review.id, context: { review },
-    gateEntityId: review.id,
-    gateSeuId: review.seu_id,
-  });
-  if (!gate.allowed) return gateRejection(gate, "Review", fromState, input.targetState);
 
-  let updated: ReviewRow;
-  if (input.targetState === "Completed") {
+  // The row that completes a Review names the complete-review action. Its outcome rules are checked here so the caller
+  // gets the specific result; the action enforces them again inside the transaction.
+  const { data: definition } = await transitionDefinitionsDB.find("Review", review.status, input.targetState);
+  const completes = definition?.action_code === COMPLETE_REVIEW_ACTION_CODE;
+  if (completes) {
     if (!input.outcome) return { ok: false, reason: "outcome_required", detail: "completing a Review requires an outcome (Passed / Passed with Recommendations / Rework Required / Failed / Not Applicable / Deferred)" };
     if (review.outcome != null) return { ok: false, reason: "outcome_immutable", detail: `this Review already has outcome "${review.outcome}" — a Review outcome is immutable` };
-    const { data, error } = await reviewsDB.completeWithOutcome(review.id, input.outcome);
-    if (error || !data) throw error ?? new Error("failed to complete review");
-    updated = data;
-
-    await eventBus.publish({ eventType: "ReviewCompleted", originatingObjectType: "Review", originatingObjectId: review.id, seuId: review.seu_id, correlationId: eventBus.newCorrelationId(), payload: { outcome: input.outcome }, actorId: input.actorId, authorityBadge: gate.authorityBadge });
-    const outcomeEvent = PASSING_OUTCOMES.has(input.outcome) ? "ReviewPassed" : input.outcome === "Deferred" ? "ReviewDeferred" : "ReviewFailed";
-    await eventBus.publish({ eventType: outcomeEvent, originatingObjectType: "Review", originatingObjectId: review.id, seuId: review.seu_id, correlationId: eventBus.newCorrelationId(), payload: { outcome: input.outcome }, actorId: input.actorId, authorityBadge: gate.authorityBadge });
-  } else {
-    const { data, error } = await reviewsDB.updateStatus(review.id, input.targetState);
-    if (error || !data) throw error ?? new Error("failed to update review status");
-    updated = data;
-
-    const eventType = input.targetState === "In Progress" ? "ReviewStarted" : "ReviewTransitioned";
-    await eventBus.publish({ eventType, originatingObjectType: "Review", originatingObjectId: review.id, seuId: review.seu_id, correlationId: eventBus.newCorrelationId(), payload: { fromState, toState: input.targetState }, actorId: input.actorId, authorityBadge: gate.authorityBadge });
   }
 
-  return { ok: true, review: updated, appliedTransition: { fromState, toState: input.targetState } };
+  const result = await transitionEntity({ entityType: "Review", entityId: review.id, targetState: input.targetState, actorId: input.actorId, context: completes ? { outcome: input.outcome } : undefined });
+  if (!result.ok) return result;
+
+  const published = await publishTransition(result);
+  if (completes && input.outcome) {
+    const outcomeEvent = PASSING_OUTCOMES.has(input.outcome) ? "ReviewPassed" : input.outcome === "Deferred" ? "ReviewDeferred" : "ReviewFailed";
+    await eventBus.publish({ eventType: outcomeEvent, originatingObjectType: "Review", originatingObjectId: review.id, seuId: review.seu_id, correlationId: published.correlation_id, payload: { outcome: input.outcome }, actorId: input.actorId, authorityBadge: result.event.authorityBadge });
+  }
+  await eventBus.publish({
+    eventType: "ReviewTransitioned",
+    originatingObjectType: "Review",
+    originatingObjectId: review.id,
+    seuId: review.seu_id,
+    correlationId: published.correlation_id,
+    payload: result.event.payload,
+    actorId: input.actorId,
+    authorityBadge: result.event.authorityBadge,
+  });
+
+  return { ok: true, review: result.row as ReviewRow, appliedTransition: result.appliedTransition };
 }

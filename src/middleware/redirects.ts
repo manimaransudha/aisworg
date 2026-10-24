@@ -154,8 +154,6 @@ export const redirects = {
     sdkSchemaRegistryById: page({ prefix: "/aisworg/seu/sdk/schema-registry/:id", error: "/aisworg/seu/sdk/schema-registry" }),
     sdkSchemaRegistryPublish: page({ prefix: "/aisworg/seu/sdk/schema-registry/publish", error: "/aisworg/seu/sdk/schema-registry" }),
     sdkSchemaRegistryTransition: page({ prefix: "/aisworg/seu/sdk/schema-registry/:id/transition", error: "/aisworg/seu/sdk/schema-registry/:id" }),
-    sdkSchemaRegistryPublishById: page({ prefix: "/aisworg/seu/sdk/schema-registry/:id/publish", error: "/aisworg/seu/sdk/schema-registry/:id" }),
-    sdkSchemaRegistryReject: page({ prefix: "/aisworg/seu/sdk/schema-registry/:id/reject", error: "/aisworg/seu/sdk/schema-registry/:id" }),
     sdkTransition: page({ prefix: "/aisworg/seu/sdk/:slug/:draftId/transition", error: "/aisworg/seu/sdk/:slug/:draftId", success: "/aisworg/seu/sdk/:slug", tenantfail: "/aisworg/seu/sdk/:slug", badgefail: "/aisworg/seu/sdk/:slug/:draftId" }),
     serviceDefinitionsCopy: page({ prefix: "/aisworg/seu/service-definitions/:id/copy", error: "/aisworg/seu/service-definitions" }),
     seus: page({ prefix: "/aisworg/seu/seus/:id", error: "/aisworg/seu/seus" }),

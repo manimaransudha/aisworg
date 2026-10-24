@@ -8,7 +8,7 @@ CREATE TABLE evidence (
   description       TEXT,
   source            TEXT,
   confidence_level  TEXT NOT NULL DEFAULT 'Medium',
-  status            TEXT NOT NULL DEFAULT 'Collected',
+  status            TEXT NOT NULL,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

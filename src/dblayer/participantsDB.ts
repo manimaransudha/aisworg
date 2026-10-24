@@ -1,17 +1,22 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { userDB } from "./userDB.js";
+import { transitionDefinitionsDB } from "./transitionDefinitionsDB.js";
 import type { DbResult, ParticipantRow, ParticipantType } from "./seuTypes.js";
 
 export const participantsDB = {
   async create(input: { seuId: string; type: ParticipantType; displayName: string; participantId?: string | null }): Promise<DbResult<ParticipantRow>> {
     try {
+      // The state comes from the birth Transition Definition (CR-128).
+      const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Participant");
+      if (birthError) throw birthError;
+      if (!birth) throw new Error("no birth Transition Definition for Participant");
       const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<ParticipantRow>(
-        `INSERT INTO participants (seu_id, type, display_name, participant_id, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO participants (state, seu_id, type, display_name, participant_id, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [input.seuId, input.type, input.displayName, input.participantId ?? null, actorId, actorBadge]
+        [birth.to_state, input.seuId, input.type, input.displayName, input.participantId ?? null, actorId, actorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

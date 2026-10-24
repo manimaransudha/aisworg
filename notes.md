@@ -145,4 +145,8 @@ pnpm test > output.txt 2>&1
 pnpm tsx src/dblayer/seed/seedPolicyDefinitions.ts
 
 pnpm tsx src/dblayer/seed/seedTransitionDefinitions.ts
+pnpm tsx src/dblayer/seed/seedRouteAuthority.ts
+pnpm tsx src/dblayer/seed/seedEventSubscriptions.ts
 
+
+run .claude/skills/implementation-traceability skill correctly, accurately and completely including verifying all cited range on src/docs/SEU Studio Specifications/06_Platform Architectire/41_Version Management.md . There should be nothing that should be unchecked. 

@@ -4,6 +4,7 @@ import type { DbResult, DecisionAlternative, DecisionRelatedObjectGroup, Decisio
 
 export const decisionsDB = {
   async create(input: {
+    status: string;
     seuId: string;
     originatingType?: string | null;
     originatingId?: string | null;
@@ -20,10 +21,11 @@ export const decisionsDB = {
   }): Promise<DbResult<DecisionRow>> {
     try {
       const { rows } = await query<DecisionRow>(
-        `INSERT INTO decisions (seu_id, originating_type, originating_id, related_objects, related_seu, knowledge_ids, evidence_ids, category, title, engineering_question, alternatives, participant_id, authority_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        `INSERT INTO decisions (status, seu_id, originating_type, originating_id, related_objects, related_seu, knowledge_ids, evidence_ids, category, title, engineering_question, alternatives, participant_id, authority_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
         [
+          input.status,
           input.seuId,
           input.originatingType ?? null,
           input.originatingId ?? null,
@@ -80,6 +82,16 @@ export const decisionsDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[decisionsDB] findBySeuId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async setSupersededBy(id: string, supersededBy: string): Promise<DbResult<DecisionRow>> {
+    try {
+      const { rows } = await query<DecisionRow>("UPDATE decisions SET superseded_by = $1, updated_at = NOW() WHERE id = $2 RETURNING *", [supersededBy, id]);
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[decisionsDB] setSupersededBy error", err as Error);
       return { error: err as Error };
     }
   },

@@ -403,6 +403,9 @@ export function ensureEventSubscriptionsLoaded(): Promise<void> {
   return subscriptionsLoaded;
 }
 
+// Each commissioning step took 4-5 s with ~6 SEUs active in parallel (EBMActivated -> SEUOperational reached 26 s).
+const COMMISSIONING_WAIT_MS = 60000;
+
 export async function driveCommissioningToActive(input: {
   seuId: string;
   actorId: string;
@@ -411,7 +414,7 @@ export async function driveCommissioningToActive(input: {
   // file (heavier than the "one SEU per test" norm this fixture was sized
   // for) and need more headroom under real concurrent suite load than the
   // shared default affords. Defaults to waitUntilAsync's own default when
-  // omitted — every existing caller is unaffected.
+  // omitted — COMMISSIONING_WAIT_MS, sized for several SEUs commissioning at once across parallel test files.
   timeoutMs?: number;
   // Called as soon as polling observes the SEU has reached "Activated" —
   // Create Engineering Assets (Ch.8 §12: Capabilities + Deliverables) has
@@ -466,7 +469,7 @@ export async function driveCommissioningToActive(input: {
     const { data: events } = await eventsDB.findByOriginatingObject("SEU", input.seuId);
     requestValidatedOrFailed = (events ?? []).find((e) => e.event_type === "CommissionValidated" || e.event_type === "CommissionFailed");
     return !!requestValidatedOrFailed;
-  }, input.timeoutMs);
+  }, input.timeoutMs ?? COMMISSIONING_WAIT_MS);
   if (!requestValidatedOrFailed || requestValidatedOrFailed.event_type === "CommissionFailed") {
     const payload = requestValidatedOrFailed?.payload as { reason?: string; references?: string[] } | undefined;
     const reason = payload?.references?.length ? `${payload.reason}: ${payload.references.join("; ")}` : (payload?.reason ?? "no CommissionValidated event found for this SEU — validateRequestHandler must not have run (or failed)");
@@ -531,7 +534,7 @@ export async function driveCommissioningToActive(input: {
     const { data: eventsAfter } = await eventsDB.findByOriginatingObject("SEU", input.seuId);
     failedEvent = (eventsAfter ?? []).find((e) => e.event_type === "CommissionFailed");
     return !!failedEvent;
-  }, input.timeoutMs);
+  }, input.timeoutMs ?? COMMISSIONING_WAIT_MS);
 
   // TS narrows a `let` reassigned inside an async closure (the
   // waitUntilAsync callback above) to `never` at every read site after the
@@ -593,7 +596,7 @@ export async function driveCommissioningToActive(input: {
       if (seu?.lifecycle_state === "Failed") return true;
       const { data: deliverables } = await deliverablesDB.findBySeuId(input.seuId);
       return !!deliverables && deliverables.length > 0;
-    }, input.timeoutMs);
+    }, input.timeoutMs ?? COMMISSIONING_WAIT_MS);
     console.log(`[driveCommissioningToActive] beforeCommenceWork firing seuId=${input.seuId} lifecycle_state=${(seu as SeuRow | null)?.lifecycle_state} at t=${Date.now()}`);
     await input.beforeCommenceWork(input.seuId);
     console.log(`[driveCommissioningToActive] beforeCommenceWork done seuId=${input.seuId} at t=${Date.now()}`);
@@ -605,7 +608,7 @@ export async function driveCommissioningToActive(input: {
       const { data: events } = await eventsDB.findByOriginatingObject("SEU", input.seuId);
       activatedEvent = (events ?? []).find((e) => e.event_type === "SEUActivated");
       return !!activatedEvent;
-    }, input.timeoutMs);
+    }, input.timeoutMs ?? COMMISSIONING_WAIT_MS);
     const activated = activatedEvent as EventRow | undefined;
     if (!activated) return { ok: false, stage: "activate", reason: "SEUActivated was not published in time", seuId: input.seuId };
     await input.holdAtActivated(input.seuId);
@@ -660,7 +663,7 @@ export async function driveCommissioningToActive(input: {
       return !!blockingObligation;
     }
     return false;
-  }, input.timeoutMs);
+  }, input.timeoutMs ?? COMMISSIONING_WAIT_MS);
 
   if (blockingObligation) {
     return { ok: false, stage: "blocked", reason: `blocked, Obligation raised: ${blockingObligation.title}`, seuId: input.seuId };
@@ -794,7 +797,7 @@ export async function fulfilCapabilityAsRoot(input: {
     const own = (fulfilments ?? []);
     for (const fulfilment of own) {
       const { data: participant } = await participantsDB.findById(fulfilment.participant_id);
-      if (participant?.participant_id === participantMasterId) return { participant, fulfilment, seuCapabilityId: seuCapability.id };
+      if (participant && participant.participant_id === participantMasterId) return { participant, fulfilment, seuCapabilityId: seuCapability.id };
     }
     if (seuCapability.status === "Fulfilled" && own.length > 0) {
       const { data: participant } = await participantsDB.findById(own[0].participant_id);
@@ -849,6 +852,13 @@ export async function createEvidenceAsRoot(
 ): ReturnType<typeof createEvidence> {
   await ensureRootActorParticipant(input.seuId);
   return createEvidence({ ...input, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+}
+
+// A Knowledge Item references supporting Evidence on save (CR-132): collects one Evidence item on the Deliverable and
+// returns the reference to pass as evidenceReferences.
+export async function supportingEvidenceReferences(seuId: string, deliverableId: string): Promise<{ supports: string[] }> {
+  const evidence = await createEvidenceAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: `Knowledge support ${randomUUID()}` });
+  return { supports: [evidence.id] };
 }
 
 // reviews.author_id/author_badge (schema recovery pass, reviewsDB.ts) — same
@@ -1141,9 +1151,20 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
     if (TERMINAL_TEMPLATE_STATES.has(template.status)) {
       throw new Error(`seed(): template "${templateSeed.code}" is "${template.status}" and cannot be reactivated — run db:clean-slate`);
     }
-    const advanced = await advanceTemplateToActive(template, ROOT_ACTOR_ID);
-    if (!advanced.ok) throw new Error(`seed(): could not advance template "${templateSeed.code}" past "${template.status}": ${advanced.errors.join("; ")}`);
-    template = advanced.template;
+    // Parallel test processes share this (code, version) row: another one may have activated it since it was read.
+    const { data: fresh } = await templatesDB.findById(template.id);
+    if (fresh?.status === "Active") {
+      template = fresh;
+    } else {
+      const advanced = await advanceTemplateToActive(fresh ?? template, ROOT_ACTOR_ID);
+      if (advanced.ok) {
+        template = advanced.template;
+      } else {
+        const { data: settled } = await templatesDB.findById(template.id);
+        if (settled?.status !== "Active") throw new Error(`seed(): could not advance template "${templateSeed.code}" past "${template.status}": ${advanced.errors.join("; ")}`);
+        template = settled;
+      }
+    }
   }
 
   // Real authoring path (publishProfile), not a raw profilesDB.upsert — the

@@ -1,8 +1,10 @@
-# Chapter 7 – Profile Model: Implementation Traceability
+# Implementation Traceability: Chapter 5 – Profile Model
 
-**Date of report: 4-10-2026**
+**Date of report: 23-10-2026**
 
-Note: Chapter 7 §19 already carries an extensive, owner-maintained "Implementation Specifics" log (last updated 2026-09-06). This traceability pass independently re-verified the current code against §§1–18's own normative intents, and found the code has in places moved **past** what §19's own narrative still says — those divergences are called out explicitly below rather than silently repeated.
+Specification: src/docs/SEU Studio Specifications/01_Engineering Definition/05_Profile.md
+
+## Traceability Table
 
 <!-- multiline -->
 **Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
@@ -25,157 +27,196 @@ Note: Chapter 7 §19 already carries an extensive, owner-maintained "Implementat
   <tbody>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A Profile specifies the variable commissioning parameters for a Template, contributing configuration, not engineering behaviour<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:87-181 (ProfileSeedInput)<br>src/domain/engine/compositionEngine.ts:370-455</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Profile's authored fields (Pack selections, Configuration Parameters, feature flags) are consumed only as composition inputs (Pack codes to resolve, competency values to union); no Profile field injects governance/engineering-practice logic itself.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Profile is reusable commissioning configuration for a Template. It holds no runtime state.<br>Ref: §1 Purpose, §4 Definition</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/profiles_schema_recovery.sql:3-12,16,20-21<br>src/dblayer/seuTypes.ts:301-319</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The profiles row holds identity, base Template, environment, status, version, parent and draft_content. It holds no execution state. One Profile row is referenced by many SEUs through seus.profile_id (seus_schema_recovery.sql:7).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every commissioned SEU shall reference one Profile (FR-7.1)<br> Ref: §6 FR-7.1, §7 Base Template</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/profilesDB.ts (profiles.base_template_id NOT NULL)<br>migration 002 (ebms.profile_id NOT NULL REFERENCES profiles(id))</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Structural FK guarantees, not just convention. The Profile→Template reference is pinned by row id at authoring time (CR-024 decision), never re-resolved.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles shall be independently versioned (FR-7.2)<br> Ref: §6 FR-7.2, §13 Versioning</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:608-706 (publishProfile)<br>migration 064 (profiles_code_version_tenant_key UNIQUE(code, profile_version, tenant_id))</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A publish under a new (code, profileVersion, tenantId) creates a genuinely new, immutable row; a repeat under the same key is idempotent. Historical versions remain queryable (profilesDB.findByCodeAndVersion / findAll).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every commissioned SEU shall permanently reference the Profile version used at commissioning (§13)<br> Ref: §13 Versioning</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">migration 002 (ebms.profile_id FK to immutable profiles row)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Because Profile rows are now immutable per version (no more overwrite-in-place), ebms.profile_id resolving a fixed row is sufficient on its own — no separate "pinned version" column is needed.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles shall support inheritance (FR-7.3); derived Profiles keep parent's code, may add/remove optional Packs and override values, and shall not modify the parent (§9)<br> Ref: §6 FR-7.3, §9 Profile Inheritance</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:594-601 (parentProfileId identity-lock check)<br>src/routes/seu/core/profiles.ts (listInheritableProfiles/inheritedProfileContent, core/sdkAuthoring.ts)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A Derived Profile's <code>parentProfileId</code> is set once at Draft creation and the code is locked to the parent's own code (disambiguated by tenant_id). Profile has no "mandatory Pack" concept, so §9's "remove optional Packs" is allowed by construction, not a special case. Parent rows are never written to by a derived Draft.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles shall remain immutable after publication (FR-7.4, §16)<br> Ref: §6 FR-7.4, §16 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:608-706 (publishProfile idempotent-reseed path)<br>migration 064 unique key</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A second publish at the same (code, version, tenant) is a no-op reseed, never an overwrite; a changed version/tenant is a new row. No code path updates an Active/terminal row's authored content in place.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Profile contributes configuration and no engineering behaviour. Behaviour comes from Packs and is composed into the EBM.<br>Ref: §1, §3, §5 (last paragraph)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:130-166,204-256<br>src/domain/engine/compositionEngine.ts:229-259</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profile fields enter the composition pool only as configuration values. Capabilities, services, gates, policies and checklists are pooled only from composed Packs. The Composition Engine receives the Profile's Pack codes and resolves Active Packs.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles shall support parameter substitution (FR-7.5)<br> Ref: §6 FR-7.5, §10 Configuration Parameters</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:233-274 (resolveEffectiveParameters)<br>src/domain/engine/compositionEngine.ts:443-486 (detectParameterOverrideConflicts)<br>src/domain/engine/profileCompositionUnravel.ts:216-249</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A Profile's <code>exposedParameterOverrides</code> (Service Level metric / Policy constraintType) resolve against the base Template's own flagged-overridable candidates and feed a real effective-value computation, with cross-Profile disagreement surfaced as a structured conflict at the Validation page. Gap: the list/filter-shaped exposable candidates (Policy applicability dimensions, Checklist configurableKey) have no value-setting mechanism anywhere yet (Template itself never exposes a settable value for those either).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Profile shall not define engineering practices, governance rules, quality rules, participant implementations or runtime workflows.<br>Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:26-63<br>src/dblayer/seed/data/schemaDefinitions.json (Profile schema, no additionalProperties)<br>src/routes/seu/core/profileWriteValidator.ts:17-40</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the seed shape and the Profile schema define only configuration fields, and every write is validated against that schema.<br>Gap: the Profile schema does not set additionalProperties:false, so draft_content accepts keys outside the grammar. No check rejects behavioural content stored under an unlisted key.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles shall support organisation-specific Pack selection (FR-7.6)<br> Ref: §6 FR-7.6, §12 Organisation Composition</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:390-425 (PACK_SELECTION_SLOTS / getProfilePackSelections)<br>src/domain/engine/compositionEngine.ts:403-421</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All six category-scoped Pack slots (Technology/Domain/Compliance/Integration/Engineering/Organisation) plus the flat <code>optionalPackCodes</code> are authored, validated against the Pack's own category, and **now read back into <code>compositionEngine.compose()</code>** — resolved into the composed Pack set, not merely stored. This supersedes Chapter 7 §19.7's own "silently ignored at commissioning" finding (dated 2026-09-05); the gap it logged has since been closed in code without a corresponding update to §19.7's narrative.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Profile may define methodology, organisations, selected Packs, technologies, compliance, deployment targets, environment configuration, commissioning parameters, feature selections and optional capabilities.<br>Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:26-63,174-184,189-196,219-298</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">ProfileSeedInput carries developmentMethodology, participatingOrganisationCodes, six Pack lists, deploymentTargets, environmentConfiguration, nine configuration parameters, featureFlagCodes and additionalCapabilityCodes. validateProfileSeed checks each against the Ontology or the Pack registry.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every commissioned SEU references exactly one Profile.<br>Ref: FR-5.1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:7<br>src/routes/seu/core/commissioning.ts:111-117,143-150<br>src/dblayer/seusDB.ts:16-27</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">seus.profile_id is a single NOT NULL foreign key. initiateSeu refuses to create an SEU without a chosen Profile and stores the chosen profile id. A second Profile cannot be attached.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles are independently versioned.<br>Ref: FR-5.2, §13, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/profiles_schema_recovery.sql:20,23-25<br>src/routes/seu/core/profiles.ts:224-225,449-456,502-515</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">profile_version is a column with UNIQUE(code, profile_version, tenant_id). The version is validated as semver. copyProfileAsNewDraft creates the next free patch version of the same code as a new row.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Historical Profile versions remain available.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:413-423<br>src/dblayer/profilesDB.ts:275-285<br>src/dblayer/seed/data/transitionDefinitions.json:1420-1446</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Activating a new version moves the previous Active row to Deprecated through the governed transition. The row is kept, and the lifecycle continues to Retired and Archived. findByCodeAndVersion reads any version.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles shall support environment-specific configuration (FR-7.7)<br> Ref: §6 FR-7.7, §7 Environment</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts (profiles.environment NOT NULL column)<br>src/domain/engine/profileCompositionUnravel.ts:224-226 (environment carried into pool)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>environment</code> is a required column, carried into the conflict-detection/EBM pool alongside every other Configuration Parameter. Its one other reader, <code>findOrCreateDefaultProfile</code>-style default-profile selection, uses it to prefer a "development" Profile; no composition behaviour is conditioned on its value beyond that.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every commissioned SEU permanently references the Profile version used at commissioning.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seusDB.ts:16-27<br>src/dblayer/ebmsDB.ts:9,22-28<br>src/routes/seu/core/commissioning.ts:44-49,95-97</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: seus.profile_id and ebms.profile_id point at one specific versioned row, and rows are not deleted by the flow.<br>Gap: the reference is honoured but not treated as permanent. checkEbmLiveness reports the Profile dead when its status is not Active, so a Deprecated version drives the EBM to Retired on Validate. Nothing records the version string on the SEU itself.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles support inheritance.<br>Ref: FR-5.3, §9, §16, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/sdkAuthoring.ts:629-660,761-796<br>src/routes/seu/core/profiles.ts:339-346<br>src/dblayer/recovery/profiles_schema_recovery.sql:21<br>tests/sdk-authoring.test.ts:711-758</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a Draft can be started from an Active parent. parent_profile_id is stored. The parent's configuration and Pack selections are copied into the Draft as its starting content. The derived Profile keeps the parent's code.<br>Gap: inheritance is copy at creation only. The test at tests/sdk-authoring.test.ts:711 confirms the Draft takes the parent's code, the inheriting tenant, the recorded parent_profile_id and a fresh 1.0.0 version, and says nothing about later parent changes. Nothing reads parent_profile_id after creation (the column is read only to carry it into copies and to check the code). Composition does not walk a parent chain, and later parent changes do not reach the derived Profile.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A derived Profile may add Packs, remove optional Packs, override configuration values and introduce new parameters.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/sdkAuthoring.ts:1057-1087<br>src/routes/seu/core/profiles.ts:530-546</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the derived Draft is fully editable, so Packs can be added or dropped, values changed and overrides added. Pack selections are rebuilt per list on publish.<br>Gap: the result is a full copy. No delta (added, removed, overridden) is recorded against the parent, so the operations named in §9 cannot be told apart from the stored content.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Profile shall define the 14 listed fields (§7 Profile Structure)<br> Ref: §7 Profile Structure</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:87-181 (ProfileSeedInput)<br>migrations 064/065/066/174-176/196/199/229/246</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All 14 named fields (Identifier, Name, Description, Version, Base Template, Selected Packs [×6 categories], Selected Technologies/Domains/Compliance/Integration Packs, Environment, Configuration Parameters [9 fields], Feature Flags, Composition Options) are real, schema-registered, authored fields. Two §5 items with no §7 counterpart (Deployment Targets, Optional Capability Enablement) were separately added under CR-091.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A derived Profile shall not modify its parent.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/sdkAuthoring.ts:629-637,782-796<br>src/routes/seu/core/profiles.ts:339-346<br>tests/sdk-authoring.test.ts:756-758</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The parent is read only. A new row is inserted for the derived Profile. The parent must be Active and visible to the tenant. validateProfileOnSave checks the parent exists and shares the code. The test at tests/sdk-authoring.test.ts:756-758 asserts the parent stays Active and untouched after a tenant inherits from it.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles remain immutable after publication.<br>Ref: FR-5.4, §16, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/profilesDB.ts:135-166,107-133,309-324<br>src/routes/seu/core/sdkAuthoring.ts:1057-1081<br>src/routes/seu/core/profiles.ts:453-516</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the authoring save path uses updateDraftContent, which updates only rows in Draft (profilesDB.ts:159). Changes to a published Profile go through copyProfileAsNewDraft, which makes a new Draft row.<br>Gap: setDraftContent (:107), setPackSelection (:309), upsert (:10) and updateStatus (:169) have no state guard. setDraftContent and setPackSelection are called on a Validated row inside the Publish action (unravelProfile.ts:16, profiles.ts:536-543), by design. Immutability afterwards rests on callers.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles support parameter substitution.<br>Ref: FR-5.5, §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:65-115,353-364,530-546<br>src/domain/engine/profileCompositionUnravel.ts:183-202<br>src/policies/materialiseProfile.ts:5-15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: exposedParameterOverrides replace the base Template's overridable parameter values. Effective values are resolved per parameter and pooled with the Profile as source. Override values are checked against the Template's allowed options at validate and publish.<br>Gap: substitution covers only parameters the Template flags overridable. The nine configuration parameters are pooled as values. The only consumers found are the competency union for language and domain (profileCompositionUnravel.ts:51-63), the EBM pool, and the work item context. Nothing substitutes them into Pack content.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Parameter semantics are defined by the consuming Pack.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:174-184,260-266<br>src/domain/engine/workItemGenerator.ts:70-84</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: parameter values are validated against Ontology concepts, which carry meaning, and are surfaced to execution as profileConfiguration.<br>Gap: no Pack-side declaration of which Profile parameters it consumes was found, so consumption is not defined by the Pack.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles support organisation-specific Pack selection and identify the participating organisations.<br>Ref: FR-5.6, §12, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:42-43,55,189-196,241-248,268-271<br>src/dblayer/profilesDB.ts:309-354<br>src/domain/engine/compositionEngine.ts:235-241</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">organisationPackCodes and engineeringPackCodes are stored per list in profile_packs, each Pack checked against its category. participatingOrganisationCodes are validated against the participating-organisations Ontology. All selected Pack codes feed compose as required Packs. The Composition Engine decides how they combine.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Profile specifies what participates and the Composition Engine determines how it is combined.<br>Ref: §12, §3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:229-259<br>src/domain/engine/profileCompositionUnravel.ts:104-128</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Profile supplies Pack codes only. Strategy, dependency closure, Active resolution and conflict detection are in the Composition Engine and the unravel function.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles support environment-specific configuration.<br>Ref: FR-5.7, §7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:223,56<br>src/domain/engine/profileCompositionUnravel.ts:134,145<br>src/domain/engine/workItemGenerator.ts:70-84<br>src/routes/seu/core/commissioning.ts:418-419</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: environment is required and stored on the row. environmentConfiguration is pooled into the EBM and surfaced to work items as profileConfiguration.<br>Gap: environment is a single value per Profile. One Profile row does not hold differing configuration per environment. Environment variants are separate Profile rows. Auto-selection in commissioning.ts:419 prefers the development Profile.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Profile defines Identifier, Name, Description, Version, Base Template, Selected Packs, Technologies, Domains, Compliance Packs, Integration Packs, Environment, Configuration Parameters, Feature Flags and Composition Options.<br>Ref: §7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:301-319<br>src/routes/seu/core/profiles.ts:26-63<br>src/dblayer/seed/data/schemaDefinitions.json (Profile schema required: name, baseTemplateCode, environment, profileVersion)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">All fields exist. Description, feature flags and composition options are optional keys in draft_content.<br>Gap: §7 says every Profile shall define them. The schema requires only name, baseTemplateCode, environment and profileVersion.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles enable or disable optional platform capabilities. Feature selection shall not modify platform architecture.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:36,250-258<br>src/domain/engine/profileCompositionUnravel.ts:147-148,163-165<br>src/routes/seu/core/commissioning.ts:68-76</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: featureFlagCodes are validated against the feature-flag Ontology and pooled into the EBM. additionalCapabilityCodes are validated, pooled as capabilities and liveness-checked at commissioning.<br>Gap: featureFlagCodes have no consumer. They are pooled as one value and nothing found enables or disables a platform feature from them. The workItemGenerator context list (:70-75) omits them.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Profile Categories are illustrative (§8)<br> Ref: §8 Profile Categories</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CR-091 Part 3 retired the <code>category</code> field from active use entirely ("Profile is not supposed to be restrictive," owner) — the column and Ontology rows are left in place but unused. The chapter itself records this; no further code investigation changes the conclusion.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profile categories (Startup, Enterprise, Healthcare, Banking, Prototype, Production) are available.<br>Ref: §8 (illustrative)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/profiles_schema_recovery.sql:22<br>src/dblayer/profilesDB.ts:189-211</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A category column exists and list queries sort by it. No category values, no seed Profiles named for these categories and no category-driven behaviour were found; the Profile schema has no category field. The section is illustrative and carries a remark in the spec asking why categories are not implemented.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Profile lifecycle is Draft, Validated, Published, Active, Deprecated, Retired, Archived.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:1370-1446<br>src/domain/engine/entityAdapters.ts:177-192<br>src/routes/seu/core/profiles.ts:426-439</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A transition_definitions row exists for each forward hop. All are manual, with a verb, policies and a version event. A Validated to Draft reject hop with a required comment also exists. The adapter applies the state change. tests/profile-event-lifecycle-table.test.ts:127-143 check every row, and :231-240 check Draft cannot skip to Published and no state returns to Active.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Validation and publication of a Profile check its content and set its configuration up for commissioning.<br>Ref: §14 (Validated, Published), §18 Profile lifecycle services</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:1384,1394-1395<br>src/policies/materialiseProfile.ts:5-15<br>src/actions/unravelProfile.ts:6-18<br>src/routes/seu/core/profiles.ts:530-546<br>tests/profile-event-lifecycle-table.test.ts:308-329</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Validate requires policy-validate-schema and policy-materialise-profile. Publish requires policy-validate-schema and policy-ontology-values-present, and runs unravel-profile, which writes Pack selections and drops overrides the Template does not flag. tests/profile-event-lifecycle-table.test.ts:308-329 confirms nothing is written at creation or Validate, the Pack selection is written at Publish, and an unflagged override is dropped.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles may enable/disable optional platform capabilities without modifying platform architecture (§11 Feature Selection)<br> Ref: §11 Feature Selection</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts (featureFlagCodes, Ontology-backed "feature-flag" concept)<br>src/domain/engine/profileCompositionUnravel.ts:238 (featureFlagCodes carried into pool)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>featureFlagCodes</code> is authored, validated against a real Ontology concept type, and carried into the EBM composition pool. "Shall not modify platform architecture" is satisfied by omission: nothing in <code>compositionEngine.ts</code>/<code>commissioning.ts</code> branches on a feature flag's value to alter composed behaviour — the flags are inert data riding alongside the composition, not yet consumed by any conditional logic.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Profile subsystem publishes ProfileCreated, ProfileValidated, ProfilePublished, ProfileActivated, ProfileDeprecated, ProfileRetired.<br>Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:1375,1385,1396,1415,1425,1435<br>src/routes/seu/core/profiles.ts:399-408<br>src/domain/engine/entityTransition.ts:83-93</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the five transition events publish under the specified names through publishTransition. The birth event is published with the real actor and badge.<br>Gap: the creation event is named ProfileDefined, not ProfileCreated. tests/profile-event-lifecycle-table.test.ts:143 asserts there is no ProfileCreated. ProfileRejected and ProfileArchived are published in addition.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The Profile specifies what participates; the Composition Engine determines how they are combined (§12)<br> Ref: §12 Organisation Composition</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:403-429 (byCode dedup)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Confirmed by the actual merge strategy: Profile contributes a flat set of selected Pack codes across all seven slots; the Composition Engine's own <code>byCode</code> map performs the actual combination (plain upsert-by-code dedup, not a Profile-driven ordering).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The Profile subsystem shall publish ProfileCreated/Validated/Published/Activated/Deprecated/Retired (§15 Events)<br> Ref: §15 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:683-696 (ProfileCreated, publishProfile)<br>src/routes/seu/core/profiles.ts:752-761 (transitionProfile, event_type read off TransitionOutcome, migration 187)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All six named events, plus an unlisted <code>ProfileArchived</code>, are published from real transition/publish entry points with a real actorId/badge on every call — no <code>?? null</code> fallback found at either publish site.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Profile lifecycle: Draft → Validated → Published → Active → Deprecated → Retired → Archived (§14)<br> Ref: §14 Lifecycle</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:994-1021 (AUTHORING_NEXT_STATE / advanceProfileOneStep)<br>src/routes/seu/core/profiles.ts:721-896 (TERMINAL_REACTIVATABLE_STATES / reactivateAsNewVersion)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All seven states and six forward hops exist and are authority-gated (noun × verb, e.g. profile_publish) via transitionEngine. Reactivating a terminal Profile back to Active creates a new immutable Version rather than resurrecting the old row, and supersedes whatever else is Active for that code within the tenant.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Non-functional: Profiles remain reusable, support inheritance, remain immutable after publication, support deterministic commissioning, remain independent of runtime execution (§16)<br> Ref: §16 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(see FR-7.2/FR-7.3/FR-7.4 rows above)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The first three are established by the rows above. "Deterministic commissioning" has no dedicated evaluation point of its own — composition/commissioning is a pure function of (Template, Profile, resolvedParameterOverrides) with no hidden randomness found in <code>compositionEngine.ts</code>/<code>commissioning.ts</code>. "Independent of runtime execution" holds: Profile rows carry no runtime/EBM state.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Profiles can be created and versioned (§17)<br> Ref: §17 AC 1</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:608-706</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Covered by FR-7.2/FR-7.4 rows.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Profiles support inheritance (§17)<br> Ref: §17 AC 2</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:594-601</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Covered by FR-7.3 row.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Profiles configure commissioning without defining engineering behaviour (§17)<br> Ref: §17 AC 3</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:87-181</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No Profile field feeds a governance/engineering-practice decision directly; all behavioural content still originates from composed Packs.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Profiles support Pack selection (§17)<br> Ref: §17 AC 4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:390-425<br>src/domain/engine/compositionEngine.ts:403-421</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Covered by FR-7.6 row — now reaching the composed EBM, not just authoring.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Profiles support organisation composition (§17)<br> Ref: §17 AC 5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts (organisationPackCodes, CR-091 Part 1)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Organisation Composition maps onto <code>organisationPackCodes</code> (owner-confirmed mapping, CR-091 Part 3) and is now composed (see FR-7.6 row). No separate multi-tenant mechanism exists; participating third-party organisations are onboarded as Packs under the primary tenant, by design.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Multiple SEUs can be commissioned from the same Template using different Profiles (§17)<br> Ref: §17 AC 6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts (templateIds/profileIds passed independently to compositionEngine.compose)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>compose()</code> takes <code>templateIds</code>/<code>profileIds</code> as independent arrays; nothing ties a Template to one specific Profile. Not verified against a live commissioning run (would require DB state), but no structural coupling prevents it.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles remain independent of runtime execution.<br>Ref: §2, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/profiles_schema_recovery.sql:3-28<br>src/domain/engine/profileCompositionUnravel.ts:130-166</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Profile row holds no execution state. Composition reads it and writes to the EBM pool, not back to the Profile.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Profile domain model, registry, inheritance model, configuration parameter model, versioning services, lifecycle services, Profile APIs, Profile events (§18)<br> Ref: §18 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/profileRegistry.ts (Registry page)<br>src/routes/seu/core/profiles.ts (domain model/services)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Domain model, inheritance, versioning, lifecycle, and events are all real (see rows above). The Registry exists only as a web UI page (<code>web/profileRegistry.ts</code>), reading through <code>core/profiles.ts</code> directly. **No <code>routes/seu/api/profiles.ts</code> exists at all** (confirmed by direct file search) — Chapter 7 §19.10 still describes a "thin POST /profiles route" that no longer exists in the tree; the API deliverable has gone from thin to absent, a further divergence from §19's own narrative, not reflected there.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles support deterministic commissioning.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:229-279<br>src/domain/engine/profileCompositionUnravel.ts:104-128<br>src/routes/seu/core/commissioning.ts:418-419</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the same Profile and Pack set composes through the same engine, and override disagreements between Profiles are detected and reported rather than resolved silently.<br>Gap: no test of repeated composition from one Profile was found (tests/profile-composition-strategies.test.ts covers Pack composition strategies on Packs only). Pack resolution depends on whichever version is Active at the time.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles can be created and versioned.<br>Ref: §17 AC1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:368-410,453-528<br>src/routes/seu/core/sdkAuthoring.ts:686-810</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">createProfileDraft and the authoring draft path create Drafts from the birth row with a unique code/version/tenant. copyProfileAsNewDraft creates the next version. tests/profile-event-lifecycle-table.test.ts:180-206 drive creation, copy and publish.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles configure commissioning without defining engineering behaviour, support Pack selection and support organisation composition.<br>Ref: §17 AC3-5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:189-217,241-248<br>src/domain/engine/compositionEngine.ts:235-241<br>src/domain/engine/profileCompositionUnravel.ts:104-166</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">See the §5, §12 and FR-5.6 rows. Pack selection and organisation lists are stored, validated and composed. Behaviour is pooled from Packs only.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Multiple SEUs can be commissioned from the same Template using different Profiles.<br>Ref: §17 AC6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:111-150<br>src/routes/seu/core/profiles.ts:21-24<br>tests/commission-profile-choice.test.ts:141</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Template is derived from the chosen Profile's base_template_id, and many Profiles may share one Template. The only uniqueness constraint is one SEU per Objective (commissioning.ts:130-135). The test at tests/commission-profile-choice.test.ts:141 publishes two Profiles on one Template (plain, and one selecting technology-nodejs), checks both are offered, then commissions the nodejs Profile through to Active.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: domain model, registry, inheritance model, configuration parameter model, versioning services, lifecycle services, APIs and events.<br>Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/profileRegistry.ts:21-79<br>src/dblayer/seed/data/routeAuthority.json:379-385<br>src/routes/seu/api/index.ts:6-40</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: domain model, registry page with list controls, copy action, parameter model, versioning, lifecycle and events (rows above).<br>Gap: no Profile API. routeAuthority.json:380-385 has a row for POST /aisworg/api/seu/profiles with no badges or roles, and src/routes/seu/api has no Profile router mounted. The inheritance model is copy only (see FR-5.3).</td>
     </tr>
   </tbody>
 </table>
+
 ## Summary
 
-- Total intents analysed: 23
-- Fully met: 17
-- Partially met: 5 (FR-7.5 parameter substitution for list/filter-shaped candidates; FR-7.7 environment as inert field beyond default-selection; §11 Feature Selection flags uncomsumed by composition logic; §18 Profile APIs now fully absent as a REST surface)
-- Not met: 1 (§8 Profile Categories — deliberately retired)
+- Total intents analysed: 29
+- Fully met: 15
+- Partially met: 13
+- Not met: 1
 - Not verifiable: 0
 
-## Major divergence from Chapter 7 §19's own narrative
-
-Two of §19's own findings are now stale relative to the current code, independent of this pass's own investigation:
-
-1. **§19.7's "silently ignored at commissioning" finding (2026-09-05) no longer holds.** `compositionEngine.compose()` (src/domain/engine/compositionEngine.ts:403-421) now reads all seven Profile Pack-selection slots (`optionalPackCodes` plus the six category-scoped fields), not just the original flat `optionalPackCodes`. The fix is in code; §19.7's text was not updated to reflect it.
-2. **§19.10's "API remains thin" finding is now understated.** `routes/seu/api/profiles.ts` does not exist in the current tree at all — the Profile API surface went from "thin" to "none," with the Registry and all authoring reachable only through web routes.
-
-Both are logged here as findings rather than silently repeating §19's outdated text, per this chapter's own §19.11 convention of correcting prior entries once the owner or code moves past them.
+Major implementation gaps:
+- Inheritance is a copy at creation. parent_profile_id is not read afterwards, and no add, remove or override delta is stored.
+- Feature flags are validated and pooled but nothing consumes them.
+- The nine configuration parameters are pooled but not substituted into Pack content, and Packs do not declare which parameters they consume.
+- Immutability after publication is held by callers. Only updateDraftContent carries a Draft guard.
+- The Profile schema does not close additionalProperties, and requires only four fields where §7 lists fourteen.
+- Deprecated Profile versions retire the EBMs that reference them, which departs from a permanent version reference.
+- The creation event is ProfileDefined, not ProfileCreated.
+- No Profile API exists; its route_authority row has no handler.
+- Profile categories have no values or behaviour.

@@ -5,7 +5,7 @@ CREATE TABLE participants (
   seu_id        UUID NOT NULL REFERENCES seus(id),
   type          TEXT NOT NULL,
   display_name  TEXT NOT NULL,
-  state         TEXT NOT NULL DEFAULT 'Available'
+  state         TEXT NOT NULL
                    CHECK (state IN ('Created', 'Available', 'Assigned', 'Executing', 'Idle', 'Released', 'Archived')),
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

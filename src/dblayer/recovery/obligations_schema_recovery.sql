@@ -9,7 +9,7 @@ CREATE TABLE obligations (
   title                 TEXT NOT NULL,
   description           TEXT,
   severity              TEXT NOT NULL DEFAULT 'Medium',
-  status                TEXT NOT NULL DEFAULT 'Identified',
+  status                TEXT NOT NULL,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

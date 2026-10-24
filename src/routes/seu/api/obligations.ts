@@ -5,8 +5,7 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
-import { readTargetState } from "../../../utils/transitionRequest.js";
-import { createObligation, listObligationsBySeu, transitionObligation, reviseObligation } from "../core/obligations.js";
+import { createObligation, listObligationsBySeu, reviseObligation } from "../core/obligations.js";
 import type { TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { requireActorId, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
 
@@ -36,23 +35,24 @@ router.get("/obligations", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/obligations/:id/transition", async (req: Request, res: Response) => {
-  try {
-    const targetState = readTargetState(req, res);
-    if (targetState === null) return;
-    const actorId = requireActorId(req);
-    const result = await transitionObligation({ obligationId: String(req.params.id), targetState, actorId });
-
-    if (!result.ok) {
-      if (result.reason === "not_found") return res.status(404).json({ error: "Obligation not found" });
-      return res.status(409).json({ reason: result.reason, detail: result.detail });
-    }
-    res.status(200).json({ obligation: result.obligation, appliedTransition: result.appliedTransition });
-  } catch (err) {
-    logger.error("[api/seu/obligations] POST /:id/transition error", err as Error);
-    res.status(400).json({ error: (err as Error).message });
-  }
-});
+// CR-128 (owner): the API transition route has no caller and is commented out. Transitions go through the web route with a verb.
+// router.post("/obligations/:id/transition", async (req: Request, res: Response) => {
+//   try {
+//     const targetState = readTargetState(req, res);
+//     if (targetState === null) return;
+//     const actorId = requireActorId(req);
+//     const result = await transitionObligation({ obligationId: String(req.params.id), targetState, actorId });
+//
+//     if (!result.ok) {
+//       if (result.reason === "not_found") return res.status(404).json({ error: "Obligation not found" });
+//       return res.status(409).json({ reason: result.reason, detail: result.detail });
+//     }
+//     res.status(200).json({ obligation: result.obligation, appliedTransition: result.appliedTransition });
+//   } catch (err) {
+//     logger.error("[api/seu/obligations] POST /:id/transition error", err as Error);
+//     res.status(400).json({ error: (err as Error).message });
+//   }
+// });
 
 router.patch("/obligations/:id", async (req: Request, res: Response) => {
   try {

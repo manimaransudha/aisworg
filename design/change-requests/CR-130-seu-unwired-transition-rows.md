@@ -2,7 +2,7 @@
 
 **Raised:** 2026-10-22 · **Origin:** CR-128, Entity 11 (SEU). The owner kept the rows below out of CR-128 and asked for them to be listed here.
 
-**Status:** 🟡 Raised. Only the rows are recorded. No design and no build.
+**Status:** ✅ Built 2026-10-23
 
 ## Scope
 

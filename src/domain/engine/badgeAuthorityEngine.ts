@@ -1,5 +1,5 @@
 import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
-import { DELIVERABLE_BADGE_PREFIX, isPlatformSystemActor } from "../../dblayer/constants.js";
+import { DELIVERABLE_BADGE_PREFIX, PARTICIPANT_BADGE_PREFIX, isPlatformSystemActor } from "../../dblayer/constants.js";
 
 const ROOT_BADGE_CODE = "root";
 
@@ -31,7 +31,7 @@ export const badgeAuthorityEngine = {
     const { isRoot, badgeTypes } = await getHeldBadges(actorId);
     if (isRoot) return ROOT_BADGE_CODE;
     if (badgeTypes.has(requiredBadge)) return requiredBadge;
-    if (requiredBadge.startsWith(DELIVERABLE_BADGE_PREFIX) && (await isPlatformSystemActor(actorId))) return requiredBadge;
+    if ((requiredBadge.startsWith(DELIVERABLE_BADGE_PREFIX) || requiredBadge.startsWith(PARTICIPANT_BADGE_PREFIX)) && (await isPlatformSystemActor(actorId))) return requiredBadge;
     throw new Error(`actor "${actorId}" does not hold ${requiredBadge}`);
   },
 };

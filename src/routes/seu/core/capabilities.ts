@@ -7,7 +7,7 @@ import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { findEligibleParticipants, getSeuCompetencyRequirements, resolveEligibilityPolicies } from "./participantEligibility.js";
-import { transitionParticipant } from "./participants.js";
+import { createParticipant, transitionParticipant } from "./participants.js";
 import { resolveAuthor } from "./attentionItems.js";
 import type { CapabilityFulfilmentRow, EventRow, FulfilmentStrategy, ParticipantMasterRow, ParticipantRow, ParticipantType, SeuRow } from "../../../dblayer/seuTypes.js";
 
@@ -62,13 +62,14 @@ async function fulfilOne(
   authorBadge: string,
   strategyOverride?: FulfilmentStrategy
 ): Promise<FulfilCapabilityResult> {
-  const { data: participant, error: participantErr } = await participantsDB.create({
+  const participant = await createParticipant({
     seuId: seu.id,
     type: resolved.type,
     displayName: resolved.displayName,
-    participantId: resolved.participantMasterId,
+    participantMasterId: resolved.participantMasterId,
+    actorId,
+    authorBadge,
   });
-  if (participantErr || !participant) throw participantErr ?? new Error("failed to create participant");
 
   const { authorId } = await resolveAuthor(seu.id, actorId);
   const { data: fulfilment, error: fulfilmentErr } = await capabilityFulfilmentsDB.create({
@@ -151,19 +152,23 @@ export async function fulfilRequestedCapability(event: EventRow): Promise<void> 
     fulfilled.push({ result: await fulfilOne(seu, seuCapability, resolved, event.actor_id, event.authority_badge, strategy), resolved });
   }
 
-  for (const { result, resolved } of fulfilled) {
-    await eventBus.publish({
-      eventType: "ParticipantCreated",
-      originatingObjectType: "Participant",
-      originatingObjectId: result.participant.id,
-      seuId: seu.id,
-      correlationId: event.correlation_id,
-      causationId: event.id,
-      actorId: result.authorId,
-      authorityBadge: event.authority_badge,
-      payload: { participantType: resolved.type, participantMasterId: resolved.participantMasterId },
-    });
-  }
+  // Removed: createParticipant already publishes the Participant birth event; this second publish duplicated it.
+  //   const { data: participantBirth, error: participantBirthError } = await transitionDefinitionsDB.findBirth("Participant");
+  //   if (participantBirthError) throw participantBirthError;
+  //   if (!participantBirth?.event_type) throw new Error("the Participant birth Transition Definition names no event");
+  //   for (const { result, resolved } of fulfilled) {
+  //     await eventBus.publish({
+  //       eventType: participantBirth.event_type,
+  //       originatingObjectType: "Participant",
+  //       originatingObjectId: result.participant.id,
+  //       seuId: seu.id,
+  //       correlationId: event.correlation_id,
+  //       causationId: event.id,
+  //       actorId: result.authorId,
+  //       authorityBadge: event.authority_badge,
+  //       payload: { participantType: resolved.type, participantMasterId: resolved.participantMasterId },
+  //     });
+  //   }
   await eventBus.publish({
     eventType: "CapabilityFulfilled",
     originatingObjectType: "SEU",

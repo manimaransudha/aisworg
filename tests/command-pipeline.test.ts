@@ -19,7 +19,8 @@ import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, transitionDeliverableSync, getEmptyPoolTenantId } from "./testFixtures.js";
+import { tenantsDB } from "../src/dblayer/tenantsDB.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, transitionDeliverableSync } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 
@@ -65,7 +66,11 @@ async function waitForCommandStatus(seuId: string, deliverableId: string, status
 }
 
 test("a Deliverable does not move to In Progress while nobody fulfils its producing Capability", async () => {
-  const seuId = await commissionTestSeu("phase3-defer", undefined, await getEmptyPoolTenantId());
+  // A tenant of its own: the shared empty-pool tenant gets eligible fixture Participants from parallel test files,
+  // and the auto-fulfilment would then fulfil the Capability this test expects to stay unfulfilled.
+  const { data: ownTenant, error: ownTenantErr } = await tenantsDB.create({ code: `phase3-defer-${randomUUID().slice(0, 8)}`, name: "Phase3 Defer", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, is_system: false });
+  if (ownTenantErr || !ownTenant) throw ownTenantErr ?? new Error("failed to create the test tenant");
+  const seuId = await commissionTestSeu("phase3-defer", undefined, ownTenant.id);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec, "expected a seeded Requirements Analysis Model deliverable");

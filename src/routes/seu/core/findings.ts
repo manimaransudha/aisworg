@@ -3,13 +3,13 @@ import { reviewsDB } from "../../../dblayer/reviewsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { transitionEntity, publishTransition, nextActionsFor } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { raiseAttentionItem } from "./attentionItems.js";
 import { createObligation } from "./obligations.js";
 import type { FindingRow } from "../../../dblayer/seuTypes.js";
-import { getSystemActor } from "../../../dblayer/constants.js";
+import { getSystemActor, CONVERT_FINDING_ACTION_CODE } from "../../../dblayer/constants.js";
 
 const BLOCKING_SEVERITIES = new Set(["High", "Critical"]);
 
@@ -34,7 +34,13 @@ export async function createFinding(input: {
   const authorId = await resolveAuthorId(review.seu_id, input.actorId);
   const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, "finding_create");
 
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Finding");
+  if (birthError) throw birthError;
+  if (!birth) throw new Error("no birth Transition Definition for Finding");
+  if (!birth.event_type) throw new Error("the Finding birth Transition Definition names no event");
+
   const { data: finding, error } = await findingsDB.create({
+    status: birth.to_state,
     reviewId: review.id,
     seuId: review.seu_id,
     relatedObjectType: review.related_object_type,
@@ -48,7 +54,7 @@ export async function createFinding(input: {
   if (error || !finding) throw error ?? new Error("failed to create finding");
 
   await eventBus.publish({
-    eventType: "FindingCreated",
+    eventType: birth.event_type,
     originatingObjectType: "Finding",
     originatingObjectId: finding.id,
     seuId: review.seu_id,
@@ -84,46 +90,43 @@ export type TransitionFindingResult =
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "policy_blocked" | "no_transition_definition" | "not_submitted" | "quality_gate_blocked"; detail: string };
 
-export async function transitionFinding(input: { findingId: string; targetState: string; actorId: string }): Promise<TransitionFindingResult> {
-  const { data: finding } = await findingsDB.findById(input.findingId);
-  if (!finding) return { ok: false, reason: "not_found" };
-
-  const fromState = finding.status;
+// One governed Finding hop: the row's event, then FindingTransitioned as the last statement.
+async function applyFindingHop(input: { findingId: string; targetState: string; actorId: string; context?: Record<string, unknown> }): Promise<TransitionFindingResult> {
   if (!input.actorId) throw new Error("actorId is required to transition a Finding");
-  const gate = await transitionEngine.evaluate({ entityType: "Finding", fromState, toState: input.targetState, actorId: input.actorId, entityId: finding.id, context: { finding } });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Finding ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${gate.entityType} ${gate.fromState} -> ${gate.toState} — the Transition Definition declares no verb`);
+  const result = await transitionEntity({ entityType: "Finding", entityId: input.findingId, targetState: input.targetState, actorId: input.actorId, context: input.context });
+  if (!result.ok) return result;
 
-  const { data: updated, error } = await findingsDB.updateStatus(finding.id, input.targetState);
-  if (error || !updated) throw error ?? new Error("failed to update finding status");
-
+  const published = await publishTransition(result);
   await eventBus.publish({
-    eventType: input.targetState === "Resolved" ? "FindingResolved" : "FindingTransitioned",
+    eventType: "FindingTransitioned",
     originatingObjectType: "Finding",
-    originatingObjectId: finding.id,
-    seuId: finding.seu_id,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState },
+    originatingObjectId: input.findingId,
+    seuId: result.event.seuId,
+    correlationId: published.correlation_id,
+    payload: result.event.payload,
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
+    authorityBadge: result.event.authorityBadge,
   });
 
-  return { ok: true, finding: updated, appliedTransition: { fromState, toState: input.targetState } };
+  return { ok: true, finding: result.row as FindingRow, appliedTransition: result.appliedTransition };
+}
+
+export async function transitionFinding(input: { findingId: string; targetState: string; actorId: string }): Promise<TransitionFindingResult> {
+  return applyFindingHop(input);
 }
 
 export type ConvertFindingResult =
   | { ok: true; finding: FindingRow; obligationId: string }
-  | { ok: false; reason: "not_found" | "already_converted"; detail: string };
+  | { ok: false; reason: "not_found" | "already_converted" | "not_convertible"; detail: string };
 
 export async function convertFindingToObligation(input: { findingId: string; category?: string; severity?: string; actorId: string }): Promise<ConvertFindingResult> {
   const { data: finding } = await findingsDB.findById(input.findingId);
   if (!finding) return { ok: false, reason: "not_found", detail: `finding not found: ${input.findingId}` };
   if (finding.obligation_id) return { ok: false, reason: "already_converted", detail: `finding ${finding.id} is already linked to Obligation ${finding.obligation_id}` };
+
+  // The convert row names the target state; a Finding with no convert action from its state is refused before an Obligation exists.
+  const convert = (await nextActionsFor("Finding", finding.status, input.actorId)).find((a) => a.actionCode === CONVERT_FINDING_ACTION_CODE);
+  if (!convert) return { ok: false, reason: "not_convertible", detail: `finding ${finding.id} cannot be converted from ${finding.status}` };
 
   const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, "finding_convert");
   const obligation = await createObligation({
@@ -137,6 +140,7 @@ export async function convertFindingToObligation(input: { findingId: string; cat
     authorBadge,
   });
 
-  const { data: linked } = await findingsDB.setObligationId(finding.id, obligation.id);
-  return { ok: true, finding: linked ?? finding, obligationId: obligation.id };
+  const hop = await applyFindingHop({ findingId: finding.id, targetState: convert.toState, actorId: input.actorId, context: { obligationId: obligation.id } });
+  if (!hop.ok) return { ok: false, reason: "not_convertible", detail: "detail" in hop ? hop.detail : hop.reason };
+  return { ok: true, finding: hop.finding, obligationId: obligation.id };
 }

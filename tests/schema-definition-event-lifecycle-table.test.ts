@@ -248,5 +248,5 @@ test("GENERIC: a transition row with no event publishes Undefined and then SDKAt
 });
 
 test("GENERIC: an entity type with no adapter throws", async () => {
-  await assert.rejects(() => transitionAndPublish({ entityType: "Review", entityId: UNKNOWN_ID, targetState: "Prepared", actorId: ROOT_ACTOR_ID }), /no entity adapter for Review/);
+  await assert.rejects(() => transitionAndPublish({ entityType: "KnowledgeScope", entityId: UNKNOWN_ID, targetState: "Prepared", actorId: ROOT_ACTOR_ID }), /no entity adapter for KnowledgeScope/);
 });

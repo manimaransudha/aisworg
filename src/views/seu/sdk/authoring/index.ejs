@@ -128,6 +128,11 @@
               <div class="col-sm-2 d-grid"><button class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add</button></div>
             </form>
             <div class="form-text small">The verb must be allowed on the noun (Mapping tab).</div>
+            <form method="POST" action="/aisworg/seu/authority/transition-definitions/refresh-cache" class="mt-2">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Reload cache</button>
+              <span class="form-text small ms-2">Reloads the in-memory copy after the table was changed outside the app.</span>
+            </form>
           </div>
         </div>
         <script>

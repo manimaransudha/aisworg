@@ -34,14 +34,19 @@ export async function transitionEntity(input: {
   if (!row) return { ok: false, reason: "not_found" };
 
   const fromState = adapter.getState(row);
-  const gate = await transitionEngine.evaluate({
+  const evaluateInput = {
     entityType: input.entityType,
     fromState,
     toState: input.targetState,
     actorId: input.actorId,
     entityId: input.entityId,
     context: { row, ...input.context },
-  });
+  };
+  // An entity inside an SEU also passes the Quality Gate and the participant check of that SEU.
+  const gateSeuId = await adapter.seuId?.(row);
+  const gate = gateSeuId
+    ? await transitionEngine.evaluateGoverned({ ...evaluateInput, gateEntityId: input.entityId, gateSeuId })
+    : await transitionEngine.evaluate(evaluateInput);
   if (!gate.allowed) return gateRejection(gate, input.entityType, fromState, input.targetState);
   if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${input.entityType} ${fromState} -> ${input.targetState} — the Transition Definition declares no verb`);
 
@@ -61,13 +66,13 @@ export async function transitionEntity(input: {
     versionEvent: gate.versionEvent,
     originatingObjectType: input.entityType,
     originatingObjectId: input.entityId,
-    seuId: input.seuId ?? null,
+    seuId: input.seuId ?? gateSeuId ?? null,
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge,
     fromState,
     toState: input.targetState,
-    tenantId: adapter.tenantId(updated),
+    tenantId: await adapter.tenantId(updated),
   };
   return { ok: true, row: updated, appliedTransition: { fromState, toState: input.targetState }, event };
 }

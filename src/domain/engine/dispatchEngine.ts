@@ -1,11 +1,11 @@
 import { capabilityFulfilmentPoolsDB } from "../../dblayer/capabilityFulfilmentPoolsDB.js";
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
-import { participantsDB } from "../../dblayer/participantsDB.js";
 import { commandsDB } from "../../dblayer/commandsDB.js";
 import { servicesDB } from "../../dblayer/servicesDB.js";
 import { eventBus } from "./eventBus.js";
 import { createObligation } from "../../routes/seu/core/obligations.js";
 import { raiseAttentionItem } from "../../routes/seu/core/attentionItems.js";
+import { applyParticipantHop } from "../../routes/seu/core/participants.js";
 import { loadAvailableCandidates, selectParticipant } from "./dispatchStrategies.js";
 import type { CommandRow, ServiceRow, WorkItemRow } from "../../dblayer/seuTypes.js";
 import { getSystemActor } from "../../dblayer/constants.js";
@@ -122,17 +122,14 @@ export const dispatchEngine = {
       }
     }
 
-    await participantsDB.updateStatus(participantId, "Assigned");
-    await eventBus.publish({
-      eventType: "ParticipantAssigned",
-      originatingObjectType: "Participant",
-      originatingObjectId: participantId,
-      seuId: input.seuId,
-      correlationId: input.correlationId,
+    const assigned = await applyParticipantHop({
+      participantId,
+      targetState: "Assigned",
       actorId: systemActor.actorId,
-      authorityBadge: systemActor.authorBadge,
-        payload: { workItemId: input.workItem.id },
+      payload: { workItemId: input.workItem.id },
+      correlationId: input.correlationId,
     });
+    if (!assigned.ok) throw new Error(`Participant ${participantId} could not be assigned: ${assigned.detail}`);
 
     await workItemsDB.updateStatus(input.workItem.id, "Dispatched");
     await eventBus.publish({

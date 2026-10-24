@@ -1,18 +1,12 @@
-# Chapter 1 — Objective: Implementation Traceability
+# Implementation Traceability: Chapter 8 – Objective
 
-**Date of report: 4-10-2026. Updated 21-10-2026 for CR-129 (Objective transition).**
+**Date of report: 23-10-2026**
 
----
-
-**References**: 
-
-`design/foundations/03_Book 3 (Refined)/01_Part 1/Chapter 1.md`
- 
-
----
+Specification: src/docs/SEU Studio Specifications/02_SEU Composition/08_Objective.md
 
 ## Traceability Table
 
+<!-- multiline -->
 **Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
 
 <table style="width:100%; table-layout:fixed;">
@@ -33,300 +27,250 @@
   <tbody>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective is a persistent engineering-intent object justifying SEU commissioning<br> Ref: §1, §4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/002_seu_platform.sql:16-25; src/dblayer/objectivesDB.ts:33-89</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>objectives</code> table persists statement/tier/status/version<br><code>objectivesDB.create</code> writes it transactionally.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An Objective is a persistent, versioned statement of engineering intent that justifies an SEU.<br>Ref: §1, §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/objectives_schema_recovery.sql:3-13<br>src/dblayer/recovery/objectives_schema_recovery.sql:22-23<br>src/dblayer/objectivesDB.ts:8-67</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The objectives table stores statement, tier, parent, status and a text version that starts at 1.0.0. Creation runs in one transaction with a display id.<br>The version patch number is bumped on statement or parent changes (objectivesDB.ts:224-257).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective exists independently of Template, Pack, Participant<br> Ref: §4, OBJ-005</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/002_seu_platform.sql:16-25</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No FK from <code>objectives</code> to templates/packs/participants<br>objective creation (objectivesDB.create) never references any of them.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective is not itself a Goal/Requirement/Strategy (conceptual distinction)<br> Ref: §4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No corresponding domain objects (Goal, Requirement, Strategy) exist in the schema<br>nothing contradicts the distinction.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An Objective states why the SEU exists and holds no implementation detail.<br>Ref: §1, §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/objectives_schema_recovery.sql:3-13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The table has no Template, Pack or Participant column. Implementation choice is held by the SEU row, not the Objective.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective does not specify implementation. <br> Template/Pack/Participant determine it.<br> Ref: §3, §4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:560-596</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>getObjectiveDetail</code> exposes Template/Profile candidates but never assigns one. <br>Selection happens in commissioning.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An Objective exists independently of any Template, Pack or Participant.<br>Ref: OBJ-005, §4, §15, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/objectives_schema_recovery.sql:3-13<br>src/routes/seu/core/objectives.ts:50-113</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Objective creation takes a statement, tier, parent and capability codes. It takes no Template, Pack or Participant reference.<br>The Template choice is made later, on the SEU.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every SEU commissioned in service of at least one Objective<br> Ref: §5 OBJ-001, FR-1.5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/002_seu_platform.sql:164 (<code>objective_id UUID NOT NULL REFERENCES objectives(id)</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>seus.objective_id</code> is NOT NULL with FK<br>commissioning cannot create an SEU without a real Objective row.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objectives are persistent and independently traceable<br> Ref: §5 OBJ-002, §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:91-274<br>src/routes/seu/core/objectives.ts:238-345 (list/search/ancestor path)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objectives persist independent of SEU lifecycle (no cascade delete from SEU)<br>Ancestor/descendant/search functions provide traceability.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every SEU is commissioned in service of an Objective, and every commissioning request references one.<br>Ref: OBJ-001, FR-8.5, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/seus_schema_recovery.sql:5<br>src/routes/seu/core/commissioning.ts:111-113<br>src/routes/seu/core/commissioning.ts:130-135</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>seus.objective_id is NOT NULL with a foreign key. initiateSeu refuses a request with no Objective.<br>A partial unique index allows one live SEU per Objective (seus_schema_recovery.sql:21-22).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Objective declares or allows derivation of required Capabilities<br> Ref: §5 OBJ-003, §10</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:44-56, 144-156</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Only explicit declaration is implemented (<code>resolveRequiredCapabilities</code> validates codes against Ontology <code>capability-name</code> concepts).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An SEU is commissioned against a leaf Objective.<br>Ref: §7 remark</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:120-129<br>src/routes/seu/core/objectives.ts:179</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The Objective must be Active and have no children. The SEU can be commissioned only at a leaf.<br>Gap:<br>A Strategic Objective is refused even when it is a leaf. The remark says an SEU is commissioned against any leaf.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objectives are hierarchical (Strategic → Operational → Engineering)<br> Ref: §5 OBJ-004, §7, §9, FR-1.4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:17, 78-141, 723-791<br>src/dblayer/migrations/037_objective_parent_required.sql</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>TIER_RANK</code> enforces a child's tier is never more strategic than its parent, both at create and re-parent<br>DB CHECK <code>objectives_parent_required_chk</code> backstops "only Strategic may be a root."</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Objectives are persistent and independently addressable.<br>Ref: OBJ-002</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/objectives_schema_recovery.sql:4<br>src/dblayer/recovery/objectives_schema_recovery.sql:20<br>src/routes/seu/api/objectives.ts:72-81<br>src/dblayer/objectivesDB.ts:69-77</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Each Objective has a UUID and a display id. It is retrievable alone by API and by the web detail page. Rows are deleted only while Defined (objectives.ts:408-425).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objectives may be reviewed/reaffirmed/superseded without invalidating historical Deliverables/Decisions/Capabilities<br> Ref: §5 OBJ-006, §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:1009-1072<br>src/dblayer/migrations/007_trust_pipeline.sql:79-93</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEntity</code> only updates <code>objectives.status</code> (and appends a comment or runs the transition's action code)<br>it never touches <code>seus</code>, <code>deliverables</code>, or <code>decisions</code>, which reference the Objective (via <code>seu_id</code>) independently of its current status.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Objective has a globally unique identifier.<br>Ref: FR-8.1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/objectives_schema_recovery.sql:4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>id is a UUID primary key with gen_random_uuid().</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Objective has a globally unique identifier<br> Ref: §6 FR-1.1</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/002_seu_platform.sql:16-18 <br>(<code>id UUID PRIMARY KEY</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">UUID primary key. A separate human-facing <code>display_id</code> (hierarchical, e.g. "1.2.3") also exists (migration 121) but the UUID is the actual global identifier.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Objective declares its tier<br> Ref: §6 FR-1.2</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/002_seu_platform.sql:19-20<br>src/routes/seu/core/objectives.ts:75</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>tier</code> column NOT NULL-equivalent (defaulted to "Engineering" at create), constrained to the three values by the ObjectiveTier type and DB CHECK.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Objective declares its tier: Strategic, Operational or Engineering.<br>Ref: FR-8.2, §7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/objectives_schema_recovery.sql:6-7<br>src/routes/seu/core/objectives.ts:58</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>tier is NOT NULL with a CHECK on the three values. The core defaults to Engineering when none is given.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Esvery Objective declares, or supports derivation of, required Capabilities<br> Ref: §6 FR-1.3</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:338-374<br>src/routes/seu/core/objectives.ts:44-56</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Declaration path only (see OBJ-003 gap above)<br>"supports automated derivation" is not implemented.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Objectives decompose from Strategic through Operational to Engineering.<br>Ref: OBJ-004, FR-8.4, §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:60-80<br>src/dblayer/recovery/objectives_schema_recovery.sql:14-18<br>src/routes/seu/web/objectives.ts:45-49</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>A non-Strategic Objective requires a parent, enforced in the core and by a CHECK. A child cannot be more strategic than its parent.<br>The web form offers only lower tiers (CHILD_TIERS).<br>Gap:<br>The core and API check only that the child is not more strategic. A Strategic child of a Strategic parent and an Engineering child of an Engineering parent are accepted.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every SEU commissioning request references at least one Objective<br> Ref: §6 FR-1.5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/002_seu_platform.sql:164<br>src/routes/seu/core/objectives.ts:563<br>(commissioning gated on <code>objective.status === "Active"</code> etc.)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Enforced at the DB level (NOT NULL FK) and <br>at the application level (commissioning options only computed for a qualifying Objective).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Decomposition may skip the Operational tier.<br>Ref: §9 broader scope</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:71-73<br>src/routes/seu/web/objectives.ts:45-49</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Strategic may hold Engineering children directly. Only a child more strategic than the parent is refused.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective state changes are governed and fully traceable<br> Ref: §6 FR-1.6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/entityTransition.ts (<code>transitionEntity</code>)<br>src/domain/engine/transitionEngine.ts (evaluate, beginBirth)<br>src/domain/engine/eventBus.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Objective transition runs through the generic <code>transitionEntity</code> (CR-129), which calls <code>transitionEngine.evaluate</code>, <br>writes the comment and runs the action code inside one transaction, and publishes the Transition Definition's event as its last step. <br>The birth is evaluated by <code>transitionEngine.beginBirth</code> from the <code>None → Defined</code> row.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Decomposition preserves traceability to the parent.<br>Ref: §9, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:25-36<br>src/dblayer/objectivesDB.ts:206-222</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>parent_objective_id is stored. The child display id is the parent display id plus a sequence. findAncestorPath returns the chain to the root.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">An Objective referenced by an active Deliverable remains immutable except through governed supersession<br> Ref: §6 FR-1.7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:688-717 <br>(<code>updateObjective</code> throws unless <code>status</code> equals the initial state of the birth row, <code>Defined</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Free-text/Capability edits are blocked once an Objective leaves Defined,<br> i.e. before it could ever be referenced by a Deliverable<br> (Deliverables require a commissioned, Active-Objective-derived SEU). <br>The rule is enforced by status-gating rather than by checking for referencing Deliverables directly, but the observable guarantee holds under the platform's own lifecycle ordering.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Decomposition has no depth limit.<br>Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:188-204<br>src/dblayer/objectivesDB.ts:206-222</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Descendant and ancestor lookups use recursive CTEs with no depth cap.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Objective declares one or more required Capabilities.<br>Ref: OBJ-003, FR-8.3, §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:28-40<br>src/routes/seu/core/objectives.ts:95-98<br>src/routes/seu/api/objectives.ts:27-29<br>src/routes/seu/web/objectives.ts:211-215<br>src/dblayer/recovery/objectives_schema_recovery.sql:3-13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Capability codes are checked against the capability-name Ontology and stored in objective_capabilities. The API and web forms refuse an empty list.<br>Gap:<br>createObjective and the database accept zero capabilities. ensureOneShotContainer creates an Objective with an empty list (objectives.ts:119-124).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Required Capabilities may be derived by Capability Packs contributed by the platform, an Organisation, a Domain or a Customer.<br>Ref: §10, §15, FR-8.3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:556-566</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No code derives Objective capabilities from Packs. The only automated aid is suggestCapabilityCodes, which matches words of the statement against Ontology capability labels.<br>Pack-based derivation (deriveCapabilityCodesFromPackCodes in templates.ts:211) runs for Templates, not Objectives.<br>The multi-Pack composition of required Capabilities has no implementation.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Given the same Objective and Pack set, the same required Capabilities are always derived.<br>Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:556-566</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The suggestion is deterministic for a given statement and Ontology.<br>Gap:<br>It does not depend on a Pack set, and its output is not stored as derived.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Objective preserves its declared or derived required Capabilities.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:282-297<br>src/dblayer/objectivesDB.ts:328-339<br>src/dblayer/recovery/objective_capabilities_schema_recovery.sql:3-7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Codes are stored per Objective with author id and badge. They are read back for the detail view.<br>Gap:<br>The row has no field that says whether a capability was declared or derived. setRequiredCapabilities replaces the set with no history (objectivesDB.ts:299-315).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Required Capabilities are determined before commissioning and before Packs are composed.<br>Ref: §10, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:111-135<br>src/routes/seu/core/commissioning.ts:44-49</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Creation forms require capabilities, and commissioning needs an Active Objective.<br>Gap:<br>initiateSeu and the liveness check test status, tier and children only. Neither reads objective_capabilities. An Active Objective with zero capabilities can be commissioned and composed.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective tiers — Strategic org-level, spanning multiple SEUs<br> Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/002_seu_platform.sql:164 <br>(<code>seus.objective_id</code> not unique across tiers<br>A partial-unique constraint on Active only)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A Strategic (or Operational) Objective can be a parent to many descendants, each independently commissionable<br>nothing restricts a Strategic Objective to one SEU.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Template Model evaluates Templates against the Objective&#x27;s required Capability list. The Objective does not evaluate suitability.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/templates.ts:34-52<br>src/routes/seu/core/objectives.ts:284-309</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>findCandidateTemplates compares the supplied codes with each Template's required capabilities and returns missing ones. The Objective supplies only the list.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Template is suitable only if it supports every required Capability, and commissioning does not proceed otherwise.<br>Ref: §11, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:287-308<br>src/routes/seu/core/commissioning.ts:408-415<br>src/routes/seu/core/commissioning.ts:111-135</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>commissionFromForm refuses when no Template satisfies every capability.<br>Gap:<br>The Objective detail page lists Templates that cover at least one capability (objectives.ts:290). initiateSeu does not compare Template capabilities with the Objective's, so a partial Template can be commissioned.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SEU may be commissioned against any leaf Objective<br> Ref: §7 Remarks</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:265 (<code>commissionable: ... o.tier !== "Strategic" && isLeaf && o.status === "Active"</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Commissionability is computed from leaf-ness and Active status, not from tier being "Engineering" — matches the stated refinement.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An Objective moves through Defined, Active, Achieved and Archived.<br>Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:291-321<br>src/dblayer/seed/data/transitionDefinitions.json:363-371</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Transition rows exist for None to Defined, Defined to Active, Active to Achieved and Achieved to Archived. Each carries an event type and a version event.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An Active Objective becomes Achieved.<br>Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:313-321<br>src/routes/seu/api/objectives.ts:133<br>src/domain/engine/entityTransition.ts:23-70</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The Active to Achieved row has trigger governed and the objective_achieve badge.<br>Gap:<br>transitionEntity does not check the trigger, so a holder of objective_achieve can apply the hop through the API route (transitionEntity at entityTransition.ts:23-70). Nothing fires it automatically, no rule evaluates achievement, and the web layer has no button because it lists only manual hops.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">§8 Objective structure<br> Ref: §8</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:21-48</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All listed fields are present on <code>ObjectiveRow</code>. <br>Required Capabilities are stored in a separate join table (<code>objective_capabilities</code>).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An Active Objective may be Superseded or Retired, preserving history.<br>Ref: §12, §13, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:337-359<br>src/actions/supersedeObjective.ts:8-31<br>src/routes/seu/core/objectives.ts:427-458</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Supersede requires a comment, a successor in the same tenant and writes superseding_objective_id. Retire is a manual hop and may be applied to the Active subtree.<br>Rows are kept.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An Objective can be returned to the earlier state before Active for rework.<br>Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:325-335</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>The spec names a return to Proposed before Active. The code has Active to Reject, which has no outgoing transition.<br>No hop leaves Reject or enters it from Defined. Rejected Objectives cannot be reworked or archived.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">§9 Decomposition<br> Ref: §9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:78-141</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>createObjective</code> allows a child of any tier ≥ parent's rank. <br>This is broader than the strict single-level decomposition path, but does not violate the tier-rank ordering rule itself.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective state changes are governed and fully traceable.<br>Ref: FR-8.6, §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:291-395<br>src/domain/engine/entityAdapters.ts:242-262<br>src/routes/seu/web/objectives.ts:392-418</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Every state change goes through transitionEntity with a policy, an actor and a badge. routeAuthority.json rows gate each verb route.<br>The adapter writes the status and the comment.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An Objective referenced by an active Deliverable stays immutable except through governed supersession.<br>Ref: FR-8.7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:335-345<br>src/routes/seu/core/objectives.ts:362-369<br>src/routes/seu/core/objectives.ts:408-414</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Edit, move and delete are refused once the Objective leaves its initial state. Only Comments and the governed transitions remain.<br>Gap:<br>The freeze is applied in the core and not by the database. objectivesDB.update and updateParent have no status guard. The rule is not tied to Deliverables.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An Objective may be reviewed, reaffirmed or superseded without invalidating historical Deliverables, Decisions or Capabilities.<br>Ref: OBJ-006, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:337-347<br>src/routes/seu/core/commissioning.ts:44-49</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Supersession keeps the old row and its link to the successor. Deliverable and Decision rows do not reference the Objective directly.<br>Gap:<br>No review or reaffirm transition exists. An in-flight SEU fails the liveness check once its Objective is no longer Active.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An Objective defines its Sponsoring Authority, and the originating sponsor is preserved.<br>Ref: §8, §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/objectives_schema_recovery.sql:21<br>src/dblayer/recovery/objectives_schema_recovery.sql:24-25<br>src/dblayer/objectivesDB.ts:25-50</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>sponsoring_authority holds the tenant, inherited from the parent. requested_by and author_badge record the creating actor.<br>Gap:<br>The sponsoring authority holds only a tenant id. No named sponsor or authority, and no way to set one, exists.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Decomposition preserves traceability to parent<br> Ref: §9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:47-58 <br>(child's <code>sponsoring_authority</code>/display_id derived from parent)<br>src/routes/seu/core/objectives.ts:681-686 (<code>findAncestorPath</code> walk)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>parent_objective_id</code> is persisted and never cleared except via governed re-parent (<code>reParentObjective</code>), which itself preserves the link (just changes target).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An Objective has a Status and a Version.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/objectives_schema_recovery.sql:9-10<br>src/dblayer/recovery/objectives_schema_recovery.sql:22-23<br>src/dblayer/objectivesDB.ts:240-270</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>status is a governed column. version is a semantic string that is patch-bumped by update and move.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Decomposition does not create new intent, only refines existing intent<br> Ref: §9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No code enforces or contradicts this<br>it is a modeling/authoring discipline, not a mechanical constraint the system can check.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Decomposition history of parent and child Objectives is preserved.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:118-129<br>src/dblayer/objectivesDB.ts:224-238</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Children and ancestors are queryable.<br>Gap:<br>Re-parenting overwrites parent_objective_id and bumps the version. The earlier parent is not recorded.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The Composition Engine shall not compose Packs until required Capabilities are determined<br> Ref: §10</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:563-596<br>templates.ts findCandidateTemplates</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Candidate Templates are only computed from <code>capabilityCodes</code> already resolved off the Objective.<br>Nothing composes Packs before this point in the commissioning flow</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The referencing SEUs are preserved.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seusDB.ts:46-64<br>src/routes/seu/core/objectives.ts:281-283</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>seus.objective_id links each SEU to its Objective.<br>Gap:<br>findByObjectiveId returns only an SEU in a live lifecycle state, and the detail view shows one. Earlier SEUs of the Objective are not listed.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Required Capabilities are the sole input Objective contributes to commissioning<br> Ref: §10</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:560-596</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>getObjectiveDetail</code>'s commissioning-related output (<code>commissioningOptions</code>) is derived solely from <code>capabilityCodes</code><br>No other Objective field (statement, tier, etc.) feeds Template/Profile candidate selection.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Objective records its referencing Deliverables and Decisions.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/views/seu/objectives/detail.ejs:57-64<br>src/dblayer/knowledgeItemsDB.ts:146-150</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No Objective query or detail view lists Deliverables or Decisions. The only join from objectives into another object is the Knowledge Item list, which reads the Objective statement (knowledgeItemsDB.ts:146-150). No traceability service exists.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Template Model validates/selects a Template against required Capabilities<br>Objective does not evaluate suitability itself<br> Ref: §11</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:564 (<code>findCandidateTemplates(capabilityCodes, tenantId)</code>, delegated to templates.ts)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective code only supplies the capability list and displays the result.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Deliverable, Decision and Capability requirement traces to an Objective.<br>Ref: §13, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/deliverables_schema_recovery.sql:5<br>src/dblayer/recovery/decisions_schema_recovery.sql:5<br>src/dblayer/recovery/seus_schema_recovery.sql:5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Deliverable and Decision rows hold a NOT NULL seu_id, and every SEU holds a NOT NULL objective_id. The chain resolves by joins.<br>Gap:<br>No query or service walks it. Other object types were not checked.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Where no Template supports required Capabilities, commissioning shall not proceed<br> Ref: §11</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:590-595</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">When <code>relevant</code> (candidate list) is empty, <code>commissioningOptions</code> is an empty array.<br>The actual SEU-creation refusal is in the commissioning path.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Supersession history is preserved.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:259-280<br>src/routes/seu/web/objectives.ts:192-251</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The superseded row stores the successor id and the comment.<br>Gap:<br>The successor row stores no link to its predecessor. A reverse lookup has no query.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Lifecycle: Defined → Active → Achieved → Archived<br> Ref: §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (Objective rows)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All four states and edges exist as transition_definitions rows, with the birth row <code>None → Defined</code> (verb <code>propose</code>, event <code>ObjectiveCreated</code>). The initial state is read from the birth row, never written in code. <br>Active → Achieved is still <code>governed</code>; who drives it is open (CR-129 D6).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Active may transition to Superseded or Retired, preserving full historical traceability<br> Ref: §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (Active→Superseded, Active→Retired rows)<br>src/actions/supersedeObjective.ts (action code <code>supersede-objective</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Both edges exist and are governed the same way as other transitions. <br> Refer CR-116</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Objective subsystem publishes ObjectiveProposed, Activated, Rejected, Achieved, Superseded, Retired and Archived events.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:291-395<br>src/routes/seu/core/objectives.ts:100-111<br>src/domain/engine/entityTransition.ts:83-93</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Each hop declares an event type, and publishTransition emits it with actor and badge. Creation publishes the birth event.<br>Gap:<br>The creation event is named ObjectiveCreated, not ObjectiveProposed. The Objective event names are absent from the eventSubscriptions.json catalogue.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">§12 An Objective can be returned to the initial state before Active, for rework<br> Ref: §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:688-717 (<code>updateObjective</code> throws unless the status is the birth row's initial state, <code>Defined</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">"Before Active" means the Objective has not yet left Defined, not a transition back into it.<br> <code>updateObjective</code> permits edits any number of times while status remains Defined, which is the rework path. <br>No Active→Defined/Reject→Defined transition exists.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective domain model and registry.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:8-353<br>src/routes/seu/core/objectives.ts:205-223<br>src/routes/seu/core/objectives.ts:482-554</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The table, repository, list, tree, search and rejected-list queries exist with pagination.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective preserves: sponsor/Authority<br> Ref: §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:41-45 (<code>sponsoring_authority</code>)<br>src/dblayer/objectivesDB.ts:29-32, 44-72</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>sponsoring_authority</code> recorded at creation, inherited by children, immutable thereafter.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective decomposition service.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:50-113<br>src/routes/seu/core/objectives.ts:362-406<br>src/routes/seu/core/objectives.ts:460-480</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>Create-under-parent, re-parent with cycle and tenant checks, and subtree retire exist.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective preserves decomposition history (parent/child)<br> Ref: §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:150-274 <br>(<code>findChildren</code>, <code>findAncestorPath</code>, <code>findDescendantIds</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Full parent/child graph is queryable<br>re-parent (<code>reParentObjective</code>) changes only <code>parent_objective_id</code>, never erasing history since Objectives are never hard-deleted once decomposed/committed<br> <br>(delete is restricted to leaves in the initial state, Defined).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective-to-Capability derivation service and Objective traceability service.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:556-566</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap:<br>No Pack-driven derivation service and no traceability service exist. Only the keyword suggester and per-record reads are available.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective preserves derived or declared required Capabilities<br> Ref: §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:336-374, 393-404</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>objective_capabilities</code> join table, append/replace via <code>addCapabilities</code>/<code>setRequiredCapabilities</code>, queryable via <code>getRequiredCapabilities</code>. Edits are further restricted to the Defined status only (updateObjective), so the set is effectively frozen once Active.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective preserves referencing SEUs<br> Ref: §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seusDB.ts:54-78, 153-168</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>seus.objective_id</code> FK plus helper queries (<code>findByObjectiveId</code>, <code>commissionedObjectiveSeuIds</code>) provide the reverse link.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective preserves referencing Deliverables and Decisions<br> Ref: §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/002_seu_platform.sql:216-228 (<code>deliverables.seu_id</code>)<br>src/dblayer/migrations/007_trust_pipeline.sql:79-93 (<code>decisions.seu_id</code>, <code>decisions.deliverable_id</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables and Decisions reference <code>seu_id</code>, not <code>objective_id</code> directly</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective preserves supersession history<br> Ref: §13, CR-116</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">objectives.superseding_objective_id (written by the <code>supersede-objective</code> action)<br>objectives.comments (JSONB column; the <code>objective_comments</code> table is removed)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Queryable chain of Objective versions. The supersede comment is appended to <code>objectives.comments</code> through the Objective adapter.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Deliverable/Decision/Capability requirement traceable to at least one Objective (root of Engineering Knowledge Graph)<br> Ref: §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Chain is enforced structurally: <code>seus.objective_id</code> NOT NULL, <code>deliverables.seu_id</code> NOT NULL, <code>decisions.seu_id</code>/<code>deliverable_id</code> NOT NULL — no Deliverable or Decision can exist without eventually resolving to an Objective.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Events: ObjectiveProposed (published as ObjectiveCreated)<br> Ref: §14</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (birth row <code>None → Defined</code>, <code>eventType: "ObjectiveCreated"</code>)<br>src/routes/seu/core/objectives.ts (<code>createObjective</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Published as the last statement of <code>createObjective</code> with the birth row's event, version event and badge. The submit step (<code>submitObjective</code>, <code>ObjectiveDefined</code>) is deleted (CR-129 D9); the event each transition publishes is the record.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Events: ObjectiveActivated<br> Ref: §14</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (Defined→Active <code>eventType: "ObjectiveActivated"</code>)<br>src/domain/engine/entityTransition.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Published by <code>transitionEntity</code> on the Defined→Active transition.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Events: ObjectiveRejected<br> Ref: §14</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json (Active→Reject <code>eventType: "ObjectiveRejected"</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Published on Active→Reject, with a mandatory comment enforced by the <code>policy-comment-required</code> Policy on the transition row (CR-129 D4). The earlier rule that the comment must differ from the latest one is dropped, as for Pack.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Events: ObjectiveAchieved, ObjectiveSuperseded, ObjectiveRetired, ObjectiveArchived<br> Ref: §14</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">All four are wired as <code>eventType</code> on their respective transition_definitions rows and published via the same <code>transitionEntity</code> path.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Preserve complete historical traceability<br> Ref: §15</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/eventsDB.ts<br>src/routes/seu/core/objectives.ts (comments, events)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Events table + comments provide an append-only history<br>no code path deletes historical events or comments for a non-Defined Objective. Comments are stored in the <code>objectives.comments</code> JSONB column.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Support hierarchical decomposition without depth limits<br> Ref: §15</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts:33-89 (recursive <code>next_child_seq</code>), 238-274 (recursive CTEs)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>display_id</code> construction and ancestor/descendant queries use recursive CTEs / iterative parent-chasing with no hardcoded depth cap.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Reproducible: same Objective + Pack set always derives the same required Capabilities<br> Ref: §15</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Not applicable/not verifiable, since no derivation mechanism exists to test for reproducibility (required Capabilities are explicit user input, not derived).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Objective domain model<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:21-48</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>ObjectiveRow</code> type.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Objective registry<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/objectivesDB.ts (whole file)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">CRUD + query surface over <code>objectives</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Objective decomposition service<br> Ref: §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/objectives.ts:78-141, 723-791</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>createObjective</code> (with parent) and <code>reParentObjective</code>.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Objective APIs.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/api/objectives.ts:21-137</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented:<br>The API creates, lists, reads, updates and applies all six transitions.<br>Gap:<br>It has no route for children, move, delete, subtree retire or comments. Those exist only on the web router.</td>
     </tr>
   </tbody>
 </table>
 
------
-
 ## Summary
 
-- Total intents analysed: 45
-- Fully met: 40
-- Partially met: 2
-- Not met: 0
-- Not verifiable: 3
+- Total intents analysed: 38
+- Fully met ✅: 17
+- Partially met ⚠️: 17
+- Not met ❌: 4
+- Not verifiable ❓: 0
 
------
+### Major implementation gaps
 
-## Major implementation gaps
-
-1. **Capability derivation from Packs (§10, OBJ-003, FR-1.3, §15, §17)**: the specification's "derived by Capability Packs" path is not implemented; only explicit declaration exists. The code itself documents this as inherited from a real specification gap — Chapter 5's own Pack taxonomy never defines the derivation mechanism Chapter 1 references.
-2. ~~**No successor linkage on supersession (§12, OBJ-006, §13)**: Superseded is a bare status change; there is no stored reference from a Superseded Objective to the "revised Objective" that replaces it, so that specific traceability the spec calls out is not queryable.~~ <mark>02-10-2026: CR-116 closed this one.</mark>
-3. **Sponsor/authority** needs expansion based on how multi-tenancy is designed. 
-4. Build the Engineering Knowledge Graph dashboard.
-
-------
-
-## Consider implementing
-
-1. ObjectiveTier type should be Ontology driven instead of a check constraint. Allow tenant to define additional tiers and generalise. 
-2. The decomposition check is TIER_RANK[tier] < TIER_RANK[parent.tier] → rejected. So, I can already have Strategic child under Strategic parent. The decomposition integrity is with the authority. <mark>[Remarks: Should this be stricter ?]</mark>
-3. Should the reviewer be able to edit/add capabilities in addition to rejecting? This may violate separation of duties, but traceability still exists. 
+- Required Capabilities are never derived by Packs. Only declaration and a keyword suggester exist.
+- Nothing requires an Objective to carry capabilities before commissioning, and no check compares the chosen Template with them.
+- Rework is not possible. Active to Reject is terminal and no hop returns to the pre-Active state.
+- Achieved has no trigger. Achievement is not evaluated.
+- No traceability service. Objectives do not list Deliverables, Decisions or earlier SEUs, and re-parenting and supersession keep no reverse or prior link.
+- The Strategic leaf cannot be commissioned, which differs from the "any leaf" remark.
+- Immutability is applied in the core only, and the sponsoring authority is a tenant id.
+- The creation event is ObjectiveCreated, not ObjectiveProposed. The API lacks several operations.

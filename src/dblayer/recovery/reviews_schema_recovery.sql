@@ -10,7 +10,7 @@ CREATE TABLE reviews (
   criteria             JSONB NOT NULL DEFAULT '{}',
   outcome              TEXT
                          CHECK (outcome IS NULL OR outcome IN ('Passed', 'Passed with Recommendations', 'Rework Required', 'Failed', 'Not Applicable', 'Deferred')),
-  status               TEXT NOT NULL DEFAULT 'Planned',
+  status               TEXT NOT NULL,
   reviewer             TEXT,
   version              INTEGER NOT NULL DEFAULT 1,
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),

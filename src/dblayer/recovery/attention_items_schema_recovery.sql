@@ -10,7 +10,7 @@ CREATE TABLE attention_items (
   related_object_type   TEXT,
   related_object_id     UUID,
   triggering_event_id   UUID REFERENCES events(id),
-  status                TEXT NOT NULL DEFAULT 'Created',
+  status                TEXT NOT NULL,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

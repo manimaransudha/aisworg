@@ -215,6 +215,6 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // composedPacks moved off SeuDetailView onto its own EBM page/read model
   // (design/mvp-build-plan/SEU Composition.md — "create a new one. EBM
   // page.") — getSeuDetailView is SEU-runtime only now.
-  const chosenEbmView = await getSeuEbmView(chosen.seu.id);
+  const chosenEbmView = await getSeuEbmView(chosen.seu.id, ROOT_ACTOR_ID);
   assert.ok(chosenEbmView!.composedPacks.some((p) => p.packCode === "technology-nodejs"), "expected the explicitly-chosen Profile's optional Pack to be composed");
 });

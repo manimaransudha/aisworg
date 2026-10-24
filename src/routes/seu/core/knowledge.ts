@@ -2,7 +2,8 @@ import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { transitionEngine, gateRejection } from "../../../domain/engine/transitionEngine.js";
+import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { createObligation } from "./obligations.js";
@@ -31,6 +32,10 @@ export async function createKnowledgeItem(input: {
   actorId: string;
 }): Promise<KnowledgeItemRow> {
   await assertCanonicalCategory("category:knowledge", input.category);
+  // A Knowledge Item references supporting Evidence (Ch.16 KM-003, FR-16.2).
+  if (Object.values(input.evidenceReferences ?? {}).every((ids) => !ids || ids.length === 0)) {
+    throw new Error("a Knowledge Item must reference at least one supporting Evidence item");
+  }
   const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
   if (!deliverable) throw new Error(`deliverable not found: ${input.deliverableId}`);
   if (deliverable.seu_id !== input.seuId) throw new Error(`deliverable ${input.deliverableId} does not belong to SEU ${input.seuId}`);
@@ -38,7 +43,13 @@ export async function createKnowledgeItem(input: {
   const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, "knowledge_observe");
   const { authorId } = await resolveAuthor(input.seuId, input.actorId);
 
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Knowledge");
+  if (birthError) throw birthError;
+  if (!birth) throw new Error("no birth Transition Definition for Knowledge");
+  if (!birth.event_type) throw new Error("the Knowledge birth Transition Definition names no event");
+
   const { data: knowledgeItem, error } = await knowledgeItemsDB.create({
+    status: birth.to_state,
     seuId: input.seuId,
     deliverableId: input.deliverableId,
     category: input.category,
@@ -56,7 +67,7 @@ export async function createKnowledgeItem(input: {
   if (error || !knowledgeItem) throw error ?? new Error("failed to create knowledge item");
 
   await eventBus.publish({
-    eventType: "KnowledgeObserved",
+    eventType: birth.event_type,
     originatingObjectType: "Knowledge",
     originatingObjectId: knowledgeItem.id,
     seuId: knowledgeItem.seu_id,
@@ -74,21 +85,17 @@ export async function listKnowledgeItemsBySeu(seuId: string): Promise<KnowledgeI
   return data ?? [];
 }
 
-export interface KnowledgeItemWithNextStates {
+export interface KnowledgeItemWithNextScopes {
   knowledgeItem: KnowledgeItemRow;
-  possibleNextStates: string[];
   possibleNextScopes: string[];
 }
 
-export async function listKnowledgeItemsWithNextStates(seuId: string): Promise<KnowledgeItemWithNextStates[]> {
+export async function listKnowledgeItemsWithNextScopes(seuId: string): Promise<KnowledgeItemWithNextScopes[]> {
   const items = await listKnowledgeItemsBySeu(seuId);
   return Promise.all(
     items.map(async (knowledgeItem) => {
-      const [{ data: possibleNextStates }, { data: possibleNextScopes }] = await Promise.all([
-        transitionDefinitionsDB.findPossibleNextStates("Knowledge", knowledgeItem.status),
-        transitionDefinitionsDB.findPossibleNextStates("KnowledgeScope", knowledgeItem.acquisition_scope),
-      ]);
-      return { knowledgeItem, possibleNextStates: possibleNextStates ?? [], possibleNextScopes: possibleNextScopes ?? [] };
+      const { data: possibleNextScopes } = await transitionDefinitionsDB.findPossibleNextStates("KnowledgeScope", knowledgeItem.acquisition_scope);
+      return { knowledgeItem, possibleNextScopes: possibleNextScopes ?? [] };
     })
   );
 }
@@ -100,40 +107,22 @@ export type TransitionKnowledgeItemResult =
   | { ok: false; reason: "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
 export async function transitionKnowledgeItem(input: { knowledgeItemId: string; targetState: string; actorId: string }): Promise<TransitionKnowledgeItemResult> {
-  const { data: knowledgeItem } = await knowledgeItemsDB.findById(input.knowledgeItemId);
-  if (!knowledgeItem) return { ok: false, reason: "not_found" };
+  const result = await transitionEntity({ entityType: "Knowledge", entityId: input.knowledgeItemId, targetState: input.targetState, actorId: input.actorId });
+  if (!result.ok) return result;
 
-  const fromState = knowledgeItem.status;
-
-  const gate = await transitionEngine.evaluateGoverned({
-    entityType: "Knowledge",
-    fromState,
-    toState: input.targetState,
-    actorId: input.actorId,
-    entityId: knowledgeItem.id,
-    seuId: knowledgeItem.seu_id,
-    context: { knowledgeItem },
-    gateEntityId: knowledgeItem.id,
-    gateSeuId: knowledgeItem.seu_id,
-  });
-  if (!gate.allowed) return gateRejection(gate, "Knowledge", fromState, input.targetState);
-  const { authorId: qualityGateAuthorId } = gate;
-
-  const { data: updated, error } = await knowledgeItemsDB.updateStatus(knowledgeItem.id, input.targetState, qualityGateAuthorId, gate.authorityBadge);
-  if (error || !updated) throw error ?? new Error("failed to update knowledge item status");
-
+  const published = await publishTransition(result);
   await eventBus.publish({
-    eventType: gate.eventType ?? "KnowledgeUpdated",
+    eventType: "KnowledgeTransitioned",
     originatingObjectType: "Knowledge",
-    originatingObjectId: knowledgeItem.id,
-    seuId: knowledgeItem.seu_id,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { fromState, toState: input.targetState },
+    originatingObjectId: input.knowledgeItemId,
+    seuId: result.event.seuId,
+    correlationId: published.correlation_id,
+    payload: result.event.payload,
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
+    authorityBadge: result.event.authorityBadge,
   });
 
-  return { ok: true, knowledgeItem: updated, appliedTransition: { fromState, toState: input.targetState } };
+  return { ok: true, knowledgeItem: result.row as KnowledgeItemRow, appliedTransition: result.appliedTransition };
 }
 
 const PROMOTION_SEVERITY: Record<AcquisitionScope, string> = { SEU: "Low", Capability: "Medium", Enterprise: "High", Platform: "High" };

@@ -219,23 +219,6 @@ export async function deriveCapabilityCodesFromPackCodes(packCodes: string[]): P
   return [...new Set((capabilities ?? []).map((c) => c.code))];
 }
 
-export interface CapabilityProducingPack { id: string; code: string; name: string; category: string }
-export async function deriveCapabilityProducingPacksFromPackCodes(packCodes: string[]): Promise<Record<string, CapabilityProducingPack>> {
-  const packById = new Map<string, CapabilityProducingPack>();
-  for (const code of packCodes) {
-    const { data: pack } = await packsDB.findActiveByCode(code);
-    if (pack) packById.set(pack.id, { id: pack.id, code: pack.code, name: pack.name, category: pack.category });
-  }
-  if (packById.size === 0) return {};
-  const { data: capabilities } = await capabilitiesDB.findByOriginatingPackIds([...packById.keys()]);
-  const result: Record<string, CapabilityProducingPack> = {};
-  for (const capability of capabilities ?? []) {
-    const pack = capability.originating_pack_id ? packById.get(capability.originating_pack_id) : undefined;
-    if (pack) result[capability.code] = pack;
-  }
-  return result;
-}
-
 const MAX_LINEAGE_HOPS = 20;
 async function isRenameOf(childName: string, parentName: string, tenantId: string): Promise<boolean> {
   if (childName === parentName) return true;

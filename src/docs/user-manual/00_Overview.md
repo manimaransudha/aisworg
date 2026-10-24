@@ -26,12 +26,14 @@ The parts follow the order in which the platform is used. Part 1 produces the de
 
 | Menu | Entries |
 |---|---|
-| SEU Platform | Dashboard, Quick View, Objectives, SEUs |
+| SEU Platform | Dashboard (or Demo Dashboard), Quick View, Objectives, SEUs |
 | Governance | Attention, Telemetry, Knowledge Capital |
 | Registry | Capability Definitions, Participants, Packs, Templates, Profiles, Deliverable Definitions, Service Definitions, Policy Definitions, Schema Registry |
 | Authoring | Pack, Template, Profile, Transition Definition, Deliverable, Service, Policy, Capability |
 | Ontology | One entry per Ontology concept type, Metadata, Approvals |
-| Settings | Identity, Tenant Admin users, Route Authority, Data Migrations, Events, Version Events |
+| Settings | Identity, Tenant Admin users, Events, Version Events, Data Migrations. Route Authority opens from a card on the Identity page. |
+| Demo | Riverbend Demo for the `demo` role. Demo Administration for the `root` badge. |
+| Documentation | All Documentation, plus one entry per top-level folder of `src/docs`. Visible to the `superuser` role. |
 
 A menu entry is shown when the user's badges satisfy that route.
 

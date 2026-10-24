@@ -32,17 +32,16 @@ import {
   listInheritableTemplates, inheritedTemplateContent, listInheritableProfiles, inheritedProfileContent, inheritedPackVersionContent,
   type AuthoringDraftSummary,
 } from "../core/sdkAuthoring.js";
-import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { transitionDefinitionsDB, loadTransitionDefinitionsCache } from "../../../dblayer/transitionDefinitionsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { packCodeVersionSummaries } from "../core/packs.js";
-import { PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveCapabilityProducingPacksFromPackCodes, deriveExposableParameterCandidates, deriveOverridableParameterCandidates, getPackSelectionsByCategory, type ExposableParameterCandidate, type ExposedParameter, type PackSelectionsByCategory } from "../core/templates.js";
+import { PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveExposableParameterCandidates, deriveOverridableParameterCandidates, getPackSelectionsByCategory, type ExposableParameterCandidate, type ExposedParameter, type PackSelectionsByCategory } from "../core/templates.js";
 import { CONFIGURATION_PARAMETER_FIELDS, type ExposedParameterOverride } from "../core/profiles.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { requireActorId, resolveAuthorBadgeForRequest, resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
 import { listInheritableDeliverableDefinitions, inheritedDeliverableDefinitionContent } from "../core/deliverableDefinitions.js";
-import { listInheritableServiceDefinitions, inheritedServiceDefinitionContent } from "../core/serviceDefinitions.js";
 import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition, updateTransitionDefinition, listRequirablePolicyCodes } from "../core/transitionDefinitions.js";
 import {
@@ -72,7 +71,7 @@ function resolveKind(slug: string): SchemaDefinitionEntityKind | null {
 const backToIndex = (slug: string) => `/aisworg/seu/sdk/${slug}`;
 const backTo = (slug: string, deliverableId: string) => `${backToIndex(slug)}/${deliverableId}`;
 
-function authoringBadge(kind: SchemaDefinitionEntityKind, level: "define" | "publish"): string {
+function authoringBadge(kind: SchemaDefinitionEntityKind, level: "define"): string {
   return `${entityTypeForKind(kind).toLowerCase()}_${level}`;
 }
 
@@ -80,13 +79,11 @@ function denyAuthoring(req: Request, res: Response): void {
   redirectsFor(req).badgefail(req, res, "You don't have the required badge for that.");
 }
 
-function requireAuthoring(need: "any" | "define" | "publish") {
+function requireAuthoring() {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const kind = resolveKind(String(req.params.slug));
     if (!kind) return next();
     const held = await resolveHeldBadges(req);
-    if (need === "define") return held.has(authoringBadge(kind, "define")) ? next() : denyAuthoring(req, res);
-    if (need === "publish") return held.has(authoringBadge(kind, "publish")) ? next() : denyAuthoring(req, res);
     const prefix = `${entityTypeForKind(kind).toLowerCase()}_`;
     if (held.has(authoringBadge(kind, "define")) || [...held.badgeTypes].some((b) => b.startsWith(prefix))) return next();
     return denyAuthoring(req, res);
@@ -154,7 +151,7 @@ async function tenantAuthoringRowsWithActions(kind: SchemaDefinitionEntityKind, 
   return rows.map((r) => ({ ...r, actions: actionsByStatus.get(r.status) ?? [] }));
 }
 
-router.get("/sdk/:slug", requireAuthoring("any"), attachVM("seu/sdk/authoring/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/sdk/:slug", requireAuthoring(), attachVM("seu/sdk/authoring/index"), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
   const kind = resolveKind(slug);
   if (!kind) return next();
@@ -221,7 +218,6 @@ router.get("/authority/nouns", attachVM("seu/sdk/authority/index"), async (req: 
       searchFields: [(n) => n.code, (n) => n.label, (n) => n.description],
       sortFields: { code: (n) => n.code, label: (n) => n.label, verbCount: (n) => n.verbCount, transitionCount: (n) => n.transitionCount, active: (n) => (n.isActive ? 1 : 0) },
     });
-    req.vm.opt.canWrite = canWriteAuthority(req);
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/sdk/authority/index", req.vm);
   } catch (err) {
@@ -242,7 +238,6 @@ router.get("/authority/verbs", attachVM("seu/sdk/authority/index"), async (req: 
       searchFields: [(v) => v.code, (v) => v.label, (v) => v.description],
       sortFields: { code: (v) => v.code, label: (v) => v.label, nounCount: (v) => v.nounCount, active: (v) => (v.isActive ? 1 : 0) },
     });
-    req.vm.opt.canWrite = canWriteAuthority(req);
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/sdk/authority/index", req.vm);
   } catch (err) {
@@ -263,7 +258,6 @@ router.get("/authority/mapping", attachVM("seu/sdk/authority/index"), async (req
       searchFields: [(m) => m.nounCode, (m) => m.nounLabel, (m) => m.verbCode, (m) => m.verbLabel],
       sortFields: { nounCode: (m) => `${m.nounCode} ${m.verbCode}`, verbCode: (m) => m.verbCode, active: (m) => (m.isActive ? 1 : 0) },
     });
-    req.vm.opt.canWrite = canWriteAuthority(req);
     req.vm.opt.activeNouns = await listActiveNouns();
     req.vm.opt.activeVerbs = await listActiveVerbs();
     req.vm.opt.flash = getFlash(req);
@@ -330,6 +324,10 @@ router.post("/authority/transition-definitions/add", async (req: Request, res: R
   if ("error" in author) return redirects.seu.authorityTransitionDefinitions.error(req, res, author.error);
   wrote(req, res, await addTransitionDefinition({ entityType: String(entityType ?? ""), fromState: String(fromState ?? ""), toState: String(toState ?? ""), verb: String(verb ?? ""), policyCodes, authorId: author.authorId, authorBadge: author.authorBadge }), `Transition ${entityType} ${fromState} → ${toState} added.`);
 });
+router.post("/authority/transition-definitions/refresh-cache", async (req: Request, res: Response) => {
+  await loadTransitionDefinitionsCache();
+  wrote(req, res, { ok: true }, "Transition definitions cache reloaded.");
+});
 router.post("/authority/transition-definitions/retire", async (req: Request, res: Response) => {
   const { id } = req.body ?? {};
   wrote(req, res, await retireTransitionDefinition(String(id ?? "")), "Transition definition retired.");
@@ -341,7 +339,6 @@ router.get("/authority/transition-definitions/:id", attachVM("seu/sdk/authority/
     if (!detail) return next();
     req.vm.req.title = `Transition — ${detail.entityType} ${detail.fromState} → ${detail.toState}`;
     req.vm.req.detail = detail;
-    req.vm.opt.canWriteAuthority = await canWriteAuthority(req);
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/sdk/authority/detail", req.vm);
   } catch (err) {
@@ -378,11 +375,6 @@ router.post("/authority/transition-definitions/:id/update", async (req: Request,
     "Transition definition updated."
   );
 });
-
-async function loadProducingCapabilityPacks(content: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => extractPackCodes(content[slot.field as string])))];
-  return deriveCapabilityProducingPacksFromPackCodes(packCodes);
-}
 
 function extractDeliverableCatalogueCodes(content: Record<string, unknown>): string[] {
   const catalogue = Array.isArray(content.deliverableCatalogue) ? content.deliverableCatalogue : [];
@@ -425,7 +417,7 @@ async function loadPackCodesCapabilityCoverage(content: Record<string, unknown>,
   };
 }
 
-export interface ExposableParameterRow extends ExposableParameterCandidate {
+interface ExposableParameterRow extends ExposableParameterCandidate {
   value: string;
   overridable: boolean;
 }
@@ -499,7 +491,7 @@ async function loadActivePackDependencyOptions(viewer: { isRoot: boolean; tenant
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export interface ServiceDefinitionOption { code: string; name: string; capabilityCode: string; purpose: string; serviceLevel: ServiceLevelExpectation[] }
+interface ServiceDefinitionOption { code: string; name: string; capabilityCode: string; purpose: string; serviceLevel: ServiceLevelExpectation[] }
 async function loadServiceDefinitionOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<ServiceDefinitionOption[]> {
   const { data: definitions } = viewer.isRoot || !viewer.tenantId ? await serviceDefinitionsDB.findAll() : await serviceDefinitionsDB.findAllVisibleTo(viewer.tenantId);
   return (definitions ?? [])
@@ -508,7 +500,7 @@ async function loadServiceDefinitionOptions(viewer: { isRoot: boolean; tenantId:
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export interface PolicyDefinitionOption { code: string; name: string; description: string; applicabilityDeliverableNames: string[] }
+interface PolicyDefinitionOption { code: string; name: string; description: string; applicabilityDeliverableNames: string[] }
 async function loadPolicyDefinitionOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<PolicyDefinitionOption[]> {
   const { data: definitions } = viewer.isRoot || !viewer.tenantId ? await policyDefinitionsDB.findAll() : await policyDefinitionsDB.findAllVisibleTo(viewer.tenantId);
   return (definitions ?? [])
@@ -536,22 +528,17 @@ async function loadChecklistOptions(packCode: string): Promise<ChecklistOption[]
   return (checklists ?? []).map((c) => ({ id: c.id, name: c.name, packName: c.pack_name })).sort((a, b) => a.packName.localeCompare(b.packName) || a.name.localeCompare(b.name));
 }
 
-export interface PolicyOption { id: string; name: string; packName: string }
+interface PolicyOption { id: string; name: string; packName: string }
 async function loadPolicyOptions(packCode: string): Promise<PolicyOption[]> {
   if (!packCode.trim()) return [];
   const { data: policies } = await policiesDB.findByPackCode(packCode);
   return (policies ?? []).map((p) => ({ id: p.id, name: p.name, packName: p.pack_name })).sort((a, b) => a.packName.localeCompare(b.packName) || a.name.localeCompare(b.name));
 }
 
-export interface TemplateOption { code: string; name: string }
+interface TemplateOption { code: string; name: string }
 async function loadActiveTemplateOptions(): Promise<TemplateOption[]> {
   const { data: templates } = await templatesDB.findAllActive();
   return (templates ?? []).map((t) => ({ code: t.code, name: t.name })).sort((a, b) => a.name.localeCompare(b.name));
-}
-
-async function latestSchemaFor(kind: SchemaDefinitionEntityKind): Promise<JsonSchemaDocument | null> {
-  const { data: schemaDef } = await schemaDefinitionsDB.findLatest(kind);
-  return (schemaDef?.schema as JsonSchemaDocument) ?? null;
 }
 
 async function loadDbSelectOptions(kind: SchemaDefinitionEntityKind): Promise<Record<string, Array<{ value: string; label: string }>>> {
@@ -583,11 +570,15 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   if (!schema) return redirects.seu.authorityTransitionDefinitionsUpdate.error(req, res, `No schema_definitions grammar for ${kind}.`, backToIndex(slug));
   const held = await resolveHeldBadges(req);
   const canDefine = held.has(authoringBadge(kind, "define"));
-  const isDraft = !draft || draft.status === "Draft";
-  const hop = await nextHop(kind, draft ? draft.status : "Draft");
-  const advanceBadges = hop ? await requiredBadgeForRowAction(kind, draft ? draft.status : "Draft", { endpoint: "publish" }) : null;
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth(entityTypeForKind(kind));
+  if (birthError) throw birthError;
+  if (!birth) throw new Error(`no birth Transition Definition for ${kind}`);
+  const initialState = birth.to_state;
+  const isDraft = !draft || draft.status === initialState;
+  const hop = await nextHop(kind, draft ? draft.status : initialState);
+  const advanceBadges = hop ? await requiredBadgeForRowAction(kind, draft ? draft.status : initialState, { endpoint: "publish" }) : null;
   const canAdvance = !!hop && (advanceBadges ?? []).some((b) => held.has(b));
-  const possibleNextStates = draft && draft.status !== "Draft" && kind !== "TransitionDefinition" ? (await transitionDefinitionsDB.findPossibleNextStates(entityTypeForKind(kind), draft.status)).data ?? [] : [];
+  const possibleNextStates = draft && draft.status !== initialState && kind !== "TransitionDefinition" ? (await transitionDefinitionsDB.findPossibleNextStates(entityTypeForKind(kind), draft.status)).data ?? [] : [];
   req.vm.opt.packComments = draft && kind === "Pack" ? (await packsDB.findById(draft.id)).data?.comments ?? [] : [];
   req.vm.opt.packCodeVersions = kind === "Pack" && !draft ? await packCodeVersionSummaries(req.session?.user?.tenant_id ?? (await getPlatformTenantId())) : {};
   req.vm.req.title = draft ? `${kind} Definition — ${draft.status}` : `New ${kind}`;
@@ -625,7 +616,6 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
     ...(await loadDerivedPackCapabilityOptions(contentForForm)),
   };
   req.vm.opt.dbSelectOptions = await loadDbSelectOptions(kind);
-  req.vm.opt.producingCapabilityPacks = kind === "Template" ? await loadProducingCapabilityPacks(contentForForm) : {};
   req.vm.opt.deliverableLabels = kind === "Template" ? await resolveLabels(viewer.tenantId, "deliverable-name") : {};
   const packCodesCapabilityCoverage: PackCodesCapabilityCoverage =
     kind === "Template" ? await loadPackCodesCapabilityCoverage(contentForForm, viewer.tenantId) : { required: [], gaps: [], excess: [] };
@@ -880,43 +870,11 @@ router.post("/sdk/:slug/:draftId/transition", requireDraftTenantScope(), require
   const { targetState, comment } = req.body ?? {};
   const actorId = requireActorId(req);
   try {
-    if (kind === "Pack") {
-      const result = await transitionEntity({ entityType: "Pack", entityId: draftId, targetState, actorId, context: typeof comment === "string" ? { comment } : undefined });
-      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
-      await publishTransition(result);
-      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
-    }
-    if (kind === "Template" || kind === "Profile") {
-      const result = await transitionEntity({ entityType: kind, entityId: draftId, targetState, actorId, context: typeof comment === "string" ? { comment } : undefined });
-      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
-      await publishTransition(result);
-      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
-    }
-    if (kind === "Deliverable") {
-      const result = await transitionEntity({ entityType: "DeliverableDefinition", entityId: draftId, targetState, actorId });
-      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
-      await publishTransition(result);
-      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
-    }
-    if (kind === "Service") {
-      const result = await transitionEntity({ entityType: "Service", entityId: draftId, targetState, actorId, context: typeof comment === "string" ? { comment } : undefined });
-      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
-      await publishTransition(result);
-      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
-    }
-    if (kind === "Policy") {
-      const result = await transitionEntity({ entityType: "Policy", entityId: draftId, targetState, actorId });
-      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
-      await publishTransition(result);
-      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
-    }
-    if (kind === "Capability") {
-      const result = await transitionEntity({ entityType: "Capability", entityId: draftId, targetState, actorId });
-      if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
-      await publishTransition(result);
-      return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
-    }
-    return next();
+    if (kind === "TransitionDefinition") return next();
+    const result = await transitionEntity({ entityType: entityTypeForKind(kind), entityId: draftId, targetState, actorId, context: typeof comment === "string" ? { comment } : undefined });
+    if (!result.ok) return redirects.seu.sdkTransition.error(req, res, `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
+    await publishTransition(result);
+    return redirects.seu.sdkTransition.success(req, res, `Moved to "${result.appliedTransition.toState}".`);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] POST .../transition error", err as Error);
     return redirects.seu.sdkTransition.error(req, res, (err as Error).message);

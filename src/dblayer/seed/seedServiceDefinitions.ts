@@ -13,7 +13,7 @@ import { eventBus } from "../../domain/engine/eventBus.js";
 import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../seuTypes.js";
 import { ontologyDB } from "../ontologyDB.js";
 import { userDB } from "../userDB.js";
-import { getPlatformTenantId } from "../constants.js";
+import { getPlatformTenantId, SERVICE_ACTIVE_STATE } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -58,6 +58,14 @@ export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
   if (birthError) throw birthError;
   if (!birth) throw new Error("[seedServiceDefinitions] no birth Transition Definition for Service -- seed transition definitions first");
   if (!birth.event_type) throw new Error("[seedServiceDefinitions] the Service birth Transition Definition names no event");
+
+  const { data: defs, error: defsError } = await transitionDefinitionsDB.listAll();
+  if (defsError) throw defsError;
+  const nextByFrom = new Map<string, string[]>();
+  for (const d of defs ?? []) {
+    if (d.entity_type !== "Service" || !d.is_active) continue;
+    nextByFrom.set(d.from_state, [...(nextByFrom.get(d.from_state) ?? []), d.to_state]);
+  }
 
   const { rowCount: deleted } = await query("DELETE FROM service_definitions WHERE tenant_id = $1", [platformTenantId]);
   logger.info(`[seedServiceDefinitions] deleted ${deleted ?? 0} platform-tenant rows -- creating ${seeds.length} baseline rows now`);
@@ -111,19 +119,19 @@ export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
       tenantId: created.tenant_id,
     });
 
-    const validate = await transitionEntity({ entityType: "Service", entityId: created.id, targetState: "Validated", actorId: actor.authoredBy });
-    if (!validate.ok) throw new Error(`[seedServiceDefinitions] failed to validate ${seed.code}: ${"detail" in validate ? validate.detail : validate.reason}`);
-    await publishTransition(validate);
+    const visited = new Set<string>([birth.to_state]);
+    let state = birth.to_state;
+    while (state !== SERVICE_ACTIVE_STATE) {
+      const hops = (nextByFrom.get(state) ?? []).filter((to) => !visited.has(to));
+      if (hops.length !== 1) throw new Error(`[seedServiceDefinitions] expected one forward Service hop out of ${state}, found ${hops.length}`);
+      const result = await transitionEntity({ entityType: "Service", entityId: created.id, targetState: hops[0], actorId: actor.authoredBy });
+      if (!result.ok) throw new Error(`[seedServiceDefinitions] failed to move ${seed.code} to ${hops[0]}: ${"detail" in result ? result.detail : result.reason}`);
+      await publishTransition(result);
+      visited.add(hops[0]);
+      state = hops[0];
+    }
 
-    const publish = await transitionEntity({ entityType: "Service", entityId: created.id, targetState: "Published", actorId: actor.authoredBy });
-    if (!publish.ok) throw new Error(`[seedServiceDefinitions] failed to publish ${seed.code}: ${"detail" in publish ? publish.detail : publish.reason}`);
-    await publishTransition(publish);
-
-    const activate = await transitionEntity({ entityType: "Service", entityId: created.id, targetState: "Active", actorId: actor.authoredBy });
-    if (!activate.ok) throw new Error(`[seedServiceDefinitions] failed to activate ${seed.code}: ${"detail" in activate ? activate.detail : activate.reason}`);
-    await publishTransition(activate);
-
-    logger.info(`[seedServiceDefinitions] (${i}/${seeds.length}) ${seed.code} -- created + validated + published + activated`);
+    logger.info(`[seedServiceDefinitions] (${i}/${seeds.length}) ${seed.code} -- created + activated`);
   }
 }
 

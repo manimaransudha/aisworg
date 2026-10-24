@@ -24,15 +24,6 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/api/seu/attention-items/:id/transition",
-    "badges": [],
-    "roles": [
-      "participant"
-    ],
-    "match_mode": "all"
-  },
-  {
-    "method": "POST",
     "path": "/aisworg/api/seu/commission",
     "badges": [],
     "roles": [],
@@ -62,13 +53,6 @@
   {
     "method": "POST",
     "path": "/aisworg/api/seu/decisions",
-    "badges": [],
-    "roles": [],
-    "match_mode": "all"
-  },
-  {
-    "method": "POST",
-    "path": "/aisworg/api/seu/decisions/:id/transition",
     "badges": [],
     "roles": [],
     "match_mode": "all"
@@ -104,13 +88,6 @@
   {
     "method": "POST",
     "path": "/aisworg/api/seu/evidence/:id/link",
-    "badges": [],
-    "roles": [],
-    "match_mode": "all"
-  },
-  {
-    "method": "POST",
-    "path": "/aisworg/api/seu/evidence/:id/transition",
     "badges": [],
     "roles": [],
     "match_mode": "all"
@@ -165,13 +142,6 @@
     "match_mode": "all"
   },
   {
-    "method": "POST",
-    "path": "/aisworg/api/seu/findings/:id/transition",
-    "badges": [],
-    "roles": [],
-    "match_mode": "all"
-  },
-  {
     "method": "GET",
     "path": "/aisworg/api/seu/knowledge",
     "badges": [],
@@ -195,13 +165,6 @@
   {
     "method": "PATCH",
     "path": "/aisworg/api/seu/knowledge/:id/references",
-    "badges": [],
-    "roles": [],
-    "match_mode": "all"
-  },
-  {
-    "method": "POST",
-    "path": "/aisworg/api/seu/knowledge/:id/transition",
     "badges": [],
     "roles": [],
     "match_mode": "all"
@@ -343,13 +306,6 @@
     "match_mode": "all"
   },
   {
-    "method": "POST",
-    "path": "/aisworg/api/seu/obligations/:id/transition",
-    "badges": [],
-    "roles": [],
-    "match_mode": "all"
-  },
-  {
     "method": "GET",
     "path": "/aisworg/api/seu/ontology/concepts",
     "badges": [],
@@ -451,13 +407,6 @@
   {
     "method": "POST",
     "path": "/aisworg/api/seu/reviews/:id/findings",
-    "badges": [],
-    "roles": [],
-    "match_mode": "all"
-  },
-  {
-    "method": "POST",
-    "path": "/aisworg/api/seu/reviews/:id/transition",
     "badges": [],
     "roles": [],
     "match_mode": "all"
@@ -814,8 +763,54 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/attention/:id/transition",
-    "badges": [],
+    "path": "/aisworg/seu/attention/:id/transition/deliver",
+    "badges": [
+      "attentionitem_deliver"
+    ],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/attention/:id/transition/acknowledge",
+    "badges": [
+      "attentionitem_acknowledge"
+    ],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/attention/:id/transition/start",
+    "badges": [
+      "attentionitem_start"
+    ],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/attention/:id/transition/resolve",
+    "badges": [
+      "attentionitem_resolve"
+    ],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/attention/:id/transition/close",
+    "badges": [
+      "attentionitem_close"
+    ],
     "roles": [
       "participant"
     ],
@@ -914,6 +909,15 @@
   {
     "method": "POST",
     "path": "/aisworg/seu/authority/transition-definitions/add",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/authority/transition-definitions/refresh-cache",
     "badges": [
       "transitiondefinition_define"
     ],
@@ -1648,24 +1652,6 @@
     "match_mode": "all"
   },
   {
-    "method": "POST",
-    "path": "/aisworg/seu/sdk/schema-registry/:id/publish",
-    "badges": [],
-    "roles": [
-      "sdk_author"
-    ],
-    "match_mode": "all"
-  },
-  {
-    "method": "POST",
-    "path": "/aisworg/seu/sdk/schema-registry/:id/reject",
-    "badges": [],
-    "roles": [
-      "sdk_author"
-    ],
-    "match_mode": "all"
-  },
-  {
     "method": "GET",
     "path": "/aisworg/seu/sdk/schema-registry/new",
     "badges": [
@@ -1728,8 +1714,54 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/seus/:id/attention-items/:attentionItemId/transition",
-    "badges": [],
+    "path": "/aisworg/seu/seus/:id/attention-items/:attentionItemId/transition/deliver",
+    "badges": [
+      "attentionitem_deliver"
+    ],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/attention-items/:attentionItemId/transition/acknowledge",
+    "badges": [
+      "attentionitem_acknowledge"
+    ],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/attention-items/:attentionItemId/transition/start",
+    "badges": [
+      "attentionitem_start"
+    ],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/attention-items/:attentionItemId/transition/resolve",
+    "badges": [
+      "attentionitem_resolve"
+    ],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/attention-items/:attentionItemId/transition/close",
+    "badges": [
+      "attentionitem_close"
+    ],
     "roles": [
       "participant"
     ],
@@ -1779,8 +1811,64 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/seus/:id/decisions/:decisionId/transition",
-    "badges": [],
+    "path": "/aisworg/seu/seus/:id/decisions/:decisionId/transition/analyse",
+    "badges": [
+      "decision_analyse"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/decisions/:decisionId/transition/propose",
+    "badges": [
+      "decision_propose"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/decisions/:decisionId/transition/review",
+    "badges": [
+      "decision_review"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/decisions/:decisionId/transition/approve",
+    "badges": [
+      "decision_approve"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/decisions/:decisionId/transition/apply",
+    "badges": [
+      "decision_apply"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/decisions/:decisionId/transition/supersede",
+    "badges": [
+      "decision_supersede"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/decisions/:decisionId/transition/archive",
+    "badges": [
+      "decision_archive"
+    ],
     "roles": [],
     "match_mode": "all"
   },
@@ -1886,8 +1974,46 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/seus/:id/evidence/:evidenceId/transition",
-    "badges": [],
+    "path": "/aisworg/seu/seus/:id/evidence/:evidenceId/transition/validate",
+    "badges": [
+      "evidence_validate"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/evidence/:evidenceId/transition/accept",
+    "badges": [
+      "evidence_accept"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/evidence/:evidenceId/transition/reference",
+    "badges": [
+      "evidence_reference"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/evidence/:evidenceId/transition/archive",
+    "badges": [
+      "evidence_archive"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/evidence/:evidenceId/transition/reject",
+    "badges": [
+      "evidence_reject"
+    ],
     "roles": [],
     "match_mode": "all"
   },
@@ -1921,13 +2047,6 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/seus/:id/findings/:findingId/transition",
-    "badges": [],
-    "roles": [],
-    "match_mode": "all"
-  },
-  {
-    "method": "POST",
     "path": "/aisworg/seu/seus/:id/knowledge",
     "badges": [],
     "roles": [],
@@ -1935,14 +2054,61 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/promote-scope",
-    "badges": [],
+    "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/transition/propose",
+    "badges": [
+      "knowledge_propose"
+    ],
     "roles": [],
     "match_mode": "all"
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/transition",
+    "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/transition/validate",
+    "badges": [
+      "knowledge_validate"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/transition/accept",
+    "badges": [
+      "knowledge_accept"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/transition/publish",
+    "badges": [
+      "knowledge_publish"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/transition/deprecate",
+    "badges": [
+      "knowledge_deprecate"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/transition/archive",
+    "badges": [
+      "knowledge_archive"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/promote-scope",
     "badges": [],
     "roles": [],
     "match_mode": "all"
@@ -1956,8 +2122,82 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/transition",
-    "badges": [],
+    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/transition/analyse",
+    "badges": [
+      "obligation_analyse"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/transition/assign",
+    "badges": [
+      "obligation_assign"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/transition/start",
+    "badges": [
+      "obligation_start"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/transition/resolve",
+    "badges": [
+      "obligation_resolve"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/transition/verify",
+    "badges": [
+      "obligation_verify"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/transition/close",
+    "badges": [
+      "obligation_close"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/transition/archive",
+    "badges": [
+      "obligation_archive"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/transition/reopen",
+    "badges": [
+      "obligation_reopen"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/transition/escalate",
+    "badges": [
+      "obligation_escalate"
+    ],
     "roles": [],
     "match_mode": "all"
   },
@@ -1977,6 +2217,51 @@
   },
   {
     "method": "POST",
+    "path": "/aisworg/seu/seus/:id/reviews/:reviewId/transition/prepare",
+    "badges": [
+      "review_prepare"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/reviews/:reviewId/transition/start",
+    "badges": [
+      "review_start"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/reviews/:reviewId/transition/complete",
+    "badges": [
+      "review_complete"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/reviews/:reviewId/transition/accept",
+    "badges": [
+      "review_accept"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/reviews/:reviewId/transition/archive",
+    "badges": [
+      "review_archive"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
     "path": "/aisworg/seu/seus/:id/reviews/:reviewId/findings",
     "badges": [],
     "roles": [],
@@ -1984,8 +2269,19 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/seus/:id/reviews/:reviewId/transition",
-    "badges": [],
+    "path": "/aisworg/seu/seus/:id/findings/:findingId/transition/resolve",
+    "badges": [
+      "finding_resolve"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/findings/:findingId/transition/waive",
+    "badges": [
+      "finding_waive"
+    ],
     "roles": [],
     "match_mode": "all"
   },

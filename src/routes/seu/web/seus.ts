@@ -21,8 +21,13 @@ import { validateEbm, validateSeu, initiateSeu } from "../core/commissioning.js"
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
-import { EBM_ACTIVE_STATE, EBM_VALIDATED_STATE, SEU_VALIDATED_STATE } from "../../../dblayer/constants.js";
+import { EBM_ACTIVE_STATE, EBM_VALIDATED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_DECISION_ACTION_CODE } from "../../../dblayer/constants.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
+import { obligationsDB } from "../../../dblayer/obligationsDB.js";
+import { evidenceDB } from "../../../dblayer/evidenceDB.js";
+import { decisionsDB } from "../../../dblayer/decisionsDB.js";
+import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
+import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
 import { transitionObligation, reviseObligation } from "../core/obligations.js";
 import { createAttentionItem, transitionAttentionItem } from "../core/attentionItems.js";
 import { createEvidence, transitionEvidence, linkEvidenceToObject, recordValidationAssessment } from "../core/evidence.js";
@@ -149,6 +154,24 @@ router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: R
     if (!sessionUser) throw new Error("[web/seu/seus] GET /seus/:id reached without a session user");
     req.vm.req.isSuperuser = (await resolveHeldRoles(sessionUser.id)).isSuperuser;
     req.vm.req.seuActions = await nextActionsFor("SEU", detail.seu.lifecycle_state, requireActorId(req));
+    const obligationActions: Record<string, Awaited<ReturnType<typeof nextActionsFor>>> = {};
+    for (const o of detail.obligations) obligationActions[o.obligation.id] = await nextActionsFor("Obligation", o.obligation.status, requireActorId(req));
+    req.vm.req.obligationActions = obligationActions;
+    const evidenceActions: Record<string, Awaited<ReturnType<typeof nextActionsFor>>> = {};
+    for (const e of detail.evidence) evidenceActions[e.evidence.id] = await nextActionsFor("Evidence", e.evidence.status, requireActorId(req));
+    req.vm.req.evidenceActions = evidenceActions;
+    const attentionActions: Record<string, Awaited<ReturnType<typeof nextActionsFor>>> = {};
+    for (const a of detail.attentionItems) attentionActions[a.attentionItem.id] = await nextActionsFor("AttentionItem", a.attentionItem.status, requireActorId(req));
+    req.vm.req.attentionActions = attentionActions;
+    const decisionActions: Record<string, Array<Awaited<ReturnType<typeof nextActionsFor>>[number] & { kind: "target" | "plain" }>> = {};
+    for (const d of detail.decisions) {
+      const actions = await nextActionsFor("Decision", d.decision.status, requireActorId(req));
+      decisionActions[d.decision.id] = actions.map((a) => ({ ...a, kind: a.actionCode === SUPERSEDE_DECISION_ACTION_CODE ? "target" : "plain" }));
+    }
+    req.vm.req.decisionActions = decisionActions;
+    const knowledgeActions: Record<string, Awaited<ReturnType<typeof nextActionsFor>>> = {};
+    for (const k of detail.knowledgeItems) knowledgeActions[k.knowledgeItem.id] = await nextActionsFor("Knowledge", k.knowledgeItem.status, requireActorId(req));
+    req.vm.req.knowledgeActions = knowledgeActions;
     req.vm.req.activeTab = typeof req.query.tab === "string" ? req.query.tab : undefined;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/detail", req.vm);
@@ -311,27 +334,22 @@ router.post("/seus/:id/ebm/transition/:verb", async (req: Request, res: Response
   }
 });
 
-router.post("/seus/:id/obligations/:obligationId/transition", async (req: Request, res: Response) => {
-  const seuId = String(req.params.id);
-  const { targetState } = req.body ?? {};
-
-  if (typeof targetState !== "string" || !targetState.trim()) {
-    return redirects.seu.seusObligationsTransition.error(req, res, "Target state is required.");
-  }
-
+router.post("/seus/:id/obligations/:obligationId/transition/:verb", async (req: Request, res: Response) => {
   try {
-    const result = await transitionObligation({
-      obligationId: String(req.params.obligationId),
-      targetState,
-      actorId: requireActorId(req),
-    });
+    const actorId = requireActorId(req);
+    const obligationId = String(req.params.obligationId);
+    const { data: obligation } = await obligationsDB.findById(obligationId);
+    if (!obligation) return redirects.seu.seusObligationsTransition.error(req, res, "Obligation not found.");
+    const action = (await nextActionsFor("Obligation", obligation.status, actorId)).find((a) => a.verb === String(req.params.verb));
+    if (!action) return redirects.seu.seusObligationsTransition.error(req, res, `Obligation transition blocked: "${String(req.params.verb)}" is not available from ${obligation.status}.`);
+    const result = await transitionObligation({ obligationId, targetState: action.toState, actorId });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
       return redirects.seu.seusObligationsTransition.error(req, res, `Obligation transition blocked: ${reason}`);
     }
     return redirects.seu.seusObligationsTransition.success(req, res, `Obligation moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
   } catch (err) {
-    logger.error("[web/seu/seus] POST /seus/:id/obligations/:obligationId/transition error", err as Error);
+    logger.error("[web/seu/seus] POST /seus/:id/obligations/:obligationId/transition/:verb error", err as Error);
     return redirects.seu.seusObligationsTransition.error(req, res, (err as Error).message);
   }
 });
@@ -388,27 +406,22 @@ router.post("/seus/:id/attention-items", async (req: Request, res: Response) => 
   }
 });
 
-router.post("/seus/:id/attention-items/:attentionItemId/transition", async (req: Request, res: Response) => {
-  const seuId = String(req.params.id);
-  const { targetState } = req.body ?? {};
-
-  if (typeof targetState !== "string" || !targetState.trim()) {
-    return redirects.seu.seusAttentionItemsTransition.error(req, res, "Target state is required.");
-  }
-
+router.post("/seus/:id/attention-items/:attentionItemId/transition/:verb", async (req: Request, res: Response) => {
   try {
-    const result = await transitionAttentionItem({
-      attentionItemId: String(req.params.attentionItemId),
-      targetState,
-      actorId: requireActorId(req),
-    });
+    const actorId = requireActorId(req);
+    const attentionItemId = String(req.params.attentionItemId);
+    const { data: attentionItem } = await attentionItemsDB.findById(attentionItemId);
+    if (!attentionItem) return redirects.seu.seusAttentionItemsTransition.error(req, res, "Attention Item not found.");
+    const action = (await nextActionsFor("AttentionItem", attentionItem.status, actorId)).find((a) => a.verb === String(req.params.verb));
+    if (!action) return redirects.seu.seusAttentionItemsTransition.error(req, res, `Attention Item transition blocked: "${String(req.params.verb)}" is not available from ${attentionItem.status}.`);
+    const result = await transitionAttentionItem({ attentionItemId, targetState: action.toState, actorId });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
       return redirects.seu.seusAttentionItemsTransition.error(req, res, `Attention Item transition blocked: ${reason}`);
     }
     return redirects.seu.seusAttentionItemsTransition.success(req, res, `Attention Item moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
   } catch (err) {
-    logger.error("[web/seu/seus] POST /seus/:id/attention-items/:attentionItemId/transition error", err as Error);
+    logger.error("[web/seu/seus] POST /seus/:id/attention-items/:attentionItemId/transition/:verb error", err as Error);
     return redirects.seu.seusAttentionItemsTransition.error(req, res, (err as Error).message);
   }
 });
@@ -453,27 +466,22 @@ router.post("/seus/:id/evidence/:evidenceId/validate", async (req: Request, res:
   }
 });
 
-router.post("/seus/:id/evidence/:evidenceId/transition", async (req: Request, res: Response) => {
-  const seuId = String(req.params.id);
-  const { targetState } = req.body ?? {};
-
-  if (typeof targetState !== "string" || !targetState.trim()) {
-    return redirects.seu.seusEvidenceTransition.error(req, res, "Target state is required.");
-  }
-
+router.post("/seus/:id/evidence/:evidenceId/transition/:verb", async (req: Request, res: Response) => {
   try {
-    const result = await transitionEvidence({
-      evidenceId: String(req.params.evidenceId),
-      targetState,
-      actorId: requireActorId(req),
-    });
+    const actorId = requireActorId(req);
+    const evidenceId = String(req.params.evidenceId);
+    const { data: evidence } = await evidenceDB.findById(evidenceId);
+    if (!evidence) return redirects.seu.seusEvidenceTransition.error(req, res, "Evidence not found.");
+    const action = (await nextActionsFor("Evidence", evidence.status, actorId)).find((a) => a.verb === String(req.params.verb));
+    if (!action) return redirects.seu.seusEvidenceTransition.error(req, res, `Evidence transition blocked: "${String(req.params.verb)}" is not available from ${evidence.status}.`);
+    const result = await transitionEvidence({ evidenceId, targetState: action.toState, actorId });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
       return redirects.seu.seusEvidenceTransition.error(req, res, `Evidence transition blocked: ${reason}`);
     }
     return redirects.seu.seusEvidenceTransition.success(req, res, `Evidence moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
   } catch (err) {
-    logger.error("[web/seu/seus] POST /seus/:id/evidence/:evidenceId/transition error", err as Error);
+    logger.error("[web/seu/seus] POST /seus/:id/evidence/:evidenceId/transition/:verb error", err as Error);
     return redirects.seu.seusEvidenceTransition.error(req, res, (err as Error).message);
   }
 });
@@ -508,6 +516,9 @@ router.post("/seus/:id/knowledge", async (req: Request, res: Response) => {
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
     return redirects.seu.seusKnowledge.error(req, res, "Deliverable, category and title are required.");
   }
+  if (typeof evidenceId !== "string" || !evidenceId.trim()) {
+    return redirects.seu.seusKnowledge.error(req, res, "Select the supporting Evidence.");
+  }
 
   try {
     const knowledgeItem = await createKnowledgeItem({
@@ -527,27 +538,22 @@ router.post("/seus/:id/knowledge", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/seus/:id/knowledge/:knowledgeItemId/transition", async (req: Request, res: Response) => {
-  const seuId = String(req.params.id);
-  const { targetState } = req.body ?? {};
-
-  if (typeof targetState !== "string" || !targetState.trim()) {
-    return redirects.seu.seusKnowledgeTransition.error(req, res, "Target state is required.");
-  }
-
+router.post("/seus/:id/knowledge/:knowledgeItemId/transition/:verb", async (req: Request, res: Response) => {
   try {
-    const result = await transitionKnowledgeItem({
-      knowledgeItemId: String(req.params.knowledgeItemId),
-      targetState,
-      actorId: requireActorId(req),
-    });
+    const actorId = requireActorId(req);
+    const knowledgeItemId = String(req.params.knowledgeItemId);
+    const { data: knowledgeItem } = await knowledgeItemsDB.findById(knowledgeItemId);
+    if (!knowledgeItem) return redirects.seu.seusKnowledgeTransition.error(req, res, "Knowledge Item not found.");
+    const action = (await nextActionsFor("Knowledge", knowledgeItem.status, actorId)).find((a) => a.verb === String(req.params.verb));
+    if (!action) return redirects.seu.seusKnowledgeTransition.error(req, res, `Knowledge Item transition blocked: "${String(req.params.verb)}" is not available from ${knowledgeItem.status}.`);
+    const result = await transitionKnowledgeItem({ knowledgeItemId, targetState: action.toState, actorId });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
       return redirects.seu.seusKnowledgeTransition.error(req, res, `Knowledge Item transition blocked: ${reason}`);
     }
     return redirects.seu.seusKnowledgeTransition.success(req, res, `Knowledge Item moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
   } catch (err) {
-    logger.error("[web/seu/seus] POST /seus/:id/knowledge/:knowledgeItemId/transition error", err as Error);
+    logger.error("[web/seu/seus] POST /seus/:id/knowledge/:knowledgeItemId/transition/:verb error", err as Error);
     return redirects.seu.seusKnowledgeTransition.error(req, res, (err as Error).message);
   }
 });
@@ -584,6 +590,9 @@ router.post("/seus/:id/decisions", async (req: Request, res: Response) => {
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
     return redirects.seu.seusDecisions.error(req, res, "Deliverable, category and title are required.");
   }
+  if (!knowledgeId && !evidenceId) {
+    return redirects.seu.seusDecisions.error(req, res, "Select supporting Knowledge or Evidence, or both.");
+  }
 
   try {
     const decision = await createDecision({
@@ -607,27 +616,23 @@ router.post("/seus/:id/decisions", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/seus/:id/decisions/:decisionId/transition", async (req: Request, res: Response) => {
-  const seuId = String(req.params.id);
-  const { targetState } = req.body ?? {};
-
-  if (typeof targetState !== "string" || !targetState.trim()) {
-    return redirects.seu.seusDecisionsTransition.error(req, res, "Target state is required.");
-  }
-
+router.post("/seus/:id/decisions/:decisionId/transition/:verb", async (req: Request, res: Response) => {
   try {
-    const result = await transitionDecision({
-      decisionId: String(req.params.decisionId),
-      targetState,
-      actorId: requireActorId(req),
-    });
+    const actorId = requireActorId(req);
+    const decisionId = String(req.params.decisionId);
+    const { data: decision } = await decisionsDB.findById(decisionId);
+    if (!decision) return redirects.seu.seusDecisionsTransition.error(req, res, "Decision not found.");
+    const action = (await nextActionsFor("Decision", decision.status, actorId)).find((a) => a.verb === String(req.params.verb));
+    if (!action) return redirects.seu.seusDecisionsTransition.error(req, res, `Decision transition blocked: "${String(req.params.verb)}" is not available from ${decision.status}.`);
+    const { supersedingDecisionId, comment } = req.body ?? {};
+    const result = await transitionDecision({ decisionId, targetState: action.toState, actorId, context: { supersedingDecisionId, comment } });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
       return redirects.seu.seusDecisionsTransition.error(req, res, `Decision transition blocked: ${reason}`);
     }
     return redirects.seu.seusDecisionsTransition.success(req, res, `Decision moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
   } catch (err) {
-    logger.error("[web/seu/seus] POST /seus/:id/decisions/:decisionId/transition error", err as Error);
+    logger.error("[web/seu/seus] POST /seus/:id/decisions/:decisionId/transition/:verb error", err as Error);
     return redirects.seu.seusDecisionsTransition.error(req, res, (err as Error).message);
   }
 });

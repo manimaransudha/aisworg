@@ -1,5 +1,8 @@
-import { RAISE_EBM_RETIRED_ATTENTION_ACTION_CODE, SUPERSEDE_OBJECTIVE_ACTION_CODE, VALIDATE_SEU_REQUEST_ACTION_CODE, UNRAVEL_PROFILE_ACTION_CODE, UNRAVEL_TEMPLATE_ACTION_CODE } from "../dblayer/constants.js";
+import { RAISE_EBM_RETIRED_ATTENTION_ACTION_CODE, SUPERSEDE_OBJECTIVE_ACTION_CODE, SUPERSEDE_DECISION_ACTION_CODE, COMPLETE_REVIEW_ACTION_CODE, CONVERT_FINDING_ACTION_CODE, VALIDATE_SEU_REQUEST_ACTION_CODE, UNRAVEL_PROFILE_ACTION_CODE, UNRAVEL_TEMPLATE_ACTION_CODE } from "../dblayer/constants.js";
 import { raiseEbmRetiredAttention } from "./raiseEbmRetiredAttention.js";
+import { completeReview } from "./completeReview.js";
+import { convertFinding } from "./convertFinding.js";
+import { supersedeDecision } from "./supersedeDecision.js";
 import { supersedeObjective } from "./supersedeObjective.js";
 import { unravelProfile } from "./unravelProfile.js";
 import { unravelTemplate } from "./unravelTemplate.js";
@@ -23,6 +26,9 @@ const ACTION_IMPLEMENTATIONS: Record<string, ActionImplementation> = {
   [UNRAVEL_TEMPLATE_ACTION_CODE]: unravelTemplate,
   [UNRAVEL_PROFILE_ACTION_CODE]: unravelProfile,
   [SUPERSEDE_OBJECTIVE_ACTION_CODE]: supersedeObjective,
+  [SUPERSEDE_DECISION_ACTION_CODE]: supersedeDecision,
+  [COMPLETE_REVIEW_ACTION_CODE]: completeReview,
+  [CONVERT_FINDING_ACTION_CODE]: convertFinding,
   [RAISE_EBM_RETIRED_ATTENTION_ACTION_CODE]: raiseEbmRetiredAttention,
   [VALIDATE_SEU_REQUEST_ACTION_CODE]: validateSeuRequest,
 };

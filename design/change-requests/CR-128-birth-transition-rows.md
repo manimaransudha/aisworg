@@ -2,7 +2,7 @@
 
 **Raised:** 2026-10-19 · **Origin:** Review of `src/routes/seu/api/reviews.ts`, where the creation badge for any of the nouns has no source in the data.
 
-**Status:** 🟡 Raised
+**Status:** ✅ Built 2026-10-23
 
 ## Fix the following
 
@@ -114,7 +114,7 @@ Source: `Events and Lifecycles.md` (chapter numbers as in that catalog). The spe
 | 11 | Service | Active | Deprecated | Yes |
 | 11 | Service | Deprecated | Retired | Yes |
 | 11 | Service | Retired | Archived | Yes |
-| 13 | Participant | None | Created | No (birth) |
+| 13 | Participant | None | Available | No (birth; owner, Entity 19 D1) |
 | 14 | CR-127 proceeds in parallel with this CR. No lifecycle state is assigned as a literal in code. The state written at creation is the `to_state` of the entity's birth row. The state written by a hop is the `to_state` of the resolved transition row. Comparisons against state literals are outside this row. |
 | 13 | Participant | Created | Available | Yes |
 | 13 | Participant | Available | Assigned | Yes |
@@ -126,6 +126,7 @@ Source: `Events and Lifecycles.md` (chapter numbers as in that catalog). The spe
 | 13 | Participant | Available | Released | Yes (not in spec) |
 | 13 | Participant | Assigned | Released | Yes (not in spec) |
 | 13 | Participant | Executing | Released | Yes (not in spec) |
+| 13 | Participant | Assigned | Idle | Yes (not in spec; Entity 19 D2) |
 | 15 | Deliverable | None | Defined | No (birth) |
 | 15 | Deliverable | Defined | Planned | No |
 | 15 | Deliverable | Planned | In Progress | No |
@@ -1448,7 +1449,7 @@ Fixtures to update in the same pass: `tests/testFixtures.ts` (`driveCommissionin
 
 ## Entity 12: Obligation (Chapter 23)
 
-Status: 🔴 Investigated. Decisions D1 to D6 are open. Steps are written after they settle.
+Status: 🟡 Built. Not run. Awaiting the owner's run.
 
 The entity type `Obligation` is a requirement raised against an SEU object. Its table is `obligations` (`status TEXT NOT NULL DEFAULT 'Identified'`, `version`, `revision_history`). `transitionDefinitions.json` holds 15 rows and no birth row: the chain `Identified → Analysed → Assigned → In Progress → Resolved → Verified → Closed → Archived`, `Closed → Reopened → In Progress`, and `Escalated` from every state before `Closed`. Every row has a verb, an event and the version event `VersionCreated`, carries the policy `policy-obligation-transition-baseline`, and has no `trigger` (the seed default is `manual`).
 
@@ -1470,12 +1471,298 @@ The entity type `Obligation` is a requirement raised against an SEU object. Its 
 
 | # | Question | Recommendation |
 |---|---|---|
-| D1 | The birth row: verb, trigger and event. | `None → Identified`, verb `identify` (badge `obligation_identify`), event `ObligationCreated`, no version event (the version column starts at 1). The trigger is open: the engine raises most Obligations, and users raise the rest. |
-| D2 | The creation badge of an engine-raised Obligation. The engine acts as the SEU's system participant, whose badge is `system`. | Open. For Deliverable, commissioning kept the system participant and read only the state from the birth row, without `beginBirth`. |
-| D3 | Hops through `transitionEntity` (finding 5). | An adapter that exposes the row's SEU makes `transitionEntity` call `evaluateGoverned` instead of `evaluate`, so the Quality Gate check and the participant check stay. The other SEU-scoped entities then use the same adapter shape in their own passes. |
-| D4 | The second event (finding 3). | The caller publishes the row's event and then `ObligationTransitioned`, after a successful call. |
-| D5 | The buttons (finding 6). | One button per action from `nextActionsFor("Obligation", state, actor)`, posting to `POST /seus/:id/obligations/:obligationId/transition/:verb`, with a `route_authority` row per verb and a `redirects.ts` entry. The API route keeps its `:target`. |
-| D6 | The schema. | `obligations_schema_recovery.sql` drops `DEFAULT 'Identified'`. `obligationsDB.create` takes the state. |
+| D1 | The birth row: verb, trigger and event. | `None → Identified`, verb `identify` (badge `obligation_identify`), event `ObligationCreated`, no version event (the version column starts at 1). Settled (owner): agreed. The trigger is `governed`. It keeps the row from producing a button and does not block manual creation, because the creation function calls `beginBirth` whatever the trigger is. |
+| D2 | The creation badge of an engine-raised Obligation. | Settled (owner): outside this CR. `resolveAuthor` and the badge resolution already cover it, and ids and badges are not part of CR-128. |
+| D3 | Hops through `transitionEntity` (finding 5). | An adapter that exposes the row's SEU makes `transitionEntity` call `evaluateGoverned` instead of `evaluate`, so the Quality Gate check and the participant check stay. `evaluateGoverned` runs `evaluate` first and adds only those two checks, so nothing `transitionEntity` does today is lost. Settled (owner). The other SEU-scoped entities then use the same adapter shape in their own passes. |
+| D4 | The second event (finding 3). | Settled (owner): `transitionObligation` calls `transitionEntity`, then `publishTransition` for the row's event, then publishes `ObligationTransitioned` as its last statement, as Deliverable does. A failed state change publishes nothing. |
+| D5 | The buttons (finding 6). | One button per action from `nextActionsFor("Obligation", state, actor)`, posting to `POST /seus/:id/obligations/:obligationId/transition/:verb`, with a `route_authority` row per verb and a `redirects.ts` entry. Settled (owner): the API route `POST /api/seu/obligations/:id/transition` has no caller and is commented out, with its `route_authority` row. |
+| D6 | The schema. | `obligations_schema_recovery.sql` drops `DEFAULT 'Identified'`. `obligationsDB.create` takes the state, which comes from `beginBirth`. Settled (owner). The owner receives an ALTER for the live table. |
+
+### Step 1: the data
+
+| # | Change |
+|---|---|
+| 1 | `transitionDefinitions.json`: birth row `None → Identified`, verb `identify`, trigger `governed`, event `ObligationCreated`, no version event, policy `policy-obligation-transition-baseline` as the other rows. The 15 existing rows keep their verbs, events, version events and policy. Their trigger is the seed default `manual`, so `nextActionsFor` offers them. |
+| 2 | `routeAuthority.json`: remove the row `POST /aisworg/seu/seus/:id/obligations/:obligationId/transition`. Add one row `POST /aisworg/seu/seus/:id/obligations/:obligationId/transition/:verb` for each of the nine verbs `analyse`, `assign`, `start`, `resolve`, `verify`, `close`, `archive`, `reopen` and `escalate`, with the badge `obligation_<verb>` (D5). `start` is shared by `Assigned → In Progress` and `Reopened → In Progress`, and `escalate` by six rows, so each is one route row. The row `POST /aisworg/api/seu/obligations/:id/transition` is removed with its route (D5). |
+| 3 | `eventSubscriptions.json`: the row events of Obligation have no entries, so `ObligationCreated` gets none. Rewrite the description of `ObligationTransitioned` so that it names `transitionObligation` as the publisher after the row's event. Both subscribers stay. |
+| 4 | All ten verbs are already in `authorityVocabulary.json`. |
+
+### Step 2: the schema
+
+| # | Change |
+|---|---|
+| 1 | `obligations_schema_recovery.sql`: `status TEXT NOT NULL` with no default. |
+| 2 | The ALTER for the live table: `ALTER TABLE obligations ALTER COLUMN status DROP DEFAULT;`. No data changes, because no state is renamed. |
+| 3 | `constants.ts`: `OBLIGATION_IDENTIFIED_STATE` is added only if code needs to name the state after the change. The creation reads the state from the birth row, so none is expected. |
+
+### Step 3: the database function and the adapter
+
+| # | Change |
+|---|---|
+| 1 | `obligationsDB.create` takes a required `status` and writes it in the INSERT. |
+| 2 | `entityAdapters.ts`: `obligationAdapter` (`findById` through `obligationsDB`, `getState` is `status`, `setState` calls `updateStatus`, which keeps adding 1 to `version`, `tenantId` returns `null`). The author and badge stay as the birth set them, as for the SEU adapter. It is registered under `Obligation`. |
+| 3 | `EntityAdapter` gets an optional member `seuId(row)`. When it is present, `transitionEntity` calls `transitionEngine.evaluateGoverned` with `gateEntityId` the entity id and `gateSeuId` that SEU, and passes `seuId` to the event. When it is absent, `evaluate` is called as today (D3). The result of a refused Quality Gate goes through `gateRejection` unchanged. `obligationAdapter.seuId` returns `seu_id`. |
+
+### Step 4: creation
+
+| # | Change |
+|---|---|
+| 1 | `createObligation` reads the birth row with `transitionDefinitionsDB.findBirth` (built so, after the first text said `beginBirth`: `beginBirth` evaluates the actor's `obligation_identify` badge and refuses the SEU's system participant, which raises five of the ten callers' Obligations, as for Deliverable). It passes the row's `to_state` to `obligationsDB.create`. The `authorBadge` input stays as the caller gives it (D2). The literal `"ObligationCreated"` is replaced by `birth.eventType`, published as the last statement. |
+| 2 | The ten callers do not change. The signature of `createObligation` does not change. |
+
+### Step 5: the hop
+
+| # | Change |
+|---|---|
+| 1 | `transitionObligation` keeps its signature `{ obligationId, targetState, actorId }` and its result type. It calls `transitionEntity` (`entityType: "Obligation"`, `seuId` of the row), turns a refusal into the existing result (`gateRejection` already does), calls `publishTransition(result)` and then publishes `ObligationTransitioned` with the same `correlationId`, as its last statement (D4). `obligationsDB.updateStatus` is called only by the adapter. The direct `evaluateGoverned` call and the literal event publish are deleted from the function. |
+| 2 | `listObligationsWithNextStates` returns `actions` from `nextActionsFor("Obligation", status, actorId)` instead of `possibleNextStates` from `findPossibleNextStates`. It takes the actor id. `SeuDetailObligation` and `core/seus.ts` carry `actions`. |
+| 3 | The web route `POST /seus/:id/obligations/:obligationId/transition` becomes `.../transition/:verb`. It looks up the action for the verb in `nextActionsFor` for the current state and calls `transitionObligation` with its `toState`. It has no `targetState` body field. A verb with no action for the state is refused. |
+| 4 | `redirects.ts`: `seusObligationsTransition` prefix gets `/transition`, which already matches the verb by longest prefix. No change is expected. |
+| 5 | `detail.ejs`: the select and the single-state form are replaced by one button per action, label the verb, posting to `.../transition/<verb>`. |
+| 6 | `api/obligations.ts`: the route `POST /obligations/:id/transition` is commented out (D5). |
+
+### Step 6: callers that keep working
+
+| # | Caller | Change |
+|---|---|---|
+| 1 | `dispatchEngine`, `redispatch`, `deliverableKickoff`, `raiseObligationForBlockedTransition`, `raiseObligationsForPackDefinitions` | None. They call `createObligation`, which now begins the birth. |
+| 2 | `knowledge.ts`, `findings.ts`, `participantHome.ts`, `telemetry.ts`, `POST /api/seu/obligations`, `demoSimulator.ts` | None. |
+| 3 | `reviseObligation` | None (finding 8). |
+| 4 | `executionEngineKickoff`, `deliverableKickoff` as subscribers of `ObligationTransitioned` | None. |
+
+### Obligation tests
+
+| # | Test | Asserts |
+|---|---|---|
+| 1 | `obligation-event-lifecycle-table.test.ts` definition test | Update: 16 rows, the birth row `None → Identified` with verb `identify`, trigger `governed`, event `ObligationCreated` and no version event. The check that every row has `VersionCreated` skips the birth row. |
+| 2 | Creation | `createObligation` writes the state `Identified` from the birth row, publishes `ObligationCreated` last, and the row has the author badge the caller gave. A missing birth row throws. |
+| 3 | Hop | `transitionObligation` publishes the row's event and then `ObligationTransitioned` with one `correlationId`. A refused hop writes no state and publishes nothing. |
+| 4 | Governed checks | A hop by an actor with no `participants` row in the SEU is refused. A hop blocked by a Quality Gate is refused with `quality_gate_blocked`. Both go through `transitionEntity`. |
+| 5 | Buttons | `nextActionsFor("Obligation", "Closed", actor)` offers `archive` and `reopen` and no action for the `Identified` birth row. A web post to `.../transition/escalate` from `Closed` is refused because `Closed` has no `Escalated` row. |
+| 6 | Guard | A search of `src` finds no `updateStatus` call outside the adapter and no literal `"ObligationCreated"`. |
+
+Fixtures: `createObligationAsRoot` passes through `createObligation`, so it needs no change. `web-flow.e2e.test.ts` posts `{ targetState }` to the old route at line 673 and changes to the verb route. The tests that call `transitionObligation` (`governance-depth`, `telemetry`, `cr107`, `cr108`, `quality-gate-generalization`, `quality-telemetry`, `compliance-model`, `attention-and-interaction`, `transition-definition-authoring`, `testFixtures.ts`) keep the signature and need no change.
+
+### Build progress (Obligation)
+
+| # | Piece | State |
+|---|---|---|
+| 1 | Rows, routes, events (Step 1) | Built ✅ |
+| 2 | Schema (Step 2) | Built ✅ |
+| 3 | `obligationsDB.create`, `obligationAdapter`, governed evaluation in `transitionEntity` (Step 3) | Built ✅ |
+| 4 | `createObligation` births (Step 4) | Built ✅ |
+| 5 | `transitionObligation`, actions, verb route, buttons (Step 5) | Built ✅ |
+| 6 | Tests (Obligation tests) | Built. Not run. The Quality Gate refusal (plan test 4) is in `quality-gate-generalization.test.ts`, on a fabricated hop `Identified → qg-ob-to-<uuid>` whose row is deleted afterwards. The participant check is in `obligation-event-lifecycle-table.test.ts`. |
+| 7 | `23_Obligation_Model_Traceability.md` updated | Built ✅ |
+
+## Entity 13: Evidence (Chapter 17)
+
+Status: 🟡 Built. Not run.
+
+The entity type `Evidence` is a recorded artefact that supports a claim about an SEU object. Its table is `evidence` (`status TEXT NOT NULL DEFAULT 'Collected'`, no `seu_id`, no `version`). The SEU and the related object are held in `evidence_relationships`. `transitionDefinitions.json` holds six rows and no birth row: `Collected → Validated → Accepted → Referenced → Archived`, and `Rejected` from `Collected` and from `Validated`. Every row carries a verb, an event and the policy `policy-evidence-transition-baseline`. Only `Collected → Validated` carries a version event (`VersionCreated`). Every row has the seed default trigger `manual`.
+
+### Findings
+
+| # | Finding |
+|---|---|
+| 1 | `createEvidence` (`core/evidence.ts`) is the only creator. `evidenceDB.create` leaves the state to the column default `'Collected'`, inserts the row and its `SEU` relationship (and the related-object relationship) in one transaction, then the function publishes the literal `EvidenceCollected`. The callers are the web route `POST /seus/:id/evidence`, the API route `POST /api/seu/evidence` and the tests. |
+| 2 | `createEvidence` publishes a second event, `EvidenceSuperseded`, when `supersedesEvidenceId` is given. `linkEvidenceToObject` publishes `EvidenceLinked`. Neither is a state change of a row. |
+| 3 | `transitionEvidence` is one more copy of the old transition steps. It finds the SEU from the `SEU` row of `evidence_relationships` (it throws when there is none), calls `evaluateGoverned`, writes the state with `evidenceDB.updateStatus`, and publishes the row's event with `?? "EvidenceTransitioned"` as the fallback. It publishes no version event. |
+| 4 | Evidence has no tenant column. A version event needs a tenant (Obligation, Step 3: the SEU's tenant). Publishing the row's event through `publishTransition` now publishes `VersionCreated` for `Collected → Validated`, which the old function never did. |
+| 5 | `recordValidationAssessment` appends to `validation_dimensions` and sets `confidence_level`. It writes no state and publishes no event. It is not a transition and stays. |
+| 6 | The buttons: `listEvidenceWithNextStates` reads `findPossibleNextStates`, not `nextActionsFor`. The detail page posts `targetState` to `POST /seus/:id/evidence/:evidenceId/transition`. The API route `POST /api/seu/evidence/:id/transition` does the same. Nothing outside the route files calls the API routes. |
+| 7 | The verb `collect` is not in `authorityVocabulary.json`. The other verbs of the rows (`validate`, `accept`, `reference`, `archive`, `reject`) are. |
+| 8 | `EntityAdapter.seuId(row)` (Obligation, Step 3) returns a string. Evidence finds its SEU through a query, so the member must be able to return a promise. |
+
+### Decisions
+
+| # | Question | Recommendation |
+|---|---|---|
+| D1 | The birth row: verb, trigger and event. | `None → Collected`, verb `collect` (new in the vocabulary; badge `evidence_collect`), trigger `governed`, event `EvidenceCollected`, no version event, policy `policy-evidence-transition-baseline` as the other rows. Settled (owner). |
+| D2 | The creation badge. | As Obligation D2: outside this CR. `createEvidence` reads the birth row with `findBirth` for the state and the event, and keeps the `authorBadge` its caller gives. Settled (owner). |
+| D3 | The SEU of a hop (finding 8). | `EntityAdapter.seuId` may return a promise and `transitionEntity` awaits it. The Evidence adapter returns the `SEU` relationship's id and throws when there is none, as today. The adapter's `tenantId` is the SEU's tenant. Settled (owner). |
+| D4 | The version event (finding 4) and the generic event. | `Collected → Validated` keeps `VersionCreated`, because the row names it, and it is now published with the SEU's tenant. Settled (owner, with the whole decision): `EvidenceTransitioned` is published for every transition. `transitionEvidence` calls `transitionEntity`, then `publishTransition` for the row's event, then publishes `EvidenceTransitioned` as its last statement with the same `correlationId`, as `transitionObligation` does. It is no longer a fallback for a row with no event, because every row names one. |
+| D5 | `EvidenceSuperseded` and `EvidenceLinked` (finding 2). | Unchanged. They are not hops of the Evidence row. `EvidenceSuperseded` is published after `EvidenceCollected` and is then the last statement. Settled (owner). |
+| D6 | The buttons (finding 6). | One button per action from `nextActionsFor("Evidence", state, actor)`, posting to `POST /seus/:id/evidence/:evidenceId/transition/:verb`, with a `route_authority` row per verb (`validate`, `accept`, `reference`, `archive`, `reject`) and a `redirects.ts` entry. The API route `POST /api/seu/evidence/:id/transition` has no caller and is commented out with its `route_authority` row, as for Obligation. Settled (owner). |
+| D7 | The schema. | `evidence_schema_recovery.sql` drops `DEFAULT 'Collected'`. `evidenceDB.create` takes the state. The owner receives an ALTER for the live table. Settled (owner). |
+
+### Step 1: the data
+
+| # | Change |
+|---|---|
+| 1 | `transitionDefinitions.json`: birth row `None → Collected`, verb `collect`, trigger `governed`, event `EvidenceCollected`, no version event, policy `policy-evidence-transition-baseline`. The six existing rows keep their verbs, events, version event and policy, and the trigger `manual`. |
+| 2 | `authorityVocabulary.json`: add the verb `collect`. |
+| 3 | `routeAuthority.json`: remove the row `POST /aisworg/seu/seus/:id/evidence/:evidenceId/transition`. Add one row `POST /aisworg/seu/seus/:id/evidence/:evidenceId/transition/<verb>` for each of `validate`, `accept`, `reference`, `archive` and `reject`, with the badge `evidence_<verb>`. Remove the row `POST /aisworg/api/seu/evidence/:id/transition` (D6). |
+| 4 | `eventSubscriptions.json`: add `EvidenceTransitioned` with a description (published by `transitionEvidence` for every hop, after the row's event, no subscriber). The row events have no entries, as for Obligation. |
+
+### Step 2: the schema
+
+| # | Change |
+|---|---|
+| 1 | `evidence_schema_recovery.sql`: the base `CREATE TABLE` has `status TEXT NOT NULL` with no default. |
+| 2 | The ALTER for the live table: `ALTER TABLE evidence ALTER COLUMN status DROP DEFAULT;`. No data changes. |
+
+### Step 3: the database function and the adapter
+
+| # | Change |
+|---|---|
+| 1 | `evidenceDB.create` takes a required `status` and writes it in the INSERT. |
+| 2 | `EntityAdapter.seuId` and `tenantId` may return a promise (D3). `transitionEntity` awaits `seuId`. |
+| 3 | `entityAdapters.ts`: `evidenceAdapter` (`findById` through `evidenceDB`, `getState` is `status`, `setState` calls `updateStatus`, `seuId` returns the `SEU` relationship's id and throws when there is none, `tenantId` is that SEU's tenant). It is registered under `Evidence`. |
+
+### Step 4: creation
+
+| # | Change |
+|---|---|
+| 1 | `createEvidence` reads the birth row with `findBirth`, passes its `to_state` to `evidenceDB.create` and publishes its `event_type` instead of the literal `"EvidenceCollected"`. The `authorBadge` input stays as the caller gives it (D2). |
+| 2 | `EvidenceSuperseded` stays after it and is then the last statement (D5). |
+
+### Step 5: the hop
+
+| # | Change |
+|---|---|
+| 1 | `transitionEvidence` keeps its signature and result type. It calls `transitionEntity`, turns a refusal into the existing result, calls `publishTransition(result)` and then publishes `EvidenceTransitioned` with the same `correlationId` as its last statement (D4). The direct `evaluateGoverned` call, the relationship lookup, `updateStatus` and the fallback event name are deleted from the function. |
+| 2 | `listEvidenceWithNextStates` is deleted. The SEU detail view drops `possibleNextStates` from `SeuDetailEvidence`, and the web route supplies `evidenceActions` per Evidence id from `nextActionsFor("Evidence", status, actor)`, as for Obligation. |
+| 3 | The web route `POST /seus/:id/evidence/:evidenceId/transition` becomes `.../transition/:verb`. It looks up the action for the verb in `nextActionsFor` for the current state and calls `transitionEvidence` with its `toState`. A verb with no action for the state is refused. |
+| 4 | `detail.ejs`: the select and the single-state form are replaced by one button per action. |
+| 5 | `api/evidence.ts`: the route `POST /evidence/:id/transition` is commented out (D6). |
+
+### Step 6: callers that keep working
+
+| # | Caller | Change |
+|---|---|---|
+| 1 | Web `POST /seus/:id/evidence`, API `POST /evidence`, the tests through `createEvidenceAsRoot` | None. They call `createEvidence`. |
+| 2 | `recordValidationAssessment`, `linkEvidenceToObject` | None (finding 5, D5). |
+| 3 | The tests that call `transitionEvidence` | None. The signature is unchanged. |
+
+### Evidence tests
+
+| # | Test | Asserts |
+|---|---|---|
+| 1 | Definition | The birth row `None → Collected`: verb `collect`, trigger `governed`, event `EvidenceCollected`, no version event. Seven rows in all, and `Collected → Validated` is the only row with `VersionCreated`. |
+| 2 | Creation | `createEvidence` writes `Collected` from the birth row and publishes `EvidenceCollected`. With a predecessor, `EvidenceSuperseded` follows it. No `identify`-style button: `nextActionsFor("Evidence", "Collected", actor)` offers `validate` and `reject` only. |
+| 3 | Hop | `transitionEvidence` publishes the row's event and then `EvidenceTransitioned` with one `correlationId`, once per hop. `Collected → Validated` writes a version event with the SEU's tenant. A refused hop (`Collected → Archived`) writes nothing and publishes nothing. |
+| 4 | Governed checks | A hop by an actor with no participant row in the SEU is refused. |
+| 5 | Guard | Only the Evidence adapter calls `evidenceDB.updateStatus`, and no `.ts` file under `src` names `"EvidenceCollected"` as a literal. |
+
+Fixtures and tests to update: `trust-pipeline.test.ts` line 415 (`Evidence transitions publish the correct named event`) asserts that `EvidenceTransitioned` does not fire, and changes to expect it once per hop. The new tests go in `tests/evidence-event-lifecycle-table.test.ts`, with the SEU fixture of `obligation-event-lifecycle-table.test.ts`.
+
+### Build progress (Evidence)
+
+| # | Piece | State |
+|---|---|---|
+| 1 | Rows, vocabulary, routes, events (Step 1) | Built ✅ |
+| 2 | Schema (Step 2) | Built ✅ |
+| 3 | `evidenceDB.create`, async `seuId` and `tenantId`, `evidenceAdapter` (Step 3) | Built ✅ |
+| 4 | `createEvidence` births (Step 4) | Built ✅ |
+| 5 | `transitionEvidence`, actions, verb route, buttons (Step 5) | Built ✅ |
+| 6 | Tests | Built. Not run. `tests/evidence-event-lifecycle-table.test.ts` is new and `trust-pipeline.test.ts` expects `EvidenceTransitioned` once per hop. |
+| 7 | `17_Evidence_Model_Traceability.md` updated | Built ✅ |
+
+## Entity 14: AttentionItem (Chapter 34)
+
+Status: 🟡 Built. Not run.
+
+The entity type `AttentionItem` is a record that a human or an AI must look at something in an SEU. Its table is `attention_items` (`status TEXT NOT NULL DEFAULT 'Created'`, `seu_id`, no `version`). `transitionDefinitions.json` holds five rows and no birth row: `Created → Delivered → Acknowledged → In Progress → Resolved → Closed`. Every row has a verb and the policy `policy-attentionitem-transition-baseline`. No row has an event or a version event, and every row has the seed default trigger `manual`. Chapter 34 section 3 names the events `AttentionCreated`, `AttentionDelivered`, `AttentionAcknowledged`, `AttentionEscalated`, `AttentionResolved` and `AttentionClosed`.
+
+### Findings
+
+| # | Finding |
+|---|---|
+| 1 | `createAttentionItem` (`core/attentionItems.ts`) is the only writer. `attentionItemsDB.create` leaves the state to the column default `'Created'`. The function then publishes the literal `AttentionCreated`. `raiseAttentionItem` calls it after a de-duplication lookup. |
+| 2 | Callers of `raiseAttentionItem`: `redispatch`, `dispatchEngine`, `executionEngine`, `deliverableKickoff`, `workItems`, `capabilityRetrySweep`, `workItemHeartbeat`, `telemetry`, `externalInteractions`, `findings`, `obligations` (twice) and the action code `raiseEbmRetiredAttention`. All raise as the SEU's system participant or as the actor of the trigger. The web form `POST /seus/:id/attention-items` calls `createAttentionItem` directly. |
+| 3 | `transitionAttentionItem` is one more copy of the old transition steps. It calls `evaluateGoverned`, writes the state with `attentionItemsDB.updateStatus` and publishes `gate.eventType ?? "AttentionItemTransitioned"`. No row names an event, so the generic event is the only event of every hop. |
+| 4 | `AttentionItemTransitioned` has two subscribers, `executionEngineKickoff` and `deliverableKickoff`. They retry a blocked SEU or Deliverable when the item resolves. Their effect lands on other entity types, so both stay. |
+| 5 | The buttons: `listAttentionItemsWithNextStates` reads `findPossibleNextStates`, not `nextActionsFor`. Two pages post `targetState`: the SEU detail page to `POST /seus/:id/attention-items/:attentionItemId/transition` and the platform inbox to `POST /attention/:id/transition`. The API route `POST /api/seu/attention-items/:id/transition` does the same. |
+| 6 | `attentionItemsDB.updateStatus` is also called directly by two tests (`quality-gate-generalization`, `sustained-pattern-generalization`) to place an item in a state. That stays a test set-up call. |
+| 7 | `EntityAdapter.seuId` (Obligation Step 3) fits: the item has `seu_id`. The tenant is the SEU's, as for Obligation. |
+| 8 | Chapter 34 lists `AttentionEscalated` and has no `Escalated` state or row. There is no event for `Acknowledged → In Progress`. |
+
+### Decisions
+
+| # | Question | Recommendation |
+|---|---|---|
+| D1 | The birth row: verb, trigger and event. | `None → Created`, verb `raise` (new in the vocabulary; badge `attentionitem_raise`), trigger `governed`, event `AttentionCreated`, no version event, policy `policy-attentionitem-transition-baseline`. Settled (owner). |
+| D2 | The creation badge. | As Obligation D2: outside this CR. `createAttentionItem` reads the birth row with `findBirth` for the state and the event, and keeps the `authorBadge` its caller gives. Settled (owner). |
+| D3 | The row events (findings 3 and 8). | The five rows take the Chapter 34 names: `AttentionDelivered`, `AttentionAcknowledged`, `AttentionResolved`, `AttentionClosed`. `Acknowledged → In Progress` has no name in the chapter. I propose `AttentionStarted` (my name, from the verb `start`). `AttentionEscalated` has no row and is left out. Settled (owner). |
+| D4 | The generic event (finding 3). | `transitionAttentionItem` calls `transitionEntity`, then `publishTransition` for the row's event, then publishes `AttentionItemTransitioned` as its last statement with the same `correlationId`, for every transition, as `transitionObligation` and `transitionEvidence` do. Settled (owner). |
+| D5 | Version events. | None. The rows carry none today, the item has no version column and the chapter names none. Settled (owner). |
+| D6 | The buttons (finding 5). | One button per action from `nextActionsFor("AttentionItem", state, actor)` on both pages, posting to `POST /seus/:id/attention-items/:attentionItemId/transition/:verb` and `POST /attention/:id/transition/:verb`, with a `route_authority` row per verb (`deliver`, `acknowledge`, `start`, `resolve`, `close`; badge `attentionitem_<verb>`) and `redirects.ts` entries. The API route `POST /api/seu/attention-items/:id/transition` has no caller and is commented out with its `route_authority` row. Settled (owner). |
+| D7 | The schema. | `attention_items_schema_recovery.sql` drops `DEFAULT 'Created'`. `attentionItemsDB.create` takes the state. The owner receives an ALTER for the live table. Settled (owner). |
+
+### Step 1: the data
+
+| # | Change |
+|---|---|
+| 1 | `transitionDefinitions.json`: birth row `None → Created`, verb `raise`, trigger `governed`, event `AttentionCreated`, no version event, policy `policy-attentionitem-transition-baseline`. The five existing rows keep their verbs, policy and the trigger `manual`, and take the events `AttentionDelivered`, `AttentionAcknowledged`, `AttentionStarted`, `AttentionResolved` and `AttentionClosed` (D3). No version events (D5). |
+| 2 | `authorityVocabulary.json`: add the verb `raise`. |
+| 3 | `routeAuthority.json`: remove the rows `POST /aisworg/seu/seus/:id/attention-items/:attentionItemId/transition` and `POST /aisworg/seu/attention/:id/transition`. Add for each of `deliver`, `acknowledge`, `start`, `resolve` and `close` one row `POST /aisworg/seu/seus/:id/attention-items/:attentionItemId/transition/<verb>` (roles as the removed row) and one row `POST /aisworg/seu/attention/:id/transition/<verb>` (roles `participant`, as the removed row), each with the badge `attentionitem_<verb>`. Remove the row `POST /aisworg/api/seu/attention-items/:id/transition` (D6). |
+| 4 | `eventSubscriptions.json`: add the five new events with descriptions (the row events of the other entities have none, so this is optional and is skipped). Rewrite the description of `AttentionItemTransitioned` so that it names `transitionAttentionItem` as the publisher after the row's event. Both subscribers stay. |
+
+### Step 2: the schema
+
+| # | Change |
+|---|---|
+| 1 | `attention_items_schema_recovery.sql`: `status TEXT NOT NULL` with no default. |
+| 2 | The ALTER for the live table: `ALTER TABLE attention_items ALTER COLUMN status DROP DEFAULT;`. No data changes. |
+
+### Step 3: the database function and the adapter
+
+| # | Change |
+|---|---|
+| 1 | `attentionItemsDB.create` takes a required `status` and writes it in the INSERT. |
+| 2 | `entityAdapters.ts`: `attentionItemAdapter` (`findById` through `attentionItemsDB`, `getState` is `status`, `setState` calls `updateStatus`, `seuId` returns `seu_id`, `tenantId` is the SEU's tenant). It is registered under `AttentionItem`. |
+
+### Step 4: creation
+
+| # | Change |
+|---|---|
+| 1 | `createAttentionItem` reads the birth row with `findBirth`, passes its `to_state` to `attentionItemsDB.create` and publishes its `event_type` instead of the literal `"AttentionCreated"` as its last statement. The `authorBadge` input stays as the caller gives it (D2). |
+| 2 | `raiseAttentionItem` and its fifteen callers do not change. |
+
+### Step 5: the hop
+
+| # | Change |
+|---|---|
+| 1 | `transitionAttentionItem` keeps its signature and result type. It calls `transitionEntity`, turns a refusal into the existing result, calls `publishTransition(result)` and then publishes `AttentionItemTransitioned` with the same `correlationId` as its last statement (D4). The direct `evaluateGoverned` call, `updateStatus` and the fallback event name are deleted from the function. |
+| 2 | `listAttentionItemsWithNextStates` is deleted. `SeuDetailAttentionItem` drops `possibleNextStates`. The two web routes that render attention items supply `attentionActions` per item id from `nextActionsFor("AttentionItem", status, actor)`: `GET /seus/:id` and `GET /attention`. |
+| 3 | The web routes `POST /seus/:id/attention-items/:attentionItemId/transition` and `POST /attention/:id/transition` become `.../transition/:verb`. Each looks up the action for the verb in `nextActionsFor` for the current state and calls `transitionAttentionItem` with its `toState`. A verb with no action for the state is refused. |
+| 4 | `detail.ejs` and `attention/index.ejs`: the select and the single-state form are replaced by one button per action. |
+| 5 | `redirects.ts`: the prefixes already match the verb by longest prefix, so no change is expected. |
+| 6 | `api/attentionItems.ts`: the route `POST /attention-items/:id/transition` is commented out (D6). |
+
+### Step 6: callers that keep working
+
+| # | Caller | Change |
+|---|---|---|
+| 1 | The engine and system callers of `raiseAttentionItem`, the action code `raiseEbmRetiredAttention`, the web form `POST /seus/:id/attention-items` | None. They call `createAttentionItem`. |
+| 2 | `demoSimulator.ts`, `testFixtures.ts` and the tests that call `transitionAttentionItem` | None. The signature is unchanged. |
+| 3 | `executionEngineKickoff`, `deliverableKickoff` as subscribers of `AttentionItemTransitioned` | None. |
+| 4 | The two tests that call `attentionItemsDB.updateStatus` to place an item (finding 6) | None. |
+
+### AttentionItem tests
+
+| # | Test | Asserts |
+|---|---|---|
+| 1 | Definition | The birth row `None → Created`: verb `raise`, trigger `governed`, event `AttentionCreated`, no version event. The five hop rows carry the events of D3 and no version event. Six rows in all. |
+| 2 | Creation | `createAttentionItem` writes `Created` from the birth row and publishes `AttentionCreated` last. `nextActionsFor("AttentionItem", "Created", actor)` offers `deliver` only. |
+| 3 | Hop | `transitionAttentionItem` publishes the row's event and then `AttentionItemTransitioned` with one `correlationId`, once per hop, through all five hops. A refused hop (`Created → Resolved`) writes nothing and publishes nothing. |
+| 4 | Governed checks | A hop by an actor with no participant row in the SEU is refused. |
+| 5 | Guard | Only the AttentionItem adapter calls `attentionItemsDB.updateStatus` in `src`, and no `.ts` file under `src` names `"AttentionCreated"` as a literal. |
+
+Fixtures and tests to update: `attention-and-interaction.test.ts`, `cr108-obligation-model-seu-execution.test.ts` and `quality-gate-generalization.test.ts` call `transitionAttentionItem` and need no change. `quality-gate-generalization.test.ts` and `sustained-pattern-generalization.test.ts` call `attentionItemsDB.updateStatus` for set-up and need no change. Any test that asserts the absence of a row event or counts `AttentionItemTransitioned` is searched for and fixed in the build pass. The new tests go in `tests/attention-event-lifecycle-table.test.ts`, with the SEU fixture of `evidence-event-lifecycle-table.test.ts`.
+
+### Build progress (AttentionItem)
+
+| # | Piece | State |
+|---|---|---|
+| 1 | Rows, vocabulary, routes, events (Step 1) | Built ✅ |
+| 2 | Schema (Step 2) | Built ✅ |
+| 3 | `attentionItemsDB.create`, `attentionItemAdapter` (Step 3) | Built ✅ |
+| 4 | `createAttentionItem` births (Step 4) | Built ✅ |
+| 5 | `transitionAttentionItem`, actions, verb routes, buttons (Step 5) | Built ✅ |
+| 6 | Tests | Built. Not run. `tests/attention-event-lifecycle-table.test.ts` is new and `web-flow.e2e.test.ts` uses the verb route. |
+| 7 | `34_Attention_Management_Traceability.md` updated | Built ✅ |
 
 ## SDK authoring: how transitions work today
 
@@ -1602,10 +1889,38 @@ Status: 🟡 Built, not run. `transitionEntity` returns `event`; `publishTransit
 | 9 | `createSchemaVersion` uses `beginBirth` and publishes the birth event | Built.✅ The automatic hops still run from the old fixed list until row 11. |
 | 10 | `transitionEntity`, `entityAdapters.ts` and `nextActionsFor` | Built,✅ in `src/domain/engine/entityTransition.ts` and `entityAdapters.ts`. The event payload carries only the from-state and the to-state. |
 | 11 | Automatic hops use `transitionEntity` | Built.✅ `autoAdvanceToPackaged` is renamed `autoAdvanceGoverned`, because it follows the governed rows and not a fixed target. It throws if a state has more than one governed next transition. |
-| 12 | New transition route, detail page buttons | Built. The route has a `route_authority` row, a `redirects.ts` entry and a controller. It needs no ViewModel or view of its own, because it only redirects. The detail page ViewModel gains `actions`. The old `/publish` and `/reject` routes stay until the final cleanup. 🟡 Cleanup pending|
+| 12 | New transition route, detail page buttons | Built. The route has a `route_authority` row, a `redirects.ts` entry and a controller. It needs no ViewModel or view of its own, because it only redirects. The detail page ViewModel gains `actions`. The old `/publish` and `/reject` routes were removed in the cleanup below. ✅|
 | 13 | Tests | Built. Eight tests changed and five added in `schema-definition-event-lifecycle-table.test.ts`, and one added in `schema-registry.test.ts`. The case "createSchemaVersion throws when the birth row is missing" is tested on `beginBirth` with an entity type that has no birth row, because removing the real birth row would break the other tests. Run by the owner, clean. |
 | 14 | `seedTransitionDefinitions.ts` reports a row with no `eventType` as a problem and throws. Done last, once the 62 rows without an `eventType` are given one. | Not built |
 | 15 | The TransitionDefinition UI gets an event field and refuses a row without one. Done last, after all entities have moved to the generic function. | Not built |
+
+## SDK cleanup and transition definition cache (2026-10-23)
+
+Built, not yet verified. `tsc` and the tests were not run for this pass.
+
+### SDK authoring cleanup
+
+| # | Change | Where |
+|---|---|---|
+| 1 | The per-kind chain of `if (kind === ...)` in the transition route is replaced by one `transitionEntity` call with `entityTypeForKind(kind)`, followed by `publishTransition`. `TransitionDefinition` still falls through to its own route. | `web/sdkAuthoring.ts` |
+| 2 | `renderAuthoringForm` reads the initial state from the birth row. The `"Draft"` fallbacks for `isDraft`, the next hop and the advance badges are removed. | `web/sdkAuthoring.ts` |
+| 3 | Dead code removed: `loadProducingCapabilityPacks`, `latestSchemaFor`, unused imports, the `producingCapabilityPacks` view-model field, the `requireAuthoring` kind branches, and the `export` on five option types. | `web/sdkAuthoring.ts`, `core/templates.ts` |
+| 4 | The `canWrite` checks on the authority pages are removed, because every `/authority/*` route already requires `transitiondefinition_define`. | `web/sdkAuthoring.ts`, `views/seu/sdk/authority/` |
+| 5 | The old SchemaDefinition `/sdk/schema-registry/:id/publish` and `/:id/reject` routes are removed with `publishSchemaVersion`, `rejectSchemaVersion`, `transitionPackagedSchema`, their two redirects and their two `route_authority` rows. The user manual section 9 is updated. | `web/schemaRegistry.ts`, `core/schemaRegistry.ts`, `redirects.ts`, `routeAuthority.json` |
+| 6 | The Capability and Service Definition seeds follow `transition_definitions` from the birth row until the new `CAPABILITY_ACTIVE_STATE` or `SERVICE_ACTIVE_STATE`. The Service walk skips the Validated to Defined back edge. | `seedCapabilityDefinitions.ts`, `seedServiceDefinitions.ts`, `constants.ts` |
+| 7 | The thirteen lifecycle status unions in `seuTypes.ts` are widened to `string`, because the state now comes from `transition_definitions`. | `seuTypes.ts` |
+
+### Transition definition cache
+
+| # | Change | Where |
+|---|---|---|
+| 1 | `loadTransitionDefinitionsCache()` reads the whole table once into maps keyed by `(entity_type, from_state, to_state)` and by `(entity_type, from_state)`. | `transitionDefinitionsDB.ts` |
+| 2 | `find`, `findBirth`, `findPossibleNextStates` and `findPossibleNextTransitions` answer from the cache. They query the database when the cache was never loaded, as in seed and test processes. | `transitionDefinitionsDB.ts` |
+| 3 | `replaceAll`, `upsert`, `insertDefinition`, `retireById`, `updateMetadata` and `updateTriggerForVerb` reload the cache after a successful write through `reloadIfLoaded()`. | `transitionDefinitionsDB.ts`, `authorityVocabularyDB.ts` |
+| 4 | The cache is loaded at app start, after `loadRouteAuthorityCache()`. | `app.ts` |
+| 5 | `POST /authority/transition-definitions/refresh-cache` and a "Reload cache" button on the Transition Definitions tab reload the cache after the table changes outside the app. The route has a `route_authority` row requiring `transitiondefinition_define`. | `web/sdkAuthoring.ts`, `views/seu/sdk/authoring/index.ejs`, `routeAuthority.json` |
+
+`listAll` and `findDetailById` stay on the database, because they join `authority_rules` and the policy tables.
 
 ## Open questions
 
@@ -1613,3 +1928,104 @@ Status: 🟡 Built, not run. `transitionEntity` returns `event`; `publishTransit
 |---|---|
 | 1 | Finding has the states `Open`, `Resolved` and `Waived`. The convert row needs a target state that the `(entity_type, from_state, to_state)` key keeps distinct from `Resolved`. Is `Converted` added as a new Finding state in the Ontology? |
 | 2 | Three `authoringMappings` pairs have no entity in `transitionDefinitions.json`: `TransitionDefinition define`, `TransitionDefinition publish` and `QualityGate waive`. Which states and transitions do TransitionDefinition and QualityGate receive so that these pairs derive from rows? |
+
+## Entity 19: Participant (Chapter 11)
+
+Status: 🟡 Built. Not run. Awaiting the owner's run. ALTER for the live table: `ALTER TABLE participants ALTER COLUMN state DROP DEFAULT;`
+
+The entity type `Participant` is a runtime instance that fulfils Capabilities inside one SEU. Its table is `participants` (`state TEXT NOT NULL DEFAULT 'Available'` with a CHECK listing the seven states, `seu_id`, `participant_id` pointing at `participants_master`). `participants_master` is the tenant-level identity of the same person or system and has no lifecycle. `transitionDefinitions.json` holds 10 Participant rows and no birth row: `Created → Available → Assigned → Executing → Idle → Released → Archived`, `Idle → Assigned`, and `Released` from `Available`, `Assigned` and `Executing`. The chapter's own report is `src/docs/implementation/11_Participant_Model_Traceability.md`.
+
+### Findings
+
+| # | Finding |
+|---|---|
+| 1 | `participantsDB.create` writes no state, so every Participant is born at the column default `Available`. The state `Created` and the hop `Created → Available` are never used. The test comment in `participant-lifecycle.test.ts` records this as intended (Ch.13 §10, eligibility). |
+| 2 | `participantsDB.create` is called by `fulfilOne` (`capabilities.ts`), `replaceParticipant`, `ensureSeuSystemParticipant` (`constants.ts`), `demoSimulator` and three test fixtures. It takes the author from `userDB.getSuperuserId()`, not from the caller. Ids and badges are outside CR-128 (owner), so this stays. |
+| 3 | `ParticipantCreated` is published only by `replaceParticipant`. `fulfilOne`, the system participant and the demo simulator publish no creation event. `ParticipantActivated` (the event of `Created → Available`) is never published. |
+| 4 | `transitionParticipant` is one more copy of the old transition steps. It calls `transitionEngine.evaluate` (no Quality Gate, no SEU participant check), writes with `participantsDB.updateStatus` and publishes an event looked up in the literal map `CH13_EVENT_BY_TRANSITION`. Four rows (`Assigned → Executing`, the three `→ Released` from `Available`, `Assigned`, `Executing`) have no entry in the map and publish nothing. The rows name no `eventType` and no `version_event`. |
+| 5 | The engine moves Participants without a row. `dispatchEngine` calls `participantsDB.updateStatus(participantId, "Assigned")` and publishes `ParticipantAssigned` itself. `completeWorkItem` calls `updateStatus(..., "Idle")` in two places (the `done` path and the failure path) and publishes `ParticipantIdle` in one of them. Nothing in `src` sets `Executing`, so the engine goes `Assigned → Idle` and no row has that edge. |
+| 6 | `capabilities.ts` (release on capability removal) and `replaceParticipant` call `transitionParticipant` for `Released` and `Archived`. The only web route that touches a Participant is `.../capabilities/:capabilityId/participant/:participantId/replace`. There is no Participant transition route, API or web, and no button. |
+| 7 | `route_authority` has one Participant row, the replace route. |
+| 8 | `participants` has no tenant column. A version event needs the SEU's tenant, as for the other SEU-scoped entities. |
+| 9 | The 10 rows carry the policy `policy-participant-transition-baseline`. |
+| 10 | Authority of the engine's hops (D2). `dispatchEngine` acts as the SEU's system actor, and `completeWorkItem` acts as the Command's requester. `resolveAuthorBadge` lets the system actor hold a badge only when it starts with `DELIVERABLE_BADGE_PREFIX` (`deliverable_`). A Participant hop by the system actor, for example `participant_assign`, would therefore be refused with `actor ... does not hold participant_assign`. |
+
+### Decisions
+
+| # | Question | Recommendation |
+|---|---|---|
+| D1 | The birth state (finding 1). | Settled (owner): birth into `Available`. The row is `None → Available`, verb `create`, badge `participant_create`, event `ParticipantCreated`. The state `Created` and the row `Created → Available` stay in the table and stay unused, as today. `ParticipantActivated` stays unpublished. |
+| D2 | The engine's direct writes (finding 5). | Settled (owner): `dispatchEngine` and `completeWorkItem` call `transitionEntity` instead of `updateStatus`. A row `Assigned → Idle` (verb `idle`, not in the spec) is added because no Work Item step starts work, so nothing sets `Executing` (Work Items go `Dispatched` to `Completed` or `Failed` in one call). `Executing` and its rows stay for a later start step. |
+| D3 | The events (findings 3 and 4). | Settled (owner): the rows name `ParticipantCreated` (birth), `ParticipantActivated` (`Created → Available`), `ParticipantAssigned` (both `→ Assigned`), `ParticipantExecuting` (`Assigned → Executing`, a new name), `ParticipantIdle` (`Executing → Idle` and `Assigned → Idle`), `ParticipantReleased` (all four `→ Released`) and `ParticipantArchived`. The literal map `CH13_EVENT_BY_TRANSITION` is removed. |
+| D4 | The generic event and the checks. | `transitionParticipant` calls `transitionEntity` through a `participantAdapter` with `seuId` (so the Quality Gate and participant checks apply), then `publishTransition`, then `ParticipantTransitioned` last, as the earlier entities. |
+| D5 | The schema. | `participants_schema_recovery.sql` drops `DEFAULT 'Available'`; `participantsDB.create` takes the state. The CHECK on the state stays. The owner receives an ALTER for the live table. |
+| D6 | Buttons. | None exist and none are added: no route transitions a Participant by hand. |
+| D7 | The authority of the engine's hops (finding 10). | Settled (owner): `PARTICIPANT_BADGE_PREFIX = "participant_"` is added to `constants.ts` beside `DELIVERABLE_BADGE_PREFIX`, and `resolveAuthorBadge` lets the platform system actor hold a badge with either prefix. `dispatchEngine` and `completeWorkItem` run their Participant hops as the SEU's system actor. |
+
+D4 to D6 follow the earlier entities (owner: "similar to what we have done so far"). Say so if any of them should differ.
+
+### Step 1: the data
+
+| # | Change |
+|---|---|
+| 1 | `transitionDefinitions.json`: birth row `None → Available`, verb `create`, trigger `governed`, event `ParticipantCreated`, no version event, policy `policy-participant-transition-baseline`. New row `Assigned → Idle`, verb `idle`, same policy, event `ParticipantIdle`. The 10 existing rows gain their events (D3): `Created → Available` `ParticipantActivated`, `Available → Assigned` and `Idle → Assigned` `ParticipantAssigned`, `Assigned → Executing` `ParticipantExecuting`, `Executing → Idle` `ParticipantIdle`, the four `→ Released` rows `ParticipantReleased`, `Released → Archived` `ParticipantArchived`. A Participant has no version column, so no row names a version event (as Obligation). |
+| 2 | `authorityVocabulary.json`: add the verb `create` if it is not there. `idle` is a verb already. |
+| 3 | `eventSubscriptions.json`: add `ParticipantTransitioned` (published for every hop, after the row's event, no subscriber). `routeAuthority.json` has no change: no route transitions a Participant. |
+| 4 | `constants.ts`: `PARTICIPANT_BADGE_PREFIX = "participant_"` (D7). `badgeAuthorityEngine.resolveAuthorBadge` accepts either prefix for the platform system actor. |
+
+### Step 2: the schema
+
+| # | Change |
+|---|---|
+| 1 | `participants_schema_recovery.sql`: `state TEXT NOT NULL` with no default. The CHECK on the seven states stays. |
+| 2 | The ALTER for the live table: `ALTER TABLE participants ALTER COLUMN state DROP DEFAULT;`. No data changes. |
+
+### Step 3: the database function and the adapter
+
+| # | Change |
+|---|---|
+| 1 | `participantsDB.create` reads the birth row with `transitionDefinitionsDB.findBirth("Participant")` and writes its `to_state`. It throws when there is no birth row. It has six callers (`fulfilOne`, `replaceParticipant`, `ensureSeuSystemParticipant`, `demoSimulator`, test fixtures), none of which change their call. This differs from the earlier entities, whose `create` takes the state, because the engine-side and test callers sit below the core layer. |
+| 2 | `entityAdapters.ts`: `participantAdapter` (`findById`, `getState` is `state`, `setState` calls `updateStatus`, `tenantId` is the SEU's, `seuId` returns `seu_id`). It is registered under `Participant`. |
+
+### Step 4: creation
+
+| # | Change |
+|---|---|
+| 1 | `core/participants.ts` gains `createParticipant({ seuId, type, displayName, participantMasterId, actorId, authorBadge })`. It calls `participantsDB.create`, reads the event from the birth row and publishes it as its last statement. |
+| 2 | `fulfilOne` and `replaceParticipant` call `createParticipant`. `replaceParticipant` loses its literal `ParticipantCreated`. `ensureSeuSystemParticipant` and `demoSimulator` keep calling `participantsDB.create` and publish no creation event, as today. |
+
+### Step 5: the hops
+
+| # | Change |
+|---|---|
+| 1 | `core/participants.ts` gains `applyParticipantHop({ participantId, targetState, actorId, payload?, correlationId? })`. It calls `transitionEntity`, then `publishTransition(result, { payload, correlationId })`, then publishes `ParticipantTransitioned` with the same `correlationId` as its last statement. |
+| 2 | `transitionParticipant` keeps its signature and result type and calls `applyParticipantHop`. The literal map `CH13_EVENT_BY_TRANSITION` is removed. |
+| 3 | `dispatchEngine`: `participantsDB.updateStatus(participantId, "Assigned")` and the literal `ParticipantAssigned` publish are replaced by `applyParticipantHop` with the system actor, the dispatch `correlationId` and payload `{ workItemId }`. |
+| 4 | `completeWorkItem`: the two `updateStatus(..., "Idle")` calls (done path and failure path) are replaced by `applyParticipantHop` with the system actor. The literal `ParticipantIdle` publish is removed. The failure path now publishes `ParticipantIdle`, which it did not before. |
+| 5 | `capabilities.ts` (release on removal) keeps calling `transitionParticipant`. |
+
+### Participant tests
+
+| # | Test | Asserts |
+|---|---|---|
+| 1 | `participant-event-lifecycle-table.test.ts` definition | 12 rows, the birth row `None → Available` (`create`, `governed`, `ParticipantCreated`), the new `Assigned → Idle` row, and the event on every row of D3. |
+| 2 | Creation | `participantsDB.create` writes `Available`. `createParticipant` publishes `ParticipantCreated` last. A missing birth row throws. |
+| 3 | Hops | Every hop publishes the row's event and then `ParticipantTransitioned` with one `correlationId`. A refused hop (no row) writes and publishes nothing. |
+| 4 | Governed checks | A hop by an actor with no `participants` row in the SEU is refused (`/No participants row/`). A Quality Gate on a fabricated hop refuses with `quality_gate_blocked`. |
+| 5 | Engine hops | Dispatching a Work Item moves the Participant `Available → Assigned` through the row and publishes `ParticipantAssigned` then `ParticipantTransitioned`. Completing it, and failing it, move the Participant `Assigned → Idle` and publish `ParticipantIdle`. |
+| 6 | Authority | The system actor resolves `participant_assign` and `participant_idle`. A non-system actor without the badge is still refused. |
+| 7 | Guard | `participantsDB.updateStatus` is called only by the adapter, and no code names `ParticipantCreated` or `ParticipantIdle` as a literal. |
+
+Fixtures: `participant-lifecycle.test.ts` is updated for the new events and `Assigned → Idle`. Its comment about the old literal events changes. Any test that counts `ParticipantAssigned` or `ParticipantIdle` events is checked in the build pass.
+
+### Build progress (Participant)
+
+| # | Piece | State |
+|---|---|---|
+| 1 | Rows, events, constant, authority (Step 1) | Built ✅ |
+| 2 | Schema (Step 2) | Built ✅ |
+| 3 | `participantsDB.create`, `participantAdapter` (Step 3) | Built ✅ |
+| 4 | `createParticipant` (Step 4) | Built ✅ |
+| 5 | `applyParticipantHop`, engine hops (Step 5) | Built ✅ |
+| 6 | Tests | Built. Not run. `participant-event-lifecycle-table.test.ts` (new); the Quality Gate refusal is in `quality-gate-generalization.test.ts`; `participant-lifecycle.test.ts` gains the failed Work Item test |
+| 7 | `11_Participant_Model_Traceability.md` | Built ✅ |

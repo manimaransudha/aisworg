@@ -669,8 +669,9 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   assertPageMatches(afterBlocked.html, /Quality Gate &#34;No Unresolved Obligations&#34; blocked: 1 unresolved Obligation\(s\) \(WebFlow Phase4 obligation\)/);
   assertPageMatches(afterBlocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/, "the Deliverable must not have moved while the Quality Gate blocked it");
 
+  const obligationVerbs: Record<string, string> = { Analysed: "analyse", Assigned: "assign", "In Progress": "start", Resolved: "resolve", Verified: "verify" };
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await postForm(request, `/seu/seus/${seuId}/obligations/${obligationId}/transition`, csrf, { targetState });
+    const step = await postForm(request, `/seu/seus/${seuId}/obligations/${obligationId}/transition/${obligationVerbs[targetState]}`, csrf, {});
     // A 302 alone can't distinguish success from a blocked transition —
     // flashError also redirects. Verify the real, persisted state directly
     // instead of trusting the ephemeral session flash a following GET might
@@ -728,8 +729,9 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
   assertPageMatches(afterCreate.html, /alert-success/);
   const evidenceId = findEvidenceId(afterCreate.html);
 
+  const evidenceVerbs: Record<string, string> = { Validated: "validate", Accepted: "accept" };
   for (const targetState of ["Validated", "Accepted"]) {
-    const step = await postForm(request, `/seu/seus/${seuId}/evidence/${evidenceId}/transition`, csrf, { targetState });
+    const step = await postForm(request, `/seu/seus/${seuId}/evidence/${evidenceId}/transition/${evidenceVerbs[targetState]}`, csrf, {});
     assert.equal(step.status, 302, `Evidence transition to "${targetState}" must succeed`);
   }
 
@@ -747,8 +749,20 @@ test("Phase 6 — promoting a Published Knowledge Item's scope raises a visible 
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
+  const supportCreated = await postForm(request, `/seu/seus/${seuId}/evidence`, csrf, {
+    deliverableId,
+    category: "Analytical Evidence",
+    title: "WebFlow Phase6 supporting evidence",
+    source: "Manual review",
+    confidenceLevel: "High",
+  });
+  assert.equal(supportCreated.status, 302);
+  const afterSupport = await getPage(request, `/seu/seus/${seuId}`);
+  const supportEvidenceId = findEvidenceId(afterSupport.html);
+
   const created = await postForm(request, `/seu/seus/${seuId}/knowledge`, csrf, {
     deliverableId,
+    evidenceId: supportEvidenceId,
     category: "Domain Knowledge",
     title: "WebFlow Phase6 knowledge",
   });
@@ -763,9 +777,9 @@ test("Phase 6 — promoting a Published Knowledge Item's scope raises a visible 
   assertPageMatches(afterTooEarly.html, /alert-danger/);
   assertPageMatches(afterTooEarly.html, /must be Published before its Acquisition Scope can be promoted/);
 
-  for (const targetState of ["Proposed", "Validated", "Accepted", "Published"]) {
-    const step = await postForm(request, `/seu/seus/${seuId}/knowledge/${knowledgeItemId}/transition`, csrf, { targetState });
-    assert.equal(step.status, 302, `Knowledge transition to "${targetState}" must succeed`);
+  for (const verb of ["propose", "validate", "accept", "publish"]) {
+    const step = await postForm(request, `/seu/seus/${seuId}/knowledge/${knowledgeItemId}/transition/${verb}`, csrf, {});
+    assert.equal(step.status, 302, `Knowledge transition "${verb}" must succeed`);
   }
 
   const promoted = await postForm(request, `/seu/seus/${seuId}/knowledge/${knowledgeItemId}/promote-scope`, csrf, { targetScope: "Capability" });
@@ -1060,7 +1074,7 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   // SEU-scoped web route (detail.ejs's own Attention Items pane), not the
   // platform-wide page's copy of the same form.
   const attentionItemId = actionRequired[0]!.id;
-  const attentionStep = await postForm(request, `/seu/seus/${seuId}/attention-items/${attentionItemId}/transition`, csrf, { targetState: "Delivered" });
+  const attentionStep = await postForm(request, `/seu/seus/${seuId}/attention-items/${attentionItemId}/transition/deliver`, csrf, {});
   assert.equal(attentionStep.status, 302);
   const afterAttentionStep = await getPage(request, `/seu/seus/${seuId}`);
   assertPageMatches(afterAttentionStep.html, /alert-success/);
@@ -1322,23 +1336,13 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
   // even for an Objective in this viewer's OWN tenant (fixture created
   // directly through the core function, same as objective-lifecycle.test.ts's
   // own fixtures, to isolate this from the create-gate just proven above).
-  // createObjective resolves the author badge, so the fixture create briefly grants objective_propose
-  // and restores the tester's original badges before the viewer requests below.
-  const { data: viewerMaster } = await participantsMasterDB.findById(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId);
-  const viewerOriginalBadges = viewerMaster!.authorised_badges;
-  let ownTenantObjective;
-  try {
-    await grantBadge(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, "objective_propose");
-    ({ objective: ownTenantObjective } = await createObjective({
-      statement: `webflow-badge-denied-edit-${randomUUID()}`,
-      requiredCapabilityCodes: [],
-      tier: "Strategic",
-      requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId,
-    }));
-  } finally {
-    const { error } = await participantsMasterDB.setAuthorisedBadges(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, viewerOriginalBadges);
-    if (error) throw error;
-  }
+  // The fixture is authored by TESTER_OBJECTIVE_ATHENS (same tenant, holds objective_propose), so the viewer's badges are never touched.
+  const { objective: ownTenantObjective } = await createObjective({
+    statement: `webflow-badge-denied-edit-${randomUUID()}`,
+    requiredCapabilityCodes: [],
+    tier: "Strategic",
+    requestedBy: TESTER_OBJECTIVE_ATHENS.participantId,
+  });
   // Same badgefail destination as above.
   const editRedirect = await getRedirect(request, `/seu/objectives/${ownTenantObjective.id}/edit`);
   assert.equal(editRedirect.status, 302);
@@ -1409,22 +1413,13 @@ test("Objectives — the web layer's own tenant-reach gate blocks a real badge h
 test("Objectives — update/move/delete all real-refuse a viewer without objective_propose (previously had no route-level check at all)", async () => {
   const request = newSession(TESTER_OBJECTIVE_ACHIEVE_ONLY.userId);
   const originalStatement = `webflow-no-propose-mutate-${randomUUID()}`;
-  // Fixture create grants objective_propose briefly; the original badges are restored before the viewer requests.
-  const { data: viewerMaster } = await participantsMasterDB.findById(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId);
-  const viewerOriginalBadges = viewerMaster!.authorised_badges;
-  let objective;
-  try {
-    await grantBadge(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, "objective_propose");
-    ({ objective } = await createObjective({
-      statement: originalStatement,
-      requiredCapabilityCodes: [],
-      tier: "Strategic",
-      requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId,
-    }));
-  } finally {
-    const { error } = await participantsMasterDB.setAuthorisedBadges(TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, viewerOriginalBadges);
-    if (error) throw error;
-  }
+  // The fixture is authored by TESTER_OBJECTIVE_ATHENS (same tenant, holds objective_propose), so the viewer's badges are never touched.
+  const { objective } = await createObjective({
+    statement: originalStatement,
+    requiredCapabilityCodes: [],
+    tier: "Strategic",
+    requestedBy: TESTER_OBJECTIVE_ATHENS.participantId,
+  });
 
   const list = await getPage(request, "/seu/objectives");
   const csrf = extractCsrf(list.html);

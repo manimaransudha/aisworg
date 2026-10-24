@@ -104,6 +104,7 @@ test("Policy waiver: transitionEngine.evaluate records the deviation, and checkS
     });
     assert.equal(outcome.allowed, true);
   }
+  await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'AttentionItem' AND to_state = $1", [toState]);
 
   const marker = `policyWaiver:${policy!.id}`;
   const firstPass = await checkSustainedPolicyWaivers();

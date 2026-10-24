@@ -10,14 +10,24 @@ import { objectivesDB } from "../../dblayer/objectivesDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { ontologyDB } from "../../dblayer/ontologyDB.js";
 import { seusDB } from "../../dblayer/seusDB.js";
-import type { CapabilityDefinitionRow, EbmRow, SeuRow, OntologyConceptRow, DeliverableDefinitionRow, ObjectiveRow, PackContributions, PackRow, PolicyDefinitionRow, ProfileRow, SchemaDefinitionRow, TemplateRow, ServiceDefinitionRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
+import { obligationsDB } from "../../dblayer/obligationsDB.js";
+import { evidenceDB } from "../../dblayer/evidenceDB.js";
+import { attentionItemsDB } from "../../dblayer/attentionItemsDB.js";
+import { decisionsDB } from "../../dblayer/decisionsDB.js";
+import { knowledgeItemsDB } from "../../dblayer/knowledgeItemsDB.js";
+import { reviewsDB } from "../../dblayer/reviewsDB.js";
+import { findingsDB } from "../../dblayer/findingsDB.js";
+import { participantsDB } from "../../dblayer/participantsDB.js";
+import type { AttentionItemRow, FindingRow, ReviewRow, DecisionRow, KnowledgeItemRow, ParticipantRow, CapabilityDefinitionRow, EbmRow, EvidenceRow, ObligationRow, SeuRow, OntologyConceptRow, DeliverableDefinitionRow, ObjectiveRow, PackContributions, PackRow, PolicyDefinitionRow, ProfileRow, SchemaDefinitionRow, TemplateRow, ServiceDefinitionRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 // How the generic transition function (entityTransition.ts) reaches one entity's table (CR-128). An adapter holds no rules.
 export interface EntityAdapter<Row extends object = object> {
   findById(id: string): Promise<Row | null>;
   getState(row: Row): string;
   setState(id: string, toState: string, authorityBadge: string, authorId: string): Promise<Row>;
-  tenantId(row: Row): string | null;
+  tenantId(row: Row): string | null | Promise<string | null>;
+  // Only for entities that live inside an SEU: the transition then also checks the Quality Gate and the actor's participant row in that SEU (evaluateGoverned).
+  seuId?(row: Row): string | Promise<string>;
   // Only for entities that keep comments (a comment accompanies a transition).
   addComment?(id: string, comment: { text: string; actorId: string; authorityBadge: string }): Promise<void>;
   // Only for entities whose content is checked against a pinned schema (src/policies/validateSchema.ts).
@@ -309,6 +319,186 @@ const seuAdapter = adapter<SeuRow>({
   tenantId: (row) => row.tenant_id,
 });
 
+const obligationAdapter = adapter<ObligationRow>({
+  async findById(id) {
+    const { data, error } = await obligationsDB.findById(id);
+    if (error) throw error;
+    return data;
+  },
+  getState: (row) => row.status,
+  // The author and badge of an Obligation stay as the birth set them, so they are not written.
+  async setState(id, toState) {
+    const { data, error } = await obligationsDB.updateStatus(id, toState);
+    if (error || !data) throw error ?? new Error(`failed to set the state of Obligation ${id}`);
+    return data;
+  },
+  // An Obligation has no tenant column; its tenant is the SEU's, which the version event needs.
+  async tenantId(row) {
+    const { data: seu } = await seusDB.findById(row.seu_id);
+    return seu?.tenant_id ?? null;
+  },
+  seuId: (row) => row.seu_id,
+});
+
+// A Knowledge Item records the SEU participant that took the hop; its tenant is the SEU's. Its Acquisition Scope is a
+// separate lifecycle (KnowledgeScope) and is not written here.
+const knowledgeAdapter = adapter<KnowledgeItemRow>({
+  async findById(id) {
+    const { data, error } = await knowledgeItemsDB.findById(id);
+    if (error) throw error;
+    return data;
+  },
+  getState: (row) => row.status,
+  async setState(id, toState, authorityBadge, actorId) {
+    const { data: current, error: findError } = await knowledgeItemsDB.findById(id);
+    if (findError || !current) throw findError ?? new Error(`Knowledge Item ${id} not found`);
+    const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(current.seu_id, actorId);
+    if (!participant) throw new Error(`No participants row for participants_master ${actorId} in SEU ${current.seu_id}.`);
+    const { data, error } = await knowledgeItemsDB.updateStatus(id, toState, participant.id, authorityBadge);
+    if (error || !data) throw error ?? new Error(`failed to set the state of Knowledge Item ${id}`);
+    return data;
+  },
+  async tenantId(row) {
+    const { data: seu } = await seusDB.findById(row.seu_id);
+    return seu?.tenant_id ?? null;
+  },
+  seuId: (row) => row.seu_id,
+});
+
+// A Review and a Finding keep the author the birth set. Their tenant is the SEU's. The Review outcome is written by the
+// complete-review action.
+const reviewAdapter = adapter<ReviewRow>({
+  async findById(id) {
+    const { data, error } = await reviewsDB.findById(id);
+    if (error) throw error;
+    return data;
+  },
+  getState: (row) => row.status,
+  async setState(id, toState) {
+    const { data, error } = await reviewsDB.updateStatus(id, toState);
+    if (error || !data) throw error ?? new Error(`failed to set the state of Review ${id}`);
+    return data;
+  },
+  async tenantId(row) {
+    const { data: seu } = await seusDB.findById(row.seu_id);
+    return seu?.tenant_id ?? null;
+  },
+  seuId: (row) => row.seu_id,
+});
+
+const findingAdapter = adapter<FindingRow>({
+  async findById(id) {
+    const { data, error } = await findingsDB.findById(id);
+    if (error) throw error;
+    return data;
+  },
+  getState: (row) => row.status,
+  async setState(id, toState) {
+    const { data, error } = await findingsDB.updateStatus(id, toState);
+    if (error || !data) throw error ?? new Error(`failed to set the state of Finding ${id}`);
+    return data;
+  },
+  async tenantId(row) {
+    const { data: seu } = await seusDB.findById(row.seu_id);
+    return seu?.tenant_id ?? null;
+  },
+  seuId: (row) => row.seu_id,
+});
+
+// A Participant's tenant is its SEU's.
+const participantAdapter = adapter<ParticipantRow>({
+  async findById(id) {
+    const { data, error } = await participantsDB.findById(id);
+    if (error) throw error;
+    return data;
+  },
+  getState: (row) => row.state,
+  async setState(id, toState) {
+    const { data, error } = await participantsDB.updateStatus(id, toState);
+    if (error || !data) throw error ?? new Error(`failed to set the state of Participant ${id}`);
+    return data;
+  },
+  async tenantId(row) {
+    const { data: seu } = await seusDB.findById(row.seu_id);
+    return seu?.tenant_id ?? null;
+  },
+  seuId: (row) => row.seu_id,
+});
+
+// A Decision records the SEU participant that took the hop; its tenant is the SEU's.
+const decisionAdapter = adapter<DecisionRow>({
+  async findById(id) {
+    const { data, error } = await decisionsDB.findById(id);
+    if (error) throw error;
+    return data;
+  },
+  getState: (row) => row.status,
+  async setState(id, toState, authorityBadge, actorId) {
+    const { data: current, error: findError } = await decisionsDB.findById(id);
+    if (findError || !current) throw findError ?? new Error(`Decision ${id} not found`);
+    const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(current.seu_id, actorId);
+    if (!participant) throw new Error(`No participants row for participants_master ${actorId} in SEU ${current.seu_id}.`);
+    const { data, error } = await decisionsDB.updateStatus(id, toState, { participantId: participant.id, authorityBadge });
+    if (error || !data) throw error ?? new Error(`failed to set the state of Decision ${id}`);
+    return data;
+  },
+  async tenantId(row) {
+    const { data: seu } = await seusDB.findById(row.seu_id);
+    return seu?.tenant_id ?? null;
+  },
+  seuId: (row) => row.seu_id,
+});
+
+// Evidence has no SEU column: its SEU is the `SEU` row of its relationships, and its tenant is that SEU's.
+async function evidenceSeuId(row: EvidenceRow): Promise<string> {
+  const { data: relationships, error } = await evidenceDB.findRelationshipsByEvidenceId(row.id);
+  if (error) throw error;
+  const seuId = relationships?.find((r) => r.related_object_type === "SEU")?.related_object_id;
+  if (!seuId) throw new Error(`Evidence ${row.id} has no SEU relationship — cannot resolve a governed author for its Quality Gate evaluation`);
+  return seuId;
+}
+
+const evidenceAdapter = adapter<EvidenceRow>({
+  async findById(id) {
+    const { data, error } = await evidenceDB.findById(id);
+    if (error) throw error;
+    return data;
+  },
+  getState: (row) => row.status,
+  // The author and badge of an Evidence item stay as the birth set them, so they are not written.
+  async setState(id, toState) {
+    const { data, error } = await evidenceDB.updateStatus(id, toState);
+    if (error || !data) throw error ?? new Error(`failed to set the state of Evidence ${id}`);
+    return data;
+  },
+  async tenantId(row) {
+    const { data: seu } = await seusDB.findById(await evidenceSeuId(row));
+    return seu?.tenant_id ?? null;
+  },
+  seuId: evidenceSeuId,
+});
+
+const attentionItemAdapter = adapter<AttentionItemRow>({
+  async findById(id) {
+    const { data, error } = await attentionItemsDB.findById(id);
+    if (error) throw error;
+    return data;
+  },
+  getState: (row) => row.status,
+  // The author and badge of an Attention Item stay as the birth set them, so they are not written.
+  async setState(id, toState) {
+    const { data, error } = await attentionItemsDB.updateStatus(id, toState);
+    if (error || !data) throw error ?? new Error(`failed to set the state of AttentionItem ${id}`);
+    return data;
+  },
+  // An Attention Item has no tenant column; its tenant is the SEU's.
+  async tenantId(row) {
+    const { data: seu } = await seusDB.findById(row.seu_id);
+    return seu?.tenant_id ?? null;
+  },
+  seuId: (row) => row.seu_id,
+});
+
 // Each entity adds its adapter in its own pass.
 const entityAdapters: Partial<Record<TransitionEntityType, EntityAdapter>> = {
   SchemaDefinition: schemaDefinitionAdapter,
@@ -322,6 +512,14 @@ const entityAdapters: Partial<Record<TransitionEntityType, EntityAdapter>> = {
   Objective: objectiveAdapter,
   EBM: ebmAdapter,
   SEU: seuAdapter,
+  Obligation: obligationAdapter,
+  Evidence: evidenceAdapter,
+  AttentionItem: attentionItemAdapter,
+  Decision: decisionAdapter,
+  Participant: participantAdapter,
+  Knowledge: knowledgeAdapter,
+  Review: reviewAdapter,
+  Finding: findingAdapter,
   Ontology: ontologyAdapter,
 };
 

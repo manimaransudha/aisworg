@@ -136,6 +136,10 @@
       "label": "Baseline"
     },
     {
+      "code": "collect",
+      "label": "Collect"
+    },
+    {
       "code": "commission",
       "label": "Commission"
     },
@@ -226,6 +230,10 @@
     {
       "code": "accept",
       "label": "Accept"
+    },
+    {
+      "code": "raise",
+      "label": "Raise"
     },
     {
       "code": "reference",
@@ -334,6 +342,11 @@
       "code": "observe",
       "label": "Observe",
       "description": "Record a Knowledge Item as Observed (KnowledgeObserved, Ch.16 §16)."
+    },
+    {
+      "code": "convert",
+      "label": "Convert",
+      "description": "Convert a Finding into an Obligation (FindingConverted, Ch.25 §13)."
     },
     {
       "code": "identify",

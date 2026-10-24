@@ -12,7 +12,7 @@ CREATE TABLE decisions (
   engineering_question   TEXT,
   selected_alternative   TEXT,
   rationale              TEXT,
-  status                 TEXT NOT NULL DEFAULT 'Identified',
+  status                 TEXT NOT NULL,
   created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -25,7 +25,8 @@ ALTER TABLE decisions
   ADD COLUMN IF NOT EXISTS evidence_ids UUID[] NOT NULL DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS alternatives JSONB NOT NULL DEFAULT '[]',
   ADD COLUMN IF NOT EXISTS participant_id UUID NOT NULL REFERENCES participants(id),
-  ADD COLUMN IF NOT EXISTS authority_badge TEXT NOT NULL;
+  ADD COLUMN IF NOT EXISTS authority_badge TEXT NOT NULL,
+  ADD COLUMN IF NOT EXISTS superseded_by UUID REFERENCES decisions(id);
 ALTER TABLE decisions
   DROP COLUMN IF EXISTS related_object_type,
   DROP COLUMN IF EXISTS related_object_id,

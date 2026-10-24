@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { participantsMasterDB } from "../../participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../../transitionDefinitionsDB.js";
 import { tenantsDB } from "../../tenantsDB.js";
@@ -7,6 +10,22 @@ import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCac
 import type { TransitionEntityType } from "../../seuTypes.js";
 
 export const DEMO_PARTICIPANT_DISPLAY_NAME = "Demo User";
+
+const demoUserFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data", "demo", "demoUser.json");
+
+// Sets the roles listed in demoUser.json on the Demo User participant when it holds none.
+export async function ensureDemoUserRoles(participantId: string): Promise<void> {
+  const { data: master, error: findError } = await participantsMasterDB.findById(participantId);
+  if (findError) throw findError;
+  if (!master) throw new Error(`ensureDemoUserRoles: no participants_master row ${participantId}`);
+  if (master.authorised_role.length > 0) return;
+  const { authorisedRoles } = JSON.parse(readFileSync(demoUserFile, "utf8")) as { authorisedRoles: string[] };
+  const { error } = await participantsMasterDB.setAuthorisedRole(
+    participantId,
+    authorisedRoles.map((role) => ({ role, effective_till: NO_EXPIRY_DATE, seu_ids: [] }))
+  );
+  if (error) throw error;
+}
 
 export interface DemoActor {
   tenantId: string;

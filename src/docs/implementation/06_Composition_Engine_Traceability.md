@@ -1,11 +1,12 @@
-# Chapter 4 – Composition Engine: Implementation Traceability
+# Implementation Traceability: Chapter 6 – Composition Engine
 
-**Date of report: 4-10-2026**
+**Date of report: 23-10-2026**
 
-Independent code-verified audit (2026-10-04). Investigated directly against current repository state — not derived from Chapter 4's own embedded §21 audit (dated 2026-08-24/2026-09-07), which is materially stale: it names `ebmComposer.ts` as the live pipeline file, but that file no longer exists. The real pipeline today runs through `src/domain/engine/validateRequest.ts`, `src/domain/engine/compositionCompleted.ts`, `src/domain/engine/profileCompositionUnravel.ts`, `src/domain/engine/ebmActivated.ts`, and `src/routes/seu/core/commissioning.ts`/`src/routes/seu/web/objectives.ts` — all traced below from source, with line citations.
+Specification: src/docs/SEU Studio Specifications/01_Engineering Definition/06_Composition Engine.md
 
-Core finding carried forward from the prior audit and reconfirmed directly: `compositionEngine.compose()`/`detectGovernanceConflicts` (`src/domain/engine/compositionEngine.ts`) have zero live call sites (`grep -rn "compositionEngine\.compose("` across `src/` returns only comments, including `commissioning.ts:948`'s own explicit commented-out call). The function was rewritten for multi-Template/multi-Profile (CR-092 Part 6) but is still unreachable — a real, maintained dead function, not an artifact of the old audit. The 6 standalone strategy functions (`specialize`/`merge`/`union`/`intersection`/`supplement`, plus `strategyRequirements`) are real and live, called from `commissioning.ts` (conflict resolution), `sdkAuthoring.ts` (Pack authoring composition sources), `packs.ts`, and `ontology.ts` (Ontology term specialization).
+## Traceability Table
 
+<!-- multiline -->
 **Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
 
 <table style="width:100%; table-layout:fixed;">
@@ -26,326 +27,380 @@ Core finding carried forward from the prior audit and reconfirmed directly: `com
   <tbody>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine builds an EBM by composing behavioural contributions from one or more Packs<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:79-144<br>src/domain/engine/profileCompositionUnravel.ts:102-566</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">An EBM is built, but not by <code>compositionEngine.ts</code> (dead, see above). The real pipeline resolves Packs via <code>unravelComposition</code>, detects conflicts, and <code>compositionCompletedHandler</code> persists the EBM via <code>ebmsDB.create</code>. The behavioural content itself (a flat <code>pool</code> of every Profile/Template/Pack contribution) is now carried onto <code>ebm.behaviors</code> (compositionCompleted.ts:102-106), not just a Pack list.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Composition Engine alone creates, validates, versions and activates an EBM.<br>Ref: §1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:49-112<br>src/dblayer/ebmsDB.ts:19-44<br>src/routes/seu/core/commissioning.ts:366-381<br>src/routes/seu/web/seus.ts:300-320</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the EBM row is created by compositionCompletedHandler off a CompositionCompleted event, versioned by ebmsDB.create, validated by validateEbm and activated by transitionEntity from the SEU EBM route. ebmsDB.create has no other caller.<br>Gap: compositionEngine.ts holds no create, validate, version or activate function. These steps are spread over an event handler, a commissioning helper and a web route.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine performs no engineering work. It does not execute Work Items, manage Participants or Deliverables, or preserve Knowledge.<br>Ref: §1, §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:1-7<br>src/domain/engine/profileCompositionUnravel.ts:1-8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Both engine files import only the Template, Profile, Pack and Policy DB layers and Profile and Template helpers. Nothing in them dispatches Work Items or touches Participants, Deliverables or Knowledge.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine is the only component authorised to create/validate/version/activate an EBM<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:5-90</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>ebmsDB.create</code>/<code>updateStatus</code> are the only write paths onto <code>ebms</code>, confirmed by <code>grep</code> — no other module inserts/updates this table. But the orchestration isn't one "Composition Engine" component; it's split across <code>compositionCompleted.ts</code> (create), <code>commissioning.ts:transitionEbm</code> (validate/activate/retire), with <code>compositionEngine.ts</code> itself playing no role.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition is a build-time service and is not part of normal SEU execution.<br>Ref: §3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:32-37<br>src/routes/seu/web/objectives.ts:485-545</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: composition is started by the compose-ebm route during commissioning.<br>Gap: resolveEligibilityPolicies calls unravelComposition at execution time from the live Template and Profile. It does not read the composed_packs stored on the SEU's EBM, so a later Pack change alters eligibility for an SEU that is already running.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine performs no software engineering work itself; produces a model suitable for commissioning<br> Ref: §1 Purpose</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:339-348</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>finalizeCommissioning</code> (the actual SEU-advancing work) is a clearly separate function/stage from EBM creation, triggered only after a human Activates the EBM (commissioning.ts:710-end, ebmActivated.ts). Boundary holds.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine discovers Packs from the Template mandatory set, the Profile selection and the Platform Mandatory Packs.<br>Ref: §4, §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:109-128<br>src/dblayer/packsDB.ts:191-200,292-304</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">unravelComposition gathers Template mandatory codes, Active Platform Mandatory Packs visible to the Template tenant and the Profile's Pack codes. It resolves the newest Active row per code. The Composition Engine accepts a Template array and a Profile array, so one or more Templates can be input where the spec says one.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Not applicable</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Chapter scope: responsibilities/inputs/outputs/lifecycle/conflict detection/resolution/validation/versioning/activation<br> Ref: §2 Scope</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(scope statement only)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Each item addressed in its own row below.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine resolves Pack dependencies.<br>Ref: §4, §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:77-102</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: resolveComposedPacksTransitively walks pack.dependencies level by level and adds each Active Pack.<br>Gap: line 95 follows every declared dependency regardless of type. An optional, conditional or incompatible dependency target is composed into the model like a required one.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Architectural position: Pack Registry → Composition Engine → EBM → Commissioned SEU, build-time only<br> Ref: §3 Architectural Position</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/validateRequest.ts:1-157<br>src/domain/engine/compositionCompleted.ts:61-77</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">The real shape is Pack/Template/Profile → <code>unravelComposition</code>/conflict detection → <code>ebms</code> row → SEU activation — same architectural position (build-time, pre-commissioning), different named component doing it. Confirmed never invoked from any SEU runtime/execution path (no caller outside the commissioning flow).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine discovers Packs<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:126-160 (resolveActivePack, called per mandatory/optional code)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real: every mandatory Template Pack code and every Profile-selected Pack code (across all 7 category buckets, via <code>getProfilePackSelections</code>) is resolved to its Active Pack row.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine classifies dependencies as required, optional, conditional, incompatible or missing.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:258-264,362-369<br>src/routes/seu/core/packs.ts:92,137,399-404</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: required and incompatible violations are reported as conflicts. A required target absent from the directly selected set is reported. A root Pack code with no Active version raises a warning (line 91).<br>Gap: conditional is treated exactly like required (line 365) and no condition is evaluated. Optional is never evaluated. Incompatibility is tested only against the directly selected codes, not the transitively composed set. A missing transitive Pack is dropped without a warning. A required target that the walk has already composed is still flagged unsatisfied because satisfiedInComposedSet uses the direct set (line 261).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine resolves dependencies<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:131,406 (resolveComposedPacksTransitively / dependency pool entries)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real: Pack <code>dependencies[]</code> walked transitively, cycle-safe; each dependency becomes a pool entry carrying <code>satisfiedInComposedSet</code> (line 406), checked against the actually-composed set. A <code>required</code>/<code>conditional</code> dependency unmet, or an <code>incompatible</code> one present, surfaces as a blocking <code>CompositionConflict</code> with <code>hasAction: false</code> (profileCompositionUnravel.ts:68-71).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Dependencies are declared by Packs and are not inferred.<br>Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/packs.ts:92,137,399-404<br>src/domain/engine/profileCompositionUnravel.ts:95,258-264</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Dependencies come only from the Pack's declared dependencies array, validated at authoring. No dependency is derived from content.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine validates Pack compatibility.<br>Ref: §4, §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:362-369<br>src/dblayer/packsDB.ts:191-200</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: only Active Packs are composed and incompatible declarations are reported.<br>Gap: compatibility is limited to declared incompatible dependencies against the directly selected set. supportedPlatformVersion and category rules are not checked during composition.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine validates compatibility<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:518 (detectCompositionConflicts)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real cross-source disagreement detection across the full pool (Profile params, Template fields, Pack contributions, dependencies) — not a Pack-existence check alone. No distinct notion of Pack "compatibility" beyond dependency satisfaction and content-level conflict; the spec doesn't define compatibility beyond this either.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine composes behavioural contributions from composed Packs into one pool, each entry carrying its source.<br>Ref: §4, §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:204-265</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capabilities, Services with Service Levels, Authority Rules (grouped per governed transition), Quality Gates, Checklist items, Review Gates, Obligation definitions, Engineering Capital, Policies and Pack dependencies are pushed as pool entries with a Pack source. Test: tests/profile-composition-unravel.test.ts:211-234.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Contributions are composed according to the composition strategy declared for them.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:464-507<br>src/domain/engine/profileCompositionUnravel.ts:294-372<br>src/routes/seu/core/packs.ts:168-181</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a Pack's compositionStrategy is validated at authoring (packs.ts:168-181). At commissioning, identical values collapse and differing values become conflicts, which a person resolves by choosing a strategy per conflict in applyConflictStrategy.<br>Gap: the strategy declared by a Pack is not read when the model is composed. The strategy applied is whichever the person picks.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine supports Merge, Override, Supplement, Union, Intersection, Alias and Conflict Detection.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:24-39,168-223<br>src/routes/seu/core/packs.ts:174-175<br>src/routes/seu/core/commissioning.ts:504-506<br>src/dblayer/seed/data/ontologyConcepts.json:1750-1760</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: merge, union, intersection, supplement and specialize are functions. Conflict Detection runs inside Merge and Union. The code path for override is the specialize call at commissioning.ts:504-506.<br>Gap: no Alias strategy exists in code although the Ontology lists it. Override has no function of its own. Conflict Detection is rejected as a standalone strategy by design (packs.ts:174).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">New strategies can be added without modifying the Runtime Kernel.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:24-39,163-166</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: strategy names live in the Ontology concept type composition-strategy.<br>Gap: the code accepts only the six names in the CompositionStrategyCode union and a fixed STRATEGY_REQUIREMENTS record. Each strategy is a hard-coded method, so a new strategy needs a code change. An unknown strategy silently takes the override requirements (line 165).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine composes behavioural contributions<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:102-130 (pool construction)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Profile Configuration Parameter, Template field, exposed parameter, and Pack contribution (including competencies, quality gates, policies) is placed into one flat pool, matched by key, compared to full depth. This is real composition of content, not just a Pack list — a material improvement over the dead <code>compositionEngine.compose()</code>'s whole-Pack-only approach.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine accepts Template, Organisation, Domain, Compliance, Technology, Integration and Platform Packs as input.<br>Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:104-128</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Packs enter by Template mandatory set, Profile Pack selection and Platform Mandatory classification. The composition code does not branch on Pack category, so any category, including ones added through the Extension Framework, composes.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition produces exactly one EBM for each commissioned SEU.<br>Ref: §6, FR-6.2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:49-112<br>src/dblayer/ebmsDB.ts:19-44<br>src/dblayer/recovery/ebms_schema_recovery.sql:3-14<br>src/routes/seu/web/objectives.ts:485-545</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: each successful composition creates one ebms row and sets seus.active_ebm_id to it.<br>Gap: the compose route has no check for an existing EBM or for the SEU state. Calling it again creates another row. The ebms table has no uniqueness on seu_id.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The EBM contains behavioural rules, governance rules, authority rules, engineering standards, terminology mappings, quality gates, review gates and behavioural metadata.<br>Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:58-86<br>src/dblayer/seuTypes.ts:84-105</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: behaviors.pool carries authority rules, quality gates, review gates, checklists, obligations, policies, capabilities and services. The row also stores applicable_quality_gate_ids, applicable_policy_ids and composed_packs.<br>Gap: PackContributions has no terminology mapping or workflow kind, so terminology mappings are not part of the EBM. There is no separate metadata block beyond competencyRequirements.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine detects conflicts<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:518-566</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">See §11 row below.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine does not expose a partially composed model.<br>Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/objectives.ts:523-537<br>src/domain/engine/compositionCompleted.ts:74-86</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The ebms row is written only after the compose route finds zero conflicts and publishes CompositionCompleted. While conflicts remain, only a per-SEU preview is stored on seus.composition_report, not an EBM.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform composes before every SEU is commissioned.<br>Ref: §7 FR-6.1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/ebmActivated.ts:9-52<br>src/routes/seu/core/commissioning.ts:225-309,387-439</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">finalizeCommissioning, which activates the SEU, runs only from ebmActivatedHandler off an EBMActivated event. An SEU therefore cannot complete commissioning without an EBM. Composition is a person's action on the compose-ebm route, not an automatic step of commissionFromForm, which stops at Validated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every behavioural contribution keeps its originating Pack reference.<br>Ref: §7 FR-6.3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:12-17,204-265</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Each pool entry carries source {kind, id, code} naming the Pack that contributed it. The pool is stored whole in ebms.behaviors.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine maintains complete composition traceability.<br>Ref: §7 FR-6.4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:19-23,269<br>src/domain/engine/compositionCompleted.ts:58-86</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: source Pack id and code per entry, and composed_packs with Pack version.<br>Gap: entries record no composition strategy and no link to the resolution that changed them. See the Traceability rows under §14.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Identical inputs produce identical EBMs.<br>Ref: §7 FR-6.5, §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/policiesDB.ts:76<br>src/dblayer/qualityGatesDB.ts:88<br>tests/engine.test.ts:36-69</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: Pack resolution is by code with a fixed ordering, and pool entries are pushed in input order.<br>Gap: findByPackIds in policiesDB and qualityGatesDB have no ORDER BY, so applicable_policy_ids, applicable_quality_gate_ids and the order of Pack policies are not fixed. The determinism test calls compositionEngine.compose, which no production code calls. unravelComposition has no determinism test.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine resolves deterministic conflicts automatically<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:1011-1095 (applyConflictStrategy)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No conflict is ever resolved automatically — every resolution requires a human to pick a composition strategy on the validate/compose-ebm page (objectives.ts:777-876). There is no deterministic/non-deterministic conflict *classification* anywhere in the code; this is a deliberate design choice recorded in comments (commissioning.ts, "you dont assume any base — i have been repeating this saying user has to choose"), not an oversight.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine supports incremental recomposition.<br>Ref: §7 FR-6.6, §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:104-273</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: unravelComposition rebuilds the whole pool from the Template, Profile and Packs every time. No code compares the new result to the previous EBM or recomposes only what changed.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine identifies non-deterministic conflicts<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:518-566</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every conflict found is treated uniformly (no deterministic/non-deterministic split exists); all conflicts block until a human resolves them, so the practical effect — conflicts needing explicit resolution — holds, but the named classification does not exist.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Recomposition produces a new EBM version.<br>Ref: §7 FR-6.7, §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:19-44<br>src/domain/engine/compositionCompleted.ts:74-105<br>src/dblayer/recovery/ebms_schema_recovery.sql:14<br>src/dblayer/seed/data/eventSubscriptions.json:11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: ebmsDB.create sets version to MAX(version)+1 for the SEU, so a repeated composition adds a row and older rows are untouched.<br>Gap: the subquery is not locked and the table has no unique key on (seu_id, version). The previous EBM is not superseded or retired. seus.active_ebm_id moves to the new Composed EBM at creation (compositionCompleted.ts:105). EBMVersioned is never published.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition runs the stages Collect, Resolve Dependencies, Validate Packs, Compose, Detect, Resolve, Validate Model, Version and Activate.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:441-462,366-381<br>src/routes/seu/web/objectives.ts:485-545<br>src/domain/engine/compositionCompleted.ts:49-112</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: previewCommissioningValidation collects, resolves, composes and detects. The route applies resolutions. The EBM is created, then validated and activated by person-triggered transitions.<br>Gap: there is no pipeline object or stage record. Validate Packs is only the Active-status filter. Versioning happens at row creation, before Validate Model. Validate Model checks references are live and nothing else.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Failure at any stage terminates composition.<br>Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:31-47,91-100<br>src/domain/engine/profileCompositionUnravel.ts:88-92</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: an exception during EBM creation calls failSeu, and an EBM insert error publishes CommissionFailed. Unresolved conflicts stop CompositionCompleted.<br>Gap: a Pack with no Active version is skipped with a warning and composition continues (profileCompositionUnravel.ts:90-92; compositionEngine.ts:19). The warning does not terminate it.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine constructs the EBM<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:132-144</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>ebmsDB.create</code> called with <code>composedPacks</code>, <code>compositionReport</code>, <code>behaviors</code>, <code>applicableQualityGateIds</code>, <code>applicablePolicyIds</code>, <code>seuScopedPolicyIds</code>. Real construction, from the stashed <code>unravelComposition</code> output, not from dead <code>compositionEngine.compose()</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine versions the EBM<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:42-44</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>version = COALESCE(MAX(version),0)+1</code> per <code>seu_id</code>, genuinely computed SQL. See §16 row — never exercised past version 1 since nothing re-triggers composition for an existing SEU.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine identifies authority rule conflicts.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:214-222,294-345<br>tests/profile-composition-unravel.test.ts:96-131</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Roles are grouped per Pack and governed transition. Two Packs assigning different role sets to one transition produce a conflict. Several roles from one Pack do not. Both cases are tested.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine activates the EBM<br> Ref: §4 Responsibilities</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:636-719<br>src/domain/engine/ebmActivated.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEbm</code> with <code>targetState: "Active"</code>, gated by <code>transitionEngine.evaluate</code>, publishes <code>EBMActivated</code> (event_type read off transition_definitions). A real, separately human-triggered stage.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine shall not execute Work Items / manage Participants / manage Deliverables / preserve Knowledge<br> Ref: §4 Responsibilities (negative)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts, profileCompositionUnravel.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Confirmed by absence: no reference to Work Items, Deliverable persistence, or Knowledge preservation in any of the composition-path files; <code>finalizeCommissioning</code> (a separate function, triggered later, off EBMActivated) is where Engineering Assets/Work Items begin.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Inputs: one SEU Template, zero-or-more Packs across 6 categories, Platform Packs, extensible categories<br> Ref: §5 Inputs</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:146-160, 406</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real input is <code>{templateIds, profileIds}</code> (now plural, CR-092 Part 6 — one-or-more Templates were supported in <code>unravelComposition</code>/dead <code>compose()</code>, though <code>commissionSeu</code> itself (commissioning.ts:206) rejects more than one Profile at commit time). Packs are derived indirectly from Template mandatory codes + Profile's 7 category-keyed selection buckets (<code>getProfilePackSelections</code>), not accepted as a flexible list parameter. A Pack's own <code>category:pack</code> value plays no role in composition logic itself (only in which Profile UI bucket it was picked from) — confirmed, no <code>category</code> read in profileCompositionUnravel.ts's pack-resolution path.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Output: exactly one EBM containing behavioural/governance/authority rules, standards, terminology mappings, quality gates, review gates, metadata<br> Ref: §6 Output</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:42-59<br>src/domain/engine/compositionCompleted.ts:102-144</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">One <code>ebms</code> row per commission, confirmed. It now contains real decomposed content: <code>behaviors.pool</code> (every contribution, individually sourced), <code>applicable_quality_gate_ids</code>, <code>applicable_policy_ids</code> (authority/governance), <code>seu_scoped_policy_ids</code>. Not present as first-class EBM fields: "engineering standards" and "terminology mappings" as named, separately queryable structures — these remain embedded inside Pack <code>contributions</code> JSONB, never extracted under those names. "Review gates" has no distinct field from "quality gates" (CR-058 established one Quality Gate per category; no separate Review Gate concept exists in the schema).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Engine shall not expose partially composed models<br> Ref: §6 Output</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:132-158</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>ebmsDB.create</code> is a single INSERT; on <code>ebmErr</code>, nothing is persisted and <code>CommissionFailed</code> is published instead (lines 145-157). No intermediate/partial EBM row is ever visible.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-4.1: invoked before every commissioned SEU<br> Ref: §7 FR-4.1</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/validateRequest.ts:54-157<br>src/routes/seu/web/objectives.ts:777-876</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real composition (<code>unravelComposition</code>+conflict detection+<code>ebmsDB.create</code>) runs for every SEU that reaches <code>Commissioned</code> — but only via a human clicking "Compose"/"Apply & re-validate" on the Compose EBM page (confirmed: <code>eventSubscriptions.json</code> explicitly documents "Compose EBM is a manual transition"), not an automatic invocation "before commissioning." A commission cannot proceed to <code>finalizeCommissioning</code> without an Active EBM existing first, so the ordering constraint holds even though the trigger is manual, not automatic.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-4.2: exactly one EBM per commissioned SEU<br> Ref: §7 FR-4.2</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:132-160</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">One <code>ebmsDB.create</code> call per successful composition, followed by <code>seusDB.setActiveEbm</code>. Confirmed no second create path exists elsewhere.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-4.3: every behavioural contribution retains its originating Pack reference<br> Ref: §7 FR-4.3</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:35-36, 102-106 (PoolSource)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Stronger than Pack-level now: every individual pool entry carries its own <code>source: {kind, id, code, label}</code> (profile/template/pack-level, not just Pack-level), and this is carried onto the persisted <code>ebm.behaviors.pool</code> (compositionCompleted.ts:102-106) — not transient-only as the prior audit found.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-4.4: maintain complete composition traceability<br> Ref: §7 FR-4.4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:42-59 (composed_packs), compositionCompleted.ts:102-106 (behaviors.pool)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Both Pack-level (<code>composed_packs</code>) and per-contribution-level (<code>behaviors.pool</code>, with source) traceability are persisted permanently on the <code>ebms</code> row — not discarded after validation as the embedded audit (dated pre-CR-104/migration-182) found. "Composition strategy" per rule is still not separately recorded as its own trace field (only the resolved value is, via <code>resolvedCompositionConflicts</code>).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-4.5: composition is deterministic — identical inputs produce identical EBMs<br> Ref: §7 FR-4.5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:126-130 (resolveActivePack → findActiveByCode)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Still resolves to whichever Pack Version is currently Active at call time — identical <code>{templateIds, profileIds}</code> can yield a different composed set if a Pack's Active version changes between two calls. Deterministic only relative to full DB state at call time, not purely the two input ids. Unchanged from the prior audit's finding, reconfirmed in the current code.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine identifies conflicting quality gates.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:223-225,294-345</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates are keyed by governed transition and category. Two Packs on the same key with different content conflict through the diff in diffEntries.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-4.6: support incremental recomposition<br> Ref: §7 FR-4.6</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts, profileCompositionUnravel.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No incremental mechanism exists anywhere — every composition recomputes the full pool from scratch. Moot in practice per FR-4.7/§16 below: nothing re-triggers composition for an already-commissioned SEU.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-4.7: recomposition produces a new EBM version<br> Ref: §7 FR-4.7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:42-44</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">SQL is real and correct (<code>MAX(version)+1</code> per seu_id), but confirmed via <code>grep</code> that no code path calls <code>ebmsDB.create</code> a second time for an SEU that already has an EBM — never exercised beyond version 1.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Lifecycle: Collect→Resolve Deps→Validate Packs→Compose→Detect Conflicts→Resolve Conflicts→Validate Model→Version→Activate, each a gated stage<br> Ref: §8 Lifecycle</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/objectives.ts:777-876 (compose-ebm route)<br>src/domain/engine/compositionCompleted.ts<br>src/routes/seu/core/commissioning.ts:636-719 (transitionEbm)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real, separately gated stages now exist for several of the 9: Collect+Resolve Dependencies+Compose+Detect Conflicts are one combined <code>unravelComposition</code>+<code>detectCompositionConflicts</code> pass (objectives.ts:815-841); Resolve Conflicts is real and separate (<code>applyConflictStrategy</code>, human-triggered per conflict); Version+Create is <code>ebmsDB.create</code> (status starts <code>'Composed'</code>); Validate Model and Activate are two distinct, separately human-triggered <code>transitionEbm</code> calls (<code>Composed→Validated</code>, <code>Validated→Active</code>), each independently gated by <code>transitionEngine.evaluate</code>. There is no distinct "Validate Packs" stage — a Pack's existence (<code>findActiveByCode</code>)/liveness (<code>checkRequestLiveness</code>, run during Validate Request, before composition) is the only Pack-level check; no separate per-Pack compatibility stage.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Failure at any stage terminates the composition process<br> Ref: §8 Lifecycle</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/validateRequest.ts:39-52, 105-138<br>src/domain/engine/compositionCompleted.ts:46-59, 145-158</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every stage's failure path updates <code>seus.lifecycle_state</code> to <code>Failed</code> and publishes <code>CommissionFailed</code> with a <code>stage</code> field identifying where it failed — real, consistent across both handlers, including a catch-all for thrown exceptions (failValidation/failComposition wrappers).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Dependency Resolution: required/optional/conditional/incompatible/missing Packs; dependencies declared, not inferred<br> Ref: §9 Dependency Resolution</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:131, 406</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>dependencies[]</code> is read directly off each Pack's own declared data (never inferred) and walked transitively; <code>type: dep.type</code> (required/conditional/incompatible) and <code>satisfiedInComposedSet</code> are both real, checked fields. Missing-mandatory-Pack is checked separately and earlier, in <code>checkRequestLiveness</code> (commissioning.ts, run during Validate Request) — blocking, not a warning.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Behaviour Composition: 7 named strategies (Merge/Override/Supplement/Union/Intersection/Alias/Conflict Detection), extensible without Runtime Kernel changes<br> Ref: §10 Behaviour Composition</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:238-342<br>src/routes/seu/core/commissioning.ts:1011-1095</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">5 of 7 (Merge/Union/Intersection/Supplement/Specialization-as-Alias) are real, live functions — but used for human-triggered, single-field conflict *resolution* (<code>applyConflictStrategy</code>), never for composing whole Pack contents automatically as this section frames it. "Override" (whole-Pack, same-code dedup) exists only inside dead <code>compositionEngine.compose()</code>; in the live path, Pack-code collisions across Template/Profile selections are deduplicated implicitly (<code>byCode</code> map logic exists only in the dead function — the live <code>unravelComposition</code> path has not been confirmed to independently de-duplicate by code beyond <code>findActiveByCode</code>'s own per-code resolution). "Conflict Detection" is real as a separate mechanism (§11), not one of the 6 strategy functions. New strategy codes are data-driven (<code>CompositionStrategyCode</code>/Ontology vocabulary), requiring no Runtime Kernel change for a *known* code, but a genuinely new strategy *function* (not just a label) requires a code change to <code>compositionEngine.ts</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Conflict Detection: contradictory authority rules, incompatible workflows, conflicting quality gates, inconsistent terminology, incompatible compliance/technology constraints; classified deterministic/non-deterministic<br> Ref: §11 Conflict Detection</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:518-566</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>detectCompositionConflicts</code> is comprehensive across every pooled contribution type (Profile params, Template fields, Pack competencies/quality-gates/policies/dependencies) — a much wider net than the 6 named categories, but not keyed to them by name. No first-class "workflow" or "terminology mapping" entity exists to compare, so those two specific categories are not checked under those names. Compliance requirements (Policies) are deliberately never compared against each other — a settled design decision (commissioning.ts comment: "two policies do not have to agree... at all"), not a gap. No deterministic/non-deterministic classification exists anywhere (see FR-4.5/§4 rows).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Conflict Resolution: deterministic resolved automatically; non-deterministic requires explicit human resolution before commissioning; every resolution recorded and traceable<br> Ref: §12 Conflict Resolution</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:1011-1095 (applyConflictStrategy)<br>src/domain/engine/compositionCompleted.ts:104 (resolvedCompositionConflicts)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Blocking is real: any unresolved <code>CompositionConflict</code> prevents <code>CompositionCompleted</code>/EBM creation (objectives.ts:841-874 only proceeds when <code>compositionConflicts.length === 0</code>). Resolution is real and recorded: a human picks a strategy per conflict (<code>applyConflictStrategy</code>), and the resolved value is carried onto <code>ebm.behaviors.resolvedCompositionConflicts</code> — permanently, not just transiently. No conflict is ever resolved automatically — by explicit design, every resolution is a human choice; §12's "deterministic conflicts resolved automatically" half is never implemented and is not planned.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Validation: completeness, Pack compatibility, governance completeness, dependency completeness, mandatory Pack availability, mandatory rules, terminology consistency; fails if EBM incomplete<br> Ref: §13 Validation</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts (checkRequestLiveness, referenced validateRequest.ts:121)<br>src/domain/engine/profileCompositionUnravel.ts (dependency checks)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">"Mandatory Pack availability" is real and blocking, via <code>checkRequestLiveness</code> during Validate Request — a sibling mechanism to composition, not inside it, but functionally satisfying this requirement before composition proceeds. "Dependency completeness" is real (§9 row). Pack compatibility (beyond existence/dependency), governance completeness, mandatory behavioural rules, and terminology consistency have no dedicated check anywhere in the traced code.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition Traceability: every behavioural rule traceable to originating Pack, Pack version, composition strategy, conflict resolution; permanently available<br> Ref: §14 Composition Traceability</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:42-59<br>src/domain/engine/compositionCompleted.ts:102-144</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack + Pack version traceable via <code>composed_packs</code> (permanent). Individual contribution-level source traceable via <code>behaviors.pool[].source</code> (permanent, migration 182 field) — improved over the prior audit's "transient only" finding. Conflict resolution outcome is permanent (<code>resolvedCompositionConflicts</code>). The specific composition *strategy* used per rule is not recorded as a standalone field anywhere — only the resolved value is.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Activation: only validated EBMs may be activated; assigns identifier/version, publishes activation events, makes EBM available for commissioning; does not modify existing EBMs<br> Ref: §15 Activation</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:636-719<br>src/domain/engine/ebmActivated.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEbm</code> enforces <code>fromState</code> via <code>transitionEngine.evaluate</code> (no path from <code>Composed</code> directly to <code>Active</code>; <code>transitionDefinitions.json</code> only defines <code>Composed→Validated</code>(EBMValidated)/<code>Validated→Active</code>(EBMActivated)) — only a Validated EBM reaches Active. Identifier (<code>id</code>)/version are assigned at <code>create</code> time, before activation; <code>EBMActivated</code> is published (event_type resolved from transition_definitions). <code>ebmsDB.updateStatus</code> only ever writes <code>status</code>, never <code>composed_packs</code>/<code>composition_report</code>/<code>behaviors</code> — existing EBM content is never modified by activation or any other transition.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Recomposition: triggered by Pack upgrade, conflict resolution, governance change, new mandatory Pack, or authorised user request; never modifies historical EBMs<br> Ref: §16 Recomposition</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:42-44, 81-89</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Historical EBMs are never modified — confirmed, <code>updateStatus</code> only touches <code>status</code>; no UPDATE touches <code>composed_packs</code>/<code>behaviors</code>. But none of the 5 named triggers actually re-invokes composition for an already-commissioned SEU anywhere in the traced code (<code>compositionCompletedHandler</code>/<code>unravelComposition</code> run exactly once per commission, during the Pending→Composed window, never again). The version-increment SQL is real but unexercised.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Events: CompositionStarted, DependencyResolved, DependencyFailed, PackValidated, BehaviourComposed, ConflictDetected, ConflictResolved, CompositionValidated, EBMCreated, EBMActivated, CompositionFailed<br> Ref: §17 Events</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:49,147,162<br>src/domain/engine/validateRequest.ts:42,108,127,141<br>src/routes/seu/core/commissioning.ts:312,675<br>src/routes/seu/web/objectives.ts:745,859</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">2 of 11 named events exist under their exact chapter-given name: <code>EBMActivated</code> (transitionEbm/transition_definitions) and a near-miss — <code>CommissionFailed</code>/<code>CommissionValidated</code> are real but under Chapter 8's SEU-commissioning-scoped naming, not this chapter's own <code>CompositionFailed</code>/<code>CompositionValidated</code>. <code>EBMCreated</code> is real (compositionCompleted.ts:162) and matches this chapter's name exactly. Not found anywhere, confirmed by <code>grep</code>: <code>CompositionStarted</code>, <code>DependencyResolved</code>, <code>DependencyFailed</code>, <code>PackValidated</code>, <code>BehaviourComposed</code>, <code>ConflictDetected</code>, <code>ConflictResolved</code> — <code>eventSubscriptions.json</code> itself documents <code>CompositionStarted</code> as "currently unpublished." Two real but differently-named events exist instead: <code>CommissionRequested</code>, <code>CompositionCompleted</code>, <code>EBMRetired</code>, <code>EBMValidated</code>.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: deterministic output<br> Ref: §18 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:126-130</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same finding as FR-4.5 — deterministic relative to current DB state only.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support concurrent composition requests<br> Ref: §18 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts, profileCompositionUnravel.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Both modules are stateless functions operating on their own query results, no shared mutable state; nothing structurally prevents concurrent calls from interfering, though no explicit locking/idempotency-on-duplicate-trigger was found (not required by the NFR's own wording).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: maintain complete auditability<br> Ref: §18 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts; src/domain/engine/compositionCompleted.ts:102-106</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Pack-level and now contribution-level (behaviors.pool) auditability both real and permanent; "complete" is still bounded by the same gaps named in §14 (no per-rule strategy field).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: preserve historical versions<br> Ref: §18 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:42-44, 81-89</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Schema/column support real (<code>version</code>, immutable prior rows); never exercised past version 1 (§16).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine identifies incompatible workflows.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:84-105</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: Packs have no workflow contribution kind, and no composition code compares workflows.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support incremental recomposition<br> Ref: §18 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as FR-4.6.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: remain independent of execution technologies<br> Ref: §18 NFR</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts, compositionCompleted.ts</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No technology-specific coupling found in either file — operates on plain DB rows/JSON.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: Mandatory Packs are resolved<br> Ref: §19 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts (checkRequestLiveness, called from validateRequest.ts:121)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real, blocking.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine identifies inconsistent terminology.<br>Ref: §11, §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:84-105</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: Packs have no terminology mapping contribution and no code checks terminology consistency.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: Behavioural contributions are successfully composed<br> Ref: §19 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:102-130</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real composition into one pool, with per-entry source — stronger than the prior audit's "Packs composed, contributions not assembled" finding, now that <code>behaviors.pool</code> is persisted. Not yet organized into the named categorized structures of §6 (standards/terminology mappings/review gates as distinct fields).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine identifies incompatible compliance requirements and incompatible technology constraints.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:52-74<br>src/domain/engine/compositionEngine.ts:281-320</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: competencies from Packs and the Profile are unioned per dimension and never compared. Review Gate and Service Level conflicts are found through the generic diff (tests/profile-composition-unravel.test.ts:81-142).<br>Gap: no rule compares compliance or technology constraints between Packs. detectGovernanceConflicts in compositionEngine.ts is only called by compose(), which production code does not call.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: Deterministic conflicts are resolved automatically<br> Ref: §19 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No classification exists; nothing is ever resolved automatically. By design, confirmed in commissioning.ts comments.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Conflicts are classified as deterministic or non-deterministic.<br>Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:37-41,347-372</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: CompositionConflict has propertyName, options and hasAction. It has no deterministic or non-deterministic classification. hasAction only separates conflicts a strategy can reconcile from dependency violations.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deterministic conflicts are resolved automatically.<br>Ref: §12, §19</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:296,347-372</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: values that are identical across sources produce no conflict (line 296), but that is agreement. Every conflict with differing values waits for a person to pick a strategy. No rule resolves any conflict automatically.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: Non-deterministic conflicts prevent commissioning<br> Ref: §19 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/objectives.ts:841-874</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Real and comprehensive — any unresolved conflict blocks <code>CompositionCompleted</code>/EBM creation, across every pooled contribution type, not just a narrow category subset.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Non-deterministic conflicts require explicit resolution before commissioning.<br>Ref: §12, §19</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/objectives.ts:523-537<br>src/routes/seu/core/commissioning.ts:464-507<br>tests/profile-composition-unravel.test.ts:236-248</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The route publishes CompositionCompleted only when compositionConflicts is empty. A person resolves a conflict by choosing a strategy, and the resolved paths are excluded on the next pass. Dependency violations have no strategy and block until the selection changes. Without CompositionCompleted no EBM exists, so the SEU cannot be activated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The resolved value becomes what the EBM contains.<br>Ref: §8 (Resolve Conflicts), §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:58-63</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: resolved values are saved as behaviors.resolvedCompositionConflicts beside the unchanged pool. The pool still holds every conflicting entry, and the readers of behaviors.pool (workItemGenerator.ts:37, dispatchStrategies.ts:29, redispatch.ts:19, obligations.ts:198, seus.ts:502) do not read the resolved map.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: Every EBM is versioned<br> Ref: §19 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:42-44</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Schema-real; unexercised beyond version 1 (§16).</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: Every behavioural contribution is traceable to its source<br> Ref: §19 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:102-106</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Now permanently persisted (<code>behaviors.pool[].source</code>), not merely transient during validation as the prior audit found — a genuine improvement, confirmed via migration 182's <code>behaviors</code> column and this handler's write path.</td>
-    </tr>
-    <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: EBMs are immutable after activation<br> Ref: §19 AC</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:81-89</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>updateStatus</code> is the only post-create write path and touches only <code>status</code>; confirmed no other UPDATE exists on <code>ebms</code>. A deliberate guarantee, not an accident.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every resolution is recorded and remains traceable.<br>Ref: §12, §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:58-63<br>src/domain/engine/compositionEngine.ts:258<br>src/routes/seu/core/commissioning.ts:459</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the resolved value per property path is kept in seus.composition_report and copied to ebms.behaviors.<br>Gap: compositionReport.resolutions is always an empty array. A resolution records no strategy, no source Packs, no actor and no time.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Composition Engine service, pipeline, dependency resolver, conflict detection, conflict resolution framework, validation service, EBM builder, traceability service, Composition APIs, domain events<br> Ref: §20 Deliverables</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">(see individual rows above)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>compositionEngine.ts</code> as a "service" is largely dead code (only its strategy functions live, repurposed for resolution). Pipeline/dependency resolver/conflict detection/conflict resolution/EBM builder/traceability all have real, working, differently-named implementations elsewhere (<code>profileCompositionUnravel.ts</code>, <code>compositionCompleted.ts</code>, <code>commissioning.ts</code>). Validation service exists but mostly in a sibling chapter's own mechanism (<code>checkRequestLiveness</code>, Ch.8). No standalone recompose/inspect HTTP API exists — only the web UI routes (<code>compose-ebm</code>). Domain events: 2-3 of 11 named events exist under this chapter's exact names; several real events use Chapter 8's own naming instead.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Validation checks behavioural completeness and governance completeness, and fails an incomplete model.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:89-103,366-381</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: validateEbm checks that the Template, Profile and each composed Pack are still live and takes the EBM to Retired when one is not.<br>Gap: no code checks that the model has required behavioural or governance content. An EBM with an empty pool validates.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Validation checks dependency completeness.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:258-264,362-369<br>tests/profile-composition-unravel.test.ts:176-195</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A required dependency not in the selected set is reported as a conflict that blocks composition. The test covers the missing and satisfied cases.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Validation checks that mandatory Packs are available and resolved.<br>Ref: §13, §19</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:109-116,88-92<br>src/dblayer/packsDB.ts:292-304</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: Template mandatory codes and Platform Mandatory Packs are resolved to Active Packs.<br>Gap: a mandatory Pack with no Active version only raises a warning. Composition succeeds without it.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Validation checks mandatory behavioural rules and terminology consistency.<br>Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:104-273</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: no code defines or checks mandatory behavioural rules, and no terminology check exists.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The originating Pack and its version are traceable for each behavioural rule.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:205,269<br>src/domain/engine/compositionCompleted.ts:58-86</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Each pool entry names its Pack id. ebms.composed_packs lists packId, packCode and packVersion, so the version is found by joining on the Pack id.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The composition strategy used is traceable for each behavioural rule.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/profileCompositionUnravel.ts:19-23</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: PoolEntry has propertyName, value and source only. No strategy is recorded on an entry or in the report.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The conflict resolution is traceable for each behavioural rule and the traceability is permanent.<br>Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:58-63<br>src/dblayer/ebmsDB.ts:52-60</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the EBM row persists and only its status can be updated through ebmsDB.<br>Gap: the resolution is a property-to-value map that is not linked to the pool entries it affects.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Only validated EBMs can be activated.<br>Ref: §15, §19</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:211-245<br>tests/ebm-event-lifecycle-table.test.ts:125-132</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The transition rows are None to Composed, Composed to Validated, Validated to Active and Composed to Retired. Composed to Active has no row. The test checks that the skip is refused.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Activation assigns an identifier and a version.<br>Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:19-44<br>src/dblayer/recovery/ebms_schema_recovery.sql:3-14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The identifier is the ebms.id UUID and the version is set at insert. Both exist before activation, so activation finds them already assigned.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Activation publishes events and makes the EBM available for commissioning.<br>Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:229-236<br>src/dblayer/seed/data/eventSubscriptions.json:49-50<br>src/domain/engine/ebmActivated.ts:9-52<br>src/routes/seu/core/commissioning.ts:225-309</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Validated to Active row publishes EBMActivated. ebmActivatedHandler runs finalizeCommissioning, which creates Capabilities and Deliverables and moves the SEU to Activated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Activation and recomposition do not modify existing EBMs. An activated EBM is immutable.<br>Ref: §15, §16, §19</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:52-60<br>src/dblayer/seed/data/transitionDefinitions.json:211-245</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">ebmsDB has create, findById and updateStatus only. No code updates the composed packs or behaviors of an existing row, and a new composition inserts a new row. Status moves only forward. The table has no database-level immutability.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Recomposition occurs when Packs are upgraded, conflicts are resolved, governance changes, new mandatory Packs appear or an authorised user requests it.<br>Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/objectives.ts:485-545<br>src/dblayer/seed/data/routeAuthority.json:1157-1172<br>src/routes/seu/core/commissioning.ts:89-103</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: an authorised user holding seu_commission can recompose through the compose-ebm route, which also covers recomposition after conflict resolution.<br>Gap: nothing starts recomposition on a Pack upgrade, a governance change or a new Mandatory Pack. checkEbmLiveness retires a dead EBM but does not recompose.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">CompositionStarted is published.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/eventSubscriptions.json:8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: the event type is declared and its own description says it is never published.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">DependencyResolved, DependencyFailed, PackValidated, BehaviourComposed, ConflictDetected, ConflictResolved and CompositionValidated are published.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:945</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: none of these names is published by composition code. PackValidated exists only as a Pack lifecycle event (transitionDefinitions.json:945).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">EBMCreated is published when the EBM is created.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:211-219<br>src/domain/engine/compositionCompleted.ts:105-116</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The birth row publishes EBMCreated with the real actor and badge, one per EBM. Test: tests/ebm-event-lifecycle-table.test.ts:80-88.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">EBMActivated is published when the EBM is activated.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/transitionDefinitions.json:229-236<br>tests/ebm-event-lifecycle-table.test.ts:108-123</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The governed Validated to Active transition publishes EBMActivated through publishTransition.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">CompositionFailed is published when composition fails.<br>Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionCompleted.ts:27-29,91-100</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a failure publishes CommissionFailed with stage compose_ebm, which marks the SEU Failed.<br>Gap: the event is named CommissionFailed. No CompositionFailed event exists. CompositionCompleted is published as an extra event not in the spec.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine supports concurrent composition requests.<br>Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:22-23<br>src/routes/seu/web/objectives.ts:524</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: previewCommissioningValidation holds no shared state.<br>Gap: two requests for one SEU overwrite the single seus.composition_report, and both EBM inserts can read the same MAX(version) because nothing locks it.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Composition is fully auditable.<br>Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/objectives.ts:526-537<br>src/domain/engine/compositionCompleted.ts:105-116<br>src/dblayer/recovery/ebms_schema_recovery.sql:3-14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: CompositionCompleted and EBMCreated carry the actor and badge, and the EBM stores author_id and author_badge.<br>Gap: seven spec events are not published and a resolution records no actor or time.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Historical EBM versions are preserved.<br>Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/ebmsDB.ts:19-44,52-60</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Rows are never deleted or rewritten. Each composition adds a version.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine is independent of execution technologies.<br>Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:1-7<br>src/domain/engine/profileCompositionUnravel.ts:1-8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The engine files depend on the DB layer and Template, Profile and Pack helpers only.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The implementation delivers the service, pipeline, dependency resolver, conflict detection, conflict resolution framework and EBM builder.<br>Ref: §20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:163-261<br>src/domain/engine/profileCompositionUnravel.ts:77-102,294-372<br>src/routes/seu/core/commissioning.ts:464-507<br>src/domain/engine/compositionCompleted.ts:49-112</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: separate functions exist for dependency resolution, conflict detection, strategy application and EBM creation.<br>Gap: they are not one service or pipeline. compositionEngine.compose is unused in production and omits Platform Mandatory Packs, transitive dependencies and the pool.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The implementation delivers a validation service and a composition traceability service.<br>Ref: §20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/commissioning.ts:366-381</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: the only validation is validateEbm, a liveness check. No service reads or reports the composition trace of an EBM.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The implementation delivers Composition APIs.<br>Ref: §20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/api/seus.ts:28</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: src/routes/seu/api has no composition or EBM route. The only composition endpoints are the web routes in routes/seu/web/objectives.ts and routes/seu/web/seus.ts. The API commissioning route is commented out.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Mandatory Packs are resolved, behaviours compose, and every EBM is versioned and traceable to its source (acceptance criteria).<br>Ref: §19</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">See rows for §9, §10, §13, §14 and FR-6.7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Behaviours compose and every EBM has a version. Mandatory Pack resolution and strategy and resolution traceability are partial as stated in the rows above.</td>
     </tr>
   </tbody>
 </table>
+
 ## Summary
 
-- Total intents analysed: 38
-- Fully met: 13
-- Partially met: 20
-- Not met: 4
-- Not verifiable: 0
-- Not applicable (scope statement, no independent intent): 1
+- Total intents analysed: 59
+- ✅ Fully met: 21
+- ⚠️ Partially met: 26
+- ❌ Not met: 12
+- ❓ Not verifiable: 0
 
-## Major Implementation Gaps
+### Major implementation gaps
 
-1. **`compositionEngine.ts`'s own `compose()`/`detectGovernanceConflicts` are dead code.** The named "Composition Engine service" (§20) has zero live callers for its core composition function; the real pipeline lives in `profileCompositionUnravel.ts`/`compositionCompleted.ts`/`commissioning.ts` under different names. Only the 6 standalone strategy functions survive, repurposed for human-triggered, single-field conflict resolution — a narrower use case than §10's "compose Pack contents" framing.
-2. **No deterministic/non-deterministic conflict classification exists anywhere**, and by explicit design decision (recorded in code comments) never will — every conflict resolution is a human's own explicit choice. §4/§11/§12/§19's repeated "deterministic conflicts resolved automatically" requirement is not implemented and is not planned.
-3. **Composition is triggered manually, not automatically "before commissioning every SEU."** A human must click "Compose"/"Apply & re-validate" on the Compose EBM page; `eventSubscriptions.json` documents this explicitly. The ordering constraint (EBM must exist before SEU reaches Commissioned) still holds.
-4. **Incremental recomposition and multi-version EBMs are unbuilt/unexercised.** The version-increment SQL is real and correct but no code path ever calls it a second time for an existing SEU; none of the 5 named recomposition triggers (§16) re-invoke composition.
-5. **Events: only 2-3 of 11 named events exist under this chapter's own names** (`EBMActivated`, `EBMCreated`, and near-miss `CommissionValidated`/`CommissionFailed` under Chapter 8's naming instead of this chapter's `CompositionValidated`/`CompositionFailed`). `CompositionStarted`, `DependencyResolved`, `DependencyFailed`, `PackValidated`, `BehaviourComposed`, `ConflictDetected`, `ConflictResolved` are all unpublished, confirmed by direct search and by the seed data's own documentation.
-6. **The EBM is closer to decomposed now than before** (improvement over the prior embedded audit): `ebm.behaviors.pool` persists every individual contribution with its own source, not just a Pack list — but engineering standards and terminology mappings still have no first-class, separately queryable EBM structure; they remain embedded inside each Pack's own `contributions` JSONB.
+- Resolved conflicts are saved as a map beside the pool. The pool and its readers still hold every conflicting entry.
+- Conflicts are not classified as deterministic or non-deterministic, and none is resolved automatically.
+- Traceability lacks the composition strategy per entry, and resolutions carry no strategy, actor or time (compositionReport.resolutions is always empty).
+- Seven of the eleven spec events are never published and CompositionFailed is replaced by CommissionFailed.
+- Validation checks only that references are live. Behavioural completeness, governance completeness, mandatory rules and terminology are not checked, and a missing mandatory Pack only warns.
+- Recomposition is a full manual rebuild. It is not incremental, is not triggered by Pack or governance changes, and the previous EBM is not superseded. The version number is not protected by a unique key.
+- Dependency handling follows every declared type, treats conditional as required, and flags a required Pack that the walk has already composed.
+- compositionEngine.compose is not used in production, and the determinism test covers only that function. Policy and Quality Gate lookups have no ordering.
+- Alias has no implementation, Override has no function, and new strategies need code changes.
+- Terminology mappings and workflows do not exist as Pack contributions.
+- There are no Composition APIs.
+- Eligibility recomposes from live Packs at execution time instead of reading the EBM.

@@ -2,9 +2,10 @@ import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { commandsDB } from "../../../dblayer/commandsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { deliverableReferencesDB } from "../../../dblayer/deliverableReferencesDB.js";
-import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { raiseAttentionItem } from "./attentionItems.js";
+import { applyParticipantHop } from "./participants.js";
+import { getSystemActor } from "../../../dblayer/constants.js";
 import type { DeliverableRow, WorkItemRow } from "../../../dblayer/seuTypes.js";
 
 export type WorkItemOutcome = "done" | "failed" | "blocked";
@@ -39,7 +40,16 @@ export async function completeWorkItem(input: {
   if (input.outcome !== "done") {
     await workItemsDB.updateStatus(workItem.id, "Failed");
     await commandsDB.updateStatus(command.id, "Failed");
-    if (workItem.participant_id) await participantsDB.updateStatus(workItem.participant_id, "Idle");
+    if (workItem.participant_id) {
+      const idled = await applyParticipantHop({
+        participantId: workItem.participant_id,
+        targetState: "Idle",
+        actorId: (await getSystemActor(command.seu_id)).actorId,
+        payload: { workItemId: workItem.id },
+        correlationId,
+      });
+      if (!idled.ok) throw new Error(`Participant ${workItem.participant_id} could not be set Idle: ${idled.detail}`);
+    }
 
     const { data: deliverable } = await deliverablesDB.findById(command.entity_id);
     if (command.requested_by == null) throw new Error(`Command ${command.id} has no requested_by — cannot author the Attention Item raised off its failure`);
@@ -95,17 +105,14 @@ export async function completeWorkItem(input: {
   await commandsDB.updateStatus(command.id, "Completed");
 
   if (workItem.participant_id) {
-    await participantsDB.updateStatus(workItem.participant_id, "Idle");
-    await eventBus.publish({
-      eventType: "ParticipantIdle",
-      originatingObjectType: "Participant",
-      originatingObjectId: workItem.participant_id,
-      seuId: command.seu_id,
-      correlationId,
-      actorId: String(command.requested_by),
-      authorityBadge: command.acting_badge_type,
+    const idled = await applyParticipantHop({
+      participantId: workItem.participant_id,
+      targetState: "Idle",
+      actorId: (await getSystemActor(command.seu_id)).actorId,
       payload: { workItemId: workItem.id },
+      correlationId,
     });
+    if (!idled.ok) throw new Error(`Participant ${workItem.participant_id} could not be set Idle: ${idled.detail}`);
   }
 
   return { ok: true, outcome: "done", workItem: { ...currentWorkItem, status: "Disposed" }, deliverable };

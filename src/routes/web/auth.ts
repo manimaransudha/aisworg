@@ -8,6 +8,7 @@ const crypto   = require('crypto');
 import { passport }    from '../../domain/auth/passportConfig.js';
 import { userDB }      from '../../dblayer/userDB.js';
 import { tenantsDB }   from '../../dblayer/tenantsDB.js';
+import { DEMO_TENANT_NAME } from '../../dblayer/constants.js';
 import { emailService } from '../../domain/auth/emailService.js';
 import { buildSessionUser } from '../../middleware/auth.js';
 import { ensureBadgeBootstrap, getPlatformBadges } from '../../domain/identity/badgeBootstrap.js';
@@ -77,6 +78,12 @@ router.get('/google/callback',
     await ensureBadgeBootstrap(googleUser);
     req.session.user.platformBadges = await getPlatformBadges(requireActorId(req));
     logger.info(`[Auth] Google login: ${googleUser.email}`);
+    const isRoot = (req.session.user.platformBadges ?? []).includes('root');
+    if (!isRoot) {
+      const { data: demoTenant, error } = await tenantsDB.findByName(DEMO_TENANT_NAME);
+      if (error) throw error;
+      if (demoTenant && demoTenant.id === googleUser.tenant_id) return res.redirect('/aisworg/seu/dashboard/demo');
+    }
     res.redirect(postLoginRedirectPath(req.session.user));
   }
 );
