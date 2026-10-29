@@ -1,4 +1,6 @@
 import { packsDB } from "../../../dblayer/packsDB.js";
+import { isLookupMemoActive } from "../../../utils/db.js";
+import type { PackRow } from "../../../dblayer/seuTypes.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import type { JsonSchemaDocument, JsonSchemaProperty } from "../../../domain/sdk/formGenerator.js";
@@ -10,13 +12,19 @@ import { PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes } from "./temp
 
 type Viewer = { isRoot: boolean; tenantId: string | null };
 
+// The Pack options need only code, status and category. A seed run reads those three columns; every other caller reads the full rows as before.
+async function packRowsForOptions(viewer: Viewer): Promise<{ data?: Array<Pick<PackRow, "code" | "status" | "category">> }> {
+  if (isLookupMemoActive()) return packsDB.listOptionRows(viewer.isRoot ? null : viewer.tenantId);
+  return viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId);
+}
+
 const conceptCodes = (conceptType: string) => async (viewer: Viewer): Promise<string[]> =>
   [...new Set((await listConceptsForType(conceptType, viewer, false)).map((c) => c.code))].sort();
 
 // One loader per x-referential source, so a caller reads only the sources it needs.
 const SOURCE_LOADERS: Record<string, (viewer: Viewer) => Promise<string[]>> = {
   "pack-code": async (viewer) => {
-    const { data: packs } = viewer.isRoot || !viewer.tenantId ? await packsDB.findAll() : await packsDB.findAllVisibleTo(viewer.tenantId);
+    const { data: packs } = await packRowsForOptions(viewer);
     return [...new Set((packs ?? []).filter((p) => p.status === "Active").map((p) => p.code))].sort();
   },
   "template-code": async () => {
@@ -138,7 +146,7 @@ function sourceOf(def: JsonSchemaProperty, topLevelContent?: Record<string, unkn
 async function optionsForSource(source: string, options: Record<string, string[]>, viewer: { isRoot: boolean; tenantId: string | null }): Promise<string[] | undefined> {
   if (source !== "pack-code" && !source.startsWith("pack-code:")) return options[source];
   const category = source === "pack-code" ? null : source.slice("pack-code:".length);
-  const { data: packs } = viewer.isRoot || !viewer.tenantId ? await packsDB.findAll() : await packsDB.findAllVisibleTo(viewer.tenantId);
+  const { data: packs } = await packRowsForOptions(viewer);
   const statuses: readonly string[] = REFERENCEABLE_PACK_STATUSES;
   return [...new Set((packs ?? []).filter((p) => statuses.includes(p.status) && (category === null || p.category === category)).map((p) => p.code))];
 }

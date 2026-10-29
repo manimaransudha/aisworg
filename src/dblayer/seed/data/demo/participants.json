@@ -185,7 +185,7 @@
   },
   {
     "type": "AI",
-    "displayName": "Riverbend Analysis Agent",
+    "displayName": "ArchVault Analysis Agent",
     "capabilities": [
       "understanding-business-domain",
       "requirements-elicitation",
@@ -219,7 +219,7 @@
   },
   {
     "type": "AI",
-    "displayName": "Riverbend Coding Agent",
+    "displayName": "ArchVault Coding Agent",
     "capabilities": [
       "software-construction",
       "software-design",
@@ -264,7 +264,7 @@
   },
   {
     "type": "AI",
-    "displayName": "Riverbend Assurance Agent",
+    "displayName": "ArchVault Assurance Agent",
     "capabilities": [
       "software-validation",
       "protect-organisational-assets",
@@ -307,7 +307,7 @@
   },
   {
     "type": "Automated",
-    "displayName": "Riverbend Build Pipeline",
+    "displayName": "ArchVault Build Pipeline",
     "capabilities": [
       "software-release",
       "software-construction",
@@ -346,7 +346,7 @@
   },
   {
     "type": "Automated",
-    "displayName": "Riverbend Test Runner",
+    "displayName": "ArchVault Test Runner",
     "capabilities": [
       "software-validation"
     ],

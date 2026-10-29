@@ -14,12 +14,137 @@
       </div>
     <% } %>
 
+    <div class="lp-cta">
+      <div>
+        <strong>See the platform run</strong>
+        <span>Commission an SEU, move Deliverables forward and watch Governance respond.</span>
+      </div>
+      <a href="/aisworg/seu/demo" class="btn btn-light btn-lg">Play with the demo <i class="bi bi-arrow-right ms-1"></i></a>
+    </div>
+
     <div class="section-card">
-      <div class="section-header">About the demo</div>
-      <div class="p-3 small"><%- about %></div>
+      <div class="section-header collapsed d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#whyHow" aria-expanded="false" aria-controls="whyHow">
+        <span class="lp-toggle-title">Proposition</span>
+        <i class="bi bi-chevron-down"></i>
+      </div>
+      <div id="whyHow" class="collapse">
+        <div class="lp-body">
+            <div class="lp-pair lp-pair-head">
+              <div class="lp-head lp-head-problem"><h2>Gaps in how AI engineering work is governed</h2></div>
+              <div class="lp-head lp-head-solution"><h2>How SEU Studio governs AI engineering work</h2></div>
+            </div>
+
+            <div class="lp-pair">
+              <article class="section-card lp-card lp-card-problem" style="grid-row: 1 / span 4">
+                <h3 class="lp-card-title">AI orchestration coordinates execution. It does not govern it.</h3>
+                <div class="lp-point"><i class="bi bi-diagram-3"></i><div><strong>Coordination without hierarchy</strong><span>Orchestration assigns tasks and sequences execution. Roles, decision rights and authority relationships are left undefined.</span></div></div>
+                <div class="lp-point"><i class="bi bi-hourglass-split"></i><div><strong>Reasoning ends with the session</strong><span>Later work reaches the earlier reasoning only if someone preserves it and restores it to context.</span></div></div>
+                <div class="lp-point"><i class="bi bi-journal-x"></i><div><strong>Accountability is hard to sustain</strong><span>Decision evidence and institutional knowledge are scattered, so engineering cannot be governed reliably over time.</span></div></div>
+              </article>
+              <article class="section-card lp-card lp-card-problem" style="grid-row: 5 / span 4">
+                <h3 class="lp-card-title">A methodology documents the process. It does not enforce it.</h3>
+                <div class="lp-point"><i class="bi bi-file-earmark-text"></i><div><strong>The document and the practice drift apart</strong><span>Under delivery pressure, teams adapt or skip prescribed steps. The documentation still shows management and auditors an orderly process.</span></div></div>
+                <div class="lp-point"><i class="bi bi-chat-dots"></i><div><strong>Understanding lives in conversation</strong><span>Methodologies assume human participants, so shared knowledge stays in meetings, chats and email.</span></div></div>
+                <div class="lp-point"><i class="bi bi-door-open"></i><div><strong>Knowledge leaves with people</strong><span>It is difficult to audit, seldom captured for reuse and lost when its holders move on.</span></div></div>
+              </article>
+              <div class="lp-link" style="grid-row: 2"><i class="bi bi-arrow-right-circle-fill"></i></div>
+              <div class="lp-link" style="grid-row: 3"><i class="bi bi-arrow-right-circle-fill"></i></div>
+              <div class="lp-link" style="grid-row: 4"><i class="bi bi-arrow-right-circle-fill"></i></div>
+              <div class="lp-link" style="grid-row: 6"><i class="bi bi-arrow-right-circle-fill"></i></div>
+              <div class="lp-link" style="grid-row: 7"><i class="bi bi-arrow-right-circle-fill"></i></div>
+              <div class="lp-link" style="grid-row: 8"><i class="bi bi-arrow-right-circle-fill"></i></div>
+              <article class="section-card lp-card lp-card-solution">
+                <h3 class="lp-card-title">SEU Studio makes methodology executable</h3>
+                <div class="lp-point"><i class="bi bi-shield-check"></i><div><strong>Authority is defined and enforced</strong><span>Each participant works within stated limits. The platform checks every action against them, so humans and AI agents take on real engineering work as equals.</span></div></div>
+                <div class="lp-point"><i class="bi bi-journal-bookmark"></i><div><strong>Reasoning stays with the work</strong><span>Decisions and their rationale are stored as explicit engineering records. Later work starts from them, whichever participant did the earlier work.</span></div></div>
+                <div class="lp-point"><i class="bi bi-bullseye"></i><div><strong>Every outcome is traceable</strong><span>Each state change records its approver and evidence. Outcomes are managed continuously, and AI participation keeps that operation running around the clock.</span></div></div>
+                <div class="lp-point" style="grid-row: 6"><i class="bi bi-lock"></i><div><strong>Work advances only when its conditions are met</strong><span>The platform interprets the methodology as the work happens. A step cannot be skipped, because the required evidence and approval must exist first.</span></div></div>
+                <div class="lp-point" style="grid-row: 7"><i class="bi bi-card-checklist"></i><div><strong>Understanding lives in records</strong><span>The engineering unit holds shared understanding as explicit records. Participants rely on them in place of informal conversation.</span></div></div>
+                <div class="lp-point" style="grid-row: 8"><i class="bi bi-building"></i><div><strong>Knowledge stays with the organisation</strong><span>What the organisation decides and learns is retained and auditable, independent of who carried out the work.</span></div></div>
+              </article>
+            </div>
+
+            <div class="lp-closing">
+              <i class="bi bi-check2-circle"></i>
+              <p>AI agents execute engineering work. SEU Studio executes the structure, rules and knowledge that govern it.</p>
+            </div>
+        </div>
+      </div>
+    </div>
+    <div class="section-card">
+      <div class="section-header collapsed d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#insideStudio" aria-expanded="false" aria-controls="insideStudio">
+        <span class="lp-toggle-title">Inside SEU Studio</span>
+        <i class="bi bi-chevron-down"></i>
+      </div>
+      <div id="insideStudio" class="collapse">
+      <div class="lp-body">
+        <div class="lp-flow">
+          <article class="section-card lp-stage">
+            <span class="lp-stage-label">Declare</span>
+            <h3 class="lp-card-title">Engineering architecture</h3>
+            <p class="lp-stage-intro">The organisation's methodologies, frameworks, standards and guidelines are held as declarative definitions in the Registry and authored through the SEU Design Kit. SEU Studio converts them into an executable.</p>
+            <dl class="lp-terms">
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Capability" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;A competency an organisation possesses to deliver software engineering work. Capabilities are its fundamental operational ability, and they act as providers and consumers of value within a continuously operating ecosystem.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; Testing Capability; Requirements Analysis Capability.&lt;/p&gt;">Capability</dt><dd>A competency the organisation holds, such as testing or requirements analysis.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Service" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;The observable value a Capability makes available to other Capabilities, participants and external stakeholders. It is the operational interface of the organisation and exposes the outcome without the internal activity, participant or technology behind it. Capabilities are organisational potential, and Services are the operational expression of it. Knowledge accumulates and Evidence is generated as Services are exercised.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; An architectural Capability produces architecture reviews, approved specifications and risk assessments. Requirements engineering produces validated requirements, process models and traceability.&lt;/p&gt;">Service</dt><dd>The value a Capability makes available to the rest of the organisation.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Template" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;A typical structural blueprint, with the engineering artefacts of the software engineering lifecycle, for a kind of work. A Template implies a set of required Capabilities, Deliverables and a lifecycle.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; Enterprise Web Application; API Platform; AI/ML Development.&lt;/p&gt;">Template</dt><dd>The blueprint of typical software execution work.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Profile" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;Tailors a Template into the executable engineering configuration. It supplies the variable inputs: organisation Packs, technology choices, compliance selections and deployment targets.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; Enterprise, Healthcare, Production and Prototype Profiles. Settings such as a pre-production environment, React-Native, two reviewers on every merge, or GitFlow.&lt;/p&gt;">Profile</dt><dd>Tailors a Template into an executable configuration, such as Healthcare or Prototype.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Pack" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;A reusable declarative contribution included in Templates and Profiles. The configuration is enriched by extension and stays free of redefinition.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; An Enterprise Profile includes a Pack of React-Native coding standards. A Healthcare Profile includes a Pack of HIPAA standards.&lt;/p&gt;">Pack</dt><dd>A reusable contribution, such as HIPAA standards, that extends Templates and Profiles.</dd>
+            </dl>
+          </article>
+          <div class="lp-flow-arrow"><i class="bi bi-chevron-right"></i></div>
+          <article class="section-card lp-stage">
+            <span class="lp-stage-label">Commission</span>
+            <h3 class="lp-card-title">SEU commissioning</h3>
+            <p class="lp-stage-intro">A configuration becomes a running engineering unit for a stated goal, in one guided flow.</p>
+            <dl class="lp-terms">
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Objective" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;Defines the intentions that have to be converted into software systems. Commissioning starts from an Objective.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; Write an API to connect to SEU Studio; fix Jira defect 4576.&lt;/p&gt;">Objective</dt><dd>The intention to convert into a software system, such as a new API or a defect fix.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Composition Engine" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;Composes the declarations of the engineering blueprint and configuration into an executable Engineering Behavior Model, integrating the behaviour each Pack contributes.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; Template + Profile + Packs become one Engineering Behavior Model.&lt;/p&gt;">Composition Engine</dt><dd>Composes the Template, Profile and Packs into one executable model.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Engineering Behavior Model" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;Used to commission the SEU for the Objective and make it operational. The engineering lifecycle becomes a governed unit in one guided flow, and the model is common to all participants.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; Development can be fulfilled by an engineer today, an AI coding participant tomorrow and a swarm of specialised agents later.&lt;/p&gt;">Engineering Behavior Model</dt><dd>The composed specification that governs the unit for every participant, human, AI or automated.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="SEU" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;A Software Engineering Unit instantiates an Engineering Behavior Model to execute software engineering work. Human and AI participants, working individually or in teams, transform Objectives into software systems.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; One SEU per Objective, such as the unit commissioned to fix a defect.&lt;/p&gt;">SEU</dt><dd>A Software Engineering Unit, the running instance of an Engineering Behavior Model.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Deliverable" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;Defines the outcomes of the SEU and carries purpose, context, execution history, knowledge, decisions, evidence and governance state together. It is the execution aggregate that binds the declaratives and platform services for one piece of organisational intent. ALM tools become views of the Deliverable, which belongs to the organisation.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; A requirement, defect, task or change request is represented as a Deliverable.&lt;/p&gt;">Deliverable</dt><dd>A persistent organisational entity that carries the outcome and its full context.</dd>
+            </dl>
+          </article>
+          <div class="lp-flow-arrow"><i class="bi bi-chevron-right"></i></div>
+          <article class="section-card lp-stage">
+            <span class="lp-stage-label">Execute</span>
+            <h3 class="lp-card-title">Execution</h3>
+            <p class="lp-stage-intro">Work advances through the state transitions of Deliverables. The platform supplies state management, eventing, execution planning, observability, notifications and integrations.</p>
+            <dl class="lp-terms">
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Evidence" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;An objectively observable fact, derived from organisational artefacts, that supports, contradicts or qualifies an assertion. Evidence is independently verifiable and is the base on which Knowledge is built.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; A deployment failed; a scanner detected an exposed dependency.&lt;/p&gt;">Evidence</dt><dd>An observable, verifiable fact that supports an assertion.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Knowledge" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;An organisationally accepted proposition, supported by sufficient evidence and authorised through governance. It is an organisational commitment, and it differs from information, which can be incomplete or incorrect.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; The assumptions behind an architecture, or the business rules a requirement relies on.&lt;/p&gt;">Knowledge</dt><dd>What the organisation has accepted as justified and chose to rely on.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Decision" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;Records what the organisation chose, why, which knowledge supports it, the expected consequence and who held the authority to decide. It is the step from understanding to intent, and a first-class entity beyond a document.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; An architecture decision, an approval, a waiver.&lt;/p&gt;">Decision</dt><dd>A commitment to a course of action, based on accepted knowledge.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Obligation" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;An outstanding engineering commitment that influences delivery. A Review evaluates an object, produces Findings, and an accepted Finding creates an Obligation. Governance decides whether unresolved Obligations block a transition.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; A vulnerability is resolved by a code change, a dependency swap or a formally accepted risk.&lt;/p&gt;">Obligation</dt><dd>An outstanding commitment, created from an accepted Finding or another source.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Quality Gate" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;A declarative engineering contract that must evaluate to true before a governed transition occurs. It evaluates whether a specific lifecycle transition is permitted, and a checklist is one possible implementation.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; A fix is accepted only when test results are attached and a reviewer has signed off.&lt;/p&gt;">Quality Gate</dt><dd>A contract that must hold before a state transition may occur.</dd>
+              <dt class="lp-term" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="auto" data-bs-html="true" data-bs-custom-class="lp-popover" data-bs-title="Governance" data-bs-content="&lt;p class=&quot;mb-2&quot;&gt;The system of principle, policy, authority, constraint and control that determines what participants may do, under what conditions, with what authority and producing what evidence. Policies define constraints, Authority defines who may authorise, and Quality Gates evaluate them together. Increasing autonomy then becomes organisational capability.&lt;/p&gt;&lt;p class=&quot;mb-0 text-muted&quot;&gt;&lt;strong&gt;Example:&lt;/strong&gt; Only the holder of the right authority can approve a Deliverable.&lt;/p&gt;">Governance</dt><dd>The rules, authority and controls that regulate every transition.</dd>
+            </dl>
+          </article>
+        </div>
+        <div class="text-center mt-4">
+          <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#componentsModal"><i class="bi bi-list-ul me-1"></i>View all components</button>
+        </div>
+      </div>
+      </div>
     </div>
   </main>
 
+  <div class="modal fade" id="componentsModal" tabindex="-1" aria-labelledby="componentsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5 fw-bold" id="componentsModalLabel">Components of SEU Studio</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead class="table-light"><tr><th style="width:22%">Component</th><th style="width:40%">Responsibility</th><th>Question it answers</th></tr></thead><tbody><tr><td class="fw-semibold small">Capability</td><td class="small">Defines what engineering competency is required.</td><td class="small">What engineering competency is offered?</td></tr><tr><td class="fw-semibold small">Participant</td><td class="small">Provides the competency.</td><td class="small">Who provides the competency? How do I actually perform this engineering activity?</td></tr><tr><td class="fw-semibold small">Template</td><td class="small">Defines the structural blueprint of the SEU.</td><td class="small">What is the blueprint?</td></tr><tr><td class="fw-semibold small">Profile</td><td class="small">Defines how that blueprint is commissioned for a specific context.</td><td class="small">What are the specifics required for this work?</td></tr><tr><td class="fw-semibold small">Pack</td><td class="small">Contributes behaviour, knowledge, governance, integrations and other engineering assets.</td><td class="small">&mdash;</td></tr><tr><td class="fw-semibold small">Engineering Behavior Model (EBM)</td><td class="small">Represents the fully composed behavioural specification that governs the commissioned SEU.</td><td class="small">How should this work be done?</td></tr><tr><td class="fw-semibold small">Runtime Kernel</td><td class="small">Provides generic platform infrastructure (state, events, scheduling, persistence, integrations).</td><td class="small">How is execution managed, observed and recorded?</td></tr><tr><td class="fw-semibold small">Execution Engine</td><td class="small">Interprets engineering state and decides what engineering actions should be requested next.</td><td class="small">What engineering action should happen next?</td></tr><tr><td class="fw-semibold small">Dependency Engine</td><td class="small">Evaluates engineering state to determine whether a dependency is satisfied.</td><td class="small">When can it happen?</td></tr><tr><td class="fw-semibold small">Command</td><td class="small">A request to perform an engineering action.</td><td class="small">&mdash;</td></tr><tr><td class="fw-semibold small">Work Item Generator</td><td class="small">Expresses a Command for a specific type of Participant.</td><td class="small">How should this Command be expressed for a specific type of Participant?</td></tr><tr><td class="fw-semibold small">Work Item</td><td class="small">Expresses participant-specific execution instructions.</td><td class="small">&mdash;</td></tr><tr><td class="fw-semibold small">Dispatch Engine</td><td class="small">Determines who should execute a Work Item.</td><td class="small">Who should execute this Work Item now? Who is the best Participant right now?</td></tr><tr><td class="fw-semibold small">Transition Definition</td><td class="small">The declarative contract describing how a state transition may occur.</td><td class="small">What next states are possible?</td></tr><tr><td class="fw-semibold small">State Transition</td><td class="small">The successful change of an engineering object&#x27;s authoritative state.</td><td class="small">&mdash;</td></tr><tr><td class="fw-semibold small">Event</td><td class="small">The immutable fact that the transition has occurred.</td><td class="small">&mdash;</td></tr><tr><td class="fw-semibold small">Policy</td><td class="small">Defines what constraints apply.</td><td class="small">What constraints must be respected?</td></tr><tr><td class="fw-semibold small">Authority</td><td class="small">Defines who may authorise governed engineering actions.</td><td class="small">Who may approve or perform this action?</td></tr><tr><td class="fw-semibold small">Obligation</td><td class="small">Defines outstanding engineering commitments.</td><td class="small">What commitments remain outstanding?</td></tr><tr><td class="fw-semibold small">Governance</td><td class="small">Evaluates whether a requested state transition is permissible.</td><td class="small">May this state transition occur now?</td></tr><tr><td class="fw-semibold small">Platform Security</td><td class="small">Defines access to the platform.</td><td class="small">May this entity access the platform or invoke this API?</td></tr></tbody></table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
   <%- include('../partials/footer') %>
+  <script>
+    document.querySelectorAll('.lp-term[data-bs-toggle="popover"]').forEach(function (el) { new bootstrap.Popover(el); });
+  </script>
 </body>
 </html>

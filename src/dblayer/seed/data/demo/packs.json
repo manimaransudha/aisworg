@@ -1,13 +1,13 @@
 [
   {
     "code": "technology-react-native",
-    "name": "Riverbend React Native Standards",
+    "name": "ArchVault React Native Standards",
     "category": "Technology",
     "packVersion": "1.0.0",
     "installationClassification": "Optional",
-    "description": "Riverbend IT's existing React Native coding standards, brought into the platform as grouped checklists in place of a free-standing document.",
-    "owner": "Riverbend IT",
-    "publisher": "Riverbend Public Library",
+    "description": "ArchVault IT's existing React Native coding standards, brought into the platform as grouped checklists in place of a free-standing document.",
+    "owner": "ArchVault IT",
+    "publisher": "ArchVault Public Library",
     "dependencies": [
       {
         "packCode": "development",
@@ -27,8 +27,8 @@
       "services": [],
       "checklists": [
         {
-          "name": "Riverbend React Native — Project Structure and Naming",
-          "description": "Riverbend IT mobile standard: project structure and naming.",
+          "name": "ArchVault React Native — Project Structure and Naming",
+          "description": "ArchVault IT mobile standard: project structure and naming.",
           "items": [
             {
               "statement": "All the components, globals, images, redux etc.. Should be written inside the src folder",
@@ -65,8 +65,8 @@
           ]
         },
         {
-          "name": "Riverbend React Native — Component and State Standards",
-          "description": "Riverbend IT mobile standard: component and state standards.",
+          "name": "ArchVault React Native — Component and State Standards",
+          "description": "ArchVault IT mobile standard: component and state standards.",
           "items": [
             {
               "statement": "Declare The Types: It can either be Flow or Typescript",
@@ -103,8 +103,8 @@
           ]
         },
         {
-          "name": "Riverbend React Native — Platform and Experience Standards",
-          "description": "Riverbend IT mobile standard: platform and experience standards.",
+          "name": "ArchVault React Native — Platform and Experience Standards",
+          "description": "ArchVault IT mobile standard: platform and experience standards.",
           "items": [
             {
               "statement": "Use Platform specific styles.",
@@ -129,8 +129,8 @@
           ]
         },
         {
-          "name": "Riverbend React Native — Quality and Release Standards",
-          "description": "Riverbend IT mobile standard: quality and release standards.",
+          "name": "ArchVault React Native — Quality and Release Standards",
+          "description": "ArchVault IT mobile standard: quality and release standards.",
           "items": [
             {
               "statement": "Remove console.log() after debugging, It will make app slower.",
@@ -214,13 +214,13 @@
   },
   {
     "code": "domain-ebook-library",
-    "name": "Riverbend Library Catalogue Domain",
+    "name": "ArchVault Library Catalogue Domain",
     "category": "Domain",
     "packVersion": "1.0.0",
     "installationClassification": "Optional",
     "description": "Catalogue management for the library: bibliographic records (title, author, ISBN, subject) and the catalogue vocabulary.",
-    "owner": "Riverbend IT",
-    "publisher": "Riverbend Public Library",
+    "owner": "ArchVault IT",
+    "publisher": "ArchVault Public Library",
     "dependencies": [
       {
         "packCode": "development",
@@ -307,13 +307,13 @@
   },
   {
     "code": "product-discovery",
-    "name": "Riverbend Lean Delivery",
+    "name": "ArchVault Lean Delivery",
     "category": "Organisation",
     "packVersion": "1.0.0",
     "installationClassification": "Optional",
-    "description": "Riverbend's lean delivery practice for requirements, design, construction and test flows.",
-    "owner": "Riverbend IT",
-    "publisher": "Riverbend Public Library",
+    "description": "ArchVault's lean delivery practice for requirements, design, construction and test flows.",
+    "owner": "ArchVault IT",
+    "publisher": "ArchVault Public Library",
     "dependencies": [
       {
         "packCode": "development",
@@ -365,13 +365,13 @@
   },
   {
     "code": "beta-early-access-management",
-    "name": "Riverbend Quality Gates",
+    "name": "ArchVault Quality Gates",
     "category": "Organisation",
     "packVersion": "1.0.0",
     "installationClassification": "Optional",
     "description": "Quality gates for features with business rules or data.",
-    "owner": "Riverbend IT",
-    "publisher": "Riverbend Public Library",
+    "owner": "ArchVault IT",
+    "publisher": "ArchVault Public Library",
     "dependencies": [
       {
         "packCode": "development",
@@ -419,13 +419,13 @@
   },
   {
     "code": "backlog-release-planning",
-    "name": "Riverbend Release Governance",
+    "name": "ArchVault Release Governance",
     "category": "Organisation",
     "packVersion": "1.0.0",
     "installationClassification": "Optional",
     "description": "Release governance for delivery to production.",
-    "owner": "Riverbend IT",
-    "publisher": "Riverbend Public Library",
+    "owner": "ArchVault IT",
+    "publisher": "ArchVault Public Library",
     "dependencies": [
       {
         "packCode": "development",
@@ -472,13 +472,13 @@
   },
   {
     "code": "integration-slack",
-    "name": "Riverbend Push Integration",
+    "name": "ArchVault Push Integration",
     "category": "Integration",
     "packVersion": "1.0.0",
     "installationClassification": "Optional",
     "description": "Practices for notification features that call external push providers.",
-    "owner": "Riverbend IT",
-    "publisher": "Riverbend Public Library",
+    "owner": "ArchVault IT",
+    "publisher": "ArchVault Public Library",
     "dependencies": [
       {
         "packCode": "development",
@@ -524,14 +524,14 @@
     }
   },
   {
-    "code": "compliance-riverbend-reader-privacy",
-    "name": "Riverbend Reader Privacy",
+    "code": "compliance-us-state-privacy",
+    "name": "ArchVault Reader Privacy",
     "category": "Compliance",
     "packVersion": "1.0.0",
     "installationClassification": "Optional",
     "description": "Reader privacy requirements for borrowing history and device identifiers.",
-    "owner": "Riverbend IT",
-    "publisher": "Riverbend Public Library",
+    "owner": "ArchVault IT",
+    "publisher": "ArchVault Public Library",
     "dependencies": [],
     "contributions": {
       "capabilities": [],

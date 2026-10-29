@@ -2,8 +2,10 @@
   {
     "code": "commission-o10",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O10",
-    "description": "Commission an SEU against Objective O10 with Profile riverbend-catalogue-build.",
+    "description": "Commission an SEU against Objective O10 with Profile archvault-catalogue-build.",
+    "annotation": "Commissioning turns an Objective into a governed SEU. The Profile chosen here decides which Packs apply to it.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -12,15 +14,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-catalogue-build"
+      "profileCode": "archvault-catalogue-build"
     },
     "sortOrder": 1
   },
   {
     "code": "commission-o11",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O11",
-    "description": "Commission an SEU against Objective O11 with Profile riverbend-catalogue-build.",
+    "description": "Commission an SEU against Objective O11 with Profile archvault-catalogue-build.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -29,15 +33,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-catalogue-build"
+      "profileCode": "archvault-catalogue-build"
     },
     "sortOrder": 2
   },
   {
     "code": "commission-o12",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O12",
-    "description": "Commission an SEU against Objective O12 with Profile riverbend-lending-build.",
+    "description": "Commission an SEU against Objective O12 with Profile archvault-lending-build.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -46,15 +52,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-lending-build"
+      "profileCode": "archvault-lending-build"
     },
     "sortOrder": 3
   },
   {
     "code": "commission-o13",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O13",
-    "description": "Commission an SEU against Objective O13 with Profile riverbend-lending-build.",
+    "description": "Commission an SEU against Objective O13 with Profile archvault-lending-build.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -63,15 +71,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-lending-build"
+      "profileCode": "archvault-lending-build"
     },
     "sortOrder": 4
   },
   {
     "code": "commission-o14",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O14",
-    "description": "Commission an SEU against Objective O14 with Profile riverbend-lending-build.",
+    "description": "Commission an SEU against Objective O14 with Profile archvault-lending-build.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -80,15 +90,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-lending-build"
+      "profileCode": "archvault-lending-build"
     },
     "sortOrder": 5
   },
   {
     "code": "commission-o15",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O15",
-    "description": "Commission an SEU against Objective O15 with Profile riverbend-lending-build.",
+    "description": "Commission an SEU against Objective O15 with Profile archvault-lending-build.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -97,15 +109,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-lending-build"
+      "profileCode": "archvault-lending-build"
     },
     "sortOrder": 6
   },
   {
     "code": "commission-o16",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O16",
-    "description": "Commission an SEU against Objective O16 with Profile riverbend-notifications-build.",
+    "description": "Commission an SEU against Objective O16 with Profile archvault-notifications-build.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -114,15 +128,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-notifications-build"
+      "profileCode": "archvault-notifications-build"
     },
     "sortOrder": 7
   },
   {
     "code": "commission-o17",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O17",
-    "description": "Commission an SEU against Objective O17 with Profile riverbend-notifications-build.",
+    "description": "Commission an SEU against Objective O17 with Profile archvault-notifications-build.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -131,15 +147,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-notifications-build"
+      "profileCode": "archvault-notifications-build"
     },
     "sortOrder": 8
   },
   {
     "code": "commission-o19",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O19",
-    "description": "Commission an SEU against Objective O19 with Profile riverbend-release.",
+    "description": "Commission an SEU against Objective O19 with Profile archvault-release.",
+    "annotation": "Each Objective is commissioned on its own, so each gets its own SEU and its own governance.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -148,15 +166,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-release"
+      "profileCode": "archvault-release"
     },
     "sortOrder": 9
   },
   {
     "code": "commission-o20",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O20",
-    "description": "Commission an SEU against Objective O20 with Profile riverbend-release.",
+    "description": "Commission an SEU against Objective O20 with Profile archvault-release.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -165,15 +185,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-release"
+      "profileCode": "archvault-release"
     },
     "sortOrder": 10
   },
   {
     "code": "commission-o21",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O21",
-    "description": "Commission an SEU against Objective O21 with Profile riverbend-release.",
+    "description": "Commission an SEU against Objective O21 with Profile archvault-release.",
+    "annotation": "A second SEU is commissioned for the store submission. It is governed independently of the first.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -182,15 +204,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-release"
+      "profileCode": "archvault-release"
     },
     "sortOrder": 11
   },
   {
     "code": "commission-o22",
     "kind": "commission-objective",
+    "area": "Commission",
     "title": "Commission an SEU for O22",
-    "description": "Commission an SEU against Objective O22 with Profile riverbend-release.",
+    "description": "Commission an SEU against Objective O22 with Profile archvault-release.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -199,15 +223,17 @@
     },
     "payload": {
       "templateCode": "mobile-application",
-      "profileCode": "riverbend-release"
+      "profileCode": "archvault-release"
     },
     "sortOrder": 12
   },
   {
     "code": "complete-requirements-specification-o10",
     "kind": "complete-deliverable",
+    "area": "Execute",
     "title": "Complete requirements-specification on O10",
     "description": "The assigned Participant reports the requirements-specification work as done for the O10 SEU.",
+    "annotation": "A Deliverable moves forward only when its Work Item is reported done. The SEU records the outcome.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -221,8 +247,10 @@
   {
     "code": "complete-architecture-decision-record-o10",
     "kind": "complete-deliverable",
+    "area": "Execute",
     "title": "Complete architecture-decision-record on O10",
     "description": "The assigned Participant reports the architecture-decision-record work as done for the O10 SEU.",
+    "annotation": "Each Deliverable has its own Work Item, so progress is tracked per Deliverable and not for the SEU as a whole.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -236,8 +264,10 @@
   {
     "code": "complete-detailed-design-specification-o10",
     "kind": "complete-deliverable",
+    "area": "Execute",
     "title": "Complete detailed-design-specification on O10",
     "description": "The assigned Participant reports the detailed-design-specification work as done for the O10 SEU.",
+    "annotation": "With the block released, the Deliverable completes as normal. Nothing was skipped to get here.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -251,8 +281,10 @@
   {
     "code": "blocker-test-environment-unavailable",
     "kind": "raise-blocker",
+    "area": "Execute",
     "title": "Test environment is unavailable",
     "description": "The Participant cannot continue because the test environment is down.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -267,8 +299,10 @@
   {
     "code": "blocker-lending-api-not-ready",
     "kind": "raise-blocker",
+    "area": "Execute",
     "title": "Lending service API is not ready for integration",
     "description": "Integration testing cannot start until the lending service API is available.",
+    "annotation": "An external dependency that is not ready is raised as a blocker, not left in a conversation.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -283,8 +317,10 @@
   {
     "code": "blocker-app-store-rejects-build",
     "kind": "raise-blocker",
+    "area": "Execute",
     "title": "App store review rejects the build",
     "description": "The store review rejected the submitted build.",
+    "annotation": "A failed outcome raises an Attention Item just as a blocked one does.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -299,8 +335,10 @@
   {
     "code": "blocker-design-approval-pending",
     "kind": "raise-blocker",
+    "area": "Execute",
     "title": "Design approval is pending",
     "description": "Design work waits on an approval that has not been given.",
+    "annotation": "A Work Item reported as blocked raises an Attention Item. The block stays visible until someone resolves it.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -315,8 +353,10 @@
   {
     "code": "release-blocker-o10",
     "kind": "release-blocker",
+    "area": "Execute",
     "title": "Release the open blocker on O10",
     "description": "Work the oldest open Attention Item on the O10 SEU through Acknowledged, In Progress and Resolved.",
+    "annotation": "Resolving the Attention Item releases the Work Item, and dispatch continues from where it stopped.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -329,8 +369,10 @@
   {
     "code": "release-blocker-o12",
     "kind": "release-blocker",
+    "area": "Execute",
     "title": "Release the open blocker on O12",
     "description": "Work the oldest open Attention Item on the O12 SEU through Acknowledged, In Progress and Resolved.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -343,8 +385,10 @@
   {
     "code": "release-blocker-o19",
     "kind": "release-blocker",
+    "area": "Execute",
     "title": "Release the open blocker on O19",
     "description": "Work the oldest open Attention Item on the O19 SEU through Acknowledged, In Progress and Resolved.",
+    "annotation": "Releasing the blocker records who resolved it and when.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -357,8 +401,10 @@
   {
     "code": "release-blocker-o21",
     "kind": "release-blocker",
+    "area": "Execute",
     "title": "Release the open blocker on O21",
     "description": "Work the oldest open Attention Item on the O21 SEU through Acknowledged, In Progress and Resolved.",
+    "annotation": "The release record is kept with the SEU, so the history of the submission stays traceable.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -371,8 +417,10 @@
   {
     "code": "risk-lead-reviewer-unavailable",
     "kind": "raise-risk",
+    "area": "Execute",
     "title": "Lead reviewer unavailable for the next two weeks",
     "description": "Review capacity drops for two weeks.",
+    "annotation": null,
     "category": "Risk",
     "severity": "High",
     "priority": "High",
@@ -387,11 +435,13 @@
   {
     "code": "risk-push-provider-terms-change",
     "kind": "raise-risk",
+    "area": "Execute",
     "title": "Push provider changes its API terms",
     "description": "The provider announces new API terms that affect push delivery.",
+    "annotation": null,
     "category": "Risk",
-    "severity": "Medium",
-    "priority": "Medium",
+    "severity": "High",
+    "priority": "High",
     "target": {
       "objectiveKey": "O16"
     },
@@ -403,10 +453,12 @@
   {
     "code": "risk-scope-change-requested",
     "kind": "raise-risk",
+    "area": "Execute",
     "title": "Library board requests a scope change",
     "description": "The board asks for a change to the agreed scope.",
+    "annotation": null,
     "category": "Risk",
-    "severity": "Medium",
+    "severity": "High",
     "priority": "High",
     "target": {
       "objectiveKey": "O12"
@@ -419,8 +471,10 @@
   {
     "code": "finding-critical-dependency-vulnerability",
     "kind": "raise-finding",
+    "area": "Execute",
     "title": "Critical vulnerability in a dependency",
     "description": "A review of the source code finds a critical vulnerability in a dependency.",
+    "annotation": "A review records a Finding against a Deliverable. The Finding carries a severity.",
     "category": null,
     "severity": "High",
     "priority": null,
@@ -437,8 +491,10 @@
   {
     "code": "convert-dependency-finding",
     "kind": "convert-finding",
+    "area": "Execute",
     "title": "Convert the Finding to an Obligation",
     "description": "Convert the open dependency Finding into an Obligation.",
+    "annotation": "Converting a Finding creates an Obligation, so the issue stays tracked until its Evidence is in.",
     "category": null,
     "severity": null,
     "priority": null,
@@ -454,8 +510,10 @@
   {
     "code": "waive-dependency-finding",
     "kind": "waive-blocker",
+    "area": "Execute",
     "title": "Waive the dependency Finding",
     "description": "Waive the open dependency Finding.",
+    "annotation": null,
     "category": null,
     "severity": null,
     "priority": null,
@@ -467,19 +525,293 @@
     "sortOrder": 29
   },
   {
-    "code": "accept-reader-privacy-code",
+    "code": "create-api-standards-pack",
+    "kind": "create-pack",
+    "area": "Declare",
+    "title": "Create the API Standards Pack",
+    "description": "Declare a Technology Pack that carries ArchVault's API design checklist, so every API Deliverable can be reviewed against the same standard.",
+    "annotation": "Packs are the extension mechanism through which behaviors are introduced. This one adds an API review checklist and an Obligation.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {},
+    "payload": {
+      "creationBadge": "pack_define",
+      "pack": {
+        "code": "technology-archvault-api-standards",
+        "name": "ArchVault API Standards",
+        "category": "Technology",
+        "packVersion": "1.0.0",
+        "installationClassification": "Optional",
+        "description": "API design and versioning standards for ArchVault services.",
+        "owner": "ArchVault IT",
+        "publisher": "ArchVault Public Library",
+        "dependencies": [],
+        "contributions": {
+          "capabilities": [],
+          "services": [],
+          "policies": [],
+          "checklists": [
+            {
+              "name": "API Design Review",
+              "description": "Review of an API contract before it is released.",
+              "items": [
+                {
+                  "statement": "Every endpoint is described in the published API contract.",
+                  "group": "Contract"
+                },
+                {
+                  "statement": "Breaking changes are introduced only in a new major version.",
+                  "group": "Contract"
+                },
+                {
+                  "statement": "Error responses use the shared error format.",
+                  "group": "Errors"
+                },
+                {
+                  "statement": "Every endpoint states the authority needed to call it.",
+                  "group": "Security"
+                }
+              ]
+            }
+          ],
+          "obligationDefinitions": [
+            {
+              "code": "api-contract-review",
+              "category": "Compliance",
+              "title": "The API contract is reviewed before each release",
+              "description": "Each release confirms that the API contract matches the implemented endpoints.",
+              "origin": "Compliance Packs",
+              "priority": "High",
+              "severity": "High",
+              "completionCriteria": "The contract review is recorded and every difference is resolved.",
+              "requiredEvidence": {
+                "title": "API contract review record",
+                "category": "Review Evidence",
+                "description": "Record of the contract review for the release.",
+                "collectionMethod": "Reviewer attestation."
+              },
+              "classification": "human-attested",
+              "prompt": "",
+              "participant": "human",
+              "outputContract": "assessment-acceptance",
+              "assurance": "API reviewer attests the review.",
+              "externalEvidence": false
+            }
+          ]
+        }
+      }
+    },
+    "sortOrder": 31
+  },
+  {
+    "code": "accept-technology-archvault-api-standards-code",
     "kind": "accept-ontology-code",
-    "title": "Accept the new compliance code",
-    "description": "Accept the reader privacy compliance code in the Ontology so the Pack can be activated.",
+    "area": "Declare",
+    "title": "Accept the code for ArchVault API Standards",
+    "description": "Accept \"technology-archvault-api-standards\" in the Ontology so the Pack can be activated.",
+    "annotation": "A new Pack code is a proposal until the Ontology accepts it. Acceptance activates the Pack.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {},
+    "payload": {
+      "conceptType": "technology-name",
+      "code": "technology-archvault-api-standards",
+      "packCode": "technology-archvault-api-standards"
+    },
+    "sortOrder": 32
+  },
+  {
+    "code": "create-accessibility-pack",
+    "kind": "create-pack",
+    "area": "Declare",
+    "title": "Create the Accessibility Pack",
+    "description": "Declare a Compliance Pack that makes accessibility review an Obligation with required Evidence.",
+    "annotation": "A Compliance Pack turns a requirement into an Obligation with required Evidence, so conformance is checked each release.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {},
+    "payload": {
+      "creationBadge": "pack_define",
+      "pack": {
+        "code": "compliance-archvault-accessibility",
+        "name": "ArchVault Accessibility",
+        "category": "Compliance",
+        "packVersion": "1.0.0",
+        "installationClassification": "Optional",
+        "description": "Accessibility requirements for the ArchVault reader applications.",
+        "owner": "ArchVault IT",
+        "publisher": "ArchVault Public Library",
+        "dependencies": [],
+        "contributions": {
+          "capabilities": [],
+          "services": [],
+          "policies": [],
+          "checklists": [
+            {
+              "name": "Accessibility Verification",
+              "description": "Verification of the reader applications against the accessibility requirements.",
+              "items": [
+                {
+                  "statement": "Every screen has labels that a screen reader announces.",
+                  "group": "Screen Readers"
+                },
+                {
+                  "statement": "Images that carry meaning have a text alternative.",
+                  "group": "Screen Readers"
+                },
+                {
+                  "statement": "Text meets the minimum contrast ratio.",
+                  "group": "Visual Design"
+                },
+                {
+                  "statement": "Text can be enlarged without losing content.",
+                  "group": "Visual Design"
+                }
+              ]
+            }
+          ],
+          "obligationDefinitions": [
+            {
+              "code": "accessibility-conformance-review",
+              "category": "Compliance",
+              "title": "Accessibility conformance is reviewed each release",
+              "description": "Each release confirms conformance with the accessibility requirements.",
+              "origin": "Compliance Packs",
+              "priority": "High",
+              "severity": "High",
+              "completionCriteria": "The review is recorded and no open defect blocks a core task.",
+              "requiredEvidence": {
+                "title": "Accessibility review record",
+                "category": "Review Evidence",
+                "description": "Record of the accessibility review for the release.",
+                "collectionMethod": "Accessibility reviewer attestation."
+              },
+              "classification": "human-attested",
+              "prompt": "",
+              "participant": "human",
+              "outputContract": "assessment-acceptance",
+              "assurance": "Accessibility reviewer attests the review.",
+              "externalEvidence": false
+            }
+          ]
+        }
+      }
+    },
+    "sortOrder": 33
+  },
+  {
+    "code": "accept-compliance-archvault-accessibility-code",
+    "kind": "accept-ontology-code",
+    "area": "Declare",
+    "title": "Accept the code for ArchVault Accessibility",
+    "description": "Accept \"compliance-archvault-accessibility\" in the Ontology so the Pack can be activated.",
+    "annotation": "The Ontology decides which codes are canonical, so the vocabulary stays consistent across Packs.",
     "category": null,
     "severity": null,
     "priority": null,
     "target": {},
     "payload": {
       "conceptType": "compliance-name",
-      "code": "compliance-riverbend-reader-privacy",
-      "packCode": "compliance-riverbend-reader-privacy"
+      "code": "compliance-archvault-accessibility",
+      "packCode": "compliance-archvault-accessibility"
     },
-    "sortOrder": 30
+    "sortOrder": 34
+  },
+  {
+    "code": "create-release-governance-pack",
+    "kind": "create-pack",
+    "area": "Declare",
+    "title": "Create the Release Governance Pack",
+    "description": "Declare an Organisation Pack that sets how ArchVault approves a release.",
+    "annotation": "An Organisation Pack carries how the organisation works, such as when a release may be approved.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {},
+    "payload": {
+      "creationBadge": "pack_define",
+      "pack": {
+        "code": "organisation-archvault-release-governance",
+        "name": "ArchVault Release Governance",
+        "category": "Organisation",
+        "packVersion": "1.0.0",
+        "installationClassification": "Optional",
+        "description": "How ArchVault approves and records a release.",
+        "owner": "ArchVault IT",
+        "publisher": "ArchVault Public Library",
+        "dependencies": [],
+        "contributions": {
+          "capabilities": [],
+          "services": [],
+          "policies": [],
+          "checklists": [
+            {
+              "name": "Release Readiness",
+              "description": "Checks made before a release is approved.",
+              "items": [
+                {
+                  "statement": "All planned Deliverables are complete.",
+                  "group": "Readiness"
+                },
+                {
+                  "statement": "No open Blocker remains.",
+                  "group": "Readiness"
+                },
+                {
+                  "statement": "The release owner has recorded approval.",
+                  "group": "Approval"
+                }
+              ]
+            }
+          ],
+          "obligationDefinitions": [
+            {
+              "code": "release-approval-record",
+              "category": "Compliance",
+              "title": "Release approval is recorded",
+              "description": "Each release records who approved it and when.",
+              "origin": "Compliance Packs",
+              "priority": "High",
+              "severity": "High",
+              "completionCriteria": "The approval is recorded against the release.",
+              "requiredEvidence": {
+                "title": "Release approval record",
+                "category": "Review Evidence",
+                "description": "Record of the approval for the release.",
+                "collectionMethod": "Release owner attestation."
+              },
+              "classification": "human-attested",
+              "prompt": "",
+              "participant": "human",
+              "outputContract": "assessment-acceptance",
+              "assurance": "Release owner attests the approval.",
+              "externalEvidence": false
+            }
+          ]
+        }
+      }
+    },
+    "sortOrder": 35
+  },
+  {
+    "code": "accept-organisation-archvault-release-governance-code",
+    "kind": "accept-ontology-code",
+    "area": "Declare",
+    "title": "Accept the code for ArchVault Release Governance",
+    "description": "Accept \"organisation-archvault-release-governance\" in the Ontology so the Pack can be activated.",
+    "annotation": "Once accepted, the Pack is Active and can be selected by a Profile.",
+    "category": null,
+    "severity": null,
+    "priority": null,
+    "target": {},
+    "payload": {
+      "conceptType": "organisation-name",
+      "code": "organisation-archvault-release-governance",
+      "packCode": "organisation-archvault-release-governance"
+    },
+    "sortOrder": 36
   }
 ]

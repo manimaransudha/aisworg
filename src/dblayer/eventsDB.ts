@@ -22,12 +22,13 @@ export const eventsDB = {
     payload?: Record<string, unknown>;
     actorId: string;
     authorityBadge: string;
+    tenantId?: string | null;
     consumptionState?: Record<string, EventConsumptionEntry>;
   }): Promise<DbResult<EventRow>> {
     try {
       const { rows } = await query<EventRow>(
-        `INSERT INTO events (event_type, originating_object_type, originating_object_id, seu_id, correlation_id, causation_id, payload, actor_id, authority_badge, consumption_state)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO events (event_type, originating_object_type, originating_object_id, seu_id, correlation_id, causation_id, payload, actor_id, authority_badge, consumption_state, tenant_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11::uuid, (SELECT pm.tenant_id FROM participants_master pm WHERE pm.id = $8::uuid)))
          RETURNING *`,
         [
           input.eventType,
@@ -40,6 +41,7 @@ export const eventsDB = {
           input.actorId,
           input.authorityBadge,
           JSON.stringify(input.consumptionState ?? {}),
+          input.tenantId ?? null,
         ]
       );
       return { data: rows[0] };

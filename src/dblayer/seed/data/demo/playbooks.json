@@ -1,6 +1,7 @@
 [
   {
     "code": "catalogue-first-sprint",
+    "area": "Execute",
     "title": "Catalogue first sprint",
     "steps": [
       "commission-o10",
@@ -13,6 +14,7 @@
   },
   {
     "code": "review-finding-to-obligation",
+    "area": "Execute",
     "title": "Review Finding to Obligation",
     "steps": [
       "commission-o10",
@@ -22,6 +24,7 @@
   },
   {
     "code": "release-readiness",
+    "area": "Execute",
     "title": "Release readiness",
     "steps": [
       "commission-o19",
@@ -33,10 +36,30 @@
     ]
   },
   {
-    "code": "reader-privacy-compliance",
-    "title": "Reader privacy compliance",
+    "code": "declare-technology-archvault-api-standards",
+    "area": "Declare",
+    "title": "Declare ArchVault API Standards",
     "steps": [
-      "accept-reader-privacy-code"
+      "create-api-standards-pack",
+      "accept-technology-archvault-api-standards-code"
+    ]
+  },
+  {
+    "code": "declare-compliance-archvault-accessibility",
+    "area": "Declare",
+    "title": "Declare ArchVault Accessibility",
+    "steps": [
+      "create-accessibility-pack",
+      "accept-compliance-archvault-accessibility-code"
+    ]
+  },
+  {
+    "code": "declare-organisation-archvault-release-governance",
+    "area": "Declare",
+    "title": "Declare ArchVault Release Governance",
+    "steps": [
+      "create-release-governance-pack",
+      "accept-organisation-archvault-release-governance-code"
     ]
   }
 ]

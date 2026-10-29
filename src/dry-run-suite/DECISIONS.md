@@ -11,23 +11,32 @@ Detail lives in [WHITEBOARD.md](WHITEBOARD.md). This file is the short index of 
 - passportConfig.js is fixed: non-superuser Google users get users.tenant_id = Demo tenant (done).
 
 ### Part 1: seeding
-- Seeds Packs (P1 to P6), Profiles (PR1 to PR4) and all 22 Objectives, all progressed to Active.
+- Seeds Packs (P1 to P7), one Template inherited into the Demo tenant, Profiles (PR1 to PR4) and all 22 Objectives, all progressed to Active.
 - No SEU is seeded. Commissioning belongs to part 2.
 - Seed data is real and sensible. The mobile-application Template is not modified. Profiles differ by selected Packs.
-- P7 (reader-privacy Compliance Pack) is seeded Published with a new compliance code; the simulator simulates Ontology acceptance, after which it can be activated.
+- P7 (reader-privacy Compliance Pack) uses the existing compliance code compliance-us-state-privacy and is seeded Active. The Ontology acceptance flow is shown by the Declare goals that create a Pack with a new code (create-pack step, then accept-ontology-code step).
 - Seeding uses the governed path (real services and transitions, Demo User as actor), with no bulk-insert bypass.
 - Reset is a Demo-tenant-only purge helper, independent of db:clean-slate. It is an approved exception to the "only participants and badges" direct-write rule.
-- The purge deletes only Demo-tenant rows. It never deletes the Demo tenant row, users or participants_master, and never touches platform-level rows. It keeps its own copy of the USAGE_DATA_TABLES list from src/dblayer/seed/cleanSlate.ts (copied, not imported) in the same dependency order, plus any other tenant tables the demo writes to (for example the scenario catalogue and simulator state), so the demo returns to its seeded base state.
-- The demo seeding code lives in src/dblayer/seed, beside the clean-slate seeding. The landing page reset button and the dry-run-suite command both call it.
+- The purge deletes only Demo-tenant rows. It never deletes the Demo tenant row, users or participants_master, and never touches platform-level rows.
+- The purge runs a fixed plan, DEMO_PURGE_PLAN in src/dblayer/constants.ts. The plan lists the tables in delete order with the filter for each table. It was read from the live foreign keys once and is not rediscovered on each run.
+- A new table with a tenant_id, seu_id or sponsoring_authority column, or a foreign key into one of those tables, has to be added to the plan. The purge stops with an error when a scoped table is missing from it.
+- Events carry a tenant_id. eventBus.publish takes an optional tenantId and otherwise stores the tenant of the actor. The purge deletes the events of the Demo tenant.
+- The demo seeding code lives in src/dblayer/seed, beside the clean-slate seeding. The root page reset button, the daily schedule and the dry-run-suite command all call it.
 - The seed data is the base. Anything the demo user introduces is transient and removed on reset.
 
 ### Part 2: demo landing page, simulator and root screen
 - Both screens live in the main application, with route_authority rows and CR-083 styling.
-- Demo landing page: explains the demo, has a reset button that runs the seeding, lists allowed scenarios, and lets the demo participant raise, release and waive blockers and issue commands such as "Deliverable complete".
-- Root screen: everything the landing page does, plus enabling or disabling scenarios.
-- Simulator modes: manual stepping and scripted playbooks.
+- Demo page: a notice that the data is shared and reset periodically, a contact link, and three tabs named after the stages on the landing page (Declare, Commission, Execute). Each tab has a collapsed How To panel and a list of goals.
+- A goal is a playbook. Its steps are scenarios, shown in order with an annotation that explains what the step shows. Only the next step can be run, and completed steps show as done. Progress is stored per goal for the whole Demo tenant.
+- Root screen: the same page, plus the Steps table with run and enable or disable for each scenario, and the Reset demo data button.
+- The Reset demo data button is on the root screen only. The Demo tenant is reseeded every day at midnight US Pacific time by a schedule started with the server (DEMO_RESET_CRON and DEMO_RESET_TIMEZONE in constants.ts).
+- A visitor can write to the superuser from the demo page. The message is sent by email to SUPERUSER_EMAIL.
+- Simulator modes: a step run from a goal, and a scenario run by root.
 - The simulator acts as the shared Demo User. A badge helper adds the badges an event needs at run time and never revokes them. There is no fixed badge set to decide.
-- Scenario catalogue: tenant-scoped DB table seeded from JSON. Enabled flag only. No versioning or lifecycle. Category, severity and priority reference Ontology codes.
+- Scenario catalogue: tenant-scoped DB table seeded from JSON. Each scenario has an area (Declare, Commission or Execute), an annotation and an enabled flag. No versioning or lifecycle. Category, severity and priority reference Ontology codes.
+- Playbook table: tenant-scoped, seeded from JSON. Each playbook has an area, its ordered scenario codes and a progress index. A reset recreates the rows, so progress returns to zero.
+- The Declare goals create Packs with new codes, and then accept each code in the Ontology. The new Pack stays at Validated until the code is accepted.
+- The demo organisation is ArchVault.
 - SEU lifecycle covers commissioning only for now. An SEU is commissioned against one leaf Objective and uses one Profile.
 - Releasing a blocker is the Attention Item chain. Re-dispatch follows as event consumption.
 
@@ -36,6 +45,16 @@ Detail lives in [WHITEBOARD.md](WHITEBOARD.md). This file is the short index of 
 - The only direct writes are authorisedBadges and authorisedRole on the existing Demo User participant, plus the Demo-tenant purge.
 - Authority and tenant scope are enforced by the platform, never by the suite.
 
+### Performance
+- A reset takes about 40 seconds. It took about three minutes before the changes below.
+- seedDemo runs inside withLookupMemo (src/utils/db.ts). A repeated read-only SELECT is answered from memory, and a write drops the cached reads of the table it changes. The memo is active only inside that scope.
+- Inside the memo scope, the Pack-code option lists read only code, status and category of the Packs. Outside the scope the full rows are read.
+- Templates are published with publishTemplate, as db:clean-slate publishes them. Profiles use publishProfile.
+- db:clean-slate runs its Pack, Template, Profile and Objective seeding inside the same memo scope.
+- The remaining time is round trips to the database. About 900 queries at about 37 ms each.
+
 ## Open
-- Purge build detail: the copied table list must be extended with the tenant tables it omits (for example reviews and findings), checked at build time.
+- Playbooks and scenarios: review the content of the goals, and add goals for the scenarios that no goal contains.
+- Template and Profile steps for the Declare goals (add a Pack to a Template, override an exposed parameter in a Profile) need new simulator handlers.
+- Two goals that begin by commissioning the same Objective collide when both are run.
 - README rewrite, after the design is agreed.

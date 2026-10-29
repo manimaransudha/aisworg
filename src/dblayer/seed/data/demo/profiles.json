@@ -1,11 +1,11 @@
 [
   {
-    "code": "riverbend-catalogue-build",
-    "name": "Riverbend Catalogue Build",
+    "code": "archvault-catalogue-build",
+    "name": "ArchVault Catalogue Build",
     "baseTemplateCode": "mobile-application",
     "environment": "development",
     "profileVersion": "1.0.0",
-    "description": "Catalogue work for Riverbend Digital Shelf.",
+    "description": "Catalogue work for ArchVault Digital Shelf.",
     "developmentMethodology": "scrum",
     "primaryProgrammingLanguage": "typescript",
     "sourceControlProvider": "github",
@@ -24,12 +24,12 @@
     ]
   },
   {
-    "code": "riverbend-lending-build",
-    "name": "Riverbend Lending Build",
+    "code": "archvault-lending-build",
+    "name": "ArchVault Lending Build",
     "baseTemplateCode": "mobile-application",
     "environment": "development",
     "profileVersion": "1.0.0",
-    "description": "Lending work (checkout, return, holds, renewal) for Riverbend Digital Shelf.",
+    "description": "Lending work (checkout, return, holds, renewal) for ArchVault Digital Shelf.",
     "developmentMethodology": "scrum",
     "primaryProgrammingLanguage": "typescript",
     "sourceControlProvider": "github",
@@ -49,12 +49,12 @@
     ]
   },
   {
-    "code": "riverbend-notifications-build",
-    "name": "Riverbend Notifications Build",
+    "code": "archvault-notifications-build",
+    "name": "ArchVault Notifications Build",
     "baseTemplateCode": "mobile-application",
     "environment": "development",
     "profileVersion": "1.0.0",
-    "description": "Push notification work for Riverbend Digital Shelf.",
+    "description": "Push notification work for ArchVault Digital Shelf.",
     "developmentMethodology": "scrum",
     "primaryProgrammingLanguage": "typescript",
     "sourceControlProvider": "github",
@@ -75,12 +75,12 @@
     ]
   },
   {
-    "code": "riverbend-release",
-    "name": "Riverbend Release",
+    "code": "archvault-release",
+    "name": "ArchVault Release",
     "baseTemplateCode": "mobile-application",
     "environment": "production",
     "profileVersion": "1.0.0",
-    "description": "Delivery of Riverbend Digital Shelf to production and the app stores.",
+    "description": "Delivery of ArchVault Digital Shelf to production and the app stores.",
     "developmentMethodology": "scrum",
     "primaryProgrammingLanguage": "typescript",
     "sourceControlProvider": "github",

@@ -241,6 +241,26 @@ export const packsDB = {
     }
   },
 
+  // The code, status and category of every Pack a viewer can see (all Packs for root). Read by the Pack-code option lists,
+  // which need nothing else; the full rows carry the large contributions JSON.
+  async listOptionRows(viewerTenantId: string | null): Promise<DbResult<Array<Pick<PackRow, "code" | "status" | "category">>>> {
+    try {
+      if (!viewerTenantId) {
+        const { rows } = await query<Pick<PackRow, "code" | "status" | "category">>("SELECT code, status, category FROM packs ORDER BY category, code, created_at DESC");
+        return { data: rows };
+      }
+      const PLATFORM_TENANT_ID = await getPlatformTenantId();
+      const { rows } = await query<Pick<PackRow, "code" | "status" | "category">>(
+        "SELECT code, status, category FROM packs WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY category, code, created_at DESC",
+        [PLATFORM_TENANT_ID, viewerTenantId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[packsDB] listOptionRows error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findAll(): Promise<DbResult<PackRow[]>> {
     try {
       const { rows } = await query<PackRow>("SELECT * FROM packs ORDER BY category, code, created_at DESC");

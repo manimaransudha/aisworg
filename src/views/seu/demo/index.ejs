@@ -18,66 +18,120 @@
     <% const _from = root ? 'root' : 'landing'; %>
     <% const _base = locals.listBasePath || '/aisworg/seu/demo'; %>
 
-    <div class="d-flex justify-content-between align-items-start mb-4">
-      <div>
-        <h2 class="h3 mb-1 text-dark fw-bold"><%= root ? 'Demo Root' : 'Demo' %></h2>
-        <p class="text-muted small mb-0">
-          <%= root
-            ? 'Everything on the demo page, plus enabling or disabling each scenario for the demo participant.'
-            : 'Run scenarios as the shared Demo User and watch the platform respond.' %>
-        </p>
+    <%
+      const _guides = {
+        Declare: {
+          lead: 'Declaration defines what the platform may build and under which rules. Everything declared is held in the registries.',
+          steps: [
+            { text: 'View the existing declarations under Registry in the navbar.' },
+            { text: 'Browse the declared <a href="/aisworg/seu/packs">Packs</a>, <a href="/aisworg/seu/templates">Templates</a> and <a href="/aisworg/seu/profiles">Profiles</a>.' },
+            { text: 'Author a new declaration from <a href="/aisworg/seu/sdk/pack-authoring">Pack authoring</a>. Action buttons appear only where your authority allows them.' },
+            { text: 'Try one of the goals below to see a declaration take effect.' }
+          ]
+        },
+        Commission: {
+          lead: 'Commissioning turns an Objective into a governed SEU, composed from the declarations.',
+          steps: [
+            { text: 'Review the existing <a href="/aisworg/seu/objectives">Objectives</a>, or <a href="/aisworg/seu/objectives/new">create a new one</a>.' },
+            { text: 'Open an Objective and compose its Engineering Behavior Model.' },
+            { text: 'Commission the SEU from the Objective, then open it from <a href="/aisworg/seu/seus">SEUs</a>.' },
+            { text: 'Or work through a goal below to commission one for you.' }
+          ]
+        },
+        Execute: {
+          lead: 'Execution moves Deliverables forward while Governance responds to what happens.',
+          steps: [
+            { text: 'Open a commissioned SEU from <a href="/aisworg/seu/seus">SEUs</a> and review its Deliverables and Work Items.' },
+            { text: 'Complete Work Items and watch Quality Gates and Obligations respond.' },
+            { text: 'Raise a Blocker, Risk or Finding, then convert or release it. Follow the outcome in <a href="/aisworg/seu/attention">Attention</a>.' },
+            { text: 'Or work through a goal below, one step at a time.' }
+          ]
+        }
+      };
+      const _stageTitles = { Declare: 'Engineering architecture', Commission: 'SEU commissioning', Execute: 'Execution' };
+      const _guide = _guides[area];
+    %>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+      <div class="small text-muted flex-grow-1" style="max-width: 46rem;">
+        <strong class="text-body">This is a demo.</strong> Anyone can modify its data. Demo data is reset periodically, so the changes you make may not be saved.
+        It showcases the core features of SEU Studio. To access the entire specification,
+        <a href="#" data-bs-toggle="modal" data-bs-target="#contactModal">contact us</a>.
       </div>
-      <form method="POST" action="/aisworg/seu/demo/reset" class="mb-0">
+      <% if (root) { %>
+      <form method="POST" action="/aisworg/seu/demo/reset" class="mb-0 flex-shrink-0">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input type="hidden" name="from" value="<%= _from %>">
+        <input type="hidden" name="category" value="<%= area %>">
         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reset the Demo tenant to its seeded base state?');">Reset demo data</button>
       </form>
+      <% } %>
     </div>
+
+    <ul class="nav nav-tabs mb-4">
+      <% areas.forEach(function(a) { %>
+        <li class="nav-item">
+          <a class="nav-link <%= a === area ? 'active' : '' %>" href="<%= _base %>?category=<%= a %>"><span class="fw-semibold"><%= a %></span> <span class="text-muted">· <%= _stageTitles[a] %></span></a>
+        </li>
+      <% }); %>
+    </ul>
 
     <div class="section-card">
-      <div class="section-header d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#demoAbout" aria-expanded="true" aria-controls="demoAbout">
-        <span>About the demo</span>
-        <i class="bi bi-chevron-down"></i>
+      <div class="section-header collapsed d-flex justify-content-between align-items-center" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#howTo" aria-expanded="false" aria-controls="howTo">
+        <span class="lp-toggle-title">How To</span>
+        <i class="bi bi-chevron-down" aria-hidden="true"></i>
       </div>
-      <div id="demoAbout" class="collapse show">
-        <div class="p-3 small"><%- about %></div>
-      </div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header">Playbooks</div>
-      <div class="table-responsive">
-        <table class="table table-sm mb-0 align-middle">
-          <thead class="table-light">
-            <tr><th>Playbook</th><th>Steps</th><th>Step</th></tr>
-          </thead>
-          <tbody>
-            <% if (playbooks.length === 0) { %>
-              <tr><td colspan="3" class="text-muted small">No playbooks are enabled.</td></tr>
-            <% } %>
-            <% playbooks.forEach(function(pb) { %>
-              <tr>
-                <td class="small fw-semibold"><%= pb.title %></td>
-                <td class="small text-muted"><%= pb.steps.join(' → ') %></td>
-                <td>
-                  <form method="POST" action="/aisworg/seu/demo/playbooks/<%= pb.code %>/step" class="d-flex align-items-center gap-2 mb-0">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <input type="hidden" name="from" value="<%= _from %>">
-                    <input type="number" name="index" value="0" min="0" max="<%= pb.steps.length - 1 %>" class="form-control form-control-sm" style="width: 5rem;" aria-label="Step index, starting at 0">
-                    <button type="submit" class="btn btn-sm btn-primary">Run step</button>
-                  </form>
-                </td>
-              </tr>
-            <% }); %>
-          </tbody>
-        </table>
+      <div id="howTo" class="collapse">
+        <div class="p-3">
+          <p class="small text-muted mb-2"><%= _guide.lead %></p>
+          <ol class="small mb-0 ps-3">
+            <% _guide.steps.forEach(function(st) { %><li class="mb-1"><%- st.text %></li><% }); %>
+          </ol>
+        </div>
       </div>
     </div>
 
+    <h2 class="h6 fw-bold text-uppercase text-muted mb-3">What do you want to try</h2>
+    <% if (playbooks.length === 0) { %>
+      <div class="section-card"><div class="p-3 small text-muted">Nothing to try for this area yet.</div></div>
+    <% } %>
+    <% playbooks.forEach(function(pb) { %>
+      <div class="section-card">
+        <div class="section-header d-flex justify-content-between align-items-center">
+          <span class="lp-toggle-title"><%= pb.title %></span>
+          <span class="small text-muted fw-normal"><%= Math.min(pb.progress, pb.steps.length) %> of <%= pb.steps.length %> done</span>
+        </div>
+        <ol class="list-group list-group-flush list-unstyled mb-0">
+          <% pb.steps.forEach(function(st, i) { %>
+            <% const _done = i < pb.progress; const _next = i === pb.progress; %>
+            <li class="d-flex align-items-start gap-3 px-3 py-3 border-top <%= _next ? 'bg-light' : '' %>">
+              <span class="pt-1 <%= _done ? 'text-success' : (_next ? 'text-primary' : 'text-muted') %>">
+                <i class="bi bi-<%= _done ? 'check-circle-fill' : (_next ? 'play-circle-fill' : 'circle') %>" aria-hidden="true"></i>
+                <span class="visually-hidden"><%= _done ? 'Done' : (_next ? 'Next' : 'Waiting') %></span>
+              </span>
+              <div class="flex-grow-1 small <%= (!_done && !_next) ? 'text-muted' : '' %>">
+                <div class="fw-semibold"><%= i + 1 %>. <%= st.title %></div>
+                <% if (st.annotation) { %><div class="text-muted"><%= st.annotation %></div><% } %>
+              </div>
+              <% if (_next) { %>
+                <form method="POST" action="/aisworg/seu/demo/playbooks/<%= pb.code %>/step" class="mb-0 flex-shrink-0">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="from" value="<%= _from %>">
+                  <input type="hidden" name="category" value="<%= area %>">
+                  <button type="submit" class="btn btn-sm btn-primary">Run</button>
+                </form>
+              <% } %>
+            </li>
+          <% }); %>
+        </ol>
+      </div>
+    <% }); %>
+
+    <% if (root) { %>
     <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search code / title / kind' }) %>
 
     <div class="section-card">
-      <div class="section-header">Scenarios</div>
+      <div class="section-header">Steps</div>
       <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
           <thead class="table-light">
@@ -92,7 +146,7 @@
           </thead>
           <tbody>
             <% if (list.total === 0) { %>
-              <tr><td colspan="<%= root ? 6 : 5 %>" class="text-muted small"><%= list.q ? 'No scenarios match your search.' : 'No scenarios are available. Reset the demo data to load them.' %></td></tr>
+              <tr><td colspan="<%= root ? 6 : 5 %>" class="text-muted small"><%= list.q ? 'No scenarios match your search.' : 'No scenarios are available for this area. Reset the demo data to load them.' %></td></tr>
             <% } %>
             <% list.items.forEach(function(s) { %>
               <tr>
@@ -107,6 +161,7 @@
                   <form method="POST" action="/aisworg/seu/demo/scenarios/<%= s.code %>/run" class="mb-0">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <input type="hidden" name="from" value="<%= _from %>">
+                    <input type="hidden" name="category" value="<%= area %>">
                     <button type="submit" class="btn btn-sm btn-primary">Run</button>
                   </form>
                 </td>
@@ -125,7 +180,30 @@
         </table>
       </div>
     </div>
+    <% } %>
   </main>
+
+
+  <div class="modal fade" id="contactModal" tabindex="-1" aria-labelledby="contactModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <form method="POST" action="/aisworg/seu/demo/contact" class="modal-content">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="from" value="<%= _from %>">
+        <input type="hidden" name="category" value="<%= area %>">
+        <div class="modal-header">
+          <h5 class="modal-title" id="contactModalLabel">Contact us</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <label for="contactMessage" class="form-label small">Tell us what you would like to see in the full specification.</label>
+          <textarea id="contactMessage" name="message" class="form-control" rows="5" maxlength="2000" required></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Send</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <%- include('../../partials/footer') %>
 </body>

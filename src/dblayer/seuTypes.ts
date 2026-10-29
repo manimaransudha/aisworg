@@ -875,6 +875,7 @@ export interface EventRow {
   payload: Record<string, unknown>;
   actor_id: string;
   authority_badge: string;
+  tenant_id: string;
   occurred_at: string;
   sequence: string;
   consumption_state: Record<string, EventConsumptionEntry>;

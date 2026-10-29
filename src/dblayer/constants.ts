@@ -6,6 +6,10 @@ import { participantsDB } from "./participantsDB";
 
 export const PLATFORM_TENANT_NAME = "Platform";
 export const DEMO_TENANT_NAME = "Demo";
+export const DEMO_AREAS = ["Declare", "Commission", "Execute"] as const;
+// The Demo tenant is reseeded every day at midnight in the US Pacific timezone (Pacific Standard or Daylight Time as in force).
+export const DEMO_RESET_CRON = "0 0 * * *";
+export const DEMO_RESET_TIMEZONE = "America/Los_Angeles";
 export const ATHENS_TENANT_NAME = "Athens AI-Native";
 export const BABYLON_TENANT_NAME = "Babylon AI-Native";
 export const CAMBODIA_TENANT_NAME = "Cambodia AI-Native";
@@ -173,3 +177,86 @@ export async function getSystemActor(seuId: string): Promise<{ actorId: string; 
     if (!participant) throw new Error(`SEU ${seuId} has no system participant — it is created when the SEU is Commissioned`);
     return { actorId, authorId: participant.id, authorBadge: SYSTEM_ACTOR_BADGE };
 }
+
+// Demo tenant purge plan (src/dblayer/seed/demo/demoPurge.ts). Tables are listed in delete order,
+// dependants before the rows they reference. The order and the nulled references were read from the
+// live foreign keys of the schema. A new table with a tenant_id, seu_id or sponsoring_authority
+// column, or a foreign key into one of these tables, has to be added here; the purge stops
+// with an error when it finds a tenant-scoped table that is missing.
+//   tenant      rows whose tenant_id is the Demo tenant
+//   sponsoring  rows whose sponsoring_authority names the Demo tenant
+//   seu         rows whose seu_id is a Demo SEU
+//   seus        the Demo SEUs (Demo tenant, or commissioned against a Demo Objective)
+//   via         rows that reference a row already selected for deletion in the parent table
+export interface DemoPurgeStep {
+  table: string;
+  scope: "tenant" | "sponsoring" | "seu" | "seus" | "via";
+  via?: Array<{ column: string; parent: string; parentColumn: string }>;
+}
+export const DEMO_PURGE_PLAN: readonly DemoPurgeStep[] = [
+  { table: "attention_items", scope: "seu" },
+  { table: "attestations", scope: "seu" },
+  { table: "work_items", scope: "via", via: [{ column: "command_id", parent: "commands", parentColumn: "id" }, { column: "participant_id", parent: "participants", parentColumn: "id" }, { column: "author_id", parent: "participants", parentColumn: "id" }] },
+  { table: "deliverable_references", scope: "seu" },
+  { table: "commands", scope: "seu" },
+  { table: "governance_evaluation_outcomes", scope: "seu" },
+  { table: "transition_definitions", scope: "via", via: [{ column: "required_authority_rule_id", parent: "authority_rules", parentColumn: "id" }] },
+  { table: "authority_rules", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
+  { table: "badge_tiers", scope: "tenant" },
+  { table: "badge_types", scope: "tenant" },
+  { table: "evidence_relationships", scope: "via", via: [{ column: "evidence_id", parent: "evidence", parentColumn: "id" }] },
+  { table: "evidence", scope: "via", via: [{ column: "deliverable_id", parent: "deliverables", parentColumn: "id" }, { column: "author_id", parent: "participants", parentColumn: "id" }] },
+  { table: "knowledge_validation_notes", scope: "via", via: [{ column: "knowledge_item_id", parent: "knowledge_items", parentColumn: "id" }] },
+  { table: "knowledge_items", scope: "seu" },
+  { table: "deliverable_authoring_content", scope: "via", via: [{ column: "deliverable_id", parent: "deliverables", parentColumn: "id" }] },
+  { table: "external_interactions", scope: "seu" },
+  { table: "deliverables", scope: "seu" },
+  { table: "capability_fulfilment_pools", scope: "seu" },
+  { table: "capability_fulfilments", scope: "via", via: [{ column: "seu_capability_id", parent: "seu_capabilities", parentColumn: "id" }, { column: "participant_id", parent: "participants", parentColumn: "id" }, { column: "author_id", parent: "participants", parentColumn: "id" }] },
+  { table: "seu_capabilities", scope: "seu" },
+  { table: "execution_targets", scope: "tenant" },
+  { table: "services", scope: "via", via: [{ column: "providing_capability_id", parent: "capabilities", parentColumn: "id" }, { column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
+  { table: "template_capabilities", scope: "via", via: [{ column: "template_id", parent: "templates", parentColumn: "id" }, { column: "capability_id", parent: "capabilities", parentColumn: "id" }] },
+  { table: "capabilities", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
+  { table: "capability_definitions", scope: "tenant" },
+  { table: "checklists", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
+  { table: "compliance_evaluations", scope: "seu" },
+  { table: "compliance_waivers", scope: "seu" },
+  { table: "compliance_requirements", scope: "via", via: [{ column: "framework_code", parent: "compliance_frameworks", parentColumn: "code" }, { column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
+  { table: "compliance_frameworks", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
+  { table: "decisions", scope: "seu" },
+  { table: "deliverable_definitions", scope: "tenant" },
+  { table: "demo_playbooks", scope: "tenant" },
+  { table: "demo_scenarios", scope: "tenant" },
+  { table: "ebms", scope: "seu" },
+  { table: "events", scope: "tenant" },
+  { table: "findings", scope: "seu" },
+  { table: "metric_definitions", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
+  { table: "objective_capabilities", scope: "via", via: [{ column: "objective_id", parent: "objectives", parentColumn: "id" }] },
+  { table: "objective_root_sequences", scope: "tenant" },
+  { table: "obligations", scope: "seu" },
+  { table: "reviews", scope: "seu" },
+  { table: "quality_gate_evaluations", scope: "seu" },
+  { table: "participants", scope: "seu" },
+  { table: "quality_gate_waivers", scope: "seu" },
+  { table: "seus", scope: "seus" },
+  { table: "objectives", scope: "sponsoring" },
+  { table: "ontology_concept_comments", scope: "via", via: [{ column: "concept_id", parent: "ontology_concepts", parentColumn: "id" }] },
+  { table: "ontology_concepts", scope: "tenant" },
+  { table: "quality_gates", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
+  { table: "review_gates", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
+  { table: "policies", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
+  { table: "packs", scope: "tenant" },
+  { table: "policy_definitions", scope: "tenant" },
+  { table: "profile_packs", scope: "via", via: [{ column: "profile_id", parent: "profiles", parentColumn: "id" }] },
+  { table: "profiles", scope: "tenant" },
+  { table: "service_definitions", scope: "tenant" },
+  { table: "template_packs", scope: "via", via: [{ column: "template_id", parent: "templates", parentColumn: "id" }] },
+  { table: "templates", scope: "tenant" },
+  { table: "version_events", scope: "tenant" },
+];
+
+// References that close a foreign-key cycle. They are nulled for the rows about to be deleted before the plan runs.
+export const DEMO_PURGE_NULLED_REFERENCES: ReadonlyArray<{ table: string; column: string; parent: string; parentColumn: string }> = [
+  { table: "seus", column: "active_ebm_id", parent: "ebms", parentColumn: "id" },
+];

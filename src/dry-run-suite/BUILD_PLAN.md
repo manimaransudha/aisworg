@@ -22,7 +22,7 @@ Removed on the owner's instruction.
 |---|---|
 | demoBadges.ts | Badge helper modelled on tests/testFixtures.ts (grantBadge, grantRouteBadges, grantTransitionBadge). Adds to the Demo User participant's authorised_badges. Never revokes. No import from tests/. |
 | demoPurge.ts | Deletes Demo-tenant rows only. Holds its own copy of the USAGE_DATA_TABLES list from cleanSlate.ts, in the same order, plus the tables it omits and the new demo tables. Never deletes tenants, users or participants_master. Skips tables without a tenant column. |
-| demoSeed.ts | Orchestrator: purge, set Demo User role and badges, author and activate Packs P1 to P6, author P7 and leave it Published, author Profiles PR1 to PR4, create Objectives O1 to O22 and progress them to Active, load the scenario catalogue. Loads the Ontology once. Runs through the governed path with the Demo User as actor. |
+| demoSeed.ts | Orchestrator: purge, set Demo User role and badges, author and activate Packs P1 to P6, author and activate P7, author Profiles PR1 to PR4, create Objectives O1 to O22 and progress them to Active, load the scenario catalogue. Loads the Ontology once. Runs through the governed path with the Demo User as actor. |
 | data/demo/*.json | Packs, Profiles, Objectives, scenarios and playbooks as data. Codes reference Ontology concepts and are validated on load. |
 
 ### 2.2 Database
@@ -71,7 +71,7 @@ Rows are added to src/dblayer/seed/data/routeAuthority.json in the same build pa
 |---|---|
 | passportConfig.js | Done. Non-superuser Google users get the Demo tenant id. |
 | CLAUDE.md | Done. Demo seeding recorded as an exception. |
-| Ontology | One new compliance-name concept for P7, in a state that the simulator can accept. Verify that Draft concepts can be created through the governed path. |
+| Ontology | P7 uses an existing compliance-name concept. The Declare goals create Packs with new codes, and the simulator accepts the Draft concept through the governed path. |
 | README.md | Rewritten as landing-page content, in the book register. |
 
 ## 3. Test fixtures

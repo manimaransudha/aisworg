@@ -7,8 +7,10 @@ export interface DemoScenarioRow {
   tenant_id: string;
   code: string;
   kind: string;
+  area: string;
   title: string;
   description: string | null;
+  annotation: string | null;
   category: string | null;
   severity: string | null;
   priority: string | null;
@@ -27,8 +29,10 @@ export const demoScenariosDB = {
     tenantId: string;
     code: string;
     kind: string;
+    area: string;
     title: string;
     description?: string | null;
+    annotation?: string | null;
     category?: string | null;
     severity?: string | null;
     priority?: string | null;
@@ -41,16 +45,16 @@ export const demoScenariosDB = {
   }): Promise<DbResult<DemoScenarioRow>> {
     try {
       const { rows } = await query<DemoScenarioRow>(
-        `INSERT INTO demo_scenarios (tenant_id, code, kind, title, description, category, severity, priority, target, payload, enabled, sort_order, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        `INSERT INTO demo_scenarios (tenant_id, code, kind, area, title, description, annotation, category, severity, priority, target, payload, enabled, sort_order, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
          ON CONFLICT (code, tenant_id) DO UPDATE
-           SET kind = EXCLUDED.kind, title = EXCLUDED.title, description = EXCLUDED.description,
+           SET kind = EXCLUDED.kind, area = EXCLUDED.area, title = EXCLUDED.title, description = EXCLUDED.description, annotation = EXCLUDED.annotation,
                category = EXCLUDED.category, severity = EXCLUDED.severity, priority = EXCLUDED.priority,
                target = EXCLUDED.target, payload = EXCLUDED.payload, enabled = EXCLUDED.enabled,
                sort_order = EXCLUDED.sort_order, updated_at = NOW()
          RETURNING *`,
         [
-          input.tenantId, input.code, input.kind, input.title, input.description ?? null,
+          input.tenantId, input.code, input.kind, input.area, input.title, input.description ?? null, input.annotation ?? null,
           input.category ?? null, input.severity ?? null, input.priority ?? null,
           JSON.stringify(input.target ?? {}), JSON.stringify(input.payload ?? {}),
           input.enabled ?? true, input.sortOrder ?? 0, input.authorId, input.authorBadge,
@@ -67,8 +71,10 @@ export const demoScenariosDB = {
     tenantId: string;
     code: string;
     kind: string;
+    area: string;
     title: string;
     description?: string | null;
+    annotation?: string | null;
     category?: string | null;
     severity?: string | null;
     priority?: string | null;
@@ -83,13 +89,13 @@ export const demoScenariosDB = {
     try {
       const values: unknown[] = [];
       const tuples = rows.map((r, i) => {
-        values.push(r.tenantId, r.code, r.kind, r.title, r.description ?? null, r.category ?? null, r.severity ?? null, r.priority ?? null,
+        values.push(r.tenantId, r.code, r.kind, r.area, r.title, r.description ?? null, r.annotation ?? null, r.category ?? null, r.severity ?? null, r.priority ?? null,
           JSON.stringify(r.target ?? {}), JSON.stringify(r.payload ?? {}), r.enabled ?? true, r.sortOrder ?? 0, r.authorId, r.authorBadge);
-        const o = i * 14;
-        return `(${Array.from({ length: 14 }, (_, j) => `$${o + j + 1}`).join(", ")})`;
+        const o = i * 16;
+        return `(${Array.from({ length: 16 }, (_, j) => `$${o + j + 1}`).join(", ")})`;
       });
       const { rows: inserted } = await query<DemoScenarioRow>(
-        `INSERT INTO demo_scenarios (tenant_id, code, kind, title, description, category, severity, priority, target, payload, enabled, sort_order, author_id, author_badge)
+        `INSERT INTO demo_scenarios (tenant_id, code, kind, area, title, description, annotation, category, severity, priority, target, payload, enabled, sort_order, author_id, author_badge)
          VALUES ${tuples.join(", ")} RETURNING *`,
         values
       );

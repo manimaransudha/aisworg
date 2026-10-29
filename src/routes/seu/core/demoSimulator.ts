@@ -17,7 +17,7 @@ import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
 import { findingsDB } from "../../../dblayer/findingsDB.js";
-import { getDemoActor, grantAllTransitionBadges, grantRouteBadges, grantTransitionBadge, type DemoActor } from "../../../dblayer/seed/demo/demoBadges.js";
+import { getDemoActor, grantBadge, grantAllTransitionBadges, grantRouteBadges, grantTransitionBadge, type DemoActor } from "../../../dblayer/seed/demo/demoBadges.js";
 import { seedDemo } from "../../../dblayer/seed/demo/demoSeed.js";
 import { listObjectives } from "./objectives.js";
 import { initiateSeu, validateSeu, previewCommissioningValidation, validateEbm } from "./commissioning.js";
@@ -27,8 +27,10 @@ import { transitionAttentionItem } from "./attentionItems.js";
 import { createReview, listReviewsBySeu } from "./reviews.js";
 import { createFinding, transitionFinding, convertFindingToObligation, listFindingsByReview } from "./findings.js";
 import { createObligation } from "./obligations.js";
-import { approveConcept } from "./ontology.js";
-import { publishAuthoringDraft } from "./sdkAuthoring.js";
+import { approveConcept, validateComposableFieldsAgainstSchema } from "./ontology.js";
+import { createAuthoringDraft, publishAuthoringDraft } from "./sdkAuthoring.js";
+import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
+import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { BIRTH_STATE, INITIAL_VERSION } from "../../../dblayer/constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -255,6 +257,30 @@ const handlers: Record<string, Handler> = {
     return `Waived Finding "${finding.title}".`;
   },
 
+  async "create-pack"(ctx, sc) {
+    const pack = sc.payload.pack as Record<string, unknown> | undefined;
+    if (!pack || typeof pack !== "object") throw new Error('scenario is missing "payload.pack"');
+    const code = str(pack.code, "payload.pack.code");
+    const creationBadge = str(sc.payload.creationBadge, "payload.creationBadge");
+    await grantBadge(ctx.participantId, creationBadge);
+    const { data: schema, error: schemaError } = await schemaDefinitionsDB.findLatest("Pack");
+    if (schemaError || !schema) throw schemaError ?? new Error("no schema_definitions grammar for Pack");
+    const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(ctx.participantId, creationBadge);
+    const created = await createAuthoringDraft({ kind: "Pack", actorId: ctx.participantId, authorBadge, tenantId: ctx.tenantId, content: pack, schemaDefinitionId: schema.id });
+    if (!created.ok) throw new Error(created.errors.join("; "));
+    let status = "Draft";
+    while (status !== "Active") {
+      if (status === "Validated") {
+        const pending = await validateComposableFieldsAgainstSchema(schema.schema as JsonSchemaDocument, { code, category: pack.category }, { isRoot: false, tenantId: ctx.tenantId });
+        if (pending.length > 0) return `Authored Pack "${code}" and validated it. It waits for its code to be accepted in the Ontology before it can be activated.`;
+      }
+      const advanced = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: ctx.participantId });
+      if (!advanced.ok) throw new Error(advanced.errors.join("; "));
+      status = advanced.status;
+    }
+    return `Authored and activated Pack "${code}".`;
+  },
+
   async "accept-ontology-code"(ctx, sc) {
     const conceptType = str(sc.payload.conceptType, "payload.conceptType");
     const code = str(sc.payload.code, "payload.code");
@@ -307,16 +333,19 @@ export async function runScenario(code: string, opts: { allowDisabled?: boolean 
 }
 
 // Runs the playbook step at `index` and reports the index of the next step, or null when finished.
-export async function stepPlaybook(code: string, index: number): Promise<SimulatorResult & { nextIndex: number | null }> {
+// Runs the playbook's next step. The playbook's stored progress decides which step that is.
+export async function stepPlaybook(code: string): Promise<SimulatorResult & { finished: boolean }> {
   const ctx = await getContext();
   const { data: playbook, error } = await demoPlaybooksDB.findByCode(ctx.tenantId, code);
   if (error) throw error;
-  if (!playbook || !playbook.enabled) return { ok: false, message: `No enabled playbook "${code}".`, nextIndex: null };
-  const scenarioCode = playbook.steps[index];
-  if (!scenarioCode) return { ok: false, message: `Playbook "${code}" has no step ${index + 1}.`, nextIndex: null };
+  if (!playbook || !playbook.enabled) return { ok: false, message: `No enabled playbook "${code}".`, finished: false };
+  const scenarioCode = playbook.steps[playbook.progress];
+  if (!scenarioCode) return { ok: false, message: `"${playbook.title}" is already complete.`, finished: true };
   const result = await runScenario(scenarioCode);
-  const next = index + 1 < playbook.steps.length ? index + 1 : null;
-  return { ...result, nextIndex: result.ok ? next : index };
+  if (!result.ok) return { ...result, finished: false };
+  const { error: progressError } = await demoPlaybooksDB.setProgress(ctx.tenantId, code, playbook.progress + 1);
+  if (progressError) throw progressError;
+  return { ...result, finished: playbook.progress + 1 >= playbook.steps.length };
 }
 
 export async function setScenarioEnabled(code: string, enabled: boolean): Promise<void> {

@@ -1,5 +1,5 @@
 import "dotenv/config";
-import pool from "../../utils/db.js";
+import pool, { withLookupMemo } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { seedTenantsBaseline } from "./seedBaselineTenants.js";
 import { seedIdentityBaseline } from "./seedIdentityBaseline.js";
@@ -141,9 +141,13 @@ async function run(): Promise<void> {
 
   await seedParticipantsMaster();
   
-  await seedCapabilityPatternPacksWithRetry({ authoredBy: actorId, authorBadge: actorBadge });
-  await seedSdlcStandardTemplates({ authoredBy: actorId, authorBadge: actorBadge });
-  await seedEbookLibraryObjectives();
+  // The Packs, Templates, Profiles and Objectives go through the governed path. Inside the lookup memo a repeated read is
+  // answered from memory and the Pack-code options read only code, status and category.
+  await withLookupMemo(async () => {
+    await seedCapabilityPatternPacksWithRetry({ authoredBy: actorId, authorBadge: actorBadge });
+    await seedSdlcStandardTemplates({ authoredBy: actorId, authorBadge: actorBadge });
+    await seedEbookLibraryObjectives();
+  });
   
   
   logger.info("[db:clean-slate] done. Sanity-check next: hit /aisworg/seu/sdk/pack-authoring (Create starts a fresh Draft directly — no bootstrap Template needed) and /aisworg/seu/telemetry (zero Deliverables measured) as a real user.");

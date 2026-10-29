@@ -16,6 +16,12 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS authority_badge TEXT NOT NULL;
 ALTER TABLE events
   ADD COLUMN IF NOT EXISTS seu_id UUID REFERENCES seus(id),
   ADD COLUMN IF NOT EXISTS consumption_state JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS tenant_id UUID NOT NULL REFERENCES tenants(id);
 CREATE INDEX IF NOT EXISTS idx_events_seu ON events (seu_id);
+CREATE INDEX IF NOT EXISTS idx_events_tenant ON events (tenant_id);
 GRANT ALL PRIVILEGES ON TABLE events TO weirdo;
+GRANT ALL PRIVILEGES ON SEQUENCE events_sequence_seq TO weirdo;
+
+-- GRANT ALL PRIVILEGES ON SEQUENCE events_sequence_seq TO weirdo;
+
 COMMIT;

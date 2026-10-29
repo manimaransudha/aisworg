@@ -6,8 +6,10 @@ export interface DemoPlaybookRow {
   id: string;
   tenant_id: string;
   code: string;
+  area: string;
   title: string;
   steps: string[];
+  progress: number;
   enabled: boolean;
   author_id: string;
   author_badge: string;
@@ -19,6 +21,7 @@ export const demoPlaybooksDB = {
   async upsert(input: {
     tenantId: string;
     code: string;
+    area: string;
     title: string;
     steps: string[];
     enabled?: boolean;
@@ -27,12 +30,12 @@ export const demoPlaybooksDB = {
   }): Promise<DbResult<DemoPlaybookRow>> {
     try {
       const { rows } = await query<DemoPlaybookRow>(
-        `INSERT INTO demo_playbooks (tenant_id, code, title, steps, enabled, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO demo_playbooks (tenant_id, code, area, title, steps, enabled, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (code, tenant_id) DO UPDATE
-           SET title = EXCLUDED.title, steps = EXCLUDED.steps, enabled = EXCLUDED.enabled, updated_at = NOW()
+           SET area = EXCLUDED.area, title = EXCLUDED.title, steps = EXCLUDED.steps, enabled = EXCLUDED.enabled, updated_at = NOW()
          RETURNING *`,
-        [input.tenantId, input.code, input.title, JSON.stringify(input.steps), input.enabled ?? true, input.authorId, input.authorBadge]
+        [input.tenantId, input.code, input.area, input.title, JSON.stringify(input.steps), input.enabled ?? true, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -41,17 +44,17 @@ export const demoPlaybooksDB = {
     }
   },
 
-  async insertMany(rows: Array<{ tenantId: string; code: string; title: string; steps: string[]; enabled?: boolean; authorId: string; authorBadge: string }>): Promise<DbResult<DemoPlaybookRow[]>> {
+  async insertMany(rows: Array<{ tenantId: string; code: string; area: string; title: string; steps: string[]; enabled?: boolean; authorId: string; authorBadge: string }>): Promise<DbResult<DemoPlaybookRow[]>> {
     if (rows.length === 0) return { data: [] };
     try {
       const values: unknown[] = [];
       const tuples = rows.map((r, i) => {
-        values.push(r.tenantId, r.code, r.title, JSON.stringify(r.steps), r.enabled ?? true, r.authorId, r.authorBadge);
-        const o = i * 7;
-        return `(${Array.from({ length: 7 }, (_, j) => `$${o + j + 1}`).join(", ")})`;
+        values.push(r.tenantId, r.code, r.area, r.title, JSON.stringify(r.steps), r.enabled ?? true, r.authorId, r.authorBadge);
+        const o = i * 8;
+        return `(${Array.from({ length: 8 }, (_, j) => `$${o + j + 1}`).join(", ")})`;
       });
       const { rows: inserted } = await query<DemoPlaybookRow>(
-        `INSERT INTO demo_playbooks (tenant_id, code, title, steps, enabled, author_id, author_badge) VALUES ${tuples.join(", ")} RETURNING *`,
+        `INSERT INTO demo_playbooks (tenant_id, code, area, title, steps, enabled, author_id, author_badge) VALUES ${tuples.join(", ")} RETURNING *`,
         values
       );
       return { data: inserted };
@@ -80,6 +83,19 @@ export const demoPlaybooksDB = {
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[demoPlaybooksDB] findByCode error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async setProgress(tenantId: string, code: string, progress: number): Promise<DbResult<DemoPlaybookRow | null>> {
+    try {
+      const { rows } = await query<DemoPlaybookRow>(
+        "UPDATE demo_playbooks SET progress = $3, updated_at = NOW() WHERE tenant_id = $1 AND code = $2 RETURNING *",
+        [tenantId, code, progress]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[demoPlaybooksDB] setProgress error", err as Error);
       return { error: err as Error };
     }
   },

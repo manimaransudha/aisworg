@@ -4,14 +4,14 @@
     "path": "/",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -20,182 +20,182 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/commission",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/compliance/frameworks",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/compliance/requirements",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/decisions",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/decisions",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/deliverables/:id/traceability",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/deliverables/:id/transition",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/evidence",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/evidence",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/evidence/:id/link",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/evidence/:id/validate",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/execution-targets",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/execution-targets/:capabilityId",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/external-interactions",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/external-interactions",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/external-interactions/:id/transition",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/findings/:id/convert-to-obligation",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/knowledge",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/knowledge",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/knowledge/:id/promote-scope",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "PATCH",
     "path": "/aisworg/api/seu/knowledge/:id/references",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/knowledge/:id/validation-notes",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/knowledge/:id/validation-notes",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/knowledge/capital",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/objectives",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -212,7 +212,7 @@
     "path": "/aisworg/api/seu/objectives/:id",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -221,7 +221,7 @@
       "objective_achieve"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -230,7 +230,7 @@
       "objective_activate"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -239,7 +239,7 @@
       "objective_archive"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -248,7 +248,7 @@
       "objective_reject"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -257,7 +257,7 @@
       "objective_retire"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -266,7 +266,7 @@
       "objective_supersede"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -275,49 +275,49 @@
       "objective_propose"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/objectives/suggest-capabilities",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/obligations",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/obligations",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "PATCH",
     "path": "/aisworg/api/seu/obligations/:id",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/ontology/concepts",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/packs",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -326,7 +326,7 @@
       "pack_activate"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -335,7 +335,7 @@
       "pack_archive"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -344,7 +344,7 @@
       "pack_publish"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -363,7 +363,7 @@
       "pack_retire"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -381,266 +381,266 @@
     "path": "/aisworg/api/seu/profiles",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/reviews",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/reviews",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/reviews/:id/findings",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/reviews/:id/findings",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/services",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/seus/:id",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/seus/:id/compliance",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/seus/:id/compliance/history",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/seus/:id/compliance/report",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/seus/:id/compliance/waivers",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/seus/:id/deliverables",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/seus/:id/events",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/seus/:id/governance-model",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/seus/:id/quality-gate-waivers",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/seus/:id/quality-gate-waivers",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/telemetry",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/templates",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/tenants",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/tenants",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/tenants/:id/aliases",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/tenants/:id/aliases",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/tenants/:id/contract",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/tenants/:id/contract",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/api/seu/tenants/:id/vocabulary",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/work-items/:id/result",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/work-items/sweep-stalled",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/api/seu/capabilities/sweep-unavailable",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/auth/disabled",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/auth/forgot-password",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/auth/forgot-password",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/auth/google",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/auth/google/callback",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/auth/login",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/auth/login",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/auth/logout",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/auth/reset-password",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/auth/reset-password",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -649,7 +649,7 @@
     "roles": [
       "superuser"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -658,7 +658,7 @@
     "roles": [
       "superuser"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -667,7 +667,7 @@
     "roles": [
       "superuser"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -676,21 +676,21 @@
     "roles": [
       "superuser"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/auth/verify",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/auth/verify",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -699,7 +699,7 @@
     "roles": [
       "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -708,49 +708,49 @@
     "roles": [
       "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/login",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/logout",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/quickview",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/quickview/seus/:seuId/obligations",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/quickview/work-items/:workItemId/complete",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -759,7 +759,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -770,7 +770,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -781,7 +781,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -792,7 +792,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -803,7 +803,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -814,7 +814,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -823,7 +823,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -832,7 +832,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -841,7 +841,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -850,7 +850,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -859,7 +859,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -868,7 +868,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -877,7 +877,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -886,7 +886,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -895,7 +895,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -904,7 +904,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -913,7 +913,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -922,7 +922,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -931,7 +931,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -940,7 +940,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -949,7 +949,7 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -958,16 +958,17 @@
       "transitiondefinition_define"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/capability-definitions",
     "badges": [],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -976,16 +977,17 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/deliverable-definitions",
     "badges": [],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -994,21 +996,21 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/dev/act-as",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/dev/act-as/reset",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1017,7 +1019,7 @@
     "roles": [
       "superuser"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1026,7 +1028,7 @@
     "roles": [
       "superuser"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1035,7 +1037,7 @@
       "root"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1044,7 +1046,7 @@
       "identity_manage"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1053,7 +1055,7 @@
       "identity_manage"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1062,7 +1064,7 @@
       "root"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1071,7 +1073,7 @@
       "root"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1080,7 +1082,7 @@
       "identity_manage"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1089,7 +1091,7 @@
       "identity_manage"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1098,21 +1100,21 @@
       "identity_manage"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/knowledge/capital",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/objectives",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1121,28 +1123,28 @@
       "objective_propose"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/objectives/:id",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/objectives/:id/children",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/objectives/:id/comments",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1151,7 +1153,7 @@
       "seu_commission"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1160,7 +1162,7 @@
       "seu_commission"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1169,7 +1171,7 @@
       "seu_commission"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1178,7 +1180,7 @@
       "objective_propose"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1187,7 +1189,7 @@
       "objective_propose"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1196,7 +1198,7 @@
       "objective_propose"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1205,7 +1207,7 @@
       "objective_retire"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1214,7 +1216,7 @@
       "objective_activate"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1223,7 +1225,7 @@
       "objective_archive"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1232,7 +1234,7 @@
       "objective_reject"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1241,7 +1243,7 @@
       "objective_retire"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1250,7 +1252,7 @@
       "objective_supersede"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1259,7 +1261,7 @@
       "objective_propose"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1268,7 +1270,7 @@
       "seu_commission"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1277,34 +1279,37 @@
       "objective_propose"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/packs",
     "badges": [],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/participants",
     "badges": [],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/policy-definitions",
     "badges": [],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1313,16 +1318,17 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/profiles",
     "badges": [],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1331,7 +1337,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1340,7 +1346,7 @@
       "root"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1349,7 +1355,7 @@
       "root"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1358,7 +1364,7 @@
       "root"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1367,7 +1373,7 @@
       "root"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1376,7 +1382,7 @@
       "root"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1385,16 +1391,17 @@
       "root"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/sdk/:slug",
     "badges": [],
     "roles": [
-      "sdk_author"
+      "sdk_author",
+      "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1403,7 +1410,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1412,7 +1419,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1421,7 +1428,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1430,7 +1437,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1439,7 +1446,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1448,7 +1455,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1457,7 +1464,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1466,7 +1473,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1501,7 +1508,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1512,7 +1519,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1523,7 +1530,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1618,7 +1625,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1629,7 +1636,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1640,7 +1647,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1649,7 +1656,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -1660,7 +1667,7 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1669,16 +1676,17 @@
     "roles": [
       "sdk_author"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/service-definitions",
     "badges": [],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1687,21 +1695,21 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/seus",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/seus/:id",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1710,7 +1718,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1721,7 +1729,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1732,7 +1740,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1743,7 +1751,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1754,7 +1762,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1765,49 +1773,49 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/capabilities/:capabilityId/fulfil",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/capabilities/:capabilityId/participant/:participantId/replace",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/capabilities/:capabilityId/release",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/seus/:id/compliance",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/compliance/waivers",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/decisions",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1816,7 +1824,7 @@
       "decision_analyse"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1825,7 +1833,7 @@
       "decision_propose"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1834,7 +1842,7 @@
       "decision_review"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1843,7 +1851,7 @@
       "decision_approve"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1852,7 +1860,7 @@
       "decision_apply"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1861,7 +1869,7 @@
       "decision_supersede"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1870,21 +1878,21 @@
       "decision_archive"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/deliverables/:deliverableId/transition",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/seus/:id/ebm",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1893,7 +1901,7 @@
       "seu_commission"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1902,7 +1910,7 @@
       "seu_validate"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1911,7 +1919,7 @@
       "seu_suspend"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1920,7 +1928,7 @@
       "seu_resume"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1929,7 +1937,7 @@
       "seu_retire"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1938,7 +1946,7 @@
       "seu_archive"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1947,7 +1955,7 @@
       "ebm_validate"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1956,21 +1964,21 @@
       "ebm_activate"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/evidence",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/evidence/:evidenceId/link",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1979,7 +1987,7 @@
       "evidence_validate"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1988,7 +1996,7 @@
       "evidence_accept"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -1997,7 +2005,7 @@
       "evidence_reference"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2006,7 +2014,7 @@
       "evidence_archive"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2015,42 +2023,42 @@
       "evidence_reject"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/evidence/:evidenceId/validate",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/external-interactions",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/external-interactions/:interactionId/transition",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/findings/:findingId/convert",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/knowledge",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2059,7 +2067,7 @@
       "knowledge_propose"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2068,7 +2076,7 @@
       "knowledge_validate"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2077,7 +2085,7 @@
       "knowledge_accept"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2086,7 +2094,7 @@
       "knowledge_publish"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2095,7 +2103,7 @@
       "knowledge_deprecate"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2104,21 +2112,21 @@
       "knowledge_archive"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/promote-scope",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/obligations/:obligationId/revise",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2127,7 +2135,7 @@
       "obligation_analyse"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2136,7 +2144,7 @@
       "obligation_assign"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2145,7 +2153,7 @@
       "obligation_start"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2154,7 +2162,7 @@
       "obligation_resolve"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2163,7 +2171,7 @@
       "obligation_verify"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2172,7 +2180,7 @@
       "obligation_close"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2181,7 +2189,7 @@
       "obligation_archive"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2190,7 +2198,7 @@
       "obligation_reopen"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2199,21 +2207,21 @@
       "obligation_escalate"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/seus/:id/reviews",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/reviews",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2222,7 +2230,7 @@
       "review_prepare"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2231,7 +2239,7 @@
       "review_start"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2240,7 +2248,7 @@
       "review_complete"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2249,7 +2257,7 @@
       "review_accept"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2258,14 +2266,14 @@
       "review_archive"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/reviews/:reviewId/findings",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2274,7 +2282,7 @@
       "finding_resolve"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2283,44 +2291,45 @@
       "finding_waive"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/work-items/:workItemId/complete",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/seus/:id/work-queue",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/seus/new",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/telemetry",
     "badges": [],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/templates",
     "badges": [],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2329,7 +2338,7 @@
     "roles": [
       "participant"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -2338,7 +2347,7 @@
     "roles": [
       "tenant_admin"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2347,7 +2356,7 @@
     "roles": [
       "tenant_admin"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -2356,7 +2365,7 @@
     "roles": [
       "superuser"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -2365,7 +2374,7 @@
     "roles": [
       "superuser"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -2374,7 +2383,7 @@
     "roles": [
       "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -2383,7 +2392,7 @@
     "roles": [
       "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2392,7 +2401,7 @@
     "roles": [
       "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2401,7 +2410,7 @@
     "roles": [
       "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2410,7 +2419,16 @@
     "roles": [
       "demo"
     ],
-    "match_mode": "all"
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/contact",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
   },
   {
     "method": "GET",
@@ -2419,7 +2437,7 @@
       "root"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   },
   {
     "method": "POST",
@@ -2428,6 +2446,6 @@
       "root"
     ],
     "roles": [],
-    "match_mode": "all"
+    "match_mode": "any"
   }
 ]

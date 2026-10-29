@@ -12,7 +12,7 @@ Status: DRAFT for discussion. Nothing here is built. Companion to [DECISIONS.md]
 
 ## Story spine
 
-Library: "Riverbend Public Library". Product: "Riverbend Digital Shelf", an app for members to browse, borrow, return and wait-list ebooks.
+Library: "ArchVault Public Library". Product: "ArchVault Digital Shelf", an app for members to browse, borrow, return and wait-list ebooks.
 
 ## SDK data
 
@@ -22,14 +22,14 @@ Platform packs come from db:clean-slate and are reused unchanged. The items belo
 
 ### Organisation methodology (the story)
 
-Riverbend IT already has a mobile standard: a React Native coding-standards checklist and a library-catalogue domain glossary. The demo shows each being brought in as a Pack rather than replaced.
+ArchVault IT already has a mobile standard: a React Native coding-standards checklist and a library-catalogue domain glossary. The demo shows each being brought in as a Pack rather than replaced.
 
 ### Packs
 
 | # | Pack | Category | Derived from | What the organisation contributes | Dependencies |
 |---|---|---|---|---|---|
-| P1 | riverbend-react-native | Technology | technology-react-native (platform pack, 26-item "React Native Standards" checklist) | The same standards, re-expressed as Skills in place of checklist items (see Open item A). Retains the platform pack's Capabilities and its Technology/react-native competency. | development 1.0.0 (required) |
-| P2 | riverbend-library-catalogue | Domain | New (authored from scratch) | Catalogue-management aspects: bibliographic records (title, author, ISBN, subject) and the catalogue domain vocabulary. Competency Domain/library-catalogue. | development 1.0.0 (required) |
+| P1 | archvault-react-native | Technology | technology-react-native (platform pack, 26-item "React Native Standards" checklist) | The same standards, re-expressed as Skills in place of checklist items (see Open item A). Retains the platform pack's Capabilities and its Technology/react-native competency. | development 1.0.0 (required) |
+| P2 | archvault-library-catalogue | Domain | New (authored from scratch) | Catalogue-management aspects: bibliographic records (title, author, ISBN, subject) and the catalogue domain vocabulary. Competency Domain/library-catalogue. | development 1.0.0 (required) |
 
 P2 is a new Pack. Its Capabilities and Services reuse existing codes from the db:clean-slate Ontology vocabulary (referenced by code, not redefined):
 
@@ -61,14 +61,14 @@ The mobile-application Template is not modified. It exposes no overridable param
 
 | # | Pack | Category | Policies contributed (existing codes) | Used for |
 |---|---|---|---|---|
-| P3 | riverbend-lean-delivery | Organisation | coding-standards, code-review-required, design-completeness-and-review, requirements-traceability-required | requirements, design, construction, test flows |
-| P4 | riverbend-quality-gates | Organisation | test-coverage-threshold, static-analysis-required, dependency-vulnerability-threshold | features with business rules or data |
-| P5 | riverbend-release-governance | Organisation | change-approval-required, deployment-approval-required, rollback-capability, release-notification, secrets-management | delivery to production |
-| P6 | riverbend-push-integration | Integration | adr-required, secrets-management | notification features that call external push providers |
+| P3 | archvault-lean-delivery | Organisation | coding-standards, code-review-required, design-completeness-and-review, requirements-traceability-required | requirements, design, construction, test flows |
+| P4 | archvault-quality-gates | Organisation | test-coverage-threshold, static-analysis-required, dependency-vulnerability-threshold | features with business rules or data |
+| P5 | archvault-release-governance | Organisation | change-approval-required, deployment-approval-required, rollback-capability, release-notification, secrets-management | delivery to production |
+| P6 | archvault-push-integration | Integration | adr-required, secrets-management | notification features that call external push providers |
 
-| P7 | riverbend-reader-privacy | Compliance | Declares a new Compliance Framework with declarative Requirements for reader privacy (borrowing history, device identifiers) | Compliance view (UC10) |
+| P7 | compliance-us-state-privacy | Compliance | Declares a new Compliance Framework with declarative Requirements for reader privacy (borrowing history, device identifiers) | Compliance view (UC10) |
 
-P7 uses a new compliance code that is not yet in the Ontology. It is authored and published but cannot become Active until the Ontology accepts the code. Seeding leaves it Published. The simulator scenario "Accept the new compliance code" simulates the Ontology acceptance, after which the Pack can be activated (authority-transition-pack-elevated). P7 is not selected by any Profile.
+P7 uses the existing compliance code compliance-us-state-privacy, so seeding takes it to Active. P7 is not selected by any Profile. The Ontology acceptance flow is shown by the Declare goals, which create a Pack with a new code and then accept the code in the Ontology (authority-transition-pack-elevated).
 
 Each Pack also carries engineering Obligation Definitions in the same way as P1 and P2 (codes and wording to confirm).
 
@@ -78,10 +78,10 @@ Every Profile uses the mobile-application Template and selects P1 and P2. An SEU
 
 | # | Profile | Environment | Optional Packs | Leaf Objectives (one SEU each) |
 |---|---|---|---|---|
-| PR1 | riverbend-catalogue-build | development | P1, P2, P3 | O10, O11 |
-| PR2 | riverbend-lending-build | development | P1, P2, P3, P4 | O12, O13, O14, O15 |
-| PR3 | riverbend-notifications-build | development | P1, P2, P3, P4, P6 | O16, O17 |
-| PR4 | riverbend-release | production | P1, P2, P5, P4 | O19, O20, O21, O22 |
+| PR1 | archvault-catalogue-build | development | P1, P2, P3 | O10, O11 |
+| PR2 | archvault-lending-build | development | P1, P2, P3, P4 | O12, O13, O14, O15 |
+| PR3 | archvault-notifications-build | development | P1, P2, P3, P4, P6 | O16, O17 |
+| PR4 | archvault-release | production | P1, P2, P5, P4 | O19, O20, O21, O22 |
 
 O1 to O9 and O18 cannot be commissioned (Strategic, or Operational with children). Leaf Objectives are commissioned from the demo-state view.
 Open: more Profiles, such as one for requirements-only work, if the Objectives call for them (open item C).
@@ -94,7 +94,7 @@ Nothing new is built for the demo. Once the data is seeded, the visitor sees wha
 
 1. Confirm the platform Packs, the mobile-application Template and the Capabilities exist (from db:clean-slate).
 2. Author P1 and P2 and transition them to Active.
-3. Author P3 to P6 and transition them to Active. Author P7 and leave it Published.
+3. Author P3 to P7 and transition them to Active.
 4. Author PR1 to PR4 and transition them to Active.
 
 ## Objectives (hierarchy)
@@ -103,7 +103,7 @@ Each Objective states one outcome or one build item. Combined statements are spl
 
 | ID | Tier | Statement | Parent | Target state |
 |---|---|---|---|---|
-| O1 | Strategic | Let Riverbend members borrow ebooks from home, so loan volume grows without new branch hours. | none | Active |
+| O1 | Strategic | Let ArchVault members borrow ebooks from home, so loan volume grows without new branch hours. | none | Active |
 | O2 | Strategic | Offer a web-only reader on the library website. | none | Active |
 | O3 | Operational | Let members find ebooks through a searchable catalogue. | O1 | Active |
 | O4 | Operational | Let members borrow an ebook for a fixed loan period. | O1 | Active |
@@ -137,7 +137,7 @@ Two screens in the main application, both with route_authority rows and CR-083 s
 
 | Element | Behaviour |
 |---|---|
-| About the demo | Explains what the demo does, the Riverbend story and what the visitor can try. |
+| About the demo | Explains what the demo does, the ArchVault story and what the visitor can try. |
 | Reset demo data | A button that runs the seeding part of the demo (Demo-tenant purge, then part 1 seeding). |
 | Allowed scenarios | Lists the scenarios from the catalogue that the demo participant may simulate. |
 | Simulate as the participant | Raise a blocker, release a blocker, waive a blocker, and issue commands such as "Deliverable complete", as a participant would. |
@@ -181,7 +181,7 @@ The view lets the root user inject imaginary risks and typical project blockers 
 | Blocker | Design approval is pending | Work Item outcome blocked, with its Attention Item |
 | Finding | Critical vulnerability in a dependency | Review Finding, High severity (converts to an Obligation) |
 | Finding | Convert the Finding to an Obligation | convertFindingToObligation |
-| Ontology | Accept the new compliance code so the reader-privacy Pack can be activated | Ontology Draft to Active, then Pack Published to Active |
+| Ontology | Accept the new Pack code so the Pack created by a Declare goal can be activated | Ontology Draft to Active, then Pack Validated to Active |
 
 The scenario list is data held in a database table, seeded from a JSON file. It is not code. Each scenario names its kind, title, description, category, severity and priority, and the target Deliverable or Work Item.
 
@@ -227,7 +227,7 @@ Constraints from the governed Deliverable flow (CR-121):
 | Priya Raman | Human | Product analyst, owns the requirements-specification |
 | Marcus Webb | Human | Lead architect, owns the architecture-decision-record |
 | Demo AI assistant | AI | Fulfilled against all P1 Capabilities (holds Technology/react-native competency); builds source-code under the React Native standards |
-| Riverbend IT Operations | External | Hosts the production environment |
+| ArchVault IT Operations | External | Hosts the production environment |
 
 Participant names are placeholders for the owner to approve. These are seeded Participants shown on Work Items. They are not identities the simulator acts as.
 
@@ -248,7 +248,7 @@ Everything after this point (SEU commissioning, Deliverable progress, Work Items
 |---|---|---|
 | 1 | RESOLVED. The story, names and Objective wording are accepted by the owner. |  |
 | 2 | RESOLVED. Template is mobile-application; Profiles PR1 to PR4 are authored; UC2 and UC3 realigned to its Deliverables. No ebook-library artefacts are carried over. | Step 3 |
-| 3 | RESOLVED. P7 is a new Compliance Pack with a new code; it stays Published until the simulator simulates Ontology acceptance. |  |
+| 3 | RESOLVED. P7 uses an existing compliance code and is seeded Active. Ontology acceptance is shown by the Declare goals. |  |
 | 4 | DROPPED. Ontology codes are read from the Ontology at build time. |  |
 | 5 | RESOLVED. Converting a Finding to an Obligation is a manual call (convertFindingToObligation) and is a simulator scenario. |  |
 | 6 | DROPPED. Use cases UC2 to UC12 are produced by the simulator catalogue, not seeded. |  |

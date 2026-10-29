@@ -78,4 +78,29 @@ export const emailService = {
       throw err;
     }
   },
+
+  async sendDemoContact({ to, fromName, fromEmail, message }: { to: string[]; fromName: string; fromEmail: string; message: string }) {
+    const from    = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@finanaly.app';
+    const esc     = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const subject = `SEU Studio demo enquiry from ${fromName || fromEmail}`;
+    const html    = `
+      <p><strong>${esc(fromName || fromEmail)}</strong> (${esc(fromEmail)}) asked to be contacted about the full specification.</p>
+      <p style="white-space:pre-wrap">${esc(message)}</p>
+    `;
+
+    const transport = buildTransport();
+    if (!transport) {
+      logger.warn(`[emailService] SMTP not configured. Demo enquiry from ${fromEmail} to ${to.join(', ')}: ${message}`);
+      return { success: true };
+    }
+
+    try {
+      await transport.sendMail({ from, to, replyTo: fromEmail, subject, html });
+      logger.info(`[emailService] Demo enquiry from ${fromEmail} sent to ${to.join(', ')}`);
+      return { success: true };
+    } catch (err) {
+      logger.error(`[emailService] Failed to send demo enquiry from ${fromEmail}:`, err);
+      throw err;
+    }
+  },
 };

@@ -62,6 +62,83 @@ if (process.env.DB_POOL_TRACE) {
     };
 }
 
+
+// Lookup memo (opt-in, seed runs only). Inside `withLookupMemo`, an identical read-only SELECT is answered from memory
+// after its first execution, so a seed run loads each lookup list once instead of repeating the round trip.
+// Every other statement that passes through this process while the memo is active, whether it goes through `query`,
+// `bulkInsert` or a client taken from the pool, drops the entries that read the table it writes. A statement the memo
+// cannot classify, and a ROLLBACK, drop everything. Code outside the scope always reads the database.
+type LookupMemo = Map<string, { sql: string; result: Promise<QueryResult<QueryResultRow>> }>;
+const lookupMemo = new AsyncLocalStorage<LookupMemo>();
+const NOT_MEMOISABLE = /\bfor\s+(update|share)\b|nextval|currval|lastval|random\s*\(|now\s*\(|clock_timestamp|statement_timestamp|current_timestamp|pg_advisory|txid_current/i;
+const WRITE_TARGET = /^\s*(?:insert\s+into|update|delete\s+from|truncate(?:\s+table)?)\s+(?:only\s+)?"?([a-z0-9_]+)"?/i;
+
+const memoisable = (text: string): boolean => /^\s*select\b/i.test(text) && !NOT_MEMOISABLE.test(text);
+
+function noteStatement(text: string): void {
+    const memo = lookupMemo.getStore();
+    if (!memo || memoisable(text) || /^\s*select\b/i.test(text)) return;
+    if (/^\s*(begin|commit|start\s+transaction|savepoint|release|set)\b/i.test(text)) return;
+    const target = WRITE_TARGET.exec(text)?.[1];
+    if (!target || /^\s*with\b/i.test(text)) {
+        memo.clear();
+        return;
+    }
+    const mentions = new RegExp(`\\b${target}\\b`, "i");
+    for (const [key, entry] of memo) if (mentions.test(entry.sql)) memo.delete(key);
+}
+
+// True while the current async context runs inside `withLookupMemo` (a seed run).
+export const isLookupMemoActive = (): boolean => lookupMemo.getStore() !== undefined;
+
+export function withLookupMemo<T>(work: () => Promise<T>): Promise<T> {
+    return lookupMemo.run(new Map(), work);
+}
+
+function runStatement<T extends QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> {
+    const memo = lookupMemo.getStore();
+    if (!memo || !memoisable(text)) {
+        const done = executor().query<T>(text, params);
+        return memo ? done.then((r) => { noteStatement(text); return r; }) : done;
+    }
+    const key = `${text}\u0000${JSON.stringify(params ?? [])}`;
+    let entry = memo.get(key);
+    if (!entry) {
+        entry = { sql: text, result: executor().query<T>(text, params) as Promise<QueryResult<QueryResultRow>> };
+        memo.set(key, entry);
+        entry.result.catch(() => memo.delete(key));
+    }
+    return entry.result.then((r) => ({ ...r, rows: structuredClone(r.rows) }) as unknown as QueryResult<T>);
+}
+
+// A write made through a client taken straight from the pool still invalidates the memo.
+const poolConnect = pool.connect.bind(pool) as (...args: unknown[]) => Promise<PoolClient>;
+(pool as unknown as { connect: (...args: unknown[]) => Promise<PoolClient> }).connect = (...args: unknown[]) => {
+    // pg-pool's own pool.query uses the callback form; it is left as it is.
+    if (typeof args[0] === "function") return poolConnect(...args);
+    return poolConnect(...args).then(noteClient);
+};
+function noteClient(client: PoolClient): PoolClient {
+    const flagged = client as PoolClient & { __memoNotes?: true };
+    if (!flagged.__memoNotes) {
+        flagged.__memoNotes = true;
+        const clientQuery = client.query.bind(client) as (...a: unknown[]) => Promise<unknown>;
+        (client as unknown as { query: (...a: unknown[]) => Promise<unknown> }).query = (...a: unknown[]) => {
+            const out = clientQuery(...a);
+            const text = typeof a[0] === "string" ? a[0] : (a[0] as { text?: string } | undefined)?.text;
+            if (text && out && typeof (out as Promise<unknown>).then === "function") {
+                return (out as Promise<unknown>).then((r) => {
+                    if (/^\s*rollback\b/i.test(text)) lookupMemo.getStore()?.clear();
+                    else noteStatement(text);
+                    return r;
+                });
+            }
+            return out;
+        };
+    }
+    return client;
+}
+
 export default pool;
 // The connection of the transaction running in the current async context, if any (CR-128).
 const transactionClient = new AsyncLocalStorage<PoolClient>();
@@ -91,7 +168,7 @@ export async function withTransaction<T>(work: () => Promise<T>): Promise<T> {
     }
 }
 
-export const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> => executor().query<T>(text, params);
+export const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> => runStatement<T>(text, params);
 
 export function bulkInsert<T extends QueryResultRow = QueryResultRow>(table: string, columns: string[], rows: unknown[][], options: { onConflict?: string } = {}): Promise<QueryResult<T>> {
     if (rows.length === 0) {
@@ -105,7 +182,7 @@ export function bulkInsert<T extends QueryResultRow = QueryResultRow>(table: str
         return `(${ph.join(", ")})`;
     });
     const text = `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${placeholders.join(", ")}${options.onConflict ? ` ${options.onConflict}` : ""} RETURNING *`;
-    return executor().query<T>(text, values);
+    return runStatement<T>(text, values);
 }
 
 export class DatabaseConnectionError extends Error {

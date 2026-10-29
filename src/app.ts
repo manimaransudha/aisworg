@@ -33,6 +33,7 @@ import { listTopLevelDocFolders } from "./domain/sdk/docsTree.js";
 import { resolveNavRouteVisibility } from "./domain/identity/navRouteAccess.js";
 import { loadRouteAuthorityCache } from "./domain/identity/routeAuthorityCache.js";
 import { loadTransitionDefinitionsCache } from "./dblayer/transitionDefinitionsDB.js";
+import { scheduleDemoReset } from "./dblayer/seed/demo/demoSchedule.js";
 import { routeAuthorityGate } from "./middleware/routeAuthorityGate.js";
 
 import { requireActorId } from "./domain/identity/heldBadges.js";
@@ -239,6 +240,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         logger.info(`AI SEU running on ${PORT}`);
         logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
         logger.info(`Log Level: ${process.env.LOG_LEVEL || "info"}`);
+        scheduleDemoReset();
     });
 
     server.on("error", (err: NodeJS.ErrnoException) => {

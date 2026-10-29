@@ -2,11 +2,12 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import pool from "../../../utils/db.js";
+import pool, { withLookupMemo } from "../../../utils/db.js";
 import { logger } from "../../../utils/logger.js";
 import { loadServiceDefinitionIdByCode, stampServiceDefinitionIds } from "../serviceDefinitionIds.js";
 import type { PackSeedInput } from "../../../routes/seu/core/packs.js";
-import { createAuthoringDraft, publishAuthoringDraft, inheritedTemplateContent } from "../../../routes/seu/core/sdkAuthoring.js";
+import { createAuthoringDraft, publishAuthoringDraft, inheritedTemplateContent, toTemplateSeedInput } from "../../../routes/seu/core/sdkAuthoring.js";
+import { publishTemplate } from "../../../routes/seu/core/templates.js";
 import { validateComposableFieldsAgainstSchema } from "../../../routes/seu/core/ontology.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { schemaDefinitionsDB } from "../../schemaDefinitionsDB.js";
@@ -14,7 +15,7 @@ import { ontologyDB } from "../../ontologyDB.js";
 import { demoScenariosDB } from "../../demoScenariosDB.js";
 import { demoPlaybooksDB } from "../../demoPlaybooksDB.js";
 import { templatesDB } from "../../templatesDB.js";
-import { getPlatformTenantId, NO_EXPIRY_DATE } from "../../constants.js";
+import { getPlatformTenantId, NO_EXPIRY_DATE, INITIAL_VERSION } from "../../constants.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { publishProfile, type ProfileSeedInput } from "../../../routes/seu/core/profiles.js";
 import { createObjective, objectiveInitialState } from "../../../routes/seu/core/objectives.js";
@@ -109,13 +110,10 @@ async function seedPacks(actor: DemoActor): Promise<{ authored: Set<string>; act
 }
 
 // The Demo tenant cannot see Platform Templates, so each base Template the Profiles
-// use is inherited into the Demo tenant unchanged and taken to Active.
+// use is inherited into the Demo tenant unchanged and taken to Active, as the standard Templates are seeded.
 async function seedTemplates(actor: DemoActor): Promise<void> {
   const profiles = loadJson<ProfileSeedInput[]>("profiles.json");
   const baseTemplateCodes = [...new Set(profiles.map((p) => p.baseTemplateCode))];
-  const { data: templateSchema, error: schemaError } = await schemaDefinitionsDB.findLatest("Template");
-  if (schemaError || !templateSchema) throw schemaError ?? new Error("no schema_definitions grammar for Template");
-  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(actor.participantId, "template_define");
   const platformTenantId = await getPlatformTenantId();
 
   for (const code of baseTemplateCodes) {
@@ -123,17 +121,11 @@ async function seedTemplates(actor: DemoActor): Promise<void> {
     if (error || !parent) throw error ?? new Error(`[seed:demo] Platform Template "${code}" not found`);
     const inherited = await inheritedTemplateContent(parent.id, actor.tenantId);
     if (!inherited.ok) throw new Error(`[seed:demo] Template "${code}": ${inherited.error}`);
-    const created = await createAuthoringDraft({
-      kind: "Template", actorId: actor.participantId, authorBadge, tenantId: actor.tenantId,
-      parentTemplateId: parent.id, content: inherited.content, schemaDefinitionId: templateSchema.id,
+    const result = await publishTemplate({
+      seed: { ...toTemplateSeedInput(inherited.content), templateVersion: INITIAL_VERSION, tenantId: actor.tenantId, parentTemplateId: parent.id },
+      actorId: actor.participantId,
     });
-    if (!created.ok) throw new Error(`[seed:demo] Template "${code}" draft failed: ${created.errors.join("; ")}`);
-    let status = "Draft";
-    while (status !== "Active") {
-      const advanced = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: actor.participantId });
-      if (!advanced.ok) throw new Error(`[seed:demo] Template "${code}" failed at ${status}: ${advanced.errors.join("; ")}`);
-      status = advanced.status;
-    }
+    if (!result.ok) throw new Error(`[seed:demo] Template "${code}" failed: ${result.errors.join("; ")}`);
   }
 }
 
@@ -179,8 +171,10 @@ async function seedObjectives(actor: DemoActor): Promise<void> {
 interface DemoScenarioSeed {
   code: string;
   kind: string;
+  area: string;
   title: string;
   description: string | null;
+  annotation: string | null;
   category: string | null;
   severity: string | null;
   priority: string | null;
@@ -191,6 +185,7 @@ interface DemoScenarioSeed {
 
 interface DemoPlaybookSeed {
   code: string;
+  area: string;
   title: string;
   steps: string[];
 }
@@ -229,16 +224,34 @@ async function seedCatalogue(actor: DemoActor): Promise<void> {
 
 // Seeds the Demo tenant through the governed path with the Demo User as actor.
 export async function seedDemo(): Promise<void> {
+  const startedAt = Date.now();
+  let phaseStartedAt = startedAt;
+  const phaseDone = (phase: string): void => {
+    const now = Date.now();
+    logger.info(`[seed:demo] ${phase} done in ${((now - phaseStartedAt) / 1000).toFixed(1)}s (${((now - startedAt) / 1000).toFixed(1)}s since start).`);
+    phaseStartedAt = now;
+  };
+  logger.info(`[seed:demo] reset started at ${new Date(startedAt).toISOString()}.`);
   const actor = await getDemoActor();
   await purgeDemoTenant(actor.tenantId);
-  await grantAuthoringBadges(actor);
-  const packs = await seedPacks(actor);
-  await seedTemplates(actor);
-  await seedProfiles(actor, packs);
-  await seedDemoParticipants(actor);
-  await seedObjectives(actor);
-  await seedCatalogue(actor);
-  logger.info("[seed:demo] Packs, Templates, Profiles, participants, Objectives and the scenario catalogue seeded.");
+  phaseDone("purge");
+  // Each lookup list is read once for the run; writes made during the run drop the lists they affect.
+  await withLookupMemo(async () => {
+    await grantAuthoringBadges(actor);
+    const packs = await seedPacks(actor);
+    phaseDone("Packs");
+    await seedTemplates(actor);
+    phaseDone("Templates");
+    await seedProfiles(actor, packs);
+    phaseDone("Profiles");
+    await seedDemoParticipants(actor);
+    phaseDone("participants");
+    await seedObjectives(actor);
+    phaseDone("Objectives");
+    await seedCatalogue(actor);
+    phaseDone("scenario catalogue");
+  });
+  logger.info(`[seed:demo] reset finished at ${new Date().toISOString()}, ${((Date.now() - startedAt) / 1000).toFixed(1)}s in total. Packs, Templates, Profiles, participants, Objectives and the scenario catalogue seeded.`);
 }
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
