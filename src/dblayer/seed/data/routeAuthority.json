@@ -971,6 +971,16 @@
     "match_mode": "any"
   },
   {
+    "method": "GET",
+    "path": "/aisworg/seu/capability-definitions/:id",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
     "method": "POST",
     "path": "/aisworg/seu/capability-definitions/:id/copy",
     "badges": [],
@@ -982,6 +992,16 @@
   {
     "method": "GET",
     "path": "/aisworg/seu/deliverable-definitions",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/deliverable-definitions/:id",
     "badges": [],
     "roles": [
       "participant",
@@ -1293,6 +1313,16 @@
   },
   {
     "method": "GET",
+    "path": "/aisworg/seu/packs/:id",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
     "path": "/aisworg/seu/participants",
     "badges": [],
     "roles": [
@@ -1312,6 +1342,16 @@
     "match_mode": "any"
   },
   {
+    "method": "GET",
+    "path": "/aisworg/seu/policy-definitions/:id",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
     "method": "POST",
     "path": "/aisworg/seu/policy-definitions/:id/copy",
     "badges": [],
@@ -1323,6 +1363,16 @@
   {
     "method": "GET",
     "path": "/aisworg/seu/profiles",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/profiles/:id",
     "badges": [],
     "roles": [
       "participant",
@@ -1408,7 +1458,18 @@
     "path": "/aisworg/seu/sdk/:slug",
     "badges": [],
     "roles": [
-      "sdk_author"
+      "sdk_author",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/sdk/profile-parameter-overrides",
+    "badges": [],
+    "roles": [
+      "sdk_author",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1417,7 +1478,8 @@
     "path": "/aisworg/seu/sdk/:slug/:draftId",
     "badges": [],
     "roles": [
-      "sdk_author"
+      "sdk_author",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1426,7 +1488,8 @@
     "path": "/aisworg/seu/sdk/:slug/:draftId/compose",
     "badges": [],
     "roles": [
-      "sdk_author"
+      "sdk_author",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1435,7 +1498,8 @@
     "path": "/aisworg/seu/sdk/:slug/:draftId/import",
     "badges": [],
     "roles": [
-      "sdk_author"
+      "sdk_author",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1444,7 +1508,8 @@
     "path": "/aisworg/seu/sdk/:slug/:draftId/publish",
     "badges": [],
     "roles": [
-      "sdk_author"
+      "sdk_author",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1453,7 +1518,8 @@
     "path": "/aisworg/seu/sdk/:slug/:draftId/save",
     "badges": [],
     "roles": [
-      "sdk_author"
+      "sdk_author",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1462,7 +1528,8 @@
     "path": "/aisworg/seu/sdk/:slug/:draftId/transition",
     "badges": [],
     "roles": [
-      "sdk_author"
+      "sdk_author",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1471,7 +1538,8 @@
     "path": "/aisworg/seu/sdk/:slug/new",
     "badges": [],
     "roles": [
-      "sdk_author"
+      "sdk_author",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1483,7 +1551,8 @@
       "ontology_manage"
     ],
     "roles": [
-      "sdk_author"
+      "sdk_author",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1681,6 +1750,16 @@
   {
     "method": "GET",
     "path": "/aisworg/seu/service-definitions",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/service-definitions/:id",
     "badges": [],
     "roles": [
       "participant",
@@ -2332,6 +2411,16 @@
     "match_mode": "any"
   },
   {
+    "method": "GET",
+    "path": "/aisworg/seu/templates/:id",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
     "method": "POST",
     "path": "/aisworg/seu/templates/:id/copy",
     "badges": [],
@@ -2405,7 +2494,7 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/demo/scenarios/:code/run",
+    "path": "/aisworg/seu/demo/steps/:code/run",
     "badges": [],
     "roles": [
       "demo"
@@ -2414,7 +2503,7 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/demo/playbooks/:code/step",
+    "path": "/aisworg/seu/demo/scenarios/:code/step",
     "badges": [],
     "roles": [
       "demo"
@@ -2432,6 +2521,42 @@
   },
   {
     "method": "GET",
+    "path": "/aisworg/seu/demo/guide",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/guide/start/:code",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/guide/step",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/guide/close",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
     "path": "/aisworg/seu/demo/root",
     "badges": [
       "root"
@@ -2441,7 +2566,61 @@
   },
   {
     "method": "POST",
+    "path": "/aisworg/seu/demo/root/steps/:code/enabled",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/root/areas/:area",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/root/scenarios",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/root/scenarios/:code",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
     "path": "/aisworg/seu/demo/root/scenarios/:code/enabled",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/root/steps",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/root/steps/:code",
     "badges": [
       "root"
     ],

@@ -21,9 +21,7 @@
     <div class="mb-4">
       <h2 class="h3 mb-1 text-dark fw-bold">Profiles</h2>
       <p class="text-muted small mb-0">
-        Profile Registry (Ch.7 §19.10) — every published Version of every Profile. Each Version is an immutable row
-        (Ch.41 VM-002); publishing a new version of an existing (code, tenant) creates a new row and supersedes the
-        previously-Active one rather than mutating it.
+        A Profile defines the commissioning configuration for a Software Engineering Unit (SEU). A Profile specifies the variable parameters used for the Template blueprint. Profiles enable the same Template to be reused across different organisations, domains, technologies, deployment environments and engineering contexts without modifying the Template itself.
       </p>
     </div>
 
@@ -84,7 +82,7 @@
                   <% if (p.profile.tenant_id === locals.platformTenantId) { %>
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span>
                   <% } else { %>
-                    <span class="badge bg-light text-dark border">Your tenant</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><%= (locals.tenantNameById || {})[p.profile.tenant_id] %></span>
                   <% } %>
                   <% if (p.profile.parent_profile_id) { %>
                     <span class="badge bg-secondary-subtle text-secondary border">Derived (Ch.7 §9)</span>
@@ -95,7 +93,7 @@
               </div>
             </div>
             <div class="d-flex gap-2">
-              <a href="/aisworg/seu/sdk/profile-authoring/<%= p.profile.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
+              <a href="/aisworg/seu/profiles/<%= p.profile.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
               <% if (locals.canCopy) { %>
                 <form method="POST" action="/aisworg/seu/profiles/<%= p.profile.id %>/copy">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">

@@ -9,12 +9,19 @@ import {seu_seus_composeVM} from "./seu_seus_compose.js";
 import {seu_seus_detailVM} from "./seu_seus_detail.js";
 import {seu_seus_ebmVM} from "./seu_seus_ebm.js";
 import {seu_packs_indexVM} from "./seu_packs_index.js";
+import {seu_packs_viewVM} from "./seu_packs_view.js";
 import {seu_templates_indexVM} from "./seu_templates_index.js";
+import {seu_templates_viewVM} from "./seu_templates_view.js";
 import {seu_profiles_indexVM} from "./seu_profiles_index.js";
+import {seu_profiles_viewVM} from "./seu_profiles_view.js";
 import {seu_deliverable_definitions_indexVM} from "./seu_deliverable_definitions_index.js";
+import {seu_deliverable_definitions_viewVM} from "./seu_deliverable_definitions_view.js";
 import {seu_service_definitions_indexVM} from "./seu_service_definitions_index.js";
+import {seu_service_definitions_viewVM} from "./seu_service_definitions_view.js";
 import {seu_policy_definitions_indexVM} from "./seu_policy_definitions_index.js";
+import {seu_policy_definitions_viewVM} from "./seu_policy_definitions_view.js";
 import {seu_capability_definitions_indexVM} from "./seu_capability_definitions_index.js";
+import {seu_capability_definitions_viewVM} from "./seu_capability_definitions_view.js";
 import {seu_participants_indexVM} from "./seu_participants_index.js";
 import {seu_objectives_indexVM} from "./seu_objectives_index.js";
 import {seu_objectives_detailVM} from "./seu_objectives_detail.js";
@@ -64,12 +71,19 @@ export const viewModels = {
   "seu/seus/detail": seu_seus_detailVM,
   "seu/seus/ebm": seu_seus_ebmVM,
   "seu/packs/index": seu_packs_indexVM,
+  "seu/packs/view": seu_packs_viewVM,
   "seu/templates/index": seu_templates_indexVM,
+  "seu/templates/view": seu_templates_viewVM,
   "seu/profiles/index": seu_profiles_indexVM,
+  "seu/profiles/view": seu_profiles_viewVM,
   "seu/deliverable-definitions/index": seu_deliverable_definitions_indexVM,
+  "seu/deliverable-definitions/view": seu_deliverable_definitions_viewVM,
   "seu/service-definitions/index": seu_service_definitions_indexVM,
+  "seu/service-definitions/view": seu_service_definitions_viewVM,
   "seu/policy-definitions/index": seu_policy_definitions_indexVM,
+  "seu/policy-definitions/view": seu_policy_definitions_viewVM,
   "seu/capability-definitions/index": seu_capability_definitions_indexVM,
+  "seu/capability-definitions/view": seu_capability_definitions_viewVM,
   "seu/participants/index": seu_participants_indexVM,
   "seu/objectives/index": seu_objectives_indexVM,
   "seu/objectives/detail": seu_objectives_detailVM,

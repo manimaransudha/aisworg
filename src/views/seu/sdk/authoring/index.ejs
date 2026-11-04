@@ -48,11 +48,12 @@
     <div class="flex-grow-1" style="min-width: 0;">
 
     <% if (typeof showDrafts === 'undefined' || showDrafts) { %>
-      <% const _rows = locals.rows || []; %>
+      <% const _rows = locals.rows || []; const _authoringBase = locals.listBasePath || ('/aisworg/seu/sdk/' + slug); %>
+      <%- include('../../../partials/listControls', { list: locals.list, listBasePath: _authoringBase, searchPlaceholder: 'Search code, name or status' }) %>
       <div class="card border-0 shadow-sm">
         <div class="card-body">
           <table class="table table-sm align-middle mb-0">
-            <thead><tr><th>Code</th><th>Name</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+            <thead><tr><th><%- sortLink('Code', 'code', locals.list, _authoringBase) %></th><th><%- sortLink('Name', 'name', locals.list, _authoringBase) %></th><th><%- sortLink('Status', 'status', locals.list, _authoringBase) %></th><th><%- sortLink('Created', 'created', locals.list, _authoringBase) %></th><th>Actions</th></tr></thead>
             <tbody>
               <% _rows.forEach(function(r) { %>
                 <tr>
@@ -61,7 +62,10 @@
                   <td><span class="state-badge state-<%= r.status.replace(/\s+/g,'') %>"><%= r.status %></span></td>
                   <td class="text-muted small"><%= new Date(r.createdAt).toLocaleString() %></td>
                   <td class="text-nowrap">
-                    <a class="btn btn-sm btn-outline-primary" href="/aisworg/seu/sdk/<%= slug %>/<%= r.id %>">Open</a>
+                    <a class="btn btn-sm btn-outline-primary" href="<%= locals.viewBase %>/<%= r.id %>">View</a>
+                    <% if (canCreate && r.status === locals.editableStatus) { %>
+                      <a class="btn btn-sm btn-outline-secondary" href="/aisworg/seu/sdk/<%= slug %>/<%= r.id %>">Edit</a>
+                    <% } %>
                     <% (r.actions || []).forEach(function(a) { %>
                       <% var _verbLabel = a.verb.charAt(0).toUpperCase() + a.verb.slice(1); %>
                       <% if (a.endpoint === 'publish') { %>

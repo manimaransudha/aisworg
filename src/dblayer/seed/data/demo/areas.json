@@ -1,0 +1,59 @@
+[
+  {
+    "area": "Declare",
+    "stageTitle": "Engineering architecture",
+    "howToLead": "Declaration defines what the platform may build and under which rules. Everything declared is held in the registries.",
+    "howToSteps": [
+      {
+        "text": "View the existing declarations under Registry in the navbar."
+      },
+      {
+        "text": "Browse the declared <a href=\"/aisworg/seu/packs\">Packs</a>, <a href=\"/aisworg/seu/templates\">Templates</a> and <a href=\"/aisworg/seu/profiles\">Profiles</a>."
+      },
+      {
+        "text": "Author a new declaration from <a href=\"/aisworg/seu/sdk/pack-authoring\">Pack authoring</a>. Action buttons appear only where your authority allows them."
+      },
+      {
+        "text": "Try one of the scenarios below to see a declaration take effect."
+      }
+    ]
+  },
+  {
+    "area": "Commission",
+    "stageTitle": "SEU commissioning",
+    "howToLead": "Commissioning turns an Objective into a governed SEU, composed from the declarations.",
+    "howToSteps": [
+      {
+        "text": "Review the existing <a href=\"/aisworg/seu/objectives\">Objectives</a>, or <a href=\"/aisworg/seu/objectives/new\">create a new one</a>."
+      },
+      {
+        "text": "Open an Objective and compose its Engineering Behavior Model."
+      },
+      {
+        "text": "Commission the SEU from the Objective, then open it from <a href=\"/aisworg/seu/seus\">SEUs</a>."
+      },
+      {
+        "text": "Or work through a scenario below to commission one for you."
+      }
+    ]
+  },
+  {
+    "area": "Execute",
+    "stageTitle": "Execution",
+    "howToLead": "Execution moves Deliverables forward while Governance responds to what happens.",
+    "howToSteps": [
+      {
+        "text": "Open a commissioned SEU from <a href=\"/aisworg/seu/seus\">SEUs</a> and review its Deliverables and Work Items."
+      },
+      {
+        "text": "Complete Work Items and watch Quality Gates and Obligations respond."
+      },
+      {
+        "text": "Raise a Blocker, Risk or Finding, then convert or release it. Follow the outcome in <a href=\"/aisworg/seu/attention\">Attention</a>."
+      },
+      {
+        "text": "Or work through a scenario below, one step at a time."
+      }
+    ]
+  }
+]

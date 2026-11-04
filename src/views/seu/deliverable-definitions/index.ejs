@@ -21,9 +21,7 @@
     <div class="mb-4">
       <h2 class="h3 mb-1 text-dark fw-bold">Deliverable Definitions</h2>
       <p class="text-muted small mb-0">
-        Deliverable Definition Registry (Ch.15 §12, CR-049) — every published Version of every Deliverable Definition.
-        Each Version is an immutable row; publishing a new version of an existing (code, tenant) creates a new row and
-        supersedes the previously-Active one. A tenant's own specialisation of a Platform Definition is marked "Derived" below.
+        A Deliverable is a persistent engineering artefact representing an expected outcome of an SEU.
       </p>
     </div>
 
@@ -69,7 +67,7 @@
                   <% if (d.tenant_id === locals.platformTenantId) { %>
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span>
                   <% } else { %>
-                    <span class="badge bg-light text-dark border">Your tenant</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><%= (locals.tenantNameById || {})[d.tenant_id] %></span>
                   <% } %>
                   <% if (d.parent_deliverable_definition_id) { %>
                     <span class="badge bg-secondary-subtle text-secondary border">Derived (Ch.15 §12)</span>
@@ -79,7 +77,7 @@
               </div>
             </div>
             <div class="d-flex gap-2">
-              <a href="/aisworg/seu/sdk/deliverable-authoring/<%= d.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
+              <a href="/aisworg/seu/deliverable-definitions/<%= d.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
               <% if (locals.canCopy) { %>
                 <form method="POST" action="/aisworg/seu/deliverable-definitions/<%= d.id %>/copy">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">

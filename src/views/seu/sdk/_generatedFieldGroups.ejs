@@ -237,9 +237,9 @@
                       show up?" — required is an editing affordance (what you
                       must still fill in); meaningless once the page is just
                       showing what was already saved. %>
-                  <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %></label>
+                  <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %> <% if (f.help && !canEdit) { %><i class="bi bi-info-circle text-primary ms-1" title="<%= f.help %>" aria-label="Help"></i><% } %></label>
                   <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, serviceDefinitionOptions: locals.serviceDefinitionOptions, renderMarkdown: locals.renderMarkdown, fieldValueByName: fieldValueByName }) %>
-                  <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
+                  <% if (f.help && canEdit) { %><div class="form-text small"><%= f.help %></div><% } %>
                 </div>
               <% } else { %>
               <%# CR-081 — Pack's own `category` forced full-width (owner:
@@ -285,7 +285,7 @@
               <% } else { %>
               <div class="<%= (f.name === 'category' || f.name === 'contributionPolicies') ? 'col-12' : 'col-md-6' %>" <% if (f.showWhen) { %>data-show-when="<%= f.showWhen %>" style="<%= isShowWhenHidden(f) ? 'display:none' : '' %>"<% } %>>
                 <label class="form-label small fw-semibold">
-                  <%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %>
+                  <%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %> <% if (f.help && !canEdit) { %><i class="bi bi-info-circle text-primary ms-1" title="<%= f.help %>" aria-label="Help"></i><% } %>
                   <% if (f.name === 'name' && locals.kindLabel === 'Pack') { %>
                     <%# Owner: "Did i not already say the computed version
                         should be muted belongside the name" — the OTHER of
@@ -466,6 +466,18 @@
                     <div class="ontology-combo-menu"></div>
                   </div>
                   <div class="form-text small">Click or start typing to browse existing codes for the chosen category, or type a new one — publishing is blocked until it's a real, registered Ontology concept.</div>
+                <% } else if (f.kind === 'referential-select' && f.ontology && f.composable) { %>
+                  <%# x-ontology-composable on a single-value field: the same
+                      on-page combo box as Pack's `code` (dynamicOntologyField.js),
+                      with one fixed option list instead of one driven by another
+                      field. The author picks an existing Ontology value or types
+                      one that is not listed yet; a typed value is proposed to the
+                      Ontology on save (core/ontology.ts#proposeComposableOntologyValues)
+                      instead of being rejected. %>
+                  <div class="ontology-combo" data-driver-values='<%- escapeAttrJson({ "": ((locals.ontologyOptions || {})[f.referentialSource] || []) }) %>'>
+                    <input id="<%= f.name %>-field" name="<%= f.name %>" class="form-control form-control-sm ontology-combo-input" autocomplete="off" placeholder="Pick or type a new value…" value="<%= f.value %>" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                    <div class="ontology-combo-menu"></div>
+                  </div>
                 <% } else if (f.kind === 'referential-select' && f.ontology) { %>
                   <%# Ch.18 Ontology (owner: "the schema has to pick the
                       values from the ontology... use a generic function") —
@@ -494,7 +506,7 @@
                       code became a system UUID too (migration 045), so this
                       picker (Profile's baseTemplateCode) needs Template's
                       `name` for legibility, same fix as the Pack pickers. %>
-                  <select name="<%= f.name %>" class="form-select form-select-sm" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                  <select name="<%= f.name %>" data-overrides-driver class="form-select form-select-sm" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
                     <option value="">— select —</option>
                     <% (locals.templateOptions || []).forEach(function(t) { %><option value="<%= t.code %>" <%= f.value === t.code ? 'selected' : '' %>><%= t.name %></option><% }) %>
                     <% if (f.value && !(locals.templateOptions || []).some(function(t) { return t.code === f.value; })) { %>
@@ -677,7 +689,7 @@
                     small muted text right under it, purely redundant, adding
                     clutter rather than information. Suppressed for that one
                     case only; every other field's help is unaffected. %>
-                <% if (f.help && !(f.kind === 'referential-select' && f.ontology && f.dynamicSourceField)) { %><div class="form-text small"><%= f.help %></div><% } %>
+                <% if (f.help && canEdit && !(f.kind === 'referential-select' && f.ontology && f.dynamicSourceField)) { %><div class="form-text small"><%= f.help %></div><% } %>
               </div>
               <% } %>
               <% } %>
@@ -781,60 +793,9 @@
               (reconstructProfileParameterOverrides, sdkAuthoring.ts) before
               parseFormBody ever runs, same as Template's own tab. %>
           <p class="text-muted small mb-2">This Profile's own value for whichever of its base Template's configurable parameters the Template allows a Profile to override. Leave blank to keep the Template's own value.</p>
-          <% var poRows = locals.exposedParameterOverrideRows || []; %>
-          <% if (!poRows.length) { %>
-            <p class="text-muted small mb-0">None yet — the base Template (Identity &amp; Metadata tab) hasn't flagged any of its configurable parameters as overridable.</p>
-          <% } else { %>
-            <% var poGroups = [
-              { sourceType: 'service', label: 'Service Level' },
-              { sourceType: 'policy', label: 'Policy' },
-              { sourceType: 'checklist', label: 'Checklist' },
-              { sourceType: 'dependency', label: 'Deliverable Dependency' },
-            ]; %>
-            <% poGroups.forEach(function(g) { %>
-              <% var groupRows = []; poRows.forEach(function(row, idx) { if (row.sourceType === g.sourceType) groupRows.push({ row: row, idx: idx }); }); %>
-              <% if (groupRows.length) { %>
-                <div class="mb-3">
-                  <div class="text-uppercase text-muted small fw-semibold mb-1"><%= g.label %></div>
-                  <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                      <tbody>
-                        <% groupRows.forEach(function(entry) { %>
-                          <% var row = entry.row, i = entry.idx; %>
-                          <tr>
-                            <td class="small text-nowrap"><%= row.sourceName %></td>
-                            <td class="small text-nowrap text-muted"><%= row.parameterLabel %></td>
-                            <td class="small text-nowrap text-muted">Template default: <%= row.defaultValue || '—' %></td>
-                            <td class="small">
-                              <% if (canEdit) { %>
-                                <input type="hidden" name="exposedParamOverrideRows[<%= i %>][sourceType]" value="<%= row.sourceType %>">
-                                <input type="hidden" name="exposedParamOverrideRows[<%= i %>][sourceCode]" value="<%= row.sourceCode %>">
-                                <input type="hidden" name="exposedParamOverrideRows[<%= i %>][parameterName]" value="<%= row.parameterName %>">
-                              <% } %>
-                              <% if (row.valueOptions && row.valueOptions.length) { %>
-                                <% if (!canEdit) { %><%= row.value || '—' %><% } else { %>
-                                <select name="exposedParamOverrideRows[<%= i %>][value]" class="form-select form-select-sm" style="max-width: 12rem;">
-                                  <option value="">— use Template default —</option>
-                                  <% row.valueOptions.forEach(function(opt) { %>
-                                    <option value="<%= opt %>" <%= row.value === opt ? 'selected' : '' %>><%= opt %></option>
-                                  <% }) %>
-                                </select>
-                                <% } %>
-                              <% } else { %>
-                                <% if (!canEdit) { %><%= row.value || '—' %><% } else { %>
-                                <input type="text" name="exposedParamOverrideRows[<%= i %>][value]" class="form-control form-control-sm" style="max-width: 10rem;" value="<%= row.value %>" placeholder="<%= row.defaultValue || '' %>">
-                                <% } %>
-                              <% } %>
-                            </td>
-                          </tr>
-                        <% }) %>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              <% } %>
-            <% }) %>
-          <% } %>
+          <div id="parameter-override-rows" data-rows-url="/aisworg/seu/sdk/profile-parameter-overrides">
+            <%- include('_parameterOverrideRows', { poRows: locals.exposedParameterOverrideRows || [], canEdit: canEdit }) %>
+          </div>
 
         <% } else { %>
           <%# CR-058 form redesign (owner: "the help should be against each

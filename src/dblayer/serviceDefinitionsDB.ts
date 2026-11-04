@@ -206,6 +206,23 @@ export const serviceDefinitionsDB = {
     }
   },
 
+  // The Active Service Definition a Capability offers. A row owned by the viewer's tenant is preferred over the platform's.
+  async findActiveByCapabilityCodeVisibleTo(capabilityCode: string, viewerTenantId: string | null): Promise<DbResult<ServiceDefinitionRow | null>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+    try {
+      const { rows } = await query<ServiceDefinitionRow>(
+        `SELECT * FROM service_definitions
+         WHERE capability_code = $1 AND status = 'Active' AND (tenant_id = $2 OR tenant_id = $3)
+         ORDER BY (tenant_id = $2) DESC, created_at DESC LIMIT 1`,
+        [capabilityCode, viewerTenantId ?? PLATFORM_TENANT_ID, PLATFORM_TENANT_ID]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[serviceDefinitionsDB] findActiveByCapabilityCodeVisibleTo error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findAll(): Promise<DbResult<ServiceDefinitionRow[]>> {
     try {
       const { rows } = await query<ServiceDefinitionRow>("SELECT * FROM service_definitions ORDER BY code, created_at DESC");

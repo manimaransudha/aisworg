@@ -1,11 +1,11 @@
 import pool from "../../../utils/db.js";
 import { logger } from "../../../utils/logger.js";
 import { DEMO_PARTICIPANT_DISPLAY_NAME } from "./demoBadges.js";
-import { DEMO_PURGE_PLAN, DEMO_PURGE_NULLED_REFERENCES, type DemoPurgeStep } from "../../constants.js";
+import { DEMO_PURGE_PLAN, DEMO_PURGE_NULLED_REFERENCES, DEMO_CATALOGUE_TABLES, type DemoPurgeStep } from "../../constants.js";
 
 // Rows the Demo purge must never delete: the tenant itself, identities and the
 // tenant-level contract and alias rows (DECISIONS.md, Part 1).
-const PROTECTED_TABLES = new Set(["tenants", "users", "participants_master", "tenant_contracts", "tenant_concept_aliases"]);
+const PROTECTED_TABLES = new Set(["tenants", "users", "participants_master", "tenant_contracts", "tenant_concept_aliases", ...DEMO_CATALOGUE_TABLES]);
 
 const q = (identifier: string): string => `"${identifier.replace(/"/g, '""')}"`;
 

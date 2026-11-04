@@ -1,0 +1,754 @@
+[
+  {
+    "code": "access-control-model",
+    "description": "Defines the roles, permissions and enforcement rules that govern who may access each resource of the solution."
+  },
+  {
+    "code": "accessibility-conformance-report",
+    "description": "Records the assessed conformance of the user interface to the applicable accessibility standards and lists the gaps found."
+  },
+  {
+    "code": "ai-output-review-record",
+    "description": "Records the human review of model-generated output, including the reviewer's decision and any corrections made."
+  },
+  {
+    "code": "api-compatibility-report",
+    "description": "Reports the backward and forward compatibility of an API change against its published consumers."
+  },
+  {
+    "code": "api-specification",
+    "description": "Describes the operations, message formats, errors and behaviour of an API as a contract for its consumers."
+  },
+  {
+    "code": "api-versioning-policy",
+    "description": "Defines how API versions are numbered, supported, deprecated and retired."
+  },
+  {
+    "code": "app-store-submission-package",
+    "description": "Collects the binaries, metadata, declarations and assets required to submit an application to a store."
+  },
+  {
+    "code": "architecture-decision-record",
+    "description": "Records an architectural decision together with its context, the options considered, the rationale and the consequences."
+  },
+  {
+    "code": "architecture-drift-finding",
+    "description": "States a detected divergence between the implemented system and its approved architecture."
+  },
+  {
+    "code": "architecture-tradeoff-analysis-report",
+    "description": "Analyses the trade-offs among competing quality attributes for an architectural choice and states the resulting balance."
+  },
+  {
+    "code": "artefact-change-stream",
+    "description": "Continuous feed of changes made to engineering artefacts, supplied for monitoring services."
+  },
+  {
+    "code": "backup-restore-verification-report",
+    "description": "Reports the outcome of tests that restore backups and confirms the recovered data is complete and usable."
+  },
+  {
+    "code": "benchmark-report",
+    "description": "Compares measured capability performance against reference benchmarks and states the observed gaps."
+  },
+  {
+    "code": "benefits-realisation-report",
+    "description": "Reports the benefits delivered by a product or change against the benefits expected in its business case."
+  },
+  {
+    "code": "branching-strategy",
+    "description": "Defines the branch structure, naming, merge rules and release flow used in version control."
+  },
+  {
+    "code": "build-artefact",
+    "description": "The versioned output of a build, produced for testing, packaging and delivery."
+  },
+  {
+    "code": "business-analysis-plan",
+    "description": "Defines the business analysis approach, activities, stakeholders, deliverables and schedule for an initiative."
+  },
+  {
+    "code": "business-case",
+    "description": "Justifies an initiative through its objectives, costs, benefits, risks and options."
+  },
+  {
+    "code": "business-signal-stream",
+    "description": "Continuous feed of business events and indicators, supplied for monitoring services."
+  },
+  {
+    "code": "capability-bottleneck-finding",
+    "description": "States a constraint that limits the throughput or effectiveness of a capability, with its evidence."
+  },
+  {
+    "code": "capability-evolution-roadmap",
+    "description": "Sets out the planned evolution of a capability and the metrics used to track its progress."
+  },
+  {
+    "code": "capability-maturity-assessment",
+    "description": "Assesses the maturity level of a capability against a defined maturity scale and states the gaps to the next level."
+  },
+  {
+    "code": "capability-optimisation-record",
+    "description": "Records an optimisation applied to a capability, its rationale and the measured effect."
+  },
+  {
+    "code": "capability-realignment-recommendation",
+    "description": "Recommends changes that realign a capability with current objectives and needs, with supporting rationale."
+  },
+  {
+    "code": "capacity-plan",
+    "description": "Forecasts demand and defines the compute, storage and network capacity needed to meet it."
+  },
+  {
+    "code": "change-request",
+    "description": "Proposes a change to a baselined item and states the reason, scope and expected effect."
+  },
+  {
+    "code": "chaos-experiment-report",
+    "description": "Reports the faults injected into a system, the observed behaviour and the resilience findings."
+  },
+  {
+    "code": "ci-cd-pipeline-definition",
+    "description": "Defines the stages, triggers, gates and tooling of the continuous integration and delivery pipeline."
+  },
+  {
+    "code": "co-simulation-report",
+    "description": "Reports the results of joint hardware and software simulation, including observed behaviour and defects."
+  },
+  {
+    "code": "code-change-stream",
+    "description": "Continuous feed of source code changes, supplied for monitoring services."
+  },
+  {
+    "code": "code-review-record",
+    "description": "Records the review of a code change, including comments, findings and the approval decision."
+  },
+  {
+    "code": "compliance-audit-evidence",
+    "description": "Collects the evidence that demonstrates conformance to a compliance obligation for audit."
+  },
+  {
+    "code": "compliance-violation-finding",
+    "description": "States a detected violation of a compliance obligation and the evidence for it."
+  },
+  {
+    "code": "confidence-assessment",
+    "description": "States the assessed level of confidence in the quality of a work product, derived from test and defect evidence."
+  },
+  {
+    "code": "configuration-baseline-record",
+    "description": "Records the identified configuration items and their versions at an approved baseline."
+  },
+  {
+    "code": "configuration-drift-finding",
+    "description": "States a detected difference between the actual configuration and its approved baseline."
+  },
+  {
+    "code": "configuration-files",
+    "description": "The configuration files that set the parameters and behaviour of an environment or component."
+  },
+  {
+    "code": "contract-test-report",
+    "description": "Reports the results of tests that verify a provider and its consumers honour an agreed interface contract."
+  },
+  {
+    "code": "cost-optimisation-plan",
+    "description": "Defines actions that reduce engineering and infrastructure cost, with their expected savings."
+  },
+  {
+    "code": "cost-variance-report",
+    "description": "Reports the difference between planned and actual engineering cost, with the causes of variance."
+  },
+  {
+    "code": "data-dictionary",
+    "description": "Defines each data element of the solution, including its meaning, type, format and constraints."
+  },
+  {
+    "code": "data-migration-plan",
+    "description": "Defines the approach, mapping, sequencing, rollback and validation for moving data between systems."
+  },
+  {
+    "code": "data-migration-verification-report",
+    "description": "Reports the checks performed after a data migration and confirms the completeness and accuracy of the migrated data."
+  },
+  {
+    "code": "data-pipeline-specification",
+    "description": "Specifies the sources, transformations, schedules, outputs and controls of a data pipeline."
+  },
+  {
+    "code": "data-quality-report",
+    "description": "Reports measured data quality against defined rules, with the failures found."
+  },
+  {
+    "code": "database-schema-data-model",
+    "description": "Defines the structure of stored data, including entities, attributes, relationships and constraints."
+  },
+  {
+    "code": "decision-record",
+    "description": "Records a decision, the options considered, the rationale and the decision maker."
+  },
+  {
+    "code": "decision-trace",
+    "description": "Links a decision to the inputs, rationale and artefacts that led to it."
+  },
+  {
+    "code": "decommissioning-plan",
+    "description": "Defines the steps, dependencies and data handling required to retire a system or component."
+  },
+  {
+    "code": "defect-log",
+    "description": "Lists the defects found, with their severity, status and resolution."
+  },
+  {
+    "code": "dependency-upgrade-plan",
+    "description": "Defines the upgrades planned for software dependencies, with their order, risk and verification."
+  },
+  {
+    "code": "deployment-event-stream",
+    "description": "Continuous feed of deployment events, supplied for monitoring services."
+  },
+  {
+    "code": "deployment-manifest",
+    "description": "Lists the components, versions and settings that make up a deployment."
+  },
+  {
+    "code": "deployment-package",
+    "description": "The assembled set of artefacts and instructions needed to deploy a release to an environment."
+  },
+  {
+    "code": "design-system-specification",
+    "description": "Defines the reusable visual components, styles and interaction patterns of the user interface."
+  },
+  {
+    "code": "detailed-design-specification",
+    "description": "Describes the internal structure, interfaces and behaviour of components in enough detail to implement them."
+  },
+  {
+    "code": "developer-experience-assessment",
+    "description": "Assesses the tooling, process friction and satisfaction of the engineering team and recommends improvements."
+  },
+  {
+    "code": "device-support-matrix",
+    "description": "Lists the devices, operating system versions and configurations that the product supports."
+  },
+  {
+    "code": "disaster-recovery-plan",
+    "description": "Defines how services and data are restored after a disruptive event, with recovery objectives and roles."
+  },
+  {
+    "code": "domain-model",
+    "description": "Describes the concepts of the business domain, their attributes and their relationships."
+  },
+  {
+    "code": "domain-model-drift-finding",
+    "description": "States a detected divergence between the domain model and the business reality or the implementation."
+  },
+  {
+    "code": "effort-estimate",
+    "description": "States the estimated effort to complete work, with the basis and assumptions of the estimate."
+  },
+  {
+    "code": "engineering-budget",
+    "description": "Allocates funds to engineering work, by period and category."
+  },
+  {
+    "code": "engineering-risk-forecast-finding",
+    "description": "States a predicted engineering risk, with its likelihood, impact and supporting evidence."
+  },
+  {
+    "code": "engineering-standard",
+    "description": "Defines a mandatory or recommended engineering practice that work products must follow."
+  },
+  {
+    "code": "event-replay-stream",
+    "description": "Continuous feed of recorded events that can be replayed, supplied for learning and forecasting services."
+  },
+  {
+    "code": "experiment-design",
+    "description": "Defines the hypothesis, method, measures and success criteria of an experiment."
+  },
+  {
+    "code": "failure-mode-and-effects-analysis",
+    "description": "Analyses how each component can fail, the effect of each failure and the mitigations."
+  },
+  {
+    "code": "firmware-build",
+    "description": "The built firmware image for a target device, produced for testing and release."
+  },
+  {
+    "code": "fitness-function-catalog",
+    "description": "Lists the automated checks that measure whether the architecture meets its stated qualities."
+  },
+  {
+    "code": "game-design-document",
+    "description": "Describes the concept, mechanics, content and player experience of a game."
+  },
+  {
+    "code": "hardware-compatibility-report",
+    "description": "Reports the compatibility of software or firmware with the supported hardware, with the issues found."
+  },
+  {
+    "code": "hardware-in-the-loop-test-report",
+    "description": "Reports the results of tests that run software against real hardware in a controlled loop."
+  },
+  {
+    "code": "hardware-interface-specification",
+    "description": "Specifies the signals, registers, protocols and timing through which software interacts with hardware."
+  },
+  {
+    "code": "hardware-software-partitioning-specification",
+    "description": "Defines which functions are allocated to hardware and which to software, with the rationale."
+  },
+  {
+    "code": "hazard-analysis-and-risk-assessment",
+    "description": "Identifies hazards, assesses their risk and defines the safety goals that follow."
+  },
+  {
+    "code": "impact-analysis-report",
+    "description": "Reports the artefacts, systems and stakeholders affected by a proposed change."
+  },
+  {
+    "code": "improvement-opportunity-finding",
+    "description": "States an identified opportunity to improve a process, practice or capability, with its evidence."
+  },
+  {
+    "code": "incident-communication-log",
+    "description": "Records the communications sent and received during an incident."
+  },
+  {
+    "code": "incident-precursor-finding",
+    "description": "States a signal that precedes a likely incident, with the evidence and the affected area."
+  },
+  {
+    "code": "incident-report-post-mortem",
+    "description": "Records an incident, its timeline, root cause, impact and the follow-up actions."
+  },
+  {
+    "code": "infrastructure-as-code-environment-configuration",
+    "description": "Defines infrastructure and environment configuration as versioned, executable code."
+  },
+  {
+    "code": "integration-bring-up-report",
+    "description": "Reports the steps and results of bringing integrated hardware and software components into operation."
+  },
+  {
+    "code": "integration-build",
+    "description": "The build that combines components for integration testing."
+  },
+  {
+    "code": "integration-specification-interface-contracts",
+    "description": "Specifies the interfaces and contracts through which components integrate."
+  },
+  {
+    "code": "intent-divergence-finding",
+    "description": "States a detected difference between the stakeholders' intent and the requirements or solution."
+  },
+  {
+    "code": "knowledge-base-articles",
+    "description": "Articles that capture knowledge for reuse, such as guidance, answers and procedures."
+  },
+  {
+    "code": "known-error-record",
+    "description": "Records a diagnosed problem that has no permanent fix yet, together with its workaround."
+  },
+  {
+    "code": "lessons-learned-report",
+    "description": "Records what worked and what did not, with recommendations for future work."
+  },
+  {
+    "code": "licence-compliance-report",
+    "description": "Reports the licences of the software components used and their conformance to licence obligations."
+  },
+  {
+    "code": "mobile-platform-strategy",
+    "description": "Defines the target mobile platforms, the development approach and the release policy."
+  },
+  {
+    "code": "mobile-security-assessment-report",
+    "description": "Reports the security assessment of a mobile application, with the vulnerabilities found."
+  },
+  {
+    "code": "model-card",
+    "description": "Documents a trained model's purpose, data, performance, limits and intended use."
+  },
+  {
+    "code": "model-deployment-record",
+    "description": "Records the deployment of a model version, including its target, configuration and approval."
+  },
+  {
+    "code": "model-evaluation-report",
+    "description": "Reports the measured performance of a model against defined evaluation criteria."
+  },
+  {
+    "code": "model-monitoring-report",
+    "description": "Reports the behaviour of a deployed model over time, including drift and performance changes."
+  },
+  {
+    "code": "monitoring-alerting-configuration",
+    "description": "Defines the metrics, thresholds and alert routes used to monitor a system."
+  },
+  {
+    "code": "objective-alignment-report",
+    "description": "Reports how well the work in progress aligns with the stated objectives."
+  },
+  {
+    "code": "objective-misalignment-finding",
+    "description": "States a detected misalignment between work and the stated objectives."
+  },
+  {
+    "code": "obsolescence-forecast-finding",
+    "description": "States a prediction that a technology or pattern will become unsuitable, with the expected timing."
+  },
+  {
+    "code": "onboarding-plan",
+    "description": "Defines the steps that bring a new team member to productive work."
+  },
+  {
+    "code": "operational-intelligence-report",
+    "description": "Reports insights drawn from operational data about system behaviour and engineering performance."
+  },
+  {
+    "code": "pattern-propagation-finding",
+    "description": "States where a defect or fix pattern also applies in other parts of the codebase."
+  },
+  {
+    "code": "penetration-test-report",
+    "description": "Reports the results of simulated attacks against a system, with the vulnerabilities found."
+  },
+  {
+    "code": "performance-budget",
+    "description": "Sets the limits on resources and response times that a product must stay within."
+  },
+  {
+    "code": "performance-load-test-report",
+    "description": "Reports system behaviour and measurements under defined load conditions."
+  },
+  {
+    "code": "platform-certification-report",
+    "description": "Reports the results of certification testing against a target platform's requirements."
+  },
+  {
+    "code": "playtest-report",
+    "description": "Reports the findings of player testing of a game."
+  },
+  {
+    "code": "policy-change-stream",
+    "description": "Continuous feed of changes to policies, supplied for monitoring services."
+  },
+  {
+    "code": "policy-conflict-finding",
+    "description": "States a detected conflict between two or more policies."
+  },
+  {
+    "code": "policy-conflict-report",
+    "description": "Reports the detected policy conflicts, their causes and the proposed resolutions."
+  },
+  {
+    "code": "privacy-impact-assessment",
+    "description": "Assesses how a system processes personal data, the privacy risks and the controls required."
+  },
+  {
+    "code": "product-roadmap",
+    "description": "Sets out the planned direction, themes and timing of a product's development."
+  },
+  {
+    "code": "project-plan",
+    "description": "Defines the scope, schedule, resources and milestones of a project."
+  },
+  {
+    "code": "project-status-report",
+    "description": "Reports progress against the plan, with issues, risks and forecasts."
+  },
+  {
+    "code": "prototype-evaluation-report",
+    "description": "Reports the results of evaluating a prototype against the questions it was built to answer."
+  },
+  {
+    "code": "quality-attribute-requirements-specification",
+    "description": "Specifies measurable quality requirements such as performance, reliability and security."
+  },
+  {
+    "code": "quality-deviation-finding",
+    "description": "States a detected deviation from the expected quality level, with the evidence."
+  },
+  {
+    "code": "reasoned-recommendation-record",
+    "description": "Records a recommendation together with the reasoning and evidence that support it."
+  },
+  {
+    "code": "refactoring-plan",
+    "description": "Defines the code restructuring to be performed, its order and how behaviour is preserved."
+  },
+  {
+    "code": "regulatory-obligations-register",
+    "description": "Lists the regulatory obligations that apply, with their sources and owners."
+  },
+  {
+    "code": "release-notes-change-log",
+    "description": "Describes the changes, fixes and known issues of a release."
+  },
+  {
+    "code": "release-package",
+    "description": "The approved set of artefacts and documentation prepared for release."
+  },
+  {
+    "code": "release-risk-finding",
+    "description": "States a predicted risk to a release, with its likelihood and impact."
+  },
+  {
+    "code": "repository-configuration",
+    "description": "Defines the settings, access rules and protections of a source repository."
+  },
+  {
+    "code": "requirement-change-stream",
+    "description": "Continuous feed of changes to requirements, supplied for monitoring services."
+  },
+  {
+    "code": "requirement-validity-finding",
+    "description": "States a finding on whether a requirement remains valid, complete and consistent."
+  },
+  {
+    "code": "requirements-analysis-model",
+    "description": "Models the requirements through structured analysis, such as use cases, processes and data flows."
+  },
+  {
+    "code": "requirements-backlog",
+    "description": "The prioritised list of requirements awaiting analysis or implementation."
+  },
+  {
+    "code": "requirements-prioritisation-record",
+    "description": "Records the priority assigned to each requirement and the basis for it."
+  },
+  {
+    "code": "requirements-specification",
+    "description": "States the agreed requirements of the solution in a form that can be verified."
+  },
+  {
+    "code": "resilience-test-report",
+    "description": "Reports how a system behaves and recovers under failure conditions."
+  },
+  {
+    "code": "reuse-assessment",
+    "description": "Assesses existing assets for reuse and recommends which to adopt."
+  },
+  {
+    "code": "review-report",
+    "description": "Reports the findings and decision of a formal review of a work product."
+  },
+  {
+    "code": "risk-assessment-report",
+    "description": "Assesses identified risks by likelihood and impact and states the recommended response."
+  },
+  {
+    "code": "risk-mitigation-plan",
+    "description": "Defines the actions, owners and timing that reduce identified risks."
+  },
+  {
+    "code": "risk-register",
+    "description": "Lists identified risks with their rating, owner, response and status."
+  },
+  {
+    "code": "rollback-plan",
+    "description": "Defines how a release is reverted to the previous state if it fails."
+  },
+  {
+    "code": "root-cause-analysis-report",
+    "description": "Reports the analysis that identifies the underlying cause of a problem."
+  },
+  {
+    "code": "runbook-operational-documentation",
+    "description": "Describes the procedures that operators follow to run, monitor and recover a system."
+  },
+  {
+    "code": "safety-case",
+    "description": "Presents a structured argument, with evidence, that a system is acceptably safe."
+  },
+  {
+    "code": "safety-requirements-specification",
+    "description": "Specifies the requirements needed to achieve the safety goals."
+  },
+  {
+    "code": "security-assessment-report",
+    "description": "Reports the assessed security posture of a system, with the vulnerabilities and recommendations."
+  },
+  {
+    "code": "security-design",
+    "description": "Describes the security controls and mechanisms built into the solution."
+  },
+  {
+    "code": "security-requirements-specification",
+    "description": "Specifies the security requirements that the solution must meet."
+  },
+  {
+    "code": "service-level-objective-specification",
+    "description": "Defines the service level objectives and the indicators used to measure them."
+  },
+  {
+    "code": "skills-matrix",
+    "description": "Maps team members to their skills and proficiency levels."
+  },
+  {
+    "code": "software-bill-of-materials",
+    "description": "Lists every component and dependency of a software build, with versions and origins."
+  },
+  {
+    "code": "solution-architecture-document",
+    "description": "Describes the architecture of the solution, including its structure, components, interfaces and key decisions."
+  },
+  {
+    "code": "solution-options-analysis",
+    "description": "Compares the candidate solutions against the criteria and states the evaluation of each."
+  },
+  {
+    "code": "source-code",
+    "description": "The program code that implements the solution."
+  },
+  {
+    "code": "stakeholder-communication-stream",
+    "description": "Continuous feed of stakeholder communications, supplied for monitoring services."
+  },
+  {
+    "code": "stakeholder-intent-baseline",
+    "description": "Records the agreed statement of what stakeholders intend the solution to achieve."
+  },
+  {
+    "code": "structural-coverage-report",
+    "description": "Reports which parts of the code were exercised by tests, to the coverage level required."
+  },
+  {
+    "code": "structural-pattern-finding",
+    "description": "States a recurring structural pattern detected across systems, with its implications."
+  },
+  {
+    "code": "support-resolution-record",
+    "description": "Records a support request, its handling and its resolution."
+  },
+  {
+    "code": "system-model",
+    "description": "Models the system's structure and behaviour at the system level."
+  },
+  {
+    "code": "technical-debt-register",
+    "description": "Lists known technical debt items with their cost, risk and planned handling."
+  },
+  {
+    "code": "telemetry-stream",
+    "description": "Continuous feed of runtime measurements from operating systems."
+  },
+  {
+    "code": "test-case-specification",
+    "description": "Specifies the conditions, inputs, steps and expected results of tests."
+  },
+  {
+    "code": "test-coverage-gap-finding",
+    "description": "States a detected area that tests do not adequately cover."
+  },
+  {
+    "code": "test-data-set",
+    "description": "The data prepared for use in test execution."
+  },
+  {
+    "code": "test-environment-specification",
+    "description": "Defines the infrastructure, configuration and data that a test environment requires."
+  },
+  {
+    "code": "test-execution-stream",
+    "description": "Continuous feed of test execution events and results, supplied for monitoring services."
+  },
+  {
+    "code": "test-plan",
+    "description": "Defines the scope, approach, resources and schedule of testing."
+  },
+  {
+    "code": "test-report-results",
+    "description": "Reports the results of test execution, including passes, failures and defects."
+  },
+  {
+    "code": "test-strategy",
+    "description": "Defines the overall approach, levels and types of testing for the product."
+  },
+  {
+    "code": "test-suite",
+    "description": "The executable collection of automated tests."
+  },
+  {
+    "code": "threat-exposure-finding",
+    "description": "States a threat that currently exposes the system, with the affected assets."
+  },
+  {
+    "code": "threat-intelligence-feed",
+    "description": "Continuous feed of external information about threats and attackers."
+  },
+  {
+    "code": "threat-model",
+    "description": "Identifies the threats to a system, the assets at risk and the countermeasures."
+  },
+  {
+    "code": "timing-analysis-report",
+    "description": "Reports the analysed timing behaviour, such as worst-case execution time, against the deadlines."
+  },
+  {
+    "code": "traceability-link-stream",
+    "description": "Continuous feed of links between related artefacts, supplied for monitoring services."
+  },
+  {
+    "code": "traceability-matrix",
+    "description": "Maps requirements to the design, code and tests that satisfy them."
+  },
+  {
+    "code": "training-data-specification",
+    "description": "Defines the data, sources, labelling and quality criteria used to train a model."
+  },
+  {
+    "code": "training-plan",
+    "description": "Defines the training activities, audience and schedule that build team skills."
+  },
+  {
+    "code": "usability-test-report",
+    "description": "Reports the results of testing the product with users, with the usability issues found."
+  },
+  {
+    "code": "user-feedback-analysis-report",
+    "description": "Reports the themes and findings drawn from analysing user feedback."
+  },
+  {
+    "code": "user-research-report",
+    "description": "Reports the findings of research into user needs, behaviour and context."
+  },
+  {
+    "code": "user-technical-documentation",
+    "description": "Documentation that guides users and engineers in using and maintaining the product."
+  },
+  {
+    "code": "ux-ui-design-specification",
+    "description": "Specifies the user experience flows and the user interface design."
+  },
+  {
+    "code": "vendor-assessment",
+    "description": "Assesses a vendor against the selection criteria and states the result."
+  },
+  {
+    "code": "vendor-contract",
+    "description": "The agreement that governs the terms, scope and service levels of a vendor engagement."
+  },
+  {
+    "code": "vendor-performance-record",
+    "description": "Records a vendor's performance against the contract terms."
+  },
+  {
+    "code": "vision",
+    "description": "States the intended future state and purpose of the product."
+  },
+  {
+    "code": "vulnerability-posture-finding",
+    "description": "States a detected weakness in the security posture of the system, with the evidence."
+  },
+  {
+    "code": "work-breakdown-structure",
+    "description": "Decomposes the project scope into hierarchical work packages."
+  },
+  {
+    "code": "workload-model",
+    "description": "Defines the expected usage patterns and volumes used to drive performance testing."
+  }
+]

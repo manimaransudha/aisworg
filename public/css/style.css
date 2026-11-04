@@ -413,6 +413,26 @@ body:has(.login-card, .auth-card, .verify-card, .card-center) { background: var(
 .vertical-tabs .nav-link.active { background: var(--primary-dark); color: #fff; box-shadow: 0 1px 3px rgba(79, 70, 229, .35); }
 .vertical-tabs .vt-sub { display: block; font-size: .75rem; font-weight: 400; color: #868e96; margin-top: .1rem; }
 .vertical-tabs .nav-link.active .vt-sub { color: rgba(255, 255, 255, .85); }
+/* Demo notes: a callout, apart from the numbered steps. */
+.demo-note { background: #dbeafe; border: 1px solid #6ea8f0; border-left: 8px solid #1d62c4; border-radius: .6rem; color: #0b2e55; }
+li.demo-note { margin: .75rem 1rem; border-top: 1px solid #6ea8f0 !important; }
+.demo-note-icon { color: #1d62c4; font-size: 1.5rem; line-height: 1; }
+.demo-note .fw-semibold { color: #0b2e55; }
+.demo-note .text-muted { color: #123f70 !important; }
+.demo-note .demo-annotation, .demo-note #demoGuideNote { border-top: 1px dashed #6ea8f0; padding-top: .5rem; margin-top: .5rem; }
+.demo-chevron { display: inline-block; transition: transform .15s; }
+.lp-toggle-title.collapsed .demo-chevron { transform: rotate(-90deg); }
+.demo-text { font-size: 1.25rem; line-height: 1.5; }
+#demoGuideNote > :last-child, .demo-annotation > :last-child { margin-bottom: 0; }
+/* Demo area tabs: filled tab buttons joined to the content below. */
+.demo-tabs { border-bottom: 2px solid var(--primary-dark); gap: .25rem; }
+.demo-tabs .nav-link {
+  background: #f1f3f5; color: #495057; border: 1px solid #dee2e6; border-bottom: 0;
+  border-radius: .5rem .5rem 0 0; padding: .7rem 1.25rem; margin-bottom: 0;
+}
+.demo-tabs .nav-link:hover { background: #e9ecef; }
+.demo-tabs .nav-link.active { background: var(--primary-dark); border-color: var(--primary-dark); color: #fff; box-shadow: 0 -2px 6px rgba(79, 70, 229, .25); }
+.demo-tabs .nav-link.active .text-muted { color: rgba(255, 255, 255, .85) !important; }
 @media (max-width: 767.98px) {
   .vertical-tabs { max-width: none; width: 100%; flex-direction: row !important; flex-wrap: wrap; gap: .25rem; position: static; max-height: none; overflow: visible; }
   .vertical-tabs .nav-link { margin-bottom: 0; }
@@ -428,21 +448,56 @@ body:has(.login-card, .auth-card, .verify-card, .card-center) { background: var(
   background: var(--surface) !important;
   border: 1px solid var(--border) !important;
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   padding: 0 !important;
-  overflow: hidden;
 }
 .referential-list-group .referential-list-row > .d-flex {
   margin: 0 !important;
-  padding: .6rem 1.1rem;
-  background: var(--surface-muted);
-  border-bottom: 1px solid var(--border);
+  padding: .5rem 1.1rem 0;
 }
 .referential-list-group .referential-list-row > .row {
   margin: 0 !important;
-  padding: 1.1rem 1.1rem 1.25rem;
+  padding: .5rem 1.1rem 1.1rem;
   --bs-gutter-x: 1.1rem;
   --bs-gutter-y: 1rem;
+}
+/* A list whose items have several fields is one bordered box: its items, separated by
+   a thin line, and its "Add another" link sit inside it. */
+.referential-list-group--boxed {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: .25rem 0 .5rem;
+}
+.referential-list-group--boxed > .referential-list-row {
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0;
+  margin-bottom: 0 !important;
+}
+.referential-list-group--boxed > .add-row-btn { margin: .5rem 0 0 1.1rem; }
+
+/* A list whose items have one field (for example Feature flag codes) is a plain column of
+   controls: the field on the left, Remove on the right, no card and no label above. */
+.referential-list-group .referential-list-row--single {
+  flex-direction: row-reverse !important;
+  align-items: center;
+  gap: .75rem;
+  background: none !important;
+  border: 0 !important;
+  margin-bottom: .5rem !important;
+}
+.referential-list-group .referential-list-row--single > .d-flex { flex: 0 0 auto; padding: 0; }
+.referential-list-group .referential-list-row--single > .row { flex: 1 1 auto; padding: 0; }
+.referential-list-group .referential-list-row--single > .row > [class*="col-"] { width: 100%; flex: 0 0 100%; max-width: 100%; }
+.referential-list-group .referential-list-row--single .form-label {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.referential-list-group .add-row-btn,
+.nested-list-group .add-nested-row-btn {
+  border: 0;
+  padding-left: 0;
+  background: none;
+  color: var(--bs-primary, #0d6efd);
 }
 .referential-list-group .referential-list-row .form-label {
   color: var(--text) !important;

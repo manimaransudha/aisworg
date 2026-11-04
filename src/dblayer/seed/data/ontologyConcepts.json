@@ -140,7 +140,7 @@
     "default_label": "Requirements Analysis",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -149,7 +149,7 @@
     "default_label": "Requirements Elicitation",
     "description": "Systematically discover and capture stakeholder needs, business objectives, constraints, and expectations from relevant sources and express them as candidate requirements for subsequent analysis and validation.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -158,7 +158,7 @@
     "default_label": "Understanding business domain",
     "description": "Establish, model, validate, and maintain a shared understanding of the business domain, including its concepts, terminology, entities, relationships, processes, rules, roles, and constraints, so that engineering decisions are grounded in accurate domain knowledge.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -167,7 +167,7 @@
     "default_label": "Validating engineering requirements",
     "description": "establish that analysed requirements accurately represent intended business and stakeholder needs and are correct, complete, consistent, feasible, unambiguous, verifiable, traceable, and appropriately agreed before being established as the authoritative engineering baseline.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -176,7 +176,7 @@
     "default_label": "Modelling complex systems",
     "description": "create, analyse, and maintain coherent structural and behavioural representations of a system, its context, interactions, dependencies, and constraints, so that system complexity can be understood and used as a reliable basis for architectural and engineering decisions.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -185,7 +185,7 @@
     "default_label": "Designing software architecture",
     "description": "determine, evaluate, document, and maintain the fundamental structure of a software system, including its major components, responsibilities, interfaces, interactions, architectural patterns, constraints, and significant design decisions, so that validated requirements and business objectives can be realised within acceptable engineering risk",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -194,7 +194,7 @@
     "default_label": "Constructing software systems",
     "description": "transform architectural and detailed design specifications into working software components and implementation artefacts through coding, configuration, generation, and use of appropriate software assets, while maintaining conformance with applicable requirements, architecture, and engineering standards",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -203,7 +203,7 @@
     "default_label": "Designing software components",
     "description": "decompose architectural elements into implementable software components and determine their responsibilities, interfaces, behaviour, internal structure, dependencies, and design constraints so that they can be constructed consistently with the architecture and allocated requirements",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -212,7 +212,7 @@
     "default_label": "Managing engineering configuration",
     "description": "establish and maintain controlled configuration items, baselines, versions, dependencies, and configuration status throughout the engineering lifecycle, ensuring that authorised changes are incorporated consistently and that the composition of any engineering product or environment can be determined and reproduced.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -221,7 +221,7 @@
     "default_label": "Verifying software quality",
     "description": "systematically examine and test software and associated engineering artefacts against defined requirements, specifications, standards, and quality criteria, producing objective evidence of conformance and identifying deviations that require resolution.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -230,7 +230,7 @@
     "default_label": "Documenting engineering work",
     "description": "create, maintain, organise, and retrieve authoritative records of engineering activities, decisions, artefacts, rationale, and evidence throughout the engineering lifecycle, ensuring that relevant engineering knowledge is understandable, traceable, and available to those who need it.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -239,7 +239,7 @@
     "default_label": "Protecting organisational assets",
     "description": "identify organisational assets and their protection requirements, assess threats and vulnerabilities, establish and apply appropriate protective controls, and monitor their effectiveness so that assets remain protected against unauthorised access, misuse, damage, loss, compromise, or disruption",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -248,7 +248,7 @@
     "default_label": "Governing engineering decisions",
     "description": "establish decision-making authority, criteria, processes, and controls for significant engineering decisions, and to ensure that such decisions are appropriately evaluated, authorised, recorded, and subject to review throughout the engineering lifecycle.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -257,7 +257,7 @@
     "default_label": "Managing software release",
     "description": "plan, assemble, assess, authorise, and control the release of identified software configurations into their intended environments, ensuring that release prerequisites are satisfied, the released configuration is known and reproducible, and the transition is performed in a controlled manner",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -266,7 +266,7 @@
     "default_label": "Operating production systems",
     "description": "operate, monitor, maintain, support, and control software systems in their production environments, ensuring that services remain available, perform as required, remain secure, and respond appropriately to operational events and changing conditions",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -275,7 +275,7 @@
     "default_label": "Recovering organisational knowledge",
     "description": "locate, retrieve, reconstruct, and contextualise existing organisational knowledge from available records, artefacts, systems, and other sources so that previously established knowledge can be made accessible and usable for current engineering and organisational needs.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -284,7 +284,7 @@
     "default_label": "Learning from operational experience",
     "description": "systematically capture, analyse, and synthesise operational experience, incidents, problems, performance data, and other operational evidence into actionable lessons and improvements for engineering, operations, and organisational practice.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -293,7 +293,7 @@
     "default_label": "Improving engineering practice",
     "description": "systematically evaluate engineering practices using experience, evidence, performance information, and identified deficiencies, and to develop, validate, adopt, and maintain improvements to the methods, processes, standards, and practices used to perform engineering work.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -302,7 +302,7 @@
     "default_label": "Adapting to changing business need",
     "description": "detect and assess changes in business objectives, priorities, operating conditions, and organisational needs, determine their implications for engineering capabilities and systems, and realign engineering direction, resources, and priorities so that engineering remains relevant to the business.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -311,7 +311,7 @@
     "default_label": "Continuous architectural analysis",
     "description": "continuously analyse the evolving architecture of software systems against their requirements, architectural principles, constraints, dependencies, and operational evidence, identifying architectural risks, deviations, degradation, and emerging implications early enough to support corrective or evolutionary decisions",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -320,7 +320,7 @@
     "default_label": "Real-time organisational documentation",
     "description": "continuously capture, update, organise, and maintain organisational knowledge and engineering information as work occurs and changes are made, keeping authoritative documentation closely synchronised with the current state of the organisation, its systems, decisions, and practices.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -329,7 +329,7 @@
     "default_label": "Automatic traceability generation",
     "description": "automatically identify and maintain traceable relationships among engineering artefacts, including requirements, designs, architecture, implementation, tests, defects, and releases, so that dependencies, lineage, coverage, and impact relationships can be determined throughout the engineering lifecycle.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -338,7 +338,7 @@
     "default_label": "Knowledge recovery from legacy systems (Specialisation from “Recovering organisational knowledge”)",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -347,7 +347,7 @@
     "default_label": "Continuous compliance verification",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -356,7 +356,7 @@
     "default_label": "Engineering decision explainability",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -365,7 +365,7 @@
     "default_label": "Evidence-based organisational reasoning",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -374,7 +374,7 @@
     "default_label": "Continuous requirements validation",
     "description": "continuously evaluate requirements against current business and stakeholder needs, system context, engineering constraints, and evolving implementation evidence, detecting invalid, obsolete, conflicting, incomplete, or otherwise non-conforming requirements early enough to support corrective action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -383,7 +383,7 @@
     "default_label": "Predictive engineering risk assessment",
     "description": "analyse current and historical engineering information to identify emerging risk patterns, forecast the likelihood and potential impact of future engineering risks, and provide early risk assessments that support preventive action and engineering decision-making.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -392,7 +392,7 @@
     "default_label": "Continuous quality assurance",
     "description": "continuously monitor and assess the quality of engineering processes, artefacts, and outcomes against defined requirements, standards, policies, and quality criteria, providing ongoing evidence of quality status and initiating corrective action when deviations are detected.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -401,7 +401,7 @@
     "default_label": "Organisational memory synthesis across multiple projects",
     "description": "aggregate, relate, and synthesise knowledge from multiple projects and their engineering artefacts, experiences, decisions, and outcomes to identify reusable organisational knowledge, cross-project patterns, dependencies, lessons, and insights.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -410,7 +410,7 @@
     "default_label": "Continuous organisational learning",
     "description": "continuously capture and synthesise organisational experience and knowledge, evaluate its implications, incorporate validated learning into organisational knowledge, practices, decisions, and capabilities, and assess whether the resulting changes improve organisational outcomes.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -419,7 +419,7 @@
     "default_label": "Autonomous capability optimisation",
     "description": "continuously assess organisational capability performance and autonomously identify, evaluate, prioritise, and implement changes to capability structure, capacity, processes, resources, and supporting mechanisms in order to improve organisational outcomes within defined objectives, constraints, and governance controls.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -428,7 +428,7 @@
     "default_label": "Enterprise-wide engineering impact analysis",
     "description": "analyse the relationships and dependencies across the organisation's engineering systems, capabilities, projects, assets, and processes to determine the direct and indirect effects of proposed changes or conditions, including affected stakeholders, requirements, architecture, resources, risks, and downstream activities.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -437,7 +437,7 @@
     "default_label": "Continuous stakeholder-intent reconciliation",
     "description": "continuously capture and analyse evolving stakeholder intentions, compare them with established requirements and with one another, identify conflicts, ambiguities, and divergences, and facilitate their resolution so that the engineering baseline remains aligned with the current and collectively agreed stakeholder intent.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -446,7 +446,7 @@
     "default_label": "Continuous domain-model drift detection",
     "description": "continuously monitor changes in the business domain and compare them with the established domain model, identifying changes, inconsistencies, omissions, or obsolete representations that cause the model to diverge from the domain it represents.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -455,7 +455,7 @@
     "default_label": "Predictive architectural obsolescence detection (Specialisation from “Predictive engineering risk assessment”)",
     "description": "continuously analyse architectural technologies, dependencies, patterns, constraints, support lifecycles, and external technology trends to predict emerging architectural obsolescence and provide sufficient early warning for architectural remediation, replacement, or evolution.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -464,7 +464,7 @@
     "default_label": "Cross-system structural pattern recognition",
     "description": "analyse and compare the structures of multiple software systems and identify recurring, significant, or anomalous structural patterns across their architectures, components, interfaces, dependencies, and other engineering relationships.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -473,7 +473,7 @@
     "default_label": "Cross-codebase pattern propagation",
     "description": "identify engineering patterns or improvements that are applicable across multiple codebases, determine their affected locations and contextual variations, and propagate the approved pattern or change across those codebases while preserving correctness, consistency, and local compatibility.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -482,7 +482,7 @@
     "default_label": "Continuous configuration drift detection",
     "description": "continuously monitor and compare actual software, infrastructure, environment, and configuration states against authorised configuration baselines and policies, detecting, assessing, and reporting deviations so that configuration integrity can be maintained.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -491,7 +491,7 @@
     "default_label": "Predictive test-coverage gap detection (Specialisation from “Predictive engineering risk assessment”)",
     "description": "analyse software structure, requirements, changes, dependencies, existing test assets, and historical verification evidence to predict areas where test coverage is likely to be insufficient, identify the nature and significance of the anticipated gaps, and provide early direction for additional verification.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -500,7 +500,7 @@
     "default_label": "Continuous vulnerability posture assessment",
     "description": "continuously identify, assess, correlate, and monitor vulnerabilities across organisational technology assets and their environments, determine their significance and exposure, and maintain an up-to-date view of the organisation's vulnerability posture to support prioritised remediation and risk decisions.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -509,7 +509,7 @@
     "default_label": "Predictive threat-pattern anticipation",
     "description": "continuously analyse threat intelligence, historical security events, emerging attack techniques, vulnerabilities, system characteristics, and environmental signals to identify and forecast threat patterns that are likely to affect organisational assets, providing early warning to support preventive security action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -518,7 +518,7 @@
     "default_label": "Continuous policy-conflict detection",
     "description": "continuously analyse applicable policies, rules, standards, and controls and their relationships to identify conflicting, contradictory, or mutually incompatible requirements, determine the affected engineering activities or decisions, and provide timely evidence for policy resolution.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -527,7 +527,7 @@
     "default_label": "Continuous release-risk forecasting",
     "description": "continuously analyse release contents, changes, dependencies, verification evidence, defects, configuration, operational conditions, and historical release outcomes to forecast the likelihood and potential impact of release-related problems and provide early risk information for release decisions.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -536,7 +536,7 @@
     "default_label": "Predictive incident anticipation",
     "description": "continuously analyse operational conditions, system behaviour, telemetry, changes, dependencies, historical incidents, and other relevant signals to identify patterns indicating that an operational incident is likely to occur, assess its potential impact, and provide early warning to support preventive or mitigating action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -545,7 +545,7 @@
     "default_label": "Autonomous root-cause synthesis",
     "description": "autonomously correlate and analyse evidence from incidents, system behaviour, telemetry, changes, configurations, dependencies, defects, and engineering records to identify, evaluate, and synthesise probable root causes and their causal relationships, providing an explainable basis for corrective action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -554,7 +554,7 @@
     "default_label": "Autonomous standard synthesis (Specialisation from “Improving engineering practice”)",
     "description": "autonomously analyse engineering practices, organisational knowledge, experience, policies, existing standards, and evidence to identify recurring principles and formulate, evaluate, and maintain candidate standards for adoption within the organisation.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -563,7 +563,7 @@
     "default_label": "Cross-organisational capability benchmarking",
     "description": "systematically compare organisational capabilities and their performance against relevant external organisations or established benchmarks, using comparable measures and contextual information to determine relative capability position and identify opportunities for improvement.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -572,7 +572,7 @@
     "default_label": "Continuous objective-alignment monitoring",
     "description": "continuously monitor and evaluate the alignment of engineering activities, decisions, systems, investments, and outcomes with established business and organisational objectives, detecting divergence, loss of relevance, or conflicting priorities early enough to support corrective action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -581,7 +581,7 @@
     "default_label": "Planning the business analysis approach",
     "description": "determine and establish the methods, activities, techniques, roles, responsibilities, deliverables, timing, and governance by which business analysis will be conducted for an initiative, taking into account its context, objectives, complexity, constraints, and stakeholder environment.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -590,7 +590,7 @@
     "default_label": "Prioritising engineering requirements",
     "description": "evaluate and establish the relative priority of engineering requirements using defined business, stakeholder, technical, risk, regulatory, dependency, cost, and other relevant criteria, so that requirements can be appropriately sequenced and resources directed toward the most important outcomes.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -599,7 +599,7 @@
     "default_label": "Recommending solution options by value",
     "description": "identify and evaluate alternative solution options against business objectives, stakeholder needs, expected benefits, costs, risks, constraints, and other relevant criteria, and to recommend the option or combination of options that provides the most appropriate overall value.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -608,7 +608,7 @@
     "default_label": "Integrating constructed components",
     "description": "combine independently constructed software components and assemblies into progressively larger, coherent subsystems and systems, ensuring that their interfaces, dependencies, interactions, and configurations conform to the defined integration specifications.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -617,7 +617,7 @@
     "default_label": "Reusing existing engineering assets",
     "description": "identify potentially reusable engineering assets, assess their suitability, quality, security, compatibility, provenance, licensing, and lifecycle status, and select and incorporate appropriate assets into engineering solutions where reuse provides an acceptable alternative to new construction.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -626,7 +626,7 @@
     "default_label": "Reviewing engineering work",
     "description": "independently examine engineering artefacts, activities, and decisions against applicable requirements, standards, policies, and review criteria, identify and communicate deficiencies or deviations, and determine whether the reviewed work is acceptable for progression or requires correction and re-review.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -635,7 +635,7 @@
     "default_label": "Eliminating recurring operational problems",
     "description": "systematically identify recurring operational problems, analyse their underlying causes, implement and track permanent corrective actions, and verify that the causes have been eliminated or adequately controlled so that the problems do not recur.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -644,7 +644,7 @@
     "default_label": "Managing defects to resolution",
     "description": "systematically capture, classify, assess, prioritise, assign, track, resolve, and close software defects, ensuring that resolutions are verified and that defects that cannot yet be resolved are explicitly deferred, owned, and controlled.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -653,7 +653,7 @@
     "default_label": "Managing external vendors and suppliers",
     "description": "establish and manage relationships with external vendors, suppliers, and service providers, including their selection, contractual arrangements, performance, risk, compliance, and ongoing relationship management, so that externally provided products and services meet organisational requirements.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -662,7 +662,7 @@
     "default_label": "Stewarding capability evolution and maturity",
     "description": "assess, govern, and guide the evolution and maturity of organisational capabilities by establishing capability objectives, evaluating current capability performance and maturity, identifying gaps and improvement opportunities, defining evolutionary priorities, and monitoring progress toward the desired capability state.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -671,7 +671,7 @@
     "default_label": "Managing engineering change",
     "description": "control proposed changes to engineering artefacts and engineering baselines by assessing their justification, impact, dependencies, risks, and consequences, obtaining appropriate authorisation, coordinating their implementation, and maintaining traceable records of the resulting state.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -680,7 +680,7 @@
     "default_label": "Training and evaluating models",
     "description": "prepare training/evaluation data, train or fine-tune a model against a defined objective, and evaluate its quality, bias, and performance against acceptance criteria before it is fit to serve — a materially different discipline from constructing general-purpose software components.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -689,7 +689,7 @@
     "default_label": "Engineering embedded firmware",
     "description": "build and verify firmware against a hardware-constrained target — memory, timing, interrupt, and power budgets a general-purpose runtime does not have — confirming it behaves correctly on the real or simulated hardware it will ship on.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -698,7 +698,7 @@
     "default_label": "Engineering data pipelines",
     "description": "design, build, and operate the ingestion, transformation, and quality-assurance pipelines that move and shape data reliably — a distinct discipline from constructing general application components.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -707,7 +707,7 @@
     "default_label": "Requirements Specification",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -716,7 +716,7 @@
     "default_label": "Solution / Architecture Document",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -725,7 +725,7 @@
     "default_label": "UX/UI Design Specification",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -734,7 +734,7 @@
     "default_label": "API Specification",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -743,7 +743,7 @@
     "default_label": "Source Code",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -752,7 +752,7 @@
     "default_label": "Database Schema / Data Model",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -761,7 +761,7 @@
     "default_label": "Integration Specification / Interface Contracts",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -770,7 +770,7 @@
     "default_label": "Configuration Files",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -779,7 +779,7 @@
     "default_label": "Test Suite",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -788,7 +788,7 @@
     "default_label": "Test Report / Results",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -797,7 +797,7 @@
     "default_label": "Security Assessment Report",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -806,7 +806,7 @@
     "default_label": "Performance / Load Test Report",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -815,7 +815,7 @@
     "default_label": "Deployment Package",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -824,7 +824,7 @@
     "default_label": "Infrastructure-as-Code / Environment Configuration",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -833,7 +833,7 @@
     "default_label": "CI/CD Pipeline Definition",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -843,7 +843,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -852,7 +852,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -861,7 +861,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -870,7 +870,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -879,7 +879,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -888,7 +888,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -897,7 +897,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -906,7 +906,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -915,7 +915,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -924,7 +924,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -933,7 +933,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -942,7 +942,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -951,7 +951,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -960,7 +960,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -969,7 +969,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -978,7 +978,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -987,7 +987,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -996,7 +996,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1005,7 +1005,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1014,7 +1014,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1023,7 +1023,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1032,7 +1032,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1041,7 +1041,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1050,7 +1050,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1059,7 +1059,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1068,7 +1068,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1077,7 +1077,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1086,7 +1086,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1095,7 +1095,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1104,7 +1104,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1113,7 +1113,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1122,7 +1122,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1131,7 +1131,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1140,7 +1140,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1149,7 +1149,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1158,7 +1158,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1167,7 +1167,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1176,7 +1176,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1185,7 +1185,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1194,7 +1194,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1203,7 +1203,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1212,7 +1212,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1220,8 +1220,8 @@
     "default_label": "Confidence Assessment",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+  "text_type": "text",
+  "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1230,7 +1230,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1239,7 +1239,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1248,7 +1248,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1257,7 +1257,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1266,7 +1266,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1275,7 +1275,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1284,7 +1284,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1293,7 +1293,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1302,7 +1302,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1311,7 +1311,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1320,7 +1320,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1329,7 +1329,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "deliverable-name",
@@ -1338,7 +1338,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Deliverable"
   },
   {
     "concept_type": "category:pack",
@@ -1346,8 +1346,8 @@
     "default_label": "Compliance",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "category:pack",
@@ -1355,8 +1355,8 @@
     "default_label": "Domain",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "category:pack",
@@ -1364,8 +1364,8 @@
     "default_label": "Engineering",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "category:pack",
@@ -1373,8 +1373,8 @@
     "default_label": "Organisation",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "category:pack",
@@ -1382,8 +1382,8 @@
     "default_label": "Integration",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "category:pack",
@@ -1391,8 +1391,8 @@
     "default_label": "Technology",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "installation-classification",
@@ -1400,8 +1400,8 @@
     "default_label": "Mandatory",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "installation-classification",
@@ -1409,8 +1409,8 @@
     "default_label": "Recommended",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "installation-classification",
@@ -1418,8 +1418,8 @@
     "default_label": "Optional",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "installation-classification",
@@ -1427,8 +1427,8 @@
     "default_label": "Conditional",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "template-categories",
@@ -1437,7 +1437,7 @@
     "description": "Template for building a web application with enterprise-wide impact. Use this when the application serves multiple departments or business units, needs centralised authentication and role-based access control, and must integrate with existing enterprise systems such as an ERP, CRM, or identity provider.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1446,7 +1446,7 @@
     "description": "Template for building a native or cross-platform mobile application. Use this when the primary user interface is a phone or tablet app, and the work requires offline support, push notifications, or device capabilities such as camera, location, or biometrics.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1455,7 +1455,7 @@
     "description": "Template for building a platform whose primary deliverable is one or more APIs consumed by other systems or third parties. Use this when there is little or no end-user interface of its own, and the focus is on contract design, versioning, rate limiting, and developer-facing documentation.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1464,7 +1464,7 @@
     "description": "Template for re-platforming or re-architecting an existing legacy system. Use this when the engagement starts from an already-operating system with existing data, users, and integrations that must be preserved or migrated, rather than building on a clean slate.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1473,7 +1473,7 @@
     "description": "Template for building a system whose primary purpose is ingesting, storing, transforming, or serving data at scale. Use this when the core deliverables are pipelines, warehouses, or data services rather than end-user-facing application features.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1482,7 +1482,7 @@
     "description": "Template for building a system centred on AI/ML model development, training, or serving. Use this when the primary engineering work involves data science pipelines, model lifecycle management, or an AI-powered capability as the core product, not an incidental add-on.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1491,7 +1491,7 @@
     "description": "Template for building software that runs on dedicated hardware or embedded devices. Use this when the deliverable includes firmware or device-resident software with hardware constraints — memory, power, real-time behaviour — that do not apply to typical server or web software.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1500,7 +1500,7 @@
     "description": "Template for building a multi-tenant, subscription-delivered software product. Use this when the system must support many independent customer organisations on shared infrastructure, with tenant isolation, billing, and self-service onboarding as first-class concerns.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1509,7 +1509,7 @@
     "description": "Template for implementing and configuring a third-party commercial or open-source package — an ERP, CMS, or CRM, for example — for a specific organisation. Use this when the primary engineering work is configuration, customisation, and integration of an existing product, not building new software from scratch.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1518,7 +1518,7 @@
     "description": "Template for building and operating the delivery and runtime platform itself: infrastructure as code, build and continuous integration, continuous delivery, observability, reliability engineering and incident response. Use this when the deliverable is the platform that other teams ship software through, with service level objectives and recoverability as acceptance criteria.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1527,7 +1527,7 @@
     "description": "Template for sustaining an existing system in service: defect correction, dependency and technical debt management, refactoring, controlled change and decommissioning. Use this when no new product scope is being built and the work is driven by defects, vulnerabilities, upgrades and end-of-life.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1536,7 +1536,7 @@
     "description": "Template for building a system whose primary acceptance criteria are security assurance and regulatory compliance: threat modelling, secure design, privacy and licence compliance, risk management and independent assessment. Add the applicable compliance Packs through the Profile.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1545,7 +1545,7 @@
     "description": "Template for software whose failure can cause harm, built to a functional safety standard (IEC 61508, ISO 26262, DO-178C, IEC 62304): hazard analysis, safety requirements, hardware and software partitioning, timing and structural coverage evidence, and a safety case.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1554,7 +1554,7 @@
     "description": "Template for building a game or interactive media product: game design, user research and playtesting, frame-time and memory budgets, platform certification and release. Use this when player experience and real-time performance are the primary acceptance criteria.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1563,7 +1563,7 @@
     "description": "Template for taking a trained model into governed production service: data pipelines, model training and evaluation, deployment records, monitoring for drift and degradation, and human review of AI output. Use this when the model lifecycle after initial training is the scope.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1572,7 +1572,7 @@
     "description": "Template for time-boxed exploration before commitment: option analysis, hypothesis-driven experiments, throwaway or evolutionary prototypes, user feedback and a go or no-go business case. Use this when the outcome is a decision and evidence, not a production system.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1581,7 +1581,7 @@
     "description": "Template for an engagement whose scope is test engineering for a system: risk-based test strategy, test design, automation, performance and resilience testing and quality evidence. Use this when testing is delivered as a service to a system built elsewhere.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "template-categories",
@@ -1590,7 +1590,7 @@
     "description": "Template for running evidence-stream competencies over a delivered system. Telemetry, change, test execution, deployment and traceability streams enter as external inputs, and the deliverables are findings: architecture drift, quality deviation, vulnerability posture, compliance violation, configuration drift, test coverage gaps, release risk, requirement validity and incident precursors.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Templates"
   },
   {
     "concept_type": "profile-categories",
@@ -1599,7 +1599,7 @@
     "description": "Minimal governance, rapid delivery, default Platform Packs.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "profile-categories",
@@ -1608,7 +1608,7 @@
     "description": "Enterprise governance, multiple Organisation Packs, formal reviews.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "profile-categories",
@@ -1617,7 +1617,7 @@
     "description": "Healthcare Domain Pack, HIPAA (or equivalent regional compliance), healthcare integrations.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "profile-categories",
@@ -1626,7 +1626,7 @@
     "description": "Banking Domain Pack, financial compliance, enhanced audit requirements.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "profile-categories",
@@ -1635,7 +1635,7 @@
     "description": "Lightweight governance, minimal documentation, rapid iteration.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "profile-categories",
@@ -1644,7 +1644,7 @@
     "description": "Complete governance, operational monitoring, security validation, full traceability.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "feature-flag",
@@ -1653,7 +1653,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "General"
   },
   {
     "concept_type": "feature-flag",
@@ -1662,7 +1662,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "General"
   },
   {
     "concept_type": "feature-flag",
@@ -1671,7 +1671,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "General"
   },
   {
     "concept_type": "feature-flag",
@@ -1680,7 +1680,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "General"
   },
   {
     "concept_type": "feature-flag",
@@ -1689,7 +1689,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "General"
   },
   {
     "concept_type": "composition-strategy",
@@ -1697,7 +1697,7 @@
     "default_label": "Specialization",
     "description": "Creation is an exact copy of a single parent, code included. Code and/or name may be changed afterward; every other field/property may be changed or left as-is.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Composition"
   },
   {
@@ -1707,7 +1707,7 @@
     "description": "The new contribution replaces the existing one entirely. Nothing survives from the original. This is the tenant-overrides-a-Domain-Pack case: the tenant's content fully takes the platform's place, for them.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Composition"
   },
   {
     "concept_type": "composition-strategy",
@@ -1716,7 +1716,7 @@
     "description": "The two contributions are reconciled into one, field by field, where they overlap — not just concatenated, actually combined.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Composition"
   },
   {
     "concept_type": "composition-strategy",
@@ -1725,7 +1725,7 @@
     "description": "The new contribution adds to the existing one without touching it; the original stays primary, the addition is secondary. Asymmetric — one Pack's content is base, the other's is extra.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Composition"
   },
   {
     "concept_type": "composition-strategy",
@@ -1734,7 +1734,7 @@
     "description": "The plain set-combination: every item from every contributing Pack, treated as equal peers, nothing dropped.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Composition"
   },
   {
     "concept_type": "composition-strategy",
@@ -1743,7 +1743,7 @@
     "description": "Only what both contributions agree on survives; anything unique to just one is dropped.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Composition"
   },
   {
     "concept_type": "composition-strategy",
@@ -1752,7 +1752,7 @@
     "description": "One contribution is just a different name pointing at the same underlying thing — no new content, just a redirect. The mechanism behind Ontology code/name relabeling, applied as a Pack-level composition move rather than a display-label rule.",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Composition"
   },
   {
     "concept_type": "composition-strategy",
@@ -1761,7 +1761,7 @@
     "description": "Deliberately does not auto-combine. Flags that two contributions disagree and surfaces it for resolution rather than silently picking one — backs the EBM conflict-blocks-commissioning behaviour (FR-3.6/3.7).",
     "is_mandatory": null,
     "text_type": "markdown",
-    "ui_grouping": null
+    "ui_grouping": "Composition"
   },
   {
     "concept_type": "category:evidence",
@@ -1769,8 +1769,8 @@
     "default_label": "Operational Evidence",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "category:evidence",
@@ -1778,8 +1778,8 @@
     "default_label": "Review Evidence",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "category:evidence",
@@ -1787,8 +1787,8 @@
     "default_label": "Decision Evidence",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "category:evidence",
@@ -1796,8 +1796,8 @@
     "default_label": "External Evidence",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "category:event-types",
@@ -1805,8 +1805,8 @@
     "default_label": "State Event",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Events"
   },
   {
     "concept_type": "category:event-types",
@@ -1814,8 +1814,8 @@
     "default_label": "Governance Event",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Events"
   },
   {
     "concept_type": "category:event-types",
@@ -1823,8 +1823,8 @@
     "default_label": "Runtime Event",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Events"
   },
   {
     "concept_type": "category:event-types",
@@ -1832,8 +1832,8 @@
     "default_label": "Integration Event",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Events"
   },
   {
     "concept_type": "category:event-types",
@@ -1841,8 +1841,8 @@
     "default_label": "Administrative Event",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Events"
   },
   {
     "concept_type": "category:quality-gate",
@@ -1850,8 +1850,8 @@
     "default_label": "Entry Gate",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:quality-gate",
@@ -1859,8 +1859,8 @@
     "default_label": "Exit Gate",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:quality-gate",
@@ -1868,8 +1868,8 @@
     "default_label": "Release Gate",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:quality-gate",
@@ -1877,8 +1877,8 @@
     "default_label": "Compliance Gate",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:quality-gate",
@@ -1886,8 +1886,8 @@
     "default_label": "Operational Gate",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:policy",
@@ -1895,8 +1895,8 @@
     "default_label": "Engineering",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:policy",
@@ -1904,8 +1904,8 @@
     "default_label": "Security",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:policy",
@@ -1913,8 +1913,8 @@
     "default_label": "Quality",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:policy",
@@ -1922,8 +1922,8 @@
     "default_label": "Operational",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:policy",
@@ -1931,8 +1931,8 @@
     "default_label": "Documentation",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:policy",
@@ -1940,8 +1940,8 @@
     "default_label": "Customer",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:policy",
@@ -1949,8 +1949,8 @@
     "default_label": "Organisation",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:obligation",
@@ -1958,8 +1958,8 @@
     "default_label": "Risk",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation",
@@ -1967,8 +1967,8 @@
     "default_label": "Audit",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation",
@@ -1976,8 +1976,8 @@
     "default_label": "Operational",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation",
@@ -1985,8 +1985,8 @@
     "default_label": "Customer",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation-origin",
@@ -1994,8 +1994,8 @@
     "default_label": "EBM",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation-origin",
@@ -2003,8 +2003,8 @@
     "default_label": "Policies",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation-origin",
@@ -2012,8 +2012,8 @@
     "default_label": "Authority evaluations",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation-origin",
@@ -2021,8 +2021,8 @@
     "default_label": "Reviews",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation-origin",
@@ -2030,8 +2030,8 @@
     "default_label": "Quality Gates",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation-origin",
@@ -2039,8 +2039,8 @@
     "default_label": "Compliance Packs",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation-origin",
@@ -2048,8 +2048,8 @@
     "default_label": "Organisation Packs",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation-origin",
@@ -2057,8 +2057,8 @@
     "default_label": "Customer requests",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation-origin",
@@ -2066,8 +2066,8 @@
     "default_label": "Participants",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation-origin",
@@ -2075,8 +2075,8 @@
     "default_label": "External systems",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "category:obligation-origin",
@@ -2084,8 +2084,8 @@
     "default_label": "Telemetry and Knowledge Model",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "compliance-name",
@@ -2624,8 +2624,8 @@
     "default_label": "Reusable Components",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Engineering Capital"
   },
   {
     "concept_type": "engineering-capital",
@@ -2633,8 +2633,8 @@
     "default_label": "Engineering Templates",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Engineering Capital"
   },
   {
     "concept_type": "compliance-name",
@@ -2939,8 +2939,8 @@
     "default_label": "Compliance",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:policy",
@@ -2948,8 +2948,8 @@
     "default_label": "Privacy",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:policy",
@@ -2957,8 +2957,8 @@
     "default_label": "Ethics",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "domain-name",
@@ -3362,7 +3362,7 @@
     "default_label": "Requirements Discovery Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3371,7 +3371,7 @@
     "default_label": "Domain Model Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3380,7 +3380,7 @@
     "default_label": "Requirements Analysis Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3389,7 +3389,7 @@
     "default_label": "Requirement Validation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3398,7 +3398,7 @@
     "default_label": "System Model Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3407,7 +3407,7 @@
     "default_label": "Architectural Review Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3416,7 +3416,7 @@
     "default_label": "Software Implementation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3425,7 +3425,7 @@
     "default_label": "Detailed Design Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3434,7 +3434,7 @@
     "default_label": "Baseline Management Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3443,7 +3443,7 @@
     "default_label": "Quality Assurance Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3452,7 +3452,7 @@
     "default_label": "Technical Documentation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3461,7 +3461,7 @@
     "default_label": "Vulnerability Assessment Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3470,7 +3470,7 @@
     "default_label": "Decision Validation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3479,7 +3479,7 @@
     "default_label": "Deployment Governance Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3488,7 +3488,7 @@
     "default_label": "Availability Assurance Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3497,7 +3497,7 @@
     "default_label": "Knowledge Discovery Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3506,7 +3506,7 @@
     "default_label": "Operational Intelligence Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3515,7 +3515,7 @@
     "default_label": "Standard Refinement Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3524,7 +3524,7 @@
     "default_label": "Capability Realignment Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3533,7 +3533,7 @@
     "default_label": "Architectural Awareness Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3542,7 +3542,7 @@
     "default_label": "Continuous Documentation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3551,7 +3551,7 @@
     "default_label": "Continuous Trace Awareness Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3560,7 +3560,7 @@
     "default_label": "Legacy Knowledge Reconstruction Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3569,7 +3569,7 @@
     "default_label": "Persistent Compliance Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3578,7 +3578,7 @@
     "default_label": "Decision Rationale Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3587,7 +3587,7 @@
     "default_label": "Organisational Reasoning Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3596,7 +3596,7 @@
     "default_label": "Continuous Requirement Conformance Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3605,7 +3605,7 @@
     "default_label": "Engineering Risk Forecast Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3614,7 +3614,7 @@
     "default_label": "Continuous Confidence Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3623,7 +3623,7 @@
     "default_label": "Cross-Project Knowledge Synthesis Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3632,7 +3632,7 @@
     "default_label": "Continuous Learning Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3641,7 +3641,7 @@
     "default_label": "Capability Self-Optimisation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3650,7 +3650,7 @@
     "default_label": "Cross-Enterprise Impact Analysis Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3659,7 +3659,7 @@
     "default_label": "Stakeholder Intent Reconciliation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3668,7 +3668,7 @@
     "default_label": "Domain Model Conformance Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3677,7 +3677,7 @@
     "default_label": "Architectural Obsolescence Forecast Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3686,7 +3686,7 @@
     "default_label": "Cross-System Pattern Recognition Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3695,7 +3695,7 @@
     "default_label": "Fix Propagation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3704,7 +3704,7 @@
     "default_label": "Configuration Conformance Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3713,7 +3713,7 @@
     "default_label": "Coverage Gap Forecast Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3722,7 +3722,7 @@
     "default_label": "Continuous Security Posture Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3731,7 +3731,7 @@
     "default_label": "Threat Anticipation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3740,7 +3740,7 @@
     "default_label": "Policy Consistency Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3749,7 +3749,7 @@
     "default_label": "Release Risk Forecast Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3758,7 +3758,7 @@
     "default_label": "Incident Anticipation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3767,7 +3767,7 @@
     "default_label": "Root-Cause Synthesis Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3776,7 +3776,7 @@
     "default_label": "Standard Synthesis Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3785,7 +3785,7 @@
     "default_label": "Capability Benchmarking Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3794,7 +3794,7 @@
     "default_label": "Objective Alignment Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3803,7 +3803,7 @@
     "default_label": "BA Approach Definition Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3812,7 +3812,7 @@
     "default_label": "Requirement Prioritisation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3821,7 +3821,7 @@
     "default_label": "Solution Option Recommendation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3830,7 +3830,7 @@
     "default_label": "Component Integration Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3839,7 +3839,7 @@
     "default_label": "Asset Reuse Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3848,7 +3848,7 @@
     "default_label": "Engineering Review Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3857,7 +3857,7 @@
     "default_label": "Problem Elimination Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3866,7 +3866,7 @@
     "default_label": "Defect Resolution Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3875,7 +3875,7 @@
     "default_label": "Vendor Management Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3884,7 +3884,7 @@
     "default_label": "Capability Stewardship Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3893,7 +3893,7 @@
     "default_label": "Change Evaluation and Scheduling Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3902,7 +3902,7 @@
     "default_label": "Model Training & Evaluation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3911,7 +3911,7 @@
     "default_label": "Firmware Engineering Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3920,7 +3920,7 @@
     "default_label": "Data Pipeline Engineering Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -3929,8 +3929,8 @@
     "default_label": "Development",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "category:environment",
@@ -3938,8 +3938,8 @@
     "default_label": "Staging",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "category:environment",
@@ -3947,8 +3947,8 @@
     "default_label": "Production",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "checklist-configurable-dimension",
@@ -3956,8 +3956,8 @@
     "default_label": "Type",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "checklist-configurable-value",
@@ -3965,8 +3965,8 @@
     "default_label": "Required",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "checklist-configurable-value",
@@ -3974,8 +3974,8 @@
     "default_label": "Mandatory",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "checklist-configurable-value",
@@ -3983,8 +3983,8 @@
     "default_label": "Conditional",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Packs"
   },
   {
     "concept_type": "profile-configuration",
@@ -3992,7 +3992,7 @@
     "default_label": "Target Cloud Provider",
     "description": null,
     "is_mandatory": false,
-    "text_type": "markdown",
+    "text_type": "text",
     "ui_grouping": "SEU Configurations"
   },
   {
@@ -4001,7 +4001,7 @@
     "default_label": "Primary Programming Language",
     "description": null,
     "is_mandatory": true,
-    "text_type": "markdown",
+    "text_type": "text",
     "ui_grouping": "SEU Configurations"
   },
   {
@@ -4010,7 +4010,7 @@
     "default_label": "Source Control Provider",
     "description": null,
     "is_mandatory": true,
-    "text_type": "markdown",
+    "text_type": "text",
     "ui_grouping": "SEU Configurations"
   },
   {
@@ -4019,7 +4019,7 @@
     "default_label": "Deployment Strategy",
     "description": null,
     "is_mandatory": false,
-    "text_type": "markdown",
+    "text_type": "text",
     "ui_grouping": "SEU Configurations"
   },
   {
@@ -4028,7 +4028,7 @@
     "default_label": "AI Provider Preference",
     "description": null,
     "is_mandatory": false,
-    "text_type": "markdown",
+    "text_type": "text",
     "ui_grouping": "SEU Configurations"
   },
   {
@@ -4037,7 +4037,7 @@
     "default_label": "Default Repository Structure",
     "description": null,
     "is_mandatory": false,
-    "text_type": "markdown",
+    "text_type": "text",
     "ui_grouping": "SEU Configurations"
   },
   {
@@ -4046,7 +4046,7 @@
     "default_label": "Documentation Level",
     "description": null,
     "is_mandatory": false,
-    "text_type": "markdown",
+    "text_type": "text",
     "ui_grouping": "SEU Configurations"
   },
   {
@@ -4055,7 +4055,7 @@
     "default_label": "Development Methodology",
     "description": null,
     "is_mandatory": true,
-    "text_type": "markdown",
+    "text_type": "text",
     "ui_grouping": "SEU Configurations"
   },
   {
@@ -4064,8 +4064,8 @@
     "default_label": "Participating Organisations",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "SEU Configurations"
   },
   {
     "concept_type": "target-cloud-provider",
@@ -4073,8 +4073,8 @@
     "default_label": "AWS",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "target-cloud-provider",
@@ -4082,8 +4082,8 @@
     "default_label": "Azure",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "target-cloud-provider",
@@ -4091,8 +4091,8 @@
     "default_label": "Google Cloud Platform",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "target-cloud-provider",
@@ -4100,8 +4100,8 @@
     "default_label": "On-Premises",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "target-cloud-provider",
@@ -4109,8 +4109,8 @@
     "default_label": "Multi-Cloud",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "primary-programming-language",
@@ -4118,8 +4118,8 @@
     "default_label": "TypeScript",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "primary-programming-language",
@@ -4127,8 +4127,8 @@
     "default_label": "JavaScript",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "primary-programming-language",
@@ -4136,8 +4136,8 @@
     "default_label": "Python",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "primary-programming-language",
@@ -4145,8 +4145,8 @@
     "default_label": "Java",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "primary-programming-language",
@@ -4154,8 +4154,8 @@
     "default_label": "C#",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "primary-programming-language",
@@ -4163,8 +4163,8 @@
     "default_label": "Go",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "source-control-provider",
@@ -4172,8 +4172,8 @@
     "default_label": "GitHub",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "source-control-provider",
@@ -4181,8 +4181,8 @@
     "default_label": "GitLab",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "source-control-provider",
@@ -4190,8 +4190,8 @@
     "default_label": "Bitbucket",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "source-control-provider",
@@ -4199,8 +4199,8 @@
     "default_label": "Azure DevOps",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "deployment-strategy",
@@ -4208,8 +4208,8 @@
     "default_label": "Blue-Green",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "deployment-strategy",
@@ -4217,8 +4217,8 @@
     "default_label": "Canary",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "deployment-strategy",
@@ -4226,8 +4226,8 @@
     "default_label": "Rolling",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "deployment-strategy",
@@ -4235,8 +4235,8 @@
     "default_label": "Recreate",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "ai-provider-preference",
@@ -4244,8 +4244,8 @@
     "default_label": "Anthropic",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "ai-provider-preference",
@@ -4253,8 +4253,8 @@
     "default_label": "OpenAI",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "ai-provider-preference",
@@ -4262,8 +4262,8 @@
     "default_label": "Google",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "ai-provider-preference",
@@ -4271,8 +4271,8 @@
     "default_label": "Azure OpenAI",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "ai-provider-preference",
@@ -4280,8 +4280,8 @@
     "default_label": "AWS Bedrock",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "default-repository-structure",
@@ -4289,8 +4289,8 @@
     "default_label": "Monorepo",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "default-repository-structure",
@@ -4298,8 +4298,8 @@
     "default_label": "Polyrepo",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "default-repository-structure",
@@ -4307,8 +4307,8 @@
     "default_label": "Multi-Module",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "documentation-level",
@@ -4316,8 +4316,8 @@
     "default_label": "Minimal",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "documentation-level",
@@ -4325,8 +4325,8 @@
     "default_label": "Standard",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "documentation-level",
@@ -4334,8 +4334,8 @@
     "default_label": "Comprehensive",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "development-methodology",
@@ -4343,8 +4343,8 @@
     "default_label": "Scrum",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "development-methodology",
@@ -4352,8 +4352,8 @@
     "default_label": "Kanban",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "development-methodology",
@@ -4361,8 +4361,8 @@
     "default_label": "Waterfall",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "development-methodology",
@@ -4370,8 +4370,8 @@
     "default_label": "SAFe",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "development-methodology",
@@ -4379,8 +4379,8 @@
     "default_label": "Lean",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "development-methodology",
@@ -4388,8 +4388,8 @@
     "default_label": "Extreme Programming (XP)",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "participant-types",
@@ -4461,7 +4461,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "text",
-    "ui_grouping": null
+    "ui_grouping": "Participants"
   },
   {
     "concept_type": "behaviour-context-policy",
@@ -4470,7 +4470,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "text",
-    "ui_grouping": null
+    "ui_grouping": "Participants"
   },
   {
     "concept_type": "technology",
@@ -4919,8 +4919,8 @@
     "default_label": "Critical",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:policy-condition-severity",
@@ -4928,8 +4928,8 @@
     "default_label": "High",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:policy-condition-severity",
@@ -4937,8 +4937,8 @@
     "default_label": "Medium",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:policy-condition-severity",
@@ -4946,8 +4946,8 @@
     "default_label": "Low",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Policy"
   },
   {
     "concept_type": "category:obligation-priority",
@@ -4955,8 +4955,8 @@
     "default_label": "Very High",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Obligation"
   },
   {
     "concept_type": "category:obligation-priority",
@@ -4964,8 +4964,8 @@
     "default_label": "High",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Obligation"
   },
   {
     "concept_type": "category:obligation-priority",
@@ -4973,8 +4973,8 @@
     "default_label": "Medium",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Obligation"
   },
   {
     "concept_type": "category:obligation-priority",
@@ -4982,8 +4982,8 @@
     "default_label": "Low",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Obligation"
   },
   {
     "concept_type": "category:obligation-severity",
@@ -4991,8 +4991,8 @@
     "default_label": "Critical",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Obligation"
   },
   {
     "concept_type": "category:obligation-severity",
@@ -5000,8 +5000,8 @@
     "default_label": "High",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Obligation"
   },
   {
     "concept_type": "category:obligation-severity",
@@ -5009,8 +5009,8 @@
     "default_label": "Medium",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Obligation"
   },
   {
     "concept_type": "category:obligation-severity",
@@ -5018,8 +5018,8 @@
     "default_label": "Low",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Obligation"
   },
   {
     "concept_type": "template-categories",
@@ -5037,7 +5037,7 @@
     "description": null,
     "is_mandatory": null,
     "text_type": "text",
-    "ui_grouping": null
+    "ui_grouping": "Participants"
   },
   {
     "concept_type": "profile-configuration",
@@ -5045,7 +5045,7 @@
     "default_label": "Dispatch Strategy Preference",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
+    "text_type": "text",
     "ui_grouping": "SEU Configurations"
   },
   {
@@ -5054,8 +5054,8 @@
     "default_label": "Capability Match",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "dispatch-strategy-preference",
@@ -5063,8 +5063,8 @@
     "default_label": "Specialist Preference",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "dispatch-strategy-preference",
@@ -5072,8 +5072,8 @@
     "default_label": "Cost Optimisation",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "dispatch-strategy-preference",
@@ -5081,8 +5081,8 @@
     "default_label": "Confidence Optimisation",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "dispatch-strategy-preference",
@@ -5090,8 +5090,8 @@
     "default_label": "Load Balancing",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "dispatch-strategy-preference",
@@ -5099,8 +5099,8 @@
     "default_label": "Locality Preference",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "dispatch-strategy-preference",
@@ -5108,8 +5108,8 @@
     "default_label": "Organisation Preference",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   },
   {
     "concept_type": "category:decision",
@@ -5117,8 +5117,8 @@
     "default_label": "Architecture Decisions",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Decision"
   },
   {
     "concept_type": "category:decision",
@@ -5126,8 +5126,8 @@
     "default_label": "Operational Decisions",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Decision"
   },
   {
     "concept_type": "category:decision",
@@ -5135,8 +5135,8 @@
     "default_label": "Governance Decisions",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Decision"
   },
   {
     "concept_type": "decision-alternative-status",
@@ -5144,8 +5144,8 @@
     "default_label": "Candidate",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Decision"
   },
   {
     "concept_type": "decision-alternative-status",
@@ -5153,8 +5153,8 @@
     "default_label": "Evaluating",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Decision"
   },
   {
     "concept_type": "decision-alternative-status",
@@ -5162,8 +5162,8 @@
     "default_label": "Investigating",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Decision"
   },
   {
     "concept_type": "decision-alternative-status",
@@ -5171,8 +5171,8 @@
     "default_label": "Deferred",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Decision"
   },
   {
     "concept_type": "decision-alternative-status",
@@ -5180,8 +5180,8 @@
     "default_label": "Rejected",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Decision"
   },
   {
     "concept_type": "decision-alternative-status",
@@ -5189,8 +5189,8 @@
     "default_label": "Approved",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Decision"
   },
   {
     "concept_type": "evidence-validation-dimension",
@@ -5198,8 +5198,8 @@
     "default_label": "Authenticity",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "evidence-validation-dimension",
@@ -5207,8 +5207,8 @@
     "default_label": "Completeness",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "evidence-validation-dimension",
@@ -5216,8 +5216,8 @@
     "default_label": "Consistency",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "evidence-validation-dimension",
@@ -5225,8 +5225,8 @@
     "default_label": "Source Credibility",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "evidence-validation-dimension",
@@ -5234,8 +5234,8 @@
     "default_label": "Engineering Relevance",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "evidence-validation-status",
@@ -5243,8 +5243,8 @@
     "default_label": "Not Assessed",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "evidence-validation-status",
@@ -5252,8 +5252,8 @@
     "default_label": "Pass",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "evidence-validation-status",
@@ -5261,8 +5261,8 @@
     "default_label": "Partial",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "evidence-validation-status",
@@ -5270,8 +5270,8 @@
     "default_label": "Fail",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "evidence-confidence-level",
@@ -5279,8 +5279,8 @@
     "default_label": "Low",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "evidence-confidence-level",
@@ -5288,8 +5288,8 @@
     "default_label": "Medium",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "evidence-confidence-level",
@@ -5297,8 +5297,8 @@
     "default_label": "High",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Evidence"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5306,8 +5306,8 @@
     "default_label": "SEU",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5315,8 +5315,8 @@
     "default_label": "Deliverable",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5324,8 +5324,8 @@
     "default_label": "Objective",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5333,8 +5333,8 @@
     "default_label": "Obligation",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5342,8 +5342,8 @@
     "default_label": "Evidence",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5351,8 +5351,8 @@
     "default_label": "Knowledge",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5360,8 +5360,8 @@
     "default_label": "Decision",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5369,8 +5369,8 @@
     "default_label": "Knowledge Scope",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5378,8 +5378,8 @@
     "default_label": "Attention Item",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5387,8 +5387,8 @@
     "default_label": "External Interaction",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5396,8 +5396,8 @@
     "default_label": "Pack",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5405,8 +5405,8 @@
     "default_label": "Participant",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5414,8 +5414,8 @@
     "default_label": "Review",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5423,8 +5423,8 @@
     "default_label": "Finding",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5432,8 +5432,8 @@
     "default_label": "Template",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5441,8 +5441,8 @@
     "default_label": "Profile",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5450,8 +5450,8 @@
     "default_label": "Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5459,8 +5459,8 @@
     "default_label": "Policy",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5468,8 +5468,8 @@
     "default_label": "EBM",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governed-entity-type",
@@ -5477,8 +5477,8 @@
     "default_label": "Ontology",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governance-outcome",
@@ -5486,8 +5486,8 @@
     "default_label": "Approved",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governance-outcome",
@@ -5495,8 +5495,8 @@
     "default_label": "Approved with Conditions",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governance-outcome",
@@ -5504,8 +5504,8 @@
     "default_label": "Deferred",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governance-outcome",
@@ -5513,8 +5513,8 @@
     "default_label": "Rejected",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governance-outcome",
@@ -5522,8 +5522,8 @@
     "default_label": "Escalated",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "governance-outcome",
@@ -5531,8 +5531,8 @@
     "default_label": "Waived",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "quality-gate-outcome",
@@ -5540,8 +5540,8 @@
     "default_label": "Passed",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "quality-gate-outcome",
@@ -5549,8 +5549,8 @@
     "default_label": "Not Applicable",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "quality-gate-outcome",
@@ -5558,8 +5558,8 @@
     "default_label": "Waived",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Governance"
   },
   {
     "concept_type": "proficiency-level",
@@ -5567,8 +5567,8 @@
     "default_label": "Novice",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Competencies"
   },
   {
     "concept_type": "proficiency-level",
@@ -5576,8 +5576,8 @@
     "default_label": "Intermediate",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Competencies"
   },
   {
     "concept_type": "proficiency-level",
@@ -5585,8 +5585,8 @@
     "default_label": "Expert",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "Competencies"
   },
   {
     "concept_type": "engineering-objects",
@@ -5594,8 +5594,8 @@
     "default_label": "Deliverable",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "General"
   },
   {
     "concept_type": "engineering-objects",
@@ -5603,8 +5603,8 @@
     "default_label": "Decision",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "General"
   },
   {
     "concept_type": "engineering-objects",
@@ -5612,8 +5612,8 @@
     "default_label": "Evidence",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "General"
   },
   {
     "concept_type": "engineering-objects",
@@ -5621,8 +5621,8 @@
     "default_label": "Finding",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "General"
   },
   {
     "concept_type": "engineering-objects",
@@ -5630,8 +5630,8 @@
     "default_label": "Risk",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "General"
   },
   {
     "concept_type": "engineering-objects",
@@ -5639,8 +5639,8 @@
     "default_label": "Knowledge",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "General"
   },
   {
     "concept_type": "engineering-objects",
@@ -5648,8 +5648,8 @@
     "default_label": "Obligation",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "General"
   },
   {
     "concept_type": "engineering-objects",
@@ -5657,8 +5657,8 @@
     "default_label": "Waiver",
     "description": null,
     "is_mandatory": null,
-    "text_type": "markdown",
-    "ui_grouping": null
+    "text_type": "text",
+    "ui_grouping": "General"
   },
   {
     "concept_type": "authorised-role",
@@ -16817,7 +16817,7 @@
     "default_label": "Planning and tracking engineering delivery",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16826,7 +16826,7 @@
     "default_label": "Managing engineering risk",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16835,7 +16835,7 @@
     "default_label": "Defining test strategy and designing tests",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16844,7 +16844,7 @@
     "default_label": "Engineering test automation",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16853,7 +16853,7 @@
     "default_label": "Verifying performance and reliability",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16862,7 +16862,7 @@
     "default_label": "Managing source control and branching",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16871,7 +16871,7 @@
     "default_label": "Engineering build and continuous integration",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16880,7 +16880,7 @@
     "default_label": "Engineering delivery pipelines",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16889,7 +16889,7 @@
     "default_label": "Engineering infrastructure and environments",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16898,7 +16898,7 @@
     "default_label": "Engineering observability and monitoring",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16907,7 +16907,7 @@
     "default_label": "Responding to production incidents",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16916,7 +16916,7 @@
     "default_label": "Engineering reliability and recovery",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16925,7 +16925,7 @@
     "default_label": "Maintaining and refactoring software",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16934,7 +16934,7 @@
     "default_label": "Managing technical debt and dependencies",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16943,7 +16943,7 @@
     "default_label": "Engineering secure software",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16952,7 +16952,7 @@
     "default_label": "Managing privacy, regulatory and licence compliance",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16961,7 +16961,7 @@
     "default_label": "Engineering non-functional qualities",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16970,7 +16970,7 @@
     "default_label": "Designing and evolving data stores",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16979,7 +16979,7 @@
     "default_label": "Designing and managing APIs and interfaces",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16988,7 +16988,7 @@
     "default_label": "Managing product value and roadmap",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -16997,7 +16997,7 @@
     "default_label": "Handling user support and feedback",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -17006,7 +17006,7 @@
     "default_label": "Enabling engineering teams",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -17015,7 +17015,7 @@
     "default_label": "Managing engineering effort and cost",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -17024,7 +17024,7 @@
     "default_label": "Operating and assuring AI-enabled systems",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -17033,7 +17033,7 @@
     "default_label": "Prototyping and experimenting",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -17042,7 +17042,7 @@
     "default_label": "Engineering user experience and accessibility",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -19733,7 +19733,7 @@
     "default_label": "Access Control Model",
     "description": "Specification of identities, roles, permissions, and policies governing access to system resources (RBAC/ABAC, NIST SP 800-162).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19742,7 +19742,7 @@
     "default_label": "Accessibility Conformance Report",
     "description": "Statement of conformance to WCAG 2.2 success criteria per interface, in the form of a VPAT/Accessibility Conformance Report.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19751,7 +19751,7 @@
     "default_label": "Ai Output Review Record",
     "description": "Record of human review, acceptance, or rejection of AI-generated engineering output, including reviewer and rationale.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19760,7 +19760,7 @@
     "default_label": "API Compatibility Report",
     "description": "Comparison of two API versions identifying breaking and non-breaking changes against the published contract.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19769,7 +19769,7 @@
     "default_label": "API Versioning Policy",
     "description": "Policy defining version identifiers, compatibility guarantees, deprecation notice periods, and sunset rules for APIs.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19778,7 +19778,7 @@
     "default_label": "Architecture Tradeoff Analysis Report",
     "description": "Evaluation of architectural decisions against quality-attribute scenarios identifying trade-offs, sensitivity points, and risks (SEI ATAM).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19787,7 +19787,7 @@
     "default_label": "Backup Restore Verification Report",
     "description": "Evidence that backups were restored successfully and met recovery point and recovery time objectives (ISO 22301, NIST SP 800-34).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19796,7 +19796,7 @@
     "default_label": "Benefits Realisation Report",
     "description": "Measurement of delivered outcomes against the benefits stated in the business case.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19805,7 +19805,7 @@
     "default_label": "Branching Strategy",
     "description": "Defined branching and merging model, such as trunk-based development or Gitflow, with protected-branch and release rules.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19814,7 +19814,7 @@
     "default_label": "Build Artefact",
     "description": "Versioned, immutable output of a build, with provenance metadata, published to an artefact repository (SLSA).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19823,7 +19823,7 @@
     "default_label": "Capacity Plan",
     "description": "Forecast of infrastructure and platform capacity needed to meet demand and service-level objectives (ITIL capacity management).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19832,7 +19832,7 @@
     "default_label": "Chaos Experiment Report",
     "description": "Record of a controlled fault-injection experiment, its steady-state hypothesis, observed behaviour, and findings.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19841,7 +19841,7 @@
     "default_label": "Code Review Record",
     "description": "Record of a peer review of a change, with reviewer, comments, findings, and approval decision.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19850,7 +19850,7 @@
     "default_label": "Contract Test Report",
     "description": "Results of consumer-driven or provider contract tests verifying conformance to the API contract.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19859,7 +19859,7 @@
     "default_label": "Cost Optimisation Plan",
     "description": "Prioritised actions to reduce engineering and cloud cost with expected savings and owners (FinOps).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19868,7 +19868,7 @@
     "default_label": "Cost Variance Report",
     "description": "Comparison of actual engineering and infrastructure spend against budget and forecast, with variance explanations.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19877,7 +19877,7 @@
     "default_label": "Data Dictionary",
     "description": "Catalogue of data elements with name, definition, type, constraints, ownership, and classification.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19886,7 +19886,7 @@
     "default_label": "Data Migration Verification Report",
     "description": "Reconciliation of source and target data after migration, including record counts, checksums, and exceptions.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19895,7 +19895,7 @@
     "default_label": "Decommissioning Plan",
     "description": "Plan to retire a system or component, covering dependencies, data retention, archival, and communication.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19904,7 +19904,7 @@
     "default_label": "Dependency Upgrade Plan",
     "description": "Prioritised plan to upgrade third-party and internal dependencies, with compatibility assessment and rollout sequence.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19913,7 +19913,7 @@
     "default_label": "Design System Specification",
     "description": "Governed library of design tokens, components, patterns, and usage guidance for consistent user interfaces.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19922,7 +19922,7 @@
     "default_label": "Developer Experience Assessment",
     "description": "Assessment of tooling, workflow friction, and delivery capability using established measures such as DORA and SPACE.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19931,7 +19931,7 @@
     "default_label": "Disaster Recovery Plan",
     "description": "Documented procedures, roles, and recovery time and recovery point objectives for restoring services after a disaster (ISO 22301).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19940,7 +19940,7 @@
     "default_label": "Effort Estimate",
     "description": "Estimate of effort and duration with method, assumptions, ranges, and confidence.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19949,7 +19949,7 @@
     "default_label": "Engineering Budget",
     "description": "Approved allocation of funds for engineering effort, tooling, and infrastructure over a period.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19958,7 +19958,7 @@
     "default_label": "Experiment Design",
     "description": "Definition of a hypothesis, method, success criteria, time box, and decision rule for a prototype or experiment.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19967,7 +19967,7 @@
     "default_label": "Failure Mode And Effects Analysis",
     "description": "Systematic analysis of failure modes, their causes, effects, severity, and detection (IEC 60812).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19976,7 +19976,7 @@
     "default_label": "Fitness Function Catalog",
     "description": "Catalogue of automated, objective measures that verify architectural quality attributes continuously.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19985,7 +19985,7 @@
     "default_label": "Incident Communication Log",
     "description": "Time-ordered record of notifications and status updates issued to stakeholders during an incident.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -19994,7 +19994,7 @@
     "default_label": "Licence Compliance Report",
     "description": "Assessment of open-source and third-party licence obligations and conflicts for a release (SPDX).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20003,7 +20003,7 @@
     "default_label": "Model Deployment Record",
     "description": "Record of a model version released to an environment, with approver, configuration, and rollback reference.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20012,7 +20012,7 @@
     "default_label": "Model Monitoring Report",
     "description": "Report of production model performance, data drift, and prediction quality against thresholds.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20021,7 +20021,7 @@
     "default_label": "Onboarding Plan",
     "description": "Structured plan for a new engineer covering access, tooling, context, and first deliverables.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20030,7 +20030,7 @@
     "default_label": "Penetration Test Report",
     "description": "Findings of authorised security testing with severity rating, evidence, and remediation guidance (OWASP, PTES).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20039,7 +20039,7 @@
     "default_label": "Privacy Impact Assessment",
     "description": "Assessment of privacy risks of personal-data processing and the controls applied (GDPR Article 35 DPIA, ISO/IEC 29134).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20048,7 +20048,7 @@
     "default_label": "Product Roadmap",
     "description": "Time-phased view of planned product outcomes and initiatives linked to objectives.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20057,7 +20057,7 @@
     "default_label": "Project Plan",
     "description": "Baseline plan stating scope, schedule, resources, milestones, dependencies, and governance (PMBOK).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20066,7 +20066,7 @@
     "default_label": "Project Status Report",
     "description": "Periodic report of progress, variance against baseline, risks, issues, and forecast.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20075,7 +20075,7 @@
     "default_label": "Prototype Evaluation Report",
     "description": "Findings of a prototype or experiment against its success criteria, with a proceed, pivot, or stop recommendation.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20084,7 +20084,7 @@
     "default_label": "Quality Attribute Requirements Specification",
     "description": "Non-functional requirements expressed as measurable quality-attribute scenarios (ISO/IEC 25010, SEI quality attribute workshop).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20093,7 +20093,7 @@
     "default_label": "Refactoring Plan",
     "description": "Planned structural code changes with scope, rationale, risk, and behaviour-preservation verification.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20102,7 +20102,7 @@
     "default_label": "Regulatory Obligations Register",
     "description": "Register of applicable laws, regulations, and standards, mapped to obligations and controls.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20111,7 +20111,7 @@
     "default_label": "Repository Configuration",
     "description": "Declared settings for a source repository including access, protected branches, required checks, and review rules.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20120,7 +20120,7 @@
     "default_label": "Resilience Test Report",
     "description": "Results of failover, recovery, and degradation testing against resilience targets.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20129,7 +20129,7 @@
     "default_label": "Risk Mitigation Plan",
     "description": "Actions, owners, triggers, and contingency for treating identified risks (ISO 31000).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20138,7 +20138,7 @@
     "default_label": "Risk Register",
     "description": "Register of identified risks with likelihood, impact, rating, owner, and status (ISO 31000, PMBOK).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20147,7 +20147,7 @@
     "default_label": "Rollback Plan",
     "description": "Tested procedure and criteria for reverting a deployment to the last known good state.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20156,7 +20156,7 @@
     "default_label": "Security Requirements Specification",
     "description": "Security requirements derived from risk and obligations, traceable to design and tests (OWASP ASVS).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20165,7 +20165,7 @@
     "default_label": "Service Level Objective Specification",
     "description": "Definition of service-level indicators, objectives, measurement windows, and error budgets (Google SRE).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20174,7 +20174,7 @@
     "default_label": "Skills Matrix",
     "description": "Mapping of engineers to skills and proficiency levels used to identify gaps.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20183,7 +20183,7 @@
     "default_label": "Software Bill Of Materials",
     "description": "Machine-readable inventory of software components, versions, suppliers, and licences (SPDX, CycloneDX, NTIA minimum elements).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20192,7 +20192,7 @@
     "default_label": "Support Resolution Record",
     "description": "Record of a user support request, diagnosis, resolution, and closure with timestamps.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20201,7 +20201,7 @@
     "default_label": "Technical Debt Register",
     "description": "Register of identified technical debt with location, impact, estimated repayment cost, owner, and priority.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20210,7 +20210,7 @@
     "default_label": "Test Case Specification",
     "description": "Test cases with preconditions, inputs, steps, expected results, and traceability (ISO/IEC/IEEE 29119-3).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20219,7 +20219,7 @@
     "default_label": "Test Data Set",
     "description": "Prepared and protected data used to execute tests, with provenance and privacy treatment.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20228,7 +20228,7 @@
     "default_label": "Test Environment Specification",
     "description": "Definition of the hardware, software, data, and configuration required to execute tests.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20237,7 +20237,7 @@
     "default_label": "Test Plan",
     "description": "Plan for a test effort covering scope, schedule, resources, entry and exit criteria (ISO/IEC/IEEE 29119-3).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20246,7 +20246,7 @@
     "default_label": "Test Strategy",
     "description": "Organisation- or project-level approach to testing covering test levels, types, risk-based priorities, and tooling (ISO/IEC/IEEE 29119-3).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20255,7 +20255,7 @@
     "default_label": "Threat Model",
     "description": "Analysis of assets, trust boundaries, threats, and mitigations, for example using STRIDE (OWASP Threat Modeling).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20264,7 +20264,7 @@
     "default_label": "Training Plan",
     "description": "Plan of training activities mapped to identified skill gaps, with schedule and success measures.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20273,7 +20273,7 @@
     "default_label": "Usability Test Report",
     "description": "Findings of moderated or unmoderated usability testing, with task success, errors, and severity-rated issues (ISO 9241-210).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20282,7 +20282,7 @@
     "default_label": "User Feedback Analysis Report",
     "description": "Synthesis of user feedback and support data into prioritised themes and recommendations.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20291,7 +20291,7 @@
     "default_label": "User Research Report",
     "description": "Findings of user research including needs, personas, and journeys, with evidence.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20300,7 +20300,7 @@
     "default_label": "Work Breakdown Structure",
     "description": "Hierarchical decomposition of project scope into deliverables and work packages (PMBOK).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20309,7 +20309,7 @@
     "default_label": "Workload Model",
     "description": "Model of expected load, user behaviour, data volumes, and targets used to design performance tests.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -20318,7 +20318,7 @@
     "default_label": "Engineering mobile applications",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -20471,7 +20471,7 @@
     "default_label": "Engineering safety-critical and real-time systems",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -20660,7 +20660,7 @@
     "default_label": "Co-designing hardware and software",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -20813,7 +20813,7 @@
     "default_label": "Engineering games and interactive media",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Capability"
   },
   {
@@ -21002,7 +21002,7 @@
     "default_label": "Mobile Platform Strategy",
     "description": "Decision record of native, cross-platform, or hybrid approach, supported platforms, and minimum operating-system versions, with rationale.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21011,7 +21011,7 @@
     "default_label": "Device Support Matrix",
     "description": "Matrix of supported devices, operating-system versions, form factors, and capabilities used to scope development and test coverage.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21020,7 +21020,7 @@
     "default_label": "Mobile Security Assessment Report",
     "description": "Assessment of a mobile application against OWASP MASVS and MASTG, with findings, severity, and remediation.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21029,7 +21029,7 @@
     "default_label": "Hazard Analysis And Risk Assessment",
     "description": "Identification of hazardous events and their risk classification, determining safety integrity levels (IEC 61508, ISO 26262 HARA, ARP4761).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21038,7 +21038,7 @@
     "default_label": "Safety Requirements Specification",
     "description": "Safety requirements derived from hazard analysis, allocated to components, and traceable to verification (IEC 61508-2, ISO 26262-3).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21047,7 +21047,7 @@
     "default_label": "Timing Analysis Report",
     "description": "Worst-case execution time and schedulability analysis demonstrating that real-time deadlines are met.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21056,7 +21056,7 @@
     "default_label": "Structural Coverage Report",
     "description": "Code coverage evidence (statement, decision, MC/DC) at the level required by the safety integrity level (DO-178C, ISO 26262-6).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21065,7 +21065,7 @@
     "default_label": "Safety Case",
     "description": "Structured argument with evidence that the system is acceptably safe for its intended use (GSN, IEC 61508, UL 4600).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21074,7 +21074,7 @@
     "default_label": "Hardware Software Partitioning Specification",
     "description": "Allocation of functions between hardware and software with interface definitions, performance budgets, and rationale (ISO/IEC/IEEE 15288).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21083,7 +21083,7 @@
     "default_label": "Co Simulation Report",
     "description": "Results of simulating hardware models together with software, covering interface conformance and timing behaviour.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21092,7 +21092,7 @@
     "default_label": "Hardware In The Loop Test Report",
     "description": "Results of executing software against real or emulated hardware on a test bench, including fault scenarios.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21101,7 +21101,7 @@
     "default_label": "Integration Bring Up Report",
     "description": "Record of board bring-up and hardware-software integration, with defects attributed to hardware or software.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21110,7 +21110,7 @@
     "default_label": "Game Design Document",
     "description": "Living specification of gameplay systems, mechanics, content, progression, and balance targets.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21119,7 +21119,7 @@
     "default_label": "Performance Budget",
     "description": "Allocation of frame time, memory, storage, and load-time budgets per platform and subsystem.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21128,7 +21128,7 @@
     "default_label": "Playtest Report",
     "description": "Findings of structured playtesting, covering fun, difficulty, usability, and defects, with player evidence.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21137,7 +21137,7 @@
     "default_label": "Platform Certification Report",
     "description": "Results of platform holder certification testing against technical requirements, with pass or fail by requirement.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21146,7 +21146,7 @@
     "default_label": "Capability Optimisation Record",
     "description": "Record of an applied capability optimisation, the measured performance delta, and the non-regression evidence.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21155,7 +21155,7 @@
     "default_label": "Stakeholder Intent Baseline",
     "description": "Reconciled statement of stakeholder intent drawn from meetings, tickets, support conversations, and correspondence, with currency date and detected conflicts (ISO/IEC/IEEE 29148 stakeholder requirements).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21164,7 +21164,7 @@
     "default_label": "Decision Trace",
     "description": "Explainable record linking a decision to its supporting evidence, alternatives considered, approver, and outcome.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21173,7 +21173,7 @@
     "default_label": "Reasoned Recommendation Record",
     "description": "Recommendation derived from accumulated organisational evidence, with the evidence cited and the reasoning stated.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21182,7 +21182,7 @@
     "default_label": "Capability Realignment Recommendation",
     "description": "Recommendation to add, change, or retire capabilities in response to revised objectives and business signal.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21191,7 +21191,7 @@
     "default_label": "Telemetry Stream",
     "description": "Continuous metrics, logs, and traces emitted by running systems, expressed as OpenTelemetry signals.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21200,7 +21200,7 @@
     "default_label": "Event Replay Stream",
     "description": "Ordered, immutable log of platform events that can be replayed to reconstruct state and behaviour at any point in time.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21209,7 +21209,7 @@
     "default_label": "Traceability Link Stream",
     "description": "Continuously maintained relationships among requirements, designs, code, tests, defects, and releases, with each link change emitted as it occurs (ISO/IEC/IEEE 29148).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21218,7 +21218,7 @@
     "default_label": "Artefact Change Stream",
     "description": "Stream of creations and modifications to engineering artefacts and models, with author, version, and diff.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21227,7 +21227,7 @@
     "default_label": "Code Change Stream",
     "description": "Stream of commits, pull requests, and merges to source repositories, with author, scope, and review status.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21236,7 +21236,7 @@
     "default_label": "Deployment Event Stream",
     "description": "Stream of deployment, configuration, and rollback events across environments, with version and actor.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21245,7 +21245,7 @@
     "default_label": "Test Execution Stream",
     "description": "Stream of test executions and results over time, per test, build, and environment.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21254,7 +21254,7 @@
     "default_label": "Requirement Change Stream",
     "description": "Stream of creations, modifications, and status changes to requirements, with rationale and source.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21263,7 +21263,7 @@
     "default_label": "Policy Change Stream",
     "description": "Stream of changes to policies, standards, regulatory obligations, and decisions that govern engineering work.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21272,7 +21272,7 @@
     "default_label": "Stakeholder Communication Stream",
     "description": "Stream of stakeholder signals from meetings, tickets, support conversations, and correspondence.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21281,7 +21281,7 @@
     "default_label": "Business Signal Stream",
     "description": "Stream of observed business behaviour and market or organisational change that affects the business domain.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21290,7 +21290,7 @@
     "default_label": "Threat Intelligence Feed",
     "description": "External structured feed of vulnerabilities, indicators, and attack patterns (STIX/TAXII, CVE, CISA KEV).",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21299,7 +21299,7 @@
     "default_label": "Architecture Drift Finding",
     "description": "Finding that records architecture or model diverging from the documented architecture or a fitness function, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21308,7 +21308,7 @@
     "default_label": "Obsolescence Forecast Finding",
     "description": "Finding that records an architectural pattern predicted to stop meeting scale or quality needs, with lead time, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21317,7 +21317,7 @@
     "default_label": "Configuration Drift Finding",
     "description": "Finding that records deployed configuration diverging from declared intent, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21326,7 +21326,7 @@
     "default_label": "Domain Model Drift Finding",
     "description": "Finding that records the domain model diverging from observed business behaviour, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21335,7 +21335,7 @@
     "default_label": "Test Coverage Gap Finding",
     "description": "Finding that records a defect class that current test coverage is predicted to miss, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21344,7 +21344,7 @@
     "default_label": "Release Risk Finding",
     "description": "Finding that records the current risk to an in-progress release, with contributing factors, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21353,7 +21353,7 @@
     "default_label": "Compliance Violation Finding",
     "description": "Finding that records an engineering event that violates an applicable policy or obligation, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21362,7 +21362,7 @@
     "default_label": "Requirement Validity Finding",
     "description": "Finding that records a requirement that has become invalid, conflicting, or ambiguous through change, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21371,7 +21371,7 @@
     "default_label": "Incident Precursor Finding",
     "description": "Finding that records precursor conditions of a probable incident, with expected lead time, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21380,7 +21380,7 @@
     "default_label": "Pattern Propagation Finding",
     "description": "Finding that records a location where a fix or improvement applies, and whether it was applied, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21389,7 +21389,7 @@
     "default_label": "Improvement Opportunity Finding",
     "description": "Finding that records a capability or practice improvement supported by accumulated evidence, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21398,7 +21398,7 @@
     "default_label": "Vulnerability Posture Finding",
     "description": "Finding that records a change in the security exposure of the system portfolio, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21407,7 +21407,7 @@
     "default_label": "Threat Exposure Finding",
     "description": "Finding that records the organisation's own exposure to a newly emerged attack pattern, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21416,7 +21416,7 @@
     "default_label": "Objective Misalignment Finding",
     "description": "Finding that records engineering work that no longer serves its stated Objective, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21425,7 +21425,7 @@
     "default_label": "Policy Conflict Finding",
     "description": "Finding that records a latent contradiction among active policies, standards, or decisions, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21434,7 +21434,7 @@
     "default_label": "Quality Deviation Finding",
     "description": "Finding that records a deviation of quality evidence from defined criteria, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21443,7 +21443,7 @@
     "default_label": "Intent Divergence Finding",
     "description": "Finding that records stakeholder intent diverging from the current requirement baseline, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21452,7 +21452,7 @@
     "default_label": "Engineering Risk Forecast Finding",
     "description": "Finding that records an engineering risk forecast before it materialises, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21461,7 +21461,7 @@
     "default_label": "Capability Bottleneck Finding",
     "description": "Finding that records a bottleneck limiting the performance of a capability, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21470,7 +21470,7 @@
     "default_label": "Structural Pattern Finding",
     "description": "Finding that records a recurring structural pattern, or anti-pattern, recognised across systems, with the subject, supporting evidence references, severity, confidence, detection time, and recommended action.",
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Deliverable"
   },
   {
@@ -21479,7 +21479,7 @@
     "default_label": "Engineering Delivery Planning Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21488,7 +21488,7 @@
     "default_label": "Engineering Risk Management Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21497,7 +21497,7 @@
     "default_label": "Test Strategy And Design Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21506,7 +21506,7 @@
     "default_label": "Test Automation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21515,7 +21515,7 @@
     "default_label": "Performance And Reliability Testing Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21524,7 +21524,7 @@
     "default_label": "Version Control Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21533,7 +21533,7 @@
     "default_label": "Continuous Integration Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21542,7 +21542,7 @@
     "default_label": "Continuous Delivery Pipeline Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21551,7 +21551,7 @@
     "default_label": "Infrastructure Engineering Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21560,7 +21560,7 @@
     "default_label": "Observability Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21569,7 +21569,7 @@
     "default_label": "Incident Response Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21578,7 +21578,7 @@
     "default_label": "Reliability Engineering Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21587,7 +21587,7 @@
     "default_label": "Software Maintenance Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21596,7 +21596,7 @@
     "default_label": "Technical Debt Management Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21605,7 +21605,7 @@
     "default_label": "Secure Engineering Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21614,7 +21614,7 @@
     "default_label": "Privacy And Licence Compliance Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21623,7 +21623,7 @@
     "default_label": "Quality Attribute Engineering Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21632,7 +21632,7 @@
     "default_label": "Data Engineering Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21641,7 +21641,7 @@
     "default_label": "Api Engineering Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21650,7 +21650,7 @@
     "default_label": "Product Value Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21659,7 +21659,7 @@
     "default_label": "User Support Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21668,7 +21668,7 @@
     "default_label": "Team Enablement Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21677,7 +21677,7 @@
     "default_label": "Engineering Cost Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21686,7 +21686,7 @@
     "default_label": "Model Operations Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21695,7 +21695,7 @@
     "default_label": "Experimentation Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21704,7 +21704,7 @@
     "default_label": "User Experience Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21713,7 +21713,7 @@
     "default_label": "Mobile Engineering Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21722,7 +21722,7 @@
     "default_label": "Safety Critical Engineering Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21731,7 +21731,7 @@
     "default_label": "Hardware Software Codesign Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   },
   {
@@ -21740,7 +21740,7 @@
     "default_label": "Game Engineering Service",
     "description": null,
     "is_mandatory": null,
-    "text_type": "text",
+    "text_type": "markdown",
     "ui_grouping": "Services"
   }
 ]

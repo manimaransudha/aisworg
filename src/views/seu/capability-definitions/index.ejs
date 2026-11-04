@@ -4,7 +4,6 @@
   <%- include('../../partials/head') %>
   <style>
     .version-badge { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #f1f5f9; color: #334155; }
-    .role-badge { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #ede9fe; color: #5b21b6; }
   </style>
 </head>
 <body>
@@ -22,9 +21,7 @@
     <div class="mb-4">
       <h2 class="h3 mb-1 text-dark fw-bold">Capability Definitions</h2>
       <p class="text-muted small mb-0">
-        Capability Registry (CR-111) — the canonical, versioned catalog entry each capability-name code
-        expands into: the roles it decomposes into, and the worktypes each role covers. What Capability
-        fulfillment is matched against.
+        A Capability is a reusable engineering competency that may be requested by the platform to achieve one or more Deliverables. It defines the roles it decomposes into, and the worktypes each role covers. Capabilities provide value in the form of Services. 
       </p>
     </div>
 
@@ -71,24 +68,17 @@
                   <% if (c.tenant_id === locals.platformTenantId) { %>
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span>
                   <% } else { %>
-                    <span class="badge bg-light text-dark border">Your tenant</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><%= (locals.tenantNameById || {})[c.tenant_id] %></span>
                   <% } %>
                   <% if (c.parent_capability_definition_id) { %>
                     <span class="badge bg-secondary-subtle text-secondary border">Derived</span>
                   <% } %>
                 </p>
                 <% if (c.description) { %><p class="small mb-2"><%= c.description %></p><% } %>
-                <% if (c.roles && c.roles.length > 0) { %>
-                  <div class="mb-2 d-flex flex-wrap gap-1">
-                    <% c.roles.forEach(function(role) { %>
-                      <span class="role-badge" title="<%= (role.worktypes || []).join(', ') %>"><%= role.name %></span>
-                    <% }) %>
-                  </div>
-                <% } %>
               </div>
             </div>
             <div class="d-flex gap-2 mt-2">
-              <a href="/aisworg/seu/sdk/capability-authoring/<%= c.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
+              <a href="/aisworg/seu/capability-definitions/<%= c.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
               <% if (locals.canCopy) { %>
                 <form method="POST" action="/aisworg/seu/capability-definitions/<%= c.id %>/copy">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">

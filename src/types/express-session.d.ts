@@ -14,6 +14,7 @@ declare module "express-session" {
     };
     flash?: { type: "error" | "success"; message: string };
     formInput?: Record<string, unknown>;
+    demoGuide?: string;
     _t?: number;
   }
 }

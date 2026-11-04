@@ -66,7 +66,7 @@ export type GeneratedField =
   | { kind: "textarea"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string; group?: string }
   | { kind: "version"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string; group?: string }
   | { kind: "select"; name: string; label: string; required: boolean; value: string; options: string[]; help?: string; showWhen?: string; group?: string }
-  | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; ontology: boolean; help?: string; showWhen?: string; dynamicSourceField?: string; dynamicSourceSuffix?: string; dynamicSourceDriverConceptType?: string; group?: string }
+  | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; ontology: boolean; composable?: boolean; help?: string; showWhen?: string; dynamicSourceField?: string; dynamicSourceSuffix?: string; dynamicSourceDriverConceptType?: string; group?: string }
   | { kind: "db-select"; name: string; label: string; required: boolean; value: string; dbSource: string; help?: string; showWhen?: string; group?: string }
   | { kind: "referential-multi-select"; name: string; label: string; required: boolean; value: string[]; referentialSource: string; ontology: boolean; composable: boolean; help?: string; showWhen?: string; group?: string; driverField?: string; variants?: Array<{ matchValue: string | null; referentialSource: string; ontology: boolean; composable: boolean }> }
   | { kind: "json"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string; group?: string }
@@ -122,7 +122,7 @@ function buildItemFields(itemProps: Record<string, JsonSchemaProperty>, itemRequ
     if (fieldDef["x-referential-source-derived-by"]) {
       return { name: fieldName, kind: "referential" as const, referentialSource: `derived:${fieldDef["x-referential-source-derived-by"]}`, ontology: false, ...common };
     }
-    if (fieldDef["x-referential"] && fieldDef["x-multi"]) return { name: fieldName, kind: "referential-multi" as const, referentialSource: fieldDef["x-referential"], ...common };
+    if (fieldDef["x-referential"] && fieldDef["x-multi"]) return { name: fieldName, kind: "referential-multi" as const, referentialSource: fieldDef["x-referential"], ontology: fieldDef["x-ontology"] === true, ...common };
     if (fieldDef["x-referential"]) return { name: fieldName, kind: "referential" as const, referentialSource: fieldDef["x-referential"], ontology: fieldDef["x-ontology"] === true, ...common };
     if (fieldDef.enum) return { name: fieldName, kind: "enum" as const, options: fieldDef.enum, ...common };
     if (fieldDef.type === "boolean") return { name: fieldName, kind: "boolean" as const, ...common };
@@ -250,6 +250,7 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
         value: rawValue !== undefined ? String(rawValue) : "",
         referentialSource,
         ontology: def["x-ontology"] === true,
+        composable: def["x-ontology"] === true && def["x-ontology-composable"] === true && !driverField,
         help: def["x-help"],
         showWhen: def["x-show-when"],
         dynamicSourceField: driverField,
@@ -280,7 +281,7 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
       continue;
     }
 
-    fields.push({ kind: "string", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"], showWhen: def["x-show-when"], group });
+    fields.push({ kind: "string", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : String(def.default ?? ""), help: def["x-help"], showWhen: def["x-show-when"], group });
   }
 
   return fields;

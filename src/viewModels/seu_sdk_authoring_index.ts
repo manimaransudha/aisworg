@@ -2,5 +2,5 @@ import { createViewModel } from "../utils/viewModel.js";
 
 export const seu_sdk_authoring_indexVM = createViewModel({
   required: ["title", "kindLabel", "slug", "showDrafts", "rows", "canCreate"],
-  optional: ["flash", "definitions", "listBasePath", "canWriteAuthority", "activeNouns", "mappingByNoun", "policyCodeOptions"],
+  optional: ["flash", "definitions", "list", "listBasePath", "canWriteAuthority", "activeNouns", "mappingByNoun", "policyCodeOptions"],
 });

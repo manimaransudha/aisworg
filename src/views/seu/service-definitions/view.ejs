@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <%
+      var _label = function (map, code) { return map[code] || code; };
+      var _levels = service.service_level || [];
+      var _inputs = service.inputs || [];
+      var _outputs = service.outputs || [];
+      var _consumers = service.consumers || [];
+      var deliverableIds = locals.deliverableIds || {};
+    %>
+
+    <div class="mb-2">
+      <a href="/aisworg/seu/service-definitions" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>All Services</a>
+    </div>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-2 text-dark fw-bold">Service Definition: <%= service.name %></h2>
+      <div class="d-flex align-items-center gap-2">
+        <span class="state-badge state-<%= service.status %>"><%= service.status %></span>
+        <code class="text-muted"><%= service.code %></code>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header"><span class="lp-toggle-title">Details</span></div>
+      <div class="p-3">
+        <div class="mb-3">
+          <div class="small text-muted">Purpose</div>
+          <div><%= service.purpose || '—' %></div>
+        </div>
+        <div class="mb-3">
+          <div class="small text-muted">Capability</div>
+          <div>
+            <% if (capability.id) { %>
+              <a href="/aisworg/seu/capability-definitions/<%= capability.id %>" class="text-decoration-none"><%= capability.displayName %></a>
+            <% } else { %>
+              <%= capability.displayName %>
+            <% } %>
+          </div>
+          <div class="small text-muted"><%= service.capability_code %></div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <div class="small text-muted">Inputs</div>
+            <% if (_inputs.length === 0) { %><div>—</div><% } %>
+            <% _inputs.forEach(function (code) { %>
+              <div>
+                <% if (deliverableIds[code]) { %>
+                  <a href="/aisworg/seu/deliverable-definitions/<%= deliverableIds[code] %>" class="text-decoration-none"><%= _label(labels.deliverables, code) %></a>
+                <% } else { %>
+                  <%= _label(labels.deliverables, code) %>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted">Outputs</div>
+            <% if (_outputs.length === 0) { %><div>—</div><% } %>
+            <% _outputs.forEach(function (code) { %>
+              <div>
+                <% if (deliverableIds[code]) { %>
+                  <a href="/aisworg/seu/deliverable-definitions/<%= deliverableIds[code] %>" class="text-decoration-none"><%= _label(labels.deliverables, code) %></a>
+                <% } else { %>
+                  <%= _label(labels.deliverables, code) %>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="small text-muted">Success criteria</div>
+          <div><%= service.success || '—' %></div>
+        </div>
+        <div>
+          <div class="small text-muted">Governance</div>
+          <div><%= service.governance || '—' %></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header"><span class="lp-toggle-title">Service Level</span></div>
+      <% if (_levels.length === 0) { %>
+        <div class="p-3 small text-muted">This Service declares no Service Level expectations.</div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr><th scope="col" style="width: 50%;">Expectation</th><th scope="col">Target</th></tr>
+            </thead>
+            <tbody>
+              <% _levels.forEach(function (level) { %>
+                <tr>
+                  <td>
+                    <div><%= level.label %></div>
+                    <div class="small text-muted"><%= level.code %></div>
+                  </td>
+                  <td><%= level.target_level %> <%= level.target %> <%= level.units %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header"><span class="lp-toggle-title">Consumers</span></div>
+      <div class="p-3">
+        <% if (_consumers.length === 0) { %>
+          <div class="small text-muted">Consumed universally or by non-capability actors.</div>
+        <% } %>
+        <% _consumers.forEach(function (code) { %><div><%= _label(labels.capabilities, code) %></div><% }) %>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

@@ -12,7 +12,7 @@
       "properties": {
         "code": {
           "type": "string",
-          "x-help": "The Capability's own canonical Ontology identity (capability-name concept type, migration 046), e.g. \"requirements-analysis\".",
+          "x-help": "The Capability's Ontology identity. Choose from existing or add a new one. Publishing is blocked until the new Ontology is approved.",
           "minLength": 1,
           "x-ontology": true,
           "x-ontology-composable": true,
@@ -20,7 +20,7 @@
         },
         "category": {
           "type": "string",
-          "x-help": "Capability category (Ch.18 Ontology, concept type category:capability), e.g. \"Requirements Engineering\".",
+          "x-help": "Capability category. Choose from existing or add a new one. Publishing is blocked until the new Ontology is approved.",
           "x-widget": "referential-select",
           "x-ontology": true,
           "x-ontology-composable": true,
@@ -36,13 +36,13 @@
             "properties": {
               "name": {
                 "type": "string",
-                "x-help": "role-name concept (migration 263).",
+                "x-help": "Role name.",
                 "x-ontology": true,
                 "x-referential": "role-name"
               },
               "worktypes": {
                 "type": "array",
-                "x-help": "worktype-name concept(s) (migration 264) this role covers.",
+                "x-help": "Work Types for the Role.",
                 "x-multi": true,
                 "x-ontology": true,
                 "x-referential": "worktype-name"
@@ -63,7 +63,7 @@
         },
         "defaultLabel": {
           "type": "string",
-          "x-help": "Display label, e.g. \"Analysing engineering requirements\".",
+          "x-help": "Display label.",
           "minLength": 1
         }
       }
@@ -87,7 +87,7 @@
       "properties": {
         "code": {
           "type": "string",
-          "x-help": "The deliverable's canonical name, e.g. \"Requirements Specification\" — this is what ends up in a Template's Deliverable Catalogue picker.",
+          "x-help": "The Deliverable's Ontology identity. This is what shows up in a Template's Deliverable Catalogue picker.",
           "x-group": "metadata",
           "minLength": 1,
           "x-ontology": true,
@@ -96,9 +96,14 @@
         },
         "description": {
           "type": "string",
-          "x-help": "What this kind of Deliverable is for — authored once on the Definition, not re-typed per SEU instance.",
+          "x-help": "What this kind of Deliverable is for.",
           "x-group": "metadata",
           "x-widget": "textarea"
+        },
+        "guideLocation": {
+          "type": "string",
+          "x-help": "Where the format or guide for this Deliverable is kept. A Work Item for this Deliverable shows it as its input location.",
+          "x-group": "metadata"
         },
         "definitionVersion": {
           "type": "string",
@@ -110,6 +115,7 @@
       "x-property-order": [
         "code",
         "description",
+        "guideLocation",
         "definitionVersion"
       ]
     }
@@ -139,7 +145,7 @@
       "properties": {
         "code": {
           "type": "string",
-          "x-help": "Identity code for this Pack, sourced from the Ontology vocabulary of its own category (Ch.18). Not a capability; see Capability Contributions for what this Pack contributes to.",
+          "x-help": "Ontology identity code for this Pack.",
           "x-group": "metadata",
           "x-widget": "referential-select",
           "minLength": 1,
@@ -155,7 +161,7 @@
         },
         "category": {
           "type": "string",
-          "x-help": "Pack category (Ch.18 Ontology, concept type category:pack)",
+          "x-help": "Pack category. Choose from existing or add a new one. Publishing is blocked until the new Ontology is approved.",
           "x-group": "metadata",
           "x-widget": "referential-select",
           "x-ontology": true,
@@ -164,7 +170,7 @@
         },
         "description": {
           "type": "string",
-          "x-help": "what this Pack contributes (Ch.5 §8)",
+          "x-help": "What does this Pack declare",
           "x-group": "metadata"
         },
         "packVersion": {
@@ -203,7 +209,7 @@
         },
         "migrationGuidance": {
           "type": "string",
-          "x-help": "migration guidance where applicable (§13)",
+          "x-help": "migration guidance",
           "x-group": "compatibility"
         },
         "comments": {
@@ -235,14 +241,14 @@
               }
             }
           },
-          "x-help": "Pack(s) this Composition Strategy combines from (§8/§21) — how many, and whether they must share this Pack's own code, depends on the chosen strategy.",
+          "x-help": "Pack(s) this Composition Strategy combines — how many, and whether they must share this Pack's own code, depends on the chosen strategy.",
           "x-group": "metadata",
           "x-widget": "referential-list",
           "x-show-when": "compositionStrategy"
         },
         "compositionStrategy": {
           "type": "string",
-          "x-help": "how contributions compose (§8; recorded, not yet enforced — §19.8)",
+          "x-help": "how contributions compose",
           "x-group": "metadata",
           "x-widget": "referential-select",
           "x-ontology": true,
@@ -253,7 +259,7 @@
           "items": {
             "type": "string"
           },
-          "x-help": "§9 Policies / Standards this Pack adopts from the canonical Policy Definitions (Ch.24), scoped to whichever ones govern a deliverable-name produced by this Pack own declared Capabilities.",
+          "x-help": "Policies / Standards this Pack adopts from the Policy Registry, scoped to whichever ones govern a deliverable-name produced by this Pack's declared Capabilities.",
           "x-widget": "referential-multi-select"
         },
         "contributionServices": {
@@ -271,7 +277,7 @@
               },
               "serviceDefinitionId": {
                 "type": "string",
-                "x-help": "The id of the exact Service Definition version this Pack composes."
+                "x-help": "The Ontology code of the exact Service Definition version this Pack composes."
               },
               "serviceLevel": {
                 "type": "array",
@@ -299,7 +305,7 @@
               "serviceLevel"
             ]
           },
-          "x-help": "§7 Services this Pack composes, from the canonical Service Definitions (Ch.11) aligned to this Pack own declared Capabilities.",
+          "x-help": "Services this Pack composes, from the Service Registry aligned to this Pack's declared Capabilities.",
           "x-widget": "referential-list"
         },
         "contributionChecklists": {
@@ -365,7 +371,7 @@
               "items"
             ]
           },
-          "x-help": "Ch.47 Checklists — reusable, cross-Pack-referenceable lists of verification Items. A Checklist carries no scope of its own; Review Gates and Quality Gates reference it by id via checklistIds.",
+          "x-help": "Checklists — reusable, cross-Pack-referenceable lists of verification Items. A Checklist carries no scope of its own; Review Gates and Quality Gates reference it by id via checklistIds.",
           "x-widget": "referential-list"
         },
         "contributionReviewGates": {
@@ -395,7 +401,7 @@
               },
               "assurance": {
                 "type": "string",
-                "x-help": "Optional confidence/severity threshold at which an AI result escalates to a human (declared only — not yet enforced)."
+                "x-help": "Optional confidence/severity threshold at which an AI result escalates to a human."
               },
               "statement": {
                 "type": "string",
@@ -425,7 +431,7 @@
                   "human-attested"
                 ],
                 "type": "string",
-                "x-help": "Reviews are judgment by nature (§20.5) — almost always judgment or human-attested."
+                "x-help": "Reviews are judgment by nature — almost always judgment or human-attested."
               },
               "outputContract": {
                 "enum": [
@@ -466,7 +472,7 @@
               "prompt"
             ]
           },
-          "x-help": "§9 Review Gates (judgment by nature — §20.5)",
+          "x-help": "Review Gates (judgment by nature)",
           "x-widget": "referential-list"
         },
         "contributionCapabilities": {
@@ -479,7 +485,7 @@
             "properties": {
               "code": {
                 "type": "string",
-                "x-help": "Which capability this Pack contributes to (Ch.18 Ontology, concept type capability-name).",
+                "x-help": "Which capability does this Pack contribute to.",
                 "x-ontology": true,
                 "x-referential": "capability-name"
               }
@@ -488,7 +494,7 @@
               "code"
             ]
           },
-          "x-help": "§9 Capabilities this Pack contributes — reusable engineering competencies, independent of who or what performs them.",
+          "x-help": "Capabilities this Pack contributes to — reusable engineering competencies, independent of who or what performs them.",
           "x-widget": "referential-list"
         },
         "contributionCompetencies": {
@@ -502,7 +508,7 @@
             "properties": {
               "value": {
                 "type": "string",
-                "x-help": "Click or start typing to browse existing values for the chosen dimension, or type a new one — publishing is blocked until it becomes a real, registered Ontology concept.",
+                "x-help": "Choose from existing or add a new one. Publishing is blocked until the new Ontology is approved.",
                 "x-ontology": true,
                 "x-referential-source-by": "dimension",
                 "x-referential-source-suffix": ""
@@ -519,7 +525,7 @@
               "value"
             ]
           },
-          "x-help": "CR-099 — which competency (Ontology category:pack dimension + the value within that dimension) this Pack represents. Required when the Pack category is Technology or Domain.",
+          "x-help": "Which competency (Ontology category:pack dimension + the value within that dimension) this Pack represents. Required when the Pack category is Technology or Domain.",
           "x-widget": "referential-list"
         },
         "contributionQualityGates": {
@@ -551,7 +557,7 @@
               },
               "assurance": {
                 "type": "string",
-                "x-help": "Optional confidence/severity threshold at which an AI result escalates to a human (declared only — not yet enforced)."
+                "x-help": "Optional confidence/severity threshold at which an AI result escalates to a human."
               },
               "statement": {
                 "type": "string",
@@ -653,17 +659,17 @@
               "applicabilityDeliverableNames"
             ]
           },
-          "x-help": "§9 Quality Gates (verifiable — §20)",
+          "x-help": "Quality Gates",
           "x-widget": "referential-list"
         },
         "incompatiblePackVersions": {
           "type": "string",
-          "x-help": "comma-separated incompatible pack codes/versions (§13)",
+          "x-help": "comma-separated incompatible pack codes/versions",
           "x-group": "compatibility"
         },
         "supportedPlatformVersion": {
           "type": "string",
-          "x-help": "target platform version (§8/§13)",
+          "x-help": "target platform version",
           "x-group": "compatibility"
         },
         "contributionAuthorityRules": {
@@ -682,12 +688,12 @@
               }
             }
           },
-          "x-help": "§9 Decision Rules",
+          "x-help": "Decision Rules",
           "x-widget": "referential-list"
         },
         "installationClassification": {
           "type": "string",
-          "x-help": "Pack installation classification (Ch.18 Ontology, concept type installation-classification)",
+          "x-help": "Pack installation classification",
           "x-group": "metadata",
           "x-widget": "referential-select",
           "x-ontology": true,
@@ -695,12 +701,12 @@
         },
         "maxSupportedPlatformVersion": {
           "type": "string",
-          "x-help": "maximum supported platform version, optional (§13)",
+          "x-help": "maximum supported platform version, optional",
           "x-group": "compatibility"
         },
         "minSupportedPlatformVersion": {
           "type": "string",
-          "x-help": "minimum supported platform version (§13)",
+          "x-help": "minimum supported platform version",
           "x-group": "compatibility"
         },
         "contributionEngineeringCapital": {
@@ -729,7 +735,7 @@
               "url"
             ]
           },
-          "x-help": "§9 Engineering Capital — Engineering Behaviour / Engineering Metrics / Reusable Components / Engineering Templates this Pack contributes. Minimal declaration for now: a type and a URL to the actual resource.",
+          "x-help": "Engineering Capital — Engineering Behaviour / Engineering Metrics / Reusable Components / Engineering Templates this Pack contributes. Minimal declaration for now: a type and a URL to the actual resource.",
           "x-widget": "referential-list"
         },
         "contributionObligationDefinitions": {
@@ -750,7 +756,7 @@
               },
               "origin": {
                 "type": "string",
-                "x-help": "Which kind of source raises this Obligation (Ch.23 §10). Declaration only — not yet wired to any automated raising mechanism beyond what already exists (Telemetry, Knowledge promotion).",
+                "x-help": "Which kind of source raises this Obligation.",
                 "x-ontology": true,
                 "x-referential": "category:obligation-origin"
               },
@@ -760,7 +766,7 @@
               },
               "category": {
                 "type": "string",
-                "x-help": "This Obligation's category (Ch.23 §7).",
+                "x-help": "This Obligation's category. Choose from existing or add a new one. Publishing is blocked until the new Ontology is approved.",
                 "x-ontology": true,
                 "x-referential": "category:obligation",
                 "x-ontology-composable": true
@@ -810,14 +816,14 @@
               },
               "requiredEvidence": {
                 "type": "object",
-                "x-help": "Ch.17 §8 — the type of evidence needed to satisfy/close this Obligation.",
+                "x-help": "Type of evidence needed to satisfy/close this Obligation.",
                 "properties": {
                   "title": {
                     "type": "string"
                   },
                   "category": {
                     "type": "string",
-                    "x-help": "Ch.17 §7.",
+                    "x-help": "Evidence type.",
                     "x-ontology": true,
                     "x-referential": "category:evidence"
                   },
@@ -861,7 +867,7 @@
                     },
                     "governingCondition": {
                       "type": "object",
-                      "x-help": "The real, machine-evaluated rule for whether this row currently triggers the Obligation. Left with no Type chosen, it defaults to always_true — the Obligation is raised whenever this row's name/transitions match, unconditionally (unchanged from migration 249). A chosen type narrows that: the Obligation is raised only when it evaluates true.",
+                      "x-help": "The real, machine-evaluated rule for whether this row currently triggers the Obligation. Left with no Type chosen, it defaults to always_true — the Obligation is raised whenever this row's name/transitions match, unconditionally. A chosen type narrows that: the Obligation is raised only when it evaluates true.",
                       "properties": {
                         "type": {
                           "enum": [
@@ -955,7 +961,7 @@
               "externalEvidence"
             ]
           },
-          "x-help": "§9 Obligation Definitions — a declared type of Obligation this Pack can raise. A real Obligation instance is created at SEU-execution time (Telemetry, Knowledge promotion, manual API); this is the definition only.",
+          "x-help": "Obligation Definitions — a declared type of Obligation this Pack can raise. A real Obligation instance is created at SEU-execution time.",
           "x-widget": "referential-list"
         }
       },
@@ -991,17 +997,17 @@
       "properties": {
         "code": {
           "type": "string",
-          "x-help": "A short, unique identifier for this canonical Policy (e.g. \"architecture-documentation-required\").",
+          "x-help": "Ontology identity code for this Policy.",
           "minLength": 1
         },
         "name": {
           "type": "string",
-          "x-help": "Display name, e.g. \"Architecture Documentation Required\".",
+          "x-help": "Display name.",
           "minLength": 1
         },
         "category": {
           "type": "string",
-          "x-help": "Ch.24 §7's own Policy category — independent of, and never needs to match, any Gate that references this Policy.",
+          "x-help": "Policy category — independent of, and never needs to match, any Gate that references this Policy.",
           "x-widget": "referential-select",
           "x-ontology": true,
           "x-referential-source": "category:policy"
@@ -1090,13 +1096,13 @@
       "properties": {
         "code": {
           "type": "string",
-          "x-help": "A short, unique identifier for this canonical Policy (e.g. \"architecture-documentation-required\").",
+          "x-help": "Ontology identity code for Policy.",
           "x-group": "metadata",
           "minLength": 1
         },
         "name": {
           "type": "string",
-          "x-help": "Display name, e.g. \"Architecture Documentation Required\".",
+          "x-help": "Display name.",
           "x-group": "metadata",
           "minLength": 1
         },
@@ -1106,13 +1112,13 @@
             "Eligibility"
           ],
           "type": "string",
-          "x-help": "CR-104. Transition (default) governs a real state hop — leave governedTransition blank to derive it from applicabilityDeliverableLifecycle (Deliverable, unchanged default), or set it directly for a non-Deliverable entity (e.g. an SEU's own transition). Eligibility governs Capability Fulfilment participant selection instead — no transition at all; governedTransition is ignored.",
+          "x-help": "Transition (default) governs a real state hop — leave governedTransition blank to derive it from applicabilityDeliverableLifecycle (Deliverable, unchanged default), or set it directly for a non-Deliverable entity (e.g. an SEU's own transition). Eligibility governs Capability Fulfilment participant selection instead — no transition at all; governedTransition is ignored.",
           "default": "Transition",
           "x-group": "metadata"
         },
         "category": {
           "type": "string",
-          "x-help": "Ch.24 §7's own Policy category — independent of, and never needs to match, any Gate that references this Policy.",
+          "x-help": "Policy category — independent of, and never needs to match, any Gate that references this Policy.",
           "x-group": "metadata",
           "x-widget": "referential-select",
           "x-ontology": true,
@@ -1147,7 +1153,7 @@
                   "properties": {
                     "duration": {
                       "type": "string",
-                      "x-help": "Ch.24 — how long this exception remains in effect, e.g. \"90 days\", \"Until next release\"."
+                      "x-help": "How long this exception remains in effect, e.g. \"90 days\", \"Until next release\"."
                     },
                     "identifier": {
                       "type": "string",
@@ -1156,7 +1162,7 @@
                     },
                     "exceptionScope": {
                       "type": "string",
-                      "x-help": "Ch.24 — what this exception applies to, e.g. \"This SEU only\", \"All Deliverables of type X\". Distinct from the Policy's own scope (Transition/Eligibility)."
+                      "x-help": "What this exception applies to, e.g. \"This SEU only\", \"All Deliverables of type X\". Distinct from the Policy's own scope (Transition/Eligibility)."
                     },
                     "exceptionApprovers": {
                       "type": "array",
@@ -1170,7 +1176,7 @@
                     },
                     "reviewRequirements": {
                       "type": "string",
-                      "x-help": "Ch.24 — what review this exception itself requires, e.g. a recurring check-in, a follow-up audit."
+                      "x-help": "What review this exception itself requires, e.g. a recurring check-in, a follow-up audit."
                     },
                     "exceptionComposition": {
                       "enum": [
@@ -1199,14 +1205,14 @@
               },
               "requiredEvidence": {
                 "type": "object",
-                "x-help": "Ch.17 §8 — the type of evidence needed to satisfy this condition.",
+                "x-help": "The type of evidence needed to satisfy this condition.",
                 "properties": {
                   "title": {
                     "type": "string"
                   },
                   "category": {
                     "type": "string",
-                    "x-help": "Ch.17 §7.",
+                    "x-help": "Evidence category.",
                     "x-ontology": true,
                     "x-referential": "category:evidence"
                   },
@@ -1239,13 +1245,13 @@
                     },
                     "origin": {
                       "type": "string",
-                      "x-help": "Ch.23 §10.",
+                      "x-help": "Origin of the obligation.",
                       "x-ontology": true,
                       "x-referential": "category:obligation-origin"
                     },
                     "category": {
                       "type": "string",
-                      "x-help": "Ch.23 §7.",
+                      "x-help": "Obligation category.",
                       "x-ontology": true,
                       "x-referential": "category:obligation"
                     },
@@ -1265,14 +1271,14 @@
                     },
                     "requiredEvidence": {
                       "type": "object",
-                      "x-help": "Ch.17 §8 — the type of evidence needed to satisfy/close this Obligation.",
+                      "x-help": "The type of evidence needed to satisfy/close this Obligation.",
                       "properties": {
                         "title": {
                           "type": "string"
                         },
                         "category": {
                           "type": "string",
-                          "x-help": "Ch.17 §7.",
+                          "x-help": "Evidence category.",
                           "x-ontology": true,
                           "x-referential": "category:evidence"
                         },
@@ -1308,7 +1314,7 @@
                     "requiredEvidence"
                   ]
                 },
-                "x-help": "Obligation Definitions this condition raises on violation (Ch.23's own Definition-side shape) — declaration only; the real Obligation instance is created at SEU-execution time."
+                "x-help": "Obligation Definitions this condition raises on violation."
               },
               "applicabilityDeliverables": {
                 "type": "array",
@@ -1342,7 +1348,7 @@
                     },
                     "governingCondition": {
                       "type": "object",
-                      "x-help": "The real, machine-evaluated rule for THIS deliverable/transition. Left with no Type chosen, it is manual/human-attested — never checked by the engine.",
+                      "x-help": "The real, machine-evaluated rule for this deliverable/transition. Left with no Type chosen, it is manual/human-attested — never checked by the engine.",
                       "properties": {
                         "type": {
                           "enum": [
@@ -1425,7 +1431,7 @@
               "exceptionRules"
             ]
           },
-          "x-help": "Ch.24 §8 — the independently-checkable predicates this Policy declares. Each condition carries its own applicability, its own severity, and its own governingCondition — a condition left without one is manual/human-attested, never engine-checked.",
+          "x-help": "Independently-checkable predicates this Policy declares. Each condition carries its own applicability, its own severity, and its own governingCondition — a condition left without one is manual/human-attested, never engine-checked.",
           "x-group": "governance",
           "x-widget": "referential-list"
         },
@@ -1517,14 +1523,14 @@
         },
         "domain": {
           "type": "string",
-          "x-help": "Ch.7 §10 Configuration Parameters. Unioned with composed Packs' own Domain competency values at EBM composition (CR-101).",
+          "x-help": "Configuration Parameters. Unioned with composed Packs' own Domain competency values at EBM composition.",
           "x-widget": "referential-select",
           "x-ontology": true,
           "x-referential-source": "domain"
         },
         "readme": {
           "type": "string",
-          "x-help": "Per-SEU README.md-style free-form field (CR-109) — anything not covered by a structured Configuration Parameter.",
+          "x-help": "Per-SEU README.md-style free-form field — anything not covered by a structured Configuration Parameter.",
           "x-widget": "textarea"
         },
         "description": {
@@ -1535,7 +1541,7 @@
         },
         "environment": {
           "type": "string",
-          "x-help": "Ch.7 §7 Environment.",
+          "x-help": "Environment.",
           "x-widget": "referential-select",
           "x-ontology": true,
           "x-referential-source": "category:environment",
@@ -1562,7 +1568,7 @@
               }
             }
           },
-          "x-help": "Packs categorised Domain",
+          "x-help": "Packs categorised Domain.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         },
@@ -1592,7 +1598,7 @@
         },
         "deploymentTargets": {
           "type": "object",
-          "x-help": "CI/CD-pickable deployment target specifics (Ch.7 §5) — distinct from Environment (development/staging/production): free-form JSON for now, so any pipeline-specific shape can be added without a schema change.",
+          "x-help": "CI/CD-pickable deployment target specifics — distinct from Environment (development/staging/production): free-form JSON for now, so any pipeline-specific shape can be added without a schema change.",
           "x-group": "metadata",
           "x-widget": "json"
         },
@@ -1614,20 +1620,20 @@
         },
         "compositionOptions": {
           "type": "object",
-          "x-help": "Declared for documentation today; not yet enforced by the Composition Engine (Ch.5 §19.9 treatment).",
+          "x-help": "Composition Options.",
           "x-group": "metadata",
           "x-widget": "json"
         },
         "deploymentStrategy": {
           "type": "string",
-          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-help": "Deployment strategy.",
           "x-widget": "referential-select",
           "x-ontology": true,
           "x-referential-source": "deployment-strategy"
         },
         "documentationLevel": {
           "type": "string",
-          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-help": "Documentation level.",
           "x-widget": "referential-select",
           "x-ontology": true,
           "x-referential-source": "documentation-level"
@@ -1636,26 +1642,25 @@
           "type": "array",
           "items": {
             "type": "object",
+            "required": [
+              "outputLocation"
+            ],
             "properties": {
-              "inputLocation": {
-                "type": "string"
-              },
-              "capabilityCode": {
-                "type": "string",
+              "deliverableCodes": {
+                "type": "array",
+                "x-multi": true,
                 "x-ontology": true,
-                "x-referential": "capability-name"
+                "x-referential": "deliverable-name",
+                "x-help": "The Deliverables this location holds, from the Base template's Deliverable catalogue."
               },
               "outputLocation": {
-                "type": "string"
-              },
-              "deliverableCode": {
                 "type": "string",
-                "x-ontology": true,
-                "x-referential": "deliverable-name"
+                "x-label": "Location",
+                "x-help": "Where the knowledge is kept, for example a SharePoint site or a GitHub repository."
               }
             }
           },
-          "x-help": "Ch.6 §13 / Ch.32 §7 Input/Output Knowledge Location, one entry per Deliverable or Capability that needs one (CR-109). Exactly one of deliverableCode/capabilityCode per entry.",
+          "x-help": "One entry per location. A location can hold several Deliverables.",
           "x-widget": "referential-list"
         },
         "compliancePackCodes": {
@@ -1672,13 +1677,13 @@
               }
             }
           },
-          "x-help": "Packs categorised Compliance",
+          "x-help": "Packs categorised Compliance.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         },
         "targetCloudProvider": {
           "type": "string",
-          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-help": "Target cloud provider.",
           "x-widget": "referential-select",
           "x-ontology": true,
           "x-referential-source": "target-cloud-provider"
@@ -1697,13 +1702,13 @@
               }
             }
           },
-          "x-help": "Packs categorised Technology",
+          "x-help": "Packs categorised Technology.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         },
         "aiProviderPreference": {
           "type": "string",
-          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-help": "AI provider preference.",
           "x-widget": "referential-select",
           "x-ontology": true,
           "x-referential-source": "ai-provider-preference"
@@ -1722,7 +1727,7 @@
               }
             }
           },
-          "x-help": "Packs categorised Engineering",
+          "x-help": "Packs categorised Engineering.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         },
@@ -1740,7 +1745,7 @@
               }
             }
           },
-          "x-help": "Packs categorised Integration",
+          "x-help": "Packs categorised Integration.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         },
@@ -1758,31 +1763,61 @@
               }
             }
           },
-          "x-help": "Packs categorised Organisation",
+          "x-help": "Packs categorised Organisation.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         },
+        "dispatchStrategyPreference": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "order": {
+                "type": "number"
+              },
+              "strategy": {
+                "type": "string",
+                "x-referential": "dispatch-strategy-preference"
+              }
+            }
+          },
+          "x-help": "Dispatch Strategies, tried in ascending order — the Dispatch Engine falls through to the next entry if a strategy finds no viable Participant.",
+          "x-widget": "referential-list"
+        },
+        "primaryProgrammingLanguage": {
+          "type": "string",
+          "x-help": "Primary programming language.",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "primary-programming-language"
+        },
         "redispatchMaxAttempts": {
           "type": "number",
-          "x-help": "Ch.33 §14 Redispatch — N. Maximum automatic retry attempts before Dispatch gives up and raises an Obligation. Must be greater than redispatchAttentionThreshold."
+          "default": 5,
+          "x-help": "Maximum automatic retry attempts before Dispatch gives up and raises an Obligation. Must be greater than redispatchAttentionThreshold."
+        },
+        "redispatchAttentionThreshold": {
+          "type": "number",
+          "default": 3,
+          "x-help": "Attempt number at which an informational Attention Item is raised (retries continue). Must be less than redispatchMaxAttempts."
         },
         "sourceControlProvider": {
           "type": "string",
-          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-help": "Source control provider.",
           "x-widget": "referential-select",
           "x-ontology": true,
           "x-referential-source": "source-control-provider"
         },
         "developmentMethodology": {
           "type": "string",
-          "x-help": "Ch.7 §10 Configuration Parameters. Ch.6 §13's own Development Methodology example (CR-088).",
+          "x-help": "Development methodology.",
           "x-widget": "referential-select",
           "x-ontology": true,
           "x-referential-source": "development-methodology"
         },
         "environmentConfiguration": {
           "type": "object",
-          "x-help": "Ch.7 §5/§10 Environment Configuration — free-form key/value pairs a CI/CD pipeline reads (e.g. SUPABASE_URL), never a closed vocabulary. Distinct from Environment (development/staging/production).",
+          "x-help": "Environment configuration — free-form key/value pairs a CI/CD pipeline reads (e.g. SUPABASE_URL), never a closed vocabulary. Distinct from Environment (development/staging/production).",
           "x-widget": "json"
         },
         "additionalCapabilityCodes": {
@@ -1800,7 +1835,7 @@
               }
             }
           },
-          "x-help": "Capabilities this Profile enables beyond whatever its base Template already requires (Ch.7 §5 Optional Capability Enablement) — the Profile-level escape hatch for a genuinely per-commissioning excess, so the Template itself never has to over-provision for the general case.",
+          "x-help": "Capabilities this Profile enables beyond whatever its base Template already requires — the Profile-level escape hatch for a genuinely per-commissioning excess, so the Template itself never has to over-provision for the general case.",
           "x-group": "metadata",
           "x-widget": "referential-list"
         },
@@ -1839,38 +1874,10 @@
         },
         "defaultRepositoryStructure": {
           "type": "string",
-          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-help": "Default Repository Structure.",
           "x-widget": "referential-select",
           "x-ontology": true,
           "x-referential-source": "default-repository-structure"
-        },
-        "dispatchStrategyPreference": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "order": {
-                "type": "number"
-              },
-              "strategy": {
-                "type": "string",
-                "x-referential": "dispatch-strategy-preference"
-              }
-            }
-          },
-          "x-help": "Ch.33 §9 Dispatch Strategies, tried in ascending order — the Dispatch Engine falls through to the next entry if a strategy finds no viable Participant.",
-          "x-widget": "referential-list"
-        },
-        "primaryProgrammingLanguage": {
-          "type": "string",
-          "x-help": "Ch.7 §10 Configuration Parameters.",
-          "x-widget": "referential-select",
-          "x-ontology": true,
-          "x-referential-source": "primary-programming-language"
-        },
-        "redispatchAttentionThreshold": {
-          "type": "number",
-          "x-help": "Ch.33 §14 Redispatch — M. Attempt number at which an informational Attention Item is raised (retries continue). Must be less than redispatchMaxAttempts."
         },
         "participatingOrganisationCodes": {
           "type": "array",
@@ -1887,7 +1894,7 @@
               }
             }
           },
-          "x-help": "Ch.7 §5/§12 Participating Organisations. No values exist yet — populated when multi-tenancy is implemented.",
+          "x-help": "Participating Organisations.",
           "x-widget": "referential-list"
         }
       },
@@ -1930,13 +1937,13 @@
       "properties": {
         "code": {
           "type": "string",
-          "x-help": "The Service's own canonical, Ontology-governed identity (service-name concept type) — independent of the Capability it aligns to, e.g. \"requirements-discovery-service\".",
+          "x-help": "Ontology identity code for this Service.",
           "x-group": "metadata",
           "minLength": 1
         },
         "name": {
           "type": "string",
-          "x-help": "Display name, e.g. \"Requirements Discovery Service\".",
+          "x-help": "Display name.",
           "x-group": "metadata",
           "minLength": 1
         },
@@ -1990,7 +1997,7 @@
           "items": {
             "type": "string"
           },
-          "x-help": "capability-name code(s) that consume this Service. Leave empty if consumed universally or by non-capability actors.",
+          "x-help": "capability-name code(s) that consumes this Service. Leave empty if consumed universally or by non-capability actors.",
           "x-group": "metadata",
           "x-widget": "referential-multi-select",
           "x-ontology": true,
@@ -2048,7 +2055,7 @@
               "units"
             ]
           },
-          "x-help": "The measurable expectations this Service declares for its own delivery (Ch.11 §8) — as many rows as needed.",
+          "x-help": "The measurable expectations this Service declares for its own delivery — as many rows as needed.",
           "x-group": "metadata",
           "x-widget": "referential-list"
         },
@@ -2122,7 +2129,7 @@
         },
         "code": {
           "type": "string",
-          "x-help": "Template category (Ch.18 Ontology, concept type template-categories; Ch.6 §8)",
+          "x-help": "Ontology identity code for this Template. Choose from existing or add a new one. Publishing is blocked until the new Ontology is approved.",
           "x-group": "metadata",
           "x-widget": "referential-select",
           "minLength": 1,
@@ -2176,7 +2183,7 @@
                   "decomposition"
                 ],
                 "type": "string",
-                "x-help": "Only meaningful for a Deliverable-type prerequisite (Ch.15 §12). Implementation/Decomposition carry over unchanged on Template Inheritance (a tenant may rename either end to their own specialised Deliverable, but not restructure the edge); Derivation is freely editable; plain Dependency is unrestricted, as today.",
+                "x-help": "Only meaningful for a Deliverable-type prerequisite. Implementation/Decomposition carry over unchanged on Template Inheritance (a tenant may rename either end to their own specialised Deliverable, but not restructure the edge); Derivation is freely editable; plain Dependency is unrestricted, as today.",
                 "default": "dependency"
               },
               "fromCapabilityCode": {
@@ -2212,7 +2219,7 @@
               }
             }
           },
-          "x-help": "Packs categorised Domain",
+          "x-help": "Packs categorised Domain.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         },
@@ -2274,7 +2281,7 @@
               }
             }
           },
-          "x-help": "Packs categorised Compliance",
+          "x-help": "Packs categorised Compliance.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         },
@@ -2292,7 +2299,7 @@
               }
             }
           },
-          "x-help": "Packs categorised Technology",
+          "x-help": "Packs categorised Technology.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         },
@@ -2331,7 +2338,7 @@
               }
             }
           },
-          "x-help": "Packs categorised Engineering",
+          "x-help": "Packs categorised Engineering.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         },
@@ -2349,7 +2356,7 @@
               }
             }
           },
-          "x-help": "Packs categorised Integration",
+          "x-help": "Packs categorised Integration.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         },
@@ -2367,7 +2374,7 @@
               }
             }
           },
-          "x-help": "Packs categorised Organisation",
+          "x-help": "Packs categorised Organisation.",
           "x-group": "packSelection",
           "x-widget": "referential-list"
         }
@@ -2430,17 +2437,17 @@
         },
         "requiredPolicyCodes": {
           "type": "array",
-          "x-help": "array of policies.code",
+          "x-help": "Policy codes.",
           "x-widget": "json"
         },
         "requiredQualityGateCodes": {
           "type": "array",
-          "x-help": "array of quality_gates.code — each gate's own (entityType, fromState, toState) must match this transition's",
+          "x-help": "Quality gate codes",
           "x-widget": "json"
         },
         "requiredAuthorityRuleCode": {
           "type": "string",
-          "x-help": "an authority_rules.code, or leave blank for none"
+          "x-help": "Authority rules codes"
         }
       }
     }

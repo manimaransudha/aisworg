@@ -3,7 +3,8 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { assertCanonicalCategory } from "./ontology.js";
+import { assertCanonicalCategory, listConceptsForType } from "./ontology.js";
+import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { CapabilityDefinitionRow, CapabilityRole } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
@@ -142,4 +143,33 @@ export async function listCapabilityDefinitionsWithNextStates(viewer?: { isRoot:
       return { capabilityDefinition, possibleNextStates: possibleNextStates ?? [] };
     })
   );
+}
+
+export interface CapabilityDefinitionViewData {
+  capabilityDefinition: CapabilityDefinitionRow;
+  labels: { category: Record<string, string>; roles: Record<string, string>; worktypes: Record<string, string> };
+  activeServiceId: string | null;
+}
+
+async function labelsFor(conceptType: string, viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string>> {
+  const concepts = await listConceptsForType(conceptType, viewer);
+  return Object.fromEntries(concepts.map((c) => [c.code, c.default_label]));
+}
+
+// One Capability Definition for the Registry view page, with the Ontology labels of its category, roles and worktypes.
+// Returns null when the row does not exist or is not visible to the viewer's tenant.
+export async function getCapabilityDefinitionView(id: string, viewer: { isRoot: boolean; tenantId: string | null }): Promise<CapabilityDefinitionViewData | null> {
+  const { data: row, error } = await capabilityDefinitionsDB.findById(id);
+  if (error) throw error;
+  if (!row) return null;
+  const platformTenantId = await getPlatformTenantId();
+  if (!viewer.isRoot && row.tenant_id !== platformTenantId && row.tenant_id !== viewer.tenantId) return null;
+  const [category, roles, worktypes] = await Promise.all([
+    labelsFor("category:capability", viewer),
+    labelsFor("role-name", viewer),
+    labelsFor("worktype-name", viewer),
+  ]);
+  const { data: service, error: serviceError } = await serviceDefinitionsDB.findActiveByCapabilityCodeVisibleTo(row.code, viewer.tenantId);
+  if (serviceError) throw serviceError;
+  return { capabilityDefinition: row, labels: { category, roles, worktypes }, activeServiceId: service?.id ?? null };
 }

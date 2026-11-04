@@ -1,5 +1,6 @@
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
+import { deliverableDefinitionsDB } from "../../dblayer/deliverableDefinitionsDB.js";
 import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
 import { participantsDB } from "../../dblayer/participantsDB.js";
 import { seusDB } from "../../dblayer/seusDB.js";
@@ -18,9 +19,7 @@ import { eventBus } from "./eventBus.js";
 import type { CommandRow, WorkItemExecutionContext, WorkItemRow } from "../../dblayer/seuTypes.js";
 
 interface KnowledgeLocationEntry {
-  deliverableCode?: string;
-  capabilityCode?: string;
-  inputLocation?: string;
+  deliverableCodes?: string[];
   outputLocation?: string;
 }
 
@@ -37,10 +36,9 @@ async function loadEbmPool(seuId: string): Promise<PoolEntry[]> {
   return (ebm?.behaviors as { pool?: PoolEntry[] } | null)?.pool ?? [];
 }
 
-function resolveKnowledgeLocation(pool: PoolEntry[], deliverableCode: string | null, capabilityCode: string | null): { inputLocation: string | null; outputLocation: string | null } {
+function resolveOutputLocation(pool: PoolEntry[], deliverableCode: string): string | null {
   const entries = (pool.find((e) => e.propertyName === "knowledgeLocations")?.value as KnowledgeLocationEntry[] | undefined) ?? [];
-  const match = (deliverableCode ? entries.find((e) => e.deliverableCode === deliverableCode) : undefined) ?? (capabilityCode ? entries.find((e) => e.capabilityCode === capabilityCode) : undefined);
-  return { inputLocation: match?.inputLocation ?? null, outputLocation: match?.outputLocation ?? null };
+  return entries.find((e) => (e.deliverableCodes ?? []).includes(deliverableCode))?.outputLocation ?? null;
 }
 
 function resolvePackContributedContent(pool: PoolEntry[], capabilityCode: string | null): { applicableChecklists: WorkItemExecutionContext["applicableChecklists"]; engineeringCapital: WorkItemExecutionContext["engineeringCapital"] } {
@@ -89,7 +87,10 @@ async function buildDeliverableExecutionContext(command: CommandRow): Promise<Wo
 
   const service = deliverable.producing_capability_id ? (await capabilitiesDB.findById(deliverable.producing_capability_id)).data ?? null : null;
   const pool = await loadEbmPool(command.seu_id);
-  const { inputLocation, outputLocation } = resolveKnowledgeLocation(pool, deliverable.code, service?.code ?? null);
+  const { data: seu } = await seusDB.findById(command.seu_id);
+  const { data: definition } = await deliverableDefinitionsDB.findActiveByCodeVisibleTo(deliverable.code, seu?.tenant_id ?? null);
+  const inputLocation = definition?.guide_location ?? null;
+  const outputLocation = resolveOutputLocation(pool, deliverable.code);
   const { applicableChecklists, engineeringCapital } = resolvePackContributedContent(pool, service?.code ?? null);
   const profileConfiguration = resolveProfileConfiguration(pool);
 

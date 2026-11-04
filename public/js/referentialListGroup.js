@@ -23,8 +23,11 @@
     if (addBtn) {
       addBtn.addEventListener('click', function () {
         var rows = group.querySelectorAll('.referential-list-row');
-        if (!rows.length) return;
-        var clone = rows[rows.length - 1].cloneNode(true);
+        var template = group.querySelector('[data-rl-template]');
+        if (!template) return;
+        var clone = template.cloneNode(true);
+        clone.removeAttribute('data-rl-template');
+        clone.classList.remove('d-none');
         var nextIndex = parseInt(group.getAttribute('data-next-index'), 10) || rows.length;
         clone.querySelectorAll('input, select, textarea').forEach(function (el) {
           if (el.name) el.name = el.name.replace(/\[\d+\]/, '[' + nextIndex + ']');
@@ -32,8 +35,6 @@
           else if (el.type === 'checkbox') el.checked = false;
           else el.value = '';
         });
-        var badge = clone.querySelector('.badge');
-        if (badge) { badge.className = 'badge bg-light text-muted border small fw-normal'; badge.textContent = 'New item — fill in to add'; }
         // The category filter resets to "All categories" above, but a
         // <select>'s `hidden` attribute on individual <option>s (left over
         // from whatever the cloned row's filter was last set to) isn't
@@ -150,8 +151,11 @@
       var group = addBtn.closest('.nested-list-group');
       if (!group) return;
       var rows = group.querySelectorAll('.nested-list-row');
-      if (!rows.length) return;
-      var clone = rows[rows.length - 1].cloneNode(true);
+      var template = group.querySelector('[data-nl-template]');
+      if (!template) return;
+      var clone = template.cloneNode(true);
+      clone.removeAttribute('data-nl-template');
+      clone.classList.remove('d-none');
       var nextIndex = parseInt(group.getAttribute('data-next-index'), 10) || rows.length;
       clone.querySelectorAll('input, select, textarea').forEach(function (el) {
         // Only the LAST bracket index is this nested list's own — the ones
@@ -162,8 +166,6 @@
         else if (el.type === 'checkbox') el.checked = false;
         else el.value = '';
       });
-      var badge = clone.querySelector('.badge');
-      if (badge) { badge.className = 'badge bg-light text-muted border small fw-normal'; badge.textContent = 'New item — fill in to add'; }
       // GoverningCondition-within-applicabilityDeliverables (migration 219)
       // — [data-show-when] one level BELOW this nested-list (a nested-object
       // inside a nested-list row) holds a sibling's own full input name,

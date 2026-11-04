@@ -23,10 +23,10 @@ COMMIT;
 --   FROM (VALUES
 --     ('GET',  '/aisworg/seu/demo',                                  ARRAY[]::text[],       ARRAY['participant']::text[]),
 --     ('POST', '/aisworg/seu/demo/reset',                            ARRAY[]::text[],       ARRAY['participant']::text[]),
---     ('POST', '/aisworg/seu/demo/scenarios/:code/run',              ARRAY[]::text[],       ARRAY['participant']::text[]),
---     ('POST', '/aisworg/seu/demo/playbooks/:code/step',             ARRAY[]::text[],       ARRAY['participant']::text[]),
+--     ('POST', '/aisworg/seu/demo/steps/:code/run',                  ARRAY[]::text[],       ARRAY['participant']::text[]),
+--     ('POST', '/aisworg/seu/demo/scenarios/:code/step',             ARRAY[]::text[],       ARRAY['participant']::text[]),
 --     ('GET',  '/aisworg/seu/demo/root',                             ARRAY['root']::text[], ARRAY[]::text[]),
---     ('POST', '/aisworg/seu/demo/root/scenarios/:code/enabled',     ARRAY['root']::text[], ARRAY[]::text[])
+--     ('POST', '/aisworg/seu/demo/root/steps/:code/enabled',         ARRAY['root']::text[], ARRAY[]::text[])
 --   ) AS v(method, path, badges, roles)
 --   JOIN users u ON lower(u.email) = lower('manimaransudha@gmail.com')
 --   JOIN participants_master pm ON pm.user_id = u.id

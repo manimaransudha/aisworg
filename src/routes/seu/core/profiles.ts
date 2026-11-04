@@ -70,9 +70,7 @@ export interface ExposedParameterOverride {
 }
 
 export interface KnowledgeLocation {
-  deliverableCode?: string;
-  capabilityCode?: string;
-  inputLocation?: string;
+  deliverableCodes?: string[];
   outputLocation?: string;
 }
 
@@ -270,16 +268,14 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
     if (!concept) errors.push(`participatingOrganisationCodes references unknown participating-organisations code "${code}"`);
   }
 
+  const { data: baseTemplate } = seed.baseTemplateCode?.trim() ? await templatesDB.findActiveByCode(seed.baseTemplateCode, ontologyViewer.tenantId) : { data: null };
+  const catalogueCodes = new Set((baseTemplate?.deliverable_catalogue ?? []).map((entry) => entry.code));
   for (const [i, loc] of (seed.knowledgeLocations ?? []).entries()) {
-    const hasDeliverable = !!loc.deliverableCode?.trim();
-    const hasCapability = !!loc.capabilityCode?.trim();
-    if (hasDeliverable === hasCapability) continue;
-    if (hasDeliverable) {
-      const { data: concept } = await ontologyDB.findConcept("deliverable-name", loc.deliverableCode!.trim(), ontologyViewer);
-      if (!concept) errors.push(`knowledgeLocations[${i}] references unknown deliverable-name code "${loc.deliverableCode}"`);
-    } else {
-      const { data: concept } = await ontologyDB.findConcept("capability-name", loc.capabilityCode!.trim(), ontologyViewer);
-      if (!concept) errors.push(`knowledgeLocations[${i}] references unknown capability-name code "${loc.capabilityCode}"`);
+    if (!loc.outputLocation?.trim()) errors.push(`knowledgeLocations[${i}] needs a location`);
+    for (const code of loc.deliverableCodes ?? []) {
+      const { data: concept } = await ontologyDB.findConcept("deliverable-name", code.trim(), ontologyViewer);
+      if (!concept) errors.push(`knowledgeLocations[${i}] references unknown deliverable-name code "${code}"`);
+      else if (baseTemplate && !catalogueCodes.has(code.trim())) errors.push(`knowledgeLocations[${i}] names "${code}", which is not in the Base template's Deliverable catalogue`);
     }
   }
 
@@ -318,12 +314,6 @@ export async function validateProfileOnSave(seed: ProfileSeedInput): Promise<str
     }
   }
 
-  for (const [i, loc] of (seed.knowledgeLocations ?? []).entries()) {
-    if (!!loc.deliverableCode?.trim() === !!loc.capabilityCode?.trim()) {
-      errors.push(`knowledgeLocations[${i}] must name exactly one of deliverableCode/capabilityCode`);
-    }
-  }
-
   const seenOrders = new Set<number>();
   for (const [i, entry] of (seed.dispatchStrategyPreference ?? []).entries()) {
     if (seenOrders.has(entry.order)) errors.push(`dispatchStrategyPreference[${i}] duplicates order ${entry.order} — each entry needs a distinct order`);
@@ -356,6 +346,9 @@ export async function validateOverrideValues(seed: ProfileSeedInput): Promise<st
   const candidates = await deriveOverridableParameterCandidates(seed.baseTemplateCode, seed.tenantId ?? (await getPlatformTenantId()));
   for (const row of seed.exposedParameterOverrides ?? []) {
     const candidate = candidates.find((c) => c.sourceType === row.sourceType && c.sourceCode === row.sourceCode && c.parameterName === row.parameterName);
+    if (candidate?.numeric && row.value.trim() !== "" && !Number.isFinite(Number(row.value))) {
+      errors.push(`exposedParameterOverrides "${row.parameterName}" has value "${row.value}" — must be a number`);
+    }
     if (candidate?.valueOptions && !candidate.valueOptions.includes(row.value)) {
       errors.push(`exposedParameterOverrides "${row.parameterName}" has value "${row.value}" — must be one of ${candidate.valueOptions.join(", ")}`);
     }

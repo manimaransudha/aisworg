@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .pv-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6c757d; margin-bottom: 0.15rem; }
+    .pv-markdown > :last-child { margin-bottom: 0; }
+    .pv-block { padding: 1.5rem 0; border-bottom: 2px solid #6c757d; }
+    .pv-block:first-child { padding-top: 0.5rem; }
+    .pv-block:last-child { border-bottom: 0; padding-bottom: 0.5rem; }
+    .pv-block > * + * { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <%
+      var esc = function (v) { return String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+      var isEmpty = function (v) { return v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0) || (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).filter(function (k) { return !isEmpty(v[k]); }).length === 0); };
+      var transitionLabel = function (t) { var p = String(t).split('|'); return p.length === 3 ? p[1] + ' → ' + p[2] : String(t); };
+      // One value of a field: Ontology codes show their display name, markdown renders, a transition reads "From → To".
+      var valueHtml = function (x, v) {
+        if (Array.isArray(v)) return v.map(function (e) { return '<div>' + valueHtml(x, e) + '</div>'; }).join('');
+        if (x.kind === 'boolean') return v === true || v === 'true' ? 'Yes' : 'No';
+        if (x.referentialSource === 'transition-definition') return esc(transitionLabel(v));
+        var name = x.ontology && labels[x.referentialSource] ? labels[x.referentialSource][v] : null;
+        if (name) return esc(name);
+        if (x.markdown && renderMarkdown) return '<div class="pv-markdown">' + renderMarkdown(String(v)) + '</div>';
+        return '<span style="white-space: pre-wrap;">' + esc(v) + '</span>';
+      };
+      var cell = function (x, v) { return isEmpty(v) ? '<span class="text-muted">—</span>' : valueHtml(x, v); };
+      var labelled = function (x, v) {
+        return isEmpty(v) ? '' : '<div><div class="pv-label">' + esc(x.label || x.name) + '</div><div>' + valueHtml(x, v) + '</div></div>';
+      };
+      var subFields = function (x) { return x.nestedItemFields || []; };
+      var byName = function (fields, name) { return fields.filter(function (x) { return x.name === name; })[0]; };
+      // A nested list as a table, one column per scalar field.
+      var tableHtml = function (x, list) {
+        var cols = subFields(x).filter(function (c) { return c.kind !== 'nested-object' && c.kind !== 'nested-list'; });
+        return '<div class="table-responsive"><table class="table table-sm align-top mb-0"><thead><tr>' +
+          cols.map(function (c) { return '<th scope="col">' + esc(c.label || c.name) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+          list.map(function (o) { return '<tr>' + cols.map(function (c) { return '<td>' + cell(c, o[c.name]) + '</td>'; }).join('') + '</tr>'; }).join('') +
+          '</tbody></table></div>';
+      };
+      // Required evidence: an indented section, the title in bold and the description muted.
+      var evidenceHtml = function (x, o) {
+        var fields = subFields(x);
+        var rest = fields.filter(function (f) { return f.name !== 'title' && f.name !== 'description' && !isEmpty(o[f.name]); });
+        return '<div class="border-start ps-3">' +
+          (o.title ? '<div class="fw-semibold">' + esc(o.title) + '</div>' : '') +
+          (o.description ? '<div class="small text-muted">' + (renderMarkdown ? renderMarkdown(String(o.description)) : esc(o.description)) + '</div>' : '') +
+          rest.map(function (f) { return '<div class="mt-1"><span class="pv-label me-2">' + esc(f.label || f.name) + '</span>' + valueHtml(f, o[f.name]) + '</div>'; }).join('') + '</div>';
+      };
+      // A condition's applicability deliverables: the deliverable kind, its transitions, and the condition that governs it as a sentence.
+      var applicabilityHtml = function (x, list) {
+        var fields = subFields(x);
+        var transitions = byName(fields, 'transitions');
+        return '<div class="table-responsive"><table class="table table-sm align-top mb-0"><thead><tr><th scope="col">Deliverable</th><th scope="col">Transitions</th><th scope="col">Governing condition</th></tr></thead><tbody>' +
+          list.map(function (o) {
+            var g = o.governingCondition || {};
+            var sentence = [g.field, g.operator, g.value || g.values].filter(function (p) { return !isEmpty(p); }).join(' ');
+            return '<tr><td>' + cell(byName(fields, 'name') || {}, o.name) + '</td><td>' + cell(transitions || {}, o.transitions) + '</td><td>' + (sentence ? esc(sentence) : '<span class="text-muted">—</span>') + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+      };
+
+      var inHeader = ['code', 'name'];
+      var tabs = [];
+      (groups.groups || []).forEach(function (g) {
+        var shown = g.fields.filter(function (f) { return inHeader.indexOf(f.name) === -1; });
+        if (shown.length) tabs.push({ id: g.key, label: g.label, fields: shown });
+      });
+    %>
+
+    <div class="mb-2">
+      <a href="/aisworg/seu/policy-definitions" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>All Policies</a>
+    </div>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-2 text-dark fw-bold">Policy Definition: <%= policy.name %></h2>
+      <div class="d-flex align-items-center gap-2">
+        <span class="state-badge state-<%= policy.status %>"><%= policy.status %></span>
+        <span class="small text-muted">v<%= policy.version %></span>
+        <code class="text-muted"><%= policy.code %></code>
+      </div>
+    </div>
+
+    <div class="row">
+    <div class="col-md-3 mb-3">
+    <div class="nav flex-column nav-pills" role="tablist" aria-orientation="vertical">
+      <% tabs.forEach(function (t, i) { %>
+        <button class="nav-link text-start<%= i === 0 ? ' active' : '' %>" id="policyview-tab-<%= t.id %>" data-bs-toggle="pill" data-bs-target="#policyview-pane-<%= t.id %>" type="button" role="tab"><%= t.label %></button>
+      <% }) %>
+    </div>
+    </div>
+
+    <div class="col-md-9">
+    <div class="tab-content">
+      <% tabs.forEach(function (t, i) { %>
+        <div class="tab-pane fade<%= i === 0 ? ' show active' : '' %>" id="policyview-pane-<%= t.id %>" role="tabpanel">
+          <div class="section-card">
+            <div class="section-header"><span class="lp-toggle-title"><%= t.label %></span></div>
+            <div class="p-3">
+              <% t.fields.forEach(function (f) { %>
+                <% if (f.name === 'conditions') { %>
+                  <% var _conditions = Array.isArray(content.conditions) ? content.conditions : []; %>
+                  <% if (_conditions.length === 0) { %>
+                    <div class="small text-muted">This Policy has no conditions.</div>
+                  <% } %>
+                  <% _conditions.forEach(function (cond) { %>
+                    <div class="pv-block">
+                      <div class="fw-semibold"><%- cell(byName(f.itemFields, 'statement') || {}, cond.statement) %></div>
+                      <%- labelled(byName(f.itemFields, 'severity') || {}, cond.severity) %>
+                      <% var _evidence = byName(f.itemFields, 'requiredEvidence'); %>
+                      <% if (_evidence && !isEmpty(cond.requiredEvidence)) { %>
+                        <div><div class="pv-label">Required evidence</div><%- evidenceHtml(_evidence, cond.requiredEvidence) %></div>
+                      <% } %>
+                      <% var _related = byName(f.itemFields, 'relatedObligations'); %>
+                      <% if (_related && !isEmpty(cond.relatedObligations)) { %>
+                        <div><div class="pv-label mb-1">Related obligations</div><%- tableHtml(_related, cond.relatedObligations) %></div>
+                      <% } %>
+                      <% var _exceptions = byName(f.itemFields, 'exceptionRules'); %>
+                      <% if (_exceptions && !isEmpty(cond.exceptionRules)) { %>
+                        <div><div class="pv-label mb-1">Exception rules</div><%- tableHtml(_exceptions, cond.exceptionRules) %></div>
+                      <% } %>
+                      <% var _applicability = byName(f.itemFields, 'applicabilityDeliverables'); %>
+                      <% if (_applicability && !isEmpty(cond.applicabilityDeliverables)) { %>
+                        <div><div class="pv-label mb-1">Applicability deliverables</div><%- applicabilityHtml(_applicability, cond.applicabilityDeliverables) %></div>
+                      <% } %>
+                    </div>
+                  <% }) %>
+                <% } else { %>
+                  <div class="mb-4">
+                    <div class="pv-label"><%= f.label %></div>
+                    <div><%- cell(f, f.kind === 'referential-multi-select' ? f.value : content[f.name]) %></div>
+                  </div>
+                <% } %>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+    </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

@@ -10,7 +10,7 @@ import {
   activatePackSupersedingPrevious, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource, packCodeVersionSummaries,
   type PackSeedInput,
 } from "./packs.js";
-import { activateTemplateSupersedingPrevious, validateTemplateOnSave, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
+import { activateTemplateSupersedingPrevious, validateTemplateOnSave, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, extractExposedParameters, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
 import { activateProfileSupersedingPrevious, validateProfileOnSave, validateProfileSeed, getProfilePackSelections, CONFIGURATION_PARAMETER_FIELDS, type ProfileSeedInput } from "./profiles.js";
 import {
   activateDeliverableDefinitionSupersedingPrevious, validateDeliverableDefinitionSeed,
@@ -154,6 +154,7 @@ export function toDeliverableDefinitionSeedInput(content: Record<string, unknown
   return {
     code: typeof content.code === "string" ? content.code : "",
     description: typeof content.description === "string" ? content.description : undefined,
+    guideLocation: typeof content.guideLocation === "string" ? content.guideLocation : undefined,
     definitionVersion: typeof content.definitionVersion === "string" && content.definitionVersion.trim() ? content.definitionVersion.trim() : INITIAL_VERSION,
   };
 }
@@ -584,6 +585,8 @@ export async function inheritedTemplateContent(parentTemplateId: string, viewerT
       purpose,
       ...Object.fromEntries(PACK_SELECTION_SLOTS.map((slot) => [slot.field, ((packSelections[slot.field as keyof PackSelectionsByCategory] as string[] | undefined) ?? []).map((packCode) => ({ packCode }))])),
       deliverableCatalogue: parent.deliverable_catalogue,
+      dependencyGraph: await getDependencyGraphContent(parent.id, parent.tenant_id),
+      exposedParameters: extractExposedParameters(parent.draft_content as Record<string, unknown> | null) ?? [],
     },
   };
 }
@@ -818,6 +821,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       if (!inherited.ok) return { ok: false, errors: [inherited.error] };
       if (!seed.code) seed.code = inherited.content.code as string;
       if (!seed.description) seed.description = inherited.content.description as string;
+      if (!seed.guideLocation) seed.guideLocation = inherited.content.guideLocation as string;
     }
     const validation = await validateDeliverableDefinitionSeed({ ...seed, tenantId, parentDeliverableDefinitionId: input.parentDeliverableDefinitionId }, undefined);
     if (!validation.ok) return { ok: false, errors: validation.errors };
@@ -827,6 +831,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     const { data: d, error } = await deliverableDefinitionsDB.createDraft({
       code: seed.code,
       description: seed.description ?? null,
+      guideLocation: seed.guideLocation?.trim() || null,
       version: seed.definitionVersion,
       status: birth.initialState as DeliverableDefinitionRow["status"],
       authoredBy: deliverableMaster.id,
@@ -1091,7 +1096,7 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     const seed = toDeliverableDefinitionSeedInput({ ...input.content });
     const validation = await validateDeliverableDefinitionSeed({ ...seed, tenantId: existing.tenant_id, parentDeliverableDefinitionId: existing.parent_deliverable_definition_id ?? undefined }, input.id);
     if (!validation.ok) return { ok: false, errors: validation.errors };
-    const { data, error } = await deliverableDefinitionsDB.updateDraftContent(input.id, { code: seed.code, description: seed.description ?? null, version: seed.definitionVersion, draftContent: input.content });
+    const { data, error } = await deliverableDefinitionsDB.updateDraftContent(input.id, { code: seed.code, description: seed.description ?? null, guideLocation: seed.guideLocation?.trim() || null, version: seed.definitionVersion, draftContent: input.content });
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
     const { data: deliverableSchema } = existing.schema_definition_id ? await schemaDefinitionsDB.findById(existing.schema_definition_id) : await schemaDefinitionsDB.findLatest("Deliverable");

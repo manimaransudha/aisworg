@@ -10,6 +10,8 @@ import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { listPolicyDefinitionsWithNextStates, copyPolicyDefinitionAsNewDraft } from "../core/policyDefinitions.js";
+import { getPolicyView } from "../core/policyView.js";
+import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
@@ -36,6 +38,7 @@ router.get("/policy-definitions", attachVM("seu/policy-definitions/index"), asyn
     req.vm.opt.states = POLICY_DEFINITION_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = await getPlatformTenantId();
+    req.vm.opt.tenantNameById = Object.fromEntries(((await tenantsDB.findAll()).data ?? []).map((t) => [t.id, t.name]));
     const held = await resolveHeldBadges(req);
     const canCopy = held.has("policy_define");
     req.vm.opt.canCopy = canCopy;
@@ -43,6 +46,25 @@ router.get("/policy-definitions", attachVM("seu/policy-definitions/index"), asyn
     return renderView(req, res, "seu/policy-definitions/index", req.vm);
   } catch (err) {
     logger.error("[web/seu/policyDefinitionRegistry] GET /policy-definitions error", err as Error);
+    next(err);
+  }
+});
+
+router.get("/policy-definitions/:id", attachVM("seu/policy-definitions/view"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const viewer = { isRoot: (req.session?.user?.platformBadges ?? []).includes("root"), tenantId: req.session?.user?.tenant_id ?? null };
+    const view = await getPolicyView(String(req.params.id), viewer);
+    if (!view) return redirects.seu.policyDefinitionsView.error(req, res, "Policy Definition not found.");
+    req.vm.req.title = `Policy Definition: ${view.policy.name}`;
+    req.vm.req.policy = view.policy;
+    req.vm.req.groups = view.groups;
+    req.vm.req.content = view.content;
+    req.vm.req.labels = view.labels;
+    req.vm.opt.renderMarkdown = renderMarkdown;
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/policy-definitions/view", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/policyDefinitionRegistry] GET /policy-definitions/:id error", err as Error);
     next(err);
   }
 });

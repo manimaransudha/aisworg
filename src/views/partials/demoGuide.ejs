@@ -1,0 +1,100 @@
+<%# Demo guide panel: follows the visitor across pages while a scenario is being followed. State comes from /aisworg/seu/demo/guide. %>
+<div id="demoGuide" class="section-card d-none" style="position: fixed; right: 1rem; bottom: 1rem; width: 36rem; max-width: calc(100vw - 2rem); z-index: 1050; margin: 0;">
+  <div class="section-header d-flex justify-content-between align-items-center" id="demoGuideHeader" role="button" tabindex="0">
+    <span class="lp-toggle-title" id="demoGuideTitle"></span>
+    <span class="d-flex align-items-center gap-2">
+      <span class="small text-muted fw-normal" id="demoGuideCount"></span>
+      <button type="button" class="btn-close" id="demoGuideClose" aria-label="Close guide"></button>
+    </span>
+  </div>
+  <div id="demoGuideBody" class="p-3 demo-text" style="max-height: 60vh; overflow-y: auto;">
+    <div class="fw-semibold" id="demoGuideStepTitle"></div>
+    <div id="demoGuideCopy"></div>
+    <div class="text-muted mt-2" id="demoGuideNote"></div>
+    <div class="mt-2" id="demoGuideMessage"></div>
+    <div class="mt-3 d-flex justify-content-end"><button type="button" class="btn btn-sm btn-primary" id="demoGuideAction"></button></div>
+  </div>
+</div>
+<script>
+(function () {
+  var panel = document.getElementById('demoGuide');
+  var base = '/aisworg/seu/demo/guide';
+  var el = function (id) { return document.getElementById(id); };
+  var collapsed = false;
+  try { collapsed = sessionStorage.getItem('demoGuideCollapsed') === '1'; } catch (e) {}
+
+  function render(guide) {
+    if (!guide) { panel.classList.add('d-none'); return; }
+    panel.classList.remove('d-none');
+    el('demoGuideTitle').innerHTML = guide.number + '. ' + guide.titleHtml;
+    el('demoGuideCount').textContent = guide.index + ' of ' + guide.total + ' done';
+    el('demoGuideBody').classList.toggle('d-none', collapsed);
+    var step = guide.step;
+    el('demoGuideBody').classList.toggle('demo-note', !!(step && step.note));
+    el('demoGuideStepTitle').innerHTML = step ? (step.note ? '' : (guide.index + 1) + '. ') + step.titleHtml : 'All steps are done.';
+    el('demoGuideNote').innerHTML = step && step.annotationHtml ? step.annotationHtml : '';
+    var copy = el('demoGuideCopy');
+    copy.textContent = '';
+    (step ? step.copy : []).forEach(function (c) {
+      var wrap = document.createElement('div');
+      wrap.className = 'mt-2';
+      var head = document.createElement('div');
+      head.className = 'd-flex justify-content-between align-items-center mb-1';
+      var label = document.createElement('span');
+      label.className = 'text-muted';
+      label.textContent = c.label;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-sm btn-outline-secondary';
+      btn.textContent = 'Copy';
+      var pre = document.createElement('pre');
+      pre.className = 'bg-light border rounded p-2 mb-0 small';
+      pre.textContent = c.text;
+      btn.addEventListener('click', function () {
+        if (navigator.clipboard) navigator.clipboard.writeText(c.text).then(function () { btn.textContent = 'Copied'; });
+      });
+      head.appendChild(label); head.appendChild(btn); wrap.appendChild(head); wrap.appendChild(pre); copy.appendChild(wrap);
+    });
+    var action = el('demoGuideAction');
+    action.textContent = !step ? 'Close' : (step.note ? 'Continue' : (step.visitor ? 'Done' : 'Run'));
+    action.className = 'btn btn-sm ' + (step && !step.visitor && !step.note ? 'btn-primary' : 'btn-outline-primary');
+    action.dataset.finished = step ? '' : '1';
+  }
+
+  function show(message, ok) {
+    var m = el('demoGuideMessage');
+    m.textContent = message || '';
+    m.className = 'mt-2 ' + (ok ? 'text-success' : 'text-danger');
+  }
+
+  function refresh() {
+    return fetch(base).then(function (r) { return r.ok ? r.json() : { guide: null }; }).then(function (d) { render(d.guide); });
+  }
+
+  el('demoGuideAction').addEventListener('click', function () {
+    if (this.dataset.finished) { return close(); }
+    var btn = this;
+    // Done and Continue only advance the guide; a message is shown for a failure or for a step the simulator ran.
+    var ran = btn.textContent === 'Run';
+    btn.disabled = true;
+    fetch(base + '/step', { method: 'POST' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { render(d.guide); if (window.demoPageRefresh) window.demoPageRefresh(); show(d.ok && !ran ? '' : (d.message || d.error), d.ok); })
+      .catch(function (e) { show(e.message, false); })
+      .then(function () { btn.disabled = false; });
+  });
+
+  function close() {
+    return fetch(base + '/close', { method: 'POST' }).then(function () { render(null); });
+  }
+  el('demoGuideClose').addEventListener('click', function (e) { e.stopPropagation(); close(); });
+  el('demoGuideHeader').addEventListener('click', function () {
+    collapsed = !collapsed;
+    try { sessionStorage.setItem('demoGuideCollapsed', collapsed ? '1' : '0'); } catch (e) {}
+    el('demoGuideBody').classList.toggle('d-none', collapsed);
+  });
+
+  window.demoGuide = { refresh: refresh };
+  refresh();
+})();
+</script>

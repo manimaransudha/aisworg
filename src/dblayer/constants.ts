@@ -7,6 +7,14 @@ import { participantsDB } from "./participantsDB";
 export const PLATFORM_TENANT_NAME = "Platform";
 export const DEMO_TENANT_NAME = "Demo";
 export const DEMO_AREAS = ["Declare", "Commission", "Execute"] as const;
+// The demo catalogue is edited on the Demo root page and kept across a reset, so the purge leaves these tables alone.
+export const DEMO_CATALOGUE_TABLES = ["demo_scenarios", "demo_steps", "demo_areas"] as const;
+// A scenario of this kind is a step the visitor performs in the application. It has no simulator handler; marking it done advances the goal.
+// The Demo root page tab that holds the step setup. It is a view of the step catalogue, not a demo area.
+export const DEMO_STEPS_TAB = "Steps";
+export const DEMO_VISITOR_STEP_KIND = "visitor-action";
+// A step of this kind is a standalone note between steps. It has no action; the description is the note text, and continuing past it advances the goal.
+export const DEMO_NOTE_STEP_KIND = "note";
 // The Demo tenant is reseeded every day at midnight in the US Pacific timezone (Pacific Standard or Daylight Time as in force).
 export const DEMO_RESET_CRON = "0 0 * * *";
 export const DEMO_RESET_TIMEZONE = "America/Los_Angeles";
@@ -61,6 +69,7 @@ export const SEU_OPERATIONAL_STATE = "Operational";
 export const SEU_FAILED_STATE = "Failed";
 export const CAPABILITY_ACTIVE_STATE = "Active";
 export const SERVICE_ACTIVE_STATE = "Active";
+export const DELIVERABLE_DEFINITION_ACTIVE_STATE = "Active";
 export const OBJECTIVE_ACTIVE_STATE = "Active";
 export const OBJECTIVE_RETIRED_STATE = "Retired";
 export const OBJECTIVE_REJECT_STATE = "Reject";
@@ -226,8 +235,6 @@ export const DEMO_PURGE_PLAN: readonly DemoPurgeStep[] = [
   { table: "compliance_frameworks", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
   { table: "decisions", scope: "seu" },
   { table: "deliverable_definitions", scope: "tenant" },
-  { table: "demo_playbooks", scope: "tenant" },
-  { table: "demo_scenarios", scope: "tenant" },
   { table: "ebms", scope: "seu" },
   { table: "events", scope: "tenant" },
   { table: "findings", scope: "seu" },

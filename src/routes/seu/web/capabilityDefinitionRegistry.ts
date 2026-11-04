@@ -9,8 +9,9 @@ import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
-import { listCapabilityDefinitionsWithNextStates, copyCapabilityDefinitionAsNewDraft } from "../core/capabilityDefinitions.js";
+import { listCapabilityDefinitionsWithNextStates, copyCapabilityDefinitionAsNewDraft, getCapabilityDefinitionView } from "../core/capabilityDefinitions.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
  
@@ -35,6 +36,7 @@ router.get("/capability-definitions", attachVM("seu/capability-definitions/index
     req.vm.opt.states = CAPABILITY_DEFINITION_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = (await getPlatformTenantId());
+    req.vm.opt.tenantNameById = Object.fromEntries(((await tenantsDB.findAll()).data ?? []).map((t) => [t.id, t.name]));
     const held = await resolveHeldBadges(req);
     const canCopy = held.has("capability_define");
     req.vm.opt.canCopy = canCopy;
@@ -42,6 +44,23 @@ router.get("/capability-definitions", attachVM("seu/capability-definitions/index
     return renderView(req, res, "seu/capability-definitions/index", req.vm);
   } catch (err) {
     logger.error("[web/seu/capabilityDefinitionRegistry] GET /capability-definitions error", err as Error);
+    next(err);
+  }
+});
+
+router.get("/capability-definitions/:id", attachVM("seu/capability-definitions/view"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const viewer = { isRoot: (req.session?.user?.platformBadges ?? []).includes("root"), tenantId: req.session?.user?.tenant_id ?? null };
+    const view = await getCapabilityDefinitionView(String(req.params.id), viewer);
+    if (!view) return redirects.seu.capabilityDefinitionsView.error(req, res, "Capability Definition not found.");
+    req.vm.req.title = `Capability Definition: ${view.capabilityDefinition.default_label}`;
+    req.vm.req.capability = view.capabilityDefinition;
+    req.vm.req.labels = view.labels;
+    req.vm.opt.activeServiceId = view.activeServiceId;
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/capability-definitions/view", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/capabilityDefinitionRegistry] GET /capability-definitions/:id error", err as Error);
     next(err);
   }
 });

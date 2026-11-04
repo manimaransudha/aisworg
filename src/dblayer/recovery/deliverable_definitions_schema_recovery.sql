@@ -4,6 +4,7 @@ CREATE TABLE deliverable_definitions (
   id                                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code                              TEXT NOT NULL,
   description                       TEXT,
+  guide_location                    TEXT,
   version                           TEXT NOT NULL DEFAULT '1.0.0',
   status                            TEXT NOT NULL,
   draft_content                     JSONB,

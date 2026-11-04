@@ -6,6 +6,7 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
+import { renderMarkdown, renderInlineMarkdown } from "../../../domain/sdk/markdownRender.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
 import { emailService } from "../../../domain/auth/emailService.js";
@@ -13,10 +14,12 @@ import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { DEMO_TENANT_NAME, DEMO_AREAS } from "../../../dblayer/constants.js";
+import { DEMO_TENANT_NAME, DEMO_AREAS, DEMO_VISITOR_STEP_KIND, DEMO_NOTE_STEP_KIND, DEMO_STEPS_TAB } from "../../../dblayer/constants.js";
 import type { TenantRow } from "../../../dblayer/seuTypes.js";
+import { resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
+import { listAreaContent, saveAreaContent, createStep, updateStep, createScenario, updateScenario, setScenarioEnabled } from "../core/demoCatalogue.js";
 import { getDemoActor } from "../../../dblayer/seed/demo/demoBadges.js";
-import { listAllScenarios, listPlaybooks, runScenario, setScenarioEnabled, stepPlaybook, resetDemo } from "../core/demoSimulator.js";
+import { listStepKinds, listAllSteps, listScenarios, runStep, setStepEnabled, advanceScenario, resetDemo, getGuide } from "../core/demoSimulator.js";
 
 // Every demo route is reachable only from the Demo tenant (root is always in reach).
 const demoTenantOnly = requireTenantScope.forParam<TenantRow>("demo", () => tenantsDB.findByName(DEMO_TENANT_NAME), (tenant) => tenant.id);
@@ -31,33 +34,54 @@ async function renderDemo(req: Request, res: Response, next: NextFunction, root:
   try {
     const { tenantId } = await getDemoActor();
     const area = DEMO_AREAS.find((a) => a === req.query.category) ?? DEMO_AREAS[0];
-    const catalogue = await listAllScenarios(tenantId);
-    const scenarios = (root ? catalogue : catalogue.filter((s) => s.enabled)).filter((s) => s.area === area);
+    const catalogue = await listAllSteps(tenantId);
+    const stepsTab = root && req.query.category === DEMO_STEPS_TAB;
+    const steps = stepsTab ? catalogue : (root ? catalogue : catalogue.filter((s) => s.enabled)).filter((s) => s.area === area);
     const byCode = new Map(catalogue.map((s) => [s.code, s]));
     const basePath = root ? rootPath : landingPath;
-    const params = parseListParams(req.query, { sortable: ["sortOrder", "code", "kind", "title", "severity"], defaultSort: "sortOrder", defaultDir: "asc" });
+    const params = parseListParams(req.query, { sortable: ["area", "code", "kind", "title"], defaultSort: "code", defaultDir: "asc" });
     req.vm.req.title = root ? "Demo Root" : "Demo";
     req.vm.req.root = root;
-    req.vm.req.playbooks = (await listPlaybooks(tenantId)).filter((p) => p.area === area).map((p) => ({
+    const areaContent = await listAreaContent(tenantId);
+    req.vm.req.areaContent = areaContent.map((a) => ({ area: a.area, stageTitle: a.stage_title, howToLead: a.how_to_lead, howToSteps: a.how_to_steps }));
+    req.vm.opt.kinds = listStepKinds();
+    req.vm.opt.noteKind = DEMO_NOTE_STEP_KIND;
+    req.vm.opt.stepsTab = stepsTab;
+    req.vm.opt.stepsTabName = DEMO_STEPS_TAB;
+    req.vm.opt.stepOptions = catalogue.map((s) => ({ code: s.code, title: s.title, area: s.area, description: s.description ?? "" }));
+    req.vm.req.scenarios = (await listScenarios(tenantId, { includeDisabled: root })).filter((p) => p.area === area).map((p) => ({
       code: p.code,
+      enabled: p.enabled,
+      sortOrder: p.sort_order,
+      playbook: p.playbook,
       title: p.title,
       progress: p.progress,
-      steps: p.steps.map((code) => byCode.get(code)).filter((s): s is NonNullable<typeof s> => !!s).map((s) => ({ title: s.title, annotation: s.annotation })),
+      done: p.playbook.slice(0, p.progress).filter((c) => byCode.get(c)?.kind !== DEMO_NOTE_STEP_KIND).length,
+      total: p.playbook.filter((c) => byCode.get(c)?.kind !== DEMO_NOTE_STEP_KIND).length,
+      steps: p.playbook.map((code) => byCode.get(code)).filter((s): s is NonNullable<typeof s> => !!s).map((s) => ({
+        code: s.code,
+        title: s.title,
+        annotation: s.annotation,
+        visitor: s.kind === DEMO_VISITOR_STEP_KIND,
+        note: s.kind === DEMO_NOTE_STEP_KIND,
+        copy: Array.isArray(s.payload.copy) ? (s.payload.copy as Array<{ label: string; text: string }>) : [],
+      })),
     }));
     req.vm.req.areas = DEMO_AREAS;
     req.vm.req.area = area;
-    req.vm.req.list = paginateList(scenarios, params, {
-      searchFields: [(s) => s.code, (s) => s.title, (s) => s.kind, (s) => s.description],
+    req.vm.req.list = paginateList(steps, params, {
+      searchFields: [(s) => s.area, (s) => s.code, (s) => s.title, (s) => s.kind, (s) => s.description],
       sortFields: {
-        sortOrder: (s) => s.sort_order,
+        area: (s) => s.area,
         code: (s) => s.code,
         kind: (s) => s.kind,
         title: (s) => s.title,
-        severity: (s) => s.severity,
       },
     });
-    req.vm.req.list.category = area;
+    req.vm.req.list.category = stepsTab ? DEMO_STEPS_TAB : area;
     req.vm.opt.listBasePath = basePath;
+    req.vm.opt.renderMarkdown = renderMarkdown;
+    req.vm.opt.renderInlineMarkdown = renderInlineMarkdown;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/demo/index", req.vm);
   } catch (err) {
@@ -71,6 +95,7 @@ router.get("/demo/root", attachVM("seu/demo/index"), (req: Request, res: Respons
 
 function backFor(req: Request): string {
   const base = req.body?.from === "root" ? rootPath : landingPath;
+  if (req.body?.from === "root" && req.body?.view === DEMO_STEPS_TAB) return `${rootPath}?category=${DEMO_STEPS_TAB}`;
   const area = DEMO_AREAS.find((a) => a === req.body?.category);
   return area ? `${base}?category=${area}` : base;
 }
@@ -102,31 +127,96 @@ router.post("/demo/contact", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/demo/scenarios/:code/run", async (req: Request, res: Response) => {
+router.post("/demo/steps/:code/run", async (req: Request, res: Response) => {
   const backTo = backFor(req);
-  const result = await runScenario(String(req.params.code), { allowDisabled: backTo.startsWith(rootPath) });
+  const result = await runStep(String(req.params.code), { allowDisabled: backTo.startsWith(rootPath) });
   return result.ok ? redirects.seu.demo.success(req, res, result.message, backTo) : redirects.seu.demo.error(req, res, result.message, backTo);
 });
 
-router.post("/demo/playbooks/:code/step", async (req: Request, res: Response) => {
+router.post("/demo/scenarios/:code/step", async (req: Request, res: Response) => {
   const backTo = backFor(req);
   try {
-    const result = await stepPlaybook(String(req.params.code));
+    const result = await advanceScenario(String(req.params.code));
     return result.ok ? redirects.seu.demo.success(req, res, result.finished ? `${result.message} All steps are done.` : result.message, backTo) : redirects.seu.demo.error(req, res, result.message, backTo);
   } catch (err) {
-    logger.error("[web/seu/demo] POST /demo/playbooks/:code/step error", err as Error);
+    logger.error("[web/seu/demo] POST /demo/scenarios/:code/step error", err as Error);
     return redirects.seu.demo.error(req, res, (err as Error).message, backTo);
   }
 });
 
-router.post("/demo/root/scenarios/:code/enabled", async (req: Request, res: Response) => {
+// Guide panel: the scenario the visitor is following is kept in the session, its progress in the Demo tenant.
+router.get("/demo/guide", async (req: Request, res: Response) => {
   try {
-    await setScenarioEnabled(String(req.params.code), req.body?.enabled === "true");
-    return redirects.seu.demoRootScenariosEnabled.success(req, res, `Scenario "${String(req.params.code)}" ${req.body?.enabled === "true" ? "enabled" : "disabled"}.`);
+    const code = req.session.demoGuide;
+    return res.json({ guide: code ? await getGuide(code) : null });
   } catch (err) {
-    logger.error("[web/seu/demo] POST /demo/root/scenarios/:code/enabled error", err as Error);
-    return redirects.seu.demoRootScenariosEnabled.error(req, res, (err as Error).message);
+    logger.error("[web/seu/demo] GET /demo/guide error", err as Error);
+    return res.status(500).json({ error: (err as Error).message });
   }
 });
+
+router.post("/demo/guide/start/:code", async (req: Request, res: Response) => {
+  try {
+    const guide = await getGuide(String(req.params.code));
+    if (!guide) return res.status(404).json({ error: `No scenario "${String(req.params.code)}".` });
+    req.session.demoGuide = guide.code;
+    return res.json({ guide });
+  } catch (err) {
+    logger.error("[web/seu/demo] POST /demo/guide/start error", err as Error);
+    return res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+router.post("/demo/guide/step", async (req: Request, res: Response) => {
+  try {
+    const code = req.session.demoGuide;
+    if (!code) return res.status(400).json({ error: "No scenario is being followed." });
+    const result = await advanceScenario(code);
+    return res.status(result.ok ? 200 : 422).json({ ok: result.ok, message: result.message, guide: await getGuide(code) });
+  } catch (err) {
+    logger.error("[web/seu/demo] POST /demo/guide/step error", err as Error);
+    return res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+router.post("/demo/guide/close", async (req: Request, res: Response) => {
+  try {
+    delete req.session.demoGuide;
+    return res.json({ guide: null });
+  } catch (err) {
+    logger.error("[web/seu/demo] POST /demo/guide/close error", err as Error);
+    return res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+router.post("/demo/root/steps/:code/enabled", async (req: Request, res: Response) => {
+  try {
+    await setStepEnabled(String(req.params.code), req.body?.enabled === "true");
+    return redirects.seu.demo.success(req, res, `Step "${String(req.params.code)}" ${req.body?.enabled === "true" ? "enabled" : "disabled"}.`, backFor(req));
+  } catch (err) {
+    logger.error("[web/seu/demo] POST /demo/root/steps/:code/enabled error", err as Error);
+    return redirects.seu.demo.error(req, res, (err as Error).message, backFor(req));
+  }
+});
+
+// Root edits the demo catalogue. Each route runs one core function and returns to the tab it came from.
+function rootEdit(run: (req: Request) => Promise<string>, label: string) {
+  return async (req: Request, res: Response) => {
+    const backTo = backFor(req);
+    try {
+      return redirects.seu.demo.success(req, res, await run(req), backTo);
+    } catch (err) {
+      logger.error(`[web/seu/demo] POST ${label} error`, err as Error);
+      return redirects.seu.demo.error(req, res, (err as Error).message, backTo);
+    }
+  };
+}
+
+router.post("/demo/root/areas/:area", rootEdit((req) => saveAreaContent({ ...req.body, category: String(req.params.area) }), "/demo/root/areas/:area"));
+router.post("/demo/root/scenarios", rootEdit(async (req) => createScenario(req.body ?? {}, await resolveActorAndBadge(req)), "/demo/root/scenarios"));
+router.post("/demo/root/scenarios/:code", rootEdit((req) => updateScenario(String(req.params.code), req.body ?? {}), "/demo/root/scenarios/:code"));
+router.post("/demo/root/scenarios/:code/enabled", rootEdit((req) => setScenarioEnabled(String(req.params.code), req.body?.enabled === "true"), "/demo/root/scenarios/:code/enabled"));
+router.post("/demo/root/steps", rootEdit(async (req) => createStep(req.body ?? {}, await resolveActorAndBadge(req)), "/demo/root/steps"));
+router.post("/demo/root/steps/:code", rootEdit((req) => updateStep(String(req.params.code), req.body ?? {}), "/demo/root/steps/:code"));
 
 export { router };

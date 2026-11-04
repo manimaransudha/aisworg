@@ -10,6 +10,7 @@ import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { listTemplatesWithNextStates, copyTemplateAsNewDraft } from "../core/templates.js";
+import { getTemplateView } from "../core/templateView.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
@@ -43,6 +44,7 @@ router.get("/templates", attachVM("seu/templates/index"), async (req: Request, r
     req.vm.opt.states = TEMPLATE_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = PLATFORM_TENANT_ID;
+    req.vm.opt.tenantNameById = Object.fromEntries(((await tenantsDB.findAll()).data ?? []).map((t) => [t.id, t.name]));
     const held = await resolveHeldBadges(req);
     const canCopy = held.has("template_define");
     req.vm.opt.canCopy = canCopy;
@@ -50,6 +52,27 @@ router.get("/templates", attachVM("seu/templates/index"), async (req: Request, r
     return renderView(req, res, "seu/templates/index", req.vm);
   } catch (err) {
     logger.error("[web/seu/templateRegistry] GET /templates error", err as Error);
+    next(err);
+  }
+});
+
+router.get("/templates/:id", attachVM("seu/templates/view"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const viewer = { isRoot: (req.session?.user?.platformBadges ?? []).includes("root"), tenantId: req.session?.user?.tenant_id ?? null };
+    const view = await getTemplateView(String(req.params.id), viewer);
+    if (!view) return redirects.seu.templatesView.error(req, res, "Template not found.");
+    req.vm.req.title = `Template: ${view.template.name}`;
+    req.vm.req.template = view.template;
+    req.vm.req.groups = view.groups;
+    req.vm.req.content = view.content;
+    req.vm.req.labels = view.labels;
+    req.vm.req.refs = view.refs;
+    req.vm.req.parameterSources = view.parameterSources;
+    req.vm.opt.graph = view.graph;
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/templates/view", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/templateRegistry] GET /templates/:id error", err as Error);
     next(err);
   }
 });

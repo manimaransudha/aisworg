@@ -64,6 +64,17 @@ const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "capability-authoring": "Capability",
 };
 
+// The CR-138 read-only view page of each grammar-authored kind; the list's View button links here.
+const VIEW_BASE_BY_KIND: Partial<Record<SchemaDefinitionEntityKind, string>> = {
+  Pack: "/aisworg/seu/packs",
+  Template: "/aisworg/seu/templates",
+  Profile: "/aisworg/seu/profiles",
+  Deliverable: "/aisworg/seu/deliverable-definitions",
+  Service: "/aisworg/seu/service-definitions",
+  Policy: "/aisworg/seu/policy-definitions",
+  Capability: "/aisworg/seu/capability-definitions",
+};
+
 function resolveKind(slug: string): SchemaDefinitionEntityKind | null {
   return KIND_BY_SLUG[slug] ?? null;
 }
@@ -151,6 +162,18 @@ async function tenantAuthoringRowsWithActions(kind: SchemaDefinitionEntityKind, 
   return rows.map((r) => ({ ...r, actions: actionsByStatus.get(r.status) ?? [] }));
 }
 
+router.get("/sdk/profile-parameter-overrides", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const baseTemplateCode = typeof req.query.baseTemplateCode === "string" ? req.query.baseTemplateCode.trim() : "";
+    const held = await resolveHeldBadges(req);
+    const poRows = await loadProfileParameterOverrideRows({ baseTemplateCode }, req.session?.user?.tenant_id ?? null);
+    return res.render("seu/sdk/_parameterOverrideRows", { poRows, canEdit: held.has(authoringBadge("Profile", "define")) });
+  } catch (err) {
+    logger.error("[web/seu/sdkAuthoring] GET /sdk/profile-parameter-overrides error", err as Error);
+    next(err);
+  }
+});
+
 router.get("/sdk/:slug", requireAuthoring(), attachVM("seu/sdk/authoring/index"), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
   const kind = resolveKind(slug);
@@ -164,10 +187,23 @@ router.get("/sdk/:slug", requireAuthoring(), attachVM("seu/sdk/authoring/index")
     req.vm.req.kindLabel = kind;
     req.vm.req.slug = slug;
     req.vm.req.showDrafts = grammarAuthored;
+    req.vm.opt.viewBase = VIEW_BASE_BY_KIND[kind] ?? null;
 
     if (grammarAuthored) {
-      req.vm.req.rows = await tenantAuthoringRowsWithActions(kind, requireActorId(req), isRoot, tenantId);
+      const params = parseListParams(req.query, { sortable: ["code", "name", "status", "created"], defaultSort: "code", defaultDir: "asc" });
+      const authoringRows = await tenantAuthoringRowsWithActions(kind, requireActorId(req), isRoot, tenantId);
+      const list = paginateList(authoringRows, params, {
+        searchFields: [(r) => r.code, (r) => r.name, (r) => r.status],
+        sortFields: { code: (r) => r.code, name: (r) => r.name, status: (r) => r.status, created: (r) => String(r.createdAt) },
+      });
+      req.vm.req.rows = list.items;
+      req.vm.opt.list = list;
+      req.vm.opt.listBasePath = `/aisworg/seu/sdk/${slug}`;
       req.vm.req.canCreate = held.has(authoringBadge(kind, "define"));
+      const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth(entityTypeForKind(kind));
+      if (birthError) throw birthError;
+      if (!birth) throw new Error(`no birth Transition Definition for ${kind}`);
+      req.vm.opt.editableStatus = birth.to_state;
     } else {
       req.vm.req.rows = [];
       req.vm.req.canCreate = false;
@@ -650,6 +686,8 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
       const templatePackCodes = Object.values(templatePackSelections).flatMap((codes) => codes ?? []);
       const templateCapabilityCodes = new Set(await deriveCapabilityCodesFromPackCodes(templatePackCodes));
       ontologyOptions["capability-name"] = (ontologyOptions["capability-name"] || []).filter((opt) => !templateCapabilityCodes.has(opt.code));
+      const catalogueCodes = new Set(baseTemplate.deliverable_catalogue.map((entry) => entry.code));
+      ontologyOptions["deliverable-name"] = (ontologyOptions["deliverable-name"] || []).filter((opt) => catalogueCodes.has(opt.code));
     }
   }
   req.vm.opt.ontologyOptions = ontologyOptions;

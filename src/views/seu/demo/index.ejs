@@ -19,37 +19,39 @@
     <% const _base = locals.listBasePath || '/aisworg/seu/demo'; %>
 
     <%
-      const _guides = {
-        Declare: {
-          lead: 'Declaration defines what the platform may build and under which rules. Everything declared is held in the registries.',
-          steps: [
-            { text: 'View the existing declarations under Registry in the navbar.' },
-            { text: 'Browse the declared <a href="/aisworg/seu/packs">Packs</a>, <a href="/aisworg/seu/templates">Templates</a> and <a href="/aisworg/seu/profiles">Profiles</a>.' },
-            { text: 'Author a new declaration from <a href="/aisworg/seu/sdk/pack-authoring">Pack authoring</a>. Action buttons appear only where your authority allows them.' },
-            { text: 'Try one of the goals below to see a declaration take effect.' }
-          ]
-        },
-        Commission: {
-          lead: 'Commissioning turns an Objective into a governed SEU, composed from the declarations.',
-          steps: [
-            { text: 'Review the existing <a href="/aisworg/seu/objectives">Objectives</a>, or <a href="/aisworg/seu/objectives/new">create a new one</a>.' },
-            { text: 'Open an Objective and compose its Engineering Behavior Model.' },
-            { text: 'Commission the SEU from the Objective, then open it from <a href="/aisworg/seu/seus">SEUs</a>.' },
-            { text: 'Or work through a goal below to commission one for you.' }
-          ]
-        },
-        Execute: {
-          lead: 'Execution moves Deliverables forward while Governance responds to what happens.',
-          steps: [
-            { text: 'Open a commissioned SEU from <a href="/aisworg/seu/seus">SEUs</a> and review its Deliverables and Work Items.' },
-            { text: 'Complete Work Items and watch Quality Gates and Obligations respond.' },
-            { text: 'Raise a Blocker, Risk or Finding, then convert or release it. Follow the outcome in <a href="/aisworg/seu/attention">Attention</a>.' },
-            { text: 'Or work through a goal below, one step at a time.' }
-          ]
-        }
+      const _content = areaContent.find(function(c) { return c.area === area; });
+      const _stageTitle = function(a) { const c = areaContent.find(function(x) { return x.area === a; }); return c ? c.stageTitle : ''; };
+      const _kinds = locals.kinds || [];
+      const _stepsTab = !!locals.stepsTab;
+      const _stepOptions = locals.stepOptions || [];
+      const stepsTabName = locals.stepsTabName;
+      const esc = function(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+      const _json = function(v) { return esc(JSON.stringify(v || {}, null, 2)); };
+      const hidden = '<input type="hidden" name="_csrf" value="' + esc(csrfToken) + '"><input type="hidden" name="from" value="root"><input type="hidden" name="' + (_stepsTab ? 'view' : 'category') + '" value="' + esc(_stepsTab ? stepsTabName : area) + '">';
+      const stepForm = function(s, action, isNew) {
+        const opts = _kinds.map(function(k) { return '<option value="' + esc(k) + '"' + (k === s.kind ? ' selected' : '') + '>' + esc(k) + '</option>'; }).join('');
+        return '<form method="POST" action="' + action + '" class="row g-2 small mt-1">' + hidden +
+          (isNew ? '<div class="col-md-6"><label class="form-label mb-0">Code</label><input name="code" class="form-control form-control-sm" required></div>' : '<div class="col-12"><label class="form-label mb-0">Code</label><input name="newCode" class="form-control form-control-sm font-monospace" value="' + esc(s.code) + '" required><div class="form-text">Changing the code also changes it in every scenario playbook that uses the step.</div></div>') +
+          (_stepsTab ? (isNew ? '<div class="col-md-6"><label class="form-label mb-0">Tab</label><select name="category" class="form-select form-select-sm" required>' + areas.map(function(a) { return '<option value="' + esc(a) + '">' + esc(a) + '</option>'; }).join('') + '</select></div>' : '<input type="hidden" name="category" value="' + esc(s.area) + '">') : '') +
+          '<div class="col-md-' + (isNew ? '6' : '12') + '"><label class="form-label mb-0">Kind</label><select name="kind" class="form-select form-select-sm" required>' + opts + '</select></div>' +
+          '<div class="col-12"><label class="form-label mb-0">Title</label><input name="title" class="form-control form-control-sm" value="' + esc(s.title) + '" required></div>' +
+          '<div class="col-12"><label class="form-label mb-0">Description</label><textarea name="description" rows="2" class="form-control form-control-sm">' + esc(s.description) + '</textarea></div>' +
+          '<div class="col-12"><label class="form-label mb-0">Annotation</label><textarea name="annotation" rows="2" class="form-control form-control-sm">' + esc(s.annotation) + '</textarea></div>' +
+          '<div class="col-md-6"><label class="form-label mb-0">Target (JSON)</label><textarea name="target" rows="5" class="form-control form-control-sm font-monospace">' + _json(s.target) + '</textarea></div>' +
+          '<div class="col-md-6"><label class="form-label mb-0">Payload (JSON)</label><textarea name="payload" rows="5" class="form-control form-control-sm font-monospace">' + _json(s.payload) + '</textarea></div>' +
+          '<div class="col-12"><button type="submit" class="btn btn-sm btn-primary">' + (isNew ? 'Create step' : 'Save step') + '</button></div></form>';
       };
-      const _stageTitles = { Declare: 'Engineering architecture', Commission: 'SEU commissioning', Execute: 'Execution' };
-      const _guide = _guides[area];
+      const scenarioForm = function(sc, action, isNew) {
+        return '<form method="POST" action="' + action + '" class="row g-2 small mt-1">' + hidden +
+          (isNew ? '<div class="col-md-6"><label class="form-label mb-0">Code</label><input name="code" class="form-control form-control-sm" required></div>' : '') +
+          '<div class="col-md-' + (isNew ? '6' : '9') + '"><label class="form-label mb-0">Title</label><input name="title" class="form-control form-control-sm" value="' + esc(sc.title) + '" required></div>' +
+          (isNew ? '' : '<div class="col-md-3"><label class="form-label mb-0">Order</label><input name="sortOrder" type="number" min="0" class="form-control form-control-sm" value="' + esc(sc.sortOrder) + '"></div>') +
+          '<div class="col-12"><label class="form-label mb-0">Add a step to the playbook</label><div class="input-group input-group-sm"><select class="form-select js-step-pick"><option value="">Choose a step</option>' +
+            _stepOptions.map(function(o) { return '<option value="' + esc(o.code) + '" data-description="' + esc(o.description) + '">' + esc(o.title) + ' (' + esc(o.code) + ', ' + esc(o.area) + ')</option>'; }).join('') +
+            '</select><button type="button" class="btn btn-outline-secondary js-step-add">Add</button></div><div class="form-text js-step-description"></div></div>' +
+          '<div class="col-12"><label class="form-label mb-0">Playbook: one step code per line, in order</label><textarea name="playbook" rows="6" class="form-control form-control-sm font-monospace" required>' + esc((sc.playbook || []).join('\n')) + '</textarea></div>' +
+          '<div class="col-12"><button type="submit" class="btn btn-sm btn-primary">' + (isNew ? 'Create scenario' : 'Save scenario') + '</button></div></form>';
+      };
     %>
 
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
@@ -68,14 +70,27 @@
       <% } %>
     </div>
 
-    <ul class="nav nav-tabs mb-4">
+    <div class="alert alert-info border-0 border-start border-4 border-info shadow-sm mb-4" role="note">
+      <div class="fw-bold mb-1"><i class="bi bi-info-circle me-2"></i>About this demo</div>
+      <div class="fs-6">The SEU Studio for a Demo tenant is setup for the ArchVault Public Library as they build their ArchVault Digital Shelf. The Digital Shelf should allow members to browse, borrow, return and wait-list ebooks on their mobiles.</div>
+    </div>
+
+    <ul class="nav nav-tabs demo-tabs mb-4">
       <% areas.forEach(function(a) { %>
         <li class="nav-item">
-          <a class="nav-link <%= a === area ? 'active' : '' %>" href="<%= _base %>?category=<%= a %>"><span class="fw-semibold"><%= a %></span> <span class="text-muted">· <%= _stageTitles[a] %></span></a>
+          <a class="nav-link <%= (a === area && !_stepsTab) ? 'active' : '' %>" href="<%= _base %>?category=<%= a %>"><span class="fw-semibold"><%= a %></span> <span class="text-muted">· <%= _stageTitle(a) %></span></a>
         </li>
       <% }); %>
+      <% if (root) { %>
+        <li class="nav-item">
+          <a class="nav-link <%= _stepsTab ? 'active' : '' %>" href="<%= _base %>?category=<%= stepsTabName %>"><span class="fw-semibold"><%= stepsTabName %></span> <span class="text-muted">· setup</span></a>
+        </li>
+      <% } %>
     </ul>
 
+    <% if (!_stepsTab) { %>
+
+    <% if (!root) { %>
     <div class="section-card">
       <div class="section-header collapsed d-flex justify-content-between align-items-center" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#howTo" aria-expanded="false" aria-controls="howTo">
         <span class="lp-toggle-title">How To</span>
@@ -83,52 +98,113 @@
       </div>
       <div id="howTo" class="collapse">
         <div class="p-3">
-          <p class="small text-muted mb-2"><%= _guide.lead %></p>
+          <p class="small text-muted mb-2"><%= _content.howToLead %></p>
           <ol class="small mb-0 ps-3">
-            <% _guide.steps.forEach(function(st) { %><li class="mb-1"><%- st.text %></li><% }); %>
+            <% _content.howToSteps.forEach(function(st) { %><li class="mb-1"><%- st.text %></li><% }); %>
           </ol>
         </div>
       </div>
     </div>
+    <% } %>
+
+    <% if (root) { %>
+    <div class="section-card">
+      <div class="section-header collapsed d-flex justify-content-between align-items-center" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#areaText" aria-expanded="false" aria-controls="areaText">
+        <span class="lp-toggle-title">Edit <%= area %> tab text</span>
+        <i class="bi bi-chevron-down" aria-hidden="true"></i>
+      </div>
+      <div id="areaText" class="collapse">
+        <form method="POST" action="/aisworg/seu/demo/root/areas/<%= area %>" class="p-3 row g-2 small">
+          <%- hidden %>
+          <div class="col-12"><label class="form-label mb-0">Stage title</label><input name="stageTitle" class="form-control form-control-sm" value="<%= _content.stageTitle %>" required></div>
+          <div class="col-12"><label class="form-label mb-0">How To lead</label><textarea name="howToLead" rows="2" class="form-control form-control-sm" required><%= _content.howToLead %></textarea></div>
+          <div class="col-12"><label class="form-label mb-0">How To steps: one per line, HTML links allowed</label><textarea name="howToSteps" rows="6" class="form-control form-control-sm font-monospace"><%= _content.howToSteps.map(function(x) { return x.text; }).join('\n') %></textarea></div>
+          <div class="col-12"><button type="submit" class="btn btn-sm btn-primary">Save tab text</button></div>
+        </form>
+      </div>
+    </div>
+    <% } %>
 
     <h2 class="h6 fw-bold text-uppercase text-muted mb-3">What do you want to try</h2>
-    <% if (playbooks.length === 0) { %>
+    <% if (root) { %>
+    <div class="section-card">
+      <div class="section-header collapsed d-flex justify-content-between align-items-center" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#newScenario" aria-expanded="false" aria-controls="newScenario">
+        <span class="lp-toggle-title">New scenario</span>
+        <i class="bi bi-chevron-down" aria-hidden="true"></i>
+      </div>
+      <div id="newScenario" class="collapse"><div class="p-3"><%- scenarioForm({}, '/aisworg/seu/demo/root/scenarios', true) %></div></div>
+    </div>
+    <% } %>
+    <% if (scenarios.length === 0) { %>
       <div class="section-card"><div class="p-3 small text-muted">Nothing to try for this area yet.</div></div>
     <% } %>
-    <% playbooks.forEach(function(pb) { %>
+    <% scenarios.forEach(function(pb, pbIndex) { %>
       <div class="section-card">
         <div class="section-header d-flex justify-content-between align-items-center">
-          <span class="lp-toggle-title"><%= pb.title %></span>
-          <span class="small text-muted fw-normal"><%= Math.min(pb.progress, pb.steps.length) %> of <%= pb.steps.length %> done</span>
+          <span class="lp-toggle-title flex-grow-1 collapsed" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#scenario-<%= pb.code %>" aria-expanded="false" aria-controls="scenario-<%= pb.code %>">
+            <i class="bi bi-chevron-down demo-chevron me-2" aria-hidden="true"></i><%= pbIndex + 1 %>. <%- renderInlineMarkdown(pb.title) %><% if (!pb.enabled) { %> <span class="badge text-bg-secondary fw-normal">Disabled</span><% } %>
+          </span>
+          <span class="d-flex align-items-center gap-3">
+            <% if (pb.progress >= pb.steps.length) { %><i class="bi bi-check-circle-fill text-success fs-5" title="Completed" aria-hidden="true"></i><span class="visually-hidden">Completed</span><% } %>
+            <span class="small text-muted fw-normal"><%= pb.done %> of <%= pb.total %> done</span>
+            <% if (root) { %>
+              <form method="POST" action="/aisworg/seu/demo/root/scenarios/<%= pb.code %>/enabled" class="mb-0">
+                <%- hidden %>
+                <input type="hidden" name="enabled" value="<%= pb.enabled ? 'false' : 'true' %>">
+                <button type="submit" class="btn btn-sm btn-outline-secondary"><%= pb.enabled ? 'Disable' : 'Enable' %></button>
+              </form>
+            <% } %>
+            <% if (pb.enabled && pb.progress < pb.steps.length) { %>
+              <button type="button" class="btn btn-sm btn-primary js-start-guide" data-code="<%= pb.code %>"><%= pb.progress === 0 ? 'Start guide' : 'Resume guide' %></button>
+            <% } %>
+          </span>
         </div>
+        <div id="scenario-<%= pb.code %>" class="collapse">
+        <% if (root) { %>
+          <details class="px-3 py-2 border-top">
+            <summary class="small text-primary" role="button">Edit scenario</summary>
+            <%- scenarioForm(pb, '/aisworg/seu/demo/root/scenarios/' + pb.code, false) %>
+          </details>
+        <% } %>
         <ol class="list-group list-group-flush list-unstyled mb-0">
           <% pb.steps.forEach(function(st, i) { %>
             <% const _done = i < pb.progress; const _next = i === pb.progress; %>
-            <li class="d-flex align-items-start gap-3 px-3 py-3 border-top <%= _next ? 'bg-light' : '' %>">
+            <li class="d-flex align-items-start gap-3 px-3 py-3 border-top <%= st.note ? 'demo-note' : (_next ? 'bg-light' : '') %>">
+              <% if (st.note) { %>
+              <span class="pt-1 demo-note-icon"><i class="bi bi-info-circle-fill" aria-hidden="true"></i></span>
+              <% } else { %>
               <span class="pt-1 <%= _done ? 'text-success' : (_next ? 'text-primary' : 'text-muted') %>">
                 <i class="bi bi-<%= _done ? 'check-circle-fill' : (_next ? 'play-circle-fill' : 'circle') %>" aria-hidden="true"></i>
                 <span class="visually-hidden"><%= _done ? 'Done' : (_next ? 'Next' : 'Waiting') %></span>
               </span>
-              <div class="flex-grow-1 small <%= (!_done && !_next) ? 'text-muted' : '' %>">
-                <div class="fw-semibold"><%= i + 1 %>. <%= st.title %></div>
-                <% if (st.annotation) { %><div class="text-muted"><%= st.annotation %></div><% } %>
-              </div>
-              <% if (_next) { %>
-                <form method="POST" action="/aisworg/seu/demo/playbooks/<%= pb.code %>/step" class="mb-0 flex-shrink-0">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <input type="hidden" name="from" value="<%= _from %>">
-                  <input type="hidden" name="category" value="<%= area %>">
-                  <button type="submit" class="btn btn-sm btn-primary">Run</button>
-                </form>
               <% } %>
+              <div class="flex-grow-1 demo-text <%= (!_done && !_next) ? 'text-muted' : '' %>">
+                <% if (st.note) { %>
+                  <div class="fw-semibold"><%- renderInlineMarkdown(st.title) %></div>
+                  <% if (st.annotation) { %><div class="text-muted demo-annotation"><%- renderMarkdown(st.annotation) %></div><% } %>
+                <% } else { %>
+                <div class="fw-semibold"><%= pb.steps.slice(0, i).filter(function(x) { return !x.note; }).length + 1 %>. <%- renderInlineMarkdown(st.title) %></div>
+                <% if (st.annotation) { %><div class="text-muted demo-annotation"><%- renderMarkdown(st.annotation) %></div><% } %>
+                <% } %>
+              </div>
             </li>
           <% }); %>
         </ol>
+        </div>
       </div>
     <% }); %>
+    <% } %>
 
-    <% if (root) { %>
+    <% if (_stepsTab) { %>
     <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search code / title / kind' }) %>
+
+    <div class="section-card">
+      <div class="section-header collapsed d-flex justify-content-between align-items-center" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#newStep" aria-expanded="false" aria-controls="newStep">
+        <span class="lp-toggle-title">New step</span>
+        <i class="bi bi-chevron-down" aria-hidden="true"></i>
+      </div>
+      <div id="newStep" class="collapse"><div class="p-3"><%- stepForm({ kind: _kinds[0] }, '/aisworg/seu/demo/root/steps', true) %></div></div>
+    </div>
 
     <div class="section-card">
       <div class="section-header">Steps</div>
@@ -136,39 +212,44 @@
         <table class="table table-sm mb-0 align-middle">
           <thead class="table-light">
             <tr>
-              <th><%- sortLink('Order', 'sortOrder', list, _base) %></th>
+              <th><%- sortLink('Tab', 'area', list, _base) %></th>
               <th><%- sortLink('Kind', 'kind', list, _base) %></th>
               <th><%- sortLink('Title', 'title', list, _base) %></th>
-              <th><%- sortLink('Severity', 'severity', list, _base) %></th>
               <th>Run</th>
               <% if (root) { %><th>Enabled</th><% } %>
             </tr>
           </thead>
           <tbody>
             <% if (list.total === 0) { %>
-              <tr><td colspan="<%= root ? 6 : 5 %>" class="text-muted small"><%= list.q ? 'No scenarios match your search.' : 'No scenarios are available for this area. Reset the demo data to load them.' %></td></tr>
+              <tr><td colspan="5" class="text-muted small"><%= list.q ? 'No steps match your search.' : 'No steps are available. Reset the demo data to load them.' %></td></tr>
             <% } %>
             <% list.items.forEach(function(s) { %>
               <tr>
-                <td class="small text-muted"><%= s.sort_order %></td>
+                <td class="small"><%= s.area %></td>
                 <td class="small"><%= s.kind %></td>
                 <td class="small">
-                  <div class="fw-semibold"><%= s.title %></div>
+                  <div class="fw-semibold"><%- renderInlineMarkdown(s.title) %></div>
                   <% if (s.description) { %><div class="text-muted"><%= s.description %></div><% } %>
+                  <details class="mt-1">
+                    <summary class="text-primary" role="button">Edit step <%= s.code %></summary>
+                    <%- stepForm(s, '/aisworg/seu/demo/root/steps/' + s.code, false) %>
+                  </details>
                 </td>
-                <td class="small"><%= s.severity || '—' %></td>
                 <td>
-                  <form method="POST" action="/aisworg/seu/demo/scenarios/<%= s.code %>/run" class="mb-0">
+                  <form method="POST" action="/aisworg/seu/demo/steps/<%= s.code %>/run" class="mb-0">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <input type="hidden" name="from" value="<%= _from %>">
-                    <input type="hidden" name="category" value="<%= area %>">
-                    <button type="submit" class="btn btn-sm btn-primary">Run</button>
+                    <input type="hidden" name="category" value="<%= s.area %>">
+                    <input type="hidden" name="view" value="<%= stepsTabName %>">
+                    <% if (s.kind !== locals.noteKind) { %><button type="submit" class="btn btn-sm btn-primary">Run</button><% } %>
                   </form>
                 </td>
                 <% if (root) { %>
                   <td>
-                    <form method="POST" action="/aisworg/seu/demo/root/scenarios/<%= s.code %>/enabled" class="mb-0">
+                    <form method="POST" action="/aisworg/seu/demo/root/steps/<%= s.code %>/enabled" class="mb-0">
                       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="from" value="<%= _from %>">
+                      <input type="hidden" name="view" value="<%= stepsTabName %>">
                       <input type="hidden" name="enabled" value="<%= s.enabled ? 'false' : 'true' %>">
                       <button type="submit" class="btn btn-sm btn-outline-secondary"><%= s.enabled ? 'Disable' : 'Enable' %></button>
                     </form>
@@ -204,6 +285,48 @@
       </form>
     </div>
   </div>
+
+  <script>
+    document.querySelectorAll('.js-step-pick').forEach(function (select) {
+      select.addEventListener('change', function () {
+        var option = select.options[select.selectedIndex];
+        select.closest('form').querySelector('.js-step-description').textContent = option.dataset.description || '';
+      });
+    });
+    document.querySelectorAll('.js-step-add').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var form = btn.closest('form');
+        var code = form.querySelector('.js-step-pick').value;
+        if (!code) return;
+        var area = form.querySelector('textarea[name="playbook"]');
+        area.value = area.value.trim() ? area.value.replace(/\s+$/, '') + '\n' + code : code;
+      });
+    });
+        // The scenario list is rendered on the server, so after the guide advances the page is reloaded; the open panels are kept.
+    var openKey = 'demoOpenScenarios';
+    window.demoPageRefresh = function () {
+      var open = Array.prototype.map.call(document.querySelectorAll('.collapse.show[id^="scenario-"]'), function (e) { return e.id; });
+      try { sessionStorage.setItem(openKey, JSON.stringify(open)); } catch (e) {}
+      window.location.reload();
+    };
+    try {
+      JSON.parse(sessionStorage.getItem(openKey) || '[]').forEach(function (id) {
+        var panel = document.getElementById(id);
+        var toggle = document.querySelector('[data-bs-target="#' + id + '"]');
+        if (panel) panel.classList.add('show');
+        if (toggle) { toggle.classList.remove('collapsed'); toggle.setAttribute('aria-expanded', 'true'); }
+      });
+      sessionStorage.removeItem(openKey);
+    } catch (e) {}
+    document.querySelectorAll('.js-start-guide').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var panel = document.getElementById('scenario-' + btn.dataset.code);
+        if (panel && !panel.classList.contains('show')) bootstrap.Collapse.getOrCreateInstance(panel).show();
+        fetch('/aisworg/seu/demo/guide/start/' + encodeURIComponent(btn.dataset.code), { method: 'POST' })
+          .then(function () { return window.demoGuide && window.demoGuide.refresh(); });
+      });
+    });
+  </script>
 
   <%- include('../../partials/footer') %>
 </body>

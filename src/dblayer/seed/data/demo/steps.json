@@ -1,0 +1,3239 @@
+[
+  {
+    "code": "open-ontology",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "View the Ontology",
+    "description": "Open Ontology and browse the different concepts.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Ontology</span>  and browse the different terminology. Terms are grouped together as concepts. \n\nFor example, Capability lists the names, codes, categories, roles etc. that characterise a Capability.",
+    "enabled": true,
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/ontology"
+        }
+      ]
+    }
+  },
+  {
+    "code": "propose-ontology-code",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Propose a new code",
+    "description": "Add a new code under a concept type.",
+    "annotation": "Under the concept type, enter a code and a label, then choose Add. A new code is a proposal until the Ontology Manager approves it. Approval is not part of this demo: the Ontology Manager reviews each proposed code and decides whether it becomes canonical.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/ontology/add"
+        }
+      ]
+    }
+  },
+  {
+    "code": "review-ontology-approvals",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Find the pending code",
+    "description": "Open Ontology Approvals and find the pending code.",
+    "annotation": "Open Ontology Approvals and find the code you proposed. This is where the Ontology Manager decides which codes become canonical.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/ontology/approvals"
+        }
+      ]
+    },
+    "enabled": false
+  },
+  {
+    "code": "approve-ontology-code",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Approve the code",
+    "description": "Approve the pending code.",
+    "annotation": "Choose Approve on the pending code. Approval makes the code canonical, so Packs that use it can be published.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/ontology/approvals/approve"
+        }
+      ]
+    },
+    "enabled": false
+  },
+  {
+    "code": "reject-ontology-code",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Reject the code",
+    "description": "Reject a pending code with a reason.",
+    "annotation": "Enter a reason on the pending code and choose Reject. A rejected code is not canonical, and the reason tells the author what to change.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/ontology/approvals/reject"
+        }
+      ]
+    },
+    "enabled": false
+  },
+  {
+    "code": "compose-ontology-code",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Compose a code from an existing code",
+    "description": "Compose a code from an existing code.",
+    "annotation": "Choose Compose, select the source code, choose specialization or override, enter the new code and choose Compose. A composed code builds on an existing one, so the vocabulary grows without starting again.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/ontology/compose"
+        }
+      ]
+    }
+  },
+  {
+    "code": "ontology-what-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Ontology provides the semantic foundation for the platform",
+    "description": "What is Ontology - note",
+    "annotation": "Ontology defines the shared semantic vocabulary used by a Software Engineering Unit (SEU). Its purpose is to ensure that all Participants, Deliverables, Knowledge, Evidence, Decisions and Packs operate using a common understanding of engineering concepts.\n\n<span style=\"color: red\">Tenants can override Platform Ontology or define new ones. Demo does not allow this feature.</span>",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "find-pack-in-registry-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "The Registry lists every declared Pack",
+    "description": "Find the Pack in the Registry - note",
+    "annotation": "A Pack carries the practice an organisation chooses to follow. A Template / Profile selects the Packs it uses.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "find-pack-in-registry",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Find the Pack in the Registry",
+    "description": "Open Registry, then Packs, and find the Pack.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Packs</span>. \n\nPacks are grouped into different categories. You can also view them grouped in different states.\n\nPacks can contribute to Capabilites, Services etc. They can also be declared as independent behaviors that can be added to Templates/Profiles.\n\n**Example**: \n- C Engineering Practices Pack contributes to \"Constructing software systems \" and \"Reviewing engineering work \" Capabilities.\n- Banking, Payments & Capital Markets Domain Practices Pack is an independent Pack that can be added to any Template/Profile used for delivering software in the Banking domain.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/packs"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-pack-authoring-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A Pack is the **fundamental unit of extension** within the Platform.",
+    "description": "Open Pack Authoring - note",
+    "annotation": "Packs enable organisations to tailor SEUs to specific engineering practices, standards, policies, business domains, technologies, compliance requirements and integration environments while preserving architectural stability.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-pack-authoring",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Open Pack Authoring",
+    "description": "Open SDK / Pack Authoring and choose New Pack.",
+    "annotation": "In the navbar, open SDK / Authoring and choose Pack Authoring. Choose New Pack. Entered information has to comply to the Pack Schema so it can be converted to a computable configuration.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/pack-authoring"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/pack-authoring/new"
+        }
+      ]
+    }
+  },
+  {
+    "code": "create-pack-draft-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A new Pack starts as a Draft",
+    "description": "Create the draft - note",
+    "annotation": "A Pack is created as a Draft. It has no effect until it is validated and published.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "create-pack-draft",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Create the draft",
+    "description": "Enter code, name, category, version and classification, then create the draft.",
+    "annotation": "Enter a code, a name, a category, a version and an installation classification. Choose Create draft. A new Pack starts as a Draft.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/pack-authoring"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/pack-authoring/00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/pack-authoring/00000000-0000-0000-0000-000000000000/save"
+        }
+      ]
+    }
+  },
+  {
+    "code": "import-pack-contributions-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Contributions give the Pack its content",
+    "description": "Add the contributions - note",
+    "annotation": "Contributions are the checklists, Obligations and other definitions that a Pack adds. A JSON document can supply them together.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "import-pack-contributions",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Add the contributions",
+    "description": "Paste a Pack document into the JSON import card and import it.",
+    "annotation": "On the draft, find the JSON import card. Paste the Pack document and choose Import. The contributions give the Pack its content.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/pack-authoring/00000000-0000-0000-0000-000000000000/import"
+        }
+      ]
+    }
+  },
+  {
+    "code": "compose-pack-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A Pack can be composed from existing Packs",
+    "description": "Pack composition - note",
+    "annotation": "Composition builds a new Pack from existing Packs by a Composition Strategy, such as Specialization (an exact copy of one parent), Merge, Union or Override. The result is a starting point for the draft, not a lock.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "compose-pack",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Compose the Pack from source Packs",
+    "description": "Choose a Composition Strategy and the source Pack(s) on the draft, save, then choose Compose from sources.",
+    "annotation": "On the draft, choose a Composition Strategy and one or more source Packs, and save. Then choose Compose from sources. The draft is pre-filled from the sources. Review the result and edit it as needed.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/pack-authoring/00000000-0000-0000-0000-000000000000/save"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/pack-authoring/00000000-0000-0000-0000-000000000000/compose"
+        }
+      ]
+    }
+  },
+  {
+    "code": "validate-pack-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Validation checks the Pack before it is published",
+    "description": "Validate the Pack - note",
+    "annotation": "Validation checks that the Pack is complete and consistent. A Pack with a new code waits at Validated until the Ontology accepts the code.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "validate-pack",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Validate the Pack",
+    "description": "Validate the Pack.",
+    "annotation": "Choose Validate Pack. Validation checks that the Pack is complete and consistent.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/pack-authoring/00000000-0000-0000-0000-000000000000/transition"
+        }
+      ]
+    }
+  },
+  {
+    "code": "publish-pack-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Publishing makes the Pack available",
+    "description": "Publish the Pack - note",
+    "annotation": "A published Pack is Active and can be selected by a Profile.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "publish-pack",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Publish the Pack",
+    "description": "Publish the Pack.",
+    "annotation": "Choose Publish. A published Pack is Active and can be selected by a Profile.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/pack-authoring/00000000-0000-0000-0000-000000000000/publish"
+        }
+      ]
+    }
+  },
+  {
+    "code": "browse-templates-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A Template is the engineering blueprint for delivering software",
+    "description": "Find the Template in the Registry - note",
+    "annotation": "A Template groups the typical processes that a type of work needs, such as the domain, compliance and technology Packs. A Profile is built on a Template. Templates describe the engineering structure required  and the default engineering assets that should be available when the SEU is commissioned.\n\nArchVault Digital Shelf is meant for mobiles. Check the Template Registry for a mobile platform development.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "browse-templates",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Find the Template in the Registry",
+    "description": "Open Registry, then Templates and find the Template.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Template Registry</span>. Each card shows the Template and the Packs it composes.\n\n Search for mobile and view the ",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/templates"
+        }
+      ]
+    }
+  },
+  {
+    "code": "copy-template-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Copying starts a new Draft from an existing Template",
+    "description": "Copy the Template - note",
+    "annotation": "Copy is the quickest way to derive a Template. The new Draft starts with the same content and can be changed before it is published.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "copy-template",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Copy the Template",
+    "description": "Copy an existing Template into a new draft.",
+    "annotation": "Choose Copy on the Template. A new Draft is created from it and opens for editing.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/templates/00000000-0000-0000-0000-000000000000/copy"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/template-authoring/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-template-authoring-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Authoring is where a Template is declared",
+    "description": "Open Template Authoring - note",
+    "annotation": "Template Authoring is where an organisation declares the Template for its own type of work. The Registry lists the Templates already declared.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-template-authoring",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Open Template Authoring",
+    "description": "Open SDK / Template Authoring and choose New Template.",
+    "annotation": "In the navbar, open SDK / Authoring and choose Template Authoring. Choose New Template.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/template-authoring"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/template-authoring/new"
+        }
+      ]
+    }
+  },
+  {
+    "code": "create-template-draft-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A new Template starts as a Draft",
+    "description": "Create the draft - note",
+    "annotation": "A Template is created as a Draft. It has no effect until it is validated and published.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "create-template-draft",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Create the draft",
+    "description": "Enter the Template details and create the draft.",
+    "annotation": "Enter a code, a name and a version for the Template. Choose Create draft. A new Template starts as a Draft.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/template-authoring"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/template-authoring/00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/template-authoring/00000000-0000-0000-0000-000000000000/save"
+        }
+      ]
+    }
+  },
+  {
+    "code": "select-template-packs-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "The Packs make up the Template",
+    "description": "Select the Packs - note",
+    "annotation": "The Packs selected here define the practice the Template carries. A Pack declares the practice. The Template chooses which Packs apply.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "select-template-packs",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Select the Packs",
+    "description": "Select the Packs the Template composes and save the draft.",
+    "annotation": "On the draft, select the Packs for each category, such as domain, compliance and technology. Choose Save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/template-authoring/00000000-0000-0000-0000-000000000000/save"
+        }
+      ]
+    }
+  },
+  {
+    "code": "validate-template-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Validation checks the Template before it is published",
+    "description": "Validate the Template - note",
+    "annotation": "Validation checks that the Template is complete and its Packs are compatible.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "validate-template",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Validate the Template",
+    "description": "Validate the Template.",
+    "annotation": "Choose Validate Template. Validation checks that the Template is complete and consistent.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/template-authoring/00000000-0000-0000-0000-000000000000/transition"
+        }
+      ]
+    }
+  },
+  {
+    "code": "publish-template-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Publishing makes the Template available",
+    "description": "Publish the Template - note",
+    "annotation": "A published Template is Active and can be used by a Profile.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "publish-template",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Publish the Template",
+    "description": "Publish the Template.",
+    "annotation": "Choose Publish. A published Template is Active and can be used by a Profile.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/template-authoring/00000000-0000-0000-0000-000000000000/publish"
+        }
+      ]
+    }
+  },
+  {
+    "code": "browse-profiles-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A Profile fits a Template to a team",
+    "description": "Find the Profile in the Registry - note",
+    "annotation": "A Profile selects the Packs a team uses and sets the parameters of its Template. A Software Engineering Unit is commissioned with one Profile.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "browse-profiles",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Find the Profile in the Registry",
+    "description": "Open Registry, then Profiles, and find the Profile.",
+    "annotation": "In the navbar, open Registry, then Profiles. Each card shows the Profile and the Packs it uses.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/profiles"
+        }
+      ]
+    }
+  },
+  {
+    "code": "copy-profile-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Copying starts a new Draft from an existing Profile",
+    "description": "Copy the Profile - note",
+    "annotation": "Copy is the quickest way to derive a Profile. The new Draft starts with the same content and can be changed before it is published.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "copy-profile",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Copy the Profile",
+    "description": "Copy an existing Profile into a new draft.",
+    "annotation": "Choose Copy on the Profile. A new Draft is created from it and opens for editing.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/profiles/00000000-0000-0000-0000-000000000000/copy"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-profile-authoring-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Authoring is where a Profile is declared",
+    "description": "Open Profile Authoring - note",
+    "annotation": "Profile Authoring is where an organisation declares the Profile for its own team. The Registry lists the Profiles already declared.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-profile-authoring",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Open Profile Authoring",
+    "description": "Open SDK / Profile Authoring and choose New Profile.",
+    "annotation": "In the navbar, open SDK / Authoring and choose Profile Authoring. Choose New Profile.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/profile-authoring"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/profile-authoring/new"
+        }
+      ]
+    }
+  },
+  {
+    "code": "create-profile-draft-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A new Profile starts as a Draft",
+    "description": "Create the draft - note",
+    "annotation": "A Profile is created as a Draft. It has no effect until it is validated and published.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "create-profile-draft",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Create the draft",
+    "description": "Enter the Profile details and create the draft.",
+    "annotation": "Enter a code, a name and a version for the Profile. Choose Create draft. A new Profile starts as a Draft.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/profile-authoring"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000/save"
+        }
+      ]
+    }
+  },
+  {
+    "code": "select-profile-packs-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "The Packs make up the Profile",
+    "description": "Select the Packs - note",
+    "annotation": "The Packs selected here define the practice the Profile applies. A Pack declares the practice. The Profile chooses which Packs apply.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "select-profile-packs",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Select the Packs",
+    "description": "Select the Packs the Profile uses and save the draft.",
+    "annotation": "On the draft, select the Packs for each category, such as domain, compliance and technology, and the optional Packs. Choose Save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000/save"
+        }
+      ]
+    }
+  },
+  {
+    "code": "create-profile-change-service-level-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A Profile can set a service level",
+    "description": "Change the service level - note",
+    "annotation": "A service level states the target a Service is held to, such as a response time. The Profile can set it for the team without changing the Pack.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "create-profile-change-service-level",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Change the service level",
+    "description": "Set the service level on the Profile and save.",
+    "annotation": "On the draft, set the service level for the Service and choose Save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000/save"
+        }
+      ]
+    }
+  },
+  {
+    "code": "validate-profile-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Validation checks the Profile before it is published",
+    "description": "Validate the Profile - note",
+    "annotation": "Validation checks that the Profile is complete and its Packs are compatible.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "validate-profile",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Validate the Profile",
+    "description": "Validate the Profile.",
+    "annotation": "Choose Validate Profile. Validation checks that the Profile is complete and consistent.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000/transition"
+        }
+      ]
+    }
+  },
+  {
+    "code": "publish-profile-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Publishing makes the Profile available",
+    "description": "Publish the Profile - note",
+    "annotation": "A published Profile is Active and can be selected when a Software Engineering Unit is commissioned.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "publish-profile",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Publish the Profile",
+    "description": "Publish the Profile.",
+    "annotation": "Choose Publish. A published Profile is Active and can be used to commission a Software Engineering Unit.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000/publish"
+        }
+      ]
+    }
+  },
+  {
+    "code": "capability-definitions-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Engineering competencies are available in the Capability, Service and Deliverable Registry.",
+    "description": "Find the Capability Definition in the Registry - note",
+    "annotation": "Capabilities represent the engineering competencies required to deliver software within a Software Engineering Unit (SEU).\n\nA Capability defines **what engineering function must be performed**, independent of who or what performs it.\n\nA Capability provides a guaranteed Service which includes the expected Deliverables and Service Levels.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "browse-capability-definitions",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Find the Capability Definition in the Registry",
+    "description": "Open Registry and view the Capability Definitions.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Capability Registry</span>. Each card shows the Capability Definition and links to the Service it provides.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/capability-definitions"
+        }
+      ]
+    }
+  },
+  {
+    "code": "copy-capability-definition-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Copying starts a new Draft from an existing Capability Definition",
+    "description": "Copy the Capability Definition - note",
+    "annotation": "Copying is the quickest way to derive a Capability Definition. The new Draft starts with the same content and can be edited before it is published. A new Capability can also be created from scratch.\n\nA new Capability needs a new code. The code must be an approved Ontology concept before the Capability can be published.\n\n<span style=\"color: red\">Also create the corresponding Service and Deliverables to complete the definition.</span>",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "copy-capability-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Copy the Capability Definition",
+    "description": "Copy a Capability Definition into a new draft.",
+    "annotation": "Choose <span style=\"color: blue\">Copy</span> on the Capability Definition. A new Draft is created from it and opens for editing.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/capability-definitions/00000000-0000-0000-0000-000000000000/copy"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/capability-authoring/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "author-capability-definition-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A new Capability Definition starts as a Draft",
+    "description": "Author a new Capability Definition - note",
+    "annotation": "A Capability Definition is created as a Draft. It has no effect until it is validated and published. A published Capability Definition is Active.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "author-capability-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Author a new Capability Definition",
+    "description": "Create, save, validate and publish a Capability Definition in SDK / Capability Authoring.",
+    "annotation": "In the navbar, open SDK / Authoring and choose Capability Authoring. Choose New, enter the details and create the draft. Save it, choose Validate, then Publish.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/capability-authoring/new"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/capability-authoring"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/capability-authoring/00000000-0000-0000-0000-000000000000/save"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/capability-authoring/00000000-0000-0000-0000-000000000000/transition"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/capability-authoring/00000000-0000-0000-0000-000000000000/publish"
+        }
+      ]
+    }
+  },
+  {
+    "code": "browse-deliverable-definitions-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "The Registry lists every Deliverable Definition",
+    "description": "Find the Deliverable Definition in the Registry - note",
+    "annotation": "A Deliverable Definition declares a kind of work product, such as a specification or a design, that a Software Engineering Unit produces.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "browse-deliverable-definitions",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Find the Deliverable Definition in the Registry",
+    "description": "Open Registry, then Deliverable Definitions, and find the Deliverable Definition.",
+    "annotation": "In the navbar, open Registry, then Deliverable Definitions. Each card shows the Deliverable Definition and its version.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/deliverable-definitions"
+        }
+      ]
+    }
+  },
+  {
+    "code": "copy-deliverable-definition-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Copying starts a new Draft from an existing Deliverable Definition",
+    "description": "Copy the Deliverable Definition - note",
+    "annotation": "Copy is the quickest way to derive a Deliverable Definition. The new Draft starts with the same content and can be changed before it is published.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "copy-deliverable-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Copy the Deliverable Definition",
+    "description": "Copy a Deliverable Definition into a new draft.",
+    "annotation": "Choose Copy on the Deliverable Definition. A new Draft is created from it and opens for editing.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/deliverable-definitions/00000000-0000-0000-0000-000000000000/copy"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/deliverable-authoring/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "author-deliverable-definition-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A new Deliverable Definition starts as a Draft",
+    "description": "Author a new Deliverable Definition - note",
+    "annotation": "A Deliverable Definition is created as a Draft. It has no effect until it is validated and published. A published Deliverable Definition is Active.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "author-deliverable-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Author a new Deliverable Definition",
+    "description": "Create, save, validate and publish a Deliverable Definition in SDK / Deliverable Authoring.",
+    "annotation": "In the navbar, open SDK / Authoring and choose Deliverable Authoring. Choose New, enter the details and create the draft. Save it, choose Validate, then Publish.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/deliverable-authoring/new"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/deliverable-authoring"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/deliverable-authoring/00000000-0000-0000-0000-000000000000/save"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/deliverable-authoring/00000000-0000-0000-0000-000000000000/transition"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/deliverable-authoring/00000000-0000-0000-0000-000000000000/publish"
+        }
+      ]
+    }
+  },
+  {
+    "code": "browse-service-definitions-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "The Registry lists every Service Definition",
+    "description": "Find the Service Definition in the Registry - note",
+    "annotation": "A Service Definition declares a service that a Software Engineering Unit offers or consumes, with its service levels.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "browse-service-definitions",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Find the Service Definition in the Registry",
+    "description": "Open Registry, then Service Definitions, and find the Service Definition.",
+    "annotation": "In the navbar, open Registry, then Service Definitions. Each card shows the Service Definition and its version.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/service-definitions"
+        }
+      ]
+    }
+  },
+  {
+    "code": "copy-service-definition-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Copying starts a new Draft from an existing Service Definition",
+    "description": "Copy the Service Definition - note",
+    "annotation": "Copy is the quickest way to derive a Service Definition. The new Draft starts with the same content and can be changed before it is published.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "copy-service-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Copy the Service Definition",
+    "description": "Copy a Service Definition into a new draft.",
+    "annotation": "Choose Copy on the Service Definition. A new Draft is created from it and opens for editing.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/service-definitions/00000000-0000-0000-0000-000000000000/copy"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/service-authoring/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "author-service-definition-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A new Service Definition starts as a Draft",
+    "description": "Author a new Service Definition - note",
+    "annotation": "A Service Definition is created as a Draft. It has no effect until it is validated and published. A published Service Definition is Active.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "author-service-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Author a new Service Definition",
+    "description": "Create, save, validate and publish a Service Definition in SDK / Service Authoring.",
+    "annotation": "In the navbar, open SDK / Authoring and choose Service Authoring. Choose New, enter the details and create the draft. Save it, choose Validate, then Publish.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/service-authoring/new"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/service-authoring"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/service-authoring/00000000-0000-0000-0000-000000000000/save"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/service-authoring/00000000-0000-0000-0000-000000000000/transition"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/service-authoring/00000000-0000-0000-0000-000000000000/publish"
+        }
+      ]
+    }
+  },
+  {
+    "code": "browse-policy-definitions-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "The Registry lists every Policy Definition",
+    "description": "Find the Policy Definition in the Registry - note",
+    "annotation": "A Policy Definition declares a rule that applies across Packs, such as a limit or a required check.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "browse-policy-definitions",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Find the Policy Definition in the Registry",
+    "description": "Open Registry, then Policy Definitions, and find the Policy Definition.",
+    "annotation": "In the navbar, open Registry, then Policy Definitions. Each card shows the Policy Definition and its version.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/policy-definitions"
+        }
+      ]
+    }
+  },
+  {
+    "code": "copy-policy-definition-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Copying starts a new Draft from an existing Policy Definition",
+    "description": "Copy the Policy Definition - note",
+    "annotation": "Copy is the quickest way to derive a Policy Definition. The new Draft starts with the same content and can be changed before it is published.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "copy-policy-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Copy the Policy Definition",
+    "description": "Copy a Policy Definition into a new draft.",
+    "annotation": "Choose Copy on the Policy Definition. A new Draft is created from it and opens for editing.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/policy-definitions/00000000-0000-0000-0000-000000000000/copy"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/policy-authoring/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "author-policy-definition-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A new Policy Definition starts as a Draft",
+    "description": "Author a new Policy Definition - note",
+    "annotation": "A Policy Definition is created as a Draft. It has no effect until it is validated and published. A published Policy Definition is Active.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "author-policy-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Author a new Policy Definition",
+    "description": "Create, save, validate and publish a Policy Definition in SDK / Policy Authoring.",
+    "annotation": "In the navbar, open SDK / Authoring and choose Policy Authoring. Choose New, enter the details and create the draft. Save it, choose Validate, then Publish.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/policy-authoring/new"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/policy-authoring"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/policy-authoring/00000000-0000-0000-0000-000000000000/save"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/policy-authoring/00000000-0000-0000-0000-000000000000/transition"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/policy-authoring/00000000-0000-0000-0000-000000000000/publish"
+        }
+      ]
+    }
+  },
+  {
+    "code": "author-transition-definition-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A Transition Definition declares one state change",
+    "description": "Author a new Transition Definition - note",
+    "annotation": "A Transition Definition declares one move from one state to another for an entity, and the authority needed to make it. It starts as a Draft until it is validated and published.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "author-transition-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Author a new Transition Definition",
+    "description": "Create, save, validate and publish a Transition Definition in SDK / Transition Definition Authoring.",
+    "annotation": "In the navbar, open SDK / Authoring and choose Transition Definition Authoring. Choose New, enter the details and create the draft. Save it, choose Validate, then Publish.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/transition-definition-authoring/new"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/transition-definition-authoring"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/transition-definition-authoring/00000000-0000-0000-0000-000000000000/save"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/transition-definition-authoring/00000000-0000-0000-0000-000000000000/transition"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/transition-definition-authoring/00000000-0000-0000-0000-000000000000/publish"
+        }
+      ]
+    }
+  },
+  {
+    "code": "browse-schema-registry-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A schema describes the fields of a definition",
+    "description": "Find the schemas in the Schema Registry - note",
+    "annotation": "The Schema Registry lists the schema for each kind of definition. The authoring forms are built from these schemas.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "browse-schema-registry",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Find the schemas in the Schema Registry",
+    "description": "Open Registry / Schema Registry.",
+    "annotation": "In the navbar, open Registry, then Schema Registry. Each schema describes the fields of one kind of definition.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/schema-registry"
+        }
+      ]
+    }
+  },
+  {
+    "code": "browse-participants-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Participants are the people and systems that do the work",
+    "description": "Find the Participants - note",
+    "annotation": "A Participant is a person or a system that can fulfil a Capability. The Registry lists the Participants available to the tenant.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "browse-participants",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Find the Participants",
+    "description": "Open Registry / Participants.",
+    "annotation": "In the navbar, open Registry, then Participants. Each entry is a person or system that can be given work.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/participants"
+        }
+      ]
+    }
+  },
+  {
+    "code": "view-authority-nouns-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A noun names what authority applies to",
+    "description": "Open the authority nouns - note",
+    "annotation": "Authority is expressed as a noun and a verb, such as pack and publish. The noun is the entity. The verb is the action.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "view-authority-nouns",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Open the authority nouns",
+    "description": "Open the authority nouns.",
+    "annotation": "Open Authority, then Nouns. A noun names a kind of entity that authority applies to.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/authority/nouns"
+        }
+      ]
+    }
+  },
+  {
+    "code": "add-authority-noun-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A new noun extends the authority vocabulary",
+    "description": "Add a noun - note",
+    "annotation": "A noun added here can be combined with the verbs to form a badge.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "add-authority-noun",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Add a noun",
+    "description": "Add a noun.",
+    "annotation": "On the Nouns page, enter a noun and choose Add.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/authority/nouns/add"
+        }
+      ]
+    }
+  },
+  {
+    "code": "view-authority-verbs-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A verb names an action",
+    "description": "Open the authority verbs - note",
+    "annotation": "The verb is the action a badge permits, such as define, approve or publish.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "view-authority-verbs",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Open the authority verbs",
+    "description": "Open the authority verbs.",
+    "annotation": "Open Authority, then Verbs. A verb names an action that authority permits.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/authority/verbs"
+        }
+      ]
+    }
+  },
+  {
+    "code": "add-authority-verb-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A new verb extends the authority vocabulary",
+    "description": "Add a verb - note",
+    "annotation": "A verb added here can be combined with the nouns to form a badge.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "add-authority-verb",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Add a verb",
+    "description": "Add a verb.",
+    "annotation": "On the Verbs page, enter a verb and choose Add.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/authority/verbs/add"
+        }
+      ]
+    }
+  },
+  {
+    "code": "view-authority-mapping-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "The mapping pairs a noun with a verb",
+    "description": "Open the noun and verb mapping - note",
+    "annotation": "Each pairing is a badge. The mapping states which actions apply to which entity, and whether a person or the system triggers them.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "view-authority-mapping",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Open the noun and verb mapping",
+    "description": "Open the noun and verb mapping.",
+    "annotation": "Open Authority, then Mapping. Each row pairs a noun with a verb and shows how the transition is triggered.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/authority/mapping"
+        }
+      ]
+    }
+  },
+  {
+    "code": "add-authority-mapping-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A new mapping creates a badge",
+    "description": "Map a verb to a noun - note",
+    "annotation": "Mapping a verb to a noun creates the badge that permits that action on that entity.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "add-authority-mapping",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Map a verb to a noun",
+    "description": "Map a verb to a noun.",
+    "annotation": "On the Mapping page, choose a noun and a verb and choose Add.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/authority/mapping/add"
+        }
+      ]
+    }
+  },
+  {
+    "code": "edit-authority-trigger-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "The trigger states who starts the transition",
+    "description": "Change the trigger of a mapping - note",
+    "annotation": "A manual trigger means a person starts the transition. An automatic trigger means the platform does.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "edit-authority-trigger",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Change the trigger of a mapping",
+    "description": "Change the trigger of a mapping.",
+    "annotation": "On the Mapping page, choose a mapping and change its trigger. Choose Save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/authority/mapping/edit-trigger"
+        }
+      ]
+    }
+  },
+  {
+    "code": "view-transition-definition-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A transition definition declares one state change",
+    "description": "Open a transition definition - note",
+    "annotation": "It names the entity, the state it moves from and to, and the badge needed to make the move.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "view-transition-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Open a transition definition",
+    "description": "Open a transition definition.",
+    "annotation": "Open a transition definition from the list to see the states it moves between and the authority it needs.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/authority/transition-definitions/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "edit-transition-definition-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Editing changes how an entity may move",
+    "description": "Edit a transition definition - note",
+    "annotation": "A change here changes which badge is needed for a state change, and what the change triggers.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "edit-transition-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Edit a transition definition",
+    "description": "Edit a transition definition and save.",
+    "annotation": "Choose Edit, change the definition and choose Save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/authority/transition-definitions/00000000-0000-0000-0000-000000000000/edit"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/authority/transition-definitions/00000000-0000-0000-0000-000000000000/update"
+        }
+      ]
+    }
+  },
+  {
+    "code": "grant-user-badge-note",
+    "kind": "note",
+    "area": "Declare",
+    "title": "A badge gives a user the authority to act",
+    "description": "Grant a badge to a user - note",
+    "annotation": "A user can make a state change only when they hold the badge it needs. The Tenant Administrator grants badges to users.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "grant-user-badge",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Grant a badge to a user",
+    "description": "Open Tenant Users and grant a badge to a user.",
+    "annotation": "Open Tenant Administration, then Users. Choose a user and grant a badge.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/tenant-admin/users"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/tenant-admin/users/00000000-0000-0000-0000-000000000000/badges"
+        }
+      ]
+    }
+  },
+  {
+    "code": "browse-objectives-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "An Objective states what the work is for",
+    "description": "Find the Objectives - note",
+    "annotation": "An Objective states an outcome the organisation wants. Objectives form a hierarchy, and a Software Engineering Unit is commissioned to deliver one.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "browse-objectives",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Find the Objectives",
+    "description": "Open Objectives.",
+    "annotation": "In the navbar, open Objectives. The list shows the Objectives and where each sits in the hierarchy.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/objectives"
+        }
+      ]
+    }
+  },
+  {
+    "code": "propose-objective-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "A new Objective starts as a proposal",
+    "description": "Propose an Objective - note",
+    "annotation": "The Objective waits in its first state until a person with the authority activates it.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "propose-objective",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Propose an Objective",
+    "description": "Choose New under a parent Objective, enter the details and create it.",
+    "annotation": "Choose New under a parent Objective. Enter the details and create it. A new Objective is a proposal until it is activated.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/objectives/new"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/objectives"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-objective-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "An Objective can be broken into child Objectives",
+    "description": "Open an Objective - note",
+    "annotation": "Child Objectives split a larger outcome into parts that can each be delivered and tracked.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-objective",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Open an Objective",
+    "description": "Open an Objective.",
+    "annotation": "Choose an Objective in the list to see its details and its child Objectives.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/children"
+        }
+      ]
+    }
+  },
+  {
+    "code": "edit-objective-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "An Objective can be refined",
+    "description": "Edit the Objective - note",
+    "annotation": "Edits change the proposal. They are recorded against the Objective.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "edit-objective",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Edit the Objective",
+    "description": "Edit the Objective and save.",
+    "annotation": "Choose Edit, change the details and choose Save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/edit"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/update"
+        }
+      ]
+    }
+  },
+  {
+    "code": "move-objective-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Moving changes where an Objective sits",
+    "description": "Move the Objective - note",
+    "annotation": "The Objective keeps its content and takes a new place in the hierarchy.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "move-objective",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Move the Objective",
+    "description": "Move the Objective under another parent.",
+    "annotation": "Choose Move and select the new parent Objective.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/move"
+        }
+      ]
+    }
+  },
+  {
+    "code": "comment-on-objective-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Comments record the discussion",
+    "description": "Comment on the Objective - note",
+    "annotation": "Comments stay with the Objective so that later readers can see why it changed.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "comment-on-objective",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Comment on the Objective",
+    "description": "Add a comment.",
+    "annotation": "Enter a comment on the Objective and choose Add.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/comments"
+        }
+      ]
+    }
+  },
+  {
+    "code": "activate-objective-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Activate is a state change of the Objective",
+    "description": "Activate the Objective - note",
+    "annotation": "Activation makes the Objective current. A Software Engineering Unit can then be commissioned for it.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "activate-objective",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Activate the Objective",
+    "description": "Activate the Objective.",
+    "annotation": "Choose Activate on the Objective and confirm.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/transition/activate"
+        }
+      ]
+    }
+  },
+  {
+    "code": "supersede-objective-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Supersede is a state change of the Objective",
+    "description": "Supersede the Objective - note",
+    "annotation": "Supersession replaces an Objective with a newer one. The old Objective stays on record.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "supersede-objective",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Supersede the Objective",
+    "description": "Supersede the Objective.",
+    "annotation": "Choose Supersede on the Objective and confirm.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/transition/supersede"
+        }
+      ]
+    }
+  },
+  {
+    "code": "retire-objective-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Retire is a state change of the Objective",
+    "description": "Retire the Objective - note",
+    "annotation": "Retirement ends an Objective that is no longer pursued.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "retire-objective",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Retire the Objective",
+    "description": "Retire the Objective.",
+    "annotation": "Choose Retire on the Objective and confirm.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/transition/retire"
+        }
+      ]
+    }
+  },
+  {
+    "code": "archive-objective-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Archive is a state change of the Objective",
+    "description": "Archive the Objective - note",
+    "annotation": "Archiving removes an ended Objective from active lists. It stays on record.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "archive-objective",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Archive the Objective",
+    "description": "Archive the Objective.",
+    "annotation": "Choose Archive on the Objective and confirm.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/transition/archive"
+        }
+      ]
+    }
+  },
+  {
+    "code": "reject-objective-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Reject is a state change of the Objective",
+    "description": "Reject the Objective - note",
+    "annotation": "Rejection ends a proposal that will not go ahead.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "reject-objective",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Reject the Objective",
+    "description": "Reject a proposed Objective.",
+    "annotation": "Choose Reject on the Objective and confirm.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/transition/reject"
+        }
+      ]
+    }
+  },
+  {
+    "code": "delete-objective-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Only a draft can be deleted",
+    "description": "Delete a draft Objective - note",
+    "annotation": "A draft has not been acted on. Once an Objective has moved on, it is retired or archived instead.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "delete-objective",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Delete a draft Objective",
+    "description": "Delete a draft Objective.",
+    "annotation": "Choose Delete on a draft Objective and confirm.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/delete"
+        }
+      ]
+    }
+  },
+  {
+    "code": "validate-commission-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Commissioning has preconditions",
+    "description": "Check the Objective is ready to commission - note",
+    "annotation": "An Objective is commissioned only when it is active and its Template and Profile are in place.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "validate-commission",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Check the Objective is ready to commission",
+    "description": "Check the Objective is ready to commission.",
+    "annotation": "Choose Validate commission. The check lists anything that must be fixed first.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/validate-commission"
+        }
+      ]
+    }
+  },
+  {
+    "code": "compose-ebm-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "The Evidence-Based Model is composed from Packs",
+    "description": "Compose the Evidence-Based Model - note",
+    "annotation": "Composition joins the Packs of the Template and Profile into the model that governs the Software Engineering Unit.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "compose-ebm",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Compose the Evidence-Based Model",
+    "description": "Compose the Evidence-Based Model for the Objective.",
+    "annotation": "Choose Compose Evidence-Based Model, select the Template and Profile, and compose.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/compose-ebm"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/compose-ebm"
+        }
+      ]
+    }
+  },
+  {
+    "code": "browse-seus-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "A Software Engineering Unit does the work",
+    "description": "Find the Software Engineering Units - note",
+    "annotation": "A Software Engineering Unit is commissioned for an Objective. It carries the Capabilities, Deliverables, Obligations and Evidence of the work.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "browse-seus",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Find the Software Engineering Units",
+    "description": "Open SEUs.",
+    "annotation": "In the navbar, open SEUs. Each entry is a unit commissioned to deliver an Objective.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus"
+        }
+      ]
+    }
+  },
+  {
+    "code": "commission-seu-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Commissioning creates the unit",
+    "description": "Commission a Software Engineering Unit - note",
+    "annotation": "Commissioning composes the Evidence-Based Model and creates the Capabilities, Deliverables and Obligations the model calls for.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "commission-seu",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Commission a Software Engineering Unit",
+    "description": "Choose New SEU, select the Objective, Template and Profile, and commission.",
+    "annotation": "Choose New SEU, select the Objective, the Template and the Profile, and choose Commission.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/new"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-seu-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "The unit page shows the whole picture",
+    "description": "Open a Software Engineering Unit - note",
+    "annotation": "The page shows the unit's state and what it must deliver, who is working on it and what is outstanding.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-seu",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Open a Software Engineering Unit",
+    "description": "Open an SEU.",
+    "annotation": "Choose a unit in the list to see its state, Capabilities, Deliverables and Obligations.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "move-seu-state-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "A unit has a lifecycle",
+    "description": "Move the unit to its next state - note",
+    "annotation": "A unit moves through states such as validated, suspended and retired. Each move needs the matching badge.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "move-seu-state",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Move the unit to its next state",
+    "description": "Move the SEU to its next lifecycle state.",
+    "annotation": "Choose a state change on the unit, such as Validate, Suspend or Resume.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/transition/validate"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/transition/suspend"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/transition/resume"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/transition/retire"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/transition/archive"
+        }
+      ]
+    }
+  },
+  {
+    "code": "view-ebm-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "The model governs the unit",
+    "description": "Open the Evidence-Based Model - note",
+    "annotation": "The Evidence-Based Model is authoritative for the unit until it is superseded through a governed recomposition.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "view-ebm",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Open the Evidence-Based Model",
+    "description": "Open the Evidence-Based Model of the SEU.",
+    "annotation": "Open the Evidence-Based Model from the unit page. It lists the Packs that govern the unit.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/ebm"
+        }
+      ]
+    }
+  },
+  {
+    "code": "move-ebm-state-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "The model is validated and then activated",
+    "description": "Move the model to its next state - note",
+    "annotation": "Activation makes the model the one the unit follows.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "move-ebm-state",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Move the model to its next state",
+    "description": "Move the Evidence-Based Model to its next state.",
+    "annotation": "On the model page, choose Validate or Activate.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/ebm/transition/validate"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/ebm/transition/activate"
+        }
+      ]
+    }
+  },
+  {
+    "code": "fulfil-capability-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "A Capability is fulfilled by a Participant",
+    "description": "Fulfil a Capability - note",
+    "annotation": "The Participant takes on the Capability and can then be given work.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "fulfil-capability",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Fulfil a Capability",
+    "description": "Fulfil a Capability with a Participant.",
+    "annotation": "On the unit page, choose a Capability and select a Participant to fulfil it.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/capabilities/00000000-0000-0000-0000-000000000000/fulfil"
+        }
+      ]
+    }
+  },
+  {
+    "code": "replace-participant-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "A Participant can be replaced",
+    "description": "Replace the Participant - note",
+    "annotation": "The work stays with the Capability. A different Participant takes over.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "replace-participant",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Replace the Participant",
+    "description": "Replace the Participant on a Capability.",
+    "annotation": "Choose Replace beside the Participant and select another.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/capabilities/00000000-0000-0000-0000-000000000000/participant/00000000-0000-0000-0000-000000000000/replace"
+        }
+      ]
+    }
+  },
+  {
+    "code": "release-capability-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Release returns the Capability to the pool",
+    "description": "Release a Capability - note",
+    "annotation": "The Capability is no longer fulfilled until another Participant takes it.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "release-capability",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Release a Capability",
+    "description": "Release a Capability.",
+    "annotation": "Choose Release on the Capability.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/capabilities/00000000-0000-0000-0000-000000000000/release"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-work-queue-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Work is queued for Participants",
+    "description": "Open the work queue - note",
+    "annotation": "The queue lists what has to be done next. Work is generated from the Evidence-Based Model.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-work-queue",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Open the work queue",
+    "description": "Open the work queue of the SEU.",
+    "annotation": "On the unit page, open the work queue. It lists the work items waiting for a Participant.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/work-queue"
+        }
+      ]
+    }
+  },
+  {
+    "code": "complete-work-item-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Completing work moves the unit forward",
+    "description": "Complete a work item - note",
+    "annotation": "A completed item can release the next item and update the state of the Deliverable or Obligation it belongs to.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "complete-work-item",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Complete a work item",
+    "description": "Complete a work item.",
+    "annotation": "Choose Complete on a work item.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/work-items/00000000-0000-0000-0000-000000000000/complete"
+        }
+      ]
+    }
+  },
+  {
+    "code": "transition-deliverable-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "A Deliverable has a lifecycle",
+    "description": "Move a Deliverable on - note",
+    "annotation": "A Deliverable is a work product. It moves from draft through review to approval.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "transition-deliverable",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Move a Deliverable on",
+    "description": "Move a Deliverable to its next state.",
+    "annotation": "On the unit page, choose a state change on a Deliverable.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/deliverables/00000000-0000-0000-0000-000000000000/transition"
+        }
+      ]
+    }
+  },
+  {
+    "code": "transition-obligation-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "An Obligation is something the unit must satisfy",
+    "description": "Move an Obligation on - note",
+    "annotation": "An Obligation moves through analysis, work, resolution, verification and closure, each with its own badge.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "transition-obligation",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Move an Obligation on",
+    "description": "Move an Obligation to its next state.",
+    "annotation": "On the unit page, choose a state change on an Obligation, such as Start or Resolve.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/obligations/00000000-0000-0000-0000-000000000000/transition/analyse"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/obligations/00000000-0000-0000-0000-000000000000/transition/assign"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/obligations/00000000-0000-0000-0000-000000000000/transition/start"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/obligations/00000000-0000-0000-0000-000000000000/transition/resolve"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/obligations/00000000-0000-0000-0000-000000000000/transition/verify"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/obligations/00000000-0000-0000-0000-000000000000/transition/close"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/obligations/00000000-0000-0000-0000-000000000000/transition/archive"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/obligations/00000000-0000-0000-0000-000000000000/transition/reopen"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/obligations/00000000-0000-0000-0000-000000000000/transition/escalate"
+        }
+      ]
+    }
+  },
+  {
+    "code": "revise-obligation-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "A revision keeps the history",
+    "description": "Revise an Obligation - note",
+    "annotation": "The earlier version of the Obligation stays on record.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "revise-obligation",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Revise an Obligation",
+    "description": "Revise an Obligation.",
+    "annotation": "Choose Revise on the Obligation and change its details.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/obligations/00000000-0000-0000-0000-000000000000/revise"
+        }
+      ]
+    }
+  },
+  {
+    "code": "record-evidence-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Evidence shows an Obligation was met",
+    "description": "Record Evidence - note",
+    "annotation": "Evidence is the record that an Obligation has been satisfied.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "record-evidence",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Record Evidence",
+    "description": "Record Evidence against an Obligation.",
+    "annotation": "Choose Record Evidence on an Obligation, enter the details and save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/evidence"
+        }
+      ]
+    }
+  },
+  {
+    "code": "validate-evidence-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Evidence is checked before it is accepted",
+    "description": "Validate the Evidence - note",
+    "annotation": "Validation checks the Evidence against what the Obligation requires.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "validate-evidence",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Validate the Evidence",
+    "description": "Validate the Evidence.",
+    "annotation": "Choose Validate on the Evidence.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/evidence/00000000-0000-0000-0000-000000000000/validate"
+        }
+      ]
+    }
+  },
+  {
+    "code": "transition-evidence-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Evidence has a lifecycle",
+    "description": "Move the Evidence on - note",
+    "annotation": "Accepted Evidence can close an Obligation.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "transition-evidence",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Move the Evidence on",
+    "description": "Move the Evidence to its next state.",
+    "annotation": "Choose a state change on the Evidence, such as Accept or Reject.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/evidence/00000000-0000-0000-0000-000000000000/transition/validate"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/evidence/00000000-0000-0000-0000-000000000000/transition/accept"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/evidence/00000000-0000-0000-0000-000000000000/transition/reference"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/evidence/00000000-0000-0000-0000-000000000000/transition/archive"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/evidence/00000000-0000-0000-0000-000000000000/transition/reject"
+        }
+      ]
+    }
+  },
+  {
+    "code": "link-evidence-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Links show what the Evidence supports",
+    "description": "Link the Evidence - note",
+    "annotation": "A link connects the Evidence to another Obligation or record.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "link-evidence",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Link the Evidence",
+    "description": "Link the Evidence to another record.",
+    "annotation": "Choose Link on the Evidence and select the record.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/evidence/00000000-0000-0000-0000-000000000000/link"
+        }
+      ]
+    }
+  },
+  {
+    "code": "record-knowledge-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Knowledge keeps what the unit has learned",
+    "description": "Record a Knowledge item - note",
+    "annotation": "A Knowledge item records a lesson or a reusable finding from the work.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "record-knowledge",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Record a Knowledge item",
+    "description": "Record a Knowledge item.",
+    "annotation": "Choose Record Knowledge, enter the details and save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/knowledge"
+        }
+      ]
+    }
+  },
+  {
+    "code": "transition-knowledge-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Knowledge is reviewed before it is shared",
+    "description": "Move the Knowledge item on - note",
+    "annotation": "A Knowledge item is proposed, validated, accepted and then published.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "transition-knowledge",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Move the Knowledge item on",
+    "description": "Move the Knowledge item to its next state.",
+    "annotation": "Choose a state change on the Knowledge item, such as Propose or Publish.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/knowledge/00000000-0000-0000-0000-000000000000/transition/propose"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/knowledge/00000000-0000-0000-0000-000000000000/transition/validate"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/knowledge/00000000-0000-0000-0000-000000000000/transition/accept"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/knowledge/00000000-0000-0000-0000-000000000000/transition/publish"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/knowledge/00000000-0000-0000-0000-000000000000/transition/deprecate"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/knowledge/00000000-0000-0000-0000-000000000000/transition/archive"
+        }
+      ]
+    }
+  },
+  {
+    "code": "promote-knowledge-scope-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Scope decides who can see the Knowledge",
+    "description": "Promote the Knowledge item - note",
+    "annotation": "Promotion widens the Knowledge from the unit to a wider audience.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "promote-knowledge-scope",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Promote the Knowledge item",
+    "description": "Promote the Knowledge item to a wider scope.",
+    "annotation": "Choose Promote scope on the Knowledge item.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/knowledge/00000000-0000-0000-0000-000000000000/promote-scope"
+        }
+      ]
+    }
+  },
+  {
+    "code": "view-knowledge-capital-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Knowledge Capital is the organisation's shared learning",
+    "description": "Open Knowledge Capital - note",
+    "annotation": "It collects published Knowledge from every unit.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "view-knowledge-capital",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Open Knowledge Capital",
+    "description": "Open Knowledge Capital.",
+    "annotation": "In the navbar, open Knowledge Capital. It lists the Knowledge the organisation has gathered.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/knowledge/capital"
+        }
+      ]
+    }
+  },
+  {
+    "code": "record-decision-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "A Decision records a choice and its reason",
+    "description": "Record a Decision - note",
+    "annotation": "A Decision stays with the unit so that the reason for a choice can be found later.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "record-decision",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Record a Decision",
+    "description": "Record a Decision.",
+    "annotation": "Choose Record Decision, enter the details and save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/decisions"
+        }
+      ]
+    }
+  },
+  {
+    "code": "transition-decision-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "A Decision is reviewed and approved",
+    "description": "Move the Decision on - note",
+    "annotation": "A Decision is analysed, proposed, reviewed, approved and applied.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "transition-decision",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Move the Decision on",
+    "description": "Move the Decision to its next state.",
+    "annotation": "Choose a state change on the Decision, such as Review or Approve.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/decisions/00000000-0000-0000-0000-000000000000/transition/analyse"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/decisions/00000000-0000-0000-0000-000000000000/transition/propose"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/decisions/00000000-0000-0000-0000-000000000000/transition/review"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/decisions/00000000-0000-0000-0000-000000000000/transition/approve"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/decisions/00000000-0000-0000-0000-000000000000/transition/apply"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/decisions/00000000-0000-0000-0000-000000000000/transition/supersede"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/decisions/00000000-0000-0000-0000-000000000000/transition/archive"
+        }
+      ]
+    }
+  },
+  {
+    "code": "record-external-interaction-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "External parties are part of the work",
+    "description": "Record an external interaction - note",
+    "annotation": "An external interaction records a request to or a reply from a party outside the unit.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "record-external-interaction",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Record an external interaction",
+    "description": "Record an external interaction.",
+    "annotation": "Choose Record interaction, enter the details and save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/external-interactions"
+        }
+      ]
+    }
+  },
+  {
+    "code": "transition-external-interaction-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "An interaction has a lifecycle",
+    "description": "Move the interaction on - note",
+    "annotation": "The interaction moves from requested to answered to closed.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "transition-external-interaction",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Move the interaction on",
+    "description": "Move the external interaction to its next state.",
+    "annotation": "Choose a state change on the interaction.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/external-interactions/00000000-0000-0000-0000-000000000000/transition"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-reviews-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "A review examines the work",
+    "description": "Open the reviews - note",
+    "annotation": "A review checks a Deliverable or a stage of the work and records what it finds.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-reviews",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Open the reviews",
+    "description": "Open the reviews of the SEU.",
+    "annotation": "On the unit page, open Reviews.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/reviews"
+        }
+      ]
+    }
+  },
+  {
+    "code": "start-review-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "A review has a subject",
+    "description": "Start a review - note",
+    "annotation": "The review is opened against the work it examines.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "start-review",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Start a review",
+    "description": "Start a review.",
+    "annotation": "Choose Start review and select what is reviewed.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/reviews"
+        }
+      ]
+    }
+  },
+  {
+    "code": "transition-review-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "A review ends with an outcome",
+    "description": "Move the review on - note",
+    "annotation": "The review is completed when its findings are recorded.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "transition-review",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Move the review on",
+    "description": "Move the review to its next state.",
+    "annotation": "Choose a state change on the review.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/reviews/00000000-0000-0000-0000-000000000000/transition/prepare"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/reviews/00000000-0000-0000-0000-000000000000/transition/start"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/reviews/00000000-0000-0000-0000-000000000000/transition/complete"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/reviews/00000000-0000-0000-0000-000000000000/transition/accept"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/reviews/00000000-0000-0000-0000-000000000000/transition/archive"
+        }
+      ]
+    }
+  },
+  {
+    "code": "raise-review-finding-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "A Finding records a problem found",
+    "description": "Raise a Finding - note",
+    "annotation": "A Finding states what is wrong and how serious it is.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "raise-review-finding",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Raise a Finding",
+    "description": "Raise a Finding in the review.",
+    "annotation": "In the review, choose Raise Finding, enter the details and save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/reviews/00000000-0000-0000-0000-000000000000/findings"
+        }
+      ]
+    }
+  },
+  {
+    "code": "transition-finding-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "A Finding is handled until it is closed",
+    "description": "Move the Finding on - note",
+    "annotation": "A Finding is accepted, resolved or dismissed.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "transition-finding",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Move the Finding on",
+    "description": "Move the Finding to its next state.",
+    "annotation": "Choose a state change on the Finding.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/findings/00000000-0000-0000-0000-000000000000/transition/resolve"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/findings/00000000-0000-0000-0000-000000000000/transition/waive"
+        }
+      ]
+    }
+  },
+  {
+    "code": "convert-finding-to-obligation-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "A Finding can become work",
+    "description": "Convert the Finding into an Obligation - note",
+    "annotation": "Converting a Finding creates an Obligation, so that the fix is tracked to closure.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "convert-finding-to-obligation",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Convert the Finding into an Obligation",
+    "description": "Convert the Finding into an Obligation.",
+    "annotation": "Choose Convert on the Finding.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/findings/00000000-0000-0000-0000-000000000000/convert"
+        }
+      ]
+    }
+  },
+  {
+    "code": "raise-attention-item-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Attention items flag what needs notice",
+    "description": "Raise an Attention item - note",
+    "annotation": "A Blocker stops work. A Risk may stop it.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "raise-attention-item",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Raise an Attention item",
+    "description": "Raise an Attention item (Blocker or Risk).",
+    "annotation": "On the unit page, choose Raise Attention, select Blocker or Risk, enter the details and save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/attention-items"
+        }
+      ]
+    }
+  },
+  {
+    "code": "transition-attention-item-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "An Attention item is cleared by a person",
+    "description": "Move the Attention item on - note",
+    "annotation": "Resolving a Blocker lets the work continue.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "transition-attention-item",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Move the Attention item on",
+    "description": "Resolve, release or waive an Attention item on the SEU.",
+    "annotation": "On the unit page, choose a state change on the Attention item, such as Resolve.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/attention-items/00000000-0000-0000-0000-000000000000/transition/deliver"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/attention-items/00000000-0000-0000-0000-000000000000/transition/acknowledge"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/attention-items/00000000-0000-0000-0000-000000000000/transition/start"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/attention-items/00000000-0000-0000-0000-000000000000/transition/resolve"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/attention-items/00000000-0000-0000-0000-000000000000/transition/close"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-attention-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Attention gathers items from every unit",
+    "description": "Open Attention across units - note",
+    "annotation": "One list shows what needs notice across the organisation.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-attention",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Open Attention across units",
+    "description": "Open Attention across SEUs.",
+    "annotation": "In the navbar, open Attention. The list shows the items of every unit.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/attention"
+        }
+      ]
+    }
+  },
+  {
+    "code": "transition-attention-from-list-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "The list works like the unit page",
+    "description": "Move an Attention item from the list - note",
+    "annotation": "The same state changes are available from the list.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "transition-attention-from-list",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Move an Attention item from the list",
+    "description": "Move an Attention item from the Attention list.",
+    "annotation": "On the Attention list, choose a state change on an item.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/attention/00000000-0000-0000-0000-000000000000/transition/deliver"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/attention/00000000-0000-0000-0000-000000000000/transition/acknowledge"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/attention/00000000-0000-0000-0000-000000000000/transition/start"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/attention/00000000-0000-0000-0000-000000000000/transition/resolve"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/attention/00000000-0000-0000-0000-000000000000/transition/close"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-compliance-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Compliance is the state of the Obligations",
+    "description": "Open the compliance view - note",
+    "annotation": "The view shows how far the unit has met what the Evidence-Based Model requires.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-compliance",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Open the compliance view",
+    "description": "Open the compliance view of the SEU.",
+    "annotation": "On the unit page, open Compliance. It shows which Obligations are met and which are open.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/compliance"
+        }
+      ]
+    }
+  },
+  {
+    "code": "waive-obligation-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "A waiver excuses an Obligation",
+    "description": "Record a waiver - note",
+    "annotation": "A waiver is recorded with a reason, by a person with the authority to excuse it.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "waive-obligation",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Record a waiver",
+    "description": "Record a waiver.",
+    "annotation": "On the compliance view, choose Waive on an Obligation, enter the reason and save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/compliance/waivers"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-dashboard-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "The dashboard summarises the platform",
+    "description": "Open the dashboard - note",
+    "annotation": "It shows the counts and states that matter at a glance.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-dashboard",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Open the dashboard",
+    "description": "Open the dashboard.",
+    "annotation": "In the navbar, open the Dashboard. It summarises the state of the units.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/dashboard/demo"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-telemetry-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Telemetry shows how the platform behaves",
+    "description": "Open Telemetry - note",
+    "annotation": "It reports counts and timings of what the platform does.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-telemetry",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Open Telemetry",
+    "description": "Open Telemetry.",
+    "annotation": "In the navbar, open Telemetry.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/telemetry"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-events-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Every change publishes an event",
+    "description": "Open Events - note",
+    "annotation": "Events record what happened, who did it and with which badge.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-events",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Open Events",
+    "description": "Open Events.",
+    "annotation": "In the navbar, open Events.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/events"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-version-events-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Version events record each version",
+    "description": "Open Version Events - note",
+    "annotation": "A version event is recorded when an entity reaches a new version.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-version-events",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Open Version Events",
+    "description": "Open Version Events.",
+    "annotation": "In the navbar, open Version Events.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/version-events"
+        }
+      ]
+    }
+  }
+]

@@ -17,6 +17,7 @@ import { seedTransitionDefinitions } from "./seedTransitionDefinitions.js";
 import { seedEventSubscriptions } from "./seedEventSubscriptions.js";
 import { seedCapabilityDefinitions } from "./seedCapabilityDefinitions.js";
 import { seedSchemaDefinitions } from "./seedSchemaDefinitions.js";
+import { seedDeliverableDefinitions } from "./seedDeliverableDefinitions.js";
 import { seedServiceDefinitions } from "./seedServiceDefinitions.js";
 import { seedMetricDefinitions } from "./seedMetricDefinitions.js";
  
@@ -136,6 +137,7 @@ async function run(): Promise<void> {
   await seedTransitionDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedSchemaDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedCapabilityDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
+  await seedDeliverableDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedServiceDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedMetricDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
 

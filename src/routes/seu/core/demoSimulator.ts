@@ -4,8 +4,8 @@ import path from "node:path";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
+import { demoStepsDB, type DemoStepRow } from "../../../dblayer/demoStepsDB.js";
 import { demoScenariosDB, type DemoScenarioRow } from "../../../dblayer/demoScenariosDB.js";
-import { demoPlaybooksDB, type DemoPlaybookRow } from "../../../dblayer/demoPlaybooksDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
@@ -29,9 +29,10 @@ import { createFinding, transitionFinding, convertFindingToObligation, listFindi
 import { createObligation } from "./obligations.js";
 import { approveConcept, validateComposableFieldsAgainstSchema } from "./ontology.js";
 import { createAuthoringDraft, publishAuthoringDraft } from "./sdkAuthoring.js";
+import { renderMarkdown, renderInlineMarkdown } from "../../../domain/sdk/markdownRender.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
-import { BIRTH_STATE, INITIAL_VERSION } from "../../../dblayer/constants.js";
+import { BIRTH_STATE, INITIAL_VERSION, DEMO_VISITOR_STEP_KIND, DEMO_NOTE_STEP_KIND } from "../../../dblayer/constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "..", "..", "..", "dblayer", "seed", "data", "demo");
@@ -45,10 +46,10 @@ interface SimulatorContext extends DemoActor {
 }
 
 type Target = Record<string, unknown>;
-type Handler = (ctx: SimulatorContext, scenario: DemoScenarioRow) => Promise<string>;
+type Handler = (ctx: SimulatorContext, step: DemoStepRow) => Promise<string>;
 
 const str = (value: unknown, label: string): string => {
-  if (typeof value !== "string" || !value.trim()) throw new Error(`scenario is missing "${label}"`);
+  if (typeof value !== "string" || !value.trim()) throw new Error(`step is missing "${label}"`);
   return value;
 };
 
@@ -70,6 +71,11 @@ async function authorBadgeFor(ctx: SimulatorContext, method: string, fullPath: s
   return resolveAuthorBadge(found, { isRoot, badgeTypes, has, hasVerb: (entityType, verb) => !!verb && has(`${entityType.toLowerCase()}_${verb}`) });
 }
 
+// The Objective keys a step target can name, from the Objective seed.
+export function listObjectiveKeys(): string[] {
+  return (JSON.parse(readFileSync(path.join(dataDir, "objectives.json"), "utf8")) as Array<{ key: string }>).map((o) => o.key);
+}
+
 async function objectiveFor(ctx: SimulatorContext, target: Target): Promise<{ id: string; statement: string }> {
   const key = str(target.objectiveKey, "target.objectiveKey");
   const seeds = JSON.parse(readFileSync(path.join(dataDir, "objectives.json"), "utf8")) as Array<{ key: string; statement: string }>;
@@ -84,7 +90,7 @@ async function seuFor(ctx: SimulatorContext, target: Target): Promise<string> {
   const objective = await objectiveFor(ctx, target);
   const { data: seu, error } = await seusDB.findByObjectiveId(objective.id);
   if (error) throw error;
-  if (!seu) throw new Error(`Objective ${String(target.objectiveKey)} has no SEU yet; run its commission scenario first`);
+  if (!seu) throw new Error(`Objective ${String(target.objectiveKey)} has no SEU yet; run its commission step first`);
   return seu.id;
 }
 
@@ -134,12 +140,12 @@ async function ensureEngagement(ctx: SimulatorContext, seuId: string): Promise<v
 }
 
 const handlers: Record<string, Handler> = {
-  async "commission-objective"(ctx, sc) {
-    const objective = await objectiveFor(ctx, sc.target);
+  async "commission-objective"(ctx, st) {
+    const objective = await objectiveFor(ctx, st.target);
     await grantRouteBadges(ctx.participantId, "POST", `/aisworg/seu/objectives/${objective.id}/commission`);
-    const { data: template } = await templatesDB.findActiveByCode(str(sc.payload.templateCode, "payload.templateCode"), ctx.tenantId);
+    const { data: template } = await templatesDB.findActiveByCode(str(st.payload.templateCode, "payload.templateCode"), ctx.tenantId);
     if (!template) throw new Error("the Demo Template is not Active; reset the demo data");
-    const profileCode = str(sc.payload.profileCode, "payload.profileCode");
+    const profileCode = str(st.payload.profileCode, "payload.profileCode");
     const { data: profiles } = await profilesDB.findActiveVisibleTo(ctx.tenantId);
     const profile = (profiles ?? []).find((p) => p.code === profileCode);
     if (!profile) throw new Error(`Profile ${profileCode} is not Active; reset the demo data`);
@@ -182,25 +188,25 @@ const handlers: Record<string, Handler> = {
     return `Commissioned and activated an SEU for "${objective.statement}".`;
   },
 
-  async "complete-deliverable"(ctx, sc) {
-    const seuId = await seuFor(ctx, sc.target);
-    const item = await outstandingWorkItem(seuId, sc.target.deliverableCode);
+  async "complete-deliverable"(ctx, st) {
+    const seuId = await seuFor(ctx, st.target);
+    const item = await outstandingWorkItem(seuId, st.target.deliverableCode);
     const result = await completeWorkItem({ workItemId: item.id, outcome: "done" });
     if (!result.ok) throw new Error(result.detail);
     return `Work on "${item.deliverable_name}" reported done.`;
   },
 
-  async "raise-blocker"(ctx, sc) {
-    const seuId = await seuFor(ctx, sc.target);
-    const item = await outstandingWorkItem(seuId, sc.target.deliverableCode);
-    const outcome = sc.payload.outcome === "failed" ? "failed" : "blocked";
+  async "raise-blocker"(ctx, st) {
+    const seuId = await seuFor(ctx, st.target);
+    const item = await outstandingWorkItem(seuId, st.target.deliverableCode);
+    const outcome = st.payload.outcome === "failed" ? "failed" : "blocked";
     const result = await completeWorkItem({ workItemId: item.id, outcome });
     if (!result.ok) throw new Error(result.detail);
     return `Work on "${item.deliverable_name}" reported ${outcome}; an Attention Item was raised.`;
   },
 
-  async "release-blocker"(ctx, sc) {
-    const seuId = await seuFor(ctx, sc.target);
+  async "release-blocker"(ctx, st) {
+    const seuId = await seuFor(ctx, st.target);
     for (const [from, to] of [["Delivered", "Acknowledged"], ["Acknowledged", "In Progress"], ["In Progress", "Resolved"]] as const) {
       await grantTransitionBadge(ctx.participantId, "AttentionItem", from, to);
     }
@@ -217,51 +223,52 @@ const handlers: Record<string, Handler> = {
     return `Released "${open.title}"; re-dispatch follows from the Resolved event.`;
   },
 
-  async "raise-risk"(ctx, sc) {
-    const seuId = await seuFor(ctx, sc.target);
+  async "raise-risk"(ctx, st) {
+    const seuId = await seuFor(ctx, st.target);
     const authorBadge = await authorBadgeFor(ctx, "POST", "/aisworg/api/seu/obligations");
     const obligation = await createObligation({
-      relatedObjectType: "SEU", relatedObjectId: seuId, category: str(sc.category, "category"), title: sc.title,
-      description: sc.description, severity: sc.severity ?? undefined, priority: sc.priority, origin: typeof sc.payload.origin === "string" ? sc.payload.origin : null,
+      relatedObjectType: "SEU", relatedObjectId: seuId, category: str(st.payload.category, "payload.category"), title: st.title,
+      description: st.description, severity: typeof st.payload.severity === "string" ? st.payload.severity : undefined, priority: typeof st.payload.priority === "string" ? st.payload.priority : null, origin: typeof st.payload.origin === "string" ? st.payload.origin : null,
       actorId: ctx.participantId, authorBadge,
     });
     return `Raised Risk "${obligation.title}".`;
   },
 
-  async "raise-finding"(ctx, sc) {
-    const seuId = await seuFor(ctx, sc.target);
-    const deliverable = await deliverableFor(seuId, str(sc.target.deliverableCode, "target.deliverableCode"));
+  async "raise-finding"(ctx, st) {
+    const seuId = await seuFor(ctx, st.target);
+    const deliverable = await deliverableFor(seuId, str(st.target.deliverableCode, "target.deliverableCode"));
+    const severity = str(st.payload.severity, "payload.severity");
     const review = await createReview({
       seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id,
-      category: str(sc.payload.reviewCategory, "payload.reviewCategory"), name: str(sc.payload.reviewName, "payload.reviewName"),
+      category: str(st.payload.reviewCategory, "payload.reviewCategory"), name: str(st.payload.reviewName, "payload.reviewName"),
       actorId: ctx.participantId,
     });
-    await createFinding({ reviewId: review.id, severity: str(sc.severity, "severity"), title: sc.title, description: sc.description, actorId: ctx.participantId });
-    return `Raised ${sc.severity} Finding "${sc.title}" on "${deliverable.name}".`;
+    await createFinding({ reviewId: review.id, severity: severity, title: st.title, description: st.description, actorId: ctx.participantId });
+    return `Raised ${severity} Finding "${st.title}" on "${deliverable.name}".`;
   },
 
-  async "convert-finding"(ctx, sc) {
-    const seuId = await seuFor(ctx, sc.target);
-    const finding = await findingFor(seuId, str(sc.target.findingTitle, "target.findingTitle"));
-    const result = await convertFindingToObligation({ findingId: finding.id, category: typeof sc.payload.category === "string" ? sc.payload.category : undefined, actorId: ctx.participantId });
+  async "convert-finding"(ctx, st) {
+    const seuId = await seuFor(ctx, st.target);
+    const finding = await findingFor(seuId, str(st.target.findingTitle, "target.findingTitle"));
+    const result = await convertFindingToObligation({ findingId: finding.id, category: typeof st.payload.category === "string" ? st.payload.category : undefined, actorId: ctx.participantId });
     if (!result.ok) throw new Error(result.detail);
     return `Converted Finding "${finding.title}" to an Obligation.`;
   },
 
-  async "waive-blocker"(ctx, sc) {
-    const seuId = await seuFor(ctx, sc.target);
-    const finding = await findingFor(seuId, str(sc.target.findingTitle, "target.findingTitle"));
+  async "waive-blocker"(ctx, st) {
+    const seuId = await seuFor(ctx, st.target);
+    const finding = await findingFor(seuId, str(st.target.findingTitle, "target.findingTitle"));
     await grantTransitionBadge(ctx.participantId, "Finding", "Open", "Waived");
     const result = await transitionFinding({ findingId: finding.id, targetState: "Waived", actorId: ctx.participantId });
     if (!result.ok) throw new Error("detail" in result ? String(result.detail) : result.reason);
     return `Waived Finding "${finding.title}".`;
   },
 
-  async "create-pack"(ctx, sc) {
-    const pack = sc.payload.pack as Record<string, unknown> | undefined;
-    if (!pack || typeof pack !== "object") throw new Error('scenario is missing "payload.pack"');
+  async "create-pack"(ctx, st) {
+    const pack = st.payload.pack as Record<string, unknown> | undefined;
+    if (!pack || typeof pack !== "object") throw new Error('step is missing "payload.pack"');
     const code = str(pack.code, "payload.pack.code");
-    const creationBadge = str(sc.payload.creationBadge, "payload.creationBadge");
+    const creationBadge = str(st.payload.creationBadge, "payload.creationBadge");
     await grantBadge(ctx.participantId, creationBadge);
     const { data: schema, error: schemaError } = await schemaDefinitionsDB.findLatest("Pack");
     if (schemaError || !schema) throw schemaError ?? new Error("no schema_definitions grammar for Pack");
@@ -281,13 +288,14 @@ const handlers: Record<string, Handler> = {
     return `Authored and activated Pack "${code}".`;
   },
 
-  async "accept-ontology-code"(ctx, sc) {
-    const conceptType = str(sc.payload.conceptType, "payload.conceptType");
-    const code = str(sc.payload.code, "payload.code");
+  async "accept-ontology-code"(ctx, st) {
+    const conceptType = str(st.payload.conceptType, "payload.conceptType");
+    const code = str(st.payload.code, "payload.code");
+    const packCode = str(st.payload.packCode, "payload.packCode");
+    const { data: pack } = await packsDB.findByCodeAndVersion(packCode, INITIAL_VERSION, ctx.tenantId);
+    if (!pack) throw new Error(`Pack "${packCode}" was not found. Create it first, using the code given in the earlier steps.`);
     await grantTransitionBadge(ctx.participantId, "Ontology", "Draft", "Active");
     await approveConcept(conceptType, code, ctx.tenantId, { isRoot: false, tenantId: ctx.tenantId, actorId: ctx.participantId, actorBadge: await badgeAuthorityEngine.resolveAuthorBadge(ctx.participantId, "ontology_approve") });
-    const { data: pack } = await packsDB.findByCodeAndVersion(str(sc.payload.packCode, "payload.packCode"), INITIAL_VERSION, ctx.tenantId);
-    if (!pack) throw new Error("the reader privacy Pack is not seeded; reset the demo data");
     let status: string = pack.status;
     while (status !== "Active") {
       const advanced = await publishAuthoringDraft({ kind: "Pack", id: pack.id, actorId: ctx.participantId });
@@ -298,64 +306,131 @@ const handlers: Record<string, Handler> = {
   },
 };
 
-export async function listAllowedScenarios(tenantId: string): Promise<DemoScenarioRow[]> {
-  const { data, error } = await demoScenariosDB.findByTenant(tenantId, { enabledOnly: true });
+// The step kinds a step can be saved with: the handlers above, the visitor step and the note.
+export function listStepKinds(): string[] {
+  return [...Object.keys(handlers), DEMO_VISITOR_STEP_KIND, DEMO_NOTE_STEP_KIND].sort();
+}
+
+export async function listAllowedSteps(tenantId: string): Promise<DemoStepRow[]> {
+  const { data, error } = await demoStepsDB.findByTenant(tenantId, { enabledOnly: true });
   if (error) throw error;
   return data ?? [];
 }
 
-export async function listAllScenarios(tenantId: string): Promise<DemoScenarioRow[]> {
-  const { data, error } = await demoScenariosDB.findByTenant(tenantId);
+export async function listAllSteps(tenantId: string): Promise<DemoStepRow[]> {
+  const { data, error } = await demoStepsDB.findByTenant(tenantId);
   if (error) throw error;
   return data ?? [];
 }
 
-export async function listPlaybooks(tenantId: string): Promise<DemoPlaybookRow[]> {
-  const { data, error } = await demoPlaybooksDB.findByTenant(tenantId, { enabledOnly: true });
+export async function listScenarios(tenantId: string, opts: { includeDisabled?: boolean } = {}): Promise<DemoScenarioRow[]> {
+  const { data, error } = await demoScenariosDB.findByTenant(tenantId, { enabledOnly: !opts.includeDisabled });
   if (error) throw error;
   return data ?? [];
 }
 
-export async function runScenario(code: string, opts: { allowDisabled?: boolean } = {}): Promise<SimulatorResult> {
+export async function runStep(code: string, opts: { allowDisabled?: boolean } = {}): Promise<SimulatorResult> {
   try {
     const ctx = await getContext();
     await grantAllTransitionBadges(ctx.participantId);
-    const { data: scenario, error } = await demoScenariosDB.findByCode(ctx.tenantId, code);
+    const { data: step, error } = await demoStepsDB.findByCode(ctx.tenantId, code);
     if (error) throw error;
-    if (!scenario) return { ok: false, message: `No scenario "${code}".` };
-    if (!scenario.enabled && !opts.allowDisabled) return { ok: false, message: `Scenario "${code}" is disabled.` };
-    const handler = handlers[scenario.kind];
-    if (!handler) return { ok: false, message: `No handler for scenario kind "${scenario.kind}".` };
-    return { ok: true, message: await handler(ctx, scenario) };
+    if (!step) return { ok: false, message: `No step "${code}".` };
+    if (!step.enabled && !opts.allowDisabled) return { ok: false, message: `Step "${code}" is disabled.` };
+    if (step.kind === DEMO_VISITOR_STEP_KIND) return { ok: false, message: `"${step.title}" is a step for the visitor and has nothing to run.` };
+    if (step.kind === DEMO_NOTE_STEP_KIND) return { ok: false, message: `"${step.title}" is a note and has nothing to run.` };
+    const handler = handlers[step.kind];
+    if (!handler) return { ok: false, message: `No handler for step kind "${step.kind}".` };
+    return { ok: true, message: await handler(ctx, step) };
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }
 }
 
-// Runs the playbook step at `index` and reports the index of the next step, or null when finished.
-// Runs the playbook's next step. The playbook's stored progress decides which step that is.
-export async function stepPlaybook(code: string): Promise<SimulatorResult & { finished: boolean }> {
+// Runs the scenario's next step. The scenario's stored progress decides which step of its playbook that is.
+export async function advanceScenario(code: string): Promise<SimulatorResult & { finished: boolean }> {
   const ctx = await getContext();
-  const { data: playbook, error } = await demoPlaybooksDB.findByCode(ctx.tenantId, code);
+  const { data: scenario, error } = await demoScenariosDB.findByCode(ctx.tenantId, code);
   if (error) throw error;
-  if (!playbook || !playbook.enabled) return { ok: false, message: `No enabled playbook "${code}".`, finished: false };
-  const scenarioCode = playbook.steps[playbook.progress];
-  if (!scenarioCode) return { ok: false, message: `"${playbook.title}" is already complete.`, finished: true };
-  const result = await runScenario(scenarioCode);
+  if (!scenario || !scenario.enabled) return { ok: false, message: `No enabled scenario "${code}".`, finished: false };
+  const stepCode = scenario.playbook[scenario.progress];
+  if (!stepCode) return { ok: false, message: `"${scenario.title}" is already complete.`, finished: true };
+  const { data: step, error: stepError } = await demoStepsDB.findByCode(ctx.tenantId, stepCode);
+  if (stepError) throw stepError;
+  // A visitor step is done by the visitor in the application; marking it done only advances the scenario.
+  // A note has no action; continuing past it only advances the scenario.
+  const result: SimulatorResult = step?.kind === DEMO_VISITOR_STEP_KIND ? { ok: true, message: `Step "${step.title}" marked done.` }
+    : step?.kind === DEMO_NOTE_STEP_KIND ? { ok: true, message: `Note "${step.title}" read.` }
+    : await runStep(stepCode);
   if (!result.ok) return { ...result, finished: false };
-  const { error: progressError } = await demoPlaybooksDB.setProgress(ctx.tenantId, code, playbook.progress + 1);
+  const { error: progressError } = await demoScenariosDB.setProgress(ctx.tenantId, code, scenario.progress + 1);
   if (progressError) throw progressError;
-  return { ...result, finished: playbook.progress + 1 >= playbook.steps.length };
+  return { ...result, finished: scenario.progress + 1 >= scenario.playbook.length };
 }
 
-export async function setScenarioEnabled(code: string, enabled: boolean): Promise<void> {
+export interface GuideStep {
+  title: string;
+  titleHtml: string;
+  annotation: string | null;
+  annotationHtml: string;
+  copy: Array<{ label: string; text: string }>;
+  visitor: boolean;
+  note: boolean;
+}
+
+export interface GuideState {
+  code: string;
+  number: number;
+  title: string;
+  titleHtml: string;
+  index: number;
+  total: number;
+  finished: boolean;
+  step: GuideStep | null;
+}
+
+// The state the guide panel shows for one scenario: its position among the scenarios of its area, and the step the visitor is on.
+export async function getGuide(code: string): Promise<GuideState | null> {
   const ctx = await getContext();
-  const { data, error } = await demoScenariosDB.setEnabled(ctx.tenantId, code, enabled);
+  const { data: scenario, error } = await demoScenariosDB.findByCode(ctx.tenantId, code);
   if (error) throw error;
-  if (!data) throw new Error(`No scenario "${code}".`);
+  if (!scenario || !scenario.enabled) return null;
+  const sameArea = (await listScenarios(ctx.tenantId)).filter((p) => p.area === scenario.area);
+  const stepCode = scenario.playbook[scenario.progress];
+  const { data: step, error: stepError } = stepCode ? await demoStepsDB.findByCode(ctx.tenantId, stepCode) : { data: null, error: undefined };
+  if (stepError) throw stepError;
+  // Notes are not counted: the index and total count the playbook's other steps only.
+  const { data: allSteps, error: allError } = await demoStepsDB.findByTenant(ctx.tenantId);
+  if (allError) throw allError;
+  const isNote = (c: string): boolean => (allSteps ?? []).find((s) => s.code === c)?.kind === DEMO_NOTE_STEP_KIND;
+  const visitor = step?.kind === DEMO_VISITOR_STEP_KIND;
+  return {
+    code: scenario.code,
+    number: sameArea.findIndex((p) => p.code === scenario.code) + 1,
+    title: scenario.title,
+    titleHtml: renderInlineMarkdown(scenario.title),
+    index: scenario.playbook.slice(0, scenario.progress).filter((c) => !isNote(c)).length,
+    total: scenario.playbook.filter((c) => !isNote(c)).length,
+    finished: !step,
+    step: step ? {
+      title: step.title,
+      titleHtml: renderInlineMarkdown(step.title),
+      annotation: step.annotation,
+      annotationHtml: renderMarkdown(step.annotation ?? ""),
+      copy: Array.isArray(step.payload.copy) ? (step.payload.copy as Array<{ label: string; text: string }>) : [],
+      visitor,
+      note: step.kind === DEMO_NOTE_STEP_KIND,
+    } : null,
+  };
+}
+
+export async function setStepEnabled(code: string, enabled: boolean): Promise<void> {
+  const ctx = await getContext();
+  const { data, error } = await demoStepsDB.setEnabled(ctx.tenantId, code, enabled);
+  if (error) throw error;
+  if (!data) throw new Error(`No step "${code}".`);
 }
 
 export async function resetDemo(): Promise<void> {
   await seedDemo();
 }
-

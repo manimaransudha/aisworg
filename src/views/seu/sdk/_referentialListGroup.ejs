@@ -1,7 +1,8 @@
 <%# One referential-list field. Editable (canEdit): a stack of labeled cards
     (not a horizontal strip of unlabeled inline boxes) — existing rows shown
-    filled, exactly one blank "New item" row at the end doubling as the clone
-    template for the "+ Add another" button (edit.ejs's script). Read-only
+    filled, plus one hidden blank row at the end (data-rl-template, and
+    data-nl-template for a nested list) that the "+ Add another" button clones
+    (referentialListGroup.js); a list with no saved rows shows only the button. Read-only
     (!canEdit, owner: "The view should show the details... just not
     editable, showing dropdowns etc"): plain text rows, existing content
     only — no disabled controls, no blank offered row, no Add/Remove.
@@ -675,7 +676,7 @@
     included once PER referential-list field (Dependencies, Checklists,
     Quality Gates, Review Gates, Obligation Definitions, ...), so a <style>
     block here would duplicate itself once per field on the page. %>
-<div class="referential-list-group" data-field-name="<%= field.name %>" data-next-index="<%= field.rows.length %>">
+<div class="referential-list-group<%= field.itemFields.length === 1 ? '' : ' referential-list-group--boxed' %>" data-field-name="<%= field.name %>" data-next-index="<%= field.rows.length %>">
   <% field.rows.forEach(function(row, i) { %>
     <% var isExisting = i < field.existingCount; %>
     <% if (isDependencyGraph && row.fromType === 'Capability') { %>
@@ -691,10 +692,9 @@
       <input type="hidden" name="<%= field.name %>[<%= i %>][requiredState]" value="<%= row.requiredState || '' %>">
       <input type="hidden" name="<%= field.name %>[<%= i %>][relationshipKind]" value="<%= row.relationshipKind || '' %>">
     <% } else { %>
-    <div class="card card-body bg-light border-0 mb-2 referential-list-row">
+    <div class="card card-body bg-light border-0 mb-2 referential-list-row<%= field.itemFields.length === 1 ? ' referential-list-row--single' : '' %><%= isExisting ? '' : ' d-none' %>" <%- isExisting ? '' : 'data-rl-template' %>>
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <span class="badge <%= isExisting ? 'bg-secondary-subtle text-secondary' : 'bg-light text-muted border' %> small fw-normal"><%= isExisting ? ('Item ' + (i + 1)) : 'New item — fill in to add' %></span>
-        <% if (canEdit) { %><button type="button" class="btn btn-sm btn-link text-danger p-0 remove-row-btn">Remove</button><% } %>
+        <% if (canEdit) { %><button type="button" class="btn btn-sm btn-link text-danger p-0 ms-auto remove-row-btn">Remove</button><% } %>
       </div>
 
       <% if (isDependencies) { %>
@@ -835,7 +835,7 @@
                 <option value="<%= code %>" <%= (row.toCode || '') === code ? 'selected' : '' %>><%= deliverableLabels[code] || code %></option>
               <% }) %>
             </select>
-            <% if (toCodeField && toCodeField.help) { %><div class="form-text small"><%= toCodeField.help %></div><% } %>
+            <% if (toCodeField && toCodeField.help) { %><% if (canEdit) { %><div class="form-text small"><%= toCodeField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= toCodeField.help %>" aria-label="Help"></i><% } %><% } %>
           </div>
           <div class="col-sm-6">
             <label class="form-label small text-muted mb-1"><%= (fromCodeField && fromCodeField.label) || ilabel('fromCode') %></label>
@@ -849,7 +849,7 @@
           <div class="col-sm-6">
             <label class="form-label small text-muted mb-1"><%= (requiredStateField && requiredStateField.label) || ilabel('requiredState') %></label>
             <input name="<%= field.name %>[<%= i %>][requiredState]" class="form-control form-control-sm" value="<%= row.requiredState || '' %>" <%- canEdit ? '' : 'disabled' %>>
-            <% if (requiredStateField && requiredStateField.help) { %><div class="form-text small"><%= requiredStateField.help %></div><% } %>
+            <% if (requiredStateField && requiredStateField.help) { %><% if (canEdit) { %><div class="form-text small"><%= requiredStateField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= requiredStateField.help %>" aria-label="Help"></i><% } %><% } %>
           </div>
           <div class="col-sm-6">
             <label class="form-label small text-muted mb-1"><%= (relationshipKindField && relationshipKindField.label) || ilabel('relationshipKind') %></label>
@@ -858,7 +858,7 @@
                 <option value="<%= opt %>" <%= (row.relationshipKind || 'dependency') === opt ? 'selected' : '' %>><%= opt %></option>
               <% }) %>
             </select>
-            <% if (relationshipKindField && relationshipKindField.help) { %><div class="form-text small"><%= relationshipKindField.help %></div><% } %>
+            <% if (relationshipKindField && relationshipKindField.help) { %><% if (canEdit) { %><div class="form-text small"><%= relationshipKindField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= relationshipKindField.help %>" aria-label="Help"></i><% } %><% } %>
           </div>
         </div>
       <% } else { %>
@@ -974,7 +974,7 @@
                         <% } else { %>
                           <input name="<%= nestedInputName %>" class="form-control form-control-sm" value="<%= nestedValue %>" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>>
                         <% } %>
-                        <% if (nestedField.help) { %><div class="form-text small"><%= nestedField.help %></div><% } %>
+                        <% if (nestedField.help) { %><% if (canEdit) { %><div class="form-text small"><%= nestedField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= nestedField.help %>" aria-label="Help"></i><% } %><% } %>
                       </div>
                     <% }) %>
                   </div>
@@ -999,10 +999,9 @@
                 <div class="nested-list-group" data-field-name="<%= itemField.name %>" data-next-index="<%= nestedRows.length %>">
                   <% nestedRows.forEach(function(nestedRow, j) { %>
                     <% var nestedIsExisting = j < nestedExistingCount; %>
-                    <div class="card card-body bg-white border mb-2 nested-list-row">
+                    <div class="card card-body bg-white border mb-2 nested-list-row<%= nestedIsExisting ? '' : ' d-none' %>" <%- nestedIsExisting ? '' : 'data-nl-template' %>>
                       <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="badge <%= nestedIsExisting ? 'bg-secondary-subtle text-secondary' : 'bg-light text-muted border' %> small fw-normal"><%= nestedIsExisting ? ('Item ' + (j + 1)) : 'New item — fill in to add' %></span>
-                        <% if (canEdit) { %><button type="button" class="btn btn-sm btn-link text-danger p-0 remove-nested-row-btn">Remove</button><% } %>
+                        <% if (canEdit) { %><button type="button" class="btn btn-sm btn-link text-danger p-0 ms-auto remove-nested-row-btn">Remove</button><% } %>
                       </div>
                       <div class="row g-2">
                         <% (itemField.nestedItemFields || []).forEach(function(nestedField) { %>
@@ -1170,7 +1169,7 @@
                                       <% } else { %>
                                         <input name="<%= subInputName %>" class="form-control form-control-sm" value="<%= subValue %>" <%- canEdit ? '' : 'disabled' %> <%- subRequired ? 'required' : '' %>>
                                       <% } %>
-                                      <% if (subField.help) { %><div class="form-text small"><%= subField.help %></div><% } %>
+                                      <% if (subField.help) { %><% if (canEdit) { %><div class="form-text small"><%= subField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= subField.help %>" aria-label="Help"></i><% } %><% } %>
                                     </div>
                                   <% }) %>
                                 </div>
@@ -1182,7 +1181,7 @@
                             <% } else { %>
                               <input name="<%= nestedInputName %>" class="form-control form-control-sm" value="<%= nestedValue %>" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>>
                             <% } %>
-                            <% if (nestedField.help) { %><div class="form-text small"><%= nestedField.help %></div><% } %>
+                            <% if (nestedField.help) { %><% if (canEdit) { %><div class="form-text small"><%= nestedField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= nestedField.help %>" aria-label="Help"></i><% } %><% } %>
                           </div>
                         <% }) %>
                       </div>
@@ -1215,6 +1214,15 @@
                   <select name="<%= field.name %>[<%= i %>][<%= itemField.name %>][]" class="form-select form-select-sm" multiple size="5" <%- canEdit ? '' : 'disabled' %>>
                     <% _multiOptions.forEach(function(opt) { %>
                       <option value="<%= opt.id %>" <%= (_selectedMultiRefs.indexOf(opt.id) !== -1 || _selectedMultiRefs.indexOf(opt.name) !== -1) ? 'selected' : '' %>><%= opt.name %> — <%= opt.packName %></option>
+                    <% }) %>
+                  </select>
+                  <div class="form-text small">Ctrl/Cmd-click to select more than one.</div>
+                <% } else if ((locals.ontologyOptions || {})[itemField.referentialSource]) { %>
+                  <%# An Ontology-backed multi-select (Profile knowledge locations' deliverableCodes): option
+                      list is ontologyOptions[source], which the route narrows to the Base template's catalogue. %>
+                  <select name="<%= field.name %>[<%= i %>][<%= itemField.name %>][]" class="form-select form-select-sm" multiple size="5" <%- canEdit ? '' : 'disabled' %>>
+                    <% locals.ontologyOptions[itemField.referentialSource].forEach(function(opt) { %>
+                      <option value="<%= opt.code %>" <%= _selectedMultiRefs.indexOf(opt.code) !== -1 ? 'selected' : '' %>><%= opt.label %></option>
                     <% }) %>
                   </select>
                   <div class="form-text small">Ctrl/Cmd-click to select more than one.</div>
@@ -1392,7 +1400,7 @@
               <% } else { %>
                 <input name="<%= inputName %>" class="form-control form-control-sm" value="<%= value %>" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>>
               <% } %>
-              <% if (itemField.help) { %><div class="form-text small"><%= itemField.help %></div><% } %>
+              <% if (itemField.help) { %><% if (canEdit) { %><div class="form-text small"><%= itemField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= itemField.help %>" aria-label="Help"></i><% } %><% } %>
             </div>
           <% }) %>
         </div>

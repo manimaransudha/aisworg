@@ -1,6 +1,5 @@
 import type { Request } from "express";
 import { lookupRouteAuthority } from "./routeAuthorityCache.js";
-import { resolveHeldBadges } from "./heldBadges.js";
 import { resolveHeldRoles } from "./heldRoles.js";
 
 export async function resolveNavRouteVisibility(req: Request, targets: Array<{ method: string; path: string }>): Promise<Record<string, boolean>> {
@@ -11,8 +10,6 @@ export async function resolveNavRouteVisibility(req: Request, targets: Array<{ m
     return result;
   }
 
-  const rootBypassAllowed = process.env.NODE_ENV !== "production";
-  const held = await resolveHeldBadges(req);
   const heldRoles = await resolveHeldRoles(user.id, {});
 
   for (const t of targets) {
@@ -22,16 +19,12 @@ export async function resolveNavRouteVisibility(req: Request, targets: Array<{ m
       result[key] = false;
       continue;
     }
-    const { badges, roles, matchMode } = found;
-    const badgesOk =
-      badges.length === 0 ||
-      (held.isRoot && rootBypassAllowed) ||
-      (matchMode === "any" ? badges.some((b) => held.has(b)) : badges.every((b) => held.has(b)));
-    const rolesOk =
+    const { roles, matchMode } = found;
+    // A link is shown on the roles alone; badges are checked when an operation or transition runs.
+    result[key] =
       roles.length === 0 ||
       heldRoles.isSuperuser ||
       (matchMode === "any" ? roles.some((r) => heldRoles.has(r)) : roles.every((r) => heldRoles.has(r)));
-    result[key] = badgesOk && rolesOk;
   }
   return result;
 }

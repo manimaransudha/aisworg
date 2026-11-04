@@ -51,6 +51,7 @@ export function attachVM(viewName: keyof typeof viewModels) {
         else if (url.includes('/seu/sdk/schema-registry')) activePage = 'seu-sdk-schema-registry';
         else if (url.includes('/seu/sdk/ontology')) activePage = 'seu-sdk-ontology';
         else if (url.includes('/seu/capability-definitions')) activePage = 'seu-capability-definitions';
+        else if (url.includes('/seu/service-definitions')) activePage = 'seu-service-definitions';
         else if (url.includes('/seu/participants')) activePage = 'seu-participants';
         else if (url.includes('/seu/knowledge/capital')) activePage = 'seu-knowledge-capital';
         else if (url.includes('/seu/telemetry')) activePage = 'seu-telemetry';

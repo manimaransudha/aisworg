@@ -32,6 +32,19 @@ export interface PageRedirects {
 const segments = (p: string): string[] => p.split("/").filter(Boolean);
 const requestPath = (req: Request): string => req.originalUrl.split("?")[0] ?? "";
 
+// The same-host page the request came from, when it is not the page being denied.
+function refererPath(req: Request, here: string): string | null {
+  const referer = req.get("referer");
+  if (!referer) return null;
+  try {
+    const url = new URL(referer);
+    if (url.host !== req.get("host") || url.pathname === here) return null;
+    return url.pathname + url.search;
+  } catch {
+    return null;
+  }
+}
+
 function prefixParams(prefix: string, path: string): Params {
   const pre = segments(prefix);
   const got = segments(path);
@@ -58,14 +71,22 @@ function page(spec: PageSpec): PageRedirects {
   const go = (flash: typeof flashError, req: Request, res: Response, msg: string, pattern: string, path?: string): void => {
     flash(req, res, path ?? fill(pattern, prefixParams(spec.prefix, requestPath(req))), msg);
   };
+  // A denied page load returns to the page the visitor came from and never to the denied page itself.
+  // Any other request goes to the page's declared destination.
+  const denied = (req: Request, res: Response, msg: string, pattern: string): void => {
+    if (req.method !== "GET") return go(flashError, req, res, msg, pattern);
+    const here = requestPath(req);
+    const target = fill(pattern, prefixParams(spec.prefix, here));
+    flashError(req, res, refererPath(req, here) ?? (target === here ? HOME : target), msg);
+  };
   const entry: PageRedirects = {
     prefix: spec.prefix,
     error: (req, res, msg, path) => go(flashError, req, res, msg, spec.error, path),
     success: (req, res, msg, path) => go(flashSuccess, req, res, msg, success, path),
     authfail: (req, res, msg) => go(flashError, req, res, msg, LOGIN),
-    rolefail: (req, res, msg) => go(flashError, req, res, msg, deny),
-    badgefail: (req, res, msg) => go(flashError, req, res, msg, spec.badgefail ?? deny),
-    tenantfail: (req, res, msg) => go(flashError, req, res, msg, spec.tenantfail ?? deny),
+    rolefail: (req, res, msg) => denied(req, res, msg, deny),
+    badgefail: (req, res, msg) => denied(req, res, msg, spec.badgefail ?? deny),
+    tenantfail: (req, res, msg) => denied(req, res, msg, spec.tenantfail ?? deny),
   };
   registry.push(entry);
   return entry;
@@ -109,15 +130,18 @@ export const redirects = {
     authorityTransitionDefinitions: page({ prefix: "/aisworg/seu/authority/transition-definitions", error: "/aisworg/seu/sdk/transition-definition-authoring" }),
     authorityTransitionDefinitionsUpdate: page({ prefix: "/aisworg/seu/authority/transition-definitions/:id/update", error: "/aisworg/seu/authority/transition-definitions/:id" }),
     authorityVerbs: page({ prefix: "/aisworg/seu/authority/verbs", error: "/aisworg/seu/authority/verbs" }),
+    capabilityDefinitionsView: page({ prefix: "/aisworg/seu/capability-definitions/:id", error: "/aisworg/seu/capability-definitions" }),
     capabilityDefinitionsCopy: page({ prefix: "/aisworg/seu/capability-definitions/:id/copy", error: "/aisworg/seu/capability-definitions" }),
     dataMigrationsRun: page({ prefix: "/aisworg/seu/data-migrations/run", error: "/aisworg/seu/data-migrations" }),
+    deliverableDefinitionsView: page({ prefix: "/aisworg/seu/deliverable-definitions/:id", error: "/aisworg/seu/deliverable-definitions" }),
     deliverableDefinitionsCopy: page({ prefix: "/aisworg/seu/deliverable-definitions/:id/copy", error: "/aisworg/seu/deliverable-definitions" }),
     demo: page({ prefix: "/aisworg/seu/demo", error: "/aisworg/seu/demo", tenantfail: "/aisworg/seu" }),
-    demoRootScenariosEnabled: page({ prefix: "/aisworg/seu/demo/root/scenarios/:code/enabled", error: "/aisworg/seu/demo/root", tenantfail: "/aisworg/seu" }),
+    demoRootStepsEnabled: page({ prefix: "/aisworg/seu/demo/root/steps/:code/enabled", error: "/aisworg/seu/demo/root", tenantfail: "/aisworg/seu" }),
     devActAs: page({ prefix: "/aisworg/seu/dev/act-as", error: "/aisworg" }),
     identityBadgesUpdate: page({ prefix: "/aisworg/seu/identity/badges/:id/update", error: "/aisworg/seu/identity/badges" }),
     identityTenants: page({ prefix: "/aisworg/seu/identity/tenants", error: "/aisworg/seu/identity/tenants" }),
     identityUsers: page({ prefix: "/aisworg/seu/identity/users", error: "/aisworg/seu/identity/users" }),
+    packsView: page({ prefix: "/aisworg/seu/packs/:id", error: "/aisworg/seu/packs" }),
     objectives: page({ prefix: "/aisworg/seu/objectives", error: "/aisworg/seu/objectives", tenantfail: "/aisworg/seu/objectives" }),
     objectivesById: page({ prefix: "/aisworg/seu/objectives/:id", error: "/aisworg/seu/objectives", tenantfail: "/aisworg/seu/objectives" }),
     objectivesComments: page({ prefix: "/aisworg/seu/objectives/:id/comments", error: "/aisworg/seu/objectives/:id/edit", tenantfail: "/aisworg/seu/objectives" }),
@@ -130,7 +154,9 @@ export const redirects = {
     objectivesRetire: page({ prefix: "/aisworg/seu/objectives/:id/retire", error: "/aisworg/seu/objectives/:id", tenantfail: "/aisworg/seu/objectives" }),
     objectivesUpdate: page({ prefix: "/aisworg/seu/objectives/:id/update", error: "/aisworg/seu/objectives/:id/edit", success: "/aisworg/seu/objectives", tenantfail: "/aisworg/seu/objectives" }),
     objectivesValidateCommission: page({ prefix: "/aisworg/seu/objectives/:id/validate-commission", error: "/aisworg/seu/seus/new?objectiveId=:id", tenantfail: "/aisworg/seu/objectives" }),
+    policyDefinitionsView: page({ prefix: "/aisworg/seu/policy-definitions/:id", error: "/aisworg/seu/policy-definitions" }),
     policyDefinitionsCopy: page({ prefix: "/aisworg/seu/policy-definitions/:id/copy", error: "/aisworg/seu/policy-definitions" }),
+    profilesView: page({ prefix: "/aisworg/seu/profiles/:id", error: "/aisworg/seu/profiles" }),
     profilesCopy: page({ prefix: "/aisworg/seu/profiles/:id/copy", error: "/aisworg/seu/profiles" }),
     routeAuthority: page({ prefix: "/aisworg/seu/route-authority", error: "/aisworg/seu/route-authority/new", success: "/aisworg/seu/route-authority" }),
     routeAuthorityById: page({ prefix: "/aisworg/seu/route-authority/:id", error: "/aisworg/seu/route-authority" }),
@@ -155,6 +181,7 @@ export const redirects = {
     sdkSchemaRegistryPublish: page({ prefix: "/aisworg/seu/sdk/schema-registry/publish", error: "/aisworg/seu/sdk/schema-registry" }),
     sdkSchemaRegistryTransition: page({ prefix: "/aisworg/seu/sdk/schema-registry/:id/transition", error: "/aisworg/seu/sdk/schema-registry/:id" }),
     sdkTransition: page({ prefix: "/aisworg/seu/sdk/:slug/:draftId/transition", error: "/aisworg/seu/sdk/:slug/:draftId", success: "/aisworg/seu/sdk/:slug", tenantfail: "/aisworg/seu/sdk/:slug", badgefail: "/aisworg/seu/sdk/:slug/:draftId" }),
+    serviceDefinitionsView: page({ prefix: "/aisworg/seu/service-definitions/:id", error: "/aisworg/seu/service-definitions" }),
     serviceDefinitionsCopy: page({ prefix: "/aisworg/seu/service-definitions/:id/copy", error: "/aisworg/seu/service-definitions" }),
     seus: page({ prefix: "/aisworg/seu/seus/:id", error: "/aisworg/seu/seus" }),
     seusAttentionItems: page({ prefix: "/aisworg/seu/seus/:id/attention-items", error: "/aisworg/seu/seus/:id" }),
@@ -186,6 +213,7 @@ export const redirects = {
     seusReviewsFindings: page({ prefix: "/aisworg/seu/seus/:id/reviews/:reviewId/findings", error: "/aisworg/seu/seus/:id/reviews" }),
     seusReviewsTransition: page({ prefix: "/aisworg/seu/seus/:id/reviews/:reviewId/transition", error: "/aisworg/seu/seus/:id/reviews" }),
     seusWorkItemsComplete: page({ prefix: "/aisworg/seu/seus/:id/work-items/:workItemId/complete", error: "/aisworg/seu/seus/:id/work-queue" }),
+    templatesView: page({ prefix: "/aisworg/seu/templates/:id", error: "/aisworg/seu/templates" }),
     templatesCopy: page({ prefix: "/aisworg/seu/templates/:id/copy", error: "/aisworg/seu/templates" }),
     tenantAdminUsersBadges: page({ prefix: "/aisworg/seu/tenant-admin/users/:id/badges", error: "/aisworg/seu/tenant-admin/users" }),
   },

@@ -21,23 +21,12 @@
     <div class="mb-4">
       <h2 class="h3 mb-1 text-dark fw-bold">Templates</h2>
       <p class="text-muted small mb-0">
-        Template Registry (Ch.6 §20.12/CR-026) — every published Version of every Template. Each Version is an
-        immutable row (Ch.41 VM-002); publishing a new version of an existing (code, tenant) creates a new row and
-        supersedes the previously-Active one rather than mutating it. <code>code</code> is the Ontology-rooted
-        category (Ch.6 §20.1/§20.14, CR-021) — one tab per code, below.
+        Templates describe **what an SEU is intended to achieve**, the engineering structure required to achieve those objectives, and the default engineering assets that should be available when the SEU is commissioned.
       </p>
     </div>
 
     <% const _base = locals.listBasePath || '/aisworg/seu/templates'; %>
-    <%
-      var _categories = locals.categories || [];
-      var _activeCategory = locals.activeCategory || '';
-      var _categoryTabs = [{ key: '', label: 'All codes', href: _base }].concat(
-        _categories.map(function (c) { return { key: c, label: c, href: _base + '?category=' + encodeURIComponent(c) }; })
-      );
-    %>
     <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
-    <%- include('../../partials/verticalTabs', { tabs: _categoryTabs, active: _activeCategory }) %>
     <div class="flex-grow-1" style="min-width: 0;">
 
     <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search name / code' }) %>
@@ -61,8 +50,8 @@
     <% if (list.total === 0) { %>
       <% if (list.q) { %>
         <div class="alert alert-warning">No Templates match your search.</div>
-      <% } else if (_activeStatus || _activeCategory) { %>
-        <div class="alert alert-warning">No Templates<%= _activeStatus ? (' in state "' + _activeStatus + '"') : '' %><%= _activeCategory ? (' in category "' + _activeCategory + '"') : '' %>.</div>
+      <% } else if (_activeStatus) { %>
+        <div class="alert alert-warning">No Templates<%= _activeStatus ? (' in state "' + _activeStatus + '"') : '' %>.</div>
       <% } else { %>
         <div class="alert alert-warning">No Templates published yet — author one via SDK / Authoring &rarr; Template Authoring.</div>
       <% } %>
@@ -81,7 +70,7 @@
                   <% if (t.template.tenant_id === locals.platformTenantId) { %>
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span>
                   <% } else { %>
-                    <span class="badge bg-light text-dark border">Your tenant</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><%= (locals.tenantNameById || {})[t.template.tenant_id] %></span>
                   <% } %>
                   <% if (t.template.parent_template_id) { %>
                     <span class="badge bg-secondary-subtle text-secondary border">Derived (Ch.6 §9)</span>
@@ -92,7 +81,7 @@
               </div>
             </div>
             <div class="d-flex gap-2">
-              <a href="/aisworg/seu/sdk/template-authoring/<%= t.template.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
+              <a href="/aisworg/seu/templates/<%= t.template.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
               <% if (locals.canCopy) { %>
                 <form method="POST" action="/aisworg/seu/templates/<%= t.template.id %>/copy">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">

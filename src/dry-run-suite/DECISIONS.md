@@ -14,7 +14,7 @@ Detail lives in [WHITEBOARD.md](WHITEBOARD.md). This file is the short index of 
 - Seeds Packs (P1 to P7), one Template inherited into the Demo tenant, Profiles (PR1 to PR4) and all 22 Objectives, all progressed to Active.
 - No SEU is seeded. Commissioning belongs to part 2.
 - Seed data is real and sensible. The mobile-application Template is not modified. Profiles differ by selected Packs.
-- P7 (reader-privacy Compliance Pack) uses the existing compliance code compliance-us-state-privacy and is seeded Active. The Ontology acceptance flow is shown by the Declare goals that create a Pack with a new code (create-pack step, then accept-ontology-code step).
+- P7 (reader-privacy Compliance Pack) uses the existing compliance code compliance-us-state-privacy and is seeded Active. The Ontology acceptance flow is shown by the Declare scenarios that create a Pack with a new code (create-pack step, then accept-ontology-code step).
 - Seeding uses the governed path (real services and transitions, Demo User as actor), with no bulk-insert bypass.
 - Reset is a Demo-tenant-only purge helper, independent of db:clean-slate. It is an approved exception to the "only participants and badges" direct-write rule.
 - The purge deletes only Demo-tenant rows. It never deletes the Demo tenant row, users or participants_master, and never touches platform-level rows.
@@ -26,16 +26,17 @@ Detail lives in [WHITEBOARD.md](WHITEBOARD.md). This file is the short index of 
 
 ### Part 2: demo landing page, simulator and root screen
 - Both screens live in the main application, with route_authority rows and CR-083 styling.
-- Demo page: a notice that the data is shared and reset periodically, a contact link, and three tabs named after the stages on the landing page (Declare, Commission, Execute). Each tab has a collapsed How To panel and a list of goals.
-- A goal is a playbook. Its steps are scenarios, shown in order with an annotation that explains what the step shows. Only the next step can be run, and completed steps show as done. Progress is stored per goal for the whole Demo tenant.
-- Root screen: the same page, plus the Steps table with run and enable or disable for each scenario, and the Reset demo data button.
+- Demo page: a notice that the data is shared and reset periodically, a contact link, and three tabs named after the stages on the landing page (Declare, Commission, Execute). Each tab has a collapsed How To panel and a list of scenarios (the "What do you want to try" section).
+- Terms: a scenario is what the visitor chooses to try. Its playbook is the ordered list of its steps. A step is one runnable action. Steps are shown in order with an annotation that explains what the step shows. Only the next step can be run, and completed steps show as done. Progress is stored per scenario for the whole Demo tenant.
+- Root screen: the same page, plus the Steps table with run and enable or disable for each step, and the Reset demo data button.
 - The Reset demo data button is on the root screen only. The Demo tenant is reseeded every day at midnight US Pacific time by a schedule started with the server (DEMO_RESET_CRON and DEMO_RESET_TIMEZONE in constants.ts).
 - A visitor can write to the superuser from the demo page. The message is sent by email to SUPERUSER_EMAIL.
-- Simulator modes: a step run from a goal, and a scenario run by root.
+- Simulator modes: a step run from a scenario, and a step run alone by root.
 - The simulator acts as the shared Demo User. A badge helper adds the badges an event needs at run time and never revokes them. There is no fixed badge set to decide.
-- Scenario catalogue: tenant-scoped DB table seeded from JSON. Each scenario has an area (Declare, Commission or Execute), an annotation and an enabled flag. No versioning or lifecycle. Category, severity and priority reference Ontology codes.
-- Playbook table: tenant-scoped, seeded from JSON. Each playbook has an area, its ordered scenario codes and a progress index. A reset recreates the rows, so progress returns to zero.
-- The Declare goals create Packs with new codes, and then accept each code in the Ontology. The new Pack stays at Validated until the code is accepted.
+- Step catalogue (demo_steps): tenant-scoped DB table seeded from steps.json. Each step has an area (Declare, Commission or Execute), an annotation and an enabled flag. No versioning or lifecycle. Category, severity and priority reference Ontology codes.
+- Scenario table (demo_scenarios): tenant-scoped, seeded from scenarios.json. Each scenario has an area, its playbook (the ordered step codes in the playbook column), an enabled flag and a progress index. A reset recreates the rows, so progress returns to zero.
+- Built (CR-123): the database is the source for steps, scenarios and the per-tab How To text and stage titles (demo_areas). The JSON files are a one-time bootstrap, loaded only while the tables are empty. Delete is a disable. Root edits them on the Demo root page, per tab. A reset keeps them and sets every scenario's progress to zero. Plan in design/CR-123-demo-admin-crud-plan.md.
+- The Declare scenarios create Packs with new codes, and then accept each code in the Ontology. The new Pack stays at Validated until the code is accepted.
 - The demo organisation is ArchVault.
 - SEU lifecycle covers commissioning only for now. An SEU is commissioned against one leaf Objective and uses one Profile.
 - Releasing a blocker is the Attention Item chain. Re-dispatch follows as event consumption.
@@ -54,7 +55,7 @@ Detail lives in [WHITEBOARD.md](WHITEBOARD.md). This file is the short index of 
 - The remaining time is round trips to the database. About 900 queries at about 37 ms each.
 
 ## Open
-- Playbooks and scenarios: review the content of the goals, and add goals for the scenarios that no goal contains.
-- Template and Profile steps for the Declare goals (add a Pack to a Template, override an exposed parameter in a Profile) need new simulator handlers.
-- Two goals that begin by commissioning the same Objective collide when both are run.
+- Scenarios and steps: review the content of the scenarios, and add scenarios for the steps that no scenario contains.
+- Template and Profile steps for the Declare scenarios (add a Pack to a Template, override an exposed parameter in a Profile) need new simulator handlers.
+- Two scenarios that begin by commissioning the same Objective collide when both are run.
 - README rewrite, after the design is agreed.

@@ -1,6 +1,6 @@
 # Riverbend Digital Shelf demo
 
-This page belongs to the Demo tenant. It follows a small team at the Riverbend Public Library as they build Riverbend Digital Shelf, an app for members to browse, borrow, return and wait-list ebooks.
+The Demo is for the ArchVault Public Library as they build their ArchVault Digital Shelf. The Digital Shelf should allow members to browse, borrow, return and wait-list ebooks.
 
 ## What this application does
 

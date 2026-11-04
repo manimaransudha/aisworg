@@ -60,7 +60,6 @@
           <p class="mb-1"><%= draft.purpose %></p>
         <% } %>
         <p class="text-muted small mb-0">
-          Generated from <code>schema_definitions</code>, not a hand-built form.
           <a href="/aisworg/seu/sdk/<%= slug %>">&larr; All <%= kindLabel %>s</a>
           <% if (!isNew) { %> · <span class="text-muted">Draft <code><%= draft.code %></code></span><% } %>
         </p>
@@ -534,6 +533,7 @@
     })();
   </script>
   <script src="<%= baseUrl %>/js/referentialListGroup.js"></script>
+  <script src="<%= baseUrl %>/js/parameterOverrides.js"></script>
   <script src="<%= baseUrl %>/js/markdownEditor.js"></script>
   <script src="<%= baseUrl %>/js/dynamicOntologyField.js"></script>
   <script src="<%= baseUrl %>/js/composableMultiSelect.js"></script>

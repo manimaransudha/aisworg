@@ -142,11 +142,19 @@ NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts 
 
 pnpm test > output.txt 2>&1
 
+pnpm tsx src/dblayer/seed/seedOntologyConcepts.ts
+
 pnpm tsx src/dblayer/seed/seedPolicyDefinitions.ts
+pnpm tsx src/dblayer/seed/seedSchemaDefinitions.ts
 
 pnpm tsx src/dblayer/seed/seedTransitionDefinitions.ts
 pnpm tsx src/dblayer/seed/seedRouteAuthority.ts
 pnpm tsx src/dblayer/seed/seedEventSubscriptions.ts
 
+pnpm tsx src/dblayer/seed/demo/demoSeed.ts
 
 run .claude/skills/implementation-traceability skill correctly, accurately and completely including verifying all cited range on src/docs/SEU Studio Specifications/06_Platform Architectire/41_Version Management.md . There should be nothing that should be unchecked. 
+
+Fw2 L2 Bw U Bw Dw' B2 Lw2 Bw' L' F Dw2 R B2 R' D U2 L' B' Uw2
+Lw' D2 U Bw F' Uw' U Fw2 R Rw Bw2 F Dw Rw2 D R B2 Lw U2 R
+Bw' L Dw2 F' Rw Bw U Fw2 Rw2 Dw2 B2 Rw Fw D Uw2 L' B F L B'

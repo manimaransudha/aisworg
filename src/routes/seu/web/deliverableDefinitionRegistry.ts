@@ -9,8 +9,9 @@ import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
-import { listDeliverableDefinitionsWithNextStates, copyDeliverableDefinitionAsNewDraft } from "../core/deliverableDefinitions.js";
+import { listDeliverableDefinitionsWithNextStates, copyDeliverableDefinitionAsNewDraft, getDeliverableDefinitionView } from "../core/deliverableDefinitions.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
 import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
  
@@ -36,6 +37,7 @@ router.get("/deliverable-definitions", attachVM("seu/deliverable-definitions/ind
     req.vm.opt.states = DELIVERABLE_DEFINITION_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = PLATFORM_TENANT_ID;
+    req.vm.opt.tenantNameById = Object.fromEntries(((await tenantsDB.findAll()).data ?? []).map((t) => [t.id, t.name]));
     const held = await resolveHeldBadges(req);
     const canCopy = held.has("deliverabledefinition_define");
     req.vm.opt.canCopy = canCopy;
@@ -43,6 +45,22 @@ router.get("/deliverable-definitions", attachVM("seu/deliverable-definitions/ind
     return renderView(req, res, "seu/deliverable-definitions/index", req.vm);
   } catch (err) {
     logger.error("[web/seu/deliverableDefinitionRegistry] GET /deliverable-definitions error", err as Error);
+    next(err);
+  }
+});
+
+router.get("/deliverable-definitions/:id", attachVM("seu/deliverable-definitions/view"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const viewer = { isRoot: (req.session?.user?.platformBadges ?? []).includes("root"), tenantId: req.session?.user?.tenant_id ?? null };
+    const view = await getDeliverableDefinitionView(String(req.params.id), viewer);
+    if (!view) return redirects.seu.deliverableDefinitionsView.error(req, res, "Deliverable Definition not found.");
+    req.vm.req.title = `Deliverable Definition: ${view.displayName}`;
+    req.vm.req.deliverable = view.deliverableDefinition;
+    req.vm.req.displayName = view.displayName;
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/deliverable-definitions/view", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/deliverableDefinitionRegistry] GET /deliverable-definitions/:id error", err as Error);
     next(err);
   }
 });

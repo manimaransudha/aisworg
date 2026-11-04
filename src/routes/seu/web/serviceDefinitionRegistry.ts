@@ -9,7 +9,7 @@ import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
-import { listServiceDefinitionsWithNextStates, copyServiceDefinitionAsNewDraft } from "../core/serviceDefinitions.js";
+import { listServiceDefinitionsWithNextStates, copyServiceDefinitionAsNewDraft, getServiceDefinitionView } from "../core/serviceDefinitions.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
@@ -36,6 +36,7 @@ router.get("/service-definitions", attachVM("seu/service-definitions/index"), as
     req.vm.opt.states = SERVICE_DEFINITION_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = await getPlatformTenantId();
+    req.vm.opt.tenantNameById = Object.fromEntries(((await tenantsDB.findAll()).data ?? []).map((t) => [t.id, t.name]));
     const held = await resolveHeldBadges(req);
     const canCopy = held.has("service_define");
     req.vm.opt.canCopy = canCopy;
@@ -43,6 +44,24 @@ router.get("/service-definitions", attachVM("seu/service-definitions/index"), as
     return renderView(req, res, "seu/service-definitions/index", req.vm);
   } catch (err) {
     logger.error("[web/seu/serviceDefinitionRegistry] GET /service-definitions error", err as Error);
+    next(err);
+  }
+});
+
+router.get("/service-definitions/:id", attachVM("seu/service-definitions/view"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const viewer = { isRoot: (req.session?.user?.platformBadges ?? []).includes("root"), tenantId: req.session?.user?.tenant_id ?? null };
+    const view = await getServiceDefinitionView(String(req.params.id), viewer);
+    if (!view) return redirects.seu.serviceDefinitionsView.error(req, res, "Service Definition not found.");
+    req.vm.req.title = `Service Definition: ${view.serviceDefinition.name}`;
+    req.vm.req.service = view.serviceDefinition;
+    req.vm.req.capability = view.capability;
+    req.vm.req.labels = view.labels;
+    req.vm.opt.deliverableIds = view.deliverableIds;
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/service-definitions/view", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/serviceDefinitionRegistry] GET /service-definitions/:id error", err as Error);
     next(err);
   }
 });

@@ -172,6 +172,7 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
                 { method: "GET", path: "/aisworg/seu/docs" },
                 { method: "GET", path: "/aisworg/seu/demo" },
                 { method: "GET", path: "/aisworg/seu/demo/root" },
+                { method: "GET", path: "/aisworg/seu/demo/guide" },
             ]);
         }
     } catch (err) {

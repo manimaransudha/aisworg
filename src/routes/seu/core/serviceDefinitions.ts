@@ -3,7 +3,9 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { assertCanonicalCategory } from "./ontology.js";
+import { assertCanonicalCategory, listConceptsForType } from "./ontology.js";
+import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
+import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
@@ -168,4 +170,41 @@ export async function listServiceDefinitionsWithNextStates(viewer?: { isRoot: bo
       return { serviceDefinition, possibleNextStates: possibleNextStates ?? [] };
     })
   );
+}
+
+export interface ServiceDefinitionViewData {
+  serviceDefinition: ServiceDefinitionRow;
+  // The Capability this Service is offered by: its Active Definition when one is visible to the viewer.
+  capability: { id: string | null; displayName: string };
+  labels: { deliverables: Record<string, string>; capabilities: Record<string, string> };
+  // Active Deliverable Definition id per input/output code visible to the viewer.
+  deliverableIds: Record<string, string>;
+}
+
+async function labelsFor(conceptType: string, viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string>> {
+  const concepts = await listConceptsForType(conceptType, viewer);
+  return Object.fromEntries(concepts.map((c) => [c.code, c.default_label]));
+}
+
+// One Service Definition for the Registry view page, with the Ontology labels of its inputs, outputs and consumers.
+// Returns null when the row does not exist or is not visible to the viewer's tenant.
+export async function getServiceDefinitionView(id: string, viewer: { isRoot: boolean; tenantId: string | null }): Promise<ServiceDefinitionViewData | null> {
+  const { data: row, error } = await serviceDefinitionsDB.findById(id);
+  if (error) throw error;
+  if (!row) return null;
+  const platformTenantId = await getPlatformTenantId();
+  if (!viewer.isRoot && row.tenant_id !== platformTenantId && row.tenant_id !== viewer.tenantId) return null;
+  const [deliverables, capabilities] = await Promise.all([labelsFor("deliverable-name", viewer), labelsFor("capability-name", viewer)]);
+  const { data: capabilityRow, error: capabilityError } = await capabilityDefinitionsDB.findActiveByCodeVisibleTo(row.capability_code, viewer.tenantId);
+  if (capabilityError) throw capabilityError;
+  const capability = capabilityRow
+    ? { id: capabilityRow.id, displayName: capabilityRow.default_label }
+    : { id: null, displayName: capabilities[row.capability_code] ?? row.capability_code };
+  const deliverableIds: Record<string, string> = {};
+  for (const code of new Set([...(row.inputs ?? []), ...(row.outputs ?? [])])) {
+    const { data: deliverable, error: deliverableError } = await deliverableDefinitionsDB.findActiveByCodeVisibleTo(code, viewer.tenantId);
+    if (deliverableError) throw deliverableError;
+    if (deliverable) deliverableIds[code] = deliverable.id;
+  }
+  return { serviceDefinition: row, capability, labels: { deliverables, capabilities }, deliverableIds };
 }

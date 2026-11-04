@@ -13,13 +13,14 @@ export const DEMO_PARTICIPANT_DISPLAY_NAME = "Demo User";
 
 const demoUserFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data", "demo", "demoUser.json");
 
-// Sets the roles listed in demoUser.json on the Demo User participant when it holds none.
+// Leaves the Demo User holding exactly the roles listed in demoUser.json; any other role is removed.
 export async function ensureDemoUserRoles(participantId: string): Promise<void> {
   const { data: master, error: findError } = await participantsMasterDB.findById(participantId);
   if (findError) throw findError;
   if (!master) throw new Error(`ensureDemoUserRoles: no participants_master row ${participantId}`);
-  if (master.authorised_role.length > 0) return;
   const { authorisedRoles } = JSON.parse(readFileSync(demoUserFile, "utf8")) as { authorisedRoles: string[] };
+  const held = master.authorised_role.map((entry) => entry.role);
+  if (held.length === authorisedRoles.length && authorisedRoles.every((role) => held.includes(role))) return;
   const { error } = await participantsMasterDB.setAuthorisedRole(
     participantId,
     authorisedRoles.map((role) => ({ role, effective_till: NO_EXPIRY_DATE, seu_ids: [] }))
@@ -51,24 +52,27 @@ export async function getDemoActor(): Promise<DemoActor> {
   return { tenantId: tenant.id, participantId: created.id };
 }
 
-// Adds a badge to the Demo User's authorised_badges. Never revokes.
-export async function grantBadge(participantId: string, badge: string): Promise<void> {
+// Adds a badge to the Demo User's authorised_badges. Returns true when the badge was not held before.
+export async function grantBadge(participantId: string, badge: string): Promise<boolean> {
   const { data: master, error: findError } = await participantsMasterDB.findById(participantId);
   if (findError) throw findError;
   if (!master) throw new Error(`grantBadge: no participants_master row ${participantId}`);
-  if (master.authorised_badges.some((b) => b.badge === badge)) return;
+  if (master.authorised_badges.some((b) => b.badge === badge)) return false;
   const { error } = await participantsMasterDB.setAuthorisedBadges(participantId, [
     ...master.authorised_badges,
     { badge, effective_till: NO_EXPIRY_DATE, seu_ids: [] },
   ]);
   if (error) throw error;
+  return true;
 }
 
-// Grants the badge(s) route_authority declares for this method and path.
-export async function grantRouteBadges(participantId: string, method: string, path: string): Promise<void> {
+// Grants the badge(s) route_authority declares for this method and path. Returns the badges that were added.
+export async function grantRouteBadges(participantId: string, method: string, path: string): Promise<string[]> {
   const found = lookupRouteAuthority(method, path);
   if (!found) throw new Error(`grantRouteBadges: no route_authority row for ${method} ${path}`);
-  for (const badge of found.badges) await grantBadge(participantId, badge);
+  const added: string[] = [];
+  for (const badge of found.badges) if (await grantBadge(participantId, badge)) added.push(badge);
+  return added;
 }
 
 // Grants the badge a transition_definitions row's verb resolves to. An
@@ -82,7 +86,7 @@ export async function grantTransitionBadge(participantId: string, entityType: Tr
 }
 
 // Grants every badge any governed transition_definitions row resolves to, in one write. Run before each
-// scenario so no transition, direct or event-driven, can meet a missing badge.
+// step so no transition, direct or event-driven, can meet a missing badge.
 export async function grantAllTransitionBadges(participantId: string): Promise<void> {
   const { data: definitions, error } = await transitionDefinitionsDB.listAll();
   if (error) throw error;

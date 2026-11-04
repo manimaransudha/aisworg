@@ -264,3 +264,198 @@ Read from `navbar.ejs`, `sdkAuthoring.ts`, `views/seu/sdk/authoring/index.ejs` a
 | G4 | The Demo User must hold `pack_define` and the Pack hop badges to do steps 1 to 6. The seed grants them at reset. Whether the Ontology Accept needs a badge the visitor lacks is unconfirmed. | Confirm against `route_authority` for the approvals route. |
 | G5 | Step 5 as Run needs the visitor's Pack to exist with the exact code. The handler finds the Pack by code. | Show the code in step 2 and have step 5 fail with a clear message when the Pack is absent. |
 | G6 | `create-pack` handler is no longer needed for D1 to D3. `accept-ontology-code` stays. | Remove the three `create-pack` Scenarios. The Pack content moves into the copyable block. |
+
+### Built for D3 (2026-10-29)
+
+Not run, not type-checked, not seeded. The owner runs the reset to load the new rows.
+
+| Item | Change |
+|---|---|
+| Step type | No schema change. A step of kind `visitor-action` (`DEMO_VISITOR_STEP_KIND` in `constants.ts`) is done by the visitor. Its instruction is the Scenario `description`. Copyable blocks are `payload.copy` (`label`, `text`). |
+| Steps | 1 Open Pack Authoring, 2 Create the draft, 3 Add the release checklist and Obligation (JSON import block, schema-shaped), 4 Validate the Pack, 5 Run: accept the code and activate the Pack, 6 Find the Pack in the Registry. The Publish and Activate clicks were dropped from the visitor steps because the existing handler advances the Pack to Active. |
+| `scenarios.json`, `playbooks.json` | `create-release-governance-pack` removed. Five `visitor-action` rows added. The accept row reworded. The Playbook lists the six steps. |
+| `demoSimulator.ts` | `stepPlaybook` advances a visitor step without running anything. `runScenario` refuses a visitor step. `accept-ontology-code` now looks up the Pack before accepting the code and reports the missing Pack by code. |
+| `web/demo.ts`, `index.ejs` | Steps carry instruction and copy blocks. A visitor step shows a Done button and a Copy button on each block. Other steps keep Run. |
+| Not verified | The New Pack form accepts the five entries in step 2. The import document passes the Pack schema. The Demo User may open the Approvals page. Done is not checked against what the visitor actually did. |
+
+### Built: numbered tries and the Declare focus (2026-10-29)
+
+| Item | Change |
+|---|---|
+| Column | `demo_playbooks.sort_order INTEGER NOT NULL` added to `demo_playbooks_schema_recovery.sql`. The owner applies the file to the live database before the next reset. |
+| Order | `demoPlaybooksDB` writes and reads `sort_order`. `findByTenant` orders by `sort_order`, then `code`. `playbooks.json` carries `sortOrder`, numbered from 1 within each area. |
+| Page | Each try shows its position among the tries on the tab, as "1. Title". |
+| Declare focus | The API Standards and Accessibility tries carry `enabled: false` in `playbooks.json`, so only Release Governance shows on the Declare tab until the others are converted. |
+
+### Built: guide panel (2026-10-29)
+
+Not run, not type-checked. The visitor follows a try in a panel that stays on every page, so the steps remain visible while the visitor navigates.
+
+| Item | Change |
+|---|---|
+| Panel | `views/partials/demoGuide.ejs`, included from `footer.ejs` when `GET /aisworg/seu/demo/guide` is visible to the user. Fixed bottom-right, collapsible, closable. Shows the try number and title, "n of m done", the current step, its copy blocks, and a Done or Run button. The button acts in place, with no page load. |
+| Demo page | Each try has Start guide or Resume guide. The per-step Run and Done forms are removed from the page. The steps list remains as a read-only outline. |
+| Routes | `GET /demo/guide`, `POST /demo/guide/start/:code`, `POST /demo/guide/step`, `POST /demo/guide/close` in `web/demo.ts`. Each returns JSON. Four rows added to `routeAuthority.json` (role `demo`). |
+| State | The try being followed is `req.session.demoGuide` (typed in `types/express-session.d.ts`). Progress stays in `demo_playbooks.progress`. |
+| Core | `getGuide(code)` in `demoSimulator.ts`. |
+| `app.ts` | `GET /aisworg/seu/demo/guide` added to the navbar visibility list. |
+| Left in place | `POST /demo/playbooks/:code/step` is no longer called from the page. |
+
+### Verified by the owner (2026-10-29)
+
+| Item | Result |
+|---|---|
+| Guide panel | Works after the `route_authority` rows were loaded with `pnpm tsx src/dblayer/seed/seedRouteAuthority.ts`. |
+| Deployment order for new demo routes | Add the rows to `routeAuthority.json`, load them into the table, then use the page. Until the rows are loaded, the access check denies the routes and the panel does not appear. |
+| Still open | The D3 steps have not been walked end to end against the real pages: the New Pack form entries, the JSON import, the Ontology Approvals access for the Demo User. Tries D1, D2 and E1 to E6 are not yet converted to guided tries. |
+
+## Demo User authority for guided tries (2026-10-29)
+
+Read: `tests/testFixtures.ts`, `src/dblayer/seed/demo/demoBadges.ts`, `demoSeed.ts`, `demoUser.json`, and the `route_authority` rows for the Pack authoring routes.
+
+### Helpers
+
+| Helper | Test fixtures | Demo (`demoBadges.ts`) |
+|---|---|---|
+| `grantBadge`, `grantRouteBadges`, `grantTransitionBadge` | Present | Identical copies. Adds to `participants_master.authorised_badges`, never revokes. |
+| `grantAllTransitionBadges` | Absent | Present. Run before every simulator scenario. |
+| `ensureDemoUserRoles` | Absent | Present. Sets `authorised_role` from `demoUser.json` when empty. |
+
+### What the Demo User holds after a reset
+
+| Kind | Source | Value |
+|---|---|---|
+| Badges | `grantAuthoringBadges` in `demoSeed.ts` | `pack_define`, `profile_define`, `template_define`, the Pack, Template and Profile hop badges, the Objective activation badge, `objective_<birth verb>`. |
+| Badges at run time | `runScenario` | All governed transition badges, plus route badges for commissioning. Granted only when the simulator runs. |
+| Roles | `demoUser.json` | `general`, `demo`. |
+
+### Gap
+
+A guided visitor step is done by the visitor in the application. The simulator does not run for it, so nothing is granted at run time. Whatever the visitor needs must exist after the reset.
+
+| Route (step) | Requires | Demo User |
+|---|---|---|
+| `GET /aisworg/seu/sdk/:slug` (open Pack Authoring) | role `sdk_author` or `demo` | Allowed |
+| `GET /sdk/:slug/new` (New Pack) | role `sdk_author` | Not held |
+| `POST /sdk/:slug` (Create draft) | role `sdk_author` | Not held |
+| `GET /sdk/:slug/:draftId`, `/save`, `/import`, `/transition`, `/publish` | role `sdk_author` | Not held |
+| `GET /aisworg/seu/packs` (Registry, Packs) | role `participant` or `demo` | Allowed |
+
+D3 steps 2 to 4 therefore fail for the Demo User. The badges (`pack_define`, Pack hops) are held. The role `sdk_author` is not.
+
+### Options
+
+| # | Option |
+|---|---|
+| 1 | Add `sdk_author` to `authorisedRoles` in `demoUser.json`. One data change. Every demo visitor can then author in every SDK kind, not only Packs. |
+| 2 | Add `demo` to the roles of the SDK authoring `route_authority` rows. Same reach as option 1, held on the route side. |
+| 3 | Add `demo` only to the rows the guided tries use (Pack kind routes cannot be separated, because the slug is a path parameter). |
+
+Decision (owner): grant through a helper, as for badges. Revised 2026-11-01: a guide grants badges only, never roles.
+
+### Built: route-driven grant (2026-10-29)
+
+Not run, not type-checked.
+
+| Item | Change |
+|---|---|
+| Helpers | `grantRouteAuthority` in `demoBadges.ts` reads the badges `route_authority` declares for a method and path and adds them to `participants_master.authorised_badges`. It returns the badges it added. `revokeAuthority` removes them. The role helpers `grantRole` and `grantRouteRoles` were built first and are removed (2026-11-01). |
+| Step data | A visitor step lists the routes it sends the visitor to in `payload.routes` (`method`, `path`). The five Release Governance steps carry theirs. |
+| Trigger | `POST /demo/guide/start/:code` calls `grantGuideAuthority`, which grants the badges for every visitor step of the goal. `POST /demo/guide/close` revokes them. No role or badge is named in code. See "Built: guide grants badges only and revokes on close". |
+
+### Built: note steps and page presentation (2026-11-01)
+
+Not run, not type-checked.
+
+| Item | Change |
+|---|---|
+| Note step kind | `DEMO_NOTE_STEP_KIND` (`"note"`) in `constants.ts`. A note is a standalone step with no action. Its Title is the heading and its Description is the note text. It sits in a scenario's playbook between two steps and uses the existing playbook mechanism. `listStepKinds` offers it. `runStep` refuses it. `advanceScenario` treats continuing past a note as advancing the scenario. |
+| Counting | Notes are left out of the displayed count. The scenario list and the guide panel show "n of m done" and the step numbers from the non-note steps only. Stored `progress` still indexes the whole playbook. `getGuide` returns `index` and `total` without notes and a `note` flag on the step. |
+| Presentation of a note | The scenario list shows the title with a note icon and the text, without a number. The guide panel shows the note with a Continue button. The steps table shows no Run button for a note. The view receives the kind as `noteKind`, registered in `seu_demo_index.ts`. |
+| About note | A callout above the tabs describes the Demo tenant (ArchVault Public Library and the ArchVault Digital Shelf). The "This is a demo" disclaimer stays above it, muted. |
+| Tabs | The area tabs carry the `demo-tabs` class (`public/css/style.css`): filled tab buttons, rounded top corners, and a solid active tab joined to a rule under the row. |
+| Root page | The How To panel is shown on the landing page only. The "Edit tab text" form remains on the root page. |
+| Seed behaviour confirmed | `demo_steps`, `demo_scenarios` and `demo_areas` load from JSON only while empty. A reset keeps their rows and sets every scenario's `progress` to 0. The step and scenario tables load together, only when both are empty. |
+
+## Step library from visitor actions (2026-11-01)
+
+Owner direction: the scenarios become compositions of individual steps, one step per feature action in the application (for example create-pack, create-template, create-profile, create-ontology). The owner reviews the full list section by section and the steps and scenarios are created from the review. This stage covers visitor-action steps only. Handlers for the simulator-run kinds follow after the review is complete.
+
+### Working files
+
+| File | Purpose |
+|---|---|
+| `design/demo-visitor-steps-draft.md` | The complete draft list: about 130 visitor-action steps in 12 sections (Ontology, Pack, Template, Profile, Definitions, Authority, Objective, SEU, Work, Evidence/knowledge/decisions, Review/attention/compliance, Observe). Each row has a code, a tab (Declare, Commission, Execute), what the visitor does and the routes. It ends with an open-points table. |
+| `src/dblayer/seed/data/demo/steps.json` | Holds only the steps reviewed and accepted so far. |
+| `src/dblayer/seed/data/demo/scenarios.json` | Holds only scenarios whose steps exist in `steps.json`. |
+
+### Review progress
+
+| Section | Status |
+|---|---|
+| Ontology | Done. Six visitor-action steps and one note step. |
+| Pack to Observe | Not reviewed. Not yet in `steps.json`. |
+
+The earlier 49 catalogue steps and the scenarios that pointed at them were removed from the seed files so that they do not mix with the library being built. Four further Ontology rows (update-ontology-metadata and the deprecate, retire and archive code steps) remain in the draft only.
+
+### Ontology steps built
+
+| Code | Kind | Tab |
+|---|---|---|
+| `ontology-what-note` | note | Declare |
+| `open-ontology` | visitor-action | Declare |
+| `propose-ontology-code` | visitor-action | Declare |
+| `review-ontology-approvals` | visitor-action | Declare |
+| `approve-ontology-code` | visitor-action | Declare |
+| `reject-ontology-code` | visitor-action | Declare |
+| `compose-ontology-code` | visitor-action | Declare |
+
+| Scenario | Tab | Playbook | State |
+|---|---|---|---|
+| View existing Ontology | Declare | ontology-what-note, open-ontology | Enabled |
+| Create new Ontology | Declare | open-ontology, propose-ontology-code, review-ontology-approvals, approve-ontology-code | Disabled. The Demo User holds no `sdk_author` role, so the POST routes are denied. |
+
+### Text shown to the visitor
+
+| Field | Where it is used |
+|---|---|
+| Description | One-line summary. Shown to the administrator only, under the step picker of the scenario form. |
+| Annotation | The only step text a visitor sees. It states what to do and why. For a note it is the note text. |
+
+The separate instruction field is removed from the guide panel and the scenario list.
+
+## Built: administration changes for the step library (2026-11-01)
+
+Not run, not type-checked.
+
+| Item | Change |
+|---|---|
+| Scenario form | A step picker above the Playbook field lists the catalogue steps (title, code, tab). Choosing one shows its description. Add appends its code to the Playbook. `stepOptions` is registered in `seu_demo_index.ts`. |
+| Step code edit | The step edit form accepts a new Code. `updateStep` validates the format, rejects a code held by another step, updates the row and rewrites the playbooks of the scenarios that listed the old code. The two writes are not atomic. |
+| Note presentation | A note row in the scenario list and the guide panel carries the `demo-note` class (`public/css/style.css`): tinted background, left rule, italic text. It shows the title and the annotation only. |
+| Completed scenario | The scenario header shows a green tick beside the muted "n of m done" text when every step is done. The Start guide button is hidden for a finished scenario until a reset. |
+| Existing note rows | A note stored with its text in Description shows nothing to the visitor until the text is moved to Annotation. The seed loads only into empty tables, so the new `steps.json` takes effect after the tables are emptied or the rows are edited on the Steps tab. |
+
+## Built: guide grants badges only and revokes on close (2026-11-01)
+
+Not run, not type-checked. This replaces the role grant described under "Built: route-driven grant".
+
+| Item | Change |
+|---|---|
+| Rule | A guide grants the Demo User only badges. It grants no role. `route_authority` is unchanged. |
+| Effect | The route check requires the badge and the role. A route that needs a role the Demo User lacks stays denied after the grant. The Ontology POST routes need `sdk_author`, so they stay denied. |
+| Helpers | `demoBadges.ts`: `grantRouteAuthority` returns the badges it added. `revokeAuthority` removes them. `grantRole` and `grantRouteRoles` are removed. `demoSimulator.ts`: `grantGuideAuthority` returns the added badges and `revokeGuideAuthority` removes them. |
+| Session | `req.session.demoGuideGrants` holds the badges added for the open guide (`express-session.d.ts`). |
+| Start | `POST /demo/guide/start/:code` revokes any earlier grant of the session, then grants for the new guide. |
+| Close | `POST /demo/guide/close` revokes the grant and clears the session entries. A failure returns a 500 with the message. |
+
+### Open points
+
+| # | Point |
+|---|---|
+| 1 | The Demo User is one shared participant. Closing a guide removes badges that another visitor's open guide may need. |
+| 2 | A guide that is never closed leaves its badges until a reset. Whether the reset clears them is not verified. |
+| 3 | Whether Create new Ontology stays disabled, shows the denial deliberately, or the scenarios stay read-only. |
+| 4 | Nothing has been loaded in a browser. |
+| 5 | The demo skill (`.claude/skills/demo/SKILL.md`) is not yet updated for the steps above. |
+| 6 | `redirects.seu.demoRootStepsEnabled` is unused. |

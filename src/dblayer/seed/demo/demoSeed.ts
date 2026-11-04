@@ -11,11 +11,11 @@ import { publishTemplate } from "../../../routes/seu/core/templates.js";
 import { validateComposableFieldsAgainstSchema } from "../../../routes/seu/core/ontology.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { schemaDefinitionsDB } from "../../schemaDefinitionsDB.js";
-import { ontologyDB } from "../../ontologyDB.js";
+import { demoStepsDB } from "../../demoStepsDB.js";
 import { demoScenariosDB } from "../../demoScenariosDB.js";
-import { demoPlaybooksDB } from "../../demoPlaybooksDB.js";
+import { demoAreasDB } from "../../demoAreasDB.js";
 import { templatesDB } from "../../templatesDB.js";
-import { getPlatformTenantId, NO_EXPIRY_DATE, INITIAL_VERSION } from "../../constants.js";
+import { getPlatformTenantId, NO_EXPIRY_DATE, INITIAL_VERSION, DEMO_AREAS } from "../../constants.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { publishProfile, type ProfileSeedInput } from "../../../routes/seu/core/profiles.js";
 import { createObjective, objectiveInitialState } from "../../../routes/seu/core/objectives.js";
@@ -60,6 +60,7 @@ async function grantAuthoringBadges(actor: DemoActor): Promise<void> {
   await grantBadge(actor.participantId, "pack_define");
   await grantBadge(actor.participantId, "profile_define");
   await grantBadge(actor.participantId, "template_define");
+  await grantBadge(actor.participantId, "capability_define");
   for (const [from, to] of PACK_HOPS) await grantTransitionBadge(actor.participantId, "Pack", from, to);
   for (const [from, to] of TEMPLATE_HOPS) await grantTransitionBadge(actor.participantId, "Template", from, to);
   for (const [from, to] of PROFILE_HOPS) await grantTransitionBadge(actor.participantId, "Profile", from, to);
@@ -109,20 +110,40 @@ async function seedPacks(actor: DemoActor): Promise<{ authored: Set<string>; act
   return { authored, active };
 }
 
-// The Demo tenant cannot see Platform Templates, so each base Template the Profiles
-// use is inherited into the Demo tenant unchanged and taken to Active, as the standard Templates are seeded.
+interface DemoTemplateSeed {
+  baseTemplateCode: string;
+  name?: string;
+  omitDeliverableCodes?: string[];
+}
+
+// The Demo tenant cannot see Platform Templates, so each base Template named in templates.json
+// is inherited into the Demo tenant and taken to Active, as the standard Templates are seeded.
+// The copy leaves out the Deliverables listed in omitDeliverableCodes, with the dependency edges that touch them.
 async function seedTemplates(actor: DemoActor): Promise<void> {
+  const templates = loadJson<DemoTemplateSeed[]>("templates.json");
   const profiles = loadJson<ProfileSeedInput[]>("profiles.json");
-  const baseTemplateCodes = [...new Set(profiles.map((p) => p.baseTemplateCode))];
+  const seeded = new Set(templates.map((t) => t.baseTemplateCode));
+  const missing = [...new Set(profiles.map((p) => p.baseTemplateCode))].filter((code) => !seeded.has(code));
+  if (missing.length > 0) throw new Error(`[seed:demo] templates.json has no entry for the base Template(s) the Profiles use: ${missing.join(", ")}`);
   const platformTenantId = await getPlatformTenantId();
 
-  for (const code of baseTemplateCodes) {
+  for (const { baseTemplateCode: code, name, omitDeliverableCodes } of templates) {
     const { data: parent, error } = await templatesDB.findActiveByCode(code, platformTenantId);
     if (error || !parent) throw error ?? new Error(`[seed:demo] Platform Template "${code}" not found`);
     const inherited = await inheritedTemplateContent(parent.id, actor.tenantId);
     if (!inherited.ok) throw new Error(`[seed:demo] Template "${code}": ${inherited.error}`);
+    const omitted = new Set(omitDeliverableCodes ?? []);
+    const seed = toTemplateSeedInput(inherited.content);
     const result = await publishTemplate({
-      seed: { ...toTemplateSeedInput(inherited.content), templateVersion: INITIAL_VERSION, tenantId: actor.tenantId, parentTemplateId: parent.id },
+      seed: {
+        ...seed,
+        ...(name ? { name } : {}),
+        deliverableCatalogue: seed.deliverableCatalogue.filter((d) => !omitted.has(d.code)),
+        dependencyGraph: (seed.dependencyGraph ?? []).filter((e) => !omitted.has(e.toCode) && !(e.fromType === "Deliverable" && omitted.has(e.fromCode ?? ""))),
+        templateVersion: INITIAL_VERSION,
+        tenantId: actor.tenantId,
+        parentTemplateId: parent.id,
+      },
       actorId: actor.participantId,
     });
     if (!result.ok) throw new Error(`[seed:demo] Template "${code}" failed: ${result.errors.join("; ")}`);
@@ -168,58 +189,72 @@ async function seedObjectives(actor: DemoActor): Promise<void> {
   }
 }
 
-interface DemoScenarioSeed {
+interface DemoStepSeed {
   code: string;
   kind: string;
   area: string;
   title: string;
   description: string | null;
   annotation: string | null;
-  category: string | null;
-  severity: string | null;
-  priority: string | null;
   target: Record<string, unknown>;
   payload: Record<string, unknown>;
-  sortOrder: number;
 }
 
-interface DemoPlaybookSeed {
+interface DemoScenarioSeed {
   code: string;
   area: string;
   title: string;
-  steps: string[];
+  playbook: string[];
+  enabled?: boolean;
+  sortOrder: number;
 }
 
-// Loads the scenario catalogue in one batch. Category, severity and priority are
-// checked against the Ontology, which is read once per concept type.
-async function seedCatalogue(actor: DemoActor): Promise<void> {
-  const scenarios = loadJson<DemoScenarioSeed[]>("scenarios.json");
-  const playbooks = loadJson<DemoPlaybookSeed[]>("playbooks.json");
-  const viewer = { isRoot: false, tenantId: actor.tenantId };
-  const allowed = async (conceptType: string): Promise<Set<string>> => {
-    const { data, error } = await ontologyDB.findConceptsByType(conceptType, viewer);
-    if (error) throw error;
-    return new Set((data ?? []).map((c) => c.code));
-  };
-  const [categories, severities, priorities] = await Promise.all([allowed("category:obligation"), allowed("category:obligation-severity"), allowed("category:obligation-priority")]);
-  const codes = new Set(scenarios.map((s) => s.code));
-  const errors: string[] = [];
-  for (const sc of scenarios) {
-    if (sc.category && !categories.has(sc.category)) errors.push(`${sc.code}: category "${sc.category}" is not a canonical category:obligation concept`);
-    if (sc.severity && !severities.has(sc.severity)) errors.push(`${sc.code}: severity "${sc.severity}" is not a canonical category:obligation-severity concept`);
-    if (sc.priority && !priorities.has(sc.priority)) errors.push(`${sc.code}: priority "${sc.priority}" is not a canonical category:obligation-priority concept`);
-  }
-  for (const pb of playbooks) {
-    for (const step of pb.steps) if (!codes.has(step)) errors.push(`playbook ${pb.code}: step "${step}" is not a scenario code`);
-  }
-  if (errors.length > 0) throw new Error(`[seed:demo] scenario catalogue invalid: ${errors.join("; ")}`);
+interface DemoAreaSeed {
+  area: string;
+  stageTitle: string;
+  howToLead: string;
+  howToSteps: Array<{ text: string }>;
+}
 
+// The catalogue lives in the database and is edited on the Demo root page, so a reset keeps it and only
+// sets every scenario back to its first step. The JSON files bootstrap a table that is still empty.
+async function seedCatalogue(actor: DemoActor): Promise<void> {
+  const [existingSteps, existingScenarios, existingAreas] = await Promise.all([
+    demoStepsDB.findByTenant(actor.tenantId),
+    demoScenariosDB.findByTenant(actor.tenantId),
+    demoAreasDB.findByTenant(actor.tenantId),
+  ]);
+  if (existingSteps.error) throw existingSteps.error;
+  if (existingScenarios.error) throw existingScenarios.error;
+  if (existingAreas.error) throw existingAreas.error;
   const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(actor.participantId, "pack_define");
   const common = { tenantId: actor.tenantId, authorId: actor.participantId, authorBadge };
-  const inserted = await demoScenariosDB.insertMany(scenarios.map((sc) => ({ ...common, ...sc })));
-  if (inserted.error) throw inserted.error;
-  const insertedPlaybooks = await demoPlaybooksDB.insertMany(playbooks.map((pb) => ({ ...common, ...pb })));
-  if (insertedPlaybooks.error) throw insertedPlaybooks.error;
+
+  if ((existingSteps.data ?? []).length === 0 && (existingScenarios.data ?? []).length === 0) {
+    const steps = loadJson<DemoStepSeed[]>("steps.json");
+    const scenarios = loadJson<DemoScenarioSeed[]>("scenarios.json");
+    const codes = new Set(steps.map((s) => s.code));
+    const errors: string[] = [];
+    for (const sc of scenarios) {
+      for (const step of sc.playbook) if (!codes.has(step)) errors.push(`scenario ${sc.code}: step "${step}" is not a step code`);
+    }
+    if (errors.length > 0) throw new Error(`[seed:demo] step and scenario catalogue invalid: ${errors.join("; ")}`);
+    const insertedSteps = await demoStepsDB.insertMany(steps.map((st) => ({ ...common, ...st })));
+    if (insertedSteps.error) throw insertedSteps.error;
+    const insertedScenarios = await demoScenariosDB.insertMany(scenarios.map((sc) => ({ ...common, ...sc })));
+    if (insertedScenarios.error) throw insertedScenarios.error;
+  } else {
+    const reset = await demoScenariosDB.resetProgress(actor.tenantId);
+    if (reset.error) throw reset.error;
+  }
+
+  if ((existingAreas.data ?? []).length === 0) {
+    const areas = loadJson<DemoAreaSeed[]>("areas.json");
+    const unknown = areas.filter((a) => !(DEMO_AREAS as readonly string[]).includes(a.area));
+    if (unknown.length > 0) throw new Error(`[seed:demo] areas.json names unknown area(s): ${unknown.map((a) => a.area).join(", ")}`);
+    const insertedAreas = await demoAreasDB.insertMany(areas.map((a) => ({ ...common, ...a })));
+    if (insertedAreas.error) throw insertedAreas.error;
+  }
 }
 
 // Seeds the Demo tenant through the governed path with the Demo User as actor.
@@ -249,9 +284,9 @@ export async function seedDemo(): Promise<void> {
     await seedObjectives(actor);
     phaseDone("Objectives");
     await seedCatalogue(actor);
-    phaseDone("scenario catalogue");
+    phaseDone("step and scenario catalogue");
   });
-  logger.info(`[seed:demo] reset finished at ${new Date().toISOString()}, ${((Date.now() - startedAt) / 1000).toFixed(1)}s in total. Packs, Templates, Profiles, participants, Objectives and the scenario catalogue seeded.`);
+  logger.info(`[seed:demo] reset finished at ${new Date().toISOString()}, ${((Date.now() - startedAt) / 1000).toFixed(1)}s in total. Packs, Templates, Profiles, participants, Objectives and the step and scenario catalogue seeded.`);
 }
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;

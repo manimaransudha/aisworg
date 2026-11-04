@@ -1,0 +1,11 @@
+[
+  {
+    "baseTemplateCode": "mobile-application",
+    "omitDeliverableCodes": [
+      "requirements-prioritisation-record",
+      "decision-record",
+      "app-store-submission-package",
+      "incident-report-post-mortem"
+    ]
+  }
+]

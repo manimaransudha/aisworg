@@ -87,6 +87,9 @@ export interface ExposableParameterCandidate {
   valueBearing: boolean;
   defaultValue?: string;
   valueOptions?: string[];
+  numeric?: boolean;
+  targetLevel?: "minimum" | "maximum" | "exact";
+  units?: string;
 }
 
 export function extractExposedParameters(draftContent: Record<string, unknown> | null): ExposedParameter[] | undefined {
@@ -130,7 +133,7 @@ export async function deriveExposableParameterCandidates(
     const { data: services } = await servicesDB.findByCapabilityId(capability.id);
     for (const service of services ?? []) {
       for (const metric of service.service_level ?? []) {
-        add({ sourceType: "service", sourceCode: service.code, sourceName: service.name, parameterName: metric.code, parameterLabel: metric.label, valueBearing: true, defaultValue: String(metric.target) });
+        add({ sourceType: "service", sourceCode: service.code, sourceName: service.name, parameterName: metric.code, parameterLabel: metric.label, valueBearing: true, defaultValue: String(metric.target), numeric: true, targetLevel: metric.target_level, units: metric.units });
       }
     }
   }
@@ -409,6 +412,7 @@ export async function getDependencyGraphContent(templateId: string, tenantId: st
     toCode: toCode(r.to_name),
     fromType: r.from_entity_type as "Deliverable" | "Capability",
     fromCode: r.from_entity_type === "Deliverable" ? toCode(r.from_name ?? "") : (r.from_name ?? ""),
+    ...(r.from_entity_type === "Capability" ? { fromCapabilityCode: r.from_name ?? "" } : {}),
     requiredState: r.from_state,
     relationshipKind: r.relationship_kind,
   }));

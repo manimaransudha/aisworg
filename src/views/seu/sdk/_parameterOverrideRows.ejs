@@ -1,0 +1,51 @@
+          <%# One row per parameter the Base template marks overridable. Locals: poRows (rows), canEdit. Rendered inside the Parameter Overrides tab and returned by GET /sdk/profile-parameter-overrides when the Base template changes. %>
+          <% var poRows = locals.poRows || []; %>
+          <% if (!poRows.length) { %>
+            <p class="text-muted small mb-0">Choose a base Template (Identity &amp; Metadata tab), or the base Template hasn't flagged any of its configurable parameters as overridable.</p>
+          <% } else { %>
+            <% var poGroups = [
+              { sourceType: 'service', label: 'Service Level' },
+              { sourceType: 'policy', label: 'Policy' },
+              { sourceType: 'checklist', label: 'Checklist' },
+              { sourceType: 'dependency', label: 'Deliverable Dependency' },
+            ]; %>
+            <% poGroups.forEach(function(g) { %>
+              <% var groupRows = []; poRows.forEach(function(row, idx) { if (row.sourceType === g.sourceType) groupRows.push({ row: row, idx: idx }); }); %>
+              <% if (groupRows.length) { %>
+                <div class="mb-3">
+                  <div class="text-uppercase text-muted small fw-semibold mb-1"><%= g.label %></div>
+                  <% groupRows.forEach(function(entry) { %>
+                    <% var row = entry.row, i = entry.idx; %>
+                    <div class="row g-2 align-items-center py-2 border-bottom">
+                      <div class="col-md-8">
+                        <div class="small fw-semibold"><%= row.parameterLabel %></div>
+                        <% var cond = row.targetLevel === 'minimum' ? '≥ ' : row.targetLevel === 'maximum' ? '≤ ' : row.targetLevel === 'exact' ? '= ' : ''; %>
+                        <div class="small text-muted"><%= row.sourceName %> · Template default: <%= cond %><%= row.defaultValue || '—' %><%= row.units ? ' ' + row.units : '' %></div>
+                      </div>
+                      <div class="col-md-4">
+                        <% if (canEdit) { %>
+                          <input type="hidden" name="exposedParamOverrideRows[<%= i %>][sourceType]" value="<%= row.sourceType %>">
+                          <input type="hidden" name="exposedParamOverrideRows[<%= i %>][sourceCode]" value="<%= row.sourceCode %>">
+                          <input type="hidden" name="exposedParamOverrideRows[<%= i %>][parameterName]" value="<%= row.parameterName %>">
+                        <% } %>
+                        <% if (row.valueOptions && row.valueOptions.length) { %>
+                          <% if (!canEdit) { %><%= row.value || '—' %><% } else { %>
+                          <select name="exposedParamOverrideRows[<%= i %>][value]" class="form-select form-select-sm">
+                            <option value="">— use Template default —</option>
+                            <% row.valueOptions.forEach(function(opt) { %>
+                              <option value="<%= opt %>" <%= row.value === opt ? 'selected' : '' %>><%= opt %></option>
+                            <% }) %>
+                          </select>
+                          <% } %>
+                        <% } else { %>
+                          <% if (!canEdit) { %><%= row.value || '—' %><% } else { %>
+                          <input type="<%= row.numeric ? 'number' : 'text' %>"<%- row.numeric ? ' step="any"' : '' %> name="exposedParamOverrideRows[<%= i %>][value]" class="form-control form-control-sm" value="<%= row.value %>" placeholder="<%= row.defaultValue || '' %>">
+                          <% } %>
+                        <% } %>
+                      </div>
+                    </div>
+                  <% }) %>
+                </div>
+              <% } %>
+            <% }) %>
+          <% } %>

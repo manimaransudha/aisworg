@@ -94,9 +94,9 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
       developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github",
       redispatchMaxAttempts: 5, redispatchAttentionThreshold: 2,
       knowledgeLocations: [
-        { deliverableCode: "requirements-analysis-model", inputLocation: "s3://cr104-demo/requirements-backlog.md", outputLocation: "s3://cr104-demo/requirements-analysis-model.md" },
-        { deliverableCode: "source-code", outputLocation: "https://github.com/cr104-demo/source-code" },
-        { deliverableCode: "deployment-manifest", outputLocation: "s3://cr104-demo/deployment-manifest.yaml" },
+        { deliverableCodes: ["requirements-analysis-model"], outputLocation: "s3://cr104-demo/requirements-analysis-model.md" },
+        { deliverableCodes: ["source-code"], outputLocation: "https://github.com/cr104-demo/source-code" },
+        { deliverableCodes: ["deployment-manifest"], outputLocation: "s3://cr104-demo/deployment-manifest.yaml" },
       ],
     },
     actorId: TESTER_ALL_ID,
@@ -458,7 +458,7 @@ test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation 
   const ec = workItem!.execution_context!;
   assert.equal(ec.relevantDeliverable.id, sourceCode!.id);
   assert.equal(ec.service?.code, "software-construction");
-  assert.equal(ec.inputLocation, null, "cr104-demo-development.profile.json declares no inputLocation for source-code — must resolve to null, not fabricated");
+  assert.equal(ec.inputLocation, null, "no Deliverable Definition for source-code carries a guide_location in this fixture — must resolve to null, not fabricated");
   assert.equal(ec.outputLocation, "https://github.com/cr104-demo/source-code");
   assert.ok(!ec.relevantDecisions.some((d) => d.id === reqDecision!.id), "Requirements Analysis Model's own Decision must not leak into Source Code's Execution Context");
   assert.equal(ec.supportingEvidence.length, 0, "Source Code has no Evidence of its own yet");

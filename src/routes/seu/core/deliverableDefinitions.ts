@@ -12,6 +12,7 @@ import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "
 export interface DeliverableDefinitionSeedInput {
   code: string;
   description?: string;
+  guideLocation?: string;
   definitionVersion: string;
   tenantId?: string;
   parentDeliverableDefinitionId?: string | null;
@@ -52,7 +53,7 @@ export async function inheritedDeliverableDefinitionContent(parentDeliverableDef
   const { data: parent } = await deliverableDefinitionsDB.findById(parentDeliverableDefinitionId);
   if (!parent) return { ok: false, error: "parent Deliverable Definition not found" };
   if (parent.status !== "Active") return { ok: false, error: "a Deliverable Definition can only be inherited from an Active Version" };
-  return { ok: true, content: { code: parent.code, description: parent.description ?? "" } };
+  return { ok: true, content: { code: parent.code, description: parent.description ?? "", guideLocation: parent.guide_location ?? "" } };
 }
 
 // Moves a Published Deliverable Definition to Active and deprecates the Active version it replaces, both through the generic transition.
@@ -84,11 +85,12 @@ export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionI
   const { data: newDraft, error } = await deliverableDefinitionsDB.createDraft({
     code: source.code,
     description: source.description,
+    guideLocation: source.guide_location,
     version: nextVersion,
     status: birth.initialState as DeliverableDefinitionRow["status"],
     authoredBy: copyMaster.id,
     authorBadge: birth.authorityBadge,
-    draftContent: { code: source.code, description: source.description, definitionVersion: nextVersion },
+    draftContent: { code: source.code, description: source.description, guideLocation: source.guide_location ?? "", definitionVersion: nextVersion },
     tenantId: source.tenant_id,
     parentDeliverableDefinitionId: source.parent_deliverable_definition_id,
     schemaDefinitionId: copySchema.id,
@@ -122,4 +124,24 @@ export async function listDeliverableDefinitionsWithNextStates(viewer?: { isRoot
       return { deliverableDefinition, possibleNextStates: possibleNextStates ?? [] };
     })
   );
+}
+
+export interface DeliverableDefinitionViewData {
+  deliverableDefinition: DeliverableDefinitionRow;
+  displayName: string;
+}
+
+export function deliverableDisplayName(code: string): string {
+  return code.replace(/-/g, " ");
+}
+
+// One Deliverable Definition for the Registry view page.
+// Returns null when the row does not exist or is not visible to the viewer's tenant.
+export async function getDeliverableDefinitionView(id: string, viewer: { isRoot: boolean; tenantId: string | null }): Promise<DeliverableDefinitionViewData | null> {
+  const { data: row, error } = await deliverableDefinitionsDB.findById(id);
+  if (error) throw error;
+  if (!row) return null;
+  const platformTenantId = await getPlatformTenantId();
+  if (!viewer.isRoot && row.tenant_id !== platformTenantId && row.tenant_id !== viewer.tenantId) return null;
+  return { deliverableDefinition: row, displayName: deliverableDisplayName(row.code) };
 }

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-2">
+      <a href="/aisworg/seu/deliverable-definitions" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>All Deliverables</a>
+    </div>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-2 text-dark fw-bold">Deliverable Definition: <%= displayName %></h2>
+      <div class="d-flex align-items-center gap-2">
+        <span class="state-badge state-<%= deliverable.status %>"><%= deliverable.status %></span>
+        <span class="small text-muted">v<%= deliverable.version %></span>
+        <code class="text-muted"><%= deliverable.code %></code>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header"><span class="lp-toggle-title">Details</span></div>
+      <div class="p-3">
+        <div class="small text-muted">Description</div>
+        <div><%= deliverable.description || '—' %></div>
+        <div class="small text-muted mt-3">Guide location</div>
+        <div><%= deliverable.guide_location || '—' %></div>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

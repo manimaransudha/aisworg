@@ -22,10 +22,7 @@
     <div class="mb-4">
       <h2 class="h3 mb-1 text-dark fw-bold">Service Definitions</h2>
       <p class="text-muted small mb-0">
-        Service Definition Registry (Ch.11 §13) — the canonical, versioned contract each capability-name code
-        exposes, one per Capability. Distinct from the Pack-level <code>services</code> table (Ch.11 §12
-        Composition) — many Packs may each compose their own Service against the same Capability; this is the
-        single canonical Definition it's judged against.
+        A **Service** is the declared, contracted output through which a Capability exposes what it delivers to other Capabilities, Participants or external consumers, without exposing how that delivery is performed.
       </p>
     </div>
 
@@ -73,7 +70,7 @@
                   <% if (s.tenant_id === locals.platformTenantId) { %>
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span>
                   <% } else { %>
-                    <span class="badge bg-light text-dark border">Your tenant</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><%= (locals.tenantNameById || {})[s.tenant_id] %></span>
                   <% } %>
                   <% if (s.parent_service_definition_id) { %>
                     <span class="badge bg-secondary-subtle text-secondary border">Derived</span>
@@ -95,7 +92,7 @@
               </div>
             </div>
             <div class="d-flex gap-2 mt-2">
-              <a href="/aisworg/seu/sdk/service-authoring/<%= s.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
+              <a href="/aisworg/seu/service-definitions/<%= s.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
               <% if (locals.canCopy) { %>
                 <form method="POST" action="/aisworg/seu/service-definitions/<%= s.id %>/copy">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .pv-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6c757d; margin-bottom: 0.15rem; }
+  </style>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <%
+      var esc = function (v) { return String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+      var isEmpty = function (v) { return v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0); };
+      var linkBase = { 'pack-code': '/aisworg/seu/packs/', 'template-code': '/aisworg/seu/templates/', 'capability-name': '/aisworg/seu/capability-definitions/', 'deliverable-name': '/aisworg/seu/deliverable-definitions/' };
+      // A referenced entity shows its name (linked to its view when it has one), the code muted, and a note muted below.
+      var refLine = function (name, code, note, href) {
+        return '<div>' + (href ? '<a href="' + esc(href) + '" class="text-decoration-none">' + esc(name) + '</a>' : esc(name)) + '</div>' +
+          '<div class="small text-muted">' + esc(code) + '</div>' + (note ? '<div class="small text-muted">' + esc(note) + '</div>' : '');
+      };
+      var refKey = function (source) { return source && source.indexOf('pack-code') === 0 ? 'pack-code' : source; };
+      // An object is shown as its entries, a label with its value; nested values are shown as JSON text.
+      var objectLines = function (o) {
+        var entries = Object.keys(o || {}).filter(function (k) { return !isEmpty(o[k]); });
+        if (!entries.length) return '<span class="text-muted">—</span>';
+        return entries.map(function (k) {
+          var val = o[k];
+          return '<div><span class="pv-label me-2">' + esc(k) + '</span>' + esc(typeof val === 'object' ? JSON.stringify(val) : val) + '</div>';
+        }).join('');
+      };
+      var cellHtml = function (x, v) {
+        if (isEmpty(v)) return '<span class="text-muted">—</span>';
+        var key = refKey(x.referentialSource);
+        if ((x.kind === 'referential' || x.kind === 'referential-select') && key) {
+          var ref = refs[key] ? refs[key][v] : null;
+          if (ref) return refLine(ref.name, v, ref.note, ref.id && linkBase[key] ? linkBase[key] + ref.id : null);
+          var deliverableLabels = labels['deliverable-name'] || {};
+          if (String(x.referentialSource).indexOf('self:') === 0) return deliverableLabels[v] ? refLine(deliverableLabels[v], v, null, null) : esc(v);
+          var name = x.ontology && labels[x.referentialSource] ? labels[x.referentialSource][v] : null;
+          return name && name !== v ? '<div>' + esc(name) + '</div><div class="small text-muted">' + esc(v) + '</div>' : esc(v);
+        }
+        if (x.kind === 'boolean') return v === true || v === 'true' ? 'Yes' : 'No';
+        if (x.kind === 'json' || (v && typeof v === 'object' && !Array.isArray(v))) return objectLines(v);
+        if (Array.isArray(v)) return v.map(function (e) { var n = x.ontology && labels[x.referentialSource] ? labels[x.referentialSource][e] : null; return '<div>' + esc(n && n !== e ? n : e) + '</div>'; }).join('');
+        return '<span style="white-space: pre-wrap;">' + esc(v) + '</span>';
+      };
+      var rowsOf = function (f) { var r = content[f.name]; return Array.isArray(r) ? r : []; };
+      var inHeader = ['code', 'name', 'profileVersion'];
+
+      var tabs = [];
+      (groups.groups || []).forEach(function (g) {
+        var shown = g.fields.filter(function (f) { return inHeader.indexOf(f.name) === -1; });
+        if (shown.length) tabs.push({ id: g.key, label: g.label, fields: shown });
+      });
+      if ((groups.configurationParameters || []).length) tabs.push({ id: 'configurationParameters', label: 'Configuration Parameters', fields: groups.configurationParameters });
+      if ((groups.parameterOverrides || []).length) tabs.push({ id: 'parameterOverrides', label: 'Parameter Overrides', parameters: true });
+    %>
+
+    <div class="mb-2">
+      <a href="/aisworg/seu/profiles" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>All Profiles</a>
+    </div>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-2 text-dark fw-bold">Profile: <%= profile.name %></h2>
+      <div class="d-flex align-items-center gap-2">
+        <span class="state-badge state-<%= profile.status %>"><%= profile.status %></span>
+        <span class="small text-muted">v<%= profile.profile_version %></span>
+        <code class="text-muted"><%= profile.code %></code>
+      </div>
+    </div>
+
+    <div class="row">
+    <div class="col-md-3 mb-3">
+    <div class="nav flex-column nav-pills" role="tablist" aria-orientation="vertical">
+      <% tabs.forEach(function (t, i) { %>
+        <button class="nav-link text-start<%= i === 0 ? ' active' : '' %>" id="profileview-tab-<%= t.id %>" data-bs-toggle="pill" data-bs-target="#profileview-pane-<%= t.id %>" type="button" role="tab"><%= t.label %></button>
+      <% }) %>
+    </div>
+    </div>
+
+    <div class="col-md-9">
+    <div class="tab-content">
+      <% tabs.forEach(function (t, i) { %>
+        <div class="tab-pane fade<%= i === 0 ? ' show active' : '' %>" id="profileview-pane-<%= t.id %>" role="tabpanel">
+          <div class="section-card">
+            <div class="section-header"><span class="lp-toggle-title"><%= t.label %></span></div>
+            <% if (t.parameters) { %>
+              <% var _params = Array.isArray(content.exposedParameterOverrides) ? content.exposedParameterOverrides : []; %>
+              <% if (_params.length === 0) { %>
+                <% var _baseRef = (refs['template-code'] || {})[content.baseTemplateCode]; %>
+                <div class="p-3 small text-muted">This Profile overrides no Template parameters.<% if (_baseRef && _baseRef.id) { %> <a href="/aisworg/seu/templates/<%= _baseRef.id %>" class="text-decoration-none">View Template</a><% } %></div>
+              <% } else { %>
+                <div class="table-responsive">
+                  <table class="table align-middle mb-0">
+                    <thead><tr><th scope="col">Source</th><th scope="col">Parameter</th><th scope="col">Value</th></tr></thead>
+                    <tbody>
+                      <% _params.forEach(function (p) { %>
+                        <% var _sourceName = parameterSources[p.sourceType + '::' + p.sourceCode]; %>
+                        <tr>
+                          <td>
+                            <div><%= _sourceName || p.sourceCode %></div>
+                            <% if (_sourceName) { %><div class="small text-muted"><%= p.sourceCode %></div><% } %>
+                            <div class="small text-muted"><%= p.sourceType %></div>
+                          </td>
+                          <td><%= p.parameterName %></td>
+                          <td><%= isEmpty(p.value) ? '—' : p.value %></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              <% } %>
+            <% } else { %>
+              <div class="p-3">
+                <% t.fields.forEach(function (f) { %>
+                  <div class="mb-4">
+                    <div class="pv-label"><%= f.label %></div>
+                    <% if (f.kind === 'referential-list') { %>
+                      <% var _rows = rowsOf(f); %>
+                      <% if (_rows.length === 0) { %>
+                        <div class="small text-muted">None.</div>
+                      <% } else { %>
+                        <div class="table-responsive">
+                          <table class="table align-top mb-0">
+                            <thead><tr><% f.itemFields.forEach(function (x) { %><th scope="col"><%= x.label || x.name %></th><% }) %></tr></thead>
+                            <tbody>
+                              <% _rows.forEach(function (row) { %>
+                                <tr><% f.itemFields.forEach(function (x) { %><td><%- cellHtml(x, row[x.name]) %></td><% }) %></tr>
+                              <% }) %>
+                            </tbody>
+                          </table>
+                        </div>
+                      <% } %>
+                    <% } else { %>
+                      <div><%- cellHtml(f, content[f.name]) %></div>
+                    <% } %>
+                  </div>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+    </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

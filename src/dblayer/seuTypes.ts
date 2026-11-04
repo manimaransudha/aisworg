@@ -160,6 +160,7 @@ export interface DeliverableDefinitionRow {
   id: string;
   code: string;
   description: string | null;
+  guide_location: string | null;
   version: string;
   status: PackStatus;
   draft_content: Record<string, unknown>;

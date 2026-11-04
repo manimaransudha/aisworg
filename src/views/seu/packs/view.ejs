@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .pv-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6c757d; margin-bottom: 0.15rem; }
+    .pv-markdown > :last-child { margin-bottom: 0; }
+    .pv-block { padding: 1.5rem 0; border-bottom: 2px solid #6c757d; }
+    .pv-block:first-child { padding-top: 0.5rem; }
+    .pv-block:last-child { border-bottom: 0; padding-bottom: 0.5rem; }
+    .pv-block > * + * { margin-top: 1rem; }
+    .item-group { border-top: 2px solid #6c757d; }
+    .item-group tr:not(:last-child) > td:not([rowspan]) { border-bottom-style: dashed; border-bottom-color: #ced4da; }
+  </style>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <%
+      var esc = function (v) { return String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+      var isEmpty = function (v) { return v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0); };
+      // An Ontology-backed code shows its display name with the code as muted text under it.
+      var linkBase = { 'service-definition': '/aisworg/seu/service-definitions/', 'capability-name': '/aisworg/seu/capability-definitions/' };
+      var refLine = function (name, code, note, href) {
+        return '<div>' + (href ? '<a href="' + esc(href) + '" class="text-decoration-none">' + esc(name) + '</a>' : esc(name)) + '</div><div class="small text-muted">' + esc(code) + '</div>' + (note ? '<div class="small text-muted">' + esc(note) + '</div>' : '');
+      };
+      var codeHtml = function (f, code) {
+        if (f.referentialSource === 'transition-definition' && String(code).split('|').length === 3) {
+          var tp = String(code).split('|');
+          return '<div>' + esc(tp[1] + ' → ' + tp[2]) + '</div><div class="small text-muted">' + esc(tp[0]) + '</div>';
+        }
+        var ref = f.referentialSource && refs[f.referentialSource] ? refs[f.referentialSource][code] : null;
+        if (ref) return refLine(ref.name, code, ref.note, ref.id && linkBase[f.referentialSource] ? linkBase[f.referentialSource] + ref.id : null);
+        var name = f.ontology && f.referentialSource && labels[f.referentialSource] ? labels[f.referentialSource][code] : null;
+        if (name && name !== code) return '<div>' + esc(name) + '</div><div class="small text-muted">' + esc(code) + '</div>';
+        return '<div>' + esc(code) + '</div>';
+      };
+      var itemFieldsOf = function (f) { return f.itemFields || f.nestedItemFields || []; };
+      var cellHtml;
+      var objectHtml = function (fields, obj) {
+        var out = '';
+        fields.forEach(function (nf) {
+          var v = obj ? obj[nf.name] : undefined;
+          if (isEmpty(v)) return;
+          out += '<div class="small"><span class="text-muted">' + esc(nf.label || nf.name) + ':</span> ' + cellHtml(nf, v) + '</div>';
+        });
+        return out || '<span class="text-muted">—</span>';
+      };
+      // Items of a nested list are grouped by their Group when the item has one. The main text (the markdown field, else the first field)
+      // is shown plainly and the remaining fields as small labelled lines.
+      var itemHtml = function (fields, o) {
+        var primary = fields.filter(function (x) { return x.markdown && !isEmpty(o[x.name]); })[0] || fields.filter(function (x) { return x.name !== 'group' && !isEmpty(o[x.name]); })[0];
+        var rest = fields.filter(function (x) { return x !== primary && x.name !== 'group'; });
+        return '<div>' + (primary ? '<div>' + cellHtml(primary, o[primary.name]) + '</div>' : '') + rest.filter(function (x) { return !isEmpty(o[x.name]); }).map(function (x) { return '<div class="small text-muted d-flex gap-1"><span>' + esc(x.label || x.name) + ':</span><div>' + cellHtml(x, o[x.name]) + '</div></div>'; }).join('') + '</div>';
+      };
+      var nestedListHtml = function (f, v) {
+        var fields = itemFieldsOf(f);
+        if (!fields.some(function (x) { return x.name === 'group'; })) return v.map(function (o) { return '<div class="border-start ps-2 mb-1">' + objectHtml(fields, o) + '</div>'; }).join('');
+        var order = [], byGroup = {};
+        v.forEach(function (o) {
+          var g = o.group || '';
+          if (!byGroup[g]) { byGroup[g] = []; order.push(g); }
+          byGroup[g].push(o);
+        });
+        order = order.filter(function (g) { return g !== ''; }).concat(order.filter(function (g) { return g === ''; }));
+        var html = '<table class="table table-sm align-top mb-0"><thead><tr><th scope="col" style="width: 30%;">Group</th><th scope="col">Item</th></tr></thead>';
+        order.forEach(function (g) {
+          html += '<tbody class="item-group">';
+          byGroup[g].forEach(function (o, i) {
+            html += '<tr>' + (i === 0 ? '<td rowspan="' + byGroup[g].length + '">' + (g ? esc(g) : '<span class="text-muted">—</span>') + '</td>' : '') + '<td>' + itemHtml(fields, o) + '</td></tr>';
+          });
+          html += '</tbody>';
+        });
+        return html + '</table>';
+      };
+      cellHtml = function (f, v) {
+        if (isEmpty(v)) return '<span class="text-muted">—</span>';
+        if (f.kind === 'nested-list') return nestedListHtml(f, v);
+        if (f.kind === 'nested-object') return objectHtml(itemFieldsOf(f), v);
+        if (f.kind === 'json') return '<pre class="small mb-0">' + esc(JSON.stringify(v, null, 2)) + '</pre>';
+        if (Array.isArray(v)) return v.map(function (x) { return codeHtml(f, x); }).join('');
+        if (f.kind === 'boolean') return v === true || v === 'true' ? 'Yes' : 'No';
+        if (f.kind === 'referential' || f.kind === 'referential-select') return codeHtml(f, v);
+        if (f.markdown) return '<div class="pv-markdown">' + renderMarkdown(String(v)) + '</div>';
+        return '<span style="white-space: pre-wrap;">' + esc(v) + '</span>';
+      };
+      var classificationNames = ['category', 'origin', 'priority', 'severity'];
+      var verificationNames = ['classification', 'participant', 'outputContract', 'externalEvidence'];
+      var paragraphNames = ['statement', 'completionCriteria', 'assurance', 'prompt'];
+      var plainValue = function (x, v) {
+        if (Array.isArray(v)) return v.map(function (e) { return plainValue(x, e); }).join(', ');
+        if (typeof v === 'boolean' || x.kind === 'boolean') return v === true || v === 'true' ? 'Yes' : 'No';
+        var name = x.ontology && x.referentialSource && labels[x.referentialSource] ? labels[x.referentialSource][v] : null;
+        return esc(name || v);
+      };
+      var inlineRow = function (fields, row) {
+        var parts = fields.filter(function (x) { return !isEmpty(row[x.name]); }).map(function (x) {
+          return '<div class="me-5"><div class="pv-label">' + esc(x.label || x.name) + '</div><div>' + plainValue(x, row[x.name]) + '</div></div>';
+        });
+        return parts.length ? '<div class="d-flex flex-wrap row-gap-3">' + parts.join('') + '</div>' : '';
+      };
+      var transitionLabel = function (t) { var parts = String(t).split('|'); return parts.length === 3 ? parts[1] + ' → ' + parts[2] : t; };
+      var nestedTableHtml = function (x, list) {
+        var fields = itemFieldsOf(x);
+        return '<table class="table table-sm align-top mb-0"><thead><tr>' + fields.map(function (nf) { return '<th scope="col">' + esc(nf.label || nf.name) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+          list.map(function (o) {
+            return '<tr>' + fields.map(function (nf) {
+              var v = o[nf.name];
+              return '<td>' + (isEmpty(v) ? '<span class="text-muted">—</span>' : (Array.isArray(v) ? v.map(function (e) { return '<div>' + esc(transitionLabel(e)) + '</div>'; }).join('') : esc(v))) + '</td>';
+            }).join('') + '</tr>';
+          }).join('') + '</tbody></table>';
+      };
+      var evidenceBoxHtml = function (x, o) {
+        var fields = itemFieldsOf(x);
+        var head = fields.filter(function (nf) { return nf.name === 'title' && !isEmpty(o[nf.name]); })[0];
+        var desc = fields.filter(function (nf) { return nf.name === 'description' && !isEmpty(o[nf.name]); })[0];
+        var rest = fields.filter(function (nf) { return nf !== head && nf !== desc && !isEmpty(o[nf.name]); });
+        return '<div class="border-start ps-3">' + (head ? '<div class="fw-semibold">' + esc(o[head.name]) + '</div>' : '') +
+          (desc ? '<div class="small text-muted" style="white-space: pre-wrap;">' + esc(o[desc.name]) + '</div>' : '') +
+          rest.map(function (nf) { return '<div class="mt-1"><span class="pv-label me-2">' + esc(nf.label || nf.name) + '</span>' + plainValue(nf, o[nf.name]) + '</div>'; }).join('') + '</div>';
+      };
+      var rowsOf = function (f) { var r = content[f.name]; return Array.isArray(r) ? r : []; };
+      var isNarrow = function (f) {
+        var fs = f.itemFields || [];
+        return fs.length <= 4 && !fs.some(function (x) { return x.kind === 'nested-list' || x.kind === 'nested-object'; });
+      };
+      var cardHeadingField = function (f, row) {
+        var withValue = (f.itemFields || []).filter(function (x) { return typeof row[x.name] === 'string' && row[x.name] !== ''; });
+        return withValue.filter(function (x) { return x.name === 'title'; })[0] || withValue.filter(function (x) { return x.name === 'name'; })[0] || withValue[0];
+      };
+
+      var tabs = [];
+      // The code, name and version are already shown in the page header.
+      var inHeader = ['code', 'name', 'packVersion'];
+      (groups.groups || []).forEach(function (g) {
+        var shown = g.fields.filter(function (f) { return inHeader.indexOf(f.name) === -1; });
+        if (shown.length) tabs.push({ id: g.key, label: g.label, simple: shown });
+      });
+      if (groups.dependencies) tabs.push({ id: 'dependencies', label: 'Dependencies', list: groups.dependencies });
+      (groups.contributions || []).forEach(function (c) {
+        if (c.field.kind === 'referential-list') tabs.push({ id: c.key, label: c.label, list: c.field });
+        else tabs.push({ id: c.key, label: c.label, simple: [c.field] });
+      });
+    %>
+
+    <div class="mb-2">
+      <a href="/aisworg/seu/packs" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>All Packs</a>
+    </div>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-2 text-dark fw-bold">Pack: <%= pack.name %></h2>
+      <div class="d-flex align-items-center gap-2">
+        <span class="state-badge state-<%= pack.status %>"><%= pack.status %></span>
+        <span class="small text-muted">v<%= pack.pack_version %></span>
+        <code class="text-muted"><%= pack.code %></code>
+      </div>
+    </div>
+
+    <div class="row">
+    <div class="col-md-3 mb-3">
+    <div class="nav flex-column nav-pills" role="tablist" aria-orientation="vertical">
+      <% tabs.forEach(function (t, i) { %>
+        <button class="nav-link text-start<%= i === 0 ? ' active' : '' %>" id="packview-tab-<%= t.id %>" data-bs-toggle="pill" data-bs-target="#packview-pane-<%= t.id %>" type="button" role="tab"><%= t.label %></button>
+      <% }) %>
+    </div>
+    </div>
+
+    <div class="col-md-9">
+    <div class="tab-content">
+      <% tabs.forEach(function (t, i) { %>
+        <div class="tab-pane fade<%= i === 0 ? ' show active' : '' %>" id="packview-pane-<%= t.id %>" role="tabpanel">
+          <% if (t.id === 'contributionPolicies') { %>
+            <div class="section-card">
+              <div class="section-header"><span class="lp-toggle-title"><%= t.label %></span></div>
+              <% if (policies.length === 0) { %>
+                <div class="p-3 small text-muted">This Pack has no <%= t.label.toLowerCase() %>.</div>
+              <% } else { %>
+                <div class="p-3">
+                  <% policies.forEach(function (p) { %>
+                    <div class="pv-block">
+                      <div>
+                        <div class="fw-semibold"><%= p.name %></div>
+                        <% if (p.description) { %><div class="small text-muted" style="white-space: pre-wrap;"><%= p.description %></div><% } %>
+                      </div>
+                      <%- inlineRow([{ name: 'category', label: 'Category' }, { name: 'constraintType', label: 'Type' }, { name: 'scope', label: 'Scope' }, { name: 'environments', label: 'Environments' }], p) %>
+                      <% if (p.conditions.length) { %>
+                        <div>
+                          <div class="pv-label mb-1">Conditions</div>
+                          <table class="table table-sm align-top mb-0">
+                            <thead><tr><th scope="col">Statement</th><th scope="col" style="width: 20%;">Severity</th></tr></thead>
+                            <tbody>
+                              <% p.conditions.forEach(function (cond) { %><tr><td><%= cond.statement %></td><td><%= cond.severity %></td></tr><% }) %>
+                            </tbody>
+                          </table>
+                        </div>
+                      <% } %>
+                    </div>
+                  <% }) %>
+                </div>
+              <% } %>
+            </div>
+          <% } else if (t.simple) { %>
+            <div class="section-card">
+              <div class="section-header"><span class="lp-toggle-title"><%= t.label %></span></div>
+              <div class="p-3">
+                <% t.simple.forEach(function (f) { %>
+                  <div class="mb-3">
+                    <div class="small text-muted"><%= f.label %></div>
+                    <% if (f.kind === 'referential-list') { %>
+                      <% var _rows = rowsOf(f); %>
+                      <% if (_rows.length === 0) { %><div>—</div><% } %>
+                      <% _rows.forEach(function (row) { %>
+                        <% f.itemFields.forEach(function (x) { %><div><%- cellHtml(x, row[x.name]) %></div><% }) %>
+                      <% }) %>
+                    <% } else { %>
+                      <div><%- cellHtml(f.name === 'contributionPolicies' ? Object.assign({}, f, { referentialSource: 'policy' }) : f, f.kind === 'referential-multi-select' ? f.value : content[f.name]) %></div>
+                    <% } %>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+          <% } else { %>
+            <% var f = t.list; var rows = rowsOf(f); %>
+            <%# A Service is shown by its Service Definition, linked to its view. The stored definition id and the Service Level are left out. %>
+            <% var cols = f.itemFields.filter(function (x) { return !(t.id === 'contributionServices' && (x.name === 'serviceDefinitionId' || x.name === 'serviceLevel')); }); %>
+            <div class="section-card">
+              <div class="section-header"><span class="lp-toggle-title"><%= t.label %></span></div>
+              <% if (rows.length === 0) { %>
+                <div class="p-3 small text-muted">This Pack has no <%= t.label.toLowerCase() %>.</div>
+              <% } else if (isNarrow(f) || t.id === 'contributionServices') { %>
+                <div class="table-responsive">
+                  <table class="table align-middle mb-0">
+                    <thead>
+                      <tr><% cols.forEach(function (x) { %><th scope="col"><%= x.name === 'code' && t.id === 'contributionServices' ? 'Service' : (x.name === 'code' && t.id === 'contributionCapabilities' ? 'Capability' : (x.label || x.name)) %></th><% }) %></tr>
+                    </thead>
+                    <tbody>
+                      <% rows.forEach(function (row) { %>
+                        <tr><% cols.forEach(function (x) { %><td><%- (t.id === 'contributionServices' && x.name === 'code' && refs['service-definition'][row.code]) ? refLine(refs['service-definition'][row.code].name, row.code, refs['service-definition'][row.code].note, linkBase['service-definition'] + refs['service-definition'][row.code].id) : cellHtml(x, row[x.name]) %></td><% }) %></tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              <% } else { %>
+                <div class="p-3">
+                  <% rows.forEach(function (row) { %>
+                    <div class="pv-block">
+                      <% var _heading = cardHeadingField(f, row); %>
+                      <% var _desc = f.itemFields.filter(function (x) { return x.name === 'description' && x !== _heading && !isEmpty(row[x.name]); })[0]; %>
+                      <div>
+                      <div class="fw-semibold"><%= _heading && _heading.ontology && labels[_heading.referentialSource] && labels[_heading.referentialSource][row[_heading.name]] ? labels[_heading.referentialSource][row[_heading.name]] : (_heading ? row[_heading.name] : '') %></div>
+                      <% if (_heading && _heading.ontology && labels[_heading.referentialSource] && labels[_heading.referentialSource][row[_heading.name]]) { %><div class="small text-muted"><%= row[_heading.name] %></div><% } %>
+                      <% if (_desc) { %><div class="small text-muted" style="white-space: pre-wrap;"><%= row[_desc.name] %></div><% } %>
+                      <% var _code = f.itemFields.filter(function (x) { return x.name === 'code' && x !== _heading && !isEmpty(row[x.name]); })[0]; %>
+                      <% if (_code && _code.ontology && labels[_code.referentialSource] && labels[_code.referentialSource][row[_code.name]]) { %><div class="small text-muted"><%= labels[_code.referentialSource][row[_code.name]] %></div><% } %>
+                      </div>
+                      <% var _byNames = function (names) { return f.itemFields.filter(function (x) { return names.indexOf(x.name) !== -1; }); }; %>
+                      <%- inlineRow(_byNames(classificationNames), row) %>
+                      <%- inlineRow(_byNames(verificationNames), row) %>
+                      <% var _shown = [_heading, _desc, _code].concat(_byNames(classificationNames), _byNames(verificationNames)); %>
+                      <% f.itemFields.forEach(function (x) { %>
+                        <% if (isEmpty(row[x.name]) || _shown.indexOf(x) !== -1) return; %>
+                        <% if (x.name === 'items') { %>
+                          <div><%- cellHtml(x, row[x.name]) %></div>
+                        <% } else if (paragraphNames.indexOf(x.name) !== -1) { %>
+                          <div><div class="pv-label"><%= x.label || x.name %></div><% if (x.markdown) { %><div class="pv-markdown"><%- renderMarkdown(row[x.name]) %></div><% } else { %><div style="white-space: pre-wrap;"><%= row[x.name] %></div><% } %></div>
+                        <% } else if (x.kind === 'nested-object') { %>
+                          <div><div class="pv-label"><%= x.label || x.name %></div><%- evidenceBoxHtml(x, row[x.name]) %></div>
+                        <% } else if (x.kind === 'nested-list') { %>
+                          <div><div class="pv-label mb-1"><%= x.label || x.name %></div><%- nestedTableHtml(x, row[x.name]) %></div>
+                        <% } else { %>
+                          <div><div class="pv-label"><%= x.label || x.name %></div><div><%- cellHtml(x, row[x.name]) %></div></div>
+                        <% } %>
+                      <% }) %>
+                    </div>
+                  <% }) %>
+                </div>
+              <% } %>
+            </div>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+    </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

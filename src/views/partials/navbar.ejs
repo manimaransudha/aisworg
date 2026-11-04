@@ -127,9 +127,14 @@
                 <i class="bi bi-lightning-charge me-2"></i>Capability Registry
               </a></li>
               <% } %>
-              <% if (_nrv('GET','/aisworg/seu/participants')) { %>
-              <li><a class="dropdown-item <%= currentPage === 'seu-participants' ? 'active' : '' %>" href="/aisworg/seu/participants">
-                <i class="bi bi-people me-2"></i>Participant Registry
+              <% if (_nrv('GET','/aisworg/seu/service-definitions')) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-service-definitions' ? 'active' : '' %>" href="/aisworg/seu/service-definitions">
+                <i class="bi bi-box-seam me-2"></i>Service Registry
+              </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/deliverable-definitions')) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-deliverable-definitions' ? 'active' : '' %>" href="/aisworg/seu/deliverable-definitions">
+                <i class="bi bi-box-seam me-2"></i>Deliverable Registry
               </a></li>
               <% } %>
               <% if (_nrv('GET','/aisworg/seu/packs')) { %>
@@ -147,19 +152,14 @@
                 <i class="bi bi-sliders me-2"></i>Profile Registry
               </a></li>
               <% } %>
-              <% if (_nrv('GET','/aisworg/seu/deliverable-definitions')) { %>
-              <li><a class="dropdown-item <%= currentPage === 'seu-deliverable-definitions' ? 'active' : '' %>" href="/aisworg/seu/deliverable-definitions">
-                <i class="bi bi-box-seam me-2"></i>Deliverable Registry
-              </a></li>
-              <% } %>
-              <% if (_nrv('GET','/aisworg/seu/service-definitions')) { %>
-              <li><a class="dropdown-item <%= currentPage === 'seu-service-definitions' ? 'active' : '' %>" href="/aisworg/seu/service-definitions">
-                <i class="bi bi-box-seam me-2"></i>Service Registry
-              </a></li>
-              <% } %>
               <% if (_nrv('GET','/aisworg/seu/policy-definitions')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-policy-definitions' ? 'active' : '' %>" href="/aisworg/seu/policy-definitions">
                 <i class="bi bi-box-seam me-2"></i>Policy Registry
+              </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/participants')) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-participants' ? 'active' : '' %>" href="/aisworg/seu/participants">
+                <i class="bi bi-people me-2"></i>Participant Registry
               </a></li>
               <% } %>
               <% if (_nrv('GET','/aisworg/seu/sdk/schema-registry')) { %>
@@ -183,6 +183,21 @@
             <ul class="dropdown-menu dropdown-menu-dark">
             %>
             <ul class="dropdown-menu shadow-sm border">
+              <% if (_nrv('GET','/aisworg/seu/sdk/capability-authoring')) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-capability-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/capability-authoring">
+                <i class="bi bi-file-earmark-code me-2"></i>Capability Authoring
+              </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/service-authoring')) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-service-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/service-authoring">
+                <i class="bi bi-file-earmark-code me-2"></i>Service Authoring
+              </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/deliverable-authoring')) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-deliverable-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/deliverable-authoring">
+                <i class="bi bi-file-earmark-code me-2"></i>Deliverable Authoring
+              </a></li>
+              <% } %>
               <% if (_nrv('GET','/aisworg/seu/sdk/pack-authoring')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-pack-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/pack-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Pack Authoring
@@ -198,29 +213,14 @@
                 <i class="bi bi-file-earmark-code me-2"></i>Profile Authoring
               </a></li>
               <% } %>
-              <% if (_nrv('GET','/aisworg/seu/sdk/transition-definition-authoring')) { %>
-              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-transition-definition-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/transition-definition-authoring">
-                <i class="bi bi-file-earmark-code me-2"></i>Transition Definition Authoring
-              </a></li>
-              <% } %>
-              <% if (_nrv('GET','/aisworg/seu/sdk/deliverable-authoring')) { %>
-              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-deliverable-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/deliverable-authoring">
-                <i class="bi bi-file-earmark-code me-2"></i>Deliverable Authoring
-              </a></li>
-              <% } %>
-              <% if (_nrv('GET','/aisworg/seu/sdk/service-authoring')) { %>
-              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-service-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/service-authoring">
-                <i class="bi bi-file-earmark-code me-2"></i>Service Authoring
-              </a></li>
-              <% } %>
               <% if (_nrv('GET','/aisworg/seu/sdk/policy-authoring')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-policy-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/policy-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Policy Authoring
               </a></li>
               <% } %>
-              <% if (_nrv('GET','/aisworg/seu/sdk/capability-authoring')) { %>
-              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-capability-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/capability-authoring">
-                <i class="bi bi-file-earmark-code me-2"></i>Capability Authoring
+              <% if (_nrv('GET','/aisworg/seu/sdk/transition-definition-authoring')) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-transition-definition-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/transition-definition-authoring">
+                <i class="bi bi-file-earmark-code me-2"></i>Transition Definition Authoring
               </a></li>
               <% } %>
             </ul>

@@ -11,8 +11,8 @@ import { transitionEntity, publishTransition } from "../../domain/engine/entityT
 import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
 import { eventBus } from "../../domain/engine/eventBus.js";
 import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../seuTypes.js";
-import { ontologyDB } from "../ontologyDB.js";
 import { userDB } from "../userDB.js";
+import { deliverableDefinitionsDB } from "../deliverableDefinitionsDB.js";
 import { getPlatformTenantId, SERVICE_ACTIVE_STATE } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -46,12 +46,12 @@ export async function seedServiceDefinitions(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
 
   const platformTenantId = await getPlatformTenantId();
-  const { data: deliverableConcepts, error: deliverableError } = await ontologyDB.findConceptsByType("deliverable-name", { isRoot: false, tenantId: platformTenantId });
-  if (deliverableError) throw new Error(`[seedServiceDefinitions] failed to load deliverable-name Ontology: ${deliverableError.message}`);
-  const deliverableNames = new Set((deliverableConcepts ?? []).map((c) => c.code));
+  const { data: activeDeliverables, error: deliverableError } = await deliverableDefinitionsDB.findActivePlatformOwned();
+  if (deliverableError) throw new Error(`[seedServiceDefinitions] failed to load Deliverable Definitions: ${deliverableError.message}`);
+  const deliverableNames = new Set((activeDeliverables ?? []).map((d) => d.code));
   const invalid = seeds.flatMap((s) => [...s.inputs.map((v) => ({ code: s.code, field: "inputs", v })), ...s.outputs.map((v) => ({ code: s.code, field: "outputs", v }))]).filter((x) => !deliverableNames.has(x.v));
   if (invalid.length > 0) {
-    throw new Error(`[seedServiceDefinitions] values not in Ontology deliverable-name: ${invalid.map((x) => `${x.code}.${x.field}="${x.v}"`).join(", ")}`);
+    throw new Error(`[seedServiceDefinitions] values not in Active Deliverable Definitions: ${invalid.map((x) => `${x.code}.${x.field}="${x.v}"`).join(", ")}`);
   }
 
   const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Service");
