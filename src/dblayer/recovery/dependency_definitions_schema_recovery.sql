@@ -8,8 +8,8 @@ CREATE TABLE dependency_definitions (
   from_name         TEXT,
   from_state        TEXT NOT NULL,
   to_entity_type    TEXT NOT NULL,
-  to_name           TEXT NOT NULL,
-  to_state          TEXT NOT NULL,
+  to_name           TEXT,
+  to_state          TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ALTER TABLE dependency_definitions DROP CONSTRAINT IF EXISTS dependency_definitions_owning_entity_type_check;
@@ -27,5 +27,10 @@ ALTER TABLE dependency_definitions ADD CONSTRAINT dependency_definitions_natural
 ALTER TABLE dependency_definitions
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants_master(id),
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
+-- A dependency_definitions row with no target (to_name, to_state) is a standalone node: a Deliverable that gates nothing.
+-- Run once against the live database. Safe to repeat.
+BEGIN;
+ALTER TABLE dependency_definitions ALTER COLUMN to_name DROP NOT NULL;
+ALTER TABLE dependency_definitions ALTER COLUMN to_state DROP NOT NULL;
 GRANT ALL PRIVILEGES ON TABLE dependency_definitions TO weirdo;
 COMMIT;

@@ -5,7 +5,7 @@
 // actually composed the Pack. Policy had no live lookup at all. Both are now
 // materialised onto the EBM once, at creation (compositionCompleted.ts),
 // from the composed Packs' own originating_pack_id
-// (seuCompositionScope.ts's resolveOwningScope). This file is the direct
+// (the EBM's own composed_packs). This file is the direct
 // regression test: two SEUs, one commissioned from a Template that mandates
 // the Pack declaring these rules, one that doesn't — only the first should
 // ever see them. Run against the real dev database, no mocking.
@@ -27,7 +27,6 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { policyEngine } from "../src/domain/engine/policyEngine.js";
-import { resolveOwningScope } from "../src/domain/engine/seuCompositionScope.js";
 import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
@@ -163,12 +162,9 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   assert.ok(!ebmWithout!.applicable_quality_gate_ids.includes(gateRow![0].id), "the non-composing SEU's EBM does NOT carry a Pack it never selected");
   assert.ok(!ebmWithout!.applicable_policy_ids.includes(policyRow!.id), "same for the policy");
 
-  // resolveOwningScope(ebmId) — the shared scope resolver both engines now
-  // use — must report the scoped Pack's id only for the composing EBM.
-  const scopeWith = await resolveOwningScope(ebmWith!.id);
-  const scopeWithout = await resolveOwningScope(ebmWithout!.id);
-  assert.ok(scopeWith?.packIds.includes(packRow!.id));
-  assert.ok(!scopeWithout?.packIds.includes(packRow!.id));
+  // The EBM's composed Packs name the scoped Pack only for the composing EBM.
+  assert.ok(ebmWith!.composed_packs.some((p) => p.packId === packRow!.id));
+  assert.ok(!ebmWithout!.composed_packs.some((p) => p.packId === packRow!.id));
 
   // The actual regression: before CR-104, qualityGateEngine.evaluate's bare
   // (entity_type, from_state, to_state) match would have found this gate for

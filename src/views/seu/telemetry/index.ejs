@@ -13,6 +13,7 @@
   %>
 </head>
 <body>
+  <%- include('../../partials/helpers') %>
   <header><%- include('../../partials/navbar') %></header>
 
   <main class="container py-5">
@@ -32,17 +33,47 @@
           changes engineering state — Telemetry informs, it never governs (ET-001).
         </p>
       </div>
-      <% if (locals.seus) { %>
-        <form method="GET" action="/aisworg/seu/telemetry" class="d-flex align-items-center gap-2">
-          <label class="form-label small mb-0 text-muted">SEU</label>
-          <select name="seuId" class="form-select form-select-sm" style="min-width: 220px;" onchange="this.form.submit()">
-            <option value="" <%= !selectedSeuId ? 'selected' : '' %>>All SEUs (platform-wide)</option>
-            <% seus.forEach(function(s) { %>
-              <option value="<%= s.id %>" <%= selectedSeuId === s.id ? 'selected' : '' %>><%= s.objectiveStatement %></option>
-            <% }) %>
-          </select>
-        </form>
-      <% } %>
+    </div>
+
+    <%# SEU picker: a paginated, searchable list of the viewer's tenant's SEUs. Selecting one shows that SEU's metrics. %>
+    <% const _base = locals.listBasePath || '/aisworg/seu/telemetry'; %>
+    <div class="section-card mb-4">
+      <div class="section-header d-flex justify-content-between align-items-center">
+        <span>SEU</span>
+        <span class="small">
+          <%= selectedSeuId ? ('Showing: ' + (locals.selectedSeuObjective || selectedSeuId)) : 'Showing: all SEUs (platform-wide)' %>
+          <% if (selectedSeuId) { %><a href="<%= _base + listQueryString(seuList, { seuId: '', page: 1 }) %>" class="ms-2">Show all</a><% } %>
+        </span>
+      </div>
+      <div class="p-3">
+        <%- include('../../partials/listControls', { list: seuList, listBasePath: _base, searchPlaceholder: 'Search objective / state' }) %>
+        <% if (seuList.total === 0) { %>
+          <p class="text-muted small mb-0"><%= seuList.q ? 'No SEUs match your search.' : 'No SEUs.' %></p>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th><%- sortLink('Objective', 'objective', seuList, _base) %></th>
+                  <th><%- sortLink('Lifecycle State', 'state', seuList, _base) %></th>
+                  <th><%- sortLink('Created', 'created', seuList, _base) %></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% seuList.items.forEach(function(s) { %>
+                  <tr class="<%= selectedSeuId === s.id ? 'table-active' : '' %>">
+                    <td class="small"><%= s.objectiveStatement %></td>
+                    <td class="small"><%= s.lifecycleState %></td>
+                    <td class="small text-muted"><%= new Date(s.createdAt).toLocaleString() %></td>
+                    <td class="text-end"><a href="<%= _base + listQueryString(seuList, { seuId: s.id }) %>" class="btn btn-sm <%= selectedSeuId === s.id ? 'btn-primary' : 'btn-outline-primary' %>">Select</a></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
     </div>
 
     <%

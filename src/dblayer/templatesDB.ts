@@ -197,6 +197,22 @@ export const templatesDB = {
     }
   },
 
+  // The Active Template with this code in the viewer's tenant, else in the Platform tenant (the same visibility as the lists).
+  async findActiveByCodeVisibleTo(code: string, viewerTenantId: string | null): Promise<DbResult<TemplateRow | null>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+    const viewer = viewerTenantId ?? PLATFORM_TENANT_ID;
+    try {
+      const { rows } = await query<TemplateRow>(
+        "SELECT * FROM templates WHERE code = $1 AND status = 'Active' AND (tenant_id = $2 OR tenant_id = $3) ORDER BY (tenant_id = $2) DESC, created_at DESC LIMIT 1",
+        [code, viewer, PLATFORM_TENANT_ID]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[templatesDB] findActiveByCodeVisibleTo error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findAllActive(): Promise<DbResult<TemplateRow[]>> {
     try {
       const { rows } = await query<TemplateRow>("SELECT * FROM templates WHERE status = 'Active' ORDER BY code");

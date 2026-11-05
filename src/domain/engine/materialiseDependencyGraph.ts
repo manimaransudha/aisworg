@@ -23,7 +23,7 @@ export async function materialiseDependencyGraph(input: {
 
   const created: DependencyDefinitionRow[] = [];
   for (const entry of input.dependencyGraph) {
-    if (!validCodes.has(entry.toCode)) continue;
+    if (entry.toCode && !validCodes.has(entry.toCode)) continue;
 
     if (entry.fromType === "Deliverable") {
       if (!entry.fromCode || !validCodes.has(entry.fromCode)) continue;
@@ -34,8 +34,8 @@ export async function materialiseDependencyGraph(input: {
         fromName: toLabel(entry.fromCode),
         fromState: entry.requiredState ?? DEFAULT_DELIVERABLE_REQUIRED_STATE,
         toEntityType: "Deliverable",
-        toName: toLabel(entry.toCode),
-        toState: GATED_TO_STATE,
+        toName: entry.toCode ? toLabel(entry.toCode) : null,
+        toState: entry.toCode ? GATED_TO_STATE : null,
         relationshipKind: entry.relationshipKind ?? "dependency",
         authorId: input.authorId,
         authorBadge: input.authorBadge,

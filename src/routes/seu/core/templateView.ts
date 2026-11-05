@@ -25,9 +25,10 @@ function clip(text: string): string {
   return text.length > LABEL_MAX ? `${text.slice(0, LABEL_MAX - 1)}…` : text;
 }
 
-// Lays the dependency graph out in columns: a prerequisite sits to the left of what it gates. Returns null when there are no entries.
+// Lays the dependency graph out in columns: a prerequisite sits to the left of what it gates. Returns null when there are no nodes.
 function layoutDependencyGraph(
   entries: Array<Record<string, unknown>>,
+  catalogueCodes: string[],
   nameOf: (kind: "Deliverable" | "Capability", code: string) => { label: string; href: string | null }
 ): DependencyGraphLayout | null {
   const nodes = new Map<string, DependencyGraphNode>();
@@ -40,14 +41,18 @@ function layoutDependencyGraph(
     }
     return id;
   };
+  // Every catalogue Deliverable is a node, including those with no edge.
+  for (const code of catalogueCodes) nodeFor("Deliverable", code);
   for (const e of entries) {
     const toCode = typeof e.toCode === "string" ? e.toCode : "";
     const fromType = e.fromType === "Capability" ? "Capability" : "Deliverable";
     const fromCode = fromType === "Capability" ? e.fromCapabilityCode : e.fromCode;
-    if (!toCode || typeof fromCode !== "string" || !fromCode) continue;
+    if (typeof fromCode !== "string" || !fromCode) continue;
+    if (!toCode) { nodeFor(fromType, fromCode); continue; }
     edges.push({ from: nodeFor(fromType, fromCode), to: nodeFor("Deliverable", toCode) });
   }
-  if (edges.length === 0) return null;
+  // if (edges.length === 0) return null;
+  if (nodes.size === 0) return null;
   const depth = new Map<string, number>([...nodes.keys()].map((id) => [id, 0]));
   for (let pass = 0; pass < nodes.size; pass++) {
     let changed = false;
@@ -75,6 +80,18 @@ function layoutDependencyGraph(
     return { path: `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}` };
   });
   return { width: columns * NODE_W + (columns - 1) * COLUMN_GAP, height: rows * NODE_H + (rows - 1) * ROW_GAP, nodes: [...nodes.values()], edges: laidEdges };
+}
+
+// The dependency graph of an object being edited, drawn from its catalogue and graph entries. A node carries no link.
+export async function buildDependencyGraphLayout(content: Record<string, unknown>, viewer: { isRoot: boolean; tenantId: string | null }): Promise<DependencyGraphLayout | null> {
+  const deliverableLabels = Object.fromEntries((await listConceptsForType("deliverable-name", viewer)).map((c) => [c.code, c.default_label]));
+  const capabilityLabels = Object.fromEntries((await listConceptsForType("capability-name", viewer)).map((c) => [c.code, c.default_label]));
+  const catalogueCodes = (Array.isArray(content.deliverableCatalogue) ? content.deliverableCatalogue : []).map((r) => (r as Record<string, unknown>)?.code).filter((c): c is string => typeof c === "string" && c.trim() !== "");
+  return layoutDependencyGraph(
+    Array.isArray(content.dependencyGraph) ? (content.dependencyGraph as Array<Record<string, unknown>>) : [],
+    catalogueCodes,
+    (kind, code) => ({ label: (kind === "Capability" ? capabilityLabels[code] : deliverableLabels[code]) ?? code, href: null })
+  );
 }
 
 export interface TemplateViewData {
@@ -132,7 +149,7 @@ export async function getTemplateView(id: string, viewer: { isRoot: boolean; ten
     if (source) parameterSources[`${type}::${code}`] = source.name;
   }
   const capabilityLabels = Object.fromEntries((await listConceptsForType("capability-name", viewer)).map((c) => [c.code, c.default_label]));
-  const graph = layoutDependencyGraph(Array.isArray(content.dependencyGraph) ? (content.dependencyGraph as Array<Record<string, unknown>>) : [], (kind, code) =>
+  const graph = layoutDependencyGraph(Array.isArray(content.dependencyGraph) ? (content.dependencyGraph as Array<Record<string, unknown>>) : [], rowCodes(content.deliverableCatalogue, "code"), (kind, code) =>
     kind === "Capability"
       ? { label: capabilityLabels[code] ?? code, href: null }
       : { label: labels["deliverable-name"]?.[code] ?? code, href: refs["deliverable-name"][code]?.id ? `/aisworg/seu/deliverable-definitions/${refs["deliverable-name"][code].id}` : null }

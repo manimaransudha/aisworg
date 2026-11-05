@@ -182,8 +182,16 @@
       function renderDependencyGroups(groups) { %>
         <ul class="list-group list-group-flush">
           <% groups.forEach(function(group) { %>
+            <% if (!group.toCode) { %>
+              <% group.prerequisites.forEach(function(row) { %>
+                <li class="list-group-item px-0 small">
+                  <strong><%= deliverableLabels[row.fromCode] || row.fromCode || '—' %></strong>
+                  <span class="text-muted ms-1">standalone, gates nothing</span>
+                </li>
+              <% }) %>
+            <% } else { %>
             <li class="list-group-item px-0 small">
-              <div><strong><%= group.toCode || '—' %></strong></div>
+              <div><strong><%= group.toCode %></strong></div>
               <ul class="list-unstyled mt-1 mb-0 ps-3">
                 <% group.prerequisites.forEach(function(row) { %>
                   <li class="text-muted">
@@ -194,6 +202,7 @@
                 <% }) %>
               </ul>
             </li>
+            <% } %>
           <% }) %>
         </ul>
       <% } %>

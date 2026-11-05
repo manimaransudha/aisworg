@@ -14,6 +14,8 @@ import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
+import { buildDependencyGraphLayout } from "../core/templateView.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
@@ -37,7 +39,7 @@ import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { packCodeVersionSummaries } from "../core/packs.js";
 import { PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveExposableParameterCandidates, deriveOverridableParameterCandidates, getPackSelectionsByCategory, type ExposableParameterCandidate, type ExposedParameter, type PackSelectionsByCategory } from "../core/templates.js";
-import { CONFIGURATION_PARAMETER_FIELDS, type ExposedParameterOverride } from "../core/profiles.js";
+import { baseTemplateDeliverables, CONFIGURATION_PARAMETER_FIELDS, deriveProfileGraphCapabilityCodes, type ExposedParameterOverride } from "../core/profiles.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { requireActorId, resolveAuthorBadgeForRequest, resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
@@ -441,7 +443,7 @@ async function loadPackCodesCapabilityCoverage(content: Record<string, unknown>,
   const requiredCodes = [...requiredSet].sort();
 
   const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => extractPackCodes(content[slot.field as string])))];
-  const selectedCodes = await deriveCapabilityCodesFromPackCodes(packCodes);
+  const selectedCodes = await deriveCapabilityCodesFromPackCodes(packCodes, viewerTenantId);
   const selectedSet = new Set(selectedCodes);
 
   const labels = await resolveLabels(viewerTenantId, "capability-name");
@@ -571,10 +573,16 @@ async function loadPolicyOptions(packCode: string): Promise<PolicyOption[]> {
   return (policies ?? []).map((p) => ({ id: p.id, name: p.name, packName: p.pack_name })).sort((a, b) => a.packName.localeCompare(b.packName) || a.name.localeCompare(b.name));
 }
 
-interface TemplateOption { code: string; name: string }
-async function loadActiveTemplateOptions(): Promise<TemplateOption[]> {
-  const { data: templates } = await templatesDB.findAllActive();
-  return (templates ?? []).map((t) => ({ code: t.code, name: t.name })).sort((a, b) => a.name.localeCompare(b.name));
+interface TemplateOption { code: string; name: string; label: string }
+async function loadActiveTemplateOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<TemplateOption[]> {
+  // const { data: templates } = await templatesDB.findAllActive();
+  const { data: templates } = viewer.isRoot || !viewer.tenantId ? await templatesDB.findAllActive() : await templatesDB.findActiveVisibleTo(viewer.tenantId);
+  // return (templates ?? []).map((t) => ({ code: t.code, name: t.name })).sort((a, b) => a.name.localeCompare(b.name));
+  const { data: tenants } = await tenantsDB.findAll();
+  const tenantName = new Map((tenants ?? []).map((tn) => [tn.id, tn.name]));
+  return (templates ?? [])
+    .map((t) => ({ code: t.code, name: t.name, label: `${t.name} (${tenantName.get(t.tenant_id) ?? "—"}, v${t.template_version})` }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 async function loadDbSelectOptions(kind: SchemaDefinitionEntityKind): Promise<Record<string, Array<{ value: string; label: string }>>> {
@@ -597,6 +605,15 @@ async function nextHop(kind: SchemaDefinitionEntityKind, fromState: string): Pro
   const defs = await listCurrentTransitionDefinitions();
   const match = defs.find((d) => d.entityType === entityTypeForKind(kind) && d.isActive && d.fromState === fromState && d.verb);
   return match ? { verb: match.verb!, toState: match.toState } : null;
+}
+
+// A Profile's dependency graph may name the Capabilities of the Packs its base Template and the Profile itself select.
+async function loadProfileGraphCapabilityOptions(content: Record<string, unknown>, viewerTenantId: string | null): Promise<Record<string, string[]>> {
+  const baseTemplateCode = typeof content.baseTemplateCode === "string" ? content.baseTemplateCode.trim() : "";
+  // const baseTemplate = baseTemplateCode ? (await templatesDB.findByCode(baseTemplateCode)).data : null;
+  const baseTemplate = baseTemplateCode ? (await templatesDB.findActiveByCodeVisibleTo(baseTemplateCode, viewerTenantId)).data : null;
+  const profilePackCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => extractPackCodes(content[slot.field as string])))];
+  return { "derived:requiredCapabilityCodes": (await deriveProfileGraphCapabilityCodes(baseTemplate?.id ?? null, profilePackCodes, viewerTenantId)).sort() };
 }
 
 async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefinitionEntityKind, slug: string, draft: { id: string; code: string; name: string; status: string; content: Record<string, unknown> } | null, prefill?: { content: Record<string, unknown>; parentTemplateId?: string; parentProfileId?: string; parentDeliverableDefinitionId?: string }): Promise<void> {
@@ -628,6 +645,11 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
     ...(draft?.content ?? prefill?.content ?? {}),
   };
   const viewer = { isRoot: (req.session?.user?.platformBadges ?? []).includes("root"), tenantId: req.session?.user?.tenant_id ?? null };
+  const ownCatalogue: unknown = contentForForm.deliverableCatalogue;
+  if (kind === "Profile" && !(Array.isArray(ownCatalogue) && ownCatalogue.length > 0)) {
+    const baseTemplateCode = typeof contentForForm.baseTemplateCode === "string" ? contentForForm.baseTemplateCode.trim() : "";
+    if (baseTemplateCode) Object.assign(contentForForm, await baseTemplateDeliverables(baseTemplateCode, viewer.tenantId));
+  }
   const generatedFields = generateFields(schema, contentForForm);
   if (kind === "Profile") {
     for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
@@ -649,10 +671,11 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   req.vm.opt.referentialOptions = {
     ...(await loadReferentialOptions(viewer)),
     ...loadSelfReferentialOptions(schema, contentForForm),
-    ...(await loadDerivedPackCapabilityOptions(contentForForm)),
+    ...(await loadDerivedPackCapabilityOptions(contentForForm, viewer)),
+    ...(kind === "Profile" ? await loadProfileGraphCapabilityOptions(contentForForm, viewer.tenantId) : {}),
   };
   req.vm.opt.dbSelectOptions = await loadDbSelectOptions(kind);
-  req.vm.opt.deliverableLabels = kind === "Template" ? await resolveLabels(viewer.tenantId, "deliverable-name") : {};
+  req.vm.opt.deliverableLabels = kind === "Template" || kind === "Profile" ? await resolveLabels(viewer.tenantId, "deliverable-name") : {};
   const packCodesCapabilityCoverage: PackCodesCapabilityCoverage =
     kind === "Template" ? await loadPackCodesCapabilityCoverage(contentForForm, viewer.tenantId) : { required: [], gaps: [], excess: [] };
   req.vm.opt.requiredCapabilityNames = packCodesCapabilityCoverage.required;
@@ -671,7 +694,8 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
     ? await listInheritableDeliverableDefinitions()
     : [];
   req.vm.opt.packDependencyOptions = await loadActivePackDependencyOptions(viewer);
-  req.vm.opt.templateOptions = kind === "Profile" ? await loadActiveTemplateOptions() : [];
+  req.vm.opt.dependencyGraphLayout = kind === "Template" || kind === "Profile" ? await buildDependencyGraphLayout(contentForForm as Record<string, unknown>, viewer) : null;
+  req.vm.opt.templateOptions = kind === "Profile" ? await loadActiveTemplateOptions(viewer) : [];
   req.vm.opt.checklistOptions = kind === "Pack" ? await loadChecklistOptions(String((contentForForm as Record<string, unknown>).code ?? "")) : [];
   req.vm.opt.policyOptions = kind === "Pack" ? await loadPolicyOptions(String((contentForForm as Record<string, unknown>).code ?? "")) : [];
   req.vm.opt.serviceDefinitionOptions = kind === "Pack" ? await loadServiceDefinitionOptions(viewer) : [];
@@ -680,11 +704,11 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   const ontologyOptions = await loadOntologyOptions(schema, viewer);
   if (kind === "Profile") {
     const baseTemplateCode = (contentForForm as Record<string, unknown>).baseTemplateCode;
-    const baseTemplate = typeof baseTemplateCode === "string" && baseTemplateCode.trim() ? (await templatesDB.findByCode(baseTemplateCode)).data : null;
+    const baseTemplate = typeof baseTemplateCode === "string" && baseTemplateCode.trim() ? (await templatesDB.findActiveByCodeVisibleTo(baseTemplateCode, viewer.tenantId)).data : null;
     if (baseTemplate) {
       const templatePackSelections: PackSelectionsByCategory = await getPackSelectionsByCategory(baseTemplate.id);
       const templatePackCodes = Object.values(templatePackSelections).flatMap((codes) => codes ?? []);
-      const templateCapabilityCodes = new Set(await deriveCapabilityCodesFromPackCodes(templatePackCodes));
+      const templateCapabilityCodes = new Set(await deriveCapabilityCodesFromPackCodes(templatePackCodes, viewer.tenantId));
       ontologyOptions["capability-name"] = (ontologyOptions["capability-name"] || []).filter((opt) => !templateCapabilityCodes.has(opt.code));
       const catalogueCodes = new Set(baseTemplate.deliverable_catalogue.map((entry) => entry.code));
       ontologyOptions["deliverable-name"] = (ontologyOptions["deliverable-name"] || []).filter((opt) => catalogueCodes.has(opt.code));

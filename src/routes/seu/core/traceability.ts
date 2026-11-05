@@ -1,7 +1,7 @@
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
-import { ebmsDB } from "../../../dblayer/ebmsDB.js";
-import { dependencyDefinitionsDB, type DependencyOwningScope } from "../../../dblayer/dependencyDefinitionsDB.js";
+import { resolveSeuOwningScope } from "../../../domain/engine/deliverableSource.js";
+import { dependencyDefinitionsDB } from "../../../dblayer/dependencyDefinitionsDB.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { attestationsDB } from "../../../dblayer/attestationsDB.js";
 import { deliverableReferencesDB } from "../../../dblayer/deliverableReferencesDB.js";
@@ -74,18 +74,13 @@ async function participantLabel(participantId: string | null): Promise<string | 
   return data ? `${data.display_name} (${data.type})` : "(unknown Participant)";
 }
 
-async function resolveOwningScope(seu: { template_id: string; profile_id: string; active_ebm_id: string | null }): Promise<DependencyOwningScope> {
-  const { data: ebm } = seu.active_ebm_id ? await ebmsDB.findById(seu.active_ebm_id) : { data: null };
-  return { templateId: seu.template_id, profileId: seu.profile_id, packIds: (ebm?.composed_packs ?? []).map((p) => p.packId) };
-}
-
 export async function explainDeliverable(deliverableId: string): Promise<DeliverableExplanation | null> {
   const { data: deliverable } = await deliverablesDB.findById(deliverableId);
   if (!deliverable) return null;
 
   const { data: seu } = await seusDB.findById(deliverable.seu_id);
   if (!seu) return null;
-  const scope = await resolveOwningScope(seu);
+  const scope = await resolveSeuOwningScope(seu);
 
   const [{ data: references }, { data: attestations }, { data: rows }, { data: evidence }, { data: decisions }, { data: obligations }, { data: knowledge }, { data: reviews }, { data: findings }] =
     await Promise.all([
@@ -154,6 +149,7 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
     seuId: deliverable.seu_id,
     correlationId: eventBus.newCorrelationId(),
     actorId: explainSystemActor.actorId,
+    tenantId: explainSystemActor.tenantId,
     authorityBadge: explainSystemActor.authorBadge,
     payload: { query: "explainDeliverable" },
   });
@@ -177,7 +173,7 @@ export async function impactOfDeliverable(deliverableId: string): Promise<Delive
   if (!deliverable) return null;
   const { data: seu } = await seusDB.findById(deliverable.seu_id);
   if (!seu) return null;
-  const scope = await resolveOwningScope(seu);
+  const scope = await resolveSeuOwningScope(seu);
   const { data: siblings } = await deliverablesDB.findBySeuId(seu.id);
   const siblingByName = new Map((siblings ?? []).map((d) => [d.name, d]));
 
@@ -189,7 +185,7 @@ export async function impactOfDeliverable(deliverableId: string): Promise<Delive
     const currentName = queue.shift()!;
     const { data: rows } = await dependencyDefinitionsDB.findBySourceName(scope, "Deliverable", currentName);
     for (const row of rows ?? []) {
-      const down = siblingByName.get(row.to_name);
+      const down = row.to_name ? siblingByName.get(row.to_name) : undefined;
       if (!down || visited.has(down.id)) continue;
       visited.add(down.id);
       const satisfied = await dependencyDefinitionEngine.isRowSatisfied(seu.id, row);
@@ -213,6 +209,7 @@ export async function impactOfDeliverable(deliverableId: string): Promise<Delive
     seuId: deliverable.seu_id,
     correlationId: eventBus.newCorrelationId(),
     actorId: impactSystemActor.actorId,
+    tenantId: impactSystemActor.tenantId,
     authorityBadge: impactSystemActor.authorBadge,
     payload: { query: "impactOfDeliverable" },
   });

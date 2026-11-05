@@ -3,6 +3,7 @@ import { governanceEvaluationOutcomesDB } from "../../dblayer/governanceEvaluati
 import { seuCapabilitiesDB } from "../../dblayer/seuCapabilitiesDB.js";
 import { capabilityFulfilmentsDB } from "../../dblayer/capabilityFulfilmentsDB.js";
 import { capabilityFulfilmentPoolsDB } from "../../dblayer/capabilityFulfilmentPoolsDB.js";
+import { seusDB } from "../../dblayer/seusDB.js";
 import { eventBus } from "./eventBus.js";
 import { dependencyDefinitionEngine } from "./dependencyDefinitionEngine.js";
 import { qualityGateEngine, RESOLVED_OBLIGATION_STATUSES } from "./qualityGateEngine.js";
@@ -63,6 +64,7 @@ export const executionEngine = {
         seuId: deliverable.seu_id,
         correlationId: eventBus.newCorrelationId(),
         actorId: blockedSystemActor.actorId,
+        tenantId: blockedSystemActor.tenantId,
         authorityBadge: blockedSystemActor.authorBadge,
         payload: { entityType: "Deliverable", entityId: deliverable.id, reason },
       });
@@ -106,6 +108,8 @@ export const executionEngine = {
     const { data: authorityRule } = await authorityRulesDB.findByCode(requiredBadge);
     const applicableAuthorityRuleId = authorityRule?.id ?? null;
 
+    const { data: gateSeu } = await seusDB.findById(deliverable.seu_id);
+    if (!gateSeu) throw new Error(`SEU ${deliverable.seu_id} not found for Deliverable ${deliverable.id}`);
     const qualityGateResult = await qualityGateEngine.evaluate({
       entityType: "Deliverable",
       entityId: deliverable.id,
@@ -114,6 +118,7 @@ export const executionEngine = {
       toState: targetState,
       authorId: systemActor.authorId,
       authorBadge: systemActor.authorBadge,
+      tenantId: gateSeu.tenant_id,
     });
     if (qualityGateResult.outcome === "Blocked") {
       await checkSustainedQualityGateBlocking({ qualityGateId: qualityGateResult.gate.id, gateName: qualityGateResult.gate.name, seuId: deliverable.seu_id, deliverableId: deliverable.id });
@@ -312,6 +317,7 @@ export const executionEngine = {
       seuId: deliverable.seu_id,
       correlationId: input.correlationId,
       actorId: systemActor.actorId,
+      tenantId: systemActor.tenantId,
       authorityBadge: evaluated.authorityBadge,
       payload: { fromState, toState, commandId: command.id },
     });
@@ -322,6 +328,7 @@ export const executionEngine = {
       seuId: deliverable.seu_id,
       correlationId: input.correlationId,
       actorId: systemActor.actorId,
+      tenantId: systemActor.tenantId,
       authorityBadge: evaluated.authorityBadge,
       payload: { fromState, toState, commandId: command.id },
     });

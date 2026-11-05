@@ -155,6 +155,7 @@ async function raiseSustainedPatternObligation(input: {
     seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
     actorId: systemActor.actorId,
+    tenantId: systemActor.tenantId,
     authorityBadge: systemActor.authorBadge,
     payload: { ...input.eventPayload, obligationId: obligation.id },
   });

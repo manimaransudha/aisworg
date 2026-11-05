@@ -399,7 +399,7 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
   for (const dep of seed.dependencies ?? []) {
     if (!PACK_DEPENDENCY_TYPES.includes(dep.type)) errors.push(`dependency "${dep.packCode}" has invalid type "${dep.type}" (${PACK_DEPENDENCY_TYPES.join(", ")})`);
     if (dep.type === "required") {
-      const { data: depPack } = await packsDB.findByCode(dep.packCode);
+      const { data: depPack } = await packsDB.findByCodeVisibleTo(dep.packCode, viewerTenantId);
       if (!depPack) errors.push(`required dependency not resolved: Pack "${dep.packCode}" not found in the Registry`);
     }
   }

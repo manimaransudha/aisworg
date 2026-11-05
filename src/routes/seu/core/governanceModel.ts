@@ -58,6 +58,7 @@ export async function getEffectiveGovernanceModel(seuId: string): Promise<Effect
     seuId,
     correlationId: eventBus.newCorrelationId(),
     actorId: governanceSystemActor.actorId,
+    tenantId: governanceSystemActor.tenantId,
     authorityBadge: governanceSystemActor.authorBadge,
     payload: { ebmVersion: ebm.version, authorityRules: authorityRules.length, policies: policies.length, qualityGates: qualityGates.length },
   });

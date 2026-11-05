@@ -2,8 +2,8 @@ import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { qualityGatesDB } from "../../dblayer/qualityGatesDB.js";
 import { policiesDB } from "../../dblayer/policiesDB.js";
-import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
-import { participantsDB } from "../../dblayer/participantsDB.js";
+// import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
+// import { participantsDB } from "../../dblayer/participantsDB.js";
 import { eventBus } from "./eventBus.js";
 import { transitionEngine } from "./transitionEngine.js";
 import { failSeu } from "../../routes/seu/core/commissioning.js";
@@ -16,13 +16,14 @@ interface CompositionCompletedPayload {
   authorBadge: string;
 }
 
-async function resolveAuthorParticipantId(seuId: string, actorId: string): Promise<string> {
-  const { data: master } = await participantsMasterDB.findById(actorId);
-  if (!master) throw new Error(`No superuser provisioned.`);
-  const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, master.id);
-  if (!participant) throw new Error(`actor ${actorId} has no participant engagement in SEU ${seuId}`);
-  return participant.id;
-}
+// The EBM's author is the acting user (participants_master id). A Participant row cannot exist in an SEU that is still being commissioned.
+// async function resolveAuthorParticipantId(seuId: string, actorId: string): Promise<string> {
+//   const { data: master } = await participantsMasterDB.findById(actorId);
+//   if (!master) throw new Error(`No superuser provisioned.`);
+//   const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, master.id);
+//   if (!participant) throw new Error(`actor ${actorId} has no participant engagement in SEU ${seuId}`);
+//   return participant.id;
+// }
 
 async function failComposition(seuId: string, event: EventRow, reason: string): Promise<void> {
   await failSeu({ seuId, actorId: event.actor_id!, stage: "compose_ebm", reason, correlationId: event.correlation_id, causationId: event.id });
@@ -48,7 +49,8 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
 
 async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string): Promise<void> {
   const seuId = seu.id;
-  const authorId = await resolveAuthorParticipantId(seuId, event.actor_id!);
+  // const authorId = await resolveAuthorParticipantId(seuId, event.actor_id!);
+  const authorId = event.actor_id!;
   const stashed = seu.composition_report as {
     composedPacks?: EbmComposedPack[];
     compositionReport?: EbmCompositionReport;
@@ -88,17 +90,19 @@ async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string)
     seuScopedPolicyIds: seuScopedPolicies.map((p) => p.id),
   });
   if (ebmErr || !ebm) {
-    await eventBus.publish({
-      eventType: "CommissionFailed",
-      originatingObjectType: "SEU",
-      originatingObjectId: seuId,
-      seuId,
-      correlationId: event.correlation_id,
-      causationId: event.id,
-      actorId: event.actor_id,
-      authorityBadge: authorBadge,
-      payload: { stage: "compose_ebm", reason: (ebmErr ?? new Error("failed to create EBM")).message },
-    });
+    // The event alone left the SEU in its current state; failComposition moves it to Failed and publishes CommissionFailed.
+    // await eventBus.publish({
+    //   eventType: "CommissionFailed",
+    //   originatingObjectType: "SEU",
+    //   originatingObjectId: seuId,
+    //   seuId,
+    //   correlationId: event.correlation_id,
+    //   causationId: event.id,
+    //   actorId: event.actor_id,
+    //   authorityBadge: authorBadge,
+    //   payload: { stage: "compose_ebm", reason: (ebmErr ?? new Error("failed to create EBM")).message },
+    // });
+    await failComposition(seuId, event, (ebmErr ?? new Error("failed to create EBM")).message);
     return;
   }
 

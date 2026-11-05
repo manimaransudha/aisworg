@@ -164,6 +164,8 @@ export const workItemGenerator = {
     const { data: workItem, error } = await workItemsDB.create({ commandId: input.command.id, authorId, authorBadge, executionContext });
     if (error || !workItem) throw error ?? new Error("failed to generate work item");
 
+    const { data: seu } = await seusDB.findById(input.command.seu_id);
+    if (!seu) throw new Error(`SEU ${input.command.seu_id} not found for Command ${input.command.id}`);
     await eventBus.publish({
       eventType: "WorkItemGenerated",
       originatingObjectType: "WorkItem",
@@ -173,6 +175,7 @@ export const workItemGenerator = {
       causationId: input.causationEventId,
       actorId: authorId,
       authorityBadge: authorBadge,
+      tenantId: seu.tenant_id,
       payload: { commandId: input.command.id, targetCompletionAt: input.targetCompletionAt ?? null },
     });
 

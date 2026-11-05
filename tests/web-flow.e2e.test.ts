@@ -1306,11 +1306,10 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
   assertPageDoesNotMatch(list.html, /New Strategic Objective/, "the create button must not render for a non-holder");
 
   // GET /new redirects away with the real error, not a 200 with the form.
-  // routeAuthorityGate denies through redirects' badgefail outcome, whose
-  // destination is the page's own, whatever the Referer says.
+  // routeAuthorityGate denies through redirects' badgefail outcome; a denied GET returns to the Referer's page.
   const newFormRedirect = await getRedirect(request, "/seu/objectives/new", "/seu/objectives");
   assert.equal(newFormRedirect.status, 302);
-  assert.equal(newFormRedirect.location, "/aisworg");
+  assert.equal(newFormRedirect.location, "/aisworg/seu/objectives");
   const newForm = await getPage(request, "/seu/objectives");
   // EJS's default <%= %> escaping renders the apostrophe as &#39;, not a
   // literal ' — match a substring either side of it, not across it.

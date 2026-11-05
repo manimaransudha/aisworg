@@ -1149,21 +1149,27 @@
     "method": "GET",
     "path": "/aisworg/seu/objectives/:id",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo"
+    ],
     "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/objectives/:id/children",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo"
+    ],
     "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/objectives/:id/comments",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo"
+    ],
     "match_mode": "any"
   },
   {
@@ -1172,7 +1178,9 @@
     "badges": [
       "seu_commission"
     ],
-    "roles": [],
+    "roles": [
+      "demo"
+    ],
     "match_mode": "any"
   },
   {
@@ -1181,7 +1189,9 @@
     "badges": [
       "seu_commission"
     ],
-    "roles": [],
+    "roles": [
+      "demo"
+    ],
     "match_mode": "any"
   },
   {
@@ -1190,7 +1200,9 @@
     "badges": [
       "seu_commission"
     ],
-    "roles": [],
+    "roles": [
+      "demo"
+    ],
     "match_mode": "any"
   },
   {
@@ -1289,7 +1301,10 @@
     "badges": [
       "seu_commission"
     ],
-    "roles": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
     "match_mode": "any"
   },
   {
@@ -1780,14 +1795,20 @@
     "method": "GET",
     "path": "/aisworg/seu/seus",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
     "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/seus/:id",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
     "match_mode": "any"
   },
   {
@@ -1795,7 +1816,8 @@
     "path": "/aisworg/seu/seus/:id/attention-items",
     "badges": [],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1806,7 +1828,8 @@
       "attentionitem_deliver"
     ],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1817,7 +1840,8 @@
       "attentionitem_acknowledge"
     ],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1828,7 +1852,8 @@
       "attentionitem_start"
     ],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1858,42 +1883,60 @@
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/capabilities/:capabilityId/fulfil",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/capabilities/:capabilityId/participant/:participantId/replace",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/capabilities/:capabilityId/release",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/seus/:id/compliance",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/compliance/waivers",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/decisions",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
@@ -1902,7 +1945,10 @@
     "badges": [
       "decision_analyse"
     ],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
@@ -1911,7 +1957,10 @@
     "badges": [
       "decision_propose"
     ],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
@@ -1920,7 +1969,10 @@
     "badges": [
       "decision_review"
     ],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
@@ -1929,7 +1981,10 @@
     "badges": [
       "decision_approve"
     ],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
@@ -1938,7 +1993,10 @@
     "badges": [
       "decision_apply"
     ],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
@@ -1947,7 +2005,10 @@
     "badges": [
       "decision_supersede"
     ],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
@@ -1956,21 +2017,30 @@
     "badges": [
       "decision_archive"
     ],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
     "method": "POST",
     "path": "/aisworg/seu/seus/:id/deliverables/:deliverableId/transition",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
     "method": "GET",
     "path": "/aisworg/seu/seus/:id/ebm",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
@@ -1979,7 +2049,10 @@
     "badges": [
       "seu_commission"
     ],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
@@ -1988,7 +2061,10 @@
     "badges": [
       "seu_validate"
     ],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
@@ -2033,7 +2109,10 @@
     "badges": [
       "ebm_validate"
     ],
-    "roles": [],
+    "roles": [
+      "demo",
+      "participant"
+    ],
     "match_mode": "any"
   },
   {
@@ -2042,7 +2121,9 @@
     "badges": [
       "ebm_activate"
     ],
-    "roles": [],
+    "roles": [
+      "demo"
+    ],
     "match_mode": "any"
   },
   {
@@ -2390,7 +2471,9 @@
     "method": "GET",
     "path": "/aisworg/seu/seus/new",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "demo"
+    ],
     "match_mode": "any"
   },
   {

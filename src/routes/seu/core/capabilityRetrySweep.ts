@@ -61,6 +61,7 @@ export async function sweepUnavailableCapabilities(input: { seuId: string; now?:
       correlationId: last.correlation_id,
       causationId: last.id,
       actorId: systemActor.actorId,
+      tenantId: systemActor.tenantId,
       authorityBadge: systemActor.authorBadge,
       payload: { capabilityId: seuCapability.capability_id },
     });

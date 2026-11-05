@@ -4,7 +4,7 @@ import { deliverablesDB } from "../dblayer/deliverablesDB.js";
 import { dependencyDefinitionsDB, type DependencyOwningScope } from "../dblayer/dependencyDefinitionsDB.js";
 import { deliverableReferencesDB } from "../dblayer/deliverableReferencesDB.js";
 import { seusDB } from "../dblayer/seusDB.js";
-import { ebmsDB } from "../dblayer/ebmsDB.js";
+import { resolveSeuOwningScope } from "../domain/engine/deliverableSource.js";
 import { tenantsDB } from "../dblayer/tenantsDB.js";
 import { tenantContractsDB } from "../dblayer/tenantContractsDB.js";
 import { logger } from "../utils/logger.js";
@@ -13,11 +13,6 @@ import { resolveAdapter } from "./adapterRegistry.js";
 import type { AssignmentOut } from "./participantAdapter.js";
 import type { CommandRow, DeliverableRow, WorkItemRow } from "../dblayer/seuTypes.js";
 import type { EventHandler } from "../domain/engine/eventBus.js";
-
-async function resolveOwningScope(seu: { template_id: string; profile_id: string; active_ebm_id: string | null }): Promise<DependencyOwningScope> {
-  const { data: ebm } = seu.active_ebm_id ? await ebmsDB.findById(seu.active_ebm_id) : { data: null };
-  return { templateId: seu.template_id, profileId: seu.profile_id, packIds: (ebm?.composed_packs ?? []).map((p) => p.packId) };
-}
 
 async function resolveInputReferences(deliverable: DeliverableRow, scope: DependencyOwningScope): Promise<AssignmentOut["inputReferences"]> {
   const { data: rows } = await dependencyDefinitionsDB.findByTargetName(scope, "Deliverable", deliverable.name);
@@ -76,7 +71,7 @@ export async function deliverAssignmentForWorkItem(workItemId: string): Promise<
 
   const target = await resolveExecutionTarget(tenantId, deliverable.producing_capability_id);
   const adapter = resolveAdapter(target.mode);
-  const scope = await resolveOwningScope(seu);
+  const scope = await resolveSeuOwningScope(seu);
   const assignment = await assembleAssignment(
     workItem,
     command,

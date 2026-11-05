@@ -131,7 +131,8 @@ export interface TemplateDeliverableSeed {
 export type DependencyRelationshipKind = "dependency" | "derivation" | "implementation" | "decomposition";
 
 export interface TemplateDependencyGraphEntry {
-  toCode: string;
+  // Absent for a standalone node: a Deliverable that gates nothing.
+  toCode?: string;
   fromType: "Deliverable" | "Capability";
   fromCode?: string;
   fromCapabilityCode?: string;
@@ -341,8 +342,17 @@ export interface ParameterConflict {
   options: ParameterConflictOption[];
 }
 
+// Where an SEU's Deliverable Catalogue and Dependency Graph come from: the Profile when it carries its own, otherwise the Template.
+// The catalogue is read from that object; the dependencies are read by the recorded rows.
+export interface EbmDeliverableSource {
+  type: "Template" | "Profile";
+  id: string;
+  dependencyDefinitionIds: string[];
+}
+
 export interface EbmCompositionReport {
   warnings: string[];
+  deliverableSource?: EbmDeliverableSource;
   conflicts: string[];
   parameterConflicts: ParameterConflict[];
   resolutions: string[];
@@ -483,8 +493,8 @@ export interface DependencyDefinitionRow {
   from_name: string | null;
   from_state: string;
   to_entity_type: DependencyDefinitionEntityType;
-  to_name: string;
-  to_state: string;
+  to_name: string | null;
+  to_state: string | null;
   relationship_kind: DependencyRelationshipKind;
   created_at: string;
 }

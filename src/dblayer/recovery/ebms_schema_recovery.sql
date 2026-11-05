@@ -18,7 +18,7 @@ ALTER TABLE ebms
 ALTER TABLE ebms
   ADD COLUMN IF NOT EXISTS seu_scoped_policy_ids UUID[] NOT NULL DEFAULT '{}';
 ALTER TABLE ebms
-  ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants(id),
+  ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants_master(id),
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
 ALTER TABLE seus
   ADD CONSTRAINT seus_active_ebm_id_fkey FOREIGN KEY (active_ebm_id) REFERENCES ebms(id);

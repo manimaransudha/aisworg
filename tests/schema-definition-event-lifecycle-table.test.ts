@@ -122,7 +122,7 @@ test("DEFINITION: route_authority (CR-110) gates the transition route to the sdk
   assert.ok(match, `no route_authority row for POST ${path}`);
   assert.deepEqual(match!.roles, ["sdk_author"], `POST ${path}: roles`);
   assert.deepEqual(match!.badges, [], `POST ${path}: badges`);
-  assert.equal(match!.match_mode, "all", `POST ${path}: match_mode`);
+  assert.equal(match!.match_mode, "any", `POST ${path}: match_mode`);
 });
 
 test("DRIVEN: createSchemaVersion births a row in Created, then auto-advances Validated -> Tested -> Packaged, one event per hop", async () => {

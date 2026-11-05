@@ -29,13 +29,24 @@
       <a href="/aisworg/seu/seus/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Commission a new SEU</a>
     </div>
 
+
     <% const _base = locals.listBasePath || '/aisworg/seu/seus'; %>
+    <%
+      var _states = locals.states || [];
+      var _activeStatus = locals.activeStatus || '';
+      var _stateTabs = [{ key: '', label: 'All states', href: _base + listQueryString(list, { status: '', page: 1 }) }].concat(_states.map(function(s) { return { key: s, label: s, href: _base + listQueryString(list, { status: s, page: 1 }) }; }));
+    %>
+    <div class="row">
+      <div class="col-md-3 mb-3">
+        <%- include('../../partials/verticalTabs', { tabs: _stateTabs, active: _activeStatus }) %>
+      </div>
+      <div class="col-md-9">
     <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search objective / state' }) %>
 
     <% if (list.total === 0) { %>
       <div class="alert alert-light border text-center py-5">
-        <p class="mb-3 text-muted"><%= list.q ? 'No SEUs match your search.' : 'No SEUs commissioned yet.' %></p>
-        <% if (!list.q) { %><a href="/aisworg/seu/seus/new" class="btn btn-primary btn-sm">Commission the first one</a><% } %>
+        <p class="mb-3 text-muted"><%= list.q ? 'No SEUs match your search.' : (_activeStatus ? ('No SEUs in state "' + _activeStatus + '".') : 'No SEUs commissioned yet.') %></p>
+        <% if (!list.q && !_activeStatus) { %><a href="/aisworg/seu/seus/new" class="btn btn-primary btn-sm">Commission the first one</a><% } %>
       </div>
     <% } else { %>
       <div class="card border-0 shadow-sm">
@@ -116,6 +127,8 @@
         </div>
       </div>
     <% } %>
+      </div>
+    </div>
   </main>
 
   <%- include('../../partials/footer') %>

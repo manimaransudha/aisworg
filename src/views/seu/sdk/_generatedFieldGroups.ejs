@@ -73,9 +73,10 @@
     g.fields.forEach(function (f) { if (f.kind !== 'referential-list') fieldValueByName[f.name] = f.value; });
   });
   var isShowWhenHidden = function (f) { return !!f.showWhen && !fieldValueByName[f.showWhen]; };
-  // Deliverable Catalogue tab exists only for Template (its own x-groups
-  // declares a "deliverables" entry; Profile/Pack/Service/Policy don't).
-  var hasDeliverablesGroup = (locals.groups.groups || []).some(function (g) { return g.key === 'deliverables' && g.fields.length; });
+  // The Required Capabilities and Capability coverage advisories on the Pack
+  // Codes tab belong to a Template's Deliverable Catalogue. A Profile's own
+  // "deliverables" group is its edit of that catalogue and has none of them.
+  var hasDeliverablesGroup = locals.kindLabel === 'Template' && (locals.groups.groups || []).some(function (g) { return g.key === 'deliverables' && g.fields.length; });
 
   // One entry per TAB — 'simple' (a plain field grid: Identity & Metadata,
   // Compatibility), 'referential-list' (Dependencies + most Contribution
@@ -239,6 +240,7 @@
                       showing what was already saved. %>
                   <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %> <% if (f.help && !canEdit) { %><i class="bi bi-info-circle text-primary ms-1" title="<%= f.help %>" aria-label="Help"></i><% } %></label>
                   <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, serviceDefinitionOptions: locals.serviceDefinitionOptions, renderMarkdown: locals.renderMarkdown, fieldValueByName: fieldValueByName }) %>
+                  <% if (f.name === 'dependencyGraph' && locals.dependencyGraphLayout !== undefined) { %><div class="mt-3"><div class="small fw-semibold mb-1">Graph</div><div class="form-text small mb-2">This graph shows the saved dependencies. Changes made above appear here after you save.</div><%- include('_dependencyGraphSvg', { graph: locals.dependencyGraphLayout }) %></div><% } %>
                   <% if (f.help && canEdit) { %><div class="form-text small"><%= f.help %></div><% } %>
                 </div>
               <% } else { %>
@@ -508,7 +510,7 @@
                       `name` for legibility, same fix as the Pack pickers. %>
                   <select name="<%= f.name %>" data-overrides-driver class="form-select form-select-sm" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
                     <option value="">— select —</option>
-                    <% (locals.templateOptions || []).forEach(function(t) { %><option value="<%= t.code %>" <%= f.value === t.code ? 'selected' : '' %>><%= t.name %></option><% }) %>
+                    <% (locals.templateOptions || []).forEach(function(t) { %><option value="<%= t.code %>" <%= f.value === t.code ? 'selected' : '' %>><%= t.label || t.name %></option><% }) %>
                     <% if (f.value && !(locals.templateOptions || []).some(function(t) { return t.code === f.value; })) { %>
                       <option value="<%= f.value %>" selected>&#9888; <%= f.value %> (not currently Active)</option>
                     <% } %>
@@ -831,6 +833,7 @@
             <textarea name="<%= t.field.name %>" class="form-control form-control-sm font-monospace" rows="6" <%- canEdit ? '' : 'disabled' %>><%= t.field.value %></textarea>
           <% } else { %>
             <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, serviceDefinitionOptions: locals.serviceDefinitionOptions, renderMarkdown: locals.renderMarkdown, fieldValueByName: fieldValueByName }) %>
+            <% if (t.field.name === 'dependencyGraph' && locals.dependencyGraphLayout !== undefined) { %><div class="mt-3"><div class="small fw-semibold mb-1">Graph</div><div class="form-text small mb-2">This graph shows the saved dependencies. Changes made above appear here after you save.</div><%- include('_dependencyGraphSvg', { graph: locals.dependencyGraphLayout }) %></div><% } %>
           <% } %>
         <% } %>
 

@@ -33,7 +33,7 @@ router.get("/profiles", attachVM("seu/profiles/index"), async (req: Request, res
       if (!template) continue;
       templateCodeById.set(templateId, template.code);
       if (!activeTemplateNameByCode.has(template.code)) {
-        const { data: activeTemplate } = await templatesDB.findActiveByCode(template.code, viewerTenantId ?? undefined);
+        const { data: activeTemplate } = await templatesDB.findActiveByCodeVisibleTo(template.code, viewerTenantId);
         activeTemplateNameByCode.set(template.code, activeTemplate?.name ?? template.name);
       }
     }

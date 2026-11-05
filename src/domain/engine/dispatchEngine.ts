@@ -53,6 +53,7 @@ async function rejectDispatch(input: { workItem: WorkItemRow; command: CommandRo
     seuId: input.seuId,
     correlationId: input.correlationId,
     actorId: systemActor.actorId,
+    tenantId: systemActor.tenantId,
     authorityBadge: systemActor.authorBadge,
     payload: { reason, commandId: input.command?.id ?? null },
   });
@@ -96,6 +97,7 @@ export const dispatchEngine = {
         seuId: input.seuId,
         correlationId: input.correlationId,
         actorId: systemActor.actorId,
+        tenantId: systemActor.tenantId,
       authorityBadge: systemActor.authorBadge,
         payload: { reason: "no_available_participant" },
       });
@@ -139,6 +141,7 @@ export const dispatchEngine = {
       seuId: input.seuId,
       correlationId: input.correlationId,
       actorId: systemActor.actorId,
+      tenantId: systemActor.tenantId,
       authorityBadge: systemActor.authorBadge,
         payload: { participantId, strategy },
     });
@@ -149,6 +152,7 @@ export const dispatchEngine = {
       seuId: input.seuId,
       correlationId: input.correlationId,
       actorId: systemActor.actorId,
+      tenantId: systemActor.tenantId,
       authorityBadge: systemActor.authorBadge,
         payload: { participantId },
     });
@@ -160,6 +164,7 @@ export const dispatchEngine = {
         seuId: input.seuId,
         correlationId: input.correlationId,
         actorId: systemActor.actorId,
+        tenantId: systemActor.tenantId,
       authorityBadge: systemActor.authorBadge,
         payload: { participantId },
       });

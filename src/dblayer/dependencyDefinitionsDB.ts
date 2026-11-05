@@ -2,17 +2,10 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, DependencyDefinitionOwnerType, DependencyDefinitionRow, DependencyRelationshipKind } from "./seuTypes.js";
 
+// The dependency rows that govern one SEU: the ids its EBM recorded (EbmDeliverableSource).
 export interface DependencyOwningScope {
-  templateId: string;
-  profileId: string;
-  packIds: string[];
+  dependencyDefinitionIds: string[];
 }
-
-const OWNER_SCOPE_WHERE = `(
-  (owning_entity_type = 'Template' AND owning_entity_id = $1)
-  OR (owning_entity_type = 'Profile' AND owning_entity_id = $2)
-  OR (owning_entity_type = 'Pack' AND owning_entity_id = ANY($3::uuid[]))
-)`;
 
 export const dependencyDefinitionsDB = {
   async create(input: {
@@ -22,8 +15,8 @@ export const dependencyDefinitionsDB = {
     fromName?: string | null;
     fromState: string;
     toEntityType: string;
-    toName: string;
-    toState: string;
+    toName: string | null;
+    toState: string | null;
     relationshipKind?: DependencyRelationshipKind;
     authorId: string;
     authorBadge: string;
@@ -70,9 +63,9 @@ export const dependencyDefinitionsDB = {
     try {
       const { rows } = await query<DependencyDefinitionRow>(
         `SELECT * FROM dependency_definitions
-         WHERE ${OWNER_SCOPE_WHERE}
-           AND to_entity_type = $4 AND to_name = $5 AND to_state = $6`,
-        [scope.templateId, scope.profileId, scope.packIds, toEntityType, toName, toState]
+         WHERE id = ANY($1::uuid[])
+           AND to_entity_type = $2 AND to_name = $3 AND to_state = $4`,
+        [scope.dependencyDefinitionIds, toEntityType, toName, toState]
       );
       return { data: rows };
     } catch (err) {
@@ -85,10 +78,11 @@ export const dependencyDefinitionsDB = {
     try {
       const { rows } = await query<DependencyDefinitionRow>(
         `SELECT * FROM dependency_definitions
-         WHERE ${OWNER_SCOPE_WHERE}
-           AND from_entity_type = $4 AND from_state = $5
-           AND (($6::text IS NULL AND from_name IS NULL) OR from_name = $6)`,
-        [scope.templateId, scope.profileId, scope.packIds, fromEntityType, fromState, fromName]
+         WHERE id = ANY($1::uuid[])
+           AND from_entity_type = $2 AND from_state = $3
+           AND to_name IS NOT NULL
+           AND (($4::text IS NULL AND from_name IS NULL) OR from_name = $4)`,
+        [scope.dependencyDefinitionIds, fromEntityType, fromState, fromName]
       );
       return { data: rows };
     } catch (err) {
@@ -101,9 +95,9 @@ export const dependencyDefinitionsDB = {
     try {
       const { rows } = await query<DependencyDefinitionRow>(
         `SELECT * FROM dependency_definitions
-         WHERE ${OWNER_SCOPE_WHERE}
-           AND to_entity_type = $4 AND to_name = $5`,
-        [scope.templateId, scope.profileId, scope.packIds, toEntityType, toName]
+         WHERE id = ANY($1::uuid[])
+           AND to_entity_type = $2 AND to_name = $3`,
+        [scope.dependencyDefinitionIds, toEntityType, toName]
       );
       return { data: rows };
     } catch (err) {
@@ -116,9 +110,10 @@ export const dependencyDefinitionsDB = {
     try {
       const { rows } = await query<DependencyDefinitionRow>(
         `SELECT * FROM dependency_definitions
-         WHERE ${OWNER_SCOPE_WHERE}
-           AND from_entity_type = $4 AND from_name = $5`,
-        [scope.templateId, scope.profileId, scope.packIds, fromEntityType, fromName]
+         WHERE id = ANY($1::uuid[])
+           AND from_entity_type = $2 AND from_name = $3
+           AND to_name IS NOT NULL`,
+        [scope.dependencyDefinitionIds, fromEntityType, fromName]
       );
       return { data: rows };
     } catch (err) {

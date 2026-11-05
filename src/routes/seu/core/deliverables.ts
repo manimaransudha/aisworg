@@ -7,6 +7,7 @@ import { transitionEngine, type GateRejectionResult } from "../../../domain/engi
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
 import { resolveAuthor } from "./attentionItems.js";
+import { loadSeuCatalogue } from "../../../domain/engine/deliverableSource.js";
 import type { DeliverableRow } from "../../../dblayer/seuTypes.js";
 
 export async function createDeliverable(input: { seuId: string; name: string; category: string; actorId: string }): Promise<{ deliverable: DeliverableRow }> {
@@ -17,8 +18,8 @@ export async function createDeliverable(input: { seuId: string; name: string; ca
   const { data: template } = await templatesDB.findById(seu.template_id);
   if (!template) throw new Error("template not found");
   const catalogueLabels = await resolveLabels(template.tenant_id, "deliverable-name");
-  if (!template.deliverable_catalogue.some((entry) => (catalogueLabels[entry.code] ?? entry.code) === input.name)) {
-    throw new Error(`"${input.name}" is not a Deliverable this SEU's Template declares — only names already in the Template's own catalogue can be added`);
+  if (!(await loadSeuCatalogue(seu)).some((entry) => (catalogueLabels[entry.code] ?? entry.code) === input.name)) {
+    throw new Error(`"${input.name}" is not a Deliverable this SEU's catalogue declares — only names already in the catalogue of its Profile or Template can be added`);
   }
 
   const { data: existing } = await deliverablesDB.findBySeuId(input.seuId);

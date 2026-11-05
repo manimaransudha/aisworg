@@ -10,7 +10,7 @@ import { resolveHeldRoles } from "../../../domain/identity/heldRoles.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
-import { listSeusPaginated, getSeuDetailView, getSeuEbmView } from "../core/seus.js";
+import { listSeusPaginated, listSeuLifecycleStates, getSeuDetailView, getSeuEbmView } from "../core/seus.js";
 import { parseListParams } from "../../../utils/listQuery.js";
 import { getObjectiveDetail, listCommissionableObjectives } from "../core/objectives.js";
 import { resolveHeldBadges, requireActorId, resolveActorAndBadge, resolveAuthorBadgeForRequest } from "../../../domain/identity/heldBadges.js";
@@ -41,10 +41,21 @@ router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Respon
     req.vm.req.title = "SEUs";
     const platformBadges: string[] = req.session?.user?.platformBadges ?? [];
     const params = parseListParams(req.query, { sortable: ["objective", "state", "created"], defaultSort: "created", defaultDir: "desc" });
+    const isRoot = platformBadges.includes("root");
+    const sessionTenantId = req.session?.user?.tenant_id ?? null;
+    if (!isRoot && !sessionTenantId) throw new Error("the session user has no tenant");
+    const states = await listSeuLifecycleStates();
+    const activeStatus = typeof req.query.status === "string" && states.includes(req.query.status) ? req.query.status : "";
     const list = await listSeusPaginated(params, {
       userId: requireActorId(req),
-      isAdmin: platformBadges.includes("root") || platformBadges.includes("tenant_admin") || platformBadges.includes("tenant_manage"),
+      isAdmin: isRoot || platformBadges.includes("tenant_admin") || platformBadges.includes("tenant_manage"),
+      // A root viewer sees every tenant; anyone else sees their own tenant only.
+      tenantId: isRoot ? null : sessionTenantId,
+      lifecycleState: activeStatus || null,
     });
+    list.status = activeStatus || undefined;
+    req.vm.opt.states = states;
+    req.vm.opt.activeStatus = activeStatus;
     const held = await resolveHeldBadges(req);
     const hasSeuBadge = (verb: string | null): boolean => held.hasVerb("SEU", verb);
     for (const item of list.items) {

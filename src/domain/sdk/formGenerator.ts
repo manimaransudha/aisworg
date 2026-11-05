@@ -425,10 +425,16 @@ export function groupFieldsForDisplay(schema: JsonSchemaDocument, fields: Genera
   return groups;
 }
 
-export function rowHasContent(row: Record<string, string>, itemFields: ReferentialListItemField[]): boolean {
-  const referentialField = itemFields.find((f) => f.kind === "referential");
-  const identifyingNames = [referentialField?.name, "code", "checklist", "statement", "name"].filter((n): n is string => !!n);
-  return identifyingNames.some((n) => (row[n] ?? "").trim() !== "");
+export function rowHasContent(row: Record<string, string | string[]>, itemFields: ReferentialListItemField[]): boolean {
+  // const referentialField = itemFields.find((f) => f.kind === "referential");
+  // const identifyingNames = [referentialField?.name, "code", "checklist", "statement", "name"].filter((n): n is string => !!n);
+  // Every referential field identifies a row (a dependency-graph row may name only its From).
+  const referentialNames = itemFields.filter((f) => f.kind === "referential").map((f) => f.name);
+  const identifyingNames = [...referentialNames, "code", "checklist", "statement", "name"];
+  return identifyingNames.some((n) => {
+    const v = row[n] ?? "";
+    return Array.isArray(v) ? v.length > 0 : v.trim() !== "";
+  });
 }
 
 export const CONTRIBUTION_SECTION_HELP: Record<string, string> = {
@@ -571,7 +577,11 @@ function parseNestedObjectField(def: JsonSchemaProperty, rawValue: unknown): Rec
 
 function parseReferentialListField(def: JsonSchemaProperty, rawValue: unknown): Record<string, unknown>[] {
   const itemFieldNames = Object.keys(def.items?.properties ?? {});
-  const identifyingFieldNames = itemFieldNames.filter((fn) => def.items?.properties?.[fn]?.["x-referential"] && def.items?.required?.includes(fn));
+  // const identifyingFieldNames = itemFieldNames.filter((fn) => def.items?.properties?.[fn]?.["x-referential"] && def.items?.required?.includes(fn));
+  const requiredReferentialNames = itemFieldNames.filter((fn) => def.items?.properties?.[fn]?.["x-referential"] && def.items?.required?.includes(fn));
+  // With no required referential field (the dependency graph), a row is kept when any of its referential fields is filled.
+  const anyReferentialNames = itemFieldNames.filter((fn) => def.items?.properties?.[fn]?.["x-referential"] || def.items?.properties?.[fn]?.["x-referential-source-derived-by"]);
+  const identifyingFieldNames = requiredReferentialNames.length > 0 ? requiredReferentialNames : anyReferentialNames;
   const rowsArray = Array.isArray(rawValue) ? rawValue : rawValue ? [rawValue] : [];
   return rowsArray
     .map((row) => {

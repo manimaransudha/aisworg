@@ -25,6 +25,21 @@
     <h2 class="h3 mb-1 text-dark fw-bold">Compose EBM</h2>
     <p class="text-muted small mb-4">What composing this SEU's Template/Profile together produces.</p>
 
+    <%# The action buttons sit in a toolbar that stays at the top of the page while the content scrolls.
+         Submit buttons reach their form through the form attribute. %>
+    <% var _barConflicts = locals.compositionConflicts || []; %>
+    <div class="d-flex align-items-center justify-content-end gap-2 mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
+      <% if (locals.pending) { %>
+        <button type="submit" form="compose-pending-form" class="btn btn-primary btn-sm"><i class="bi bi-play-fill me-1"></i>Compose</button>
+      <% } else if (_barConflicts.length) { %>
+        <button type="submit" form="compose-conflicts-form" class="btn btn-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Apply &amp; re-validate</button>
+        <a href="/aisworg/seu/seus/new?objectiveId=<%= objectiveId %>" class="btn btn-outline-secondary btn-sm">Back to selection</a>
+      <% } else if (locals.seuId) { %>
+        <a href="/aisworg/seu/seus/<%= seuId %>" class="btn btn-outline-secondary btn-sm">View SEU</a>
+      <% } %>
+      <a href="/aisworg/seu/objectives/<%= objectiveId %>" class="btn btn-link text-muted btn-sm">Cancel</a>
+    </div>
+
     <%# design/mvp-build-plan/SEU Composition.md, 2026-09-07 — owner: "handler
          have to check for the manual transition definition" — Compose EBM is
          a manual transition; nothing runs it automatically off
@@ -34,12 +49,11 @@
       <div class="section-card">
         <div class="p-3 text-center">
           <p class="text-muted small mb-3">Validate Request passed. Nothing has been composed yet.</p>
-          <form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm">
+          <form id="compose-pending-form" method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <% (typeof selections !== 'undefined' ? selections : []).forEach(function(s) { %>
               <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
             <% }) %>
-            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-play-fill me-1"></i>Compose</button>
           </form>
         </div>
       </div>
@@ -161,7 +175,7 @@
     <% if (compositionConflicts.length) { %>
       <div class="section-card">
         <div class="section-header"><i class="bi bi-exclamation-diamond me-1"></i>Composition conflicts — properties two or more sources disagree on</div>
-        <form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm">
+        <form id="compose-conflicts-form" method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <% selections.forEach(function(s) { %>
             <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
@@ -212,16 +226,8 @@
               </tbody>
             </table>
           </div>
-          <div class="p-3 border-top" style="border-color: var(--border) !important;">
-            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Apply &amp; re-validate</button>
-            <a href="/aisworg/seu/seus/new?objectiveId=<%= objectiveId %>" class="btn btn-link text-muted btn-sm">Back to selection</a>
-          </div>
         </form>
       </div>
-    <% } %>
-
-    <% if (!isReady) { %>
-      <a href="/aisworg/seu/seus/new?objectiveId=<%= objectiveId %>" class="btn btn-outline-secondary btn-sm">Back to selection</a>
     <% } %>
 
     <% if (isReady) { %>
@@ -275,13 +281,9 @@
         </div>
       <% } %>
 
-      <% if (locals.seuId) { %>
-        <a href="/aisworg/seu/seus/<%= seuId %>" class="btn btn-outline-secondary btn-sm">View SEU</a>
-      <% } %>
     <% } %>
     <% } %>
 
-    <p class="mt-4"><a href="/aisworg/seu/objectives/<%= objectiveId %>" class="text-muted small">Cancel — back to Objective</a></p>
   </main>
 
   <%- include('../../partials/footer') %>

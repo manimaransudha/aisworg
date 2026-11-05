@@ -81,6 +81,7 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
       seuId: command.seu_id,
       correlationId: event.correlation_id,
       actorId: systemActor.actorId,
+      tenantId: systemActor.tenantId,
       authorityBadge: systemActor.authorBadge,
       payload: { reason: "redispatch_exhausted", attempts },
     });

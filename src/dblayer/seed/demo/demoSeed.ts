@@ -22,10 +22,10 @@ import { createObjective, objectiveInitialState } from "../../../routes/seu/core
 import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { participantsMasterDB } from "../../participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../../transitionDefinitionsDB.js";
-import type { ObjectiveTier } from "../../seuTypes.js";
+import type { ObjectiveTier, TemplateDependencyGraphEntry } from "../../seuTypes.js";
 import { seedDemoParticipants } from "./demoParticipants.js";
 import { purgeDemoTenant } from "./demoPurge.js";
-import { getDemoActor, grantBadge, grantTransitionBadge, type DemoActor } from "./demoBadges.js";
+import { getDemoActor, grantBadge, grantBadgesWithPrefixes, grantTransitionBadge, type DemoActor } from "./demoBadges.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "..", "data", "demo");
@@ -69,6 +69,9 @@ async function grantAuthoringBadges(actor: DemoActor): Promise<void> {
   const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Objective");
   if (birthError || !birth?.verb) throw birthError ?? new Error("no birth Transition Definition with a verb for Objective");
   await grantBadge(actor.participantId, `objective_${birth.verb}`);
+  await grantBadgesWithPrefixes(actor.participantId, ["seu_", "ebm_"]);
+  // tenant_manage makes the SEU list show every SEU of the Demo tenant, not only those the user is engaged in.
+  await grantBadge(actor.participantId, "tenant_manage");
 }
 
 // Authors each Pack through the SDK authoring path. A Pack whose code is not yet a
@@ -119,6 +122,22 @@ interface DemoTemplateSeed {
 // The Demo tenant cannot see Platform Templates, so each base Template named in templates.json
 // is inherited into the Demo tenant and taken to Active, as the standard Templates are seeded.
 // The copy leaves out the Deliverables listed in omitDeliverableCodes, with the dependency edges that touch them.
+// Keeps the edges between kept Deliverables. A kept prerequisite whose gated Deliverable is omitted stays as a standalone entry.
+function standaloneKeptSources(graph: TemplateDependencyGraphEntry[], omitted: Set<string>): TemplateDependencyGraphEntry[] {
+  const kept: TemplateDependencyGraphEntry[] = [];
+  const standaloneFrom = new Set<string>();
+  const connected = new Set<string>();
+  for (const e of graph) {
+    if (e.fromType !== "Deliverable" || !e.fromCode || omitted.has(e.fromCode)) continue;
+    if (e.toCode && !omitted.has(e.toCode)) { kept.push(e); connected.add(e.fromCode); connected.add(e.toCode); continue; }
+    standaloneFrom.add(e.fromCode);
+  }
+  for (const fromCode of standaloneFrom) {
+    if (!connected.has(fromCode)) kept.push({ fromType: "Deliverable", fromCode });
+  }
+  return kept;
+}
+
 async function seedTemplates(actor: DemoActor): Promise<void> {
   const templates = loadJson<DemoTemplateSeed[]>("templates.json");
   const profiles = loadJson<ProfileSeedInput[]>("profiles.json");
@@ -139,7 +158,9 @@ async function seedTemplates(actor: DemoActor): Promise<void> {
         ...seed,
         ...(name ? { name } : {}),
         deliverableCatalogue: seed.deliverableCatalogue.filter((d) => !omitted.has(d.code)),
-        dependencyGraph: (seed.dependencyGraph ?? []).filter((e) => !omitted.has(e.toCode) && !(e.fromType === "Deliverable" && omitted.has(e.fromCode ?? ""))),
+        // dependencyGraph: (seed.dependencyGraph ?? []).filter((e) => !omitted.has(e.toCode) && !(e.fromType === "Deliverable" && omitted.has(e.fromCode ?? ""))),
+        // An edge whose gated Deliverable is omitted but whose prerequisite is kept leaves the prerequisite as a standalone node (no toCode).
+        dependencyGraph: standaloneKeptSources(seed.dependencyGraph ?? [], omitted),
         templateVersion: INITIAL_VERSION,
         tenantId: actor.tenantId,
         parentTemplateId: parent.id,

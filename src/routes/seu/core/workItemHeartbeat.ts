@@ -47,6 +47,7 @@ export async function sweepStalledWorkItems(input?: { now?: Date; seuId?: string
       seuId: command.seu_id,
       correlationId: command.correlation_id,
       actorId: stallSystemActor.actorId,
+      tenantId: stallSystemActor.tenantId,
       authorityBadge: stallSystemActor.authorBadge,
       payload: { deliverableId: command.entity_id, targetCompletionAt: workItem.target_completion_at, overdueBySeconds: overdueBy },
     });

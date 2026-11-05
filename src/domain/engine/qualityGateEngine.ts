@@ -43,6 +43,7 @@ export const qualityGateEngine = {
     context?: Record<string, unknown>;
     authorId: string;
     authorBadge: string;
+    tenantId?: string;
   }): Promise<QualityGateListEvaluationResult> {
     let gates: QualityGateRow[];
     if (!input.seuId) {
@@ -80,7 +81,7 @@ export const qualityGateEngine = {
 
   async evaluateByIds(
     gateIds: string[],
-    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown>; authorId: string; authorBadge: string }
+    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown>; authorId: string; authorBadge: string; tenantId?: string }
   ): Promise<QualityGateListEvaluationResult> {
     if (gateIds.length === 0) return { outcome: "NotApplicable" };
     const { data: gates } = await qualityGatesDB.findByIds(gateIds);
@@ -93,7 +94,7 @@ export const qualityGateEngine = {
 
   async evaluateGate(
     gate: QualityGateRow,
-    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown>; authorId: string; authorBadge: string }
+    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown>; authorId: string; authorBadge: string; tenantId?: string }
   ): Promise<QualityGateEvaluationResult> {
     const criteriaType = (gate.criteria as { type?: string }).type;
 
@@ -157,7 +158,7 @@ export const qualityGateEngine = {
 
   async blockOrWaive(
     gate: QualityGateRow,
-    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string },
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string; tenantId?: string },
     reason: string,
     detail: Record<string, unknown>
   ): Promise<QualityGateEvaluationResult> {
@@ -168,7 +169,7 @@ export const qualityGateEngine = {
 
   async recordAndPass(
     gate: QualityGateRow,
-    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string }
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string; tenantId?: string }
   ): Promise<QualityGateEvaluationResult> {
     await qualityGateEvaluationsDB.create({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Passed", authorId: input.authorId, authorBadge: input.authorBadge });
     await eventBus.publish({
@@ -179,6 +180,7 @@ export const qualityGateEngine = {
       correlationId: eventBus.newCorrelationId(),
       actorId: input.authorId,
       authorityBadge: input.authorBadge,
+      tenantId: input.tenantId,
       payload: { entityType: input.entityType, entityId: input.entityId },
     });
     return { outcome: "Passed", gate };
@@ -186,7 +188,7 @@ export const qualityGateEngine = {
 
   async recordAndBlock(
     gate: QualityGateRow,
-    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string },
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string; tenantId?: string },
     reason: string,
     detail: Record<string, unknown>
   ): Promise<QualityGateEvaluationResult> {
@@ -199,6 +201,7 @@ export const qualityGateEngine = {
       correlationId: eventBus.newCorrelationId(),
       actorId: input.authorId,
       authorityBadge: input.authorBadge,
+      tenantId: input.tenantId,
       payload: { entityType: input.entityType, entityId: input.entityId, reason },
     });
     return { outcome: "Blocked", gate, reason };
@@ -206,7 +209,7 @@ export const qualityGateEngine = {
 
   async recordAndWaive(
     gate: QualityGateRow,
-    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string },
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string; tenantId?: string },
     reason: string,
     waiverId: string
   ): Promise<QualityGateEvaluationResult> {
@@ -219,6 +222,7 @@ export const qualityGateEngine = {
       correlationId: eventBus.newCorrelationId(),
       actorId: input.authorId,
       authorityBadge: input.authorBadge,
+      tenantId: input.tenantId,
       payload: { entityType: input.entityType, entityId: input.entityId, reason, waiverId },
     });
     return { outcome: "Waived", gate, reason };

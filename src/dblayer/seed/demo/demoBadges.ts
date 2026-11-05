@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { participantsMasterDB } from "../../participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../../transitionDefinitionsDB.js";
+import { routeAuthorityDB } from "../../routeAuthorityDB.js";
 import { tenantsDB } from "../../tenantsDB.js";
 import { DEMO_TENANT_NAME, NO_EXPIRY_DATE } from "../../constants.js";
 import { createParticipantMaster } from "../../../routes/seu/core/participantsMaster.js";
@@ -83,6 +84,28 @@ export async function grantTransitionBadge(participantId: string, entityType: Tr
   if (!definition) throw new Error(`grantTransitionBadge: no transition_definitions row for ${entityType} ${fromState} -> ${toState}`);
   if (!definition.verb) return;
   await grantBadge(participantId, `${entityType.toLowerCase()}_${definition.verb}`);
+}
+
+// Grants every badge with one of the prefixes (for example "seu_") that a transition_definitions verb or a route_authority row declares, in one write.
+export async function grantBadgesWithPrefixes(participantId: string, prefixes: string[]): Promise<void> {
+  const { data: definitions, error } = await transitionDefinitionsDB.listAll();
+  if (error) throw error;
+  const { data: routes, error: routesError } = await routeAuthorityDB.findAll();
+  if (routesError) throw routesError;
+  const { data: master, error: findError } = await participantsMasterDB.findById(participantId);
+  if (findError) throw findError;
+  if (!master) throw new Error(`grantBadgesWithPrefixes: no participants_master row ${participantId}`);
+  const wanted = new Set<string>();
+  for (const d of definitions ?? []) if (d.verb) wanted.add(`${d.entity_type.toLowerCase()}_${d.verb}`);
+  for (const r of routes ?? []) for (const badge of r.badges) wanted.add(badge);
+  const held = new Set(master.authorised_badges.map((b) => b.badge));
+  const missing = [...wanted].filter((badge) => prefixes.some((prefix) => badge.startsWith(prefix)) && !held.has(badge));
+  if (missing.length === 0) return;
+  const { error: setError } = await participantsMasterDB.setAuthorisedBadges(participantId, [
+    ...master.authorised_badges,
+    ...missing.map((badge) => ({ badge, effective_till: NO_EXPIRY_DATE, seu_ids: [] as string[] })),
+  ]);
+  if (setError) throw setError;
 }
 
 // Grants every badge any governed transition_definitions row resolves to, in one write. Run before each

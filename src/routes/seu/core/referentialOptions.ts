@@ -27,8 +27,8 @@ const SOURCE_LOADERS: Record<string, (viewer: Viewer) => Promise<string[]>> = {
     const { data: packs } = await packRowsForOptions(viewer);
     return [...new Set((packs ?? []).filter((p) => p.status === "Active").map((p) => p.code))].sort();
   },
-  "template-code": async () => {
-    const { data: templates } = await templatesDB.findAllActive();
+  "template-code": async (viewer) => {
+    const { data: templates } = viewer.isRoot || !viewer.tenantId ? await templatesDB.findAllActive() : await templatesDB.findActiveVisibleTo(viewer.tenantId);
     return [...new Set((templates ?? []).map((t) => t.code))].sort();
   },
   "deliverable-name": async (viewer) => [...new Set((await listConceptsForType("deliverable-name", viewer, false)).map((c) => c.default_label))].sort(),
@@ -104,9 +104,9 @@ function referentialSourcesUsedBy(schema: JsonSchemaDocument): string[] {
   return [...sources];
 }
 
-export async function loadDerivedPackCapabilityOptions(content: Record<string, unknown>): Promise<Record<string, string[]>> {
+export async function loadDerivedPackCapabilityOptions(content: Record<string, unknown>, viewer: Viewer): Promise<Record<string, string[]>> {
   const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => extractPackCodes(content[slot.field as string])))];
-  const derived = await deriveCapabilityCodesFromPackCodes(packCodes);
+  const derived = await deriveCapabilityCodesFromPackCodes(packCodes, viewer.tenantId);
   return { "derived:requiredCapabilityCodes": derived.sort() };
 }
 
@@ -160,7 +160,7 @@ export async function validateReferentialFields(schema: JsonSchemaDocument, cont
   const options = {
     ...(await loadReferentialOptions(viewer, used)),
     ...loadSelfReferentialOptions(schema, content),
-    ...(used.some((source) => source.startsWith("derived:")) ? await loadDerivedPackCapabilityOptions(content) : {}),
+    ...(used.some((source) => source.startsWith("derived:")) ? await loadDerivedPackCapabilityOptions(content, viewer) : {}),
   };
   const packOptions = new Map<string, Promise<string[] | undefined>>();
 

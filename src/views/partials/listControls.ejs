@@ -19,6 +19,8 @@ function _qs(overrides) {
     category: overrides.category !== undefined ? overrides.category : (_list ? _list.category : ''),
     // Registry state filter — same no-op-elsewhere treatment as category above.
     status: overrides.status !== undefined ? overrides.status : (_list ? _list.status : ''),
+    // The Telemetry page's selected SEU - no-op elsewhere.
+    seuId: overrides.seuId !== undefined ? overrides.seuId : (_list ? _list.seuId : ''),
   };
   const p = new URLSearchParams();
   if (st.q) p.set('q', st.q);
@@ -28,6 +30,7 @@ function _qs(overrides) {
   if (st.pageSize) p.set('pageSize', String(st.pageSize));
   if (st.category) p.set('category', st.category);
   if (st.status) p.set('status', st.status);
+  if (st.seuId) p.set('seuId', st.seuId);
   const s = p.toString();
   return s ? ('?' + s) : '';
 }
@@ -44,6 +47,7 @@ if (_list) {
     <input type="hidden" name="pageSize" value="<%= _list.pageSize %>">
     <% if (_list.category) { %><input type="hidden" name="category" value="<%= _list.category %>"><% } %>
     <% if (_list.status) { %><input type="hidden" name="status" value="<%= _list.status %>"><% } %>
+    <% if (_list.seuId) { %><input type="hidden" name="seuId" value="<%= _list.seuId %>"><% } %>
     <div class="input-group input-group-sm" style="width: 16rem; max-width: 100%;">
       <span class="input-group-text"><i class="bi bi-search"></i></span>
       <input type="text" name="q" class="form-control" placeholder="<%= _ph %>" value="<%= _list.q %>">

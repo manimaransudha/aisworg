@@ -37,6 +37,8 @@ listQueryString = function(list, overrides = {}) {
     // Identity Management's own Tenant filter (User Management) — same
     // no-op-elsewhere treatment as status/category above.
     tenant: overrides.tenant !== undefined ? overrides.tenant : (list ? list.tenant : ""),
+    // The Telemetry page's selected SEU - same no-op-elsewhere treatment as tenant above.
+    seuId: overrides.seuId !== undefined ? overrides.seuId : (list ? list.seuId : ""),
   };
   const p = new URLSearchParams();
   if (state.q) p.set("q", state.q);
@@ -48,6 +50,7 @@ listQueryString = function(list, overrides = {}) {
   if (state.templateCode) p.set("templateCode", state.templateCode);
   if (state.status) p.set("status", state.status);
   if (state.tenant) p.set("tenant", state.tenant);
+  if (state.seuId) p.set("seuId", state.seuId);
   const s = p.toString();
   return s ? ("?" + s) : "";
 };

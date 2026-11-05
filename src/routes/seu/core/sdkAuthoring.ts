@@ -11,7 +11,7 @@ import {
   type PackSeedInput,
 } from "./packs.js";
 import { activateTemplateSupersedingPrevious, validateTemplateOnSave, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, extractExposedParameters, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
-import { activateProfileSupersedingPrevious, validateProfileOnSave, validateProfileSeed, getProfilePackSelections, CONFIGURATION_PARAMETER_FIELDS, type ProfileSeedInput } from "./profiles.js";
+import { activateProfileSupersedingPrevious, validateProfileKeepsDeliverable, validateProfileOnSave, validateProfileSeed, getProfilePackSelections, CONFIGURATION_PARAMETER_FIELDS, type ProfileSeedInput } from "./profiles.js";
 import {
   activateDeliverableDefinitionSupersedingPrevious, validateDeliverableDefinitionSeed,
   inheritedDeliverableDefinitionContent,
@@ -147,6 +147,8 @@ export function toProfileSeedInput(content: Record<string, unknown>): ProfileSee
     participatingOrganisationCodes: normalizeReferentialCodes(content.participatingOrganisationCodes, "organisationCode"),
     environmentConfiguration: (content.environmentConfiguration as Record<string, unknown>) ?? {},
     exposedParameterOverrides: Array.isArray(content.exposedParameterOverrides) ? (content.exposedParameterOverrides as ProfileSeedInput["exposedParameterOverrides"]) : [],
+    deliverableCatalogue: Array.isArray(content.deliverableCatalogue) ? (content.deliverableCatalogue as ProfileSeedInput["deliverableCatalogue"]) : [],
+    dependencyGraph: Array.isArray(content.dependencyGraph) ? (content.dependencyGraph as ProfileSeedInput["dependencyGraph"]) : [],
   };
 }
 
@@ -659,6 +661,8 @@ export async function inheritedProfileContent(parentProfileId: string, viewerTen
     if (typeof priorValue === "string") content[cp.field as string] = priorValue;
   }
   content.exposedParameterOverrides = Array.isArray(priorContent.exposedParameterOverrides) ? priorContent.exposedParameterOverrides : [];
+  content.deliverableCatalogue = Array.isArray(priorContent.deliverableCatalogue) ? priorContent.deliverableCatalogue : [];
+  content.dependencyGraph = Array.isArray(priorContent.dependencyGraph) ? priorContent.dependencyGraph : [];
   return { ok: true, content };
 }
 
@@ -774,7 +778,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
 
     const baseTemplateCode = (input.content.baseTemplateCode as string)?.trim();
     if (!baseTemplateCode) return { ok: false, errors: ["a base Template code is required to start a Profile draft"] };
-    const { data: template } = await templatesDB.findByCode(baseTemplateCode);
+    const { data: template } = await templatesDB.findActiveByCodeVisibleTo(baseTemplateCode, tenantId);
     if (!template) return { ok: false, errors: [`baseTemplateCode "${baseTemplateCode}" not found`] };
 
     const profileVersion = typeof input.content.profileVersion === "string" && input.content.profileVersion.trim() ? input.content.profileVersion.trim() : INITIAL_VERSION;
@@ -1065,14 +1069,14 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
 
     const baseTemplateCode = (input.content.baseTemplateCode as string)?.trim();
     if (!baseTemplateCode) return { ok: false, errors: ["a base Template code is required"] };
-    const { data: template } = await templatesDB.findByCode(baseTemplateCode);
+    const { data: template } = await templatesDB.findActiveByCodeVisibleTo(baseTemplateCode, existingProfile.tenant_id);
     if (!template) return { ok: false, errors: [`baseTemplateCode "${baseTemplateCode}" not found`] };
 
     const seed = toProfileSeedInput({ ...input.content });
     if (existingProfile.parent_profile_id) seed.code = existingProfile.code;
     seed.tenantId = existingProfile.tenant_id;
     seed.parentProfileId = existingProfile.parent_profile_id ?? undefined;
-    const saveErrors = await validateProfileOnSave(seed);
+    const saveErrors = [...(await validateProfileOnSave(seed)), ...(await validateProfileKeepsDeliverable(seed))];
     if (saveErrors.length > 0) return { ok: false, errors: saveErrors };
 
     const { data, error } = await profilesDB.updateDraftContent(input.id, {

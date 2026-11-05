@@ -4,7 +4,8 @@
     retireStatuses (states from which the viewer holds the Retired hop's badge) and canProposeObjective (gate Delete; View stays unconditional),
     hasObjectiveBadge(verb) (CR-072 — gates the next-transition button per row, since
     each row's nextTransitionVerb can differ). %>
-<table class="table table-hover align-middle mb-0">
+<%# The global .table rule sets overflow: hidden, which clips the row dropdown menu; overflow-visible lets it show. %>
+<table class="table table-hover align-middle mb-0 overflow-visible">
   <tbody>
     <% nodes.forEach(function(node) { %>
       <tr class="tree-node align-middle" data-id="<%= node.id %>" data-depth="<%= depth %>">

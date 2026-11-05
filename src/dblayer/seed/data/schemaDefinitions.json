@@ -1496,6 +1496,10 @@
         {
           "key": "packSelection",
           "label": "Pack Codes"
+        },
+        {
+          "key": "deliverables",
+          "label": "Deliverable Catalogue"
         }
       ],
       "properties": {
@@ -1872,6 +1876,82 @@
           "x-help": "This Profile's own overriding value for each of its base Template's configurable parameters the Template flagged as overridable. Authored via the Parameter Overrides tab, not typed here directly. Leaving a candidate out keeps the Template's own value.",
           "x-widget": "json"
         },
+        "deliverableCatalogue": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "x-help": "A Deliverable from the base Template's catalogue.",
+                "x-ontology": true,
+                "x-referential": "deliverable-name"
+              }
+            }
+          },
+          "x-help": "The Deliverables this Profile's SEU produces. A new Profile starts with its base Template's catalogue; remove the entries this Profile does not need.",
+          "x-group": "deliverables",
+          "x-widget": "referential-list"
+        },
+        "dependencyGraph": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "toCode": {
+                "type": "string",
+                "x-help": "The gated deliverableCatalogue entry, by its own code.",
+                "x-referential": "self:deliverableCatalogue"
+              },
+              "fromCode": {
+                "type": "string",
+                "x-help": "Only used when From Type is Deliverable — the prerequisite deliverableCatalogue entry, by its own code.",
+                "x-referential": "self:deliverableCatalogue"
+              },
+              "fromType": {
+                "enum": [
+                  "Deliverable",
+                  "Capability"
+                ],
+                "type": "string"
+              },
+              "requiredState": {
+                "type": "string",
+                "default": "Approved"
+              },
+              "relationshipKind": {
+                "enum": [
+                  "dependency",
+                  "derivation",
+                  "implementation",
+                  "decomposition"
+                ],
+                "type": "string",
+                "x-help": "Only meaningful for a Deliverable-type prerequisite. Implementation/Decomposition carry over unchanged on Template Inheritance (a tenant may rename either end to their own specialised Deliverable, but not restructure the edge); Derivation is freely editable; plain Dependency is unrestricted, as today.",
+                "default": "dependency"
+              },
+              "fromCapabilityCode": {
+                "type": "string",
+                "x-help": "Only used when From Type is Capability — the Capability that must be fulfilled.",
+                "x-referential-source-derived-by": "requiredCapabilityCodes"
+              }
+            },
+            "x-property-order": [
+              "toCode",
+              "fromType",
+              "fromCode",
+              "fromCapabilityCode",
+              "requiredState",
+              "relationshipKind"
+            ]
+          },
+          "x-help": "What each Deliverable in this Profile's catalogue requires before it can start. A new Profile starts with its base Template's dependencies; a dependency may only name Deliverables in the catalogue above, and may not form a cycle.",
+          "x-group": "deliverables",
+          "x-widget": "referential-list"
+        },
         "defaultRepositoryStructure": {
           "type": "string",
           "x-help": "Default Repository Structure.",
@@ -1914,6 +1994,8 @@
         "integrationPackCodes",
         "organisationPackCodes",
         "technologyPackCodes",
+        "deliverableCatalogue",
+        "dependencyGraph",
         "comments"
       ]
     }

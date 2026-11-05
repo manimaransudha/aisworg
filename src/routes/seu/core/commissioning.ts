@@ -14,6 +14,7 @@ import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import type { CompositionSource } from "../../../domain/engine/compositionEngine.js";
 import { unravelComposition, detectCompositionConflicts, formatCompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
 import type { UnraveledComposition, CompositionConflict, CompositionConflictOption } from "../../../domain/engine/profileCompositionUnravel.js";
+import { catalogueFor } from "../../../domain/engine/deliverableSource.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
@@ -58,7 +59,8 @@ export async function checkRequestLiveness(input: { objective: ObjectiveRow; tem
     for (const code of mandatoryCodes ?? []) packCodes.add(code);
   }
   for (const code of await getProfilePackCodes(input.profile.id)) packCodes.add(code);
-  const { data: activePacks } = await packsDB.findActiveByCodes([...packCodes]);
+  // const { data: activePacks } = await packsDB.findActiveByCodes([...packCodes]);
+  const { data: activePacks } = await packsDB.findActiveByCodesVisibleTo([...packCodes], input.viewerTenantId);
   const activePackByCode = new Map((activePacks ?? []).map((p) => [p.code, p]));
   for (const code of packCodes) {
     const pack = activePackByCode.get(code);
@@ -97,8 +99,9 @@ export async function checkEbmLiveness(ebm: EbmRow): Promise<string[]> {
   else if (profile.status !== "Active") dead.push(`Profile "${profile.code}" is not Active (status: ${profile.status})`);
 
   for (const p of ebm.composed_packs) {
-    const { data: pack } = await packsDB.findActiveByCode(p.packCode);
-    if (!pack) dead.push(`Pack "${p.packCode}" has no Active version`);
+    // const { data: pack } = await packsDB.findActiveByCode(p.packCode);
+    const { data: pack } = await packsDB.findById(p.packId);
+    if (!pack || pack.status !== "Active") dead.push(`Pack "${p.packCode}" has no Active version`);
   }
 
   return dead;
@@ -260,9 +263,12 @@ export async function finalizeCommissioning(input: {
       }
     }
   }
+  // The catalogue is the one the EBM recorded as its source: the Profile's own when it carries one, otherwise the Template's.
+  const deliverableSource = compositionReport.deliverableSource;
+  if (!deliverableSource) throw new Error(`EBM ${ebm.id} has no recorded Deliverable source`);
   const deliverableCatalogueByCode = new Map<string, TemplateDeliverableSeed>();
   for (const t of templates) {
-    for (const seed of t.deliverable_catalogue) deliverableCatalogueByCode.set(seed.code, seed);
+    for (const seed of catalogueFor(t, profile, deliverableSource)) deliverableCatalogueByCode.set(seed.code, seed);
   }
   const deliverableAuthorId = systemActor.authorId;
   // The starting state of a Deliverable is the to-state of its birth row. Commissioning creates the Deliverables as the SEU's system participant, as before.
@@ -456,7 +462,7 @@ export async function previewCommissioningValidation(input: {
   const unraveled = await unravelComposition({ templateIds, profileIds }, input.viewerTenantId);
   const compositionConflicts = detectCompositionConflicts(unraveled, input.resolvedCompositionConflicts);
   const composedPacks = unraveled.composedPacks;
-  const compositionReport: EbmCompositionReport = { warnings: unraveled.warnings, conflicts: [], parameterConflicts: [], resolutions: [] };
+  const compositionReport: EbmCompositionReport = { warnings: unraveled.warnings, deliverableSource: unraveled.deliverableSource, conflicts: [], parameterConflicts: [], resolutions: [] };
 
   return { compositionReport, composedPacks, profileDetails, unraveled, compositionConflicts };
 }

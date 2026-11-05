@@ -8,8 +8,9 @@ import type { EbmComposedPack, EbmCompositionReport, PackRow, ProfileRow, Parame
 
 // Resolves every required Pack code to its Active Pack in one query. A code with no Active Version is excluded from
 // composition and reported once as a warning.
-async function resolveActivePacks(required: Array<{ code: string; requiredBy: string }>): Promise<{ packs: PackRow[]; warnings: string[] }> {
-  const { data } = await packsDB.findActiveByCodes([...new Set(required.map((r) => r.code))]);
+async function resolveActivePacks(required: Array<{ code: string; requiredBy: string }>, viewerTenantId: string | null): Promise<{ packs: PackRow[]; warnings: string[] }> {
+  // const { data } = await packsDB.findActiveByCodes([...new Set(required.map((r) => r.code))]);
+  const { data } = await packsDB.findActiveByCodesVisibleTo([...new Set(required.map((r) => r.code))], viewerTenantId);
   const activeByCode = new Map((data ?? []).map((pack) => [pack.code, pack]));
   const packs: PackRow[] = [];
   const warnings: string[] = [];
@@ -222,7 +223,7 @@ export const compositionEngine = {
     return { ok: true, fields: { ...base.fields, ...additions }, parentIds: [base.id, ...supplements.map((s) => s.id)], rejected: [...new Set(rejected)] };
   },
 
-  async compose(input: { templateIds: string[]; profileIds: string[]; resolvedParameterOverrides?: Record<string, string> }): Promise<{
+  async compose(input: { templateIds: string[]; profileIds: string[]; resolvedParameterOverrides?: Record<string, string>; viewerTenantId?: string }): Promise<{
     composedPacks: EbmComposedPack[];
     compositionReport: EbmCompositionReport;
   }> {
@@ -238,7 +239,7 @@ export const compositionEngine = {
       const { data: profile } = await profilesDB.findById(profileId);
       if (profile) profiles.push(profile);
     }
-    const { packs: resolvedPacks, warnings } = await resolveActivePacks(required);
+    const { packs: resolvedPacks, warnings } = await resolveActivePacks(required, input.viewerTenantId ?? profiles[0]?.tenant_id ?? null);
 
     const byCode = new Map<string, PackRow>();
     for (const pack of resolvedPacks) byCode.set(pack.code, pack);

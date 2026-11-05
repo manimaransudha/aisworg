@@ -143,7 +143,7 @@ const handlers: Record<string, Handler> = {
   async "commission-objective"(ctx, st) {
     const objective = await objectiveFor(ctx, st.target);
     await grantRouteBadges(ctx.participantId, "POST", `/aisworg/seu/objectives/${objective.id}/commission`);
-    const { data: template } = await templatesDB.findActiveByCode(str(st.payload.templateCode, "payload.templateCode"), ctx.tenantId);
+    const { data: template } = await templatesDB.findActiveByCodeVisibleTo(str(st.payload.templateCode, "payload.templateCode"), ctx.tenantId);
     if (!template) throw new Error("the Demo Template is not Active; reset the demo data");
     const profileCode = str(st.payload.profileCode, "payload.profileCode");
     const { data: profiles } = await profilesDB.findActiveVisibleTo(ctx.tenantId);

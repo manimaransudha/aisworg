@@ -25,6 +25,7 @@ export interface ListResult<T> {
   templateCode?: string;
   status?: string;
   tenant?: string;
+  seuId?: string;
 }
 
 const DEFAULT_PAGE_SIZE = clampInt(process.env.LIST_PAGE_SIZE_DEFAULT, 20, 1, 500);

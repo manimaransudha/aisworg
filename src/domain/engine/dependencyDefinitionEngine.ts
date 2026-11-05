@@ -9,15 +9,14 @@ import { decisionsDB } from "../../dblayer/decisionsDB.js";
 import { knowledgeItemsDB } from "../../dblayer/knowledgeItemsDB.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "./eventBus.js";
-import { resolveOwningScope as resolveOwningScopeByEbm } from "./seuCompositionScope.js";
+import { resolveSeuOwningScope } from "./deliverableSource.js";
 import type { DependencyDefinitionEntityType, DependencyDefinitionRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 import { getSystemActor } from "../../dblayer/constants.js";
 
 async function resolveOwningScope(seuId: string): Promise<DependencyOwningScope | null> {
   const { data: seu } = await seusDB.findById(seuId);
   if (!seu) return null;
-  if (!seu.active_ebm_id) return { templateId: seu.template_id, profileId: seu.profile_id, packIds: [] };
-  return resolveOwningScopeByEbm(seu.active_ebm_id);
+  return resolveSeuOwningScope(seu);
 }
 
 async function isReachedOrPassed(entityType: TransitionEntityType, requiredState: string, currentState: string): Promise<boolean> {
@@ -88,6 +87,7 @@ async function isRowSatisfied(seuId: string, row: DependencyDefinitionRow): Prom
     if (row.from_entity_type === "Capability") return from.currentState === row.from_state;
     return isReachedOrPassed(row.from_entity_type as TransitionEntityType, row.from_state, from.currentState);
   }
+  if (!row.to_name) return true;
   const to = await resolveNamedNode(seuId, row.to_entity_type, row.to_name);
   if (!to) return false;
   return isUnnamedNodeSatisfied(row.from_entity_type, row.from_state, row.to_entity_type as TransitionEntityType, to.instanceId);
@@ -124,6 +124,7 @@ export const dependencyDefinitionEngine = {
     const { data: sourceRows } = await dependencyDefinitionsDB.findBySource(scope, input.entityType, input.name, input.newState);
     const targets = new Map<string, { toEntityType: DependencyDefinitionEntityType; toName: string; toState: string }>();
     for (const row of sourceRows ?? []) {
+      if (!row.to_name || !row.to_state) continue;
       targets.set(`${row.to_entity_type} ${row.to_name} ${row.to_state}`, { toEntityType: row.to_entity_type, toName: row.to_name, toState: row.to_state });
     }
 
@@ -139,6 +140,7 @@ export const dependencyDefinitionEngine = {
         originatingObjectId: to.instanceId,
         seuId: input.seuId,
         actorId: systemActor.actorId,
+        tenantId: systemActor.tenantId,
         authorityBadge: systemActor.authorBadge,
         correlationId: input.correlationId ?? eventBus.newCorrelationId(),
         causationId: input.correlationId ?? null,

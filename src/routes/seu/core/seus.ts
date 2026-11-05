@@ -2,10 +2,11 @@ import { seusDB } from "../../../dblayer/seusDB.js";
 import { listResult, type ListParams, type ListResult } from "../../../utils/listQuery.js";
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { dependencyDefinitionsDB, type DependencyOwningScope } from "../../../dblayer/dependencyDefinitionsDB.js";
+import { dependencyDefinitionsDB } from "../../../dblayer/dependencyDefinitionsDB.js";
+import { resolveSeuOwningScope } from "../../../domain/engine/deliverableSource.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { nextActionsFor } from "../../../domain/engine/entityTransition.js";
-import { SEU_VALIDATED_STATE } from "../../../dblayer/constants.js";
+import { BIRTH_STATE, SEU_VALIDATED_STATE } from "../../../dblayer/constants.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
@@ -107,28 +108,13 @@ async function withCommissionValidated<T extends { id: string; lifecycleState: s
   return rows.map((row) => ({ ...row, commissionValidated: validatedIds.has(row.id) }));
 }
 
-export async function listSeus(viewer?: { userId: string | null; isAdmin: boolean }): Promise<SeuListItem[]> {
-  const viewerId = viewer && !viewer.isAdmin && viewer.userId != null ? viewer.userId : undefined;
-  const { data } = await seusDB.listWithObjectiveStatement(viewerId);
-  const withStates = await withPossibleNextStates(
-    (data ?? []).map((row) => ({
-      id: row.id,
-      objectiveId: row.objective_id,
-      activeEbmId: row.active_ebm_id,
-      objectiveStatement: row.objective_statement,
-      lifecycleState: row.lifecycle_state,
-      createdAt: row.created_at,
-    }))
-  );
-  return withCommissionValidated(withStates);
-}
-
 export async function listSeusPaginated(
   params: ListParams,
-  viewer?: { userId: string | null; isAdmin: boolean }
+  viewer?: { userId: string | null; isAdmin: boolean; tenantId?: string | null; lifecycleState?: string | null }
 ): Promise<ListResult<SeuListItem>> {
   const viewerId = viewer && !viewer.isAdmin && viewer.userId != null ? viewer.userId : undefined;
-  const { items, total } = await seusDB.listWithObjectiveStatementPaginated(params, viewerId);
+  // const { items, total } = await seusDB.listWithObjectiveStatementPaginated(params, viewerId);
+  const { items, total } = await seusDB.listWithObjectiveStatementPaginated(params, viewerId, viewer?.tenantId ?? undefined, viewer?.lifecycleState ?? undefined);
   const withStates = await withPossibleNextStates(
     items.map((row) => ({
       id: row.id,
@@ -143,6 +129,18 @@ export async function listSeusPaginated(
   return listResult(withValidated, total, params);
 }
 
+// The SEU lifecycle states, in lifecycle order: the birth state first, then each state reached by the SEU's transition_definitions rows.
+export async function listSeuLifecycleStates(): Promise<string[]> {
+  const [{ data: definitions }, { data: birth }] = await Promise.all([transitionDefinitionsDB.listAll(), transitionDefinitionsDB.findBirth("SEU")]);
+  const edges = (definitions ?? []).filter((d) => d.entity_type === "SEU" && d.is_active && d.from_state !== BIRTH_STATE);
+  const ordered: string[] = birth ? [birth.to_state] : [];
+  for (let i = 0; i < ordered.length; i++) {
+    for (const edge of edges) if (edge.from_state === ordered[i] && !ordered.includes(edge.to_state)) ordered.push(edge.to_state);
+  }
+  for (const edge of edges) for (const state of [edge.from_state, edge.to_state]) if (!ordered.includes(state)) ordered.push(state);
+  return ordered;
+}
+
 export interface SeuQuickviewItem extends SeuListItem {
   capabilitiesFulfilled: number;
   capabilitiesTotal: number;
@@ -150,10 +148,12 @@ export interface SeuQuickviewItem extends SeuListItem {
   deliverablesTotal: number;
 }
 
-export async function getSeuQuickview(): Promise<SeuQuickviewItem[]> {
-  const items = await listSeus();
-  return Promise.all(
-    items.map(async (item) => {
+// export async function getSeuQuickview(): Promise<SeuQuickviewItem[]> { ... } — loaded every SEU of every tenant, then paginated in memory.
+// One page of the Commissioned SEUs, scoped to the viewer's tenant (null for a root viewer); the counts are read for that page only.
+export async function getSeuQuickviewPage(params: ListParams, viewer: { tenantId: string | null }): Promise<ListResult<SeuQuickviewItem>> {
+  const page = await listSeusPaginated(params, { userId: null, isAdmin: true, tenantId: viewer.tenantId });
+  const items = await Promise.all(
+    page.items.map(async (item) => {
       const [{ data: capabilities }, { data: deliverables }] = await Promise.all([
         seuCapabilitiesDB.findBySeuId(item.id),
         deliverablesDB.findBySeuId(item.id),
@@ -167,6 +167,7 @@ export async function getSeuQuickview(): Promise<SeuQuickviewItem[]> {
       };
     })
   );
+  return { ...page, items };
 }
 
 export interface SeuDetailDependencyEdge {
@@ -323,7 +324,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   const { data: allServices } = await servicesDB.findAll();
   const serviceNameByCode = new Map((allServices ?? []).map((s) => [s.code, s.name]));
 
-  const scope: DependencyOwningScope = { templateId: seu.template_id, profileId: seu.profile_id, packIds: (ebm?.composed_packs ?? []).map((p) => p.packId) };
+  const scope = await resolveSeuOwningScope(seu);
 
   const deliverableViews: SeuDetailDeliverable[] = await Promise.all(
     (deliverables ?? []).map(async (d) => {

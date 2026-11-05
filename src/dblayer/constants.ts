@@ -3,6 +3,7 @@ import { tenantsDB } from "./tenantsDB";
 import { userDB } from "./userDB";
 import { participantsMasterDB } from "./participantsMasterDB";
 import { participantsDB } from "./participantsDB";
+import { seusDB } from "./seusDB";
 
 export const PLATFORM_TENANT_NAME = "Platform";
 export const DEMO_TENANT_NAME = "Demo";
@@ -179,12 +180,18 @@ export async function ensureSeuSystemParticipant(seuId: string): Promise<string>
 
 // The system actor of one SEU: the platform system actor's master id (events), the SEU system participant's id
 // (author columns) and the system badge.
-export async function getSystemActor(seuId: string): Promise<{ actorId: string; authorId: string; authorBadge: string }> {
+// tenantId is the SEU's own tenant, so the events the system actor publishes for an SEU carry that tenant and not the
+// Platform tenant of the system actor's master row.
+export async function getSystemActor(seuId: string): Promise<{ actorId: string; authorId: string; authorBadge: string; tenantId: string }> {
     const actorId = await findPlatformSystemActorId();
     const { data: participant, error } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, actorId);
     if (error) throw error;
     if (!participant) throw new Error(`SEU ${seuId} has no system participant — it is created when the SEU is Commissioned`);
-    return { actorId, authorId: participant.id, authorBadge: SYSTEM_ACTOR_BADGE };
+    const { data: seu, error: seuError } = await seusDB.findById(seuId);
+    if (seuError) throw seuError;
+    if (!seu) throw new Error(`SEU ${seuId} not found`);
+    // return { actorId, authorId: participant.id, authorBadge: SYSTEM_ACTOR_BADGE };
+    return { actorId, authorId: participant.id, authorBadge: SYSTEM_ACTOR_BADGE, tenantId: seu.tenant_id };
 }
 
 // Demo tenant purge plan (src/dblayer/seed/demo/demoPurge.ts). Tables are listed in delete order,

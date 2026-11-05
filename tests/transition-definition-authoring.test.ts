@@ -192,4 +192,5 @@ test("Mapping's Allow trigger seeds a new Transition Definition, but re-Allowing
   assert.equal(createdSecond.ok, true, !createdSecond.ok ? createdSecond.error : "assertion failed");
   const { data: secondRow } = await transitionDefinitionsDB.find(nounCode, secondFromState, secondToState);
   assert.equal(secondRow?.trigger, "manual", "a transition added after the re-Allow starts at the NEW default");
+  await pool.query("DELETE FROM transition_definitions WHERE entity_type = $1 AND to_state = ANY($2::text[])", [nounCode, [toState, secondToState]]);
 });

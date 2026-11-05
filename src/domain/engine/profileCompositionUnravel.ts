@@ -5,7 +5,8 @@ import { policiesDB } from "../../dblayer/policiesDB.js";
 import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
 import { getProfilePackCodes, resolveEffectiveParameters, extractExposedParameterOverrides } from "../../routes/seu/core/profiles.js";
 import { deriveOverridableParameterCandidates, getDependencyGraphContent } from "../../routes/seu/core/templates.js";
-import type { PackRow, ProfileRow, TemplateRow, EbmComposedPack } from "../../dblayer/seuTypes.js";
+import { profileOwnCatalogue, resolveDeliverableSource } from "./deliverableSource.js";
+import type { PackRow, ProfileRow, TemplateRow, EbmComposedPack, EbmDeliverableSource } from "../../dblayer/seuTypes.js";
 
 export type PoolSourceKind = "profile" | "template" | "pack";
 
@@ -27,6 +28,7 @@ export interface UnraveledComposition {
   composedPacks: EbmComposedPack[];
   warnings: string[];
   competencyRequirements: Record<string, string[]>;
+  deliverableSource?: EbmDeliverableSource;
 }
 
 export interface CompositionConflictOption {
@@ -74,7 +76,7 @@ function computeCompetencyRequirements(profiles: ProfileRow[], composedPacks: Ma
 }
 
 // Walks the Pack dependency closure one level at a time, resolving each level's Active Packs in a single query.
-async function resolveComposedPacksTransitively(rootCodes: string[]): Promise<{ resolved: Map<string, PackRow>; warnings: string[] }> {
+async function resolveComposedPacksTransitively(rootCodes: string[], viewerTenantId: string): Promise<{ resolved: Map<string, PackRow>; warnings: string[] }> {
   const resolved = new Map<string, PackRow>();
   const warnings: string[] = [];
   const rootSet = new Set(rootCodes);
@@ -82,7 +84,8 @@ async function resolveComposedPacksTransitively(rootCodes: string[]): Promise<{ 
   let level = [...new Set(rootCodes)];
   while (level.length) {
     level.forEach((code) => visited.add(code));
-    const { data } = await packsDB.findActiveByCodes(level);
+    // const { data } = await packsDB.findActiveByCodes(level);
+    const { data } = await packsDB.findActiveByCodesVisibleTo(level, viewerTenantId);
     const activeByCode = new Map((data ?? []).map((pack) => [pack.code, pack]));
     const next: string[] = [];
     for (const code of level) {
@@ -125,7 +128,7 @@ export async function unravelComposition(input: { templateIds: string[]; profile
   }
 
   const directlySelectedPackCodes = new Set(rootPackCodes);
-  const { resolved: composedPacks, warnings } = await resolveComposedPacksTransitively(rootPackCodes);
+  const { resolved: composedPacks, warnings } = await resolveComposedPacksTransitively(rootPackCodes, viewerTenantId);
 
   for (const profile of profiles) {
     const profileSource = toPoolSource("profile", profile.id, profile.code, profile.name);
@@ -165,18 +168,31 @@ export async function unravelComposition(input: { templateIds: string[]; profile
     }
   }
 
+  // A Template's catalogue and dependencies enter the pool unless a Profile of this composition carries its own for that Template.
+  const profileOwnsCatalogueOf = (template: TemplateRow) => profiles.some((p) => p.base_template_id === template.id && profileOwnCatalogue(p).length > 0);
+  const dependencyPoolValue = (graph: Awaited<ReturnType<typeof getDependencyGraphContent>>) =>
+    graph.map((e) => ({ toCode: e.toCode, fromType: e.fromType, fromCapabilityCode: e.fromCapabilityCode, fromCode: e.fromCode }));
+
   for (const template of templates) {
+    if (profileOwnsCatalogueOf(template)) continue;
     const templateSource = toPoolSource("template", template.id, template.code, template.name);
     if (template.deliverable_catalogue && template.deliverable_catalogue.length > 0) {
       pool.push({ propertyName: "deliverableCatalogue", value: template.deliverable_catalogue, source: templateSource });
     }
     const dependencyGraph = await getDependencyGraphContent(template.id, viewerTenantId);
     if (dependencyGraph.length > 0) {
-      pool.push({
-        propertyName: "dependencyGraph",
-        value: dependencyGraph.map((e) => ({ toCode: e.toCode, fromType: e.fromType, fromCapabilityCode: e.fromCapabilityCode, fromCode: e.fromCode })),
-        source: templateSource,
-      });
+      pool.push({ propertyName: "dependencyGraph", value: dependencyPoolValue(dependencyGraph), source: templateSource });
+    }
+  }
+
+  for (const profile of profiles) {
+    const catalogue = profileOwnCatalogue(profile);
+    if (catalogue.length === 0) continue;
+    const profileSource = toPoolSource("profile", profile.id, profile.code, profile.name);
+    pool.push({ propertyName: "deliverableCatalogue", value: catalogue, source: profileSource });
+    const dependencyGraph = await getDependencyGraphContent(profile.id, viewerTenantId, "Profile");
+    if (dependencyGraph.length > 0) {
+      pool.push({ propertyName: "dependencyGraph", value: dependencyPoolValue(dependencyGraph), source: profileSource });
     }
   }
 
@@ -269,7 +285,16 @@ export async function unravelComposition(input: { templateIds: string[]; profile
     composedPacks: [...composedPacks.values()].map((pack) => ({ packId: pack.id, packCode: pack.code, packVersion: pack.pack_version })),
     warnings,
     competencyRequirements: computeCompetencyRequirements(profiles, composedPacks),
+    deliverableSource: await deliverableSourceOf(profiles, templates),
   };
+}
+
+// The source of the Deliverable Catalogue and the dependencies for the Profile of this composition and its base Template.
+async function deliverableSourceOf(profiles: ProfileRow[], templates: TemplateRow[]): Promise<EbmDeliverableSource | undefined> {
+  const profile = profiles[0];
+  if (!profile) return undefined;
+  const baseTemplate = templates.find((t) => t.id === profile.base_template_id);
+  return baseTemplate ? resolveDeliverableSource(baseTemplate, profile) : undefined;
 }
 
 const ARRAY_IDENTITY_FIELDS = ["code", "name"];

@@ -1,5 +1,6 @@
 import { templatesDB } from "../../../dblayer/templatesDB.js";
-import { deriveOverridableParameterCandidates, extractExposedParameters } from "./templates.js";
+import { deriveCapabilityCodesFromPackCodes, deriveOverridableParameterCandidates, extractExposedParameters, findDeliverableDependencyCycle, getDependencyGraphContent, getPackSelectionsByCategory, PACK_SELECTION_SLOTS } from "./templates.js";
+import { materialiseDependencyGraph } from "../../../domain/engine/materialiseDependencyGraph.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
@@ -11,7 +12,7 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
-import type { ProfileRow } from "../../../dblayer/seuTypes.js";
+import type { ProfileRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
 import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "../../../utils/version.js";
@@ -60,6 +61,8 @@ export interface ProfileSeedInput {
   redispatchMaxAttempts?: number;
   redispatchAttentionThreshold?: number;
   exposedParameterOverrides?: ExposedParameterOverride[];
+  deliverableCatalogue?: TemplateDeliverableSeed[];
+  dependencyGraph?: TemplateDependencyGraphEntry[];
 }
 
 export interface ExposedParameterOverride {
@@ -227,19 +230,19 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   if (!seed.baseTemplateCode?.trim()) {
     errors.push("baseTemplateCode is required");
   } else {
-    const { data: template } = await templatesDB.findActiveByCode(seed.baseTemplateCode, ontologyViewer.tenantId);
+    const { data: template } = await templatesDB.findActiveByCodeVisibleTo(seed.baseTemplateCode, ontologyViewer.tenantId);
     if (!template) errors.push(`baseTemplateCode "${seed.baseTemplateCode}" does not resolve to a real Template`);
   }
 
   for (const code of seed.optionalPackCodes ?? []) {
-    const { data } = await packsDB.findByCode(code);
+    const { data } = await packsDB.findByCodeVisibleTo(code, ontologyViewer.tenantId);
     if (!data) errors.push(`optionalPackCodes references unknown Pack code "${code}"`);
   }
 
   for (const slot of PACK_SELECTION_SLOTS) {
     const codes = (seed[slot.field] as string[] | undefined) ?? [];
     for (const code of codes) {
-      const { data: pack } = await packsDB.findByCode(code);
+      const { data: pack } = await packsDB.findByCodeVisibleTo(code, ontologyViewer.tenantId);
       if (!pack) errors.push(`${String(slot.field)} references unknown Pack code "${code}"`);
       else if (pack.category !== slot.packCategory) errors.push(`${String(slot.field)} references Pack "${code}" whose category is "${pack.category}", not "${slot.packCategory}"`);
     }
@@ -268,8 +271,9 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
     if (!concept) errors.push(`participatingOrganisationCodes references unknown participating-organisations code "${code}"`);
   }
 
-  const { data: baseTemplate } = seed.baseTemplateCode?.trim() ? await templatesDB.findActiveByCode(seed.baseTemplateCode, ontologyViewer.tenantId) : { data: null };
-  const catalogueCodes = new Set((baseTemplate?.deliverable_catalogue ?? []).map((entry) => entry.code));
+  const { data: baseTemplate } = seed.baseTemplateCode?.trim() ? await templatesDB.findActiveByCodeVisibleTo(seed.baseTemplateCode, ontologyViewer.tenantId) : { data: null };
+  const ownCatalogue = (seed.deliverableCatalogue ?? []).filter((entry) => entry.code?.trim());
+  const catalogueCodes = new Set((ownCatalogue.length > 0 ? ownCatalogue : baseTemplate?.deliverable_catalogue ?? []).map((entry) => entry.code));
   for (const [i, loc] of (seed.knowledgeLocations ?? []).entries()) {
     if (!loc.outputLocation?.trim()) errors.push(`knowledgeLocations[${i}] needs a location`);
     for (const code of loc.deliverableCodes ?? []) {
@@ -326,6 +330,8 @@ export async function validateProfileOnSave(seed: ProfileSeedInput): Promise<str
     }
   }
 
+  errors.push(...(await validateProfileDeliverables(seed)));
+
   if (seed.parentProfileId) {
     const { data: parent } = await profilesDB.findById(seed.parentProfileId);
     if (!parent) {
@@ -338,10 +344,75 @@ export async function validateProfileOnSave(seed: ProfileSeedInput): Promise<str
   return errors;
 }
 
+// What a Profile starts with when it carries no catalogue of its own: its base Template's catalogue and dependencies.
+export async function baseTemplateDeliverables(baseTemplateCode: string, tenantId: string | null): Promise<{ deliverableCatalogue: TemplateDeliverableSeed[]; dependencyGraph: TemplateDependencyGraphEntry[] }> {
+  const viewerTenantId = tenantId ?? (await getPlatformTenantId());
+  const { data: template } = await templatesDB.findActiveByCodeVisibleTo(baseTemplateCode, viewerTenantId);
+  if (!template) return { deliverableCatalogue: [], dependencyGraph: [] };
+  return { deliverableCatalogue: template.deliverable_catalogue, dependencyGraph: await getDependencyGraphContent(template.id, viewerTenantId) };
+}
+
+// The Capabilities a Profile's dependency graph may name: those of the Packs its base Template and the Profile itself select.
+export async function deriveProfileGraphCapabilityCodes(baseTemplateId: string | null, profilePackCodes: string[], viewerTenantId: string | null): Promise<string[]> {
+  const templatePackCodes = baseTemplateId ? Object.values(await getPackSelectionsByCategory(baseTemplateId)).flatMap((codes) => codes ?? []) : [];
+  return deriveCapabilityCodesFromPackCodes([...new Set([...templatePackCodes, ...profilePackCodes])], viewerTenantId);
+}
+
+// The Deliverable Catalogue and Dependency Graph a Profile carries of its own are checked as a Template's are: no catalogue entry twice, no dependency
+// that names a Deliverable outside the catalogue, no cycle. A Profile removes Deliverables from its base Template's catalogue; it does not add any.
+// A Profile with no catalogue of its own keeps its base Template's.
+export async function validateProfileDeliverables(seed: ProfileSeedInput): Promise<string[]> {
+  const errors: string[] = [];
+  const catalogue = seed.deliverableCatalogue ?? [];
+  const graph = seed.dependencyGraph ?? [];
+  if (catalogue.length === 0) {
+    if (graph.length > 0) errors.push("dependencyGraph needs a deliverableCatalogue: its dependencies name Deliverables of the catalogue");
+    return errors;
+  }
+
+  const tenantId = seed.tenantId ?? (await getPlatformTenantId());
+  const { data: baseTemplate } = seed.baseTemplateCode?.trim() ? await templatesDB.findActiveByCodeVisibleTo(seed.baseTemplateCode, tenantId) : { data: null };
+  const baseCodes = new Set((baseTemplate?.deliverable_catalogue ?? []).map((entry) => entry.code));
+  const codes = new Set<string>();
+  for (const entry of catalogue) {
+    if (!entry.code?.trim()) { errors.push("deliverableCatalogue entry is missing a code"); continue; }
+    if (codes.has(entry.code)) errors.push(`deliverableCatalogue entry "${entry.code}" is a duplicate — codes must be unique within one catalogue`);
+    codes.add(entry.code);
+    if (baseTemplate && !baseCodes.has(entry.code)) errors.push(`deliverableCatalogue entry "${entry.code}" is not in the base Template's catalogue — a Profile can only remove Deliverables from it`);
+  }
+
+  const profilePackCodes = PACK_SELECTION_SLOTS.flatMap((slot) => ((seed as unknown as Record<string, string[] | undefined>)[slot.field as string] ?? []));
+  const capabilityCodes = await deriveProfileGraphCapabilityCodes(baseTemplate?.id ?? null, profilePackCodes, tenantId);
+  for (const entry of graph) {
+    if (entry.toCode && !codes.has(entry.toCode)) errors.push(`dependencyGraph entry toCode "${entry.toCode}" does not match a deliverableCatalogue entry`);
+    if (entry.fromType === "Deliverable") {
+      if (!entry.fromCode || !codes.has(entry.fromCode)) errors.push(`dependencyGraph entry (toCode "${entry.toCode}") fromCode "${entry.fromCode}" does not match a deliverableCatalogue entry`);
+    } else if (entry.fromType === "Capability") {
+      if (!entry.fromCapabilityCode || !capabilityCodes.includes(entry.fromCapabilityCode)) errors.push(`dependencyGraph entry (toCode "${entry.toCode}") fromCapabilityCode "${entry.fromCapabilityCode}" is not among the Capabilities the selected Packs contribute`);
+    } else {
+      errors.push(`dependencyGraph entry (toCode "${entry.toCode}") has an unrecognised fromType "${entry.fromType}"`);
+    }
+  }
+
+  const cycle = findDeliverableDependencyCycle(graph);
+  if (cycle) errors.push(`dependencyGraph has a circular dependency: ${cycle.join(" → ")}`);
+  return errors;
+}
+
+// A saved Profile form shows its catalogue (its own, or its base Template's to start from), so an empty catalogue on a later save means every
+// Deliverable was removed. A Profile keeps at least one.
+export async function validateProfileKeepsDeliverable(seed: ProfileSeedInput): Promise<string[]> {
+  if ((seed.deliverableCatalogue ?? []).some((entry) => entry.code?.trim())) return [];
+  if (!seed.baseTemplateCode?.trim()) return [];
+  const { data: baseTemplate } = await templatesDB.findActiveByCodeVisibleTo(seed.baseTemplateCode, seed.tenantId ?? (await getPlatformTenantId()));
+  return baseTemplate && baseTemplate.deliverable_catalogue.length > 0 ? ["deliverableCatalogue must keep at least one Deliverable"] : [];
+}
+
 // The value of an override is one the base Template's parameter allows. A row for a parameter the base Template does not flag overridable
 // is not an error here: the unravel step drops it (CR-128).
 export async function validateOverrideValues(seed: ProfileSeedInput): Promise<string[]> {
   const errors: string[] = [];
+  errors.push(...(await validateProfileDeliverables(seed)));
   if (!seed.baseTemplateCode?.trim()) return errors;
   const candidates = await deriveOverridableParameterCandidates(seed.baseTemplateCode, seed.tenantId ?? (await getPlatformTenantId()));
   for (const row of seed.exposedParameterOverrides ?? []) {
@@ -364,7 +435,7 @@ export async function createProfileDraft(seed: ProfileSeedInput, actorId: string
 
   const tenantId = seed.tenantId ?? (await getPlatformTenantId());
 
-  const { data: template } = await templatesDB.findActiveByCode(seed.baseTemplateCode, tenantId);
+  const { data: template } = await templatesDB.findActiveByCodeVisibleTo(seed.baseTemplateCode, tenantId);
   if (!template) return { ok: false, errors: [`baseTemplateCode "${seed.baseTemplateCode}" not found`] };
 
   const { data: profileSchema } = await schemaDefinitionsDB.findLatest("Profile");
@@ -487,6 +558,8 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
     if (typeof priorValue === "string") draftContent[cp.field as string] = priorValue;
   }
   draftContent.exposedParameterOverrides = Array.isArray(priorContent.exposedParameterOverrides) ? priorContent.exposedParameterOverrides : [];
+  draftContent.deliverableCatalogue = Array.isArray(priorContent.deliverableCatalogue) ? priorContent.deliverableCatalogue : [];
+  draftContent.dependencyGraph = Array.isArray(priorContent.dependencyGraph) ? priorContent.dependencyGraph : [];
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Profile");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Profile`] };
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
@@ -535,6 +608,16 @@ export async function materialiseProfileDraft(profileId: string, seed: ProfileSe
   const exposedParameterOverrides = (seed.exposedParameterOverrides ?? []).filter((row) => overridable.has(`${row.sourceType}::${row.sourceCode}::${row.parameterName}`));
   const { error } = await profilesDB.setDraftContent(profileId, { ...seed, exposedParameterOverrides });
   if (error) throw error;
+  // The Profile's own dependency graph becomes the rows its EBM records. A Profile with no catalogue of its own has none.
+  await materialiseDependencyGraph({
+    owningEntityType: "Profile",
+    owningEntityId: profileId,
+    deliverableCatalogue: seed.deliverableCatalogue ?? [],
+    dependencyGraph: seed.dependencyGraph ?? [],
+    tenantId: seed.tenantId || (await getPlatformTenantId()),
+    authorId,
+    authorBadge,
+  });
   return { ok: true };
 }
 

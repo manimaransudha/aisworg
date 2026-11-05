@@ -56,11 +56,7 @@
                 <i class="bi bi-speedometer2 me-2"></i><%= _showGenericDashboard ? 'Demo Dashboard' : 'Dashboard' %>
               </a></li>
               <% } %>
-              <% if (_nrv('GET','/aisworg/quickview')) { %>
-              <li><a class="dropdown-item <%= currentPage === 'quickview' ? 'active' : '' %>" href="/aisworg/quickview">
-                <i class="bi bi-list-check me-2"></i>Commissioned SEUs
-              </a></li>
-              <% } %>
+              <%# The Commissioned SEUs link is removed; All SEUs lists every SEU with a lifecycle-state filter. %>
               <li><hr class="dropdown-divider"></li>
               <% if (_nrv('GET','/aisworg/seu/objectives')) { %>
               <li><a class="dropdown-item <%= ['seu-objectives','seu-objectives-detail','seu-objectives-new'].includes(currentPage) ? 'active' : '' %>" href="/aisworg/seu/objectives">

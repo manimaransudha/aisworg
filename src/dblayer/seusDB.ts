@@ -121,36 +121,23 @@ export const seusDB = {
     }
   },
 
-  async listWithObjectiveStatementPaginated(params: ListParams, viewerId?: string): Promise<{ items: SeuWithObjectiveStatement[]; total: number }> {
+  async listWithObjectiveStatementPaginated(params: ListParams, viewerId?: string, tenantId?: string, lifecycleState?: string): Promise<{ items: SeuWithObjectiveStatement[]; total: number }> {
     return runPaginatedQuery<SeuWithObjectiveStatement>(
       {
         select: "s.*, o.statement AS objective_statement",
         from: "seus s JOIN objectives o ON o.id = s.objective_id",
         searchColumns: ["o.statement", "s.lifecycle_state", "s.id::text"],
         sortMap: { objective: "o.statement", state: "s.lifecycle_state", created: "s.created_at" },
-        baseWhere: "$1::uuid IS NULL OR EXISTS (SELECT 1 FROM participants p JOIN participants_master pm ON pm.id = p.participant_id WHERE p.seu_id = s.id AND pm.user_id = $1)",
-        baseParams: [viewerId ?? null],
+        // baseWhere: "$1::uuid IS NULL OR EXISTS (SELECT 1 FROM participants p JOIN participants_master pm ON pm.id = p.participant_id WHERE p.seu_id = s.id AND pm.user_id = $1)",
+        // baseParams: [viewerId ?? null],
+        // $2 is the viewer's tenant; null (a root viewer) lists every tenant.
+        // baseWhere: "($1::uuid IS NULL OR EXISTS (SELECT 1 FROM participants p JOIN participants_master pm ON pm.id = p.participant_id WHERE p.seu_id = s.id AND pm.user_id = $1)) AND ($2::uuid IS NULL OR s.tenant_id = $2) AND ($3::text IS NULL OR s.lifecycle_state = $3)",
+        // $1 is the session id, a participants_master id (the sign-in user's id for most users, the shared Demo User's for the Demo tenant).
+        baseWhere: "($1::uuid IS NULL OR EXISTS (SELECT 1 FROM participants p WHERE p.seu_id = s.id AND p.participant_id = $1)) AND ($2::uuid IS NULL OR s.tenant_id = $2) AND ($3::text IS NULL OR s.lifecycle_state = $3)",
+        baseParams: [viewerId ?? null, tenantId ?? null, lifecycleState ?? null],
       },
       params
     );
-  },
-
-  async listWithObjectiveStatement(viewerId?: string): Promise<DbResult<SeuWithObjectiveStatement[]>> {
-    try {
-      const { rows } = await query<SeuWithObjectiveStatement>(
-        `SELECT s.*, o.statement AS objective_statement
-         FROM seus s
-         JOIN objectives o ON o.id = s.objective_id
-         WHERE $1::uuid IS NULL
-            OR EXISTS (SELECT 1 FROM participants p JOIN participants_master pm ON pm.id = p.participant_id WHERE p.seu_id = s.id AND pm.user_id = $1)
-         ORDER BY s.created_at DESC`,
-        [viewerId ?? null]
-      );
-      return { data: rows };
-    } catch (err) {
-      logger.error("[seusDB] listWithObjectiveStatement error", err as Error);
-      return { error: err as Error };
-    }
   },
 
   async count(): Promise<DbResult<number>> {

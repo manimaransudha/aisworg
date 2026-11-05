@@ -78,6 +78,7 @@ export const transitionEngine = {
       toState: input.toState,
       authorId: participant.id,
       authorBadge: outcome.authorityBadge,
+      tenantId: master.tenant_id,
     });
     if (qualityGateResult.outcome === "Blocked") {
       return { allowed: false, reason: "quality_gate_blocked", gateCode: qualityGateResult.gate.code, gateName: qualityGateResult.gate.name, detail: qualityGateResult.reason };
@@ -187,6 +188,7 @@ export const transitionEngine = {
         seuId: input.seuId,
         authorId: participant.id,
         authorBadge: authorityBadge,
+        tenantId: master.tenant_id,
       });
       if (qualityGateResult.outcome === "Blocked") {
         return { allowed: false, reason: "quality_gate_blocked", gateCode: qualityGateResult.gate.code, gateName: qualityGateResult.gate.name, detail: qualityGateResult.reason };

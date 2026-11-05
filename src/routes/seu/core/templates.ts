@@ -115,6 +115,7 @@ export async function deriveExposableParameterCandidates(
   };
 
   for (const entry of dependencyGraph) {
+    if (!entry.toCode) continue;
     const fromName = entry.fromType === "Capability" ? entry.fromCapabilityCode : entry.fromCode;
     const sourceCode = `${entry.toCode}::${entry.fromType}::${fromName ?? ""}`;
     add({
@@ -128,7 +129,7 @@ export async function deriveExposableParameterCandidates(
     });
   }
 
-  const capabilities = await deriveDedupedCapabilitiesFromPackCodes(packCodes);
+  const capabilities = await deriveDedupedCapabilitiesFromPackCodes(packCodes, viewerTenantId);
   for (const capability of capabilities) {
     const { data: services } = await servicesDB.findByCapabilityId(capability.id);
     for (const service of services ?? []) {
@@ -183,7 +184,7 @@ export async function deriveExposableParameterCandidates(
 }
 
 export async function deriveOverridableParameterCandidates(baseTemplateCode: string, viewerTenantId: string): Promise<ExposableParameterCandidate[]> {
-  const { data: template } = await templatesDB.findActiveByCode(baseTemplateCode, viewerTenantId);
+  const { data: template } = await templatesDB.findActiveByCodeVisibleTo(baseTemplateCode, viewerTenantId);
   if (!template) return [];
   const exposed = extractExposedParameters(template.draft_content as Record<string, unknown> | null) ?? [];
   const overridableKeys = new Set(exposed.filter((e) => e.overridable).map((e) => `${e.sourceType}::${e.sourceCode}::${e.parameterName}`));
@@ -192,7 +193,8 @@ export async function deriveOverridableParameterCandidates(baseTemplateCode: str
   const packCodes = [...new Set(mandatoryCodes ?? [])];
   const dependencyGraph = await getDependencyGraphContent(template.id, viewerTenantId);
   const candidates = await deriveExposableParameterCandidates(packCodes, viewerTenantId, dependencyGraph);
-  return candidates.filter((c) => overridableKeys.has(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`));
+  // A Profile changes dependencies by editing its own dependency graph, not by overriding one edge's required state.
+  return candidates.filter((c) => c.sourceType !== "dependency" && overridableKeys.has(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`));
 }
 
 export type TemplateValidationResult = { ok: true } | { ok: false; errors: string[] };
@@ -211,12 +213,9 @@ function collectAllPackCodes(seed: TemplateSeedInput): string[] {
   return [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => (seed[slot.field] as string[] | undefined) ?? []))];
 }
 
-export async function deriveCapabilityCodesFromPackCodes(packCodes: string[]): Promise<string[]> {
-  const packIds: string[] = [];
-  for (const code of packCodes) {
-    const { data: pack } = await packsDB.findActiveByCode(code);
-    if (pack) packIds.push(pack.id);
-  }
+export async function deriveCapabilityCodesFromPackCodes(packCodes: string[], viewerTenantId: string | null): Promise<string[]> {
+  const { data: packs } = await packsDB.findActiveByCodesVisibleTo([...new Set(packCodes)], viewerTenantId);
+  const packIds: string[] = (packs ?? []).map((pack) => pack.id);
   if (packIds.length === 0) return [];
   const { data: capabilities } = await capabilitiesDB.findByOriginatingPackIds(packIds);
   return [...new Set((capabilities ?? []).map((c) => c.code))];
@@ -236,10 +235,10 @@ async function isRenameOf(childName: string, parentName: string, tenantId: strin
   return false;
 }
 
-function findDeliverableDependencyCycle(dependencyGraph: TemplateDependencyGraphEntry[]): string[] | null {
+export function findDeliverableDependencyCycle(dependencyGraph: TemplateDependencyGraphEntry[]): string[] | null {
   const adjacency = new Map<string, string[]>();
   for (const entry of dependencyGraph) {
-    if (entry.fromType !== "Deliverable" || !entry.fromCode) continue;
+    if (entry.fromType !== "Deliverable" || !entry.fromCode || !entry.toCode) continue;
     const list = adjacency.get(entry.fromCode) ?? [];
     list.push(entry.toCode);
     adjacency.set(entry.fromCode, list);
@@ -295,18 +294,18 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
   for (const slot of PACK_SELECTION_SLOTS) {
     const codes = (seed[slot.field] as string[] | undefined) ?? [];
     for (const code of codes) {
-      const { data: pack } = await packsDB.findByCode(code);
+      const { data: pack } = await packsDB.findByCodeVisibleTo(code, templateOntologyViewer.tenantId);
       if (!pack) errors.push(`${String(slot.field)} references unknown Pack code "${code}"`);
       else if (pack.category !== slot.packCategory) errors.push(`${String(slot.field)} references Pack "${code}" whose category is "${pack.category}", not "${slot.packCategory}"`);
     }
   }
 
-  const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(collectAllPackCodes(seed));
+  const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()));
 
   const seenDeliverableCodes = new Set<string>((seed.deliverableCatalogue ?? []).map((entry) => entry.code).filter((code) => !!code?.trim()));
 
   for (const entry of seed.dependencyGraph ?? []) {
-    if (!seenDeliverableCodes.has(entry.toCode)) {
+    if (entry.toCode && !seenDeliverableCodes.has(entry.toCode)) {
       errors.push(`dependencyGraph entry toCode "${entry.toCode}" does not match a deliverableCatalogue entry`);
     }
     if (entry.fromType === "Deliverable") {
@@ -373,7 +372,7 @@ export async function validateTemplateOnSave(seed: TemplateSeedInput): Promise<s
             if (childEdge.relationshipKind !== parentEdge.relationshipKind) continue;
             if ((childEdge.requiredState ?? DEFAULT_DELIVERABLE_REQUIRED_STATE) !== parentEdge.requiredState) continue;
             if (!childEdge.fromCode || !(await isRenameOf(childEdge.fromCode, parentEdge.fromCode ?? "", tenantId))) continue;
-            if (!(await isRenameOf(childEdge.toCode, parentEdge.toCode, tenantId))) continue;
+            if (!childEdge.toCode || !(await isRenameOf(childEdge.toCode, parentEdge.toCode ?? "", tenantId))) continue;
             consumed.add(i);
             matched = true;
             break;
@@ -403,13 +402,13 @@ export async function getPackSelectionsByCategory(templateId: string): Promise<P
   return result;
 }
 
-export async function getDependencyGraphContent(templateId: string, tenantId: string): Promise<TemplateDependencyGraphEntry[]> {
-  const { data: rows } = await dependencyDefinitionsDB.findByOwner("Template", templateId);
+export async function getDependencyGraphContent(ownerId: string, tenantId: string, ownerType: "Template" | "Profile" = "Template"): Promise<TemplateDependencyGraphEntry[]> {
+  const { data: rows } = await dependencyDefinitionsDB.findByOwner(ownerType, ownerId);
   const labelByCode = await resolveLabels(tenantId, "deliverable-name");
   const codeByLabel = new Map(Object.entries(labelByCode).map(([code, label]) => [label, code]));
   const toCode = (label: string) => codeByLabel.get(label) ?? label;
   return (rows ?? []).map((r) => ({
-    toCode: toCode(r.to_name),
+    ...(r.to_name ? { toCode: toCode(r.to_name) } : {}),
     fromType: r.from_entity_type as "Deliverable" | "Capability",
     fromCode: r.from_entity_type === "Deliverable" ? toCode(r.from_name ?? "") : (r.from_name ?? ""),
     ...(r.from_entity_type === "Capability" ? { fromCapabilityCode: r.from_name ?? "" } : {}),
@@ -418,12 +417,9 @@ export async function getDependencyGraphContent(templateId: string, tenantId: st
   }));
 }
 
-export async function deriveDedupedCapabilitiesFromPackCodes(packCodes: string[]): Promise<CapabilityRow[]> {
-  const packIds: string[] = [];
-  for (const code of packCodes) {
-    const { data: pack } = await packsDB.findActiveByCode(code);
-    if (pack) packIds.push(pack.id);
-  }
+export async function deriveDedupedCapabilitiesFromPackCodes(packCodes: string[], viewerTenantId: string | null): Promise<CapabilityRow[]> {
+  const { data: packs } = await packsDB.findActiveByCodesVisibleTo([...new Set(packCodes)], viewerTenantId);
+  const packIds: string[] = (packs ?? []).map((pack) => pack.id);
   if (packIds.length === 0) return [];
   const { data: capabilities } = await capabilitiesDB.findByOriginatingPackIds(packIds);
   const byCode = new Map<string, CapabilityRow>();
@@ -438,7 +434,7 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
     const { error: selectionError } = await templatesDB.setPackSelection(templateId, slot.listKind, (seed[slot.field] as string[] | undefined) ?? [], authorId, authorBadge);
     if (selectionError) throw selectionError;
   }
-  const capabilities = await deriveDedupedCapabilitiesFromPackCodes(collectAllPackCodes(seed));
+  const capabilities = await deriveDedupedCapabilitiesFromPackCodes(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()));
   const { error: capabilityError } = await templatesDB.setRequiredCapabilities(templateId, capabilities.map((c) => c.id), authorId, authorBadge);
   if (capabilityError) throw capabilityError;
   const candidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()), seed.dependencyGraph ?? []);

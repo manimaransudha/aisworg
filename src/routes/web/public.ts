@@ -12,7 +12,7 @@ import { redirects } from "../../middleware/redirects.js";
 import { logger } from "../../utils/logger.js";
 import {parseListParams, paginateList} from "../../utils/listQuery.js";
 import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";
-import { getSeuQuickview } from "../seu/core/seus.js";
+import { getSeuQuickviewPage } from "../seu/core/seus.js";
 import { getParticipantHomeView, completeMyWorkItem, raiseMyObligation } from "../seu/core/participantHome.js";
 import type { WorkItemOutcome } from "../seu/core/workItems.js";
 import { listConceptsForType } from "../seu/core/ontology.js";
@@ -57,12 +57,13 @@ router.get("/quickview", attachVM("quickview/index"), async (req: Request, res: 
     }
 
     req.vm.req.title = "Commissioned SEUs";
-    const seus = await getSeuQuickview();
     const params = parseListParams(req.query, { sortable: ["objective", "state", "created"], defaultSort: "created", defaultDir: "desc" });
-    req.vm.req.list = paginateList(seus, params, {
-      searchFields: [(s) => s.objectiveStatement, (s) => s.lifecycleState],
-      sortFields: { objective: (s) => s.objectiveStatement, state: (s) => s.lifecycleState, created: (s) => s.createdAt },
-    });
+    const quickviewIsRoot = (sessionUserOf(req).platformBadges ?? []).includes("root");
+    const quickviewTenantId = sessionUserOf(req).tenant_id ?? null;
+    if (!quickviewIsRoot && !quickviewTenantId) throw new Error("the session user has no tenant");
+    // const seus = await getSeuQuickview();
+    // req.vm.req.list = paginateList(seus, params, { ... }); — in-memory pagination over every SEU of every tenant.
+    req.vm.req.list = await getSeuQuickviewPage(params, { tenantId: quickviewIsRoot ? null : quickviewTenantId });
     req.vm.opt.listBasePath = "/aisworg/quickview";
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "quickview/index", req.vm);

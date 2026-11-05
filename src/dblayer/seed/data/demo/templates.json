@@ -2,6 +2,20 @@
   {
     "baseTemplateCode": "mobile-application",
     "omitDeliverableCodes": [
+      "domain-model",
+      "requirements-backlog",
+      "requirements-specification",
+      "requirements-prioritisation-record",
+      "architecture-decision-record",
+      "detailed-design-specification",
+      "test-report-results",
+      "security-assessment-report",
+      "decision-record",
+      "app-store-submission-package",
+      "incident-report-post-mortem"
+    ],
+    "_comment": "3-Deliverable version: keeps requirements-analysis-model, source-code and deployment-manifest. The 10-Deliverable version is the list in _omitDeliverableCodes_10Version; move it back to omitDeliverableCodes to switch.",
+    "_omitDeliverableCodes_10Version": [
       "requirements-prioritisation-record",
       "decision-record",
       "app-store-submission-package",

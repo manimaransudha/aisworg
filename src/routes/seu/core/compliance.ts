@@ -151,14 +151,18 @@ export async function evaluateCompliance(seuId: string, opts?: { persist?: boole
     const systemActor = await getSystemActor(seuId);
     const { authorId } = await resolveAuthor(seuId, systemActor.actorId);
     await complianceDB.recordEvaluation({ seuId, status, rationale: { counts, frameworks: frameworkCodes, conflicts }, results, authorId, authorBadge: systemActor.authorBadge });
-    await eventBus.publish({ eventType: "ComplianceEvaluated", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, authorityBadge: systemActor.authorBadge, payload: { status, counts } });
+    // await eventBus.publish({ eventType: "ComplianceEvaluated", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, authorityBadge: systemActor.authorBadge, payload: { status, counts } });
+    await eventBus.publish({ eventType: "ComplianceEvaluated", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, tenantId: systemActor.tenantId, authorityBadge: systemActor.authorBadge, payload: { status, counts } });
     if (previous && previous.status !== status) {
-      await eventBus.publish({ eventType: "ComplianceStatusChanged", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, authorityBadge: systemActor.authorBadge, payload: { from: previous.status, to: status } });
+      // await eventBus.publish({ eventType: "ComplianceStatusChanged", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, authorityBadge: systemActor.authorBadge, payload: { from: previous.status, to: status } });
+      await eventBus.publish({ eventType: "ComplianceStatusChanged", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, tenantId: systemActor.tenantId, authorityBadge: systemActor.authorBadge, payload: { from: previous.status, to: status } });
     }
     if (status === "Compliant") {
-      await eventBus.publish({ eventType: "ComplianceSatisfied", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, authorityBadge: systemActor.authorBadge, payload: {} });
+      // await eventBus.publish({ eventType: "ComplianceSatisfied", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, authorityBadge: systemActor.authorBadge, payload: {} });
+      await eventBus.publish({ eventType: "ComplianceSatisfied", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, tenantId: systemActor.tenantId, authorityBadge: systemActor.authorBadge, payload: {} });
     } else if (status === "Non-Compliant" || status === "Partially Compliant") {
-      await eventBus.publish({ eventType: "ComplianceViolationDetected", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, authorityBadge: systemActor.authorBadge, payload: { status, unsatisfied: results.filter((r) => r.state === "unsatisfied").map((r) => r.requirementCode) } });
+      // await eventBus.publish({ eventType: "ComplianceViolationDetected", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, authorityBadge: systemActor.authorBadge, payload: { status, unsatisfied: results.filter((r) => r.state === "unsatisfied").map((r) => r.requirementCode) } });
+      await eventBus.publish({ eventType: "ComplianceViolationDetected", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, tenantId: systemActor.tenantId, authorityBadge: systemActor.authorBadge, payload: { status, unsatisfied: results.filter((r) => r.state === "unsatisfied").map((r) => r.requirementCode) } });
     }
   }
 
@@ -178,7 +182,8 @@ export async function generateComplianceReport(seuId: string) {
   const evaluation = await evaluateCompliance(seuId, { persist: true });
   const { data: waivers } = await complianceDB.findActiveWaivers(seuId);
   const reportSystemActor = await getSystemActor(seuId);
-  await eventBus.publish({ eventType: "ComplianceReportGenerated", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: reportSystemActor.actorId, authorityBadge: reportSystemActor.authorBadge, payload: { status: evaluation.status } });
+  // await eventBus.publish({ eventType: "ComplianceReportGenerated", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: reportSystemActor.actorId, authorityBadge: reportSystemActor.authorBadge, payload: { status: evaluation.status } });
+  await eventBus.publish({ eventType: "ComplianceReportGenerated", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: reportSystemActor.actorId, tenantId: reportSystemActor.tenantId, authorityBadge: reportSystemActor.authorBadge, payload: { status: evaluation.status } });
   return {
     seuId,
     generatedAt: new Date().toISOString(),

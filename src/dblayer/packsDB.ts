@@ -165,6 +165,22 @@ export const packsDB = {
     }
   },
 
+  // The newest Pack with this code (any status) in the viewer's tenant, else in the Platform tenant.
+  async findByCodeVisibleTo(code: string, viewerTenantId: string | null): Promise<DbResult<PackRow | null>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+    const viewer = viewerTenantId ?? PLATFORM_TENANT_ID;
+    try {
+      const { rows } = await query<PackRow>(
+        "SELECT * FROM packs WHERE code = $1 AND (tenant_id = $2 OR tenant_id = $3) ORDER BY (tenant_id = $2) DESC, created_at DESC LIMIT 1",
+        [code, viewer, PLATFORM_TENANT_ID]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[packsDB] findByCodeVisibleTo error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findByCode(code: string): Promise<DbResult<PackRow | null>> {
     try {
       const { rows } = await query<PackRow>("SELECT * FROM packs WHERE code = $1 ORDER BY created_at DESC LIMIT 1", [code]);
@@ -183,6 +199,29 @@ export const packsDB = {
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[packsDB] findActiveByCode error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // The Active Pack with this code in the viewer's tenant, else in the Platform tenant (the same visibility as the lists).
+  async findActiveByCodeVisibleTo(code: string, viewerTenantId: string | null): Promise<DbResult<PackRow | null>> {
+    const found = await this.findActiveByCodesVisibleTo([code], viewerTenantId);
+    return found.error ? { error: found.error } : { data: found.data?.[0] ?? null };
+  },
+
+  // The newest Active Pack for each of the given codes, from the viewer's tenant or else the Platform tenant, in one query.
+  async findActiveByCodesVisibleTo(codes: string[], viewerTenantId: string | null): Promise<DbResult<PackRow[]>> {
+    if (codes.length === 0) return { data: [] };
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+    const viewer = viewerTenantId ?? PLATFORM_TENANT_ID;
+    try {
+      const { rows } = await query<PackRow>(
+        "SELECT DISTINCT ON (code) * FROM packs WHERE code = ANY($1) AND status = 'Active' AND (tenant_id = $2 OR tenant_id = $3) ORDER BY code, (tenant_id = $2) DESC, created_at DESC",
+        [codes, viewer, PLATFORM_TENANT_ID]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[packsDB] findActiveByCodesVisibleTo error", err as Error);
       return { error: err as Error };
     }
   },
