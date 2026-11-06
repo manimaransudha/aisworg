@@ -21,4 +21,6 @@ ALTER TABLE commands
 ALTER TABLE commands
   ADD COLUMN IF NOT EXISTS eligible_participant_pool_id UUID REFERENCES capability_fulfilment_pools(id);
 GRANT ALL PRIVILEGES ON TABLE commands TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_commands_seu_created ON commands (seu_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_commands_requested_by ON commands (requested_by);
 COMMIT;

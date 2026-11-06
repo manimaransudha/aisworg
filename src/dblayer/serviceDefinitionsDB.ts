@@ -233,6 +233,24 @@ export const serviceDefinitionsDB = {
     }
   },
 
+  // The Active Service Definitions for a set of codes, in one query. A row owned by the viewer's tenant is preferred over the platform's.
+  async findActiveByCodesVisibleTo(codes: string[], viewerTenantId: string): Promise<DbResult<ServiceDefinitionRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+
+    try {
+      const { rows } = await query<ServiceDefinitionRow>(
+        `SELECT DISTINCT ON (code) * FROM service_definitions
+         WHERE code = ANY($1) AND status = 'Active' AND (tenant_id = $2 OR tenant_id = $3)
+         ORDER BY code, (tenant_id = $2) DESC, created_at DESC`,
+        [codes, viewerTenantId, PLATFORM_TENANT_ID]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[serviceDefinitionsDB] findActiveByCodesVisibleTo error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findAllVisibleTo(viewerTenantId: string): Promise<DbResult<ServiceDefinitionRow[]>> {
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
   

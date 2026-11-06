@@ -32,4 +32,5 @@ ALTER TABLE packs ADD COLUMN IF NOT EXISTS comments JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE packs ADD COLUMN IF NOT EXISTS schema_definition_id UUID REFERENCES schema_definitions(id);
 ALTER TABLE packs DROP CONSTRAINT IF EXISTS packs_schema_definition_id_fkey;
 GRANT ALL PRIVILEGES ON TABLE packs TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_packs_tenant ON packs (tenant_id);
 COMMIT;

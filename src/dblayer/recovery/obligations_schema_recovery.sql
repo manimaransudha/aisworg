@@ -28,4 +28,5 @@ ALTER TABLE obligations
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants(id),
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
 GRANT ALL PRIVILEGES ON TABLE obligations TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_obligations_seu ON obligations (seu_id);
 COMMIT;

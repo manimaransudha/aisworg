@@ -22,4 +22,6 @@ ALTER TABLE participants
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants_master(id),
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
 GRANT ALL PRIVILEGES ON TABLE participants TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_participants_seu ON participants (seu_id);
+CREATE INDEX IF NOT EXISTS idx_participants_participant_seu ON participants (participant_id, seu_id);
 COMMIT;

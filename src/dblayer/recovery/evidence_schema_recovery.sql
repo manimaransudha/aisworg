@@ -37,4 +37,6 @@ ALTER TABLE evidence
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants(id),
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
 GRANT ALL PRIVILEGES ON TABLE evidence TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_evidence_deliverable ON evidence (deliverable_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_supersedes ON evidence (supersedes_evidence_id);
 COMMIT;

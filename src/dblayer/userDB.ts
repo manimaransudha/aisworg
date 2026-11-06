@@ -1,5 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
+import { runPaginatedQuery, type ListParams } from "../utils/listQuery.js";
 import { participantsMasterDB } from "./participantsMasterDB.js";
 
 export interface UserRow {
@@ -19,7 +20,43 @@ export interface UserRow {
   last_login: Date | null;
 }
 
+export type UserListRow = Pick<UserRow, "id" | "email" | "name" | "is_active" | "created_at" | "tenant_id">;
+
 export const userDB = {
+
+  // One page of users, optionally of one tenant, searched on email and name.
+  async listPaginated(params: ListParams, tenantId?: string): Promise<{ items: UserListRow[]; total: number }> {
+    return runPaginatedQuery<UserListRow>(
+      {
+        select: "id, email, name, is_active, created_at, tenant_id",
+        from: "users",
+        searchColumns: ["email", "name"],
+        sortMap: { created: "created_at", email: "email", name: "name" },
+        baseWhere: tenantId ? "tenant_id = $1" : undefined,
+        baseParams: tenantId ? [tenantId] : undefined,
+      },
+      params
+    );
+  },
+
+  async count(): Promise<number> {
+    const { rows } = await query<{ count: string }>("SELECT COUNT(*)::text AS count FROM users");
+    return Number(rows[0]?.count ?? 0);
+  },
+
+  async listTenantIdsWithUsers(): Promise<string[]> {
+    const { rows } = await query<{ tenant_id: string }>("SELECT DISTINCT tenant_id FROM users WHERE tenant_id IS NOT NULL");
+    return rows.map((r) => r.tenant_id);
+  },
+
+  // Every user, newest first, with the columns the identity pages show. Pass a tenant id to list one tenant's users.
+  async listForManagement(tenantId?: string): Promise<UserListRow[]> {
+    const { rows } = tenantId
+      ? await query<UserListRow>("SELECT id, email, name, is_active, created_at, tenant_id FROM users WHERE tenant_id = $1 ORDER BY created_at DESC", [tenantId])
+      : await query<UserListRow>("SELECT id, email, name, is_active, created_at, tenant_id FROM users ORDER BY created_at DESC");
+    return rows;
+  },
+
 
   async findByEmail(email: string): Promise<UserRow | null> {
     try {

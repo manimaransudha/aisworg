@@ -1,4 +1,4 @@
-import pool, { query } from "../utils/db.js";
+import pool, { bulkInsert, query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, ObjectiveRow, ObjectiveStatus, ObjectiveTier, SponsoringAuthority } from "./seuTypes.js";
 
@@ -281,14 +281,12 @@ export const objectivesDB = {
 
   async addCapabilities(objectiveId: string, capabilityCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
-      for (const code of capabilityCodes) {
-        await query(
-          `INSERT INTO objective_capabilities (objective_id, capability_code, author_id, author_badge)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (objective_id, capability_code) DO NOTHING`,
-          [objectiveId, code, authorId, authorBadge]
-        );
-      }
+      await bulkInsert(
+        "objective_capabilities",
+        ["objective_id", "capability_code", "author_id", "author_badge"],
+        capabilityCodes.map((code) => [objectiveId, code, authorId, authorBadge]),
+        { onConflict: "ON CONFLICT (objective_id, capability_code) DO NOTHING" }
+      );
       return { data: undefined };
     } catch (err) {
       logger.error("[objectivesDB] addCapabilities error", err as Error);
@@ -299,14 +297,12 @@ export const objectivesDB = {
   async setRequiredCapabilities(objectiveId: string, capabilityCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM objective_capabilities WHERE objective_id = $1", [objectiveId]);
-      for (const code of capabilityCodes) {
-        await query(
-          `INSERT INTO objective_capabilities (objective_id, capability_code, author_id, author_badge)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (objective_id, capability_code) DO NOTHING`,
-          [objectiveId, code, authorId, authorBadge]
-        );
-      }
+      await bulkInsert(
+        "objective_capabilities",
+        ["objective_id", "capability_code", "author_id", "author_badge"],
+        capabilityCodes.map((code) => [objectiveId, code, authorId, authorBadge]),
+        { onConflict: "ON CONFLICT (objective_id, capability_code) DO NOTHING" }
+      );
       return { data: undefined };
     } catch (err) {
       logger.error("[objectivesDB] setRequiredCapabilities error", err as Error);

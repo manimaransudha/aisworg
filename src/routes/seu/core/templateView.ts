@@ -135,7 +135,7 @@ export async function getTemplateView(id: string, viewer: { isRoot: boolean; ten
   for (const code of new Set(packCodes)) {
     const { data: own } = await packsDB.findActiveByCode(code, tenantId);
     const found = own ?? (await packsDB.findActiveByCode(code, platformTenantId)).data;
-    if (found) refs["pack-code"][code] = { name: found.name, note: found.category, id: found.id };
+    if (found) refs["pack-code"][code] = { name: found.name, note: found.category, id: found.id, mandatory: found.installation_classification === "Mandatory" };
   }
   for (const code of new Set(rowCodes(content.deliverableCatalogue, "code"))) {
     const { data: deliverable } = await deliverableDefinitionsDB.findActiveByCodeVisibleTo(code, viewer.tenantId);

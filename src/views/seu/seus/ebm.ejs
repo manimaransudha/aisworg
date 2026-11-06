@@ -189,6 +189,7 @@
                   <div class="component-note">
                     <% if (ebmView.template) { %>
                       <%= ebmView.template.name %> <code class="text-muted small"><%= ebmView.template.code %></code> &middot; v<%= ebmView.template.version %>
+                      <div class="small text-muted">Tenant: <%= ebmView.template.tenant %></div>
                     <% } else { %>—<% } %>
                   </div>
                 </div>
@@ -197,6 +198,7 @@
                   <div class="component-note">
                     <% if (ebmView.profile) { %>
                       <%= ebmView.profile.name %> <code class="text-muted small"><%= ebmView.profile.code %></code> &middot; v<%= ebmView.profile.version %>
+                      <div class="small text-muted">Tenant: <%= ebmView.profile.tenant %></div>
                     <% } else { %>—<% } %>
                   </div>
                 </div>
@@ -406,13 +408,20 @@
             <% } else { %>
               <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
-                  <thead class="table-light"><tr><th>Capability</th><th>Source</th></tr></thead>
+                  <thead class="table-light"><tr><th>Deliverable</th><th>Capability</th><th>Source</th></tr></thead>
                   <tbody>
                     <% capabilityCodeEntries.forEach(function(e) { %>
-                      <tr>
-                        <td class="small"><code><%= e.propertyName %></code></td>
-                        <td class="small text-muted"><%= sourceLabel(e.source) %></td>
-                      </tr>
+                      <% (e.deliverableCodes && e.deliverableCodes.length ? e.deliverableCodes : [null]).forEach(function(d) { %>
+                        <tr>
+                          <td class="small"><% if (d) { %><code><%= d %></code><% } else { %>&mdash;<% } %></td>
+                          <td class="small"><code><%= e.propertyName %></code></td>
+                          <td class="small text-muted">
+                            <% if (e.source.kind === 'pack') { %>
+                              <a href="/aisworg/seu/packs/<%= e.source.id %>" target="_blank" rel="noopener"><%= sourceLabel(e.source) %></a>
+                            <% } else { %><%= sourceLabel(e.source) %><% } %>
+                          </td>
+                        </tr>
+                      <% }) %>
                     <% }) %>
                   </tbody>
                 </table>

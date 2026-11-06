@@ -23,4 +23,6 @@ ALTER TABLE work_items
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants(id),
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
 GRANT ALL PRIVILEGES ON TABLE work_items TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_work_items_dispatched_target ON work_items (target_completion_at) WHERE status = 'Dispatched';
+CREATE INDEX IF NOT EXISTS idx_work_items_participant_status ON work_items (participant_id, status);
 COMMIT;

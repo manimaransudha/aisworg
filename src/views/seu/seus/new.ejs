@@ -119,6 +119,12 @@
              change needed). commissionSeu's own guard
              (core/commissioning.ts) is the real backstop; this is just the
              form matching that rule. %>
+        <%- include('../../partials/listControls', { list: list, listBasePath: '/aisworg/seu/seus/new', searchPlaceholder: 'Search profile / template / capability' }) %>
+        <div class="small text-muted mb-3">Sort:
+          <%- sortLink('Profile', 'profile', list, '/aisworg/seu/seus/new') %> &middot;
+          <%- sortLink('Code', 'code', list, '/aisworg/seu/seus/new') %> &middot;
+          <%- sortLink('Template', 'template', list, '/aisworg/seu/seus/new') %>
+        </div>
         <form method="POST" action="/aisworg/seu/seus">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="hidden" name="objectiveId" value="<%= fromObjective.objective.id %>">
@@ -136,7 +142,7 @@
             <div class="section-header">Available Profiles</div>
             <p class="text-muted small mb-0 px-3 pt-3">Every Profile currently available for this Objective's proposed Capabilities, and which Template it belongs to — a Profile's own Template need not cover every Capability listed on its card; anything it doesn't, the Profile can add via Additional Capabilities.</p>
             <div class="row row-cols-1 row-cols-md-2 g-3 p-3">
-              <% fromObjective.commissioningOptions.forEach(function(row) { %>
+              <% list.items.forEach(function(row) { %>
                 <div class="col">
                   <label class="card-tile profile-tile d-flex gap-2 h-100 mb-0" for="tp-<%= row.templateId %>-<%= row.profile ? row.profile.id : 'none' %>" style="cursor: pointer;">
                     <input class="form-check-input mt-1 flex-shrink-0" type="radio" name="templateProfile" value="<%= row.templateId %>|<%= row.profile ? row.profile.id : '' %>" id="tp-<%= row.templateId %>-<%= row.profile ? row.profile.id : 'none' %>">
@@ -152,6 +158,7 @@
                           see git history for the original markup. %>
                       <% if (row.profile) { %>
                         <span class="component-name"><%= row.profile.name %></span> <code class="text-muted small"><%= row.profile.code %></code> (<%= row.profile.environment %>)
+                        <div class="component-note">Tenant: <%= row.profile.tenantName %></div>
                       <% } %>
                       <div class="component-note">Template: <%= row.templateName %> <code class="text-muted"><%= row.templateCode %></code></div>
                       <% if (row.capabilities.length) { %>

@@ -58,18 +58,19 @@ async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string)
     resolvedCompositionConflicts?: Record<string, unknown>;
   } | null;
 
-  const behaviors = {
-    pool: stashed?.unraveled?.pool ?? [],
-    resolvedCompositionConflicts: stashed?.resolvedCompositionConflicts ?? {},
-    competencyRequirements: stashed?.unraveled?.competencyRequirements ?? {},
-  };
-
   const composedPackIds = (stashed?.composedPacks ?? []).map((p) => p.packId);
   const [{ data: applicableQualityGates }, { data: composedPolicies }] = await Promise.all([
     qualityGatesDB.findByPackIds(composedPackIds),
     policiesDB.findByPackIds(composedPackIds),
   ]);
   const transitionPolicies = (composedPolicies ?? []).filter((p) => p.scope === "Transition");
+  const eligibilityPolicies = (composedPolicies ?? []).filter((p) => p.scope === "Eligibility");
+  const behaviors = {
+    pool: stashed?.unraveled?.pool ?? [],
+    resolvedCompositionConflicts: stashed?.resolvedCompositionConflicts ?? {},
+    competencyRequirements: stashed?.unraveled?.competencyRequirements ?? {},
+    eligibilityPolicyIds: eligibilityPolicies.map((p) => p.id),
+  };
   const seuScopedPolicies = transitionPolicies.filter((p) => p.governed_transition?.startsWith("SEU|"));
   const entityScopedPolicies = transitionPolicies.filter((p) => !p.governed_transition?.startsWith("SEU|"));
 

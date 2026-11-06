@@ -205,10 +205,15 @@ export const eventsDB = {
     }
   },
 
+  // Planner estimate (pg_class.reltuples), refreshed by autovacuum. events grows without bound, so an exact COUNT(*) is avoided.
+  // reltuples is -1 on a table that has never been analyzed; that case falls back to the exact count.
   async count(): Promise<DbResult<number>> {
     try {
-      const { rows } = await query<{ count: string }>("SELECT COUNT(*)::text AS count FROM events");
-      return { data: Number(rows[0]?.count ?? 0) };
+      const { rows } = await query<{ estimate: string }>("SELECT reltuples::bigint::text AS estimate FROM pg_class WHERE oid = 'events'::regclass");
+      const estimate = Number(rows[0]?.estimate ?? -1);
+      if (estimate >= 0) return { data: estimate };
+      const { rows: exact } = await query<{ count: string }>("SELECT COUNT(*)::text AS count FROM events");
+      return { data: Number(exact[0]?.count ?? 0) };
     } catch (err) {
       logger.error("[eventsDB] count error", err as Error);
       return { error: err as Error };

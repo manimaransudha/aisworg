@@ -5,7 +5,30 @@ import { validatePackWriteAgainstSchema } from "../routes/seu/core/packWriteVali
 import type { DbResult, PackCategory, PackClassification, PackContributions, PackRow, PackStatus } from "./seuTypes.js";
 import { getPlatformTenantId } from "./constants.js";
  
+export type PackOptionRow = Pick<PackRow, "id" | "code" | "name" | "pack_version" | "status" | "category">;
+
+export type PackSummaryRow = Pick<PackRow, "id" | "code" | "name" | "status" | "created_at">;
+
 export const packsDB = {
+  // The summary columns of every Pack a viewer can see (all tenants for root), whatever its status.
+  async listSummaryRows(viewerTenantId: string | null): Promise<DbResult<PackSummaryRow[]>> {
+    try {
+      if (!viewerTenantId) {
+        const { rows } = await query<PackSummaryRow>("SELECT id, code, name, status, created_at FROM packs ORDER BY category, code, created_at DESC");
+        return { data: rows };
+      }
+      const PLATFORM_TENANT_ID = await getPlatformTenantId();
+      const { rows } = await query<PackSummaryRow>(
+        "SELECT id, code, name, status, created_at FROM packs WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY category, code, created_at DESC",
+        [PLATFORM_TENANT_ID, viewerTenantId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[packsDB] listSummaryRows error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async create(input: {
     code: string;
     name: string;
@@ -280,17 +303,17 @@ export const packsDB = {
     }
   },
 
-  // The code, status and category of every Pack a viewer can see (all Packs for root). Read by the Pack-code option lists,
+  // The identity columns of every Pack a viewer can see (all Packs for root). Read by the Pack option lists,
   // which need nothing else; the full rows carry the large contributions JSON.
-  async listOptionRows(viewerTenantId: string | null): Promise<DbResult<Array<Pick<PackRow, "code" | "status" | "category">>>> {
+  async listOptionRows(viewerTenantId: string | null): Promise<DbResult<Array<PackOptionRow>>> {
     try {
       if (!viewerTenantId) {
-        const { rows } = await query<Pick<PackRow, "code" | "status" | "category">>("SELECT code, status, category FROM packs ORDER BY category, code, created_at DESC");
+        const { rows } = await query<PackOptionRow>("SELECT id, code, name, pack_version, status, category FROM packs ORDER BY category, code, created_at DESC");
         return { data: rows };
       }
       const PLATFORM_TENANT_ID = await getPlatformTenantId();
-      const { rows } = await query<Pick<PackRow, "code" | "status" | "category">>(
-        "SELECT code, status, category FROM packs WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY category, code, created_at DESC",
+      const { rows } = await query<PackOptionRow>(
+        "SELECT id, code, name, pack_version, status, category FROM packs WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY category, code, created_at DESC",
         [PLATFORM_TENANT_ID, viewerTenantId]
       );
       return { data: rows };

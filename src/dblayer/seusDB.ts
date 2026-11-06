@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.js";
 import { runPaginatedQuery, type ListParams } from "../utils/listQuery.js";
 import type { CommissioningReport, DbResult, SeuLifecycleState, SeuRow } from "./seuTypes.js";
 
-export interface SeuWithObjectiveStatement extends SeuRow {
+export interface SeuWithObjectiveStatement extends Pick<SeuRow, "id" | "objective_id" | "active_ebm_id" | "lifecycle_state" | "created_at"> {
   objective_statement: string;
 }
 
@@ -122,19 +122,21 @@ export const seusDB = {
   },
 
   async listWithObjectiveStatementPaginated(params: ListParams, viewerId?: string, tenantId?: string, lifecycleState?: string): Promise<{ items: SeuWithObjectiveStatement[]; total: number }> {
+    const conds: string[] = [];
+    const baseParams: unknown[] = [];
+    if (viewerId) { baseParams.push(viewerId); conds.push(`EXISTS (SELECT 1 FROM participants p WHERE p.seu_id = s.id AND p.participant_id = $${baseParams.length})`); }
+    if (tenantId) { baseParams.push(tenantId); conds.push(`s.tenant_id = $${baseParams.length}`); }
+    if (lifecycleState) { baseParams.push(lifecycleState); conds.push(`s.lifecycle_state = $${baseParams.length}`); }
     return runPaginatedQuery<SeuWithObjectiveStatement>(
       {
-        select: "s.*, o.statement AS objective_statement",
+        select: "s.id, s.objective_id, s.active_ebm_id, s.lifecycle_state, s.created_at, o.statement AS objective_statement",
         from: "seus s JOIN objectives o ON o.id = s.objective_id",
-        searchColumns: ["o.statement", "s.lifecycle_state", "s.id::text"],
+        searchColumns: ["o.statement", "s.lifecycle_state"],
         sortMap: { objective: "o.statement", state: "s.lifecycle_state", created: "s.created_at" },
-        // baseWhere: "$1::uuid IS NULL OR EXISTS (SELECT 1 FROM participants p JOIN participants_master pm ON pm.id = p.participant_id WHERE p.seu_id = s.id AND pm.user_id = $1)",
-        // baseParams: [viewerId ?? null],
-        // $2 is the viewer's tenant; null (a root viewer) lists every tenant.
-        // baseWhere: "($1::uuid IS NULL OR EXISTS (SELECT 1 FROM participants p JOIN participants_master pm ON pm.id = p.participant_id WHERE p.seu_id = s.id AND pm.user_id = $1)) AND ($2::uuid IS NULL OR s.tenant_id = $2) AND ($3::text IS NULL OR s.lifecycle_state = $3)",
-        // $1 is the session id, a participants_master id (the sign-in user's id for most users, the shared Demo User's for the Demo tenant).
-        baseWhere: "($1::uuid IS NULL OR EXISTS (SELECT 1 FROM participants p WHERE p.seu_id = s.id AND p.participant_id = $1)) AND ($2::uuid IS NULL OR s.tenant_id = $2) AND ($3::text IS NULL OR s.lifecycle_state = $3)",
-        baseParams: [viewerId ?? null, tenantId ?? null, lifecycleState ?? null],
+        // viewerId is the session id, a participants_master id (the sign-in user's id for most users, the shared Demo User's for the Demo tenant).
+        // A null tenantId (a root viewer) lists every tenant. Each filter is added only when set so the planner can use the indexes.
+        baseWhere: conds.join(" AND ") || undefined,
+        baseParams: baseParams,
       },
       params
     );

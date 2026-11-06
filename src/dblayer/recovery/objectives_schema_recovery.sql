@@ -26,4 +26,8 @@ ALTER TABLE objectives ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
 ALTER TABLE objectives ADD COLUMN IF NOT EXISTS superseding_objective_id UUID REFERENCES objectives(id);
 ALTER TABLE objectives ADD COLUMN IF NOT EXISTS comments JSONB NOT NULL DEFAULT '[]';
 GRANT ALL PRIVILEGES ON TABLE objectives TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_objectives_parent ON objectives (parent_objective_id);
+CREATE INDEX IF NOT EXISTS idx_objectives_status ON objectives (status);
+-- Needs the pg_trgm extension: run pg_trgm_extension.sql first (see run.ts).
+CREATE INDEX IF NOT EXISTS idx_objectives_statement_trgm ON objectives USING gin (statement gin_trgm_ops);
 COMMIT;

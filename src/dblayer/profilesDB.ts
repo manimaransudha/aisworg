@@ -1,4 +1,4 @@
-import { query } from "../utils/db.js";
+import { bulkInsert, query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateProfileWriteAgainstSchema } from "../routes/seu/core/profileWriteValidator.js";
@@ -6,7 +6,44 @@ import type { DbResult, ProfileRow } from "./seuTypes.js";
 import { getPlatformTenantId, INITIAL_VERSION } from "./constants.js";
  
 
+export type ProfileOptionRow = Pick<ProfileRow, "id" | "code" | "name" | "profile_version">;
+export type ProfileSummaryRow = Pick<ProfileRow, "id" | "code" | "name" | "status" | "created_at">;
+
 export const profilesDB = {
+  // The identity columns of every Active Profile visible to a tenant. Option lists need nothing else; the full rows carry the large content JSON.
+  async listActiveOptionRows(viewerTenantId: string): Promise<DbResult<ProfileOptionRow[]>> {
+    try {
+      const PLATFORM_TENANT_ID = await getPlatformTenantId();
+      const { rows } = await query<ProfileOptionRow>(
+        "SELECT id, code, name, profile_version FROM profiles WHERE status = 'Active' AND (tenant_id = $1 OR tenant_id = $2) ORDER BY code",
+        [PLATFORM_TENANT_ID, viewerTenantId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[profilesDB] listActiveOptionRows error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // The summary columns of every Profile a viewer can see (all tenants for root), whatever its status.
+  async listSummaryRows(viewerTenantId: string | null): Promise<DbResult<ProfileSummaryRow[]>> {
+    try {
+      if (!viewerTenantId) {
+        const { rows } = await query<ProfileSummaryRow>("SELECT id, code, name, status, created_at FROM profiles ORDER BY category, code, created_at DESC");
+        return { data: rows };
+      }
+      const PLATFORM_TENANT_ID = await getPlatformTenantId();
+      const { rows } = await query<ProfileSummaryRow>(
+        "SELECT id, code, name, status, created_at FROM profiles WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY category, code, created_at DESC",
+        [PLATFORM_TENANT_ID, viewerTenantId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[profilesDB] listSummaryRows error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async upsert(input: {
     code: string;
     name: string;
@@ -309,12 +346,12 @@ export const profilesDB = {
   async setPackSelection(profileId: string, listKind: string, packCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM profile_packs WHERE profile_id = $1 AND list_kind = $2", [profileId, listKind]);
-      for (const packCode of packCodes) {
-        await query(
-          "INSERT INTO profile_packs (profile_id, pack_code, list_kind, author_id, author_badge) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (profile_id, pack_code, list_kind) DO NOTHING",
-          [profileId, packCode, listKind, authorId, authorBadge]
-        );
-      }
+      await bulkInsert(
+        "profile_packs",
+        ["profile_id", "pack_code", "list_kind", "author_id", "author_badge"],
+        packCodes.map((packCode) => [profileId, packCode, listKind, authorId, authorBadge]),
+        { onConflict: "ON CONFLICT (profile_id, pack_code, list_kind) DO NOTHING" }
+      );
       return { data: undefined };
     } catch (err) {
       logger.error("[profilesDB] setPackSelection error", err as Error);

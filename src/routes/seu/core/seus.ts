@@ -11,6 +11,7 @@ import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { commandsDB } from "../../../dblayer/commandsDB.js";
@@ -482,8 +483,8 @@ export interface SeuEbmView {
   objectiveStatement: string;
   composedPacks: EbmComposedPack[];
   ebm: { id: string; status: string; actions: Array<{ toState: string; verb: string }> } | null;
-  template: { code: string; name: string; version: string } | null;
-  profile: { code: string; name: string; version: string } | null;
+  template: { code: string; name: string; version: string; tenant: string } | null;
+  profile: { code: string; name: string; version: string; tenant: string } | null;
   ebmPool: PoolEntry[];
 }
 
@@ -498,8 +499,13 @@ export async function getSeuEbmView(seuId: string, actorId: string): Promise<Seu
     profilesDB.findById(seu.profile_id),
   ]);
 
-  const template = templateRow ? { code: templateRow.code, name: templateRow.name, version: templateRow.template_version } : null;
-  const profile = profileRow ? { code: profileRow.code, name: profileRow.name, version: profileRow.profile_version } : null;
+  const { data: tenants } = await tenantsDB.findAll();
+  const tenantLabel = (tenantId: string) => {
+    const t = (tenants ?? []).find((row) => row.id === tenantId);
+    return t ? `${t.name} (${t.code})` : tenantId;
+  };
+  const template = templateRow ? { code: templateRow.code, name: templateRow.name, version: templateRow.template_version, tenant: tenantLabel(templateRow.tenant_id) } : null;
+  const profile = profileRow ? { code: profileRow.code, name: profileRow.name, version: profileRow.profile_version, tenant: tenantLabel(profileRow.tenant_id) } : null;
   const ebmPool = ((ebm?.behaviors as { pool?: PoolEntry[] } | null)?.pool ?? []) as PoolEntry[];
   const ebmActions = ebm ? (await nextActionsFor("EBM", ebm.status, actorId)).map((a) => ({ toState: a.toState, verb: a.verb })) : [];
 

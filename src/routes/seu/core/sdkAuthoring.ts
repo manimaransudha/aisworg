@@ -393,15 +393,15 @@ function toSummary(r: { id: string; code: string; name: string; status: string; 
 export async function listTenantAuthoringRows(kind: SchemaDefinitionEntityKind, viewer: { isRoot: boolean; tenantId: string | null }): Promise<AuthoringDraftSummary[]> {
   const visible = viewer.isRoot || !viewer.tenantId;
   if (kind === "Pack") {
-    const { data } = visible ? await packsDB.findAll() : await packsDB.findAllVisibleTo(viewer.tenantId as string);
+    const { data } = await packsDB.listSummaryRows(visible ? null : (viewer.tenantId as string));
     return (data ?? []).map(toSummary);
   }
   if (kind === "Template") {
-    const { data } = visible ? await templatesDB.findAll() : await templatesDB.findAllVisibleTo(viewer.tenantId as string);
+    const { data } = await templatesDB.listSummaryRows(visible ? null : (viewer.tenantId as string));
     return (data ?? []).map(toSummary);
   }
   if (kind === "Profile") {
-    const { data } = visible ? await profilesDB.findAll() : await profilesDB.findAllVisibleTo(viewer.tenantId as string);
+    const { data } = await profilesDB.listSummaryRows(visible ? null : (viewer.tenantId as string));
     return (data ?? []).map(toSummary);
   }
   if (kind === "Deliverable") {
@@ -565,7 +565,7 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
 }
 
 export async function listInheritableTemplates(viewerTenantId: string): Promise<Array<{ id: string; code: string; name: string; templateVersion: string }>> {
-  const { data: templates } = await templatesDB.findActiveVisibleTo(viewerTenantId);
+  const { data: templates } = await templatesDB.listActiveOptionRows(viewerTenantId);
   return (templates ?? []).map((t) => ({ id: t.id, code: t.code, name: t.name, templateVersion: t.template_version })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -627,7 +627,7 @@ export async function inheritedPackVersionContent(fromPackId: string, viewerTena
 }
 
 export async function listInheritableProfiles(viewerTenantId: string): Promise<Array<{ id: string; code: string; name: string; profileVersion: string }>> {
-  const { data: profiles } = await profilesDB.findActiveVisibleTo(viewerTenantId);
+  const { data: profiles } = await profilesDB.listActiveOptionRows(viewerTenantId);
   return (profiles ?? []).map((p) => ({ id: p.id, code: p.code, name: p.name, profileVersion: p.profile_version })).sort((a, b) => a.name.localeCompare(b.name));
 }
 

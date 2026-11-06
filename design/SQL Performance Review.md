@@ -53,6 +53,29 @@ Scope: `src/dblayer/*DB.ts` queries against `src/dblayer/recovery/*.sql` definit
 4. F6 and F7 (list search, counts).
 5. F5 and F9 (column narrowing, badge cache).
 
+## Implementation status
+
+Not run: tsc, tests, and any SQL against the live DB.
+
+| # | Status | Not updated, and why |
+|---|---|---|
+| F1 | Done | None. The 38 files are covered by the F2 and F8 indexes. |
+| F2 | Done | `evidence (seu_id)` omitted: `evidence_schema_recovery.sql` drops that column. |
+| F3 | Done | None. |
+| F4 | Done | None. The DELETE before each insert is a separate statement; callers needing delete-plus-insert atomic must use `withTransaction`. |
+| F5 | Partly | `packs`, `templates`, `profiles`, `seus` narrowed through new `listOptionRows`, `listActiveOptionRows` and `listSummaryRows` methods. `deliverables` and `events` unchanged: small rows, and `events` consumers read `payload`. The shared `findAll` functions still return full rows because their callers render them. |
+| F6 | Done | `pg_trgm` index covers `objectives.statement` only. `lifecycle_state` has too few values to benefit. |
+| F7 | Partly | Only `eventsDB.count()` uses `pg_class.reltuples`. `seusDB.count`, `packsDB.count` and the `evidenceDB` count stay exact. `packsDB.findAll` stays unpaginated: its callers need the full list. The other named `findAll` functions do not exist or already have a `LIMIT`. |
+| F8 | Done | The pending-consumption partial index is omitted: no query filters on `consumption_state`. Added `(originating_object_type, originating_object_id)` instead. |
+| F9 | Done | In-process cache with a 60 second expiry (`BADGE_TYPES_CACHE_TTL_MS`). A write made by another process is seen after the expiry. |
+| F10 | Done | Covered by the `participants` indexes. |
+| Direct `query()` in `identity.ts` | Done | Moved to `userDB`, `participantsMasterDB`. The identity dashboard is paginated in SQL. The `role` sort on the users page is removed. |
+
+Open items:
+
+- Apply the new indexes and `CREATE EXTENSION pg_trgm` to the live DB. `src/dblayer/migrations` does not exist, so only the recovery files carry them.
+- Run `EXPLAIN (ANALYZE, BUFFERS)` and the `pg_stat_user_tables` check listed below.
+
 ## To confirm before building
 
 - Run `EXPLAIN (ANALYZE, BUFFERS)` on the SEU list, deliverables list and telemetry queries against the live DB.

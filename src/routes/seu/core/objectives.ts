@@ -1,11 +1,12 @@
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { OBJECTIVE_REJECT_STATE, OBJECTIVE_SUPERSEDED_STATE } from "../../../dblayer/constants.js";
+import { OBJECTIVE_REJECT_STATE, OBJECTIVE_SUPERSEDED_STATE, getPlatformTenantId } from "../../../dblayer/constants.js";
 import { findCandidateTemplates } from "./templates.js";
 import { listRealProfilesForTemplate } from "./profiles.js";
 import { listConceptsForType, resolveLabels } from "./ontology.js";
@@ -230,7 +231,7 @@ export interface ObjectiveCommissioningRow {
   templateId: string;
   templateCode: string;
   templateName: string;
-  profile: { id: string; code: string; name: string; environment: string } | null;
+  profile: { id: string; code: string; name: string; environment: string; tenantName: string } | null;
   capabilities: ObjectiveCommissioningCapabilityRef[];
 }
 
@@ -289,13 +290,19 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
 
     const relevant = capabilityCodes.length > 0 ? candidates.filter((c) => coveredCapabilities(c).length > 0) : candidates;
 
-    const profilesByTemplateId = new Map<string, Array<{ id: string; code: string; name: string; environment: string }>>();
+    const platformTenantId = await getPlatformTenantId();
+    const visibleTenantIds = new Set([platformTenantId, tenantId ?? platformTenantId]);
+    const { data: tenants } = await tenantsDB.findAll();
+    const tenantNameById = new Map((tenants ?? []).map((t) => [t.id, t.name]));
+    const profilesByTemplateId = new Map<string, Array<{ id: string; code: string; name: string; environment: string; tenantName: string }>>();
     await Promise.all(
       relevant.map(async (c) => {
         const realProfiles = await listRealProfilesForTemplate(c.id);
         profilesByTemplateId.set(
           c.id,
-          realProfiles.map((p) => ({ id: p.id, code: p.code, name: p.name, environment: p.environment }))
+          realProfiles
+            .filter((p) => p.status === "Active" && visibleTenantIds.has(p.tenant_id))
+            .map((p) => ({ id: p.id, code: p.code, name: p.name, environment: p.environment, tenantName: tenantNameById.get(p.tenant_id) ?? p.tenant_id }))
         );
       })
     );

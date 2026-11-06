@@ -24,8 +24,8 @@
       var graph = locals.graph || null;
       var linkBase = { 'pack-code': '/aisworg/seu/packs/', 'deliverable-name': '/aisworg/seu/deliverable-definitions/' };
       // A referenced entity shows its name (linked to its view when it has one), the code muted, and a note muted below.
-      var refLine = function (name, code, note, href) {
-        return '<div>' + (href ? '<a href="' + esc(href) + '" class="text-decoration-none">' + esc(name) + '</a>' : esc(name)) + '</div>' +
+      var refLine = function (name, code, note, href, mandatory) {
+        return '<div>' + (href ? '<a href="' + esc(href) + '" class="text-decoration-none">' + esc(name) + '</a>' : esc(name)) + (mandatory ? ' <span class="badge bg-warning-subtle text-warning-emphasis">Mandatory</span>' : '') + '</div>' +
           '<div class="small text-muted">' + esc(code) + '</div>' + (note ? '<div class="small text-muted">' + esc(note) + '</div>' : '');
       };
       var refKey = function (source) { return source && source.indexOf('pack-code') === 0 ? 'pack-code' : source; };
@@ -34,7 +34,7 @@
         var key = refKey(x.referentialSource);
         if ((x.kind === 'referential' || x.kind === 'referential-select') && key) {
           var ref = refs[key] ? refs[key][v] : null;
-          if (ref) return refLine(ref.name, v, ref.note, ref.id && linkBase[key] ? linkBase[key] + ref.id : null);
+          if (ref) return refLine(ref.name, v, ref.note, ref.id && linkBase[key] ? linkBase[key] + ref.id : null, ref.mandatory);
           var deliverableLabels = labels['deliverable-name'] || {};
           if (String(x.referentialSource).indexOf('self:') === 0) return deliverableLabels[v] ? refLine(deliverableLabels[v], v, null, null) : esc(v);
           var name = x.ontology && labels[x.referentialSource] ? labels[x.referentialSource][v] : null;

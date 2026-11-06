@@ -7,11 +7,13 @@ import { logger } from "../../utils/logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Run pg_trgm_extension.sql first, once, as a role allowed to create extensions (psql -f). It is not in ORDER:
+// objectives_schema_recovery.sql builds a pg_trgm index and fails without the extension.
 const ORDER = [
   "tenants_schema_recovery.sql",
   "users_schema_recovery.sql",
-  "objectives_schema_recovery.sql",
   "participants_master_schema_recovery.sql",
+  "objectives_schema_recovery.sql",
   "schema_definitions_schema_recovery.sql",
   "templates_schema_recovery.sql",
   "profiles_schema_recovery.sql",
@@ -77,6 +79,10 @@ const ORDER = [
   "tenant_concept_aliases_schema_recovery.sql",
   "tenant_contracts_schema_recovery.sql",
   "transition_definitions_schema_recovery.sql",
+  "version_events_schema_recovery.sql",
+  "demo_areas_schema_recovery.sql",
+  "demo_scenarios_schema_recovery.sql",
+  "demo_steps_schema_recovery.sql",
 ];
 
 async function run(): Promise<void> {

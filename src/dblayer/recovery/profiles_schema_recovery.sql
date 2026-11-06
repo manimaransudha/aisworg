@@ -27,4 +27,5 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS comments JSONB NOT NULL DEFAULT '[
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS schema_definition_id UUID REFERENCES schema_definitions(id);
 ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_schema_definition_id_fkey;
 GRANT ALL PRIVILEGES ON TABLE profiles TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_profiles_tenant ON profiles (tenant_id);
 COMMIT;

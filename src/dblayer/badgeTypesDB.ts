@@ -1,7 +1,12 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { userDB } from "./userDB.js";
+import { BADGE_TYPES_CACHE_TTL_MS } from "./constants.js";
 import type { BadgeScopeKind, BadgeTypeRow, DbResult } from "./seuTypes.js";
+
+// Read on most requests and changed rarely. One entry per tenant (null key = Platform-only view), dropped by every write below.
+const tenantListCache = new Map<string, { rows: BadgeTypeRow[]; expiresAt: number }>();
+const dropTenantListCache = (): void => tenantListCache.clear();
 
 export type BadgeTypeValidationResult = { ok: true } | { ok: false; errors: string[] };
 
@@ -49,6 +54,7 @@ export const badgeTypesDB = {
          RETURNING *`,
         [input.tenantId, input.code, input.name, input.scopeKind, derivedFrom, input.tiered ?? false, actorId, actorBadge]
       );
+      dropTenantListCache();
       return { data: rows[0] };
     } catch (err) {
       logger.error("[badgeTypesDB] create error", err as Error);
@@ -59,6 +65,7 @@ export const badgeTypesDB = {
   async rename(id: string, name: string): Promise<DbResult<BadgeTypeRow>> {
     try {
       const { rows } = await query<BadgeTypeRow>("UPDATE badge_types SET name = $1 WHERE id = $2 RETURNING *", [name, id]);
+      dropTenantListCache();
       if (!rows[0]) return { error: new Error("badge type not found") };
       return { data: rows[0] };
     } catch (err) {
@@ -83,10 +90,14 @@ export const badgeTypesDB = {
 
   async findAllForTenant(tenantId: string | null): Promise<DbResult<BadgeTypeRow[]>> {
     try {
+      const key = tenantId ?? "";
+      const cached = tenantListCache.get(key);
+      if (cached && cached.expiresAt > Date.now()) return { data: structuredClone(cached.rows) };
       const { rows } = await query<BadgeTypeRow>(
         "SELECT * FROM badge_types WHERE tenant_id IS NULL OR tenant_id = $1 ORDER BY tenant_id NULLS FIRST, code",
         [tenantId]
       );
+      tenantListCache.set(key, { rows: structuredClone(rows), expiresAt: Date.now() + BADGE_TYPES_CACHE_TTL_MS });
       return { data: rows };
     } catch (err) {
       logger.error("[badgeTypesDB] findAllForTenant error", err as Error);

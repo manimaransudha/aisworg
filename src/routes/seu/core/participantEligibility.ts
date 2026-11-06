@@ -1,10 +1,8 @@
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
-import { unravelComposition } from "../../../domain/engine/profileCompositionUnravel.js";
 import { evaluateCondition, type GoverningCondition } from "../../../domain/engine/governingCondition.js";
 import type { ParticipantMasterRow, PolicyRow, SeuRow } from "../../../dblayer/seuTypes.js";
-import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 
 export interface EligibilityCriteria {
   tenantId: string;
@@ -30,11 +28,13 @@ function matchesRequiredPolicies(participant: ParticipantMasterRow, policies: Po
 }
 
 export async function resolveEligibilityPolicies(seu: SeuRow): Promise<PolicyRow[]> {
-  const PLATFORM_TENANT_ID = await getPlatformTenantId();
-  const { composedPacks } = await unravelComposition({ templateIds: [seu.template_id], profileIds: [seu.profile_id] }, seu.tenant_id ?? PLATFORM_TENANT_ID);
-  const packIds = composedPacks.map((p) => p.packId);
-  const { data: policies } = await policiesDB.findByPackIds(packIds);
-  return (policies ?? []).filter((p) => p.scope === "Eligibility");
+  if (!seu.active_ebm_id) return [];
+  const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
+  const behaviors = ebm?.behaviors as { eligibilityPolicyIds?: string[] } | null;
+  if (!behaviors?.eligibilityPolicyIds) throw new Error(`EBM ${seu.active_ebm_id} records no eligibility Policies; recompose it`);
+  if (behaviors.eligibilityPolicyIds.length === 0) return [];
+  const { data: policies } = await policiesDB.findByIds(behaviors.eligibilityPolicyIds);
+  return policies ?? [];
 }
 
 export async function getSeuCompetencyRequirements(seu: SeuRow): Promise<Record<string, string[]>> {

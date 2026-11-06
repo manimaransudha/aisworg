@@ -29,4 +29,5 @@ ALTER TABLE templates ADD COLUMN IF NOT EXISTS comments JSONB NOT NULL DEFAULT '
 ALTER TABLE templates ADD COLUMN IF NOT EXISTS schema_definition_id UUID REFERENCES schema_definitions(id);
 ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_schema_definition_id_fkey;
 GRANT ALL PRIVILEGES ON TABLE templates TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_templates_tenant ON templates (tenant_id);
 COMMIT;

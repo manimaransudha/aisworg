@@ -6,8 +6,8 @@ export const runtimeTelemetryDB = {
   async countCommandsGenerated(seuId?: string): Promise<DbResult<number>> {
     try {
       const { rows } = await query<{ count: string }>(
-        "SELECT COUNT(*)::text AS count FROM commands WHERE $1::uuid IS NULL OR seu_id = $1",
-        [seuId ?? null]
+        `SELECT COUNT(*)::text AS count FROM commands ${seuId ? "WHERE seu_id = $1" : ""}`,
+        seuId ? [seuId] : []
       );
       return { data: Number(rows[0]?.count ?? 0) };
     } catch (err) {
@@ -26,10 +26,10 @@ export const runtimeTelemetryDB = {
            EXTRACT(EPOCH FROM (MIN(e.occurred_at) - c.created_at)) AS latency_seconds
          FROM commands c
          JOIN events e ON e.correlation_id = c.correlation_id AND e.event_type = 'WorkItemDispatched'
-         WHERE $1::uuid IS NULL OR c.seu_id = $1
+         ${seuId ? "WHERE c.seu_id = $1" : ""}
          GROUP BY c.id, c.seu_id, c.command_type, c.created_at
          ORDER BY latency_seconds DESC`,
-        [seuId ?? null]
+        seuId ? [seuId] : []
       );
       return { data: rows };
     } catch (err) {
@@ -50,10 +50,10 @@ export const runtimeTelemetryDB = {
          JOIN commands c ON c.id = wi.command_id
          JOIN events e_start ON e_start.originating_object_type = 'WorkItem' AND e_start.originating_object_id = wi.id AND e_start.event_type = 'WorkItemStarted'
          JOIN events e_complete ON e_complete.originating_object_type = 'WorkItem' AND e_complete.originating_object_id = wi.id AND e_complete.event_type = 'WorkItemCompleted'
-         WHERE $1::uuid IS NULL OR c.seu_id = $1
+         ${seuId ? "WHERE c.seu_id = $1" : ""}
          GROUP BY wi.id, c.seu_id
          ORDER BY duration_seconds DESC`,
-        [seuId ?? null]
+        seuId ? [seuId] : []
       );
       return { data: rows };
     } catch (err) {

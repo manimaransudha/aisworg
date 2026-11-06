@@ -1,4 +1,4 @@
-import { query } from "../utils/db.js";
+import { bulkInsert, query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateTemplateWriteAgainstSchema } from "../routes/seu/core/templateWriteValidator.js";
@@ -6,7 +6,49 @@ import type { CapabilityRow, DbResult, TemplateDeliverableSeed, TemplateRow } fr
 import { getPlatformTenantId, PLATFORM_TENANT_NAME, INITIAL_VERSION } from "./constants.js";
 import { userDB } from "./userDB.js";
  
+export type TemplateOptionRow = Pick<TemplateRow, "id" | "code" | "name" | "template_version" | "tenant_id">;
+export type TemplateSummaryRow = Pick<TemplateRow, "id" | "code" | "name" | "status" | "created_at">;
+
 export const templatesDB = {
+  // The identity columns of every Active Template a viewer can see (all tenants for root). Option lists need nothing else;
+  // the full rows carry the large draft_content and deliverable_catalogue JSON.
+  async listActiveOptionRows(viewerTenantId: string | null): Promise<DbResult<TemplateOptionRow[]>> {
+    try {
+      if (!viewerTenantId) {
+        const { rows } = await query<TemplateOptionRow>("SELECT id, code, name, template_version, tenant_id FROM templates WHERE status = 'Active' ORDER BY code");
+        return { data: rows };
+      }
+      const PLATFORM_TENANT_ID = await getPlatformTenantId();
+      const { rows } = await query<TemplateOptionRow>(
+        "SELECT id, code, name, template_version, tenant_id FROM templates WHERE status = 'Active' AND (tenant_id = $1 OR tenant_id = $2) ORDER BY code",
+        [PLATFORM_TENANT_ID, viewerTenantId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[templatesDB] listActiveOptionRows error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // The summary columns of every Template a viewer can see (all tenants for root), whatever its status.
+  async listSummaryRows(viewerTenantId: string | null): Promise<DbResult<TemplateSummaryRow[]>> {
+    try {
+      if (!viewerTenantId) {
+        const { rows } = await query<TemplateSummaryRow>("SELECT id, code, name, status, created_at FROM templates ORDER BY code, created_at DESC");
+        return { data: rows };
+      }
+      const PLATFORM_TENANT_ID = await getPlatformTenantId();
+      const { rows } = await query<TemplateSummaryRow>(
+        "SELECT id, code, name, status, created_at FROM templates WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY code, created_at DESC",
+        [PLATFORM_TENANT_ID, viewerTenantId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[templatesDB] listSummaryRows error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async upsert(input: {
     code: string;
     name: string;
@@ -280,14 +322,12 @@ export const templatesDB = {
   async setRequiredCapabilities(templateId: string, capabilityIds: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM template_capabilities WHERE template_id = $1", [templateId]);
-      for (const capabilityId of capabilityIds) {
-        await query(
-          `INSERT INTO template_capabilities (template_id, capability_id, author_id, author_badge)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (template_id, capability_id) DO NOTHING`,
-          [templateId, capabilityId, authorId, authorBadge]
-        );
-      }
+      await bulkInsert(
+        "template_capabilities",
+        ["template_id", "capability_id", "author_id", "author_badge"],
+        capabilityIds.map((capabilityId) => [templateId, capabilityId, authorId, authorBadge]),
+        { onConflict: "ON CONFLICT (template_id, capability_id) DO NOTHING" }
+      );
       return { data: undefined };
     } catch (err) {
       logger.error("[templatesDB] setRequiredCapabilities error", err as Error);
@@ -331,12 +371,12 @@ export const templatesDB = {
   async setPackSelection(templateId: string, listKind: string, packCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM template_packs WHERE template_id = $1 AND list_kind = $2", [templateId, listKind]);
-      for (const packCode of packCodes) {
-        await query(
-          "INSERT INTO template_packs (template_id, pack_code, list_kind, author_id, author_badge) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (template_id, pack_code, list_kind) DO NOTHING",
-          [templateId, packCode, listKind, authorId, authorBadge]
-        );
-      }
+      await bulkInsert(
+        "template_packs",
+        ["template_id", "pack_code", "list_kind", "author_id", "author_badge"],
+        packCodes.map((packCode) => [templateId, packCode, listKind, authorId, authorBadge]),
+        { onConflict: "ON CONFLICT (template_id, pack_code, list_kind) DO NOTHING" }
+      );
       return { data: undefined };
     } catch (err) {
       logger.error("[templatesDB] setPackSelection error", err as Error);

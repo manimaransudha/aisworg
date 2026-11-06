@@ -1,4 +1,4 @@
-import { query } from "../utils/db.js";
+import { bulkInsert, query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, SeuCapabilityRow } from "./seuTypes.js";
 
@@ -10,17 +10,12 @@ export interface SeuCapabilityWithCode extends SeuCapabilityRow {
 export const seuCapabilitiesDB = {
   async createMany(seuId: string, capabilityIds: string[], authorId: string, authorBadge: string): Promise<DbResult<SeuCapabilityRow[]>> {
     try {
-      const rows: SeuCapabilityRow[] = [];
-      for (const capabilityId of capabilityIds) {
-        const { rows: inserted } = await query<SeuCapabilityRow>(
-          `INSERT INTO seu_capabilities (seu_id, capability_id, author_id, author_badge)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (seu_id, capability_id) DO NOTHING
-           RETURNING *`,
-          [seuId, capabilityId, authorId, authorBadge]
-        );
-        if (inserted[0]) rows.push(inserted[0]);
-      }
+      const { rows } = await bulkInsert<SeuCapabilityRow>(
+        "seu_capabilities",
+        ["seu_id", "capability_id", "author_id", "author_badge"],
+        capabilityIds.map((capabilityId) => [seuId, capabilityId, authorId, authorBadge]),
+        { onConflict: "ON CONFLICT (seu_id, capability_id) DO NOTHING" }
+      );
       return { data: rows };
     } catch (err) {
       logger.error("[seuCapabilitiesDB] createMany error", err as Error);

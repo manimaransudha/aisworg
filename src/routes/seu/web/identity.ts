@@ -14,7 +14,12 @@ import { logger } from "../../../utils/logger.js";
 import {
   createPlatformUser,
   createTenant,
-  getIdentityDashboardView,
+  getIdentityCounts,
+  listAllTenants,
+  listAuthorisedBadgeCodes,
+  listAuthorisedRoleCodes,
+  listPlatformUsersPaginated,
+  listUserTenantFilterOptions,
   listTenantsForManagement,
   setAuthorisedBadges,
   setAuthorisedRoles,
@@ -24,12 +29,8 @@ import {
 
 router.get("/identity", attachVM("seu/identity/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const view = await getIdentityDashboardView();
     req.vm.req.title = "Identity Management";
-    req.vm.req.counts = {
-      tenants: view.tenants.filter((t) => !t.is_system).length,
-      users: view.users.length,
-    };
+    req.vm.req.counts = await getIdentityCounts();
     const routeAuthorityBadge = process.env.ROUTE_AUTHORITY_ADMIN_BADGE || "root";
     const held = await resolveHeldBadges(req);
     req.vm.req.showRouteAuthorityCard = held.has(routeAuthorityBadge);
@@ -61,24 +62,17 @@ router.get("/identity/tenants", attachVM("seu/identity/tenants"), async (req: Re
 
 router.get("/identity/badges", attachVM("seu/identity/badges"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const view = await getIdentityDashboardView();
     req.vm.req.title = "Badge Management";
-    const tenantFilterOptions = [...new Map(view.users.filter((u) => u.tenantId).map((u) => [u.tenantId as string, u.tenantName ?? u.tenantId as string])).entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const tenantFilterOptions = await listUserTenantFilterOptions();
     const activeTenant = typeof req.query.tenant === "string" && tenantFilterOptions.some((t) => t.id === req.query.tenant) ? req.query.tenant : "";
-    const usersInTenant = activeTenant ? view.users.filter((u) => u.tenantId === activeTenant) : view.users;
     const params = parseListParams(req.query, { sortable: ["email", "name", "created"], defaultSort: "created", defaultDir: "desc" });
-    const list = paginateList(usersInTenant, params, {
-      searchFields: [(u) => u.email, (u) => u.name],
-      sortFields: { email: (u) => u.email, name: (u) => u.name, created: (u) => u.created_at },
-    });
+    const list = await listPlatformUsersPaginated(params, activeTenant || undefined);
     list.tenant = activeTenant || undefined;
     req.vm.req.list = list;
     req.vm.opt.listBasePath = "/aisworg/seu/identity/badges";
     req.vm.opt.tenantFilterOptions = tenantFilterOptions;
     req.vm.opt.activeTenant = activeTenant;
-    req.vm.req.authorisedBadgeCodes = view.authorisedBadgeCodes;
+    req.vm.req.authorisedBadgeCodes = await listAuthorisedBadgeCodes();
     req.vm.req.currentUserEmail = req.session?.user?.email ?? null;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/identity/badges", req.vm);
@@ -90,25 +84,18 @@ router.get("/identity/badges", attachVM("seu/identity/badges"), async (req: Requ
 
 router.get("/identity/users", attachVM("seu/identity/users"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const view = await getIdentityDashboardView();
     req.vm.req.title = "User Management";
-    const tenantFilterOptions = [...new Map(view.users.filter((u) => u.tenantId).map((u) => [u.tenantId as string, u.tenantName ?? u.tenantId as string])).entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const tenantFilterOptions = await listUserTenantFilterOptions();
     const activeTenant = typeof req.query.tenant === "string" && tenantFilterOptions.some((t) => t.id === req.query.tenant) ? req.query.tenant : "";
-    const usersInTenant = activeTenant ? view.users.filter((u) => u.tenantId === activeTenant) : view.users;
-    const params = parseListParams(req.query, { sortable: ["email", "name", "role", "created"], defaultSort: "created", defaultDir: "desc" });
-    const list = paginateList(usersInTenant, params, {
-      searchFields: [(u) => u.email, (u) => u.name],
-      sortFields: { email: (u) => u.email, name: (u) => u.name, role: (u) => u.role, created: (u) => u.created_at },
-    });
+    const params = parseListParams(req.query, { sortable: ["email", "name", "created"], defaultSort: "created", defaultDir: "desc" });
+    const list = await listPlatformUsersPaginated(params, activeTenant || undefined);
     list.tenant = activeTenant || undefined;
     req.vm.req.list = list;
     req.vm.opt.listBasePath = "/aisworg/seu/identity/users";
     req.vm.opt.tenantFilterOptions = tenantFilterOptions;
     req.vm.opt.activeTenant = activeTenant;
-    req.vm.req.tenants = view.tenants;
-    req.vm.req.authorisedRoleCodes = view.authorisedRoleCodes;
+    req.vm.req.tenants = await listAllTenants();
+    req.vm.req.authorisedRoleCodes = await listAuthorisedRoleCodes();
     req.vm.req.currentUserEmail = req.session?.user?.email ?? null;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/identity/users", req.vm);

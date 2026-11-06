@@ -46,7 +46,26 @@ function toRow(input: ParticipantMasterInput): unknown[] {
   ];
 }
 
+export interface UserAuthorisationRow {
+  user_id: string;
+  authorised_role: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
+  authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }>;
+}
+
 export const participantsMasterDB = {
+  // The role and badge grants of the given users' Participants; without ids, of every Participant linked to a user.
+  async listAuthorisationsByUserIds(userIds?: string[]): Promise<DbResult<UserAuthorisationRow[]>> {
+    try {
+      const { rows } = userIds
+        ? await query<UserAuthorisationRow>("SELECT user_id, authorised_role, authorised_badges FROM participants_master WHERE user_id = ANY($1::uuid[])", [userIds])
+        : await query<UserAuthorisationRow>("SELECT user_id, authorised_role, authorised_badges FROM participants_master WHERE user_id IS NOT NULL");
+      return { data: rows };
+    } catch (err) {
+      logger.error("[participantsMasterDB] listAuthorisationsByUserIds error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async create(input: ParticipantMasterInput): Promise<DbResult<ParticipantMasterRow>> {
     try {
       const { rows } = await bulkInsert<ParticipantMasterRow>(

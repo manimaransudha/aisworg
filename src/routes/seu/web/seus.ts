@@ -11,7 +11,7 @@ import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { listSeusPaginated, listSeuLifecycleStates, getSeuDetailView, getSeuEbmView } from "../core/seus.js";
-import { parseListParams } from "../../../utils/listQuery.js";
+import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { getObjectiveDetail, listCommissionableObjectives } from "../core/objectives.js";
 import { resolveHeldBadges, requireActorId, resolveActorAndBadge, resolveAuthorBadgeForRequest } from "../../../domain/identity/heldBadges.js";
 import { requestCapabilityFulfilment, releaseParticipants } from "../core/capabilities.js";
@@ -81,6 +81,12 @@ router.get("/seus/new", attachVM("seu/seus/new"), async (req: Request, res: Resp
       }
       req.vm.req.title = "Commission SEU from Objective";
       req.vm.req.fromObjective = fromObjective;
+      const params = parseListParams(req.query, { sortable: ["profile", "template", "code"], defaultSort: "profile", defaultDir: "asc" });
+      req.vm.req.list = { ...paginateList(fromObjective.commissioningOptions ?? [], params, {
+        searchFields: [(r) => r.profile?.name, (r) => r.profile?.code, (r) => r.templateName, (r) => r.templateCode, (r) => r.capabilities.map((c) => c.label).join(" ")],
+        sortFields: { profile: (r) => r.profile?.name, template: (r) => r.templateName, code: (r) => r.profile?.code },
+      }), objectiveId };
+      req.vm.opt.listBasePath = "/aisworg/seu/seus/new";
       // The Save button is the birth row's action (CR-128): shown to a holder of its badge. A saved SEU shows its next actions.
       const actorId = requireActorId(req);
       const { data: birth } = await transitionDefinitionsDB.findBirth("SEU");

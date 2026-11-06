@@ -10,7 +10,7 @@ import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import type { PackRow, PolicyDefinitionRow } from "../../../dblayer/seuTypes.js";
 
 // A referenced entity shown by its name, with its code muted under it and a note (description or purpose) when it has one.
-export interface PackViewRef { name: string; note: string | null; id?: string }
+export interface PackViewRef { name: string; note: string | null; id?: string; mandatory?: boolean }
 
 // A Policy Definition the Pack adopts, in the order the Pack lists it.
 export interface PackViewPolicy {

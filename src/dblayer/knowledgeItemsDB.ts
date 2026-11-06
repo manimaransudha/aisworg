@@ -167,9 +167,9 @@ export const knowledgeItemsDB = {
       const { rows } = await query<{ acquisition_scope: AcquisitionScope; count: string }>(
         `SELECT acquisition_scope, COUNT(*)::text AS count
          FROM knowledge_items
-         WHERE $1::uuid IS NULL OR seu_id = $1
+         ${seuId ? "WHERE seu_id = $1" : ""}
          GROUP BY acquisition_scope`,
-        [seuId ?? null]
+        seuId ? [seuId] : []
       );
       const byScope: Record<AcquisitionScope, number> = { SEU: 0, Capability: 0, Enterprise: 0, Platform: 0 };
       for (const row of rows) byScope[row.acquisition_scope] = Number(row.count);

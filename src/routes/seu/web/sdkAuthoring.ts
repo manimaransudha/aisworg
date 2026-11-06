@@ -575,8 +575,7 @@ async function loadPolicyOptions(packCode: string): Promise<PolicyOption[]> {
 
 interface TemplateOption { code: string; name: string; label: string }
 async function loadActiveTemplateOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<TemplateOption[]> {
-  // const { data: templates } = await templatesDB.findAllActive();
-  const { data: templates } = viewer.isRoot || !viewer.tenantId ? await templatesDB.findAllActive() : await templatesDB.findActiveVisibleTo(viewer.tenantId);
+  const { data: templates } = await templatesDB.listActiveOptionRows(viewer.isRoot || !viewer.tenantId ? null : viewer.tenantId);
   // return (templates ?? []).map((t) => ({ code: t.code, name: t.name })).sort((a, b) => a.name.localeCompare(b.name));
   const { data: tenants } = await tenantsDB.findAll();
   const tenantName = new Map((tenants ?? []).map((tn) => [tn.id, tn.name]));

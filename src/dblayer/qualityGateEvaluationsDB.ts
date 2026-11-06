@@ -56,11 +56,11 @@ export const qualityGateEvaluationsDB = {
            )) AS latency_seconds
          FROM quality_gate_evaluations qge
          JOIN quality_gates qg ON qg.id = qge.quality_gate_id
-         WHERE $1::uuid IS NULL OR qge.seu_id = $1
+         ${seuId ? "WHERE qge.seu_id = $1" : ""}
          GROUP BY qge.quality_gate_id, qg.name, qge.entity_id, qge.seu_id
          HAVING MIN(qge.evaluated_at) FILTER (WHERE qge.outcome = 'Passed') IS NOT NULL
          ORDER BY latency_seconds DESC`,
-        [seuId ?? null]
+        seuId ? [seuId] : []
       );
       return { data: rows };
     } catch (err) {
@@ -76,11 +76,11 @@ export const qualityGateEvaluationsDB = {
            entity_type, entity_id, seu_id,
            COUNT(*) FILTER (WHERE outcome = 'Blocked')::text AS blocked_count
          FROM quality_gate_evaluations
-         WHERE $1::uuid IS NULL OR seu_id = $1
+         ${seuId ? "WHERE seu_id = $1" : ""}
          GROUP BY entity_type, entity_id, seu_id
          HAVING COUNT(*) FILTER (WHERE outcome = 'Passed') > 0
          ORDER BY blocked_count DESC`,
-        [seuId ?? null]
+        seuId ? [seuId] : []
       );
       return { data: rows.map((r) => ({ entity_type: r.entity_type, entity_id: r.entity_id, seu_id: r.seu_id, blocked_count: Number(r.blocked_count) })) };
     } catch (err) {

@@ -7,12 +7,12 @@ import { userDB } from "../../../dblayer/userDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { authorityVocabularyDB } from "../../../dblayer/authorityVocabularyDB.js";
 import { emailService } from "../../../domain/auth/emailService.js";
-import { query } from "../../../utils/db.js";
 import { ontologyDB, type OntologyViewer } from "../../../dblayer/ontologyDB.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { createParticipantMaster } from "./participantsMaster.js";
-import type { BadgeTypeRow, TenantRow } from "../../../dblayer/seuTypes.js";
+import type { TenantRow } from "../../../dblayer/seuTypes.js";
+import { listResult, type ListParams, type ListResult } from "../../../utils/listQuery.js";
 import { NO_EXPIRY_DATE } from "../../../dblayer/constants.js";
 
 export interface PlatformUserView {
@@ -28,63 +28,57 @@ export interface PlatformUserView {
   authorisedBadges: string[];
 }
 
-export interface IdentityDashboardView {
-  tenants: TenantRow[];
-  badgeTypes: BadgeTypeRow[];
-  users: PlatformUserView[];
-  authorisedRoleCodes: string[];
-  authorisedBadgeCodes: string[];
-}
-
 export async function listTenantsForManagement(): Promise<TenantRow[]> {
   const { data } = await tenantsDB.findAllOperational();
   return data ?? [];
 }
 
-export async function getIdentityDashboardView(): Promise<IdentityDashboardView> {
-  const [{ data: tenants }, badgeTypesResult] = await Promise.all([tenantsDB.findAll(), query<BadgeTypeRow>("SELECT * FROM badge_types ORDER BY tenant_id NULLS FIRST, code")]);
+export async function listAllTenants(): Promise<TenantRow[]> {
+  const { data } = await tenantsDB.findAll();
+  return data ?? [];
+}
 
-  const { rows: userRows } = await query<{ id: string; email: string; name: string | null; is_active: boolean; created_at: string; tenant_id: string | null }>(
-    "SELECT id, email, name, is_active, created_at, tenant_id FROM users ORDER BY created_at DESC"
-  );
-  const tenantNameById = new Map<string, string>((tenants ?? []).map((t) => [t.id, t.name]));
+export async function getIdentityCounts(): Promise<{ tenants: number; users: number }> {
+  const [{ data: tenants }, users] = await Promise.all([tenantsDB.findAll(), userDB.count()]);
+  return { tenants: (tenants ?? []).filter((t) => !t.is_system).length, users };
+}
 
-  const { rows: masterRows } = await query<{ user_id: string; authorised_role: Array<{ role: string; effective_till: string; seu_ids: string[] }> }>(
-    "SELECT user_id, authorised_role FROM participants_master WHERE user_id IS NOT NULL"
-  );
-  const now = new Date();
-  const authorisedRolesByUserId = new Map<string, string[]>(
-    masterRows.map((m) => [
-      m.user_id,
-      m.authorised_role.filter((e) => e.seu_ids.length === 0 && new Date(e.effective_till).getTime() >= now.getTime()).map((e) => e.role),
-    ])
-  );
+// The tenants that have at least one user, for the tenant filter of the user and badge pages.
+export async function listUserTenantFilterOptions(): Promise<Array<{ id: string; name: string }>> {
+  const [{ data: tenants }, tenantIds] = await Promise.all([tenantsDB.findAll(), userDB.listTenantIdsWithUsers()]);
+  const withUsers = new Set(tenantIds);
+  return (tenants ?? []).filter((t) => withUsers.has(t.id)).map((t) => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name));
+}
 
+export async function listAuthorisedRoleCodes(): Promise<string[]> {
   const { data: authorisedRoleConcepts } = await ontologyDB.findConceptsByType("authorised-role", { isRoot: true, tenantId: null });
-  const authorisedRoleCodes = (authorisedRoleConcepts ?? []).map((c) => c.code);
+  return (authorisedRoleConcepts ?? []).map((c) => c.code);
+}
 
-  const { rows: masterBadgeRows } = await query<{ user_id: string; authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }> }>(
-    "SELECT user_id, authorised_badges FROM participants_master WHERE user_id IS NOT NULL"
-  );
-  const authorisedBadgesByUserId = new Map<string, string[]>(
-    masterBadgeRows.map((m) => [
-      m.user_id,
-      m.authorised_badges.filter((e) => e.seu_ids.length === 0 && new Date(e.effective_till).getTime() >= now.getTime()).map((e) => e.badge),
-    ])
-  );
+export async function listAuthorisedBadgeCodes(): Promise<string[]> {
   const [nounVerbBadgeCodes, adminSurfaceBadgeCodes] = await Promise.all([listGrantableNounVerbBadges(), listAdminSurfaceBadgeCodes()]);
-  const authorisedBadgeCodes = [...new Set([...nounVerbBadgeCodes, ...adminSurfaceBadgeCodes])].sort();
+  return [...new Set([...nounVerbBadgeCodes, ...adminSurfaceBadgeCodes])].sort();
+}
 
-  const users: PlatformUserView[] = userRows.map((u) => ({
+// One page of users, with the standing role and badge grants of only the users on that page.
+export async function listPlatformUsersPaginated(params: ListParams, tenantId?: string): Promise<ListResult<PlatformUserView>> {
+  const [{ items, total }, { data: tenants }] = await Promise.all([userDB.listPaginated(params, tenantId), tenantsDB.findAll()]);
+  const tenantNameById = new Map<string, string>((tenants ?? []).map((t) => [t.id, t.name]));
+  const { data: masterRows = [], error } = items.length ? await participantsMasterDB.listAuthorisationsByUserIds(items.map((u) => u.id)) : { data: [] };
+  if (error) throw error;
+  const now = new Date();
+  const standing = <T,>(entries: Array<{ effective_till: string; seu_ids: string[] } & T>): T[] => entries.filter((e) => e.seu_ids.length === 0 && new Date(e.effective_till).getTime() >= now.getTime());
+  const rolesByUserId = new Map<string, string[]>(masterRows.map((m) => [m.user_id, standing(m.authorised_role).map((e) => e.role)]));
+  const badgesByUserId = new Map<string, string[]>(masterRows.map((m) => [m.user_id, standing(m.authorised_badges).map((e) => e.badge)]));
+  const users: PlatformUserView[] = items.map((u) => ({
     ...u,
-    role: (authorisedRolesByUserId.get(u.id) ?? []).join(", "),
+    role: (rolesByUserId.get(u.id) ?? []).join(", "),
     tenantId: u.tenant_id,
     tenantName: u.tenant_id ? tenantNameById.get(u.tenant_id) ?? null : null,
-    authorisedRoles: authorisedRolesByUserId.get(u.id) ?? [],
-    authorisedBadges: authorisedBadgesByUserId.get(u.id) ?? [],
+    authorisedRoles: rolesByUserId.get(u.id) ?? [],
+    authorisedBadges: badgesByUserId.get(u.id) ?? [],
   }));
-
-  return { tenants: tenants ?? [], badgeTypes: badgeTypesResult.rows, users, authorisedRoleCodes, authorisedBadgeCodes };
+  return listResult(users, total, params);
 }
 
 export type CreatePlatformUserResult = { ok: true; email: string; verificationLink: string | null } | { ok: false; detail: string };
@@ -204,21 +198,12 @@ export async function createTenant(input: { code: string; name: string; authorId
 export type TenantUserView = PlatformUserView;
 
 export async function listUsersForTenant(tenantId: string): Promise<TenantUserView[]> {
-  const { rows: userRows } = await query<{ id: string; email: string; name: string | null; is_active: boolean; created_at: string }>(
-    "SELECT id, email, name, is_active, created_at FROM users WHERE tenant_id = $1 ORDER BY created_at DESC",
-    [tenantId]
-  );
+  const userRows = await userDB.listForManagement(tenantId);
   if (userRows.length === 0) return [];
 
   const now = new Date();
-  const { rows: masterRows } = await query<{
-    user_id: string;
-    authorised_role: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
-    authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }>;
-  }>(
-    "SELECT user_id, authorised_role, authorised_badges FROM participants_master WHERE user_id = ANY($1::uuid[])",
-    [userRows.map((u) => u.id)]
-  );
+  const { data: masterRows = [], error: masterError } = await participantsMasterDB.listAuthorisationsByUserIds(userRows.map((u) => u.id));
+  if (masterError) throw masterError;
   const authorisedRolesByUserId = new Map<string, string[]>(
     masterRows.map((m) => [
       m.user_id,

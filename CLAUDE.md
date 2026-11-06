@@ -61,6 +61,8 @@
 
 - Some chapters , though not stated explicitly can have a definition aspect and an execution aspect. This has to be distinctly understood and used when interpreting a chapter or designing something. For example, a pack is a definition declarative only. But SEU will have definition part and an execution part all integrated in the same chapter. 
 
+- The EBM defines the behaviour of the SEU. The SEU and every SEU-driven entity (dispatch, work item, obligation, policy, capability fulfilment, deliverable and anything related) must take what they need from the SEU's EBM and must not bypass it by reading the Template, Profile or Pack directly. Commissioning reads Capabilities from the EBM's pool, which derives them from the Deliverable Catalogue through the Services the composed Packs contribute.
+
 - Dependency engine already has an implementation and has to be reused.
 
 - Composition strategy already has an implementation and has to be reused.

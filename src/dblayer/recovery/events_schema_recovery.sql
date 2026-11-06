@@ -24,4 +24,7 @@ GRANT ALL PRIVILEGES ON SEQUENCE events_sequence_seq TO weirdo;
 
 -- GRANT ALL PRIVILEGES ON SEQUENCE events_sequence_seq TO weirdo;
 
+CREATE INDEX IF NOT EXISTS idx_events_type_created ON events (event_type, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_events_correlation ON events (correlation_id);
+CREATE INDEX IF NOT EXISTS idx_events_originating ON events (originating_object_type, originating_object_id);
 COMMIT;

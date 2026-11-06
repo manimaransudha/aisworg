@@ -21,4 +21,7 @@ DROP INDEX IF EXISTS idx_seus_objective_id_unique;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_seus_objective_id_active_unique ON seus (objective_id)
   WHERE lifecycle_state IN ('Initiated', 'Validated', 'Commissioned', 'Configured', 'Activated', 'Operational', 'Suspended');
 GRANT ALL PRIVILEGES ON TABLE seus TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_seus_tenant_state ON seus (tenant_id, lifecycle_state);
+CREATE INDEX IF NOT EXISTS idx_seus_template ON seus (template_id);
+CREATE INDEX IF NOT EXISTS idx_seus_profile ON seus (profile_id);
 COMMIT;

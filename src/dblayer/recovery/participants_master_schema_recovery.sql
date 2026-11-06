@@ -21,4 +21,6 @@ ALTER TABLE participants_master ADD COLUMN IF NOT EXISTS authorised_badges JSONB
 -- ALTER TABLE tenants
 --   ADD CONSTRAINT tenants_author_id_fkey FOREIGN KEY (author_id) REFERENCES participants_master(id);
 GRANT ALL PRIVILEGES ON TABLE participants_master TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_participants_master_tenant ON participants_master (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_participants_master_user ON participants_master (user_id) WHERE user_id IS NOT NULL;
 COMMIT;

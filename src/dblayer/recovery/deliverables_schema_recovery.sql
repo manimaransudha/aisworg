@@ -19,4 +19,6 @@ ALTER TABLE deliverables
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants(id),
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
 GRANT ALL PRIVILEGES ON TABLE deliverables TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_deliverables_seu_state ON deliverables (seu_id, lifecycle_state);
+CREATE INDEX IF NOT EXISTS idx_deliverables_producing_capability ON deliverables (producing_capability_id);
 COMMIT;

@@ -146,7 +146,7 @@ const handlers: Record<string, Handler> = {
     const { data: template } = await templatesDB.findActiveByCodeVisibleTo(str(st.payload.templateCode, "payload.templateCode"), ctx.tenantId);
     if (!template) throw new Error("the Demo Template is not Active; reset the demo data");
     const profileCode = str(st.payload.profileCode, "payload.profileCode");
-    const { data: profiles } = await profilesDB.findActiveVisibleTo(ctx.tenantId);
+    const { data: profiles } = await profilesDB.listActiveOptionRows(ctx.tenantId);
     const profile = (profiles ?? []).find((p) => p.code === profileCode);
     if (!profile) throw new Error(`Profile ${profileCode} is not Active; reset the demo data`);
     const initiated = await initiateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: ctx.participantId, tenantId: ctx.tenantId });

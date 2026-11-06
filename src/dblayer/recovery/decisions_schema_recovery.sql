@@ -35,4 +35,5 @@ ALTER TABLE decisions
   DROP COLUMN IF EXISTS selected_alternative,
   DROP COLUMN IF EXISTS rationale;
 GRANT ALL PRIVILEGES ON TABLE decisions TO weirdo;
+CREATE INDEX IF NOT EXISTS idx_decisions_seu ON decisions (seu_id);
 COMMIT;

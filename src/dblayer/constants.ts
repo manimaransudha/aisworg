@@ -76,6 +76,10 @@ export const OBJECTIVE_RETIRED_STATE = "Retired";
 export const OBJECTIVE_REJECT_STATE = "Reject";
 export const OBJECTIVE_SUPERSEDED_STATE = "Superseded";
 export const CAPABILITY_RETRY_DELAY_SECONDS = 300;
+
+// How long badgeTypesDB.findAllForTenant keeps a tenant's badge-type list in memory. Writes through badgeTypesDB drop it at once;
+// the expiry covers writes made by another process (a seed run).
+export const BADGE_TYPES_CACHE_TTL_MS = 60_000;
 export const ATTESTATION_REQUIRED_POLICY_CODE = "policy-attestation-required";
 
 // One shape for every Command type: the entity type and the verb, e.g. "Deliverable.approve".
@@ -243,6 +247,7 @@ export const DEMO_PURGE_PLAN: readonly DemoPurgeStep[] = [
   { table: "decisions", scope: "seu" },
   { table: "deliverable_definitions", scope: "tenant" },
   { table: "ebms", scope: "seu" },
+  { table: "version_events", scope: "tenant" },
   { table: "events", scope: "tenant" },
   { table: "findings", scope: "seu" },
   { table: "metric_definitions", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
@@ -267,7 +272,6 @@ export const DEMO_PURGE_PLAN: readonly DemoPurgeStep[] = [
   { table: "service_definitions", scope: "tenant" },
   { table: "template_packs", scope: "via", via: [{ column: "template_id", parent: "templates", parentColumn: "id" }] },
   { table: "templates", scope: "tenant" },
-  { table: "version_events", scope: "tenant" },
 ];
 
 // References that close a foreign-key cycle. They are nulled for the rows about to be deleted before the plan runs.

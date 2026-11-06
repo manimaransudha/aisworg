@@ -26,6 +26,7 @@ export interface ListResult<T> {
   status?: string;
   tenant?: string;
   seuId?: string;
+  objectiveId?: string;
 }
 
 const DEFAULT_PAGE_SIZE = clampInt(process.env.LIST_PAGE_SIZE_DEFAULT, 20, 1, 500);
@@ -127,14 +128,12 @@ export async function runPaginatedQuery<T>(
   const orderExpr = config.sortMap[params.sort] ?? Object.values(config.sortMap)[0];
   const orderSql = `ORDER BY ${orderExpr} ${params.dir === "asc" ? "ASC" : "DESC"}`;
 
-  const countRes = await query(`SELECT count(*)::int AS n FROM ${config.from} ${whereSql}`, values);
-  const total = (countRes.rows[0]?.n as number) ?? 0;
-
   const limitP = values.length + 1;
   const offsetP = values.length + 2;
-  const dataRes = await query(
-    `SELECT ${config.select} FROM ${config.from} ${whereSql} ${orderSql} LIMIT $${limitP} OFFSET $${offsetP}`,
-    [...values, params.limit, params.offset]
-  );
+  const [countRes, dataRes] = await Promise.all([
+    query(`SELECT count(*)::int AS n FROM ${config.from} ${whereSql}`, values),
+    query(`SELECT ${config.select} FROM ${config.from} ${whereSql} ${orderSql} LIMIT $${limitP} OFFSET $${offsetP}`, [...values, params.limit, params.offset]),
+  ]);
+  const total = (countRes.rows[0]?.n as number) ?? 0;
   return { items: dataRes.rows as T[], total };
 }

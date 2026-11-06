@@ -1,6 +1,4 @@
-import { packsDB } from "../../../dblayer/packsDB.js";
-import { isLookupMemoActive } from "../../../utils/db.js";
-import type { PackRow } from "../../../dblayer/seuTypes.js";
+import { packsDB, type PackOptionRow } from "../../../dblayer/packsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import type { JsonSchemaDocument, JsonSchemaProperty } from "../../../domain/sdk/formGenerator.js";
@@ -12,10 +10,9 @@ import { PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes } from "./temp
 
 type Viewer = { isRoot: boolean; tenantId: string | null };
 
-// The Pack options need only code, status and category. A seed run reads those three columns; every other caller reads the full rows as before.
-async function packRowsForOptions(viewer: Viewer): Promise<{ data?: Array<Pick<PackRow, "code" | "status" | "category">> }> {
-  if (isLookupMemoActive()) return packsDB.listOptionRows(viewer.isRoot ? null : viewer.tenantId);
-  return viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId);
+// The Pack options need only the identity columns, never the contributions JSON.
+async function packRowsForOptions(viewer: Viewer): Promise<{ data?: PackOptionRow[] }> {
+  return packsDB.listOptionRows(viewer.isRoot || !viewer.tenantId ? null : viewer.tenantId);
 }
 
 const conceptCodes = (conceptType: string) => async (viewer: Viewer): Promise<string[]> =>
@@ -28,7 +25,7 @@ const SOURCE_LOADERS: Record<string, (viewer: Viewer) => Promise<string[]>> = {
     return [...new Set((packs ?? []).filter((p) => p.status === "Active").map((p) => p.code))].sort();
   },
   "template-code": async (viewer) => {
-    const { data: templates } = viewer.isRoot || !viewer.tenantId ? await templatesDB.findAllActive() : await templatesDB.findActiveVisibleTo(viewer.tenantId);
+    const { data: templates } = await templatesDB.listActiveOptionRows(viewer.isRoot || !viewer.tenantId ? null : viewer.tenantId);
     return [...new Set((templates ?? []).map((t) => t.code))].sort();
   },
   "deliverable-name": async (viewer) => [...new Set((await listConceptsForType("deliverable-name", viewer, false)).map((c) => c.default_label))].sort(),

@@ -1,6 +1,5 @@
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
-import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { executionEngine } from "../../../domain/engine/executionEngine.js";
 import type { DeliverableGovernanceResult } from "../../../domain/engine/executionEngine.js";
 import { transitionEngine, type GateRejectionResult } from "../../../domain/engine/transitionEngine.js";
@@ -15,9 +14,7 @@ export async function createDeliverable(input: { seuId: string; name: string; ca
 
   const { data: seu } = await seusDB.findById(input.seuId);
   if (!seu) throw new Error("SEU not found");
-  const { data: template } = await templatesDB.findById(seu.template_id);
-  if (!template) throw new Error("template not found");
-  const catalogueLabels = await resolveLabels(template.tenant_id, "deliverable-name");
+  const catalogueLabels = await resolveLabels(seu.tenant_id, "deliverable-name");
   if (!(await loadSeuCatalogue(seu)).some((entry) => (catalogueLabels[entry.code] ?? entry.code) === input.name)) {
     throw new Error(`"${input.name}" is not a Deliverable this SEU's catalogue declares — only names already in the catalogue of its Profile or Template can be added`);
   }

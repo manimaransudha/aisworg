@@ -6,6 +6,7 @@ import { seusDB } from "../../../dblayer/seusDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
+import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
@@ -241,26 +242,38 @@ export async function finalizeCommissioning(input: {
   const composedPacks = ebm.composed_packs;
   const compositionReport = ebm.composition_report;
 
-  const requiredCapabilitiesById = new Map<string, CapabilityRow>();
-  for (const t of templates) {
-    const { data: caps } = await templatesDB.getRequiredCapabilities(t.id);
-    for (const c of caps ?? []) requiredCapabilitiesById.set(c.id, c);
+  // The Capabilities the SEU must fulfil are the Capability entries of the EBM's pool. A Capability row belongs to the Pack that
+  // contributes it, so the row is the one of the Pack that is the entry's source. A code several Packs contribute yields one row.
+  const pool = (ebm.behaviors as { pool?: Array<{ propertyName: string; value: unknown; source?: { id?: string } }> } | null)?.pool ?? [];
+  const capabilityEntries = pool.filter((e) => {
+    const v = e.value as { code?: unknown; serviceLevel?: unknown } | null;
+    return typeof v?.code === "string" && v.code === e.propertyName && !("serviceLevel" in v);
+  });
+  const sourcePackIds = [...new Set(capabilityEntries.map((e) => e.source?.id).filter((id): id is string => !!id))];
+  const { data: packCapabilityRows, error: capabilityError } = sourcePackIds.length ? await capabilitiesDB.findByOriginatingPackIds(sourcePackIds) : { data: [] as CapabilityRow[], error: undefined };
+  if (capabilityError) throw capabilityError;
+  const requiredCapabilitiesByCode = new Map<string, CapabilityRow>();
+  for (const entry of capabilityEntries) {
+    if (requiredCapabilitiesByCode.has(entry.propertyName)) continue;
+    const row = (packCapabilityRows ?? []).find((r) => r.originating_pack_id === entry.source?.id && r.code === entry.propertyName);
+    if (row) requiredCapabilitiesByCode.set(entry.propertyName, row);
   }
-  const requiredCapabilities = [...requiredCapabilitiesById.values()];
+  const missingCapabilityCodes = [...new Set(capabilityEntries.map((e) => e.propertyName))].filter((code) => !requiredCapabilitiesByCode.has(code));
+  if (missingCapabilityCodes.length > 0) throw new Error(`EBM ${ebm.id} composes Capabilities that no source Pack has a capabilities row for: ${missingCapabilityCodes.join(", ")}`);
+  const requiredCapabilities = [...requiredCapabilitiesByCode.values()];
   await ensureSeuSystemParticipant(seu.id);
   const systemActor = await getSystemActor(seu.id);
   await seuCapabilitiesDB.createMany(seu.id, requiredCapabilities.map((c) => c.id), systemActor.authorId, systemActor.authorBadge);
 
   const deliverableLabelByCode = await resolveLabels(tenantId, "deliverable-name");
-  const { data: serviceDefinitions } = await serviceDefinitionsDB.findAllVisibleTo(tenantId ?? (await getPlatformTenantId()));
+  // The EBM's capability entries carry the catalogue Deliverables each Capability produces.
+  const capabilityIdByCode = new Map(requiredCapabilities.map((c) => [c.code, c.id]));
   const producingCapabilityByDeliverableCode = new Map<string, { id: string }>();
-  for (const capability of requiredCapabilities ?? []) {
-    const def = (serviceDefinitions ?? []).find((d) => d.capability_code === capability.code && d.status === "Active");
-    const outputs = (def?.outputs as unknown as string[] | null) ?? [];
-    for (const outputCode of outputs) {
-      if (!producingCapabilityByDeliverableCode.has(outputCode)) {
-        producingCapabilityByDeliverableCode.set(outputCode, { id: capability.id });
-      }
+  for (const entry of pool as Array<{ propertyName: string; deliverableCodes?: string[] }>) {
+    const capabilityId = capabilityIdByCode.get(entry.propertyName);
+    if (!capabilityId) continue;
+    for (const deliverableCode of entry.deliverableCodes ?? []) {
+      if (!producingCapabilityByDeliverableCode.has(deliverableCode)) producingCapabilityByDeliverableCode.set(deliverableCode, { id: capabilityId });
     }
   }
   // The catalogue is the one the EBM recorded as its source: the Profile's own when it carries one, otherwise the Template's.

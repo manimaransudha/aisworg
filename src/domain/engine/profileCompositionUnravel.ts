@@ -5,7 +5,8 @@ import { policiesDB } from "../../dblayer/policiesDB.js";
 import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
 import { getProfilePackCodes, resolveEffectiveParameters, extractExposedParameterOverrides } from "../../routes/seu/core/profiles.js";
 import { deriveOverridableParameterCandidates, getDependencyGraphContent } from "../../routes/seu/core/templates.js";
-import { profileOwnCatalogue, resolveDeliverableSource } from "./deliverableSource.js";
+import { catalogueFor, profileOwnCatalogue, resolveDeliverableSource } from "./deliverableSource.js";
+import { serviceDefinitionsDB } from "../../dblayer/serviceDefinitionsDB.js";
 import type { PackRow, ProfileRow, TemplateRow, EbmComposedPack, EbmDeliverableSource } from "../../dblayer/seuTypes.js";
 
 export type PoolSourceKind = "profile" | "template" | "pack";
@@ -21,6 +22,8 @@ export interface PoolEntry {
   propertyName: string;
   value: unknown;
   source: PoolSource;
+  // The catalogue Deliverables that bring a Capability into the pool. Kept outside value so conflict detection does not compare it.
+  deliverableCodes?: string[];
 }
 
 export interface UnraveledComposition {
@@ -163,9 +166,6 @@ export async function unravelComposition(input: { templateIds: string[]; profile
       pool.push({ propertyName, value, source: profileSource });
     }
 
-    for (const code of (draft.additionalCapabilityCodes as string[] | undefined) ?? []) {
-      pool.push({ propertyName: code, value: { code }, source: profileSource });
-    }
   }
 
   // A Template's catalogue and dependencies enter the pool unless a Profile of this composition carries its own for that Template.
@@ -217,13 +217,32 @@ export async function unravelComposition(input: { templateIds: string[]; profile
     }
   }
 
+  // A Capability enters the pool through the Deliverable Catalogue: a catalogue Deliverable is an output of a Service, and the Service offers a Capability.
+  // Only the Services a composed Pack contributes are considered.
+  const deliverableSource = await deliverableSourceOf(profiles, templates);
+  const catalogueCodes = new Set<string>();
+  for (const profile of profiles) {
+    const baseTemplate = templates.find((t) => t.id === profile.base_template_id);
+    if (baseTemplate && deliverableSource) for (const entry of catalogueFor(baseTemplate, profile, deliverableSource)) catalogueCodes.add(entry.code);
+  }
+  const contributedServiceCodes = [...new Set([...composedPacks.values()].flatMap((pack) => (pack.contributions?.services ?? []).map((svc) => svc.code)))];
+  const { data: serviceRows } = contributedServiceCodes.length ? await serviceDefinitionsDB.findActiveByCodesVisibleTo(contributedServiceCodes, viewerTenantId) : { data: [] };
+  const serviceByCode = new Map((serviceRows ?? []).map((row) => [row.code, row]));
+
   for (const pack of composedPacks.values()) {
     const packSource = toPoolSource("pack", pack.id, pack.code, pack.code);
     const c = pack.contributions ?? {};
 
-    for (const cap of c.capabilities ?? []) {
-      pool.push({ propertyName: cap.code, value: { code: cap.code }, source: packSource });
+    const deliverablesByCapability = new Map<string, Set<string>>();
+    for (const svc of c.services ?? []) {
+      const definition = serviceByCode.get(svc.code);
+      const produced = (definition?.outputs ?? []).filter((output) => catalogueCodes.has(output));
+      if (!definition || produced.length === 0) continue;
+      const set = deliverablesByCapability.get(definition.capability_code) ?? new Set<string>();
+      produced.forEach((d) => set.add(d));
+      deliverablesByCapability.set(definition.capability_code, set);
     }
+    for (const [code, deliverables] of deliverablesByCapability) pool.push({ propertyName: code, value: { code }, source: packSource, deliverableCodes: [...deliverables].sort() });
     for (const svc of c.services ?? []) {
       pool.push({ propertyName: svc.code, value: { code: svc.code, serviceLevel: svc.serviceLevel ?? [] }, source: packSource });
     }
@@ -285,7 +304,7 @@ export async function unravelComposition(input: { templateIds: string[]; profile
     composedPacks: [...composedPacks.values()].map((pack) => ({ packId: pack.id, packCode: pack.code, packVersion: pack.pack_version })),
     warnings,
     competencyRequirements: computeCompetencyRequirements(profiles, composedPacks),
-    deliverableSource: await deliverableSourceOf(profiles, templates),
+    deliverableSource,
   };
 }
 

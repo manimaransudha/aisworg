@@ -67,10 +67,10 @@ export const deliverablesDB = {
            EXTRACT(EPOCH FROM (MAX(e.occurred_at) - d.created_at)) AS cycle_time_seconds
          FROM deliverables d
          JOIN events e ON e.originating_object_type = 'Deliverable' AND e.originating_object_id = d.id AND e.event_type = 'DeliverableTransitioned'
-         WHERE $1::uuid IS NULL OR d.seu_id = $1
+         ${seuId ? "WHERE d.seu_id = $1" : ""}
          GROUP BY d.id
          ORDER BY cycle_time_seconds DESC`,
-        [seuId ?? null]
+        seuId ? [seuId] : []
       );
       return { data: rows };
     } catch (err) {
@@ -82,8 +82,8 @@ export const deliverablesDB = {
   async findLifecycleStateDistribution(seuId?: string): Promise<DbResult<Record<string, number>>> {
     try {
       const { rows } = await query<{ lifecycle_state: string; count: string }>(
-        "SELECT lifecycle_state, COUNT(*)::text AS count FROM deliverables WHERE $1::uuid IS NULL OR seu_id = $1 GROUP BY lifecycle_state",
-        [seuId ?? null]
+        `SELECT lifecycle_state, COUNT(*)::text AS count FROM deliverables ${seuId ? "WHERE seu_id = $1" : ""} GROUP BY lifecycle_state`,
+        seuId ? [seuId] : []
       );
       const byState: Record<string, number> = {};
       for (const row of rows) byState[row.lifecycle_state] = Number(row.count);
