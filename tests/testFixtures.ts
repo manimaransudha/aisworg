@@ -1,3 +1,5 @@
+import { applyConflictPick, blockingEbmConflicts } from "../src/domain/engine/conflicts/index.js";
+import { serviceChoiceKey } from "../src/domain/engine/conflicts/services.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -221,6 +223,22 @@ export async function grantBadge(participantId: string, badge: string): Promise<
   if (error) throw error;
 }
 
+// Grants a role onto a holder's own participants_master.authorised_role row for
+// a test that drives a route_authority `roles` requirement. Returns a restore
+// function that puts the holder's original role list back; call it in a finally.
+export async function grantRole(participantId: string, role: string): Promise<() => Promise<void>> {
+  const { data: master } = await participantsMasterDB.findById(participantId);
+  if (!master) throw new Error(`grantRole: no participants_master row ${participantId}`);
+  const original = master.authorised_role;
+  if (original.some((r) => r.role === role)) return async () => {};
+  const { error } = await participantsMasterDB.setAuthorisedRole(participantId, [...original, { role, effective_till: "9999-12-31", seu_ids: [] }]);
+  if (error) throw error;
+  return async () => {
+    const { error: restoreError } = await participantsMasterDB.setAuthorisedRole(participantId, original);
+    if (restoreError) throw restoreError;
+  };
+}
+
 // Grants whatever badge(s) route_authority itself actually declares for this
 // method+path (CR-110 — the one real source of a web route's required
 // badge), instead of a literal badge string guessed at the call site. `path`
@@ -431,6 +449,10 @@ export async function driveCommissioningToActive(input: {
   // with no DB round trip of its own) instead of always losing it (the old
   // shape: fulfil only after already polling all the way to Operational).
   beforeCommenceWork?: (seuId: string) => Promise<void>;
+  // A test of a blocking conflict leaves every conflict open, as a user who has not yet resolved it.
+  leaveConflictsOpen?: boolean;
+  // The Service a user would pick for a Deliverable with several candidate Services, keyed by Deliverable code. A Deliverable not named here takes the first option.
+  serviceChoices?: Record<string, string>;
   // Deterministic alternative to beforeCommenceWork's race: the acting actor is deliberately NOT granted the SEU
   // Activated -> Operational badge up front, so the engine's own commence-work attempt (attemptSeuCommenceWork, off
   // SEUActivated) fails to resolve the badge (the throw is caught and logged by the event bus) and leaves the SEU at Activated. This callback runs once the SEU is Activated,
@@ -492,16 +514,29 @@ export async function driveCommissioningToActive(input: {
   }
   if (!seuForCompose) return { ok: false, stage: "compose_ebm", reason: "SEU not found before Compose EBM", seuId: input.seuId };
   const composeViewerTenantId = seuForCompose.tenant_id ?? PLATFORM_TENANT_ID;
-  const { compositionReport, composedPacks, profileDetails, unraveled, compositionConflicts } = await previewCommissioningValidation({
-    selections: [{ templateId: seuForCompose.template_id, profileId: seuForCompose.profile_id }],
-    viewerTenantId: composeViewerTenantId,
-  });
+  const composeSelections = [{ templateId: seuForCompose.template_id, profileId: seuForCompose.profile_id }];
+  let resolvedCompositionConflicts: Record<string, unknown> = {};
+  let preview = await previewCommissioningValidation({ selections: composeSelections, viewerTenantId: composeViewerTenantId });
+  // A user would answer each conflict on the Resolve Conflicts screen. This fixture takes the first option of every open conflict that has a pick,
+  // and asks for the SEU's own decision (include) where the conflict is include or exclude. A conflict nobody can resolve here fails the commission.
+  for (let round = 0; round < 50 && !input.leaveConflictsOpen; round++) {
+    const open = blockingEbmConflicts(preview.ebmConflicts).find((c) => c.resolvable);
+    if (!open) break;
+    const chosenService = Object.entries(input.serviceChoices ?? {}).find(([deliverableCode]) => open.key === serviceChoiceKey(deliverableCode))?.[1];
+    const chosenIndex = chosenService ? open.options.findIndex((o) => o.value === chosenService) : -1;
+    const applied = applyConflictPick(preview.ebmConflicts, open.key, open.action === "include-or-exclude" ? { decision: "include" } : { optionIndexes: [chosenIndex >= 0 ? chosenIndex : 0] });
+    if (!applied.ok) return { ok: false, stage: "compose_ebm", reason: applied.error, seuId: input.seuId };
+    resolvedCompositionConflicts = { ...resolvedCompositionConflicts, [applied.key]: applied.value };
+    preview = await previewCommissioningValidation({ selections: composeSelections, viewerTenantId: composeViewerTenantId, resolvedCompositionConflicts });
+  }
+  const { compositionReport, composedPacks, profileDetails, ebmConflicts, recordedConflicts, settled } = preview;
   await seusDB.setCompositionReport(input.seuId, {
-    selections: [{ templateId: seuForCompose.template_id, profileId: seuForCompose.profile_id }],
-    compositionReport, composedPacks, profileDetails, unraveled, compositionConflicts, resolvedCompositionConflicts: {},
+    selections: composeSelections,
+    compositionReport, composedPacks, profileDetails, ebmConflicts, recordedConflicts, settled, resolvedCompositionConflicts,
   });
-  if (compositionConflicts.length > 0) {
-    return { ok: false, stage: "compose_ebm", reason: compositionConflicts.map((c) => c.propertyName).join(" | "), seuId: input.seuId };
+  const unresolved = blockingEbmConflicts(ebmConflicts).map((c) => c.key);
+  if (unresolved.length > 0) {
+    return { ok: false, stage: "compose_ebm", reason: unresolved.join(" | "), seuId: input.seuId };
   }
   // compositionCompleted.ts's resolveAuthorParticipantId requires the
   // commissioning actor to already hold a SEU-scoped participants engagement
@@ -780,7 +815,8 @@ export async function fulfilCapabilityAsRoot(input: {
   await ensureRootActorParticipant(input.seuId);
   // Commissioning requests fulfilment itself. Fulfilling by hand is needed only when that request ended unfulfilled.
   await settleCapabilityRequests(input.seuId, input.capabilityId);
-  const { data: seuCapabilities } = await seuCapabilitiesDB.findBySeuId(input.seuId);
+  const { data: seuCapabilities, error: seuCapabilitiesError } = await seuCapabilitiesDB.findBySeuId(input.seuId);
+  if (seuCapabilitiesError) throw seuCapabilitiesError;
   const seuCapability = (seuCapabilities ?? []).find((c) => c.capability_id === input.capabilityId);
   if (!seuCapability) throw new Error(`fulfilCapabilityAsRoot: capability ${input.capabilityId} is not required by SEU ${input.seuId}`);
   let participantMasterId = input.participantMasterId;
@@ -812,7 +848,8 @@ export async function fulfilCapabilityAsRoot(input: {
 // was ever published. A failed handler throws with its recorded error.
 export async function settleCapabilityRequests(seuId: string, capabilityId: string): Promise<void> {
   for (let attempt = 0; attempt < 900; attempt++) {
-    const { data: events } = await eventsDB.findByOriginatingObject("SEU", seuId);
+    const { data: events, error } = await eventsDB.findByOriginatingObject("SEU", seuId);
+    if (error) throw error;
     const requests = (events ?? []).filter((e) => e.event_type === "CapabilityRequested" && (e.payload as { capabilityId?: string }).capabilityId === capabilityId);
     const failed = requests.find((e) => e.consumption_state?.capabilityRequested?.status === "failed");
     if (failed) throw new Error(`settleCapabilityRequests: CapabilityRequested ${failed.id} failed: ${(failed.consumption_state.capabilityRequested as { error?: string }).error}`);
@@ -827,7 +864,8 @@ export async function settleCapabilityRequests(seuId: string, capabilityId: stri
 // handler publishes. A failed handler throws with its recorded error.
 export async function waitForCapabilityFulfilled(seuId: string, capabilityId: string): Promise<void> {
   const latestRequest = async () => {
-    const { data: events } = await eventsDB.findByOriginatingObject("SEU", seuId);
+    const { data: events, error } = await eventsDB.findByOriginatingObject("SEU", seuId);
+    if (error) throw error;
     return (events ?? [])
       .filter((e) => e.event_type === "CapabilityRequested" && (e.payload as { capabilityId?: string }).capabilityId === capabilityId)
       .sort((x, y) => new Date(x.occurred_at).getTime() - new Date(y.occurred_at).getTime())

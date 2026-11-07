@@ -8,6 +8,7 @@ import { getPlatformTenantId, INITIAL_VERSION } from "./constants.js";
 export const deliverableDefinitionsDB = {
   async createDraft(input: {
     code: string;
+    name: string;
     description?: string | null;
     guideLocation?: string | null;
     version?: string;
@@ -25,6 +26,7 @@ export const deliverableDefinitionsDB = {
 
       const errors = await validateDeliverableDefinitionWriteAgainstSchema({
         code: input.code,
+        name: input.name,
         description: input.description,
         version,
         draftContent,
@@ -37,8 +39,8 @@ export const deliverableDefinitionsDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<DeliverableDefinitionRow>(
-        `INSERT INTO deliverable_definitions (code, description, version, status, authored_by, author_badge, draft_content, tenant_id, parent_deliverable_definition_id, schema_definition_id, guide_location)
-         VALUES ($1, $2, $3, $10, $4, $5, $6, $7, $8, $9, $11)
+        `INSERT INTO deliverable_definitions (code, name, description, version, status, authored_by, author_badge, draft_content, tenant_id, parent_deliverable_definition_id, schema_definition_id, guide_location)
+         VALUES ($1, $12, $2, $3, $10, $4, $5, $6, $7, $8, $9, $11)
          RETURNING *`,
         [
           input.code,
@@ -52,6 +54,7 @@ export const deliverableDefinitionsDB = {
           schemaRow?.id ?? null,
           input.status,
           input.guideLocation ?? null,
+          input.name,
         ]
       );
       return { data: rows[0] };
@@ -61,7 +64,7 @@ export const deliverableDefinitionsDB = {
     }
   },
 
-  async updateDraftContent(id: string, input: { code: string; description: string | null; guideLocation: string | null; version: string; draftContent: Record<string, unknown> }): Promise<DbResult<DeliverableDefinitionRow>> {
+  async updateDraftContent(id: string, input: { code: string; name: string; description: string | null; guideLocation: string | null; version: string; draftContent: Record<string, unknown> }): Promise<DbResult<DeliverableDefinitionRow>> {
     try {
       const { rows: existingRows } = await query<{ schema_definition_id: string | null; tenant_id: string }>(
         "SELECT schema_definition_id, tenant_id FROM deliverable_definitions WHERE id = $1", [id]
@@ -70,6 +73,7 @@ export const deliverableDefinitionsDB = {
       const errors = await validateDeliverableDefinitionWriteAgainstSchema({
         id,
         code: input.code,
+        name: input.name,
         description: input.description,
         version: input.version,
         draftContent: input.draftContent,
@@ -79,8 +83,8 @@ export const deliverableDefinitionsDB = {
       if (errors.length > 0) return { error: new Error(errors.join("; ")) };
 
       const { rows } = await query<DeliverableDefinitionRow>(
-        `UPDATE deliverable_definitions SET code = $2, description = $3, version = $4, draft_content = $5, guide_location = $6 WHERE id = $1 AND status = 'Draft' RETURNING *`,
-        [id, input.code, input.description, input.version, JSON.stringify(input.draftContent), input.guideLocation]
+        `UPDATE deliverable_definitions SET code = $2, description = $3, version = $4, draft_content = $5, guide_location = $6, name = $7 WHERE id = $1 AND status = 'Draft' RETURNING *`,
+        [id, input.code, input.description, input.version, JSON.stringify(input.draftContent), input.guideLocation, input.name]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -147,6 +151,23 @@ export const deliverableDefinitionsDB = {
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[deliverableDefinitionsDB] findActiveByCodeVisibleTo error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // The Active Deliverable Definitions for the given codes, one per code. A row owned by the viewer's tenant is preferred over the platform's.
+  async findActiveByCodesVisibleTo(codes: string[], viewerTenantId: string | null): Promise<DbResult<DeliverableDefinitionRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+    try {
+      const { rows } = await query<DeliverableDefinitionRow>(
+        `SELECT DISTINCT ON (code) * FROM deliverable_definitions
+         WHERE code = ANY($1) AND status = 'Active' AND (tenant_id = $2 OR tenant_id = $3)
+         ORDER BY code, (tenant_id = $2) DESC, created_at DESC`,
+        [codes, viewerTenantId ?? PLATFORM_TENANT_ID, PLATFORM_TENANT_ID]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[deliverableDefinitionsDB] findActiveByCodesVisibleTo error", err as Error);
       return { error: err as Error };
     }
   },

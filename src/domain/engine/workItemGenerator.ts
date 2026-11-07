@@ -1,3 +1,4 @@
+import { loadSettled, configurationParameter, type EbmSettledView } from "./ebmSettled.js";
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
 import { deliverableDefinitionsDB } from "../../dblayer/deliverableDefinitionsDB.js";
@@ -5,7 +6,7 @@ import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
 import { participantsDB } from "../../dblayer/participantsDB.js";
 import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
-import { capabilitiesDB } from "../../dblayer/capabilitiesDB.js";
+import { capabilityDefinitionsDB } from "../../dblayer/capabilityDefinitionsDB.js";
 import { decisionsDB } from "../../dblayer/decisionsDB.js";
 import { evidenceDB } from "../../dblayer/evidenceDB.js";
 import { knowledgeItemsDB } from "../../dblayer/knowledgeItemsDB.js";
@@ -29,38 +30,68 @@ interface PoolEntry {
   source?: { code?: string };
 }
 
-async function loadEbmPool(seuId: string): Promise<PoolEntry[]> {
-  const { data: seu } = await seusDB.findById(seuId);
-  if (!seu?.active_ebm_id) return [];
-  const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
-  return (ebm?.behaviors as { pool?: PoolEntry[] } | null)?.pool ?? [];
-}
+// Commented out (owner): nothing reads the EBM's pool. The execution context is read from the EBM's settled result.
+// The pool readers below are the previous implementation.
+// async function loadEbmPool(seuId: string): Promise<PoolEntry[]> {
+//   const { data: seu } = await seusDB.findById(seuId);
+//   if (!seu?.active_ebm_id) return [];
+//   const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
+//   return (ebm?.behaviors as { pool?: PoolEntry[] } | null)?.pool ?? [];
+// }
+//
+// function resolveOutputLocation(pool: PoolEntry[], deliverableCode: string): string | null {
+//   const entries = (pool.find((e) => e.propertyName === "knowledgeLocations")?.value as KnowledgeLocationEntry[] | undefined) ?? [];
+//   return entries.find((e) => (e.deliverableCodes ?? []).includes(deliverableCode))?.outputLocation ?? null;
+// }
+//
+// function resolvePackContributedContent(pool: PoolEntry[], capabilityCode: string | null): { applicableChecklists: WorkItemExecutionContext["applicableChecklists"]; engineeringCapital: WorkItemExecutionContext["engineeringCapital"] } {
+//   if (!capabilityCode) return { applicableChecklists: [], engineeringCapital: [] };
+//   const contributingPackCodes = new Set(
+//     pool.filter((e) => e.propertyName === capabilityCode && e.source?.code).map((e) => e.source!.code!)
+//   );
+//   if (contributingPackCodes.size === 0) return { applicableChecklists: [], engineeringCapital: [] };
+//
+//   const applicableChecklists: WorkItemExecutionContext["applicableChecklists"] = [];
+//   const engineeringCapital: WorkItemExecutionContext["engineeringCapital"] = [];
+//   for (const entry of pool) {
+//     const packCode = entry.source?.code;
+//     if (!packCode || !contributingPackCodes.has(packCode)) continue;
+//     if (entry.propertyName.startsWith("checklistItem::")) {
+//       const checklistName = entry.propertyName.split("::")[2];
+//       const item = entry.value as { statement?: string };
+//       if (item?.statement) applicableChecklists.push({ packCode, checklistName: checklistName ?? "", statement: item.statement });
+//     } else if (entry.propertyName.startsWith("engineeringCapital::")) {
+//       const ec = entry.value as { type?: string; url?: string };
+//       engineeringCapital.push({ packCode, type: ec?.type, url: ec?.url });
+//     }
+//   }
+//   return { applicableChecklists, engineeringCapital };
+// }
+//
+// function resolveProfileConfiguration(pool: PoolEntry[]): WorkItemExecutionContext["profileConfiguration"] {
+//   const configuration: WorkItemExecutionContext["profileConfiguration"] = {};
+//   for (const key of PROFILE_CONFIGURATION_KEYS) {
+//     const entry = pool.find((e) => e.propertyName === key);
+//     if (entry !== undefined && entry.value !== undefined && entry.value !== null) (configuration as Record<string, unknown>)[key] = entry.value;
+//   }
+//   return configuration;
+// }
 
-function resolveOutputLocation(pool: PoolEntry[], deliverableCode: string): string | null {
-  const entries = (pool.find((e) => e.propertyName === "knowledgeLocations")?.value as KnowledgeLocationEntry[] | undefined) ?? [];
+function resolveOutputLocation(settled: EbmSettledView | null, deliverableCode: string): string | null {
+  const entries = (configurationParameter(settled, "knowledgeLocations") as KnowledgeLocationEntry[] | undefined) ?? [];
   return entries.find((e) => (e.deliverableCodes ?? []).includes(deliverableCode))?.outputLocation ?? null;
 }
 
-function resolvePackContributedContent(pool: PoolEntry[], capabilityCode: string | null): { applicableChecklists: WorkItemExecutionContext["applicableChecklists"]; engineeringCapital: WorkItemExecutionContext["engineeringCapital"] } {
+// The checklists and the engineering capital the EBM takes, for a Deliverable that has a producing Capability.
+function resolveSettledContent(settled: EbmSettledView | null, capabilityCode: string | null): { applicableChecklists: WorkItemExecutionContext["applicableChecklists"]; engineeringCapital: WorkItemExecutionContext["engineeringCapital"] } {
   if (!capabilityCode) return { applicableChecklists: [], engineeringCapital: [] };
-  const contributingPackCodes = new Set(
-    pool.filter((e) => e.propertyName === capabilityCode && e.source?.code).map((e) => e.source!.code!)
-  );
-  if (contributingPackCodes.size === 0) return { applicableChecklists: [], engineeringCapital: [] };
-
   const applicableChecklists: WorkItemExecutionContext["applicableChecklists"] = [];
+  for (const checklist of settled?.checklists?.result ?? []) {
+    for (const item of checklist.items) if (item.statement) applicableChecklists.push({ packCode: checklist.pack, checklistName: checklist.checklist, statement: item.statement });
+  }
   const engineeringCapital: WorkItemExecutionContext["engineeringCapital"] = [];
-  for (const entry of pool) {
-    const packCode = entry.source?.code;
-    if (!packCode || !contributingPackCodes.has(packCode)) continue;
-    if (entry.propertyName.startsWith("checklistItem::")) {
-      const checklistName = entry.propertyName.split("::")[2];
-      const item = entry.value as { statement?: string };
-      if (item?.statement) applicableChecklists.push({ packCode, checklistName: checklistName ?? "", statement: item.statement });
-    } else if (entry.propertyName.startsWith("engineeringCapital::")) {
-      const ec = entry.value as { type?: string; url?: string };
-      engineeringCapital.push({ packCode, type: ec?.type, url: ec?.url });
-    }
+  for (const entry of settled?.engineeringCapital?.result ?? []) {
+    for (const packCode of entry.packs) engineeringCapital.push({ packCode, type: entry.type, url: entry.url ?? undefined });
   }
   return { applicableChecklists, engineeringCapital };
 }
@@ -72,11 +103,11 @@ const PROFILE_CONFIGURATION_KEYS = [
   "environmentConfiguration", "deploymentTargets",
 ] as const;
 
-function resolveProfileConfiguration(pool: PoolEntry[]): WorkItemExecutionContext["profileConfiguration"] {
+function resolveProfileConfiguration(settled: EbmSettledView | null): WorkItemExecutionContext["profileConfiguration"] {
   const configuration: WorkItemExecutionContext["profileConfiguration"] = {};
   for (const key of PROFILE_CONFIGURATION_KEYS) {
-    const entry = pool.find((e) => e.propertyName === key);
-    if (entry !== undefined && entry.value !== undefined && entry.value !== null) (configuration as Record<string, unknown>)[key] = entry.value;
+    const value = configurationParameter(settled, key);
+    if (value !== undefined && value !== null) (configuration as Record<string, unknown>)[key] = value;
   }
   return configuration;
 }
@@ -85,14 +116,15 @@ async function buildDeliverableExecutionContext(command: CommandRow): Promise<Wo
   const { data: deliverable } = await deliverablesDB.findById(command.entity_id);
   if (!deliverable) return null;
 
-  const service = deliverable.producing_capability_id ? (await capabilitiesDB.findById(deliverable.producing_capability_id)).data ?? null : null;
-  const pool = await loadEbmPool(command.seu_id);
+  const service = deliverable.producing_capability_id ? (await capabilityDefinitionsDB.findById(deliverable.producing_capability_id)).data ?? null : null;
+  const settled = await loadSettled(command.seu_id);
   const { data: seu } = await seusDB.findById(command.seu_id);
-  const { data: definition } = await deliverableDefinitionsDB.findActiveByCodeVisibleTo(deliverable.code, seu?.tenant_id ?? null);
+  // A Deliverable with no code has no Deliverable Definition and no knowledge output location.
+  const { data: definition } = deliverable.code ? await deliverableDefinitionsDB.findActiveByCodeVisibleTo(deliverable.code, seu?.tenant_id ?? null) : { data: null };
   const inputLocation = definition?.guide_location ?? null;
-  const outputLocation = resolveOutputLocation(pool, deliverable.code);
-  const { applicableChecklists, engineeringCapital } = resolvePackContributedContent(pool, service?.code ?? null);
-  const profileConfiguration = resolveProfileConfiguration(pool);
+  const outputLocation = deliverable.code ? resolveOutputLocation(settled, deliverable.code) : null;
+  const { applicableChecklists, engineeringCapital } = resolveSettledContent(settled, service?.code ?? null);
+  const profileConfiguration = resolveProfileConfiguration(settled);
 
   const [{ data: decisions }, { data: evidence }, { data: knowledge }, { data: allObligations }] = await Promise.all([
     decisionsDB.findByRelatedObject("Deliverable", deliverable.id),
@@ -129,7 +161,7 @@ async function buildDeliverableExecutionContext(command: CommandRow): Promise<Wo
   return {
     engineeringObjective: deliverable.name,
     relevantDeliverable: { id: deliverable.id, name: deliverable.name, lifecycleState: deliverable.lifecycle_state },
-    service: service ? { capabilityId: service.id, code: service.code, name: service.name } : null,
+    service: service ? { capabilityId: service.id, code: service.code, name: service.default_label } : null,
     inputLocation,
     outputLocation,
     relevantDecisions: (decisions ?? []).map((d) => ({ id: d.id, title: d.title, engineeringQuestion: d.engineering_question, status: d.status })),

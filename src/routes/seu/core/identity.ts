@@ -72,6 +72,8 @@ export async function listPlatformUsersPaginated(params: ListParams, tenantId?: 
   const badgesByUserId = new Map<string, string[]>(masterRows.map((m) => [m.user_id, standing(m.authorised_badges).map((e) => e.badge)]));
   const users: PlatformUserView[] = items.map((u) => ({
     ...u,
+    // The database returns a Date; the view carries its ISO text, which sorts in date order.
+    created_at: new Date(u.created_at).toISOString(),
     role: (rolesByUserId.get(u.id) ?? []).join(", "),
     tenantId: u.tenant_id,
     tenantName: u.tenant_id ? tenantNameById.get(u.tenant_id) ?? null : null,
@@ -220,6 +222,7 @@ export async function listUsersForTenant(tenantId: string): Promise<TenantUserVi
   const { data: tenant } = await tenantsDB.findById(tenantId);
   return userRows.map((u) => ({
     ...u,
+    created_at: new Date(u.created_at).toISOString(),
     role: (authorisedRolesByUserId.get(u.id) ?? []).join(", "),
     platformBadges: [],
     tenantId,

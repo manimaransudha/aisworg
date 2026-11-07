@@ -172,6 +172,23 @@ export const capabilityDefinitionsDB = {
     }
   },
 
+  // The Active Capability Definitions for the given codes, one per code. A row owned by the viewer's tenant is preferred over the platform's.
+  async findActiveByCodesVisibleTo(codes: string[], viewerTenantId: string | null): Promise<DbResult<CapabilityDefinitionRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+    try {
+      const { rows } = await query<CapabilityDefinitionRow>(
+        `SELECT DISTINCT ON (code) * FROM capability_definitions
+         WHERE code = ANY($1) AND status = 'Active' AND (tenant_id = $2 OR tenant_id = $3)
+         ORDER BY code, (tenant_id = $2) DESC, created_at DESC`,
+        [codes, viewerTenantId ?? PLATFORM_TENANT_ID, PLATFORM_TENANT_ID]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[capabilityDefinitionsDB] findActiveByCodesVisibleTo error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findAll(): Promise<DbResult<CapabilityDefinitionRow[]>> {
     try {
       const { rows } = await query<CapabilityDefinitionRow>("SELECT * FROM capability_definitions ORDER BY code, created_at DESC");

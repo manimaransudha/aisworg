@@ -146,6 +146,7 @@ export const redirects = {
     objectivesById: page({ prefix: "/aisworg/seu/objectives/:id", error: "/aisworg/seu/objectives", tenantfail: "/aisworg/seu/objectives" }),
     objectivesComments: page({ prefix: "/aisworg/seu/objectives/:id/comments", error: "/aisworg/seu/objectives/:id/edit", tenantfail: "/aisworg/seu/objectives" }),
     objectivesCommission: page({ prefix: "/aisworg/seu/objectives/:id/commission", error: "/aisworg/seu/seus/new?objectiveId=:id", tenantfail: "/aisworg/seu/objectives" }),
+    objectivesResolveConflicts: page({ prefix: "/aisworg/seu/objectives/:id/resolve-conflicts", error: "/aisworg/seu/objectives/:id/resolve-conflicts", tenantfail: "/aisworg/seu/objectives" }),
     objectivesComposeEbm: page({ prefix: "/aisworg/seu/objectives/:id/compose-ebm", error: "/aisworg/seu/objectives/:id/compose-ebm", tenantfail: "/aisworg/seu/objectives" }),
     objectivesDelete: page({ prefix: "/aisworg/seu/objectives/:id/delete", error: "/aisworg/seu/objectives/:id", tenantfail: "/aisworg/seu/objectives" }),
     objectivesEdit: page({ prefix: "/aisworg/seu/objectives/:id/edit", error: "/aisworg/seu/objectives", tenantfail: "/aisworg/seu/objectives" }),

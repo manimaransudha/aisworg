@@ -36,7 +36,7 @@ export async function seedDemoParticipants(actor: DemoActor): Promise<void> {
   const roster = JSON.parse(readFileSync(dataFile, "utf8")) as DemoParticipantSeed[];
   const viewer: OntologyViewer = { isRoot: false, tenantId: actor.tenantId };
   const [participantTypes, capabilities, dimensions, proficiencies, policies, roles] = await Promise.all([
-    codesOf("participant-types", viewer), codesOf("capability-name", viewer), codesOf("category:pack", viewer),
+    codesOf("participant-types", viewer), codesOf("capability-name", viewer), codesOf("participant-eligibility-dimension", viewer),
     codesOf("proficiency-level", viewer), codesOf("behaviour-context-policy", viewer), codesOf("authorised-role", viewer),
   ]);
   const dimensionNames = [...new Set(roster.flatMap((r) => Object.keys(r.competency)))];
@@ -49,7 +49,7 @@ export async function seedDemoParticipants(actor: DemoActor): Promise<void> {
     note(assertCanonical("participant-types", r.type, participantTypes, r.displayName));
     for (const c of r.capabilities) note(assertCanonical("capability-name", c, capabilities, r.displayName));
     for (const [dimension, entries] of Object.entries(r.competency)) {
-      note(assertCanonical("category:pack", dimension, dimensions, r.displayName));
+      note(assertCanonical("participant-eligibility-dimension", dimension, dimensions, r.displayName));
       for (const e of entries) {
         note(assertCanonical(dimension.toLowerCase(), e.code, dimensionValues.get(dimension) ?? new Set(), r.displayName));
         note(assertCanonical("proficiency-level", e.proficiency, proficiencies, r.displayName));

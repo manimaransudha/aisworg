@@ -1,3 +1,4 @@
+import { settledOf } from "../../../domain/engine/ebmSettled.js";
 import { obligationsDB } from "../../../dblayer/obligationsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
@@ -195,20 +196,18 @@ export async function raiseObligationsForPackDefinitions(input: {
 }): Promise<{ obligations: ObligationRow[]; attentionItems: AttentionItemRow[] }> {
   const systemActor = await getSystemActor(input.seuId);
   const { data: ebm } = await ebmsDB.findById(input.ebmId);
-  const pool = (ebm?.behaviors as { pool?: Array<{ propertyName: string; value: unknown; source?: { id?: string } }> } | null)?.pool ?? [];
+  // Commented out (owner): nothing reads the EBM's pool. The Obligation definitions are read from the EBM's settled result.
+  // const pool = (ebm?.behaviors as { pool?: Array<{ propertyName: string; value: unknown; source?: { id?: string } }> } | null)?.pool ?? [];
+  const settledDefinitions = ebm ? settledOf(ebm.behaviors)?.obligationDefinitions?.result ?? [] : [];
   const governedTransition = `${input.relatedObjectType}|${input.fromState}|${input.toState}`;
   const context = input.context ?? {};
 
-  type PoolObligationDefinition = { code: string; applicabilityDeliverables?: PolicyApplicabilityDeliverable[] } & ObligationDefinition;
-  const definitions = pool
-    .filter((entry) => entry.propertyName.startsWith("obligationDefinition::"))
-    .map((entry) => ({ def: entry.value as PoolObligationDefinition, packId: entry.source?.id ?? null }))
-    .filter(({ def }) => {
-      const matchingRow = (def.applicabilityDeliverables ?? []).find((row) => row.name === input.relatedObjectType && row.transitions.includes(governedTransition));
-      if (!matchingRow) return false;
-      const condition = (matchingRow.governingCondition ?? { type: "always_true" }) as GoverningCondition;
-      return evaluateCondition(condition, context);
-    });
+  type SettledObligationDefinition = { code: string } & ObligationDefinition;
+  const definitions = settledDefinitions
+    .filter((group) => group.deliverable === input.relatedObjectType && group.step === governedTransition)
+    .flatMap((group) => group.definitions)
+    .map(({ fields, packs }) => ({ def: fields as unknown as SettledObligationDefinition & { governingCondition?: unknown }, packId: packs[0]?.id ?? null }))
+    .filter(({ def }) => evaluateCondition((def.governingCondition ?? { type: "always_true" }) as GoverningCondition, context));
   if (definitions.length === 0) return { obligations: [], attentionItems: [] };
 
   const { data: existingForEntity } = await obligationsDB.findByRelatedObject(input.relatedObjectType, input.relatedObjectId);

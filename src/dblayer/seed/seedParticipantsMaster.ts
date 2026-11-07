@@ -36,7 +36,7 @@ async function loadCanonicalSets(viewer: OntologyViewer): Promise<CanonicalSets>
   const [participantTypes, capabilityCodes, categoryPackDimensions, behaviourContextPolicies, proficiencyLevels, authorisedRoles] = await Promise.all([
     codesOf("participant-types", viewer),
     codesOf("capability-name", viewer),
-    codesOf("category:pack", viewer),
+    codesOf("participant-eligibility-dimension", viewer),
     codesOf("behaviour-context-policy", viewer),
     codesOf("proficiency-level", viewer),
     codesOf("authorised-role", viewer),
@@ -60,7 +60,7 @@ function validateOnboarded(type: string, onboarded: OnboardedParticipant, canon:
   assertCanonicalLocal("participant-types", type, canon.participantTypes);
   for (const code of onboarded.capabilities) assertCanonicalLocal("capability-name", code, canon.capabilityCodes);
   for (const [dimension, entries] of Object.entries(onboarded.competency)) {
-    assertCanonicalLocal("category:pack", dimension, canon.categoryPackDimensions);
+    assertCanonicalLocal("participant-eligibility-dimension", dimension, canon.categoryPackDimensions);
     const valueSet = canon.dimensionValues.get(dimension.toLowerCase()) ?? new Set();
     for (const entry of entries) {
       assertCanonicalLocal(dimension.toLowerCase(), entry.code, valueSet);

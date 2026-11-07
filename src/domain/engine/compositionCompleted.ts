@@ -9,6 +9,8 @@ import { transitionEngine } from "./transitionEngine.js";
 import { failSeu } from "../../routes/seu/core/commissioning.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
+import type { UnraveledComposition } from "./profileCompositionUnravel.js";
+import type { RecordedConflict } from "../../dblayer/seuTypes.js";
 import type { EventRow, EbmCompositionReport, EbmComposedPack, EbmStatus, SeuRow } from "../../dblayer/seuTypes.js";
 
 interface CompositionCompletedPayload {
@@ -54,8 +56,10 @@ async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string)
   const stashed = seu.composition_report as {
     composedPacks?: EbmComposedPack[];
     compositionReport?: EbmCompositionReport;
-    unraveled?: { pool: unknown[]; competencyRequirements?: Record<string, string[]> };
+    unraveled?: UnraveledComposition;
     resolvedCompositionConflicts?: Record<string, unknown>;
+    recordedConflicts?: RecordedConflict[];
+    settled?: unknown;
   } | null;
 
   const composedPackIds = (stashed?.composedPacks ?? []).map((p) => p.packId);
@@ -66,10 +70,15 @@ async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string)
   const transitionPolicies = (composedPolicies ?? []).filter((p) => p.scope === "Transition");
   const eligibilityPolicies = (composedPolicies ?? []).filter((p) => p.scope === "Eligibility");
   const behaviors = {
-    pool: stashed?.unraveled?.pool ?? [],
+    // Commented out (owner): nothing reads the EBM's pool. The EBM saves its settled result.
+    // pool: stashed?.unraveled?.pool ?? [],
     resolvedCompositionConflicts: stashed?.resolvedCompositionConflicts ?? {},
-    competencyRequirements: stashed?.unraveled?.competencyRequirements ?? {},
-    eligibilityPolicyIds: eligibilityPolicies.map((p) => p.id),
+    // competencyRequirements: stashed?.unraveled?.competencyRequirements ?? {},
+    // Commented out (owner): the eligibility Policies are read from the settled result.
+    // eligibilityPolicyIds: eligibilityPolicies.map((p) => p.id),
+    conflicts: stashed?.recordedConflicts ?? [],
+    // What the EBM saves for each table: the conflicts with the picks, and the final result the SEU takes.
+    settled: stashed?.settled ?? {},
   };
   const seuScopedPolicies = transitionPolicies.filter((p) => p.governed_transition?.startsWith("SEU|"));
   const entityScopedPolicies = transitionPolicies.filter((p) => !p.governed_transition?.startsWith("SEU|"));

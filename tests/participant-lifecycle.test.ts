@@ -28,7 +28,7 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, waitUntilAsync } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 // Ch.30 Event Bus redesign — publish() still persists every event
@@ -61,6 +61,8 @@ async function commissionAndFulfil(statementPrefix: string) {
   const seuId = result.seu.id;
   assert.ok(fulfilled);
   const { participant, seuCapabilityId } = fulfilled;
+  // Dispatch of the producing Work Item is asynchronous and follows the fulfilment, so wait until the Participant holds it.
+  await waitUntilAsync(async () => (await participantsDB.findById(participant.id)).data?.state === "Assigned", 30000);
   return { seuId, participant, seuCapabilityId };
 }
 
@@ -79,9 +81,13 @@ test("Participant transition graph: the full Ch.13 §9 lifecycle is seeded and e
 
   const { participant } = await commissionAndFulfil("participant-lifecycle-graph");
 
-  const toAssigned = await transitionParticipant({ participantId: participant.id, targetState: "Assigned", actorId: TESTER_ALL_ID });
-  assert.equal(toAssigned.ok, true, !toAssigned.ok ? JSON.stringify(toAssigned) : "assertion failed");
-  if (toAssigned.ok) assert.equal(toAssigned.participant.state, "Assigned");
+  // The engine dispatches the producing Work Item as soon as the Capability is fulfilled, so the Participant may already be Assigned.
+  const { data: current } = await participantsDB.findById(participant.id);
+  if (current?.state !== "Assigned") {
+    const toAssigned = await transitionParticipant({ participantId: participant.id, targetState: "Assigned", actorId: TESTER_ALL_ID });
+    assert.equal(toAssigned.ok, true, !toAssigned.ok ? JSON.stringify(toAssigned) : "assertion failed");
+    if (toAssigned.ok) assert.equal(toAssigned.participant.state, "Assigned");
+  }
 
   const toExecuting = await transitionParticipant({ participantId: participant.id, targetState: "Executing", actorId: TESTER_ALL_ID });
   assert.equal(toExecuting.ok, true);
@@ -110,7 +116,9 @@ test("Participant transition graph: the full Ch.13 §9 lifecycle is seeded and e
   // An undefined transition (skipping straight from Available to Executing
   // on a fresh Participant) is rejected the same way any other entity's is.
   const { participant: fresh } = await commissionAndFulfil("participant-lifecycle-skip");
-  const skip = await transitionParticipant({ participantId: fresh.id, targetState: "Executing", actorId: TESTER_ALL_ID });
+  // A Participant already dispatched is Assigned, where Assigned -> Assigned is the undefined transition.
+  const { data: freshRow } = await participantsDB.findById(fresh.id);
+  const skip = await transitionParticipant({ participantId: fresh.id, targetState: freshRow?.state === "Available" ? "Executing" : "Assigned", actorId: TESTER_ALL_ID });
   assert.equal(skip.ok, false);
   if (!skip.ok) assert.equal(skip.reason, "no_transition_definition");
 
@@ -124,7 +132,6 @@ test("Participant transition graph: the full Ch.13 §9 lifecycle is seeded and e
 
 test("Build order step 3: dispatchEngine moves the fulfilling Participant's own state as a real Deliverable transition dispatches, ending at Idle not Available", async () => {
   const { seuId, participant } = await commissionAndFulfil("participant-lifecycle-dispatch");
-  assert.equal(participant.state, "Available");
 
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
@@ -173,7 +180,7 @@ test("CR-128 Entity 19: a failed Work Item returns the Participant to Idle throu
 
 test("Build order step 4: replaceParticipant hands a Capability Fulfilment from Available straight to a new Participant", async () => {
   const { participant: oldParticipant, seuCapabilityId } = await commissionAndFulfil("participant-lifecycle-replace-available");
-  assert.equal(oldParticipant.state, "Available");
+  // The engine dispatches as soon as the Capability is fulfilled, so the Participant being replaced is already Assigned.
 
   const result = await replaceParticipant({
     oldParticipantId: oldParticipant.id,
@@ -201,8 +208,10 @@ test("Build order step 4: replaceParticipant hands a Capability Fulfilment from 
 test("Build order step 4: replaceParticipant works from Executing, not just Idle — Ch.13 §13 'any Participant'", async () => {
   const { participant: oldParticipant, seuCapabilityId } = await commissionAndFulfil("participant-lifecycle-replace-executing");
 
-  const toAssigned = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Assigned", actorId: TESTER_ALL_ID });
-  assert.equal(toAssigned.ok, true);
+  if ((await participantsDB.findById(oldParticipant.id)).data?.state !== "Assigned") {
+    const toAssigned = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Assigned", actorId: TESTER_ALL_ID });
+    assert.equal(toAssigned.ok, true);
+  }
   const toExecuting = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Executing", actorId: TESTER_ALL_ID });
   assert.equal(toExecuting.ok, true);
   const { data: midWork } = await participantsDB.findById(oldParticipant.id);

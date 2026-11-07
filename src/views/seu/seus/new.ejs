@@ -54,9 +54,7 @@
            no real Profile yet ("template + no profile - i agree with your
            approach") gets its own single row instead (profile: null, "a
            default will be created"). A chosen Template missing something
-           else the Objective proposed isn't a blocker — its Profile's own
-           Additional Capabilities (Ch.7 §5) is where that gets covered, not
-           here. %>
+           else the Objective proposed isn't a blocker. %>
       <h2 class="h3 mb-1 text-dark fw-bold">Commission SEU from Objective</h2>
       <p class="mb-4"><%= fromObjective.objective.statement %></p>
 
@@ -140,7 +138,7 @@
 
           <div class="section-card">
             <div class="section-header">Available Profiles</div>
-            <p class="text-muted small mb-0 px-3 pt-3">Every Profile currently available for this Objective's proposed Capabilities, and which Template it belongs to — a Profile's own Template need not cover every Capability listed on its card; anything it doesn't, the Profile can add via Additional Capabilities.</p>
+            <p class="text-muted small mb-0 px-3 pt-3">Every Profile currently available for this Objective's proposed Capabilities, and which Template it belongs to — a Profile's own Template need not cover every Capability listed on its card.</p>
             <div class="row row-cols-1 row-cols-md-2 g-3 p-3">
               <% list.items.forEach(function(row) { %>
                 <div class="col">

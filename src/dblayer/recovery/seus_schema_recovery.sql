@@ -5,6 +5,7 @@ CREATE TABLE seus (
   objective_id          UUID NOT NULL REFERENCES objectives(id),
   template_id           UUID NOT NULL REFERENCES templates(id),
   profile_id            UUID NOT NULL REFERENCES profiles(id),
+  tenant_id             UUID NOT NULL REFERENCES tenants(id),
   active_ebm_id         UUID,
   lifecycle_state       TEXT NOT NULL,
   requested_by          UUID NOT NULL REFERENCES participants_master(id),
@@ -13,7 +14,8 @@ CREATE TABLE seus (
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-ALTER TABLE seus ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
+-- Commented out (owner): tenant_id is NOT NULL and is created with the table.
+-- ALTER TABLE seus ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
 ALTER TABLE seus DROP COLUMN IF EXISTS validation_report;
 ALTER TABLE seus ADD COLUMN IF NOT EXISTS composition_report JSONB;
 ALTER TABLE seus DROP CONSTRAINT IF EXISTS seus_lifecycle_state_check;

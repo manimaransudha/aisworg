@@ -1,5 +1,83 @@
 **This file should not be loaded into the context** 
 
+--------
+
+
+use pnpm manager and not npm to centralise the nodule modules. The projects will now have the symlinks to the downloads.
+
+- Install pnpm
+brew install pnpm
+pnpm --version
+
+- Use pnpm per project
+From your project root:  pnpm install
+
+- Where modules are actually stored
+pnpm store path
+
+- Migrating existing projects (important)
+ 
+
+rm -rf node_modules package-lock.json
+pnpm install
+
+- After migrating projects
+rm -rf ~/.npm
+rm -rf ~/.yarn
+
+If you want maximum savings, Add once (global). Ensures all projects share the same store.
+
+pnpm config set store-dir ~/Library/pnpm/store
+
+
+- Always use pnpm commands in that project:
+pnpm add express
+pnpm remove lodash
+pnpm update
+
+- Even though npm run works, you should prefer:
+pnpm run <script>
+
+Use Corepack + pnpm only
+
+Node ships with Corepack, which manages package managers.
+
+Enable it:
+corepack enable
+
+Pin pnpm per project:
+corepack prepare pnpm@latest --activate
+
+
+Now:
+
+pnpm is the official manager
+
+versions are pinned
+
+npm still exists, but is irrelevant
+
+This is how teams do it.
+
+---------
+
+ssh-keygen -t ed25519 -f ~/.ssh/aisworg_deploy -N ""
+cat ~/.ssh/aisworg_deploy.pub
+
+
+git clone --filter=blob:none --no-checkout git@github-aisworg:manimaransudha/aisworg.git aisworg
+cd aisworg
+git sparse-checkout set --no-cone /src /public /package.json /pnpm-lock.yaml /tsconfig.json
+git checkout main
+ls
+
+cd /root/aisworg
+pm2 start "pnpm start" --name aisworg --cwd /root/aisworg
+pm2 logs aisworg --lines 30
+
+
+------------
+
 CREATE DATABASE aisworg;
 CREATE USER weirdo WITH PASSWORD 'b3@conf2026';
 ALTER DATABASE aisworg OWNER TO weirdo;
@@ -133,14 +211,13 @@ pnpm exec tsx src/dblayer/seed/seedRouteAuthority.ts
 
 ----------
 
-Keep the responses short, relevant and non-repetitive. I understand English. You do not have to restate it different ways - understood ?
+pnpm test:spec > /tmp/spec.txt 2>&1
 
-
-The pieces are:
-
-NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts tests/pack-event-lifecycle-table.test.ts tests/pack-sdk.test.ts tests/pack-composition.test.ts tests/template-event-lifecycle-table.test.ts tests/profile-event-lifecycle-table.test.ts tests/transaction.test.ts > output.txt 2>&1
+pnpm tsx src/dblayer/recovery/run.ts
 
 pnpm test > output.txt 2>&1
+scp root@100.65.51.120:/tmp/spec.txt /Volumes/Chennai/gitrepo/aisworg/output.txt
+
 
 pnpm tsx src/dblayer/seed/seedOntologyConcepts.ts
 

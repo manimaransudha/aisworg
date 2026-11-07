@@ -2,7 +2,7 @@ BEGIN;
 DROP TABLE IF EXISTS execution_targets CASCADE;
 CREATE TABLE execution_targets (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  capability_id    UUID NOT NULL REFERENCES capabilities(id),
+  capability_id    UUID NOT NULL REFERENCES capability_definitions(id),
   mode             TEXT NOT NULL CHECK (mode IN ('human-on-ui', 'external-orchestrator')),
   adapter_endpoint TEXT,
   adapter_auth_ref TEXT,

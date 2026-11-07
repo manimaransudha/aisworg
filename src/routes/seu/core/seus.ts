@@ -1,3 +1,5 @@
+import { CONFLICT_TABLE_LABELS } from "../../../dblayer/constants.js";
+import { competencyRequirementsOf, settledOf } from "../../../domain/engine/ebmSettled.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { listResult, type ListParams, type ListResult } from "../../../utils/listQuery.js";
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
@@ -291,10 +293,10 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   const capabilityNameById = new Map((capabilities ?? []).map((c) => [c.capability_id, `${c.capability_name} (${c.capability_code})`]));
   const participantTypes = (participantTypeConcepts ?? []).map((c) => c.code);
 
-  const competencyRequirements = (ebm?.behaviors as { competencyRequirements?: Record<string, string[]> } | null)?.competencyRequirements ?? {};
+  const competencyRequirements = ebm ? competencyRequirementsOf(settledOf(ebm.behaviors)) : {};
   const requiredTechnologyPacks = competencyRequirements.Technology ?? [];
   const requiredDomainPacks = competencyRequirements.Domain ?? [];
-  const eligibilityPolicyIds = (await resolveEligibilityPolicies(seu)).map((p) => p.id);
+  const eligibilityPolicies = await resolveEligibilityPolicies(seu);
 
   const capabilityViews = await Promise.all(
     (capabilities ?? []).map(async (c) => {
@@ -312,7 +314,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         }));
       } else if (seu.tenant_id) {
         const { data: excludeParticipantMasterIds } = await capabilityFulfilmentsDB.findReleasedParticipantMasterIds(c.id);
-        const eligible = await findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: c.capability_code, competency: competencyRequirements, requiredPolicyIds: eligibilityPolicyIds, excludeParticipantMasterIds: excludeParticipantMasterIds ?? [] });
+        const eligible = await findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: c.capability_code, competency: competencyRequirements, requiredPolicies: eligibilityPolicies, excludeParticipantMasterIds: excludeParticipantMasterIds ?? [] });
         eligibleParticipantsByType = participantTypes.map((type) => ({
           type,
           participants: eligible.filter((p) => p.type === type).map((p) => ({ id: p.id, displayName: p.display_name })),
@@ -485,7 +487,10 @@ export interface SeuEbmView {
   ebm: { id: string; status: string; actions: Array<{ toState: string; verb: string }> } | null;
   template: { code: string; name: string; version: string; tenant: string } | null;
   profile: { code: string; name: string; version: string; tenant: string } | null;
-  ebmPool: PoolEntry[];
+  // Commented out (owner): nothing reads the EBM's pool. The EBM is shown from its settled result.
+  // ebmPool: PoolEntry[];
+  // One tab for each table of the EBM's settled result, with the result, the conflicts with the picks, and what is left out.
+  settledTabs: Array<{ table: string; label: string; result: unknown[]; conflicts: unknown[]; leftOut: unknown[] }>;
 }
 
 export async function getSeuEbmView(seuId: string, actorId: string): Promise<SeuEbmView | null> {
@@ -506,7 +511,10 @@ export async function getSeuEbmView(seuId: string, actorId: string): Promise<Seu
   };
   const template = templateRow ? { code: templateRow.code, name: templateRow.name, version: templateRow.template_version, tenant: tenantLabel(templateRow.tenant_id) } : null;
   const profile = profileRow ? { code: profileRow.code, name: profileRow.name, version: profileRow.profile_version, tenant: tenantLabel(profileRow.tenant_id) } : null;
-  const ebmPool = ((ebm?.behaviors as { pool?: PoolEntry[] } | null)?.pool ?? []) as PoolEntry[];
+  // Commented out (owner): nothing reads the EBM's pool.
+  // const ebmPool = ((ebm?.behaviors as { pool?: PoolEntry[] } | null)?.pool ?? []) as PoolEntry[];
+  const settledAll = (ebm ? settledOf(ebm.behaviors) : {}) as unknown as Record<string, { result?: unknown[]; conflicts?: unknown[]; leftOut?: unknown[] }>;
+  const settledTabs = Object.keys(CONFLICT_TABLE_LABELS).map((table) => ({ table, label: CONFLICT_TABLE_LABELS[table], result: settledAll?.[table]?.result ?? [], conflicts: settledAll?.[table]?.conflicts ?? [], leftOut: settledAll?.[table]?.leftOut ?? [] }));
   const ebmActions = ebm ? (await nextActionsFor("EBM", ebm.status, actorId)).map((a) => ({ toState: a.toState, verb: a.verb })) : [];
 
   return {
@@ -517,6 +525,6 @@ export async function getSeuEbmView(seuId: string, actorId: string): Promise<Seu
     ebm: ebm ? { id: ebm.id, status: ebm.status, actions: ebmActions } : null,
     template,
     profile,
-    ebmPool,
+    settledTabs,
   };
 }

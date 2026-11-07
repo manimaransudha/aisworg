@@ -109,7 +109,7 @@ async function publishDeliverableDefinition(code: string, tenantId: string, pare
     authorBadge: "root",
     tenantId,
     parentDeliverableDefinitionId,
-    content: { code, description: "Phase 2 test fixture", definitionVersion: "1.0.0" },
+    content: { code, name: code, description: "Phase 2 test fixture", definitionVersion: "1.0.0" },
   });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) throw new Error("unreachable");

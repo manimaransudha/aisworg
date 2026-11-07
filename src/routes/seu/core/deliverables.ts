@@ -6,7 +6,9 @@ import { transitionEngine, type GateRejectionResult } from "../../../domain/engi
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
 import { resolveAuthor } from "./attentionItems.js";
-import { loadSeuCatalogue } from "../../../domain/engine/deliverableSource.js";
+// Commented out (owner): the catalogue is read from the EBM's settled result.
+// import { loadSeuCatalogue } from "../../../domain/engine/deliverableSource.js";
+import { loadSettled } from "../../../domain/engine/ebmSettled.js";
 import type { DeliverableRow } from "../../../dblayer/seuTypes.js";
 
 export async function createDeliverable(input: { seuId: string; name: string; category: string; actorId: string }): Promise<{ deliverable: DeliverableRow }> {
@@ -14,9 +16,9 @@ export async function createDeliverable(input: { seuId: string; name: string; ca
 
   const { data: seu } = await seusDB.findById(input.seuId);
   if (!seu) throw new Error("SEU not found");
-  const catalogueLabels = await resolveLabels(seu.tenant_id, "deliverable-name");
-  if (!(await loadSeuCatalogue(seu)).some((entry) => (catalogueLabels[entry.code] ?? entry.code) === input.name)) {
-    throw new Error(`"${input.name}" is not a Deliverable this SEU's catalogue declares — only names already in the catalogue of its Profile or Template can be added`);
+  const settledDeliverables = (await loadSettled(seu.id))?.services?.result ?? [];
+  if (!settledDeliverables.some((entry) => entry.name === input.name)) {
+    throw new Error(`"${input.name}" is not a Deliverable this SEU's EBM settles — only Deliverables in the EBM's catalogue can be added`);
   }
 
   const { data: existing } = await deliverablesDB.findBySeuId(input.seuId);

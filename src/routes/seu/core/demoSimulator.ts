@@ -158,7 +158,8 @@ const handlers: Record<string, Handler> = {
 
     const selections = [{ templateId: template.id, profileId: profile.id }];
     const composition = await previewCommissioningValidation({ selections, viewerTenantId: ctx.tenantId });
-    if (composition.compositionConflicts.length > 0) throw new Error(`composition has ${composition.compositionConflicts.length} unresolved conflict(s)`);
+    // Commented out (owner): the old conflict check is replaced by the detectors. How the demo answers their conflicts is to be decided.
+    // if (composition.compositionConflicts.length > 0) throw new Error(`composition has ${composition.compositionConflicts.length} unresolved conflict(s)`);
     await seusDB.setCompositionReport(seuId, { selections, ...composition, resolvedParameterOverrides: undefined, resolvedCompositionConflicts: {} });
     await grantTransitionBadge(ctx.participantId, "EBM", BIRTH_STATE, "Composed");
     const composeBadge = await authorBadgeFor(ctx, "POST", `/aisworg/seu/objectives/${objective.id}/compose-ebm`);

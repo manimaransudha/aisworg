@@ -38,6 +38,8 @@ export async function seedDeliverableDefinitions(actor: SeedActor): Promise<void
   const { data: deliverableConcepts, error: deliverableError } = await ontologyDB.findConceptsByType("deliverable-name", { isRoot: false, tenantId: platformTenantId });
   if (deliverableError) throw new Error(`[seedDeliverableDefinitions] failed to load deliverable-name Ontology: ${deliverableError.message}`);
   const deliverableNames = new Set((deliverableConcepts ?? []).map((c) => c.code));
+  // A Deliverable Definition's name is the label of its code in the Ontology, loaded once.
+  const nameByCode = new Map((deliverableConcepts ?? []).map((c) => [c.code, c.default_label]));
   const invalid = seeds.filter((s) => !deliverableNames.has(s.code));
   if (invalid.length > 0) {
     throw new Error(`[seedDeliverableDefinitions] codes not in Ontology deliverable-name: ${invalid.map((s) => s.code).join(", ")}`);
@@ -65,12 +67,13 @@ export async function seedDeliverableDefinitions(actor: SeedActor): Promise<void
   for (const { code, description } of seeds) {
     const { data: created, error } = await deliverableDefinitionsDB.createDraft({
       code,
+      name: nameByCode.get(code)!,
       description,
       version: INITIAL_VERSION,
       status: birth.to_state as DeliverableDefinitionRow["status"],
       authoredBy: actor.authoredBy,
       authorBadge: actor.authorBadge,
-      draftContent: { code, description, definitionVersion: INITIAL_VERSION },
+      draftContent: { code, name: nameByCode.get(code)!, description, definitionVersion: INITIAL_VERSION },
       tenantId: platformTenantId,
       parentDeliverableDefinitionId: null,
       schemaDefinitionId: deliverableSchema.id,

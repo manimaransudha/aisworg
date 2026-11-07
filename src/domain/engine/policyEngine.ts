@@ -38,8 +38,8 @@ export const policyEngine = {
     const named = policies.some((p) => p.applicability_deliverable_names.length > 0);
     if (named && input.entityType === "Deliverable" && input.entityId) {
       const { data: deliverable } = await deliverablesDB.findById(input.entityId);
-      const name = deliverable?.name;
-      policies = policies.filter((p) => p.applicability_deliverable_names.length === 0 || (name && p.applicability_deliverable_names.includes(name)));
+      const code = deliverable?.code;
+      policies = policies.filter((p) => p.applicability_deliverable_names.length === 0 || (code && p.applicability_deliverable_names.includes(code)));
     }
     if (policies.length === 0) return { outcome: "NotApplicable", satisfiedPolicyIds: [], deviatedPolicyIds: [] };
 

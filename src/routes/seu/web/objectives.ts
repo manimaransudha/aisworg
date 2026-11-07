@@ -27,7 +27,9 @@ import {
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { parseListParams, paginateList, listResult } from "../../../utils/listQuery.js";
-import { previewCommissioningValidation, applyConflictStrategy } from "../core/commissioning.js";
+import { previewCommissioningValidation } from "../core/commissioning.js";
+// Commented out (owner): the old conflict strategies are replaced by the Resolve Conflicts screen.
+// import { applyConflictStrategy } from "../core/commissioning.js";
 import type { LivenessCheck } from "../core/commissioning.js";
 import type { ProfileDetail } from "../core/profiles.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
@@ -35,11 +37,12 @@ import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { listConceptsForType } from "../core/ontology.js";
+import { applyConflictPick, blockingEbmConflicts, conflictStatus, settleEbm, summariseConflictTables, type ActionedConflict, type ConflictPick, type EbmConflictTable } from "../../../domain/engine/conflicts/index.js";
 import type { ObjectiveStatus, ObjectiveTier, EbmCompositionReport, EbmComposedPack } from "../../../dblayer/seuTypes.js";
 import type { UnraveledComposition, CompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { resolveHeldBadges, requireActorId, resolveActorAndBadge, resolveAuthorBadgeForRequest } from "../../../domain/identity/heldBadges.js";
-import { getPlatformTenantId, PLATFORM_TENANT_NAME, OBJECTIVE_RETIRED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_OBJECTIVE_ACTION_CODE } from "../../../dblayer/constants.js";
+import { CONFLICT_TABLE_LABELS, getPlatformTenantId, PLATFORM_TENANT_NAME, OBJECTIVE_RETIRED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_OBJECTIVE_ACTION_CODE } from "../../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
  
 const CHILD_TIERS: Record<ObjectiveTier, ObjectiveTier[]> = {
@@ -454,6 +457,20 @@ function parsePreviouslyResolvedCompositionConflicts(body: Record<string, unknow
   return result;
 }
 
+// One pick on the Resolve Conflicts screen: the conflict's key and the options picked (by position) or the include or exclude decision.
+function parseEbmConflictPick(body: Record<string, unknown>): { key: string; pick: ConflictPick } | null {
+  const key = body.ebmPickKey;
+  if (typeof key !== "string" || !key) return null;
+  const options = ([] as unknown[]).concat(body.ebmPickOption ?? []).map((v) => Number(v)).filter((n) => Number.isInteger(n));
+  return { key, pick: { optionIndexes: options, decision: typeof body.ebmPickDecision === "string" ? body.ebmPickDecision : undefined } };
+}
+
+// The page a pick on the Resolve Conflicts screen returns to, on the tab it was made on.
+function resolveConflictsUrl(objectiveId: string, body: Record<string, unknown>): string {
+  const category = typeof body.category === "string" && body.category ? `?category=${encodeURIComponent(body.category)}` : "";
+  return `/aisworg/seu/objectives/${objectiveId}/resolve-conflicts${category}`;
+}
+
 function parseCompositionStrategyChoices(body: Record<string, unknown>): Record<string, string> {
   const raw = body.compositionStrategy;
   if (!raw || typeof raw !== "object") return {};
@@ -493,36 +510,49 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
     const { data: existingSeu } = await seusDB.findByObjectiveId(objectiveId);
     if (!existingSeu) return redirects.seu.objectivesComposeEbm.error(req, res, "No SEU found for this Objective.");
 
-    const previouslyResolved = parsePreviouslyResolvedCompositionConflicts(req.body ?? {});
-    const newStrategyChoices = parseCompositionStrategyChoices(req.body ?? {});
+    // A pick from the Resolve Conflicts screen carries no earlier picks in its form, so they are read from what the last Compose stored.
+    const fromResolveScreen = typeof req.body?.ebmPickKey === "string";
+    const storedPicks = fromResolveScreen ? ((existingSeu.composition_report as { resolvedCompositionConflicts?: Record<string, unknown> } | null)?.resolvedCompositionConflicts ?? {}) : {};
+    const previouslyResolved = { ...storedPicks, ...parsePreviouslyResolvedCompositionConflicts(req.body ?? {}) };
+    // Commented out (owner): the old conflict strategies are replaced by the Resolve Conflicts screen.
+    // const newStrategyChoices = parseCompositionStrategyChoices(req.body ?? {});
 
     let resolvedCompositionConflicts = previouslyResolved;
-    let strategyError: string | undefined;
-    const strategyNotes: string[] = [];
-    if (Object.keys(newStrategyChoices).length > 0) {
-      const firstPass = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts: previouslyResolved, viewerTenantId });
-      const sourceSelections = parseCompositionSourceSelections(req.body ?? {});
-      const newlyResolved: Record<string, unknown> = {};
-      for (const [propertyName, strategy] of Object.entries(newStrategyChoices)) {
-        const conflict = firstPass.compositionConflicts.find((c) => c.propertyName === propertyName);
-        if (!conflict) continue;
-        const applied = applyConflictStrategy(conflict, strategy, {
-          checkedSourceIds: sourceSelections.checked[propertyName] ?? [],
-          baseSourceId: sourceSelections.base[propertyName],
-        });
-        if (applied.ok) {
-          if (applied.value !== undefined) newlyResolved[propertyName] = applied.value;
-          if (applied.note) strategyNotes.push(`${propertyName}: ${applied.note}`);
-        } else {
-          strategyError = applied.error;
-        }
-      }
-      resolvedCompositionConflicts = { ...previouslyResolved, ...newlyResolved };
+    // let strategyError: string | undefined;
+    // const strategyNotes: string[] = [];
+    // if (Object.keys(newStrategyChoices).length > 0) {
+    //   const firstPass = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts: previouslyResolved, viewerTenantId });
+    //   const sourceSelections = parseCompositionSourceSelections(req.body ?? {});
+    //   const newlyResolved: Record<string, unknown> = {};
+    //   for (const [propertyName, strategy] of Object.entries(newStrategyChoices)) {
+    //     const conflict = firstPass.compositionConflicts.find((c) => c.propertyName === propertyName);
+    //     if (!conflict) continue;
+    //     const applied = applyConflictStrategy(conflict, strategy, {
+    //       checkedSourceIds: sourceSelections.checked[propertyName] ?? [],
+    //       baseSourceId: sourceSelections.base[propertyName],
+    //     });
+    //     if (applied.ok) {
+    //       if (applied.value !== undefined) newlyResolved[propertyName] = applied.value;
+    //       if (applied.note) strategyNotes.push(`${propertyName}: ${applied.note}`);
+    //     } else {
+    //       strategyError = applied.error;
+    //     }
+    //   }
+    //   resolvedCompositionConflicts = { ...previouslyResolved, ...newlyResolved };
+    // }
+
+    // A pick on the Resolve Conflicts screen is checked against the open conflict it is for, then stored under that conflict's key.
+    const newPick = parseEbmConflictPick(req.body ?? {});
+    if (newPick) {
+      const beforePick = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts, viewerTenantId });
+      const applied = applyConflictPick(beforePick.ebmConflicts, newPick.key, newPick.pick);
+      if (!applied.ok) return redirects.seu.objectivesComposeEbm.error(req, res, applied.error, resolveConflictsUrl(objectiveId, req.body ?? {}));
+      resolvedCompositionConflicts = { ...resolvedCompositionConflicts, [applied.key]: applied.value };
     }
 
-    const { compositionReport, composedPacks, profileDetails, unraveled, compositionConflicts } = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts, viewerTenantId });
-    await seusDB.setCompositionReport(existingSeu.id, { selections, compositionReport, composedPacks, profileDetails, resolvedParameterOverrides, unraveled, compositionConflicts, resolvedCompositionConflicts });
-    if (compositionConflicts.length === 0) {
+    const { compositionReport, composedPacks, profileDetails, ebmConflicts, recordedConflicts, settled } = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts, viewerTenantId });
+    await seusDB.setCompositionReport(existingSeu.id, { selections, compositionReport, composedPacks, profileDetails, resolvedParameterOverrides, ebmConflicts, recordedConflicts, settled, resolvedCompositionConflicts });
+    if (blockingEbmConflicts(ebmConflicts).length === 0) {
       const actorId = requireActorId(req);
       const authorBadge = await resolveAuthorBadgeForRequest(req);
       await eventBus.publish({
@@ -536,8 +566,10 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
         authorityBadge: authorBadge,
       });
     }
-    if (strategyError) return redirects.seu.objectivesComposeEbm.error(req, res, strategyError);
-    if (strategyNotes.length) return redirects.seu.objectivesComposeEbm.success(req, res, strategyNotes.join(" · "));
+    // Commented out (owner): the old conflict strategies are replaced by the Resolve Conflicts screen.
+    // if (strategyError) return redirects.seu.objectivesComposeEbm.error(req, res, strategyError);
+    // if (strategyNotes.length) return redirects.seu.objectivesComposeEbm.success(req, res, strategyNotes.join(" · "));
+    if (req.body?.returnTo === "resolve-conflicts") return res.redirect(resolveConflictsUrl(objectiveId, req.body ?? {}));
     return res.redirect(`/aisworg/seu/objectives/${objectiveId}/compose-ebm`);
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/compose-ebm error", err as Error);
@@ -586,8 +618,11 @@ router.get("/objectives/:id/compose-ebm", attachVM("seu/seus/compose"), async (r
     composedPacks?: EbmComposedPack[];
     profileDetails?: ProfileDetail[];
     resolvedParameterOverrides?: Record<string, string>;
-    unraveled?: UnraveledComposition;
-    compositionConflicts?: CompositionConflict[];
+    // Commented out (owner): the old composition is gone.
+    // unraveled?: UnraveledComposition;
+    // Commented out (owner): the old conflicts are replaced by ebmConflicts.
+    // compositionConflicts?: CompositionConflict[];
+    ebmConflicts?: Record<EbmConflictTable, ActionedConflict[]>;
     resolvedCompositionConflicts?: Record<string, unknown>;
   } | null;
 
@@ -605,11 +640,70 @@ router.get("/objectives/:id/compose-ebm", attachVM("seu/seus/compose"), async (r
   req.vm.req.composedPacks = stashed?.composedPacks ?? [];
   req.vm.req.profileDetails = stashed?.profileDetails ?? [];
   req.vm.req.resolvedParameterOverrides = stashed?.resolvedParameterOverrides ?? {};
-  req.vm.req.unraveled = stashed?.unraveled ?? { pool: [] };
-  req.vm.req.compositionConflicts = stashed?.compositionConflicts ?? [];
+  // Commented out (owner): the old composition is gone.
+  // req.vm.req.unraveled = stashed?.unraveled ?? { pool: [] };
+  // Commented out (owner): the old conflicts are replaced by the Resolve Conflicts screen.
+  // req.vm.req.compositionConflicts = stashed?.compositionConflicts ?? [];
+  req.vm.req.ebmConflicts = stashed?.ebmConflicts ?? {};
   req.vm.req.resolvedCompositionConflicts = stashed?.resolvedCompositionConflicts ?? {};
   req.vm.opt.flash = getFlash(req);
   return renderView(req, res, "seu/seus/compose", req.vm);
+});
+
+router.get("/objectives/:id/resolve-conflicts", attachVM("seu/seus/resolve-conflicts"), async (req: Request, res: Response) => {
+  const objectiveId = String(req.params.id);
+  const { data: seu } = await seusDB.findByObjectiveId(objectiveId);
+  if (!seu) return redirects.seu.objectivesResolveConflicts.error(req, res, "Nothing to resolve — compose this SEU first.", `/aisworg/seu/objectives/${objectiveId}/compose-ebm`);
+  if (seu.active_ebm_id) return res.redirect(`/aisworg/seu/seus/${seu.id}`);
+  const stashed = seu.composition_report as { selections?: Array<{ templateId: string; profileId?: string }>; ebmConflicts?: Partial<Record<EbmConflictTable, ActionedConflict[]>>; settled?: Record<string, { result?: unknown[]; leftOut?: unknown[] }>; resolvedCompositionConflicts?: Record<string, unknown> } | null;
+  if (!stashed?.ebmConflicts) return redirects.seu.objectivesResolveConflicts.error(req, res, "Nothing to resolve — compose this SEU first.", `/aisworg/seu/objectives/${objectiveId}/compose-ebm`);
+
+  const tabs = summariseConflictTables(stashed.ebmConflicts).map((t) => ({ ...t, label: CONFLICT_TABLE_LABELS[t.table] ?? t.table }));
+  const requested = typeof req.query.category === "string" ? req.query.category : "";
+  const selectedTable = (tabs.find((t) => t.table === requested) ?? tabs.find((t) => t.open > 0) ?? tabs[0]).table;
+  const params = parseListParams(req.query, { sortable: ["status", "key", "kind"], defaultSort: "status", defaultDir: "asc" });
+  const statusOrder: Record<string, number> = { open: 0, notice: 1, resolved: 2 };
+  const paginated = paginateList(stashed.ebmConflicts[selectedTable as EbmConflictTable] ?? [], params, {
+    searchFields: [(c) => c.message, (c) => c.key, (c) => c.kind],
+    sortFields: { status: (c) => statusOrder[conflictStatus(c)], key: (c) => c.key, kind: (c) => c.kind },
+  });
+
+  req.vm.req.title = "Resolve Conflicts";
+  req.vm.req.objectiveId = objectiveId;
+  req.vm.req.selections = stashed.selections ?? [{ templateId: seu.template_id, profileId: seu.profile_id }];
+  req.vm.req.tabs = tabs;
+  req.vm.req.settledResult = stashed.settled?.[selectedTable]?.result ?? [];
+  req.vm.req.leftOut = stashed.settled?.[selectedTable]?.leftOut ?? [];
+
+  // A selection that is not applied yet: the result is worked out as if the pick were made, and nothing is saved.
+  const previewKey = typeof req.query.previewKey === "string" ? req.query.previewKey : "";
+  if (previewKey) {
+    const options = ([] as unknown[]).concat(req.query.previewOption ?? []).map((v) => Number(v)).filter((n) => Number.isInteger(n));
+    const decision = typeof req.query.previewDecision === "string" ? req.query.previewDecision : undefined;
+    const applied = applyConflictPick(stashed.ebmConflicts, previewKey, { optionIndexes: options, decision });
+    if (applied.ok) {
+      const selections = stashed.selections ?? [{ templateId: seu.template_id, profileId: seu.profile_id }];
+      const viewerTenantId = req.session?.user?.tenant_id ?? (await getPlatformTenantId());
+      const previewed = await settleEbm({
+        templateIds: [...new Set(selections.map((s) => s.templateId))],
+        profileIds: [...new Set(selections.map((s) => s.profileId).filter((id): id is string => !!id))],
+        viewerTenantId,
+        resolutions: { ...(stashed.resolvedCompositionConflicts ?? {}), [applied.key]: applied.value },
+      });
+      req.vm.req.settledResult = (previewed as unknown as Record<string, { result: unknown[] }>)[selectedTable]?.result ?? [];
+      req.vm.req.leftOut = (previewed as unknown as Record<string, { leftOut: unknown[] }>)[selectedTable]?.leftOut ?? [];
+      req.vm.opt.preview = { key: previewKey, optionIndexes: options, decision: decision ?? null };
+    } else {
+      req.vm.opt.preview = { key: previewKey, optionIndexes: options, decision: decision ?? null, error: applied.error };
+    }
+  }
+  req.vm.req.selectedTable = selectedTable;
+  req.vm.req.list = { ...paginated, category: selectedTable };
+  req.vm.opt.listBasePath = `/aisworg/seu/objectives/${objectiveId}/resolve-conflicts`;
+  req.vm.opt.seuId = seu.id;
+  req.vm.opt.allResolved = tabs.every((t) => t.open === 0);
+  req.vm.opt.flash = getFlash(req);
+  return renderView(req, res, "seu/seus/resolve-conflicts", req.vm);
 });
 
 // Commented out (owner): dead code, no view posts to it. Kept for reference.

@@ -76,6 +76,7 @@
       "type": "object",
       "required": [
         "code",
+        "name",
         "definitionVersion"
       ],
       "x-groups": [
@@ -93,6 +94,12 @@
           "x-ontology": true,
           "x-ontology-composable": true,
           "x-referential-source": "deliverable-name"
+        },
+        "name": {
+          "type": "string",
+          "x-help": "The Deliverable's name. A new Deliverable Definition takes it from the Ontology label of its code.",
+          "x-group": "metadata",
+          "minLength": 1
         },
         "description": {
           "type": "string",
@@ -114,6 +121,7 @@
       },
       "x-property-order": [
         "code",
+        "name",
         "description",
         "guideLocation",
         "definitionVersion"
@@ -1824,25 +1832,6 @@
           "x-help": "Environment configuration — free-form key/value pairs a CI/CD pipeline reads (e.g. SUPABASE_URL), never a closed vocabulary. Distinct from Environment (development/staging/production).",
           "x-widget": "json"
         },
-        "additionalCapabilityCodes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "capabilityCode"
-            ],
-            "properties": {
-              "capabilityCode": {
-                "type": "string",
-                "x-ontology": true,
-                "x-referential": "capability-name"
-              }
-            }
-          },
-          "x-help": "Capabilities this Profile enables beyond whatever its base Template already requires — the Profile-level escape hatch for a genuinely per-commissioning excess, so the Template itself never has to over-provision for the general case.",
-          "x-group": "metadata",
-          "x-widget": "referential-list"
-        },
         "exposedParameterOverrides": {
           "type": "array",
           "items": {
@@ -1986,7 +1975,6 @@
         "baseTemplateCode",
         "featureFlagCodes",
         "deploymentTargets",
-        "additionalCapabilityCodes",
         "compositionOptions",
         "compliancePackCodes",
         "domainPackCodes",

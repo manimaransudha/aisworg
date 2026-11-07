@@ -7,13 +7,10 @@ import { dispatchEngine } from "./dispatchEngine.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
 import type { EventRow } from "../../dblayer/seuTypes.js";
+import { loadSettled, configurationParameter } from "./ebmSettled.js";
 
 async function resolveDispatchStrategies(seuId: string): Promise<Array<{ strategy: string; order: number }>> {
-  const { data: seu } = await seusDB.findById(seuId);
-  if (!seu?.active_ebm_id) return [];
-  const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
-  const pool = (ebm?.behaviors as { pool?: Array<{ propertyName: string; value: unknown }> } | null)?.pool ?? [];
-  const value = pool.find((e) => e.propertyName === "dispatchStrategyPreference")?.value;
+  const value = configurationParameter(await loadSettled(seuId), "dispatchStrategyPreference");
   return Array.isArray(value) ? (value as Array<{ strategy: string; order: number }>) : [];
 }
 

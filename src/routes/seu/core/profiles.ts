@@ -12,7 +12,7 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
-import type { ProfileRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../../../dblayer/seuTypes.js";
+import type { ProfileRow, ProfileDetailSource, TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
 import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "../../../utils/version.js";
@@ -43,7 +43,6 @@ export interface ProfileSeedInput {
   engineeringPackCodes?: string[];
   organisationPackCodes?: string[];
   deploymentTargets?: Record<string, unknown>;
-  additionalCapabilityCodes?: string[];
   targetCloudProvider?: string;
   primaryProgrammingLanguage?: string;
   sourceControlProvider?: string;
@@ -94,7 +93,7 @@ export interface EffectiveParameter {
   overriddenByProfile: boolean;
 }
 
-export async function resolveEffectiveParameters(profile: ProfileRow): Promise<EffectiveParameter[]> {
+export async function resolveEffectiveParameters(profile: Pick<ProfileRow, "base_template_id" | "draft_content">): Promise<EffectiveParameter[]> {
   const { data: template } = await templatesDB.findById(profile.base_template_id);
   if (!template) return [];
   const exposed = extractExposedParameters(template.draft_content as Record<string, unknown> | null) ?? [];
@@ -130,7 +129,7 @@ function isEmptyDetailValue(v: unknown): boolean {
   return false;
 }
 
-export async function extractProfileDetails(profile: ProfileRow): Promise<ProfileDetail> {
+export async function extractProfileDetails(profile: ProfileDetailSource): Promise<ProfileDetail> {
   const d = (profile.draft_content ?? {}) as Record<string, unknown>;
   const candidates: Record<string, unknown> = {
     environment: profile.environment,
@@ -145,7 +144,6 @@ export async function extractProfileDetails(profile: ProfileRow): Promise<Profil
     integrationPackCodes: d.integrationPackCodes,
     engineeringPackCodes: d.engineeringPackCodes,
     organisationPackCodes: d.organisationPackCodes,
-    additionalCapabilityCodes: d.additionalCapabilityCodes,
     targetCloudProvider: d.targetCloudProvider,
     primaryProgrammingLanguage: d.primaryProgrammingLanguage,
     sourceControlProvider: d.sourceControlProvider,
@@ -187,14 +185,15 @@ export const CONFIGURATION_PARAMETER_FIELDS: Array<{ field: keyof ProfileSeedInp
 export type ProfileValidationResult = { ok: true } | { ok: false; errors: string[] };
 
 
-const PACK_SELECTION_SLOTS: Array<{ field: keyof ProfileSeedInput; packCategory: string }> = [
-  { field: "technologyPackCodes", packCategory: "Technology" },
-  { field: "domainPackCodes", packCategory: "Domain" },
-  { field: "compliancePackCodes", packCategory: "Compliance" },
-  { field: "integrationPackCodes", packCategory: "Integration" },
-  { field: "engineeringPackCodes", packCategory: "Engineering" },
-  { field: "organisationPackCodes", packCategory: "Organisation" },
-];
+// Commented out (owner): the Template's PACK_SELECTION_SLOTS, imported above, is used.
+// const PACK_SELECTION_SLOTS: Array<{ field: keyof ProfileSeedInput; packCategory: string }> = [
+//   { field: "technologyPackCodes", packCategory: "Technology" },
+//   { field: "domainPackCodes", packCategory: "Domain" },
+//   { field: "compliancePackCodes", packCategory: "Compliance" },
+//   { field: "integrationPackCodes", packCategory: "Integration" },
+//   { field: "engineeringPackCodes", packCategory: "Engineering" },
+//   { field: "organisationPackCodes", packCategory: "Organisation" },
+// ];
 
 // Every Pack code a Profile selects, whatever its category, for composition and commissioning.
 export async function getProfilePackCodes(profileId: string): Promise<string[]> {
@@ -240,7 +239,7 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   }
 
   for (const slot of PACK_SELECTION_SLOTS) {
-    const codes = (seed[slot.field] as string[] | undefined) ?? [];
+    const codes = ((seed as unknown as Record<string, string[] | undefined>)[slot.field as string]) ?? [];
     for (const code of codes) {
       const { data: pack } = await packsDB.findByCodeVisibleTo(code, ontologyViewer.tenantId);
       if (!pack) errors.push(`${String(slot.field)} references unknown Pack code "${code}"`);
@@ -251,11 +250,6 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   for (const code of seed.featureFlagCodes ?? []) {
     const { data: concept } = await ontologyDB.findConcept("feature-flag", code, ontologyViewer);
     if (!concept) errors.push(`featureFlagCodes references unknown feature-flag code "${code}"`);
-  }
-
-  for (const code of seed.additionalCapabilityCodes ?? []) {
-    const { data: concept } = await ontologyDB.findConcept("capability-name", code, ontologyViewer);
-    if (!concept) errors.push(`additionalCapabilityCodes references unknown capability-name code "${code}"`);
   }
 
   for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
@@ -526,9 +520,6 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
   const featureFlagCodes = Array.isArray(priorContent.featureFlagCodes)
     ? (priorContent.featureFlagCodes as unknown[]).map((v) => (typeof v === "string" ? v : (v as { featureCode?: string })?.featureCode ?? "")).filter((v) => v !== "")
     : [];
-  const additionalCapabilityCodes = Array.isArray(priorContent.additionalCapabilityCodes)
-    ? (priorContent.additionalCapabilityCodes as unknown[]).map((v) => (typeof v === "string" ? v : (v as { capabilityCode?: string })?.capabilityCode ?? "")).filter((v) => v !== "")
-    : [];
   const participatingOrganisationCodes = Array.isArray(priorContent.participatingOrganisationCodes)
     ? (priorContent.participatingOrganisationCodes as unknown[]).map((v) => (typeof v === "string" ? v : (v as { organisationCode?: string })?.organisationCode ?? "")).filter((v) => v !== "")
     : [];
@@ -548,7 +539,6 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
     redispatchAttentionThreshold: typeof priorContent.redispatchAttentionThreshold === "number" ? priorContent.redispatchAttentionThreshold : undefined,
     ...packSelections,
     featureFlagCodes,
-    additionalCapabilityCodes,
     participatingOrganisationCodes,
     knowledgeLocations,
     dispatchStrategyPreference,

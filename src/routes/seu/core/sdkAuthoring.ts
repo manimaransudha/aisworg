@@ -142,7 +142,6 @@ export function toProfileSeedInput(content: Record<string, unknown>): ProfileSee
     engineeringPackCodes: normalizePackCodes(content.engineeringPackCodes),
     organisationPackCodes: normalizePackCodes(content.organisationPackCodes),
     featureFlagCodes: normalizeFeatureFlagCodes(content.featureFlagCodes),
-    additionalCapabilityCodes: normalizeReferentialCodes(content.additionalCapabilityCodes, "capabilityCode"),
     deploymentTargets: (content.deploymentTargets as Record<string, unknown>) ?? {},
     participatingOrganisationCodes: normalizeReferentialCodes(content.participatingOrganisationCodes, "organisationCode"),
     environmentConfiguration: (content.environmentConfiguration as Record<string, unknown>) ?? {},
@@ -155,6 +154,7 @@ export function toProfileSeedInput(content: Record<string, unknown>): ProfileSee
 export function toDeliverableDefinitionSeedInput(content: Record<string, unknown>): DeliverableDefinitionSeedInput {
   return {
     code: typeof content.code === "string" ? content.code : "",
+    name: typeof content.name === "string" ? content.name : "",
     description: typeof content.description === "string" ? content.description : undefined,
     guideLocation: typeof content.guideLocation === "string" ? content.guideLocation : undefined,
     definitionVersion: typeof content.definitionVersion === "string" && content.definitionVersion.trim() ? content.definitionVersion.trim() : INITIAL_VERSION,
@@ -650,7 +650,6 @@ export async function inheritedProfileContent(parentProfileId: string, viewerTen
     description: typeof priorContent.description === "string" ? priorContent.description : "",
     compositionOptions: typeof priorContent.compositionOptions === "object" && priorContent.compositionOptions ? priorContent.compositionOptions : {},
     featureFlagCodes: Array.isArray(priorContent.featureFlagCodes) ? priorContent.featureFlagCodes : [],
-    additionalCapabilityCodes: Array.isArray(priorContent.additionalCapabilityCodes) ? priorContent.additionalCapabilityCodes : [],
     deploymentTargets: typeof priorContent.deploymentTargets === "object" && priorContent.deploymentTargets ? priorContent.deploymentTargets : {},
     participatingOrganisationCodes: Array.isArray(priorContent.participatingOrganisationCodes) ? priorContent.participatingOrganisationCodes : [],
     environmentConfiguration: typeof priorContent.environmentConfiguration === "object" && priorContent.environmentConfiguration ? priorContent.environmentConfiguration : {},
@@ -824,6 +823,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       const inherited = await inheritedDeliverableDefinitionContent(input.parentDeliverableDefinitionId);
       if (!inherited.ok) return { ok: false, errors: [inherited.error] };
       if (!seed.code) seed.code = inherited.content.code as string;
+      if (!seed.name) seed.name = inherited.content.name as string;
       if (!seed.description) seed.description = inherited.content.description as string;
       if (!seed.guideLocation) seed.guideLocation = inherited.content.guideLocation as string;
     }
@@ -834,6 +834,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     const birth = await transitionEngine.beginBirth({ entityType: "DeliverableDefinition", actorId: input.actorId });
     const { data: d, error } = await deliverableDefinitionsDB.createDraft({
       code: seed.code,
+      name: seed.name,
       description: seed.description ?? null,
       guideLocation: seed.guideLocation?.trim() || null,
       version: seed.definitionVersion,
@@ -1100,7 +1101,7 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     const seed = toDeliverableDefinitionSeedInput({ ...input.content });
     const validation = await validateDeliverableDefinitionSeed({ ...seed, tenantId: existing.tenant_id, parentDeliverableDefinitionId: existing.parent_deliverable_definition_id ?? undefined }, input.id);
     if (!validation.ok) return { ok: false, errors: validation.errors };
-    const { data, error } = await deliverableDefinitionsDB.updateDraftContent(input.id, { code: seed.code, description: seed.description ?? null, guideLocation: seed.guideLocation?.trim() || null, version: seed.definitionVersion, draftContent: input.content });
+    const { data, error } = await deliverableDefinitionsDB.updateDraftContent(input.id, { code: seed.code, name: seed.name, description: seed.description ?? null, guideLocation: seed.guideLocation?.trim() || null, version: seed.definitionVersion, draftContent: input.content });
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
     const { data: deliverableSchema } = existing.schema_definition_id ? await schemaDefinitionsDB.findById(existing.schema_definition_id) : await schemaDefinitionsDB.findLatest("Deliverable");

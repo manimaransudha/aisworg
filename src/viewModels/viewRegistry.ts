@@ -6,6 +6,7 @@ import {seu_seus_indexVM} from "./seu_seus_index.js";
 import {seu_seus_newVM} from "./seu_seus_new.js";
 import {seu_seus_validateVM} from "./seu_seus_validate.js";
 import {seu_seus_composeVM} from "./seu_seus_compose.js";
+import {seu_seus_resolveConflictsVM} from "./seu_seus_resolveConflicts.js";
 import {seu_seus_detailVM} from "./seu_seus_detail.js";
 import {seu_seus_ebmVM} from "./seu_seus_ebm.js";
 import {seu_packs_indexVM} from "./seu_packs_index.js";
@@ -68,6 +69,7 @@ export const viewModels = {
   "seu/seus/new": seu_seus_newVM,
   "seu/seus/validate": seu_seus_validateVM,
   "seu/seus/compose": seu_seus_composeVM,
+  "seu/seus/resolve-conflicts": seu_seus_resolveConflictsVM,
   "seu/seus/detail": seu_seus_detailVM,
   "seu/seus/ebm": seu_seus_ebmVM,
   "seu/packs/index": seu_packs_indexVM,

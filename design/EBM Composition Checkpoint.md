@@ -41,4 +41,15 @@
 
 ## Next step
 
-Raise a CR for the rules above.
+CR-139 is raised (design/change-requests/CR-139-ebm-composition-conflict-rules.md). Part 1 of the build is done (Profile extra Capabilities removed). The rest is listed in the CR under Still to build.
+
+## Resolve Conflicts screen (design in progress)
+
+| Topic | Decision |
+|---|---|
+| Entry | The old conflict section in the composition screen is replaced by a Resolve Conflicts button. The button shows the number of open conflicts. |
+| Layout | One vertical tab for each conflict table, with the open count on each tab. Each conflict is a card with the message, the options with their sources, and the actions. A resolved conflict stays on the screen with the pick shown, and the user can change it. |
+| Services, Step 1 | The user picks one Service. |
+| Notices | Shown with nothing to pick. |
+| Dependencies | Read-only with the message that it is resolved at the definition. |
+| Open | Actions for the other tables. Fate of the old conflict check, which covers more than the nine tables. |

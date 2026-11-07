@@ -2,7 +2,7 @@ import { bulkInsert, query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateProfileWriteAgainstSchema } from "../routes/seu/core/profileWriteValidator.js";
-import type { DbResult, ProfileRow } from "./seuTypes.js";
+import type { DbResult, ProfileRow, ProfileDetailSource } from "./seuTypes.js";
 import { getPlatformTenantId, INITIAL_VERSION } from "./constants.js";
  
 
@@ -295,6 +295,17 @@ export const profilesDB = {
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[profilesDB] findById error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Only the columns the Profile details need, not the whole row.
+  async findDetailSourceById(id: string): Promise<DbResult<ProfileDetailSource | null>> {
+    try {
+      const { rows } = await query<ProfileDetailSource>("SELECT id, code, name, environment, config_parameters, draft_content, base_template_id FROM profiles WHERE id = $1", [id]);
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[profilesDB] findDetailSourceById error", err as Error);
       return { error: err as Error };
     }
   },

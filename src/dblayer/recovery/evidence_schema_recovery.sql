@@ -15,7 +15,7 @@ CREATE TABLE evidence (
 ALTER TABLE evidence
   ADD COLUMN IF NOT EXISTS originating_deliverable_id UUID REFERENCES deliverables(id),
   ADD COLUMN IF NOT EXISTS originating_participant_id UUID REFERENCES participants(id),
-  ADD COLUMN IF NOT EXISTS originating_capability_id UUID REFERENCES capabilities(id),
+  ADD COLUMN IF NOT EXISTS originating_capability_id UUID REFERENCES capability_definitions(id),
   ADD COLUMN IF NOT EXISTS originating_decision_id UUID,
   ADD COLUMN IF NOT EXISTS originating_activity TEXT;
 ALTER TABLE evidence

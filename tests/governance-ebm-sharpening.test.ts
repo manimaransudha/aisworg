@@ -121,7 +121,7 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
-  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID });
+  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID, leaveConflictsOpen: true });
   assert.equal(result.ok, false, "Compose EBM must be blocked by the conflict");
   if (!result.ok) {
     assert.equal(result.stage, "compose_ebm");

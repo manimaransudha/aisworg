@@ -52,7 +52,7 @@ async function composedCopy(source: EbmRow, packCodes?: string[]): Promise<EbmRo
     authorId: (source as unknown as { author_id: string }).author_id,
     authorBadge: (source as unknown as { author_badge: string }).author_badge,
     status: birth!.to_state as EbmRow["status"],
-    composedPacks: packCodes ? packCodes.map((packCode) => ({ ...source.composed_packs[0], packCode })) : source.composed_packs,
+    composedPacks: packCodes ? packCodes.map((packCode) => ({ ...source.composed_packs[0], packCode, packId: randomUUID() })) : source.composed_packs,
     compositionReport: source.composition_report,
   });
   if (error || !created) throw error ?? new Error("failed to create the second EBM");

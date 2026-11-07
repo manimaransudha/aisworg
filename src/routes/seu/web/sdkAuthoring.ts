@@ -638,7 +638,7 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   req.vm.req.slug = slug;
   req.vm.req.possibleNextStates = possibleNextStates;
   req.vm.req.draft = draft ? { id: draft.id, code: draft.code, name: draft.name, status: draft.status, purpose: typeof draft.content.purpose === "string" ? draft.content.purpose : "" } : null;
-  const contentForForm = {
+  const contentForForm: Record<string, unknown> = {
     templateVersion: INITIAL_VERSION, profileVersion: INITIAL_VERSION, definitionVersion: INITIAL_VERSION,
     ...(kind !== "Pack" ? { packVersion: INITIAL_VERSION } : {}),
     ...(draft?.content ?? prefill?.content ?? {}),

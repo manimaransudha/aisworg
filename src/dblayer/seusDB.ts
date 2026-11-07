@@ -17,14 +17,14 @@ export const seusDB = {
     requestedBy: string;
     authorBadge: string;
     lifecycleState: SeuLifecycleState;
-    tenantId?: string | null;
+    tenantId: string;
   }): Promise<DbResult<SeuRow>> {
     try {
       const { rows } = await query<SeuRow>(
         `INSERT INTO seus (objective_id, template_id, profile_id, requested_by, author_badge, lifecycle_state, tenant_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [input.objectiveId, input.templateId, input.profileId, input.requestedBy, input.authorBadge, input.lifecycleState, input.tenantId ?? null]
+        [input.objectiveId, input.templateId, input.profileId, input.requestedBy, input.authorBadge, input.lifecycleState, input.tenantId]
       );
       return { data: rows[0] };
     } catch (err) {

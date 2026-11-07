@@ -6,7 +6,7 @@ import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDef
 import { attestationsDB } from "../../../dblayer/attestationsDB.js";
 import { deliverableReferencesDB } from "../../../dblayer/deliverableReferencesDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
-import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
+import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { evidenceDB } from "../../../dblayer/evidenceDB.js";
 import { decisionsDB } from "../../../dblayer/decisionsDB.js";
@@ -122,8 +122,8 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
 
   let producingCapability: { id: string; label: string } | null = null;
   if (deliverable.producing_capability_id) {
-    const { data: cap } = await capabilitiesDB.findById(deliverable.producing_capability_id);
-    producingCapability = cap ? { id: cap.id, label: `${cap.name} (${cap.code})` } : { id: deliverable.producing_capability_id, label: "(unknown Capability)" };
+    const { data: cap } = await capabilityDefinitionsDB.findById(deliverable.producing_capability_id);
+    producingCapability = cap ? { id: cap.id, label: `${cap.default_label} (${cap.code})` } : { id: deliverable.producing_capability_id, label: "(unknown Capability)" };
   }
 
   const dependsOn: DependencyLink[] = [];

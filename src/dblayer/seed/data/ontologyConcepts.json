@@ -4392,6 +4392,78 @@
     "ui_grouping": "Profiles"
   },
   {
+    "concept_type": "participant-eligibility-dimension",
+    "code": "Compliance",
+    "default_label": "Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
+  },
+  {
+    "concept_type": "participant-eligibility-dimension",
+    "code": "Domain",
+    "default_label": "Domain",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
+  },
+  {
+    "concept_type": "participant-eligibility-dimension",
+    "code": "Engineering",
+    "default_label": "Engineering",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
+  },
+  {
+    "concept_type": "participant-eligibility-dimension",
+    "code": "Organisation",
+    "default_label": "Organisation",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
+  },
+  {
+    "concept_type": "participant-eligibility-dimension",
+    "code": "Integration",
+    "default_label": "Integration",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
+  },
+  {
+    "concept_type": "participant-eligibility-dimension",
+    "code": "Technology",
+    "default_label": "Technology",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
+  },
+  {
+    "concept_type": "participant-eligibility-dimension",
+    "code": "Role",
+    "default_label": "Role",
+    "description": "The role types of the Capabilities composed in an EBM.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
+  },
+  {
+    "concept_type": "participant-eligibility-dimension",
+    "code": "Work type",
+    "default_label": "Work type",
+    "description": "The work types of the Capabilities composed in an EBM.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
+  },
+  {
     "concept_type": "participant-types",
     "code": "AI",
     "default_label": "AI",

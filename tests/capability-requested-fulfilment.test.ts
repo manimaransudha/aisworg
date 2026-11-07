@@ -105,30 +105,38 @@ test("DRIVEN: a request for a Capability no Participant holds publishes Capabili
 });
 
 test("DRIVEN: the retry sweep re-requests an unavailable Capability after the delay and skips one already in flight", async () => {
-  const { seuId, capabilityId } = await commissionSeuWithCapability("cr126-retry-sweep");
-  const systemActor = await getSystemActor(seuId);
+  // Commissioned where the pool is empty and settled first, so the commissioning's own request is finished and the
+  // only request in flight is the sweep's. The Participant is added afterwards, so the re-request can be fulfilled.
+  const { seuId, capabilityId } = await commissionSeuWithCapability("cr126-retry-sweep", { withEligibleParticipant: false, tenantId: await getEmptyPoolTenantId() });
+  await settleCapabilityRequests(seuId, capabilityId);
+  const fixtureParticipantId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+  try {
+    const systemActor = await getSystemActor(seuId);
 
-  await eventBus.publish({
-    eventType: "CapabilityUnavailable",
-    originatingObjectType: "SEU",
-    originatingObjectId: seuId,
-    seuId,
-    correlationId: eventBus.newCorrelationId(),
-    actorId: systemActor.actorId,
-    authorityBadge: systemActor.authorBadge,
-    payload: { capabilityId },
-  });
+    await eventBus.publish({
+      eventType: "CapabilityUnavailable",
+      originatingObjectType: "SEU",
+      originatingObjectId: seuId,
+      seuId,
+      correlationId: eventBus.newCorrelationId(),
+      actorId: systemActor.actorId,
+      authorityBadge: systemActor.authorBadge,
+      payload: { capabilityId },
+    });
 
-  const tooEarly = await sweepUnavailableCapabilities({ seuId, now: new Date() });
-  assert.ok(!tooEarly.requestedCapabilityIds.includes(capabilityId), "a Capability inside the delay is not re-requested");
+    const tooEarly = await sweepUnavailableCapabilities({ seuId, now: new Date() });
+    assert.ok(!tooEarly.requestedCapabilityIds.includes(capabilityId), "a Capability inside the delay is not re-requested");
 
-  const afterDelay = new Date(Date.now() + (CAPABILITY_RETRY_DELAY_SECONDS + 1) * 1000);
-  const swept = await sweepUnavailableCapabilities({ seuId, now: afterDelay });
-  assert.ok(swept.requestedCapabilityIds.includes(capabilityId), "a Capability past the delay is re-requested");
-  assert.ok((await seuEventTypes(seuId)).includes("CapabilityRequested"));
+    const afterDelay = new Date(Date.now() + (CAPABILITY_RETRY_DELAY_SECONDS + 1) * 1000);
+    const swept = await sweepUnavailableCapabilities({ seuId, now: afterDelay });
+    assert.ok(swept.requestedCapabilityIds.includes(capabilityId), "a Capability past the delay is re-requested");
+    assert.ok((await seuEventTypes(seuId)).includes("CapabilityRequested"));
 
-  const again = await sweepUnavailableCapabilities({ seuId, now: afterDelay });
-  assert.ok(!again.requestedCapabilityIds.includes(capabilityId), "a Capability whose latest event is a request is in flight and is skipped");
+    const again = await sweepUnavailableCapabilities({ seuId, now: afterDelay });
+    assert.ok(!again.requestedCapabilityIds.includes(capabilityId), "a Capability whose latest event is a request is in flight and is skipped");
 
-  await waitForCapabilityFulfilled(seuId, capabilityId);
+    await waitForCapabilityFulfilled(seuId, capabilityId);
+  } finally {
+    await deactivateParticipants([fixtureParticipantId]);
+  }
 });

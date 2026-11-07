@@ -214,6 +214,23 @@ export const policyDefinitionsDB = {
     }
   },
 
+  // The Active Policy Definitions for the given codes, one per code. A row owned by the viewer's tenant is preferred over the platform's.
+  async findActiveByCodesVisibleTo(codes: string[], viewerTenantId: string): Promise<DbResult<PolicyDefinitionRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+    try {
+      const { rows } = await query<PolicyDefinitionRow>(
+        `SELECT DISTINCT ON (code) * FROM policy_definitions
+         WHERE code = ANY($1) AND status = 'Active' AND (tenant_id = $2 OR tenant_id = $3)
+         ORDER BY code, (tenant_id = $2) DESC, created_at DESC`,
+        [codes, viewerTenantId, PLATFORM_TENANT_ID]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[policyDefinitionsDB] findActiveByCodesVisibleTo error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findActivePlatformOwned(): Promise<DbResult<PolicyDefinitionRow[]>> {
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {

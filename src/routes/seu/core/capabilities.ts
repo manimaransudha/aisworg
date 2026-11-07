@@ -34,7 +34,7 @@ async function loadEligiblePool(seu: SeuRow, seuCapability: SeuCapabilityWithCod
   if (!seu.tenant_id) throw new Error(`SEU ${seu.id} has no owning tenant`);
   const competency = await getSeuCompetencyRequirements(seu);
   const requiredPolicies = await resolveEligibilityPolicies(seu);
-  return findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: seuCapability.capability_code, competency, requiredPolicyIds: requiredPolicies.map((p) => p.id), excludeParticipantMasterIds });
+  return findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: seuCapability.capability_code, competency, requiredPolicies, excludeParticipantMasterIds });
 }
 
 type ResolvedParticipant = { type: ParticipantType; displayName: string; participantMasterId: string };

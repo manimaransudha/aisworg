@@ -144,7 +144,7 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
     assert.ok(holdActor, `hold actor must be created: ${error}`);
     driveActorId = holdActor!.id;
   }
-  const driven = await driveCommissioningToActive({ seuId: commissioned.seu.id, actorId: driveActorId, beforeCommenceWork, holdAtActivated });
+  const driven = await driveCommissioningToActive({ seuId: commissioned.seu.id, actorId: driveActorId, beforeCommenceWork, holdAtActivated, serviceChoices: { "source-code": "software-implementation-service" } });
   assert.equal(driven.ok, true, !driven.ok ? JSON.stringify(driven) : "assertion failed");
   return commissioned.seu.id;
 }

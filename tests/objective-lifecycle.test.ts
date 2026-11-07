@@ -317,8 +317,7 @@ test("validateSeu requires the Objective to be Active — blocks Defined, succee
 // the caller's own explicit choice, exactly like profileId already was. This
 // test now proves the opposite of its old name: a Template that DOESN'T
 // cover every declared Capability is still a valid, successful choice — the
-// gap is something a Profile's own Additional Capabilities can cover, not a
-// reason for this function to refuse.
+// gap is not a reason for this function to refuse.
 test("initiateAndValidateSeu takes an explicit Profile choice — a partial-coverage match still commissions", async () => {
   const { template, profile } = await ensureWebAppTemplateFixture();
   const { objective } = await createActiveObjective({

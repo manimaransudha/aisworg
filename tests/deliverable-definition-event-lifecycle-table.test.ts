@@ -62,8 +62,10 @@ async function freshDefinitionDraft(options: { inOntology: boolean } = { inOntol
   const { data: draft, error } = await deliverableDefinitionsDB.createDraft({
     tenantId: PLATFORM_TENANT_ID,
     code,
+    name: code,
     description: "A lifecycle test Deliverable.",
     version: "1.0.0",
+    draftContent: { code, name: code, description: "A lifecycle test Deliverable.", definitionVersion: "1.0.0" },
     status: (await birthState()) as never,
     authoredBy: ROOT_ACTOR_ID,
     authorBadge: ROOT_ACTOR_BADGE,

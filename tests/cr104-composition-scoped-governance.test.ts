@@ -17,7 +17,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
-import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
+import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
@@ -236,8 +236,9 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
 
 test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the named Deliverable(s), not every Deliverable on the same transition", async () => {
   const run = randomUUID().slice(0, 8);
-  const targetedName = `cr104-target-deliverable-${run}`;
-  const otherName = `cr104-other-deliverable-${run}`;
+  // Deliverables of the test Ontology: the test Service "test-strategy-and-design-service" makes both.
+  const targetedName = "test-strategy";
+  const otherName = "test-plan";
 
   const namedPack = {
     code: `cr104-named-pack-${run}`, name: "CR-104 Named Pack", category: "Organisation",
@@ -249,7 +250,6 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
     },
   };
   await registerOrganisationName(namedPack.code);
-  await registerDeliverableName(targetedName);
   const namedPublished = await publishPack({ seed: namedPack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(namedPublished.ok, `named pack must publish: ${!namedPublished.ok ? JSON.stringify(namedPublished) : ""}`);
 
@@ -265,9 +265,9 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
   await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const seu = await commissionAgainstTemplate(template!.id, `cr104-named-${run}`);
 
-  const detail = await getSeuDetailView(seu.id);
-  const targeted = detail?.deliverables.find((d) => d.name === targetedName);
-  const other = detail?.deliverables.find((d) => d.name === otherName);
+  const { data: deliverables } = await deliverablesDB.findBySeuId(seu.id);
+  const targeted = deliverables?.find((d) => d.code === targetedName);
+  const other = deliverables?.find((d) => d.code === otherName);
   assert.ok(targeted && other, "both catalogue entries materialised into real Deliverable rows");
 
   const targetedResult = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: targeted!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });

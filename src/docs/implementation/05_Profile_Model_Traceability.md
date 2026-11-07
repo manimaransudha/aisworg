@@ -47,7 +47,7 @@ Specification: src/docs/SEU Studio Specifications/01_Engineering Definition/05_P
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">A Profile may define methodology, organisations, selected Packs, technologies, compliance, deployment targets, environment configuration, commissioning parameters, feature selections and optional capabilities.<br>Ref: §5</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:26-63,174-184,189-196,219-298</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">ProfileSeedInput carries developmentMethodology, participatingOrganisationCodes, six Pack lists, deploymentTargets, environmentConfiguration, nine configuration parameters, featureFlagCodes and additionalCapabilityCodes. validateProfileSeed checks each against the Ontology or the Pack registry.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">ProfileSeedInput carries developmentMethodology, participatingOrganisationCodes, six Pack lists, deploymentTargets, environmentConfiguration, nine configuration parameters, and featureFlagCodes. validateProfileSeed checks each against the Ontology or the Pack registry.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -137,7 +137,7 @@ Specification: src/docs/SEU Studio Specifications/01_Engineering Definition/05_P
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Profiles enable or disable optional platform capabilities. Feature selection shall not modify platform architecture.<br>Ref: §11</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/profiles.ts:36,250-258<br>src/domain/engine/profileCompositionUnravel.ts:147-148,163-165<br>src/routes/seu/core/commissioning.ts:68-76</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: featureFlagCodes are validated against the feature-flag Ontology and pooled into the EBM. additionalCapabilityCodes are validated, pooled as capabilities and liveness-checked at commissioning.<br>Gap: featureFlagCodes have no consumer. They are pooled as one value and nothing found enables or disables a platform feature from them. The workItemGenerator context list (:70-75) omits them.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: featureFlagCodes are validated against the feature-flag Ontology and pooled into the EBM.<br>Gap: featureFlagCodes have no consumer. They are pooled as one value and nothing found enables or disables a platform feature from them. The workItemGenerator context list (:70-75) omits them.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>

@@ -9,7 +9,7 @@ CREATE TABLE deliverables (
   acceptance_criteria       JSONB NOT NULL DEFAULT '[]',
   acquisition_scope         TEXT NOT NULL DEFAULT 'SEU'
                                CHECK (acquisition_scope IN ('SEU', 'Capability', 'Enterprise', 'Platform')),
-  producing_capability_id   UUID REFERENCES capabilities(id),
+  producing_capability_id   UUID REFERENCES capability_definitions(id),
   created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -49,9 +49,9 @@ export const seuCapabilitiesDB = {
   async findBySeuId(seuId: string): Promise<DbResult<SeuCapabilityWithCode[]>> {
     try {
       const { rows } = await query<SeuCapabilityWithCode>(
-        `SELECT sc.*, c.code AS capability_code, c.name AS capability_name
+        `SELECT sc.*, c.code AS capability_code, c.default_label AS capability_name
          FROM seu_capabilities sc
-         JOIN capabilities c ON c.id = sc.capability_id
+         JOIN capability_definitions c ON c.id = sc.capability_id
          WHERE sc.seu_id = $1
          ORDER BY c.code`,
         [seuId]
@@ -92,13 +92,13 @@ export const seuCapabilitiesDB = {
   async findUnfulfilledByCapability(): Promise<DbResult<Array<{ capability_id: string; capability_code: string; capability_name: string; seu_ids: string[] }>>> {
     try {
       const { rows } = await query<{ capability_id: string; capability_code: string; capability_name: string; seu_ids: string[] }>(
-        `SELECT c.id AS capability_id, c.code AS capability_code, c.name AS capability_name,
+        `SELECT c.id AS capability_id, c.code AS capability_code, c.default_label AS capability_name,
                 ARRAY_AGG(sc.seu_id ORDER BY s.created_at DESC) AS seu_ids
          FROM seu_capabilities sc
-         JOIN capabilities c ON c.id = sc.capability_id
+         JOIN capability_definitions c ON c.id = sc.capability_id
          JOIN seus s ON s.id = sc.seu_id
          WHERE sc.status = 'Unfulfilled'
-         GROUP BY c.id, c.code, c.name`
+         GROUP BY c.id, c.code, c.default_label`
       );
       return { data: rows };
     } catch (err) {

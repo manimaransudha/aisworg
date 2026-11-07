@@ -1,3 +1,4 @@
+import { loadSettled, competencyRequirementsOf, eligibilityPoliciesOf, type EligibilityPolicy } from "../../../domain/engine/ebmSettled.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
@@ -8,7 +9,7 @@ export interface EligibilityCriteria {
   tenantId: string;
   capabilityCode: string;
   competency?: Record<string, string[]>;
-  requiredPolicyIds?: string[];
+  requiredPolicies?: EligibilityPolicy[];
   excludeParticipantMasterIds?: string[];
 }
 
@@ -19,29 +20,23 @@ function matchesCompetency(participantCompetency: Record<string, Array<{ code: s
   });
 }
 
-function matchesRequiredPolicies(participant: ParticipantMasterRow, policies: PolicyRow[]): boolean {
+function matchesRequiredPolicies(participant: ParticipantMasterRow, policies: EligibilityPolicy[]): boolean {
   return policies.every((policy) => {
     const entry = participant.behaviour_context.find((e) => e.policy === policy.code);
     if (!entry) return false;
-    return evaluateCondition(policy.condition as GoverningCondition, entry.payload);
+    return evaluateCondition(policy.condition as unknown as GoverningCondition, entry.payload);
   });
 }
 
-export async function resolveEligibilityPolicies(seu: SeuRow): Promise<PolicyRow[]> {
+// The eligibility Policies the SEU takes, read from the EBM's settled result.
+export async function resolveEligibilityPolicies(seu: SeuRow): Promise<EligibilityPolicy[]> {
   if (!seu.active_ebm_id) return [];
-  const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
-  const behaviors = ebm?.behaviors as { eligibilityPolicyIds?: string[] } | null;
-  if (!behaviors?.eligibilityPolicyIds) throw new Error(`EBM ${seu.active_ebm_id} records no eligibility Policies; recompose it`);
-  if (behaviors.eligibilityPolicyIds.length === 0) return [];
-  const { data: policies } = await policiesDB.findByIds(behaviors.eligibilityPolicyIds);
-  return policies ?? [];
+  return eligibilityPoliciesOf(await loadSettled(seu.id));
 }
 
 export async function getSeuCompetencyRequirements(seu: SeuRow): Promise<Record<string, string[]>> {
   if (!seu.active_ebm_id) return {};
-  const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
-  const behaviors = ebm?.behaviors as { competencyRequirements?: Record<string, string[]> } | null;
-  return behaviors?.competencyRequirements ?? {};
+  return competencyRequirementsOf(await loadSettled(seu.id));
 }
 
 export async function findEligibleParticipants(criteria: EligibilityCriteria): Promise<ParticipantMasterRow[]> {
@@ -50,9 +45,8 @@ export async function findEligibleParticipants(criteria: EligibilityCriteria): P
   if (criteria.competency) {
     eligible = eligible.filter((p) => matchesCompetency(p.competency, criteria.competency!));
   }
-  if (criteria.requiredPolicyIds?.length) {
-    const { data: requiredPolicies } = await policiesDB.findByIds(criteria.requiredPolicyIds);
-    eligible = eligible.filter((p) => matchesRequiredPolicies(p, requiredPolicies ?? []));
+  if (criteria.requiredPolicies?.length) {
+    eligible = eligible.filter((p) => matchesRequiredPolicies(p, criteria.requiredPolicies!));
   }
   if (criteria.excludeParticipantMasterIds?.length) {
     const excluded = new Set(criteria.excludeParticipantMasterIds);

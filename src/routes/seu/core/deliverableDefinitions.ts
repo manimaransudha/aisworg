@@ -11,6 +11,7 @@ import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "
 
 export interface DeliverableDefinitionSeedInput {
   code: string;
+  name: string;
   description?: string;
   guideLocation?: string;
   definitionVersion: string;
@@ -84,13 +85,14 @@ export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionI
   const birth = await transitionEngine.beginBirth({ entityType: "DeliverableDefinition", actorId });
   const { data: newDraft, error } = await deliverableDefinitionsDB.createDraft({
     code: source.code,
+    name: source.name,
     description: source.description,
     guideLocation: source.guide_location,
     version: nextVersion,
     status: birth.initialState as DeliverableDefinitionRow["status"],
     authoredBy: copyMaster.id,
     authorBadge: birth.authorityBadge,
-    draftContent: { code: source.code, description: source.description, guideLocation: source.guide_location ?? "", definitionVersion: nextVersion },
+    draftContent: { code: source.code, name: source.name, description: source.description, guideLocation: source.guide_location ?? "", definitionVersion: nextVersion },
     tenantId: source.tenant_id,
     parentDeliverableDefinitionId: source.parent_deliverable_definition_id,
     schemaDefinitionId: copySchema.id,

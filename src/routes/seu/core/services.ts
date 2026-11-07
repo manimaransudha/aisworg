@@ -1,5 +1,5 @@
 import { servicesDB } from "../../../dblayer/servicesDB.js";
-import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
+import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import type { ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
 
 export interface ServiceListItem {
@@ -14,7 +14,7 @@ export interface ServiceListItem {
 }
 
 export async function listServices(): Promise<ServiceListItem[]> {
-  const [{ data: services }, { data: capabilities }] = await Promise.all([servicesDB.findAll(), capabilitiesDB.findAll()]);
+  const [{ data: services }, { data: capabilities }] = await Promise.all([servicesDB.findAll(), capabilityDefinitionsDB.findAll()]);
   const capById = new Map((capabilities ?? []).map((c) => [c.id, c]));
   return (services ?? []).map((s) => {
     const cap = capById.get(s.providing_capability_id);
@@ -26,7 +26,7 @@ export async function listServices(): Promise<ServiceListItem[]> {
       status: s.status,
       version: s.version,
       providingCapabilityCode: cap?.code ?? "unknown",
-      providingCapabilityName: cap?.name ?? "unknown",
+      providingCapabilityName: cap?.default_label ?? "unknown",
     };
   });
 }

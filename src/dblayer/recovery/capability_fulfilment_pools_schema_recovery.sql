@@ -4,7 +4,7 @@ CREATE TABLE capability_fulfilment_pools (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   seu_id             UUID NOT NULL REFERENCES seus(id),
   seu_capability_id  UUID REFERENCES seu_capabilities(id),
-  capability_id      UUID REFERENCES capabilities(id),
+  capability_id      UUID REFERENCES capability_definitions(id),
   participant_ids    UUID[] NOT NULL DEFAULT '{}',
   resolved_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

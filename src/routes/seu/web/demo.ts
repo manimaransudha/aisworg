@@ -69,7 +69,7 @@ async function renderDemo(req: Request, res: Response, next: NextFunction, root:
     }));
     req.vm.req.areas = DEMO_AREAS;
     req.vm.req.area = area;
-    req.vm.req.list = paginateList(steps, params, {
+    const stepList = paginateList(steps, params, {
       searchFields: [(s) => s.area, (s) => s.code, (s) => s.title, (s) => s.kind, (s) => s.description],
       sortFields: {
         area: (s) => s.area,
@@ -78,7 +78,7 @@ async function renderDemo(req: Request, res: Response, next: NextFunction, root:
         title: (s) => s.title,
       },
     });
-    req.vm.req.list.category = stepsTab ? DEMO_STEPS_TAB : area;
+    req.vm.req.list = { ...stepList, category: stepsTab ? DEMO_STEPS_TAB : area };
     req.vm.opt.listBasePath = basePath;
     req.vm.opt.renderMarkdown = renderMarkdown;
     req.vm.opt.renderInlineMarkdown = renderInlineMarkdown;
@@ -118,7 +118,8 @@ router.post("/demo/contact", async (req: Request, res: Response) => {
     if (!message) return redirects.seu.demo.error(req, res, "Enter a message before sending.", backTo);
     const to = (process.env.SUPERUSER_EMAIL || "").split(",").map((e) => e.trim()).filter(Boolean);
     if (to.length === 0) throw new Error("No superuser email is configured.");
-    const user = req.session.user;
+    // The route has a session: the route authority gate runs before the handler.
+    const user = req.session.user!;
     await emailService.sendDemoContact({ to, fromName: user.name ?? "", fromEmail: user.email, message });
     return redirects.seu.demo.success(req, res, "Thank you. We will be in touch.", backTo);
   } catch (err) {

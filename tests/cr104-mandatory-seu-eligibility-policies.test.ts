@@ -27,8 +27,9 @@ import pool from "../src/utils/db.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { findEligibleParticipants, resolveEligibilityPolicies } from "../src/routes/seu/core/participantEligibility.js";
-import { unravelComposition } from "../src/domain/engine/profileCompositionUnravel.js";
+import { flattenComposedPacks } from "../src/domain/engine/conflicts/composedPacks.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
+import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
@@ -77,9 +78,9 @@ test("CR-104: a Pack marked installation_classification 'Mandatory' composes int
   await templatesDB.setRequiredCapabilities(platformTemplate!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const { data: platformProfile } = await profilesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-mandatory-profile-${run}`, name: "CR-104 Mandatory Profile", baseTemplateId: platformTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
 
-  const platformUnraveled = await unravelComposition({ templateIds: [platformTemplate!.id], profileIds: [platformProfile!.id] }, PLATFORM_TENANT_ID);
+  const platformUnraveled = await flattenComposedPacks({ templates: [platformTemplate!], profiles: [platformProfile!] }, PLATFORM_TENANT_ID);
   assert.ok(
-    platformUnraveled.composedPacks.some((p) => p.packId === platformPackRow!.id),
+    platformUnraveled.packs.some((p) => p.id === platformPackRow!.id),
     "a Platform-scoped Mandatory Pack composes into a Template that never listed it"
   );
 
@@ -96,15 +97,15 @@ test("CR-104: a Pack marked installation_classification 'Mandatory' composes int
   const { data: sameTenantTemplate } = await templatesDB.upsert({ status: "Active", code: `cr104-same-tenant-tpl-${run}`, name: "CR-104 Same Tenant Template", deliverableCatalogue: [], tenantId });
   await templatesDB.setRequiredCapabilities(sameTenantTemplate!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const { data: sameTenantProfile } = await profilesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-same-tenant-profile-${run}`, name: "CR-104 Same Tenant Profile", baseTemplateId: sameTenantTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
-  const sameTenantUnraveled = await unravelComposition({ templateIds: [sameTenantTemplate!.id], profileIds: [sameTenantProfile!.id] }, tenantId);
+  const sameTenantUnraveled = await flattenComposedPacks({ templates: [sameTenantTemplate!], profiles: [sameTenantProfile!] }, tenantId);
   assert.ok(
-    sameTenantUnraveled.composedPacks.some((p) => p.packId === tenantPackRow!.id),
+    sameTenantUnraveled.packs.some((p) => p.id === tenantPackRow!.id),
     "a tenant-scoped Mandatory Pack composes into a Template belonging to that same tenant"
   );
 
-  const otherTenantUnraveled = await unravelComposition({ templateIds: [platformTemplate!.id], profileIds: [platformProfile!.id] }, PLATFORM_TENANT_ID);
+  const otherTenantUnraveled = await flattenComposedPacks({ templates: [platformTemplate!], profiles: [platformProfile!] }, PLATFORM_TENANT_ID);
   assert.ok(
-    !otherTenantUnraveled.composedPacks.some((p) => p.packId === tenantPackRow!.id),
+    !otherTenantUnraveled.packs.some((p) => p.id === tenantPackRow!.id),
     "a tenant-scoped Mandatory Pack must NOT leak into a Template belonging to a different tenant"
   );
 });
@@ -171,7 +172,7 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
   assert.equal(blockingObligation!.blocked_from_state, "Activated");
 });
 
-test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directly, checked against the Participant's own behaviour_context, resolved without any EBM", async () => {
+test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directly, checked against the Participant's own behaviour_context, resolved from the SEU's own EBM", async () => {
   const run = randomUUID().slice(0, 8);
 
   const eligibilityPack = { code: `cr104-eligibility-pack-${run}`, name: "CR-104 Eligibility Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
@@ -198,18 +199,25 @@ test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directl
   await templatesDB.setRequiredCapabilities(template!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const { data: profile } = await profilesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-eligibility-profile-${run}`, name: "CR-104 Eligibility Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
 
-  // A plain SEU row, deliberately not commissioned through the full async
-  // pipeline — resolveEligibilityPolicies works off template_id/profile_id
-  // directly, with no active_ebm_id at all, proving the "never through the
-  // EBM" design point concretely, not just by omission.
+  // A plain SEU row, deliberately not commissioned through the full async pipeline. With no EBM it has no eligibility Policies;
+  // once an EBM that records the Policy id is its active EBM, the Policy resolves from that EBM.
   const { objective } = await createObjective({ statement: `cr104-eligibility-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
   const { data: seu } = await seusDB.create({ lifecycleState: await seuBirthState(), authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective.id, templateId: template!.id, profileId: profile!.id, tenantId: PLATFORM_TENANT_ID, requestedBy: TESTER_ALL_ID });
   await ensureSeuSystemParticipant(seu!.id);
   assert.ok(seu);
   assert.equal(seu!.active_ebm_id, null, "sanity check: this SEU genuinely has no EBM yet");
+  assert.deepEqual(await resolveEligibilityPolicies(seu!), [], "an SEU with no EBM has no eligibility Policies");
 
-  const resolvedPolicies = await resolveEligibilityPolicies(seu!);
-  assert.ok(resolvedPolicies.some((p) => p.id === policy!.id), "the Eligibility policy resolves live off Template/Profile composition with no EBM at all");
+  const { data: birth } = await transitionDefinitionsDB.findBirth("EBM");
+  const { data: ebm, error: ebmError } = await ebmsDB.create({
+    seuId: seu!.id, templateId: template!.id, profileId: profile!.id, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
+    status: birth!.to_state as never, composedPacks: [], compositionReport: {} as never,
+    behaviors: { settled: { policies: { result: [{ policyCode: backgroundCheckCode, scope: "Eligibility", governingCondition: { type: "field_in", field: "cleared", values: [true] } }] } } },
+  });
+  assert.ok(ebm && !ebmError, ebmError?.message ?? "EBM must be created");
+  const { data: seuWithEbm } = await seusDB.setActiveEbm(seu!.id, ebm!.id);
+  const resolvedPolicies = await resolveEligibilityPolicies(seuWithEbm!);
+  assert.ok(resolvedPolicies.some((p) => p.code === backgroundCheckCode), "the Eligibility policy resolves from the settled result of the SEU's EBM");
 
   const cleared = await participantsMasterDB.create({
     tenantId: seu!.tenant_id!, type: "Human", displayName: `CR-104 cleared ${run}`, userId: null,
@@ -225,7 +233,7 @@ test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directl
   });
 
   const eligible = await findEligibleParticipants({
-    tenantId: seu!.tenant_id!, capabilityCode, requiredPolicyIds: resolvedPolicies.map((p) => p.id),
+    tenantId: seu!.tenant_id!, capabilityCode, requiredPolicies: resolvedPolicies,
   });
   const eligibleIds = new Set(eligible.map((p) => p.id));
   assert.ok(eligibleIds.has(cleared.data!.id), "a Participant whose behaviour_context satisfies the required Policy is eligible");

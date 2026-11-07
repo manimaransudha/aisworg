@@ -43,7 +43,7 @@ import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
-import { deactivateParticipants, waitForCapabilityFulfilled, settleCapabilityRequests, ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_USER_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, TESTER_OBJECTIVE_ACHIEVE_ONLY, grantBadge, grantRouteBadges, ensureSeuRequesterParticipant, ensureActorParticipant } from "./testFixtures.js";
+import { deactivateParticipants, waitForCapabilityFulfilled, settleCapabilityRequests, ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_USER_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, TESTER_OBJECTIVE_ACHIEVE_ONLY, grantBadge, grantRole, grantRouteBadges, ensureSeuRequesterParticipant, ensureActorParticipant } from "./testFixtures.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import type { CommandRow, WorkItemRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
@@ -217,7 +217,8 @@ async function commissionSeu(request: Session, statementPrefix: string, sponsor:
   // hardcoding a badge name at the call site.
   await grantRouteBadges(sponsor.participantId, "POST", "/aisworg/seu/seus");
 
-  const picker = await getPage(request, `/seu/seus/new?objectiveId=${objective.id}`);
+  // The picker is a paginated list sorted by Profile name; search by the fixture Profile's own code so it is on the first page however many Profiles other tests left behind.
+  const picker = await getPage(request, `/seu/seus/new?objectiveId=${objective.id}&q=${encodeURIComponent(fixtureProfile.code)}`);
   assert.equal(picker.status, 200);
   const csrf = extractCsrf(picker.html);
   const templateProfileValue = `${fixtureTemplate.id}|${fixtureProfile.id}`;
@@ -1357,49 +1358,55 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
 // the wrong reason).
 
 test("Objectives — the web layer's own tenant-reach gate blocks a real badge holder from another tenant's Objective, not just root-bypassed access", async () => {
-  const { objective: babylonObjective } = await createObjective({
-    statement: `webflow-tenant-reach-babylon-${randomUUID()}`,
-    requiredCapabilityCodes: [],
-    tier: "Strategic",
-    requestedBy: TESTER_OBJECTIVE_BABYLON.participantId,
-  });
+  // GET /objectives/:id requires the demo role in route_authority; both viewers hold it for this test so the tenant-reach gate, not the role gate, is what decides.
+  const restoreRoles = [await grantRole(TESTER_OBJECTIVE_BABYLON.participantId, "demo"), await grantRole(TESTER_OBJECTIVE_ATHENS.participantId, "demo")];
+  try {
+    const { objective: babylonObjective } = await createObjective({
+      statement: `webflow-tenant-reach-babylon-${randomUUID()}`,
+      requiredCapabilityCodes: [],
+      tier: "Strategic",
+      requestedBy: TESTER_OBJECTIVE_BABYLON.participantId,
+    });
 
-  // Positive control — the owning tenant can see it fine.
-  const ownTenantView = await getPage(newSession(TESTER_OBJECTIVE_BABYLON.userId), `/seu/objectives/${babylonObjective.id}`);
-  assert.equal(ownTenantView.status, 200);
-  assertPageMatches(ownTenantView.html, new RegExp(babylonObjective.statement));
+    // Positive control — the owning tenant can see it fine.
+    const ownTenantView = await getPage(newSession(TESTER_OBJECTIVE_BABYLON.userId), `/seu/objectives/${babylonObjective.id}`);
+    assert.equal(ownTenantView.status, 200);
+    assertPageMatches(ownTenantView.html, new RegExp(babylonObjective.statement));
 
-  // router.param("id") — a real, badge-holding, different-tenant viewer gets
-  // "Objective not found," never the content, never a distinguishable 403.
-  const outsider = newSession(TESTER_OBJECTIVE_ATHENS.userId);
-  const detailRedirect = await getRedirect(outsider, `/seu/objectives/${babylonObjective.id}`);
-  assert.equal(detailRedirect.status, 302);
-  assert.equal(detailRedirect.location, "/aisworg/seu/objectives");
-  const detailAttempt = await getPage(outsider, "/seu/objectives");
-  assertPageMatches(detailAttempt.html, /Objective not found/);
-  assertPageDoesNotMatch(detailAttempt.html, new RegExp(babylonObjective.statement), "the other tenant's statement text must never leak");
+    // router.param("id") — a real, badge-holding, different-tenant viewer gets
+    // "Objective not found," never the content, never a distinguishable 403.
+    const outsider = newSession(TESTER_OBJECTIVE_ATHENS.userId);
+    const detailRedirect = await getRedirect(outsider, `/seu/objectives/${babylonObjective.id}`);
+    assert.equal(detailRedirect.status, 302);
+    assert.equal(detailRedirect.location, "/aisworg/seu/objectives");
+    const detailAttempt = await getPage(outsider, "/seu/objectives");
+    assertPageMatches(detailAttempt.html, /Objective not found/);
+    assertPageDoesNotMatch(detailAttempt.html, new RegExp(babylonObjective.statement), "the other tenant's statement text must never leak");
 
-  // GET /new?parent= — same gate, the query-string parent path.
-  const newChildRedirect = await getRedirect(outsider, `/seu/objectives/new?parent=${babylonObjective.id}&tier=Engineering`);
-  assert.equal(newChildRedirect.status, 302);
-  assert.equal(newChildRedirect.location, "/aisworg/seu/objectives");
-  const newChildAttempt = await getPage(outsider, "/seu/objectives");
-  assertPageMatches(newChildAttempt.html, /Parent Objective not found/);
+    // GET /new?parent= — same gate, the query-string parent path.
+    const newChildRedirect = await getRedirect(outsider, `/seu/objectives/new?parent=${babylonObjective.id}&tier=Engineering`);
+    assert.equal(newChildRedirect.status, 302);
+    assert.equal(newChildRedirect.location, "/aisworg/seu/objectives");
+    const newChildAttempt = await getPage(outsider, "/seu/objectives");
+    assertPageMatches(newChildAttempt.html, /Parent Objective not found/);
 
-  // A direct POST naming the other tenant's Objective as parent is refused
-  // too, not just the GET form — by requireTenantScope.forField's own route
-  // gate now (added after this test was first written), which runs before
-  // createObjective's own tenant-reach check ever gets a chance to fire.
-  const list = await getPage(outsider, "/seu/objectives");
-  const csrf = extractCsrf(list.html);
-  const blockedChild = await postForm(outsider, "/seu/objectives", csrf, {
-    statement: `webflow-tenant-reach-blocked-child-${randomUUID()}`,
-    tier: "Engineering",
-    parentObjectiveId: babylonObjective.id,
-    requiredCapabilityCodes: ["architecture-design"],
-  });
-  assert.equal(blockedChild.status, 302);
-  assert.equal(blockedChild.location, "/aisworg/seu/objectives", "refused back to the list, not created");
+    // A direct POST naming the other tenant's Objective as parent is refused
+    // too, not just the GET form — by requireTenantScope.forField's own route
+    // gate now (added after this test was first written), which runs before
+    // createObjective's own tenant-reach check ever gets a chance to fire.
+    const list = await getPage(outsider, "/seu/objectives");
+    const csrf = extractCsrf(list.html);
+    const blockedChild = await postForm(outsider, "/seu/objectives", csrf, {
+      statement: `webflow-tenant-reach-blocked-child-${randomUUID()}`,
+      tier: "Engineering",
+      parentObjectiveId: babylonObjective.id,
+      requiredCapabilityCodes: ["architecture-design"],
+    });
+    assert.equal(blockedChild.status, 302);
+    assert.equal(blockedChild.location, "/aisworg/seu/objectives", "refused back to the list, not created");
+  } finally {
+    for (const restore of restoreRoles) await restore();
+  }
 });
 
 // CR-076 (owner: "every route has to be gated with a requireBadge... The

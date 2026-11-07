@@ -17,7 +17,7 @@ import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
-import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
+import { capabilityDefinitionsDB } from "../src/dblayer/capabilityDefinitionsDB.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { registerAdapter, resolveAdapter } from "../src/adapters/adapterRegistry.js";
 import { humanOnUiAdapter } from "../src/adapters/humanOnUiAdapter.js";
@@ -75,7 +75,7 @@ after(async () => {
   // file set is global. Clear it so later e2e files (which boot the app and
   // register the delivery subscriber) don't try to deliver to this now-closed
   // capture server.
-  const { data: caps } = await capabilitiesDB.findByCodes(["requirements-analysis"]);
+  const { data: caps } = await capabilityDefinitionsDB.findActiveByCodesVisibleTo(["requirements-analysis"], defaultTenantId);
   for (const cap of caps ?? []) await executionTargetsDB.deleteByTenantAndCapability(defaultTenantId, cap.id);
   await new Promise<void>((resolve) => captureServer.close(() => resolve()));
 });

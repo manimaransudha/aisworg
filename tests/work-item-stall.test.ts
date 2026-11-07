@@ -18,7 +18,8 @@ import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, transitionDeliverableSync } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
-const SLA_SECONDS = 60;
+// Must outlast the wait for the dispatched Work Item (the post-commissioning Participant creation load can take over a minute) yet stay below the one-hour offset of the late sweep.
+const SLA_SECONDS = 600;
 
 async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSeconds?: number }) {
   await ensureWebAppTemplateFixture();
@@ -82,7 +83,7 @@ test("an outstanding Work Item within its SLA is not escalated; past its SLA it 
   const noAttentionYet = await attentionItemsDB.findOpenByRelatedObject(seuId, "Escalation", "Deliverable", deliverableId);
   assert.equal(noAttentionYet.data, null, "no Escalation raised while inside the SLA");
 
-  // Past the SLA (swept an hour later, SLA is 60s): escalated, unattended — no
+  // Past the SLA (swept an hour later, SLA is 600s): escalated, unattended — no
   // Participant callback was involved.
   const late = await sweepStalledWorkItems({ now: new Date(Date.now() + 3600_000), seuId });
   assert.equal(late.escalatedWorkItemIds.includes(workItemId), true, "an outstanding Work Item past its SLA must escalate");
@@ -112,7 +113,7 @@ test("a completed Work Item is no longer outstanding, so the stall sweep never e
 test("a Participant that responds before the target is processed normally (the deadline never blocks an early result)", async () => {
   const { deliverableId, workItemId } = await commissionDispatchAndDeclareSla("stall-early");
 
-  // Well within the 60s SLA target: completing now must succeed, record the reference and dispose the Work Item.
+  // Well within the SLA target: completing now must succeed, record the reference and dispose the Work Item.
   const { completeWorkItem } = await import("../src/routes/seu/core/workItems.js");
   const done = await completeWorkItem({ workItemId, outcome: "done", reference: "vcs://stall/req@early" });
   assert.equal(done.ok, true, !done.ok ? JSON.stringify(done) : "assertion failed");

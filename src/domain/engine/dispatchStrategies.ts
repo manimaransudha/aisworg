@@ -2,6 +2,7 @@ import { participantsDB } from "../../dblayer/participantsDB.js";
 import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
 import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
+import { loadSettled, configurationParameter } from "./ebmSettled.js";
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
 import type { ParticipantMasterRow } from "../../dblayer/seuTypes.js";
 
@@ -22,13 +23,14 @@ export async function loadAvailableCandidates(candidateIds: string[]): Promise<D
   return out;
 }
 
-async function resolveEbmPoolValue(seuId: string, propertyName: string): Promise<unknown> {
-  const { data: seu } = await seusDB.findById(seuId);
-  if (!seu?.active_ebm_id) return undefined;
-  const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
-  const pool = (ebm?.behaviors as { pool?: Array<{ propertyName: string; value: unknown }> } | null)?.pool ?? [];
-  return pool.find((e) => e.propertyName === propertyName)?.value;
-}
+// Commented out (owner): nothing reads the EBM's pool. The Profile configuration is read from the EBM's settled result.
+// async function resolveEbmPoolValue(seuId: string, propertyName: string): Promise<unknown> {
+//   const { data: seu } = await seusDB.findById(seuId);
+//   if (!seu?.active_ebm_id) return undefined;
+//   const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
+//   const pool = (ebm?.behaviors as { pool?: Array<{ propertyName: string; value: unknown }> } | null)?.pool ?? [];
+//   return pool.find((e) => e.propertyName === propertyName)?.value;
+// }
 
 type StrategyFn = (candidates: DispatchCandidate[], context: { seuId: string }) => Promise<DispatchCandidate | null>;
 
@@ -88,7 +90,7 @@ const localityPreference: StrategyFn = async (candidates, context) => {
 };
 
 const organisationPreference: StrategyFn = async (candidates, context) => {
-  const wanted = await resolveEbmPoolValue(context.seuId, "participatingOrganisationCodes");
+  const wanted = configurationParameter(await loadSettled(context.seuId), "participatingOrganisationCodes");
   const wantedCodes = Array.isArray(wanted) ? (wanted as string[]) : [];
   if (wantedCodes.length === 0) return null;
   for (const c of candidates) {

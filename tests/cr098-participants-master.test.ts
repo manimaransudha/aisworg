@@ -73,7 +73,7 @@ test("createParticipantMaster: rejects an unknown capability-name code", async (
   );
 });
 
-test("createParticipantMaster: rejects a competency dimension that is not a real category:pack code", async () => {
+test("createParticipantMaster: rejects a competency dimension that is not a real participant-eligibility-dimension code", async () => {
   await assert.rejects(
     createParticipantMaster({ userId: null,
       tenantId: tenantId(),

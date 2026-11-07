@@ -1,5 +1,6 @@
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
+import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
@@ -131,7 +132,9 @@ export async function deriveExposableParameterCandidates(
 
   const capabilities = await deriveDedupedCapabilitiesFromPackCodes(packCodes, viewerTenantId);
   for (const capability of capabilities) {
-    const { data: services } = await servicesDB.findByCapabilityId(capability.id);
+    // Services provide the Capability Definition of the Capability's code.
+    const { data: capabilityDefinition } = await capabilityDefinitionsDB.findActiveByCodeVisibleTo(capability.code, viewerTenantId);
+    const { data: services } = capabilityDefinition ? await servicesDB.findByCapabilityId(capabilityDefinition.id) : { data: [] };
     for (const service of services ?? []) {
       for (const metric of service.service_level ?? []) {
         add({ sourceType: "service", sourceCode: service.code, sourceName: service.name, parameterName: metric.code, parameterLabel: metric.label, valueBearing: true, defaultValue: String(metric.target), numeric: true, targetLevel: metric.target_level, units: metric.units });

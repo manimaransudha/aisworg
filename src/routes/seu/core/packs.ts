@@ -4,6 +4,7 @@ import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
+import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
@@ -516,8 +517,10 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
   for (const svc of seed.contributions.services ?? []) {
     const definition = await resolvePinnedServiceDefinition(svc, pack.tenant_id);
     if (typeof definition === "string") throw new Error(definition);
-    const capabilityId = capabilityIdByCode.get(definition.capability_code);
-    if (!capabilityId) throw new Error(`service ${svc.code} references unknown capability ${definition.capability_code}`);
+    // A Service provides the Capability Definition of its capability code, whether or not the Pack names that Capability.
+    const { data: capabilityDefinition } = await capabilityDefinitionsDB.findActiveByCodeVisibleTo(definition.capability_code, pack.tenant_id);
+    if (!capabilityDefinition) throw new Error(`service ${svc.code} references capability ${definition.capability_code}, which has no Active Capability Definition`);
+    const capabilityId = capabilityDefinition.id;
     const overrideByCode = new Map<string, number>();
     for (const ov of svc.serviceLevel ?? []) overrideByCode.set(ov.code, ov.target);
     const mergedServiceLevel = definition.service_level.map((base) => ({

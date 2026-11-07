@@ -160,6 +160,7 @@ export interface TemplateRow {
 export interface DeliverableDefinitionRow {
   id: string;
   code: string;
+  name: string;
   description: string | null;
   guide_location: string | null;
   version: string;
@@ -300,6 +301,9 @@ export interface PolicyDefinitionRow {
   schema_definition_id: string | null;
 }
 
+// The columns of a Profile that the compose screen's Profile details read.
+export type ProfileDetailSource = Pick<ProfileRow, "id" | "code" | "name" | "environment" | "config_parameters" | "draft_content" | "base_template_id">;
+
 export interface ProfileRow {
   id: string;
   code: string;
@@ -386,9 +390,25 @@ export type SeuLifecycleState =
   | "Archived"
   | "Failed";
 
+// A composition conflict as the EBM and the Commissioning Report record it: what was found and what the user resolved it to.
+export interface RecordedConflict {
+  table: string;
+  key: string;
+  kind: string;
+  // What the user could do: pick-one, pick-any, include-or-exclude or none.
+  action: string;
+  message: string;
+  // A notice needs no pick, such as a Policy that a person verifies.
+  notice: boolean;
+  resolvable: boolean;
+  options: Array<{ sourceKind: string; sourceLabel: string; value: unknown }>;
+  // The user's pick, or null when none was made.
+  resolution: unknown | null;
+}
+
 export interface CommissioningReport {
   identity: { seuId: string; templateCode: string; profileCode: string; templateCodes: string[]; profileCodes: string[]; ebmId: string };
-  composition: { packsUsed: string[]; warnings: string[]; conflicts: string[] };
+  composition: { packsUsed: string[]; warnings: string[]; conflicts: RecordedConflict[] };
   validation: { errors: string[] };
   runtime: { initialCapabilities: string[]; initialDeliverables: string[] };
 }
@@ -398,7 +418,7 @@ export interface SeuRow {
   objective_id: string;
   template_id: string;
   profile_id: string;
-  tenant_id: string | null;
+  tenant_id: string;
   active_ebm_id: string | null;
   lifecycle_state: SeuLifecycleState;
   requested_by: string;

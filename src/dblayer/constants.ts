@@ -22,6 +22,61 @@ export const DEMO_RESET_TIMEZONE = "America/Los_Angeles";
 export const ATHENS_TENANT_NAME = "Athens AI-Native";
 export const BABYLON_TENANT_NAME = "Babylon AI-Native";
 export const CAMBODIA_TENANT_NAME = "Cambodia AI-Native";
+// The competency dimensions that hold the role types and work types of the Capabilities composed in an EBM.
+export const COMPETENCY_DIMENSION_ROLE = "Role";
+export const COMPETENCY_DIMENSION_WORK_TYPE = "Work type";
+// The dimensions that the Profile's programming language and domain are held under.
+export const COMPETENCY_DIMENSION_TECHNOLOGY = "Technology";
+export const COMPETENCY_DIMENSION_DOMAIN = "Domain";
+// What a user can do with a composition conflict. The action that applies depends on the kind of conflict.
+export const CONFLICT_ACTION_PICK_ONE = "pick-one";
+export const CONFLICT_ACTION_PICK_ANY = "pick-any";
+export const CONFLICT_ACTION_INCLUDE_OR_EXCLUDE = "include-or-exclude";
+export const CONFLICT_ACTION_NONE = "none";
+export type ConflictAction = typeof CONFLICT_ACTION_PICK_ONE | typeof CONFLICT_ACTION_PICK_ANY | typeof CONFLICT_ACTION_INCLUDE_OR_EXCLUDE | typeof CONFLICT_ACTION_NONE;
+// The action for each kind of conflict that the detectors in src/domain/engine/conflicts report.
+export const CONFLICT_ACTION_BY_KIND: Record<string, ConflictAction> = {
+  "service-choice": CONFLICT_ACTION_PICK_ONE,
+  "level-different": CONFLICT_ACTION_PICK_ONE,
+  "level-added": CONFLICT_ACTION_PICK_ONE,
+  "level-omitted": CONFLICT_ACTION_PICK_ONE,
+  "capability-added": CONFLICT_ACTION_INCLUDE_OR_EXCLUDE,
+  "policy-same-code": CONFLICT_ACTION_PICK_ONE,
+  "policy-across-codes": CONFLICT_ACTION_PICK_ANY,
+  "policy-human-verified": CONFLICT_ACTION_NONE,
+  "authority-different-roles": CONFLICT_ACTION_PICK_ANY,
+  "quality-gate-different": CONFLICT_ACTION_PICK_ANY,
+  "review-gate-different-rules": CONFLICT_ACTION_PICK_ANY,
+  "obligation-different": CONFLICT_ACTION_PICK_ANY,
+  "engineering-capital-different-links": CONFLICT_ACTION_PICK_ANY,
+  "engineering-capital-missing-link": CONFLICT_ACTION_INCLUDE_OR_EXCLUDE,
+  "dependency-required-missing": CONFLICT_ACTION_NONE,
+  "dependency-incompatible-present": CONFLICT_ACTION_NONE,
+};
+// The label of each conflict table on the Resolve Conflicts screen, in the order of its tabs.
+export const CONFLICT_TABLE_LABELS: Record<string, string> = {
+  services: "Services",
+  capabilities: "Capabilities",
+  policies: "Policies",
+  authorityRules: "Authority rules",
+  qualityGates: "Quality gates",
+  reviewGates: "Review gates",
+  obligationDefinitions: "Obligation definitions",
+  engineeringCapital: "Engineering capital",
+  dependencies: "Dependencies",
+  checklists: "Checklists",
+  competencies: "Competencies",
+  profileConfiguration: "Profile configuration",
+};
+// The value of a conflict option that stands for "no value", such as a service level the SEU does not take. A pick of it is a pick, not an open conflict.
+export const CONFLICT_NO_VALUE = "none";
+// The Profile fields that are configuration parameters, in the order they are shown. The Profile's Pack codes and exposed parameter overrides are not among them.
+export const PROFILE_CONFIGURATION_PARAMETERS = [
+  "environment", "developmentMethodology", "primaryProgrammingLanguage", "sourceControlProvider", "targetCloudProvider", "deploymentStrategy",
+  "aiProviderPreference", "defaultRepositoryStructure", "documentationLevel", "domain", "participatingOrganisationCodes", "environmentConfiguration",
+  "deploymentTargets", "featureFlagCodes", "compositionOptions", "dispatchStrategyPreference", "knowledgeLocations", "readme",
+  "redispatchMaxAttempts", "redispatchAttentionThreshold",
+] as const;
 export const NO_EXPIRY_DATE = "9999-12-31";
 export const RESERVED_TENANT_CODES = ["default", "platform", "demo"];
 export const INITIAL_VERSION = "1.0.0";

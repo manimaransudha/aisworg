@@ -4,7 +4,8 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
-| [CR-139](design/change-requests/CR-139-ebm-composition-conflict-rules.md) | EBM composition: Deliverable-driven Capabilities and conflict rules for every Pack contribution | 🟡 Raised — design in progress |
+| [CR-140](design/change-requests/CR-140-review-gate-deliverable.md) | Review gate: the governed step names the Deliverable, as a quality gate does | 🟡 Raised — design in progress |
+| [CR-139](design/change-requests/CR-139-ebm-composition-conflict-rules.md) | EBM composition: Deliverable-driven Capabilities and conflict rules for every Pack contribution | ✅ Built 2026-11-06 |
 | [CR-138](design/change-requests/CR-138-registry-view-pages.md) | Registry view pages, separate from the form generator, starting with Capability | ✅ Closed 2026-11-03 |
 | [CR-137](design/change-requests/CR-137-transition-definition-ui-event-field.md) | TransitionDefinition UI: an event field, and refusal of a row with no event, carried forward from CR-128 | 🟡 Raised — design in progress |
 | [CR-136](design/change-requests/CR-136-seed-refuses-rows-without-event.md) | seedTransitionDefinitions refuses a row with no event, and the 62 rows are given one, carried forward from CR-128 | 🟡 Raised — design in progress |

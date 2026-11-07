@@ -6,6 +6,7 @@ import { getPlatformTenantId } from "../../../dblayer/constants.js";
 export interface DeliverableDefinitionWriteInput {
   id?: string;
   code: string;
+  name: string;
   description?: string | null;
   version: string;
   draftContent: Record<string, unknown>;
@@ -25,6 +26,7 @@ export async function validateDeliverableDefinitionWriteAgainstSchema(input: Del
   const content: Record<string, unknown> = {
     ...input.draftContent,
     code: input.code,
+    name: input.name,
     description: input.description ?? "",
     definitionVersion: input.version,
   };

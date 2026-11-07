@@ -25,7 +25,8 @@ import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { tenantContractsDB } from "../src/dblayer/tenantContractsDB.js";
 import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
-import { templatesDB } from "../src/dblayer/templatesDB.js";
+import { capabilityDefinitionsDB } from "../src/dblayer/capabilityDefinitionsDB.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, driveCommissioningToActive, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
@@ -159,8 +160,10 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
   // Capability row instead of this fixture Template's own, causing
   // resolveExecutionTarget to silently fall back to human-on-ui delivery.
   const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
-  const { data: templateCapabilities } = await templatesDB.getRequiredCapabilities(fixtureTemplate.id);
-  const reqAnalysisCapId = templateCapabilities?.find((c) => c.code === "requirements-analysis")?.id;
+  void fixtureTemplate;
+  // The SEU's producing Capability is the Active Capability Definition its EBM recorded, so the execution target is upserted against that id.
+  const { data: reqAnalysisDefinition } = await capabilityDefinitionsDB.findActiveByCode("requirements-analysis", await getPlatformTenantId());
+  const reqAnalysisCapId = reqAnalysisDefinition?.id;
   assert.ok(reqAnalysisCapId);
 
   // Tenant A: GitHub, HMAC callback auth, query-only attestation, orchestrator /a.

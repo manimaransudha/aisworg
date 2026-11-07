@@ -28,7 +28,7 @@ const SOURCE_LOADERS: Record<string, (viewer: Viewer) => Promise<string[]>> = {
     const { data: templates } = await templatesDB.listActiveOptionRows(viewer.isRoot || !viewer.tenantId ? null : viewer.tenantId);
     return [...new Set((templates ?? []).map((t) => t.code))].sort();
   },
-  "deliverable-name": async (viewer) => [...new Set((await listConceptsForType("deliverable-name", viewer, false)).map((c) => c.default_label))].sort(),
+  "deliverable-name": conceptCodes("deliverable-name"),
   "feature-flag": conceptCodes("feature-flag"),
   "category:evidence": conceptCodes("category:evidence"),
   "category:policy": conceptCodes("category:policy"),

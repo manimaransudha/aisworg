@@ -24,7 +24,7 @@ export async function createParticipantMaster(input: {
   }
 
   for (const [dimension, entries] of Object.entries(input.competency ?? {})) {
-    await assertCanonicalCategory("category:pack", dimension, viewer);
+    await assertCanonicalCategory("participant-eligibility-dimension", dimension, viewer);
     for (const entry of entries) {
       await assertCanonicalCategory(dimension.toLowerCase(), entry.code, viewer);
       await assertCanonicalCategory("proficiency-level", entry.proficiency, viewer);

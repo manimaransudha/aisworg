@@ -154,7 +154,6 @@ A Profile configures one Template for one environment. Exactly one Profile is ch
 |---|---|
 | Identity | name, baseTemplateCode, environment (development, staging, production), profileVersion, description, readme, domain |
 | Extra Packs | optionalPackCodes, plus domain, compliance, technology, engineering, integration and organisation lists |
-| Capabilities | additionalCapabilityCodes |
 | Parameters | exposedParameterOverrides, limited to parameters the Template marks as overridable |
 | Delivery configuration | developmentMethodology, primaryProgrammingLanguage, sourceControlProvider, targetCloudProvider, deploymentStrategy, aiProviderPreference, defaultRepositoryStructure, documentationLevel, deploymentTargets, environmentConfiguration, featureFlagCodes, participatingOrganisationCodes, knowledgeLocations |
 | Dispatch | dispatchStrategyPreference (ordered list), redispatchMaxAttempts, redispatchAttentionThreshold |

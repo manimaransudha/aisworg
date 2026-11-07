@@ -23,6 +23,8 @@ const ORDER = [
   "attention_items_schema_recovery.sql",
   "packs_schema_recovery.sql",
   "capabilities_schema_recovery.sql",
+  // Moved up (owner): the tables below point at capability_definitions.
+  "capability_definitions_schema_recovery.sql",
   "deliverables_schema_recovery.sql",
   "seu_capabilities_schema_recovery.sql",
   "capability_fulfilment_pools_schema_recovery.sql",
@@ -36,7 +38,7 @@ const ORDER = [
   "authority_verbs_schema_recovery.sql",
   "authority_noun_verbs_schema_recovery.sql",
   "badge_types_schema_recovery.sql",
-  "capability_definitions_schema_recovery.sql",
+  // "capability_definitions_schema_recovery.sql",
   "capability_fulfilments_schema_recovery.sql",
   "checklists_schema_recovery.sql",
   "compliance_evaluations_schema_recovery.sql",

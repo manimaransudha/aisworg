@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <%# The Resolve Conflicts screen of Compose EBM (CR-139). One vertical tab for each conflict table. A conflict shows what the sources say and the
+       action that fits its kind. A pick is posted to the Compose route, which checks it, stores it and re-runs the detectors. %>
+  <main class="container py-5" style="max-width: 1100px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <h2 class="h3 mb-1 text-dark fw-bold">Resolve Conflicts</h2>
+    <p class="text-muted small mb-4">Where the sources of this composition disagree. Pick an answer for each open conflict. Composition completes when none is left open.</p>
+
+    <% var _base = locals.listBasePath || ''; %>
+    <% var _openTotal = tabs.reduce(function(n, t) { return n + t.open; }, 0); %>
+    <% function _fmt(value) { return (value === null || value === undefined) ? '—' : (typeof value === 'object' ? JSON.stringify(value) : String(value)); } %>
+    <% function _same(a, b) { return JSON.stringify(a) === JSON.stringify(b); } %>
+    <% function _status(c) { return c.notice ? 'notice' : (c.resolution !== null && c.resolution !== undefined ? 'resolved' : 'open'); } %>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mb-3">
+      <a href="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Compose</a>
+    </div>
+
+    <% if (locals.allResolved) { %>
+      <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>No conflict is open. Composition continues.</div>
+    <% } else { %>
+      <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i><%= _openTotal %> conflict<%= _openTotal === 1 ? ' is' : 's are' %> open.</div>
+    <% } %>
+
+    <div class="row g-4">
+      <div class="col-md-3">
+        <div class="section-card">
+          <div class="section-header">Conflicts</div>
+          <div class="nav flex-column nav-pills p-2" role="tablist" aria-orientation="vertical">
+            <% tabs.forEach(function(t) { %>
+              <a class="nav-link d-flex align-items-center justify-content-between <%= t.table === selectedTable ? 'active' : '' %>" href="<%= _base %>?category=<%= encodeURIComponent(t.table) %>">
+                <span><%= t.label %></span>
+                <% if (t.open > 0) { %>
+                  <span class="badge bg-danger-subtle text-danger-emphasis"><%= t.open %></span>
+                <% } else if (t.total > 0) { %>
+                  <span class="badge bg-success-subtle text-success-emphasis"><%= t.total %></span>
+                <% } %>
+              </a>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-9">
+        <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search conflicts' }) %>
+
+        <% if (!list.items.length) { %>
+          <div class="section-card"><div class="p-3 text-muted small">No conflict in this table.</div></div>
+        <% } %>
+
+        <%# What the SEU takes for this table. It is shown whether or not the table has a conflict. %>
+        <% var _taken = locals.settledResult || []; %>
+        <% var _cols = []; _taken.forEach(function(row) { Object.keys(row).forEach(function(k) { if (_cols.indexOf(k) < 0) _cols.push(k); }); }); %>
+        <div class="section-card">
+          <div class="section-header d-flex align-items-center justify-content-between gap-2">
+            <span><i class="bi bi-check2-square me-1"></i>What the SEU takes</span>
+            <% if (locals.preview && !locals.preview.error) { %><span class="badge bg-warning-subtle text-warning-emphasis">Preview of your selection, not applied yet</span><% } %>
+          </div>
+          <% if (locals.preview && locals.preview.error) { %><div class="px-3 pt-2 text-danger small"><%= locals.preview.error %></div><% } %>
+          <% if (!_taken.length) { %>
+            <div class="p-3 text-muted small">Nothing yet.</div>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead><tr><% _cols.forEach(function(col) { %><th class="small text-muted"><%= col %></th><% }) %></tr></thead>
+                <tbody>
+                  <% _taken.forEach(function(row) { %>
+                    <tr><% _cols.forEach(function(col) { %><td class="small"><code><%= _fmt(row[col]) %></code></td><% }) %></tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+
+        <%# What the EBM leaves out of this table, and why. %>
+        <% var _left = locals.leftOut || []; %>
+        <div class="section-card">
+          <div class="section-header"><i class="bi bi-dash-circle me-1"></i>What the EBM leaves out, and why</div>
+          <% if (!_left.length) { %>
+            <div class="p-3 text-muted small">Nothing is left out.</div>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead><tr><th class="small text-muted">Left out</th><th class="small text-muted">Why</th></tr></thead>
+                <tbody>
+                  <% _left.forEach(function(row) { %>
+                    <tr><td class="small"><code><%= row.item %></code></td><td class="small"><%= row.reason %></td></tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+
+        <% list.items.forEach(function(c, ci) { %>
+          <% var st = _status(c); %>
+          <div class="section-card">
+            <div class="section-header d-flex align-items-center justify-content-between gap-2">
+              <span><code class="small"><%= c.kind %></code></span>
+              <% if (st === 'open') { %><span class="badge bg-danger-subtle text-danger-emphasis">Open</span>
+              <% } else if (st === 'resolved') { %><span class="badge bg-success-subtle text-success-emphasis">Resolved</span>
+              <% } else { %><span class="badge bg-info-subtle text-info-emphasis">Notice</span><% } %>
+            </div>
+            <div class="p-3">
+              <p class="mb-2"><%= c.message %></p>
+              <div class="table-responsive mb-2">
+                <table class="table table-sm align-middle mb-0">
+                  <thead><tr><th class="small text-muted">Source</th><th class="small text-muted">Value</th></tr></thead>
+                  <tbody>
+                    <% c.options.forEach(function(opt) { %>
+                      <tr>
+                        <td class="small text-nowrap">
+                          <% if (opt.sourceKind === 'pack' && opt.sourceId) { %>
+                            <a href="/aisworg/seu/packs/<%= opt.sourceId %>" target="_blank" rel="noopener">Pack <%= opt.sourceLabel %></a>
+                          <% } else { %><%= opt.sourceLabel %><% } %>
+                        </td>
+                        <td class="small"><code><%= _fmt(opt.value) %></code></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+
+              <% if (st === 'resolved') { %>
+                <div class="small mb-2">Your pick: <span class="fw-semibold"><code><%= _fmt(c.resolution) %></code></span></div>
+              <% } %>
+
+              <% if (c.notice) { %>
+                <div class="text-muted small">A person verifies this. Nothing to pick.</div>
+              <% } else if (!c.resolvable || c.action === 'none') { %>
+                <div class="text-muted small">This cannot be resolved here.</div>
+              <% } else { %>
+                <form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm" class="d-flex flex-wrap align-items-center gap-3" data-preview-key="<%= c.key %>">
+                  <% var _pv = (locals.preview && locals.preview.key === c.key) ? locals.preview : null; %>
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="returnTo" value="resolve-conflicts">
+                  <input type="hidden" name="category" value="<%= selectedTable %>">
+                  <input type="hidden" name="ebmPickKey" value="<%= c.key %>">
+                  <% selections.forEach(function(s) { %>
+                    <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
+                  <% }) %>
+                  <% if (c.action === 'include-or-exclude') { %>
+                    <% var _dec = _pv ? _pv.decision : c.resolution; %>
+                    <div class="form-check"><input class="form-check-input" type="radio" name="ebmPickDecision" id="dec-<%= ci %>-include" value="include" <%= _dec === 'include' ? 'checked' : '' %>><label class="form-check-label small" for="dec-<%= ci %>-include">Include</label></div>
+                    <div class="form-check"><input class="form-check-input" type="radio" name="ebmPickDecision" id="dec-<%= ci %>-exclude" value="exclude" <%= _dec === 'exclude' ? 'checked' : '' %>><label class="form-check-label small" for="dec-<%= ci %>-exclude">Exclude</label></div>
+                    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                  <% } else { %>
+                    <% c.options.forEach(function(opt, oi) { %>
+                      <% var picked = _pv ? (_pv.optionIndexes || []).indexOf(oi) >= 0 : (c.action === 'pick-any' ? (Array.isArray(c.resolution) && c.resolution.some(function(r) { return _same(r, opt.value); })) : _same(c.resolution, opt.value)); %>
+                      <div class="form-check">
+                        <input class="form-check-input" type="<%= c.action === 'pick-any' ? 'checkbox' : 'radio' %>" name="ebmPickOption" id="pick-<%= ci %>-<%= oi %>" value="<%= oi %>" <%= picked ? 'checked' : '' %>>
+                        <label class="form-check-label small" for="pick-<%= ci %>-<%= oi %>"><%= opt.sourceLabel %>: <code><%= _fmt(opt.value) %></code></label>
+                      </div>
+                    <% }) %>
+                    <button type="submit" class="btn btn-primary btn-sm"><%= c.action === 'pick-any' ? 'Apply (one or both)' : 'Apply' %></button>
+                  <% } %>
+                </form>
+              <% } %>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </main>
+
+  <%# A change in a pick form reloads the page with that selection as a preview. The preview is worked out on the server and nothing is saved until Apply. %>
+  <script>
+    document.querySelectorAll('form[data-preview-key]').forEach(function (form) {
+      form.addEventListener('change', function () {
+        var params = new URLSearchParams(window.location.search);
+        ['previewKey', 'previewOption', 'previewDecision'].forEach(function (k) { params.delete(k); });
+        params.set('previewKey', form.getAttribute('data-preview-key'));
+        form.querySelectorAll('input[name=ebmPickOption]:checked').forEach(function (i) { params.append('previewOption', i.value); });
+        var decision = form.querySelector('input[name=ebmPickDecision]:checked');
+        if (decision) params.set('previewDecision', decision.value);
+        window.location.search = params.toString();
+      });
+    });
+  </script>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

@@ -71,7 +71,9 @@
 
     <%
       // --- Shared pool helpers (same as compose.ejs's own formatPoolValue/sourceLabel) ---
-      var pool = ebmView.ebmPool || [];
+      // Commented out (owner): nothing reads the EBM's pool. The EBM is shown from its settled result.
+      // var pool = ebmView.ebmPool || [];
+      var pool = [];
       function sourceLabel(source) { return (source.kind === 'pack' ? 'Pack ' : source.kind === 'template' ? 'Template ' : 'Profile ') + source.label; }
       function formatPoolValue(value) {
         if (value === null || value === undefined) return '—';
@@ -131,7 +133,7 @@
       // bare-code shape in this pool, carry {type, satisfiedInComposedSet}
       // instead and are excluded here).
       function isServiceEntry(e) { return e.value && typeof e.value === 'object' && Object.prototype.hasOwnProperty.call(e.value, 'serviceLevel'); }
-      function isCapabilityEntry(e) { return e.value && typeof e.value === 'object' && Object.prototype.hasOwnProperty.call(e.value, 'code') && !isServiceEntry(e); }
+      function isCapabilityEntry(e) { return Array.isArray(e.deliverableCodes); }
       var serviceEntries = pool.filter(isServiceEntry);
       var capabilityCodeEntries = pool.filter(isCapabilityEntry);
       var serviceParameterEntries = pool.filter(function(e) { return e.propertyName.indexOf('service::') === 0; });
@@ -161,16 +163,10 @@
       var deliverableCatalogueEntry = pool.find(function(e) { return e.propertyName === 'deliverableCatalogue'; });
       var dependencyGraphEntry = pool.find(function(e) { return e.propertyName === 'dependencyGraph'; });
 
-      var tabs = [
-        { key: 'metadata', label: 'Metadata' },
-        { key: 'parameters', label: 'Parameters', sub: parameterEntries.length ? '<span class="badge bg-secondary-subtle text-secondary">' + parameterEntries.length + '</span>' : '' },
-        { key: 'engineering-practices', label: 'Engineering Practices', sub: checklistGroups.length ? '<span class="badge bg-secondary-subtle text-secondary">' + checklistGroups.length + '</span>' : '' },
-        { key: 'quality-gates', label: 'Quality Gates', sub: qualityGateEntries.length ? '<span class="badge bg-secondary-subtle text-secondary">' + qualityGateEntries.length + '</span>' : '' },
-        { key: 'deliverables', label: 'Deliverables', sub: '' },
-        { key: 'services', label: 'Services', sub: serviceGroups.length ? '<span class="badge bg-secondary-subtle text-secondary">' + serviceGroups.length + '</span>' : '' },
-        { key: 'capabilities', label: 'Capabilities', sub: capabilityCodeEntries.length ? '<span class="badge bg-secondary-subtle text-secondary">' + capabilityCodeEntries.length + '</span>' : '' },
-        { key: 'governance', label: 'Governance', sub: (authorityRuleEntries.length + policyEntries.length) ? '<span class="badge bg-secondary-subtle text-secondary">' + (authorityRuleEntries.length + policyEntries.length) + '</span>' : '' },
-      ];
+      var tabs = [{ key: 'metadata', label: 'Metadata' }].concat((ebmView.settledTabs || []).map(function(s) {
+        return { key: s.table, label: s.label, sub: (s.conflicts && s.conflicts.length) ? '<span class="badge bg-secondary-subtle text-secondary">' + s.conflicts.length + '</span>' : '' };
+      }));
+      // Commented out (owner): the tabs that were built from the pool.
     %>
 
     <div class="d-flex flex-column flex-md-row gap-4 align-items-start mb-4">
@@ -240,6 +236,59 @@
           <% } %>
         </div>
 
+        <%# ---------------------------------------------------------------- One tab for each table of the settled result %>
+        <% function _fmtv(value) { return (value === null || value === undefined) ? '—' : (typeof value === 'object' ? JSON.stringify(value) : String(value)); } %>
+        <% (ebmView.settledTabs || []).forEach(function(s) { %>
+          <% var _cols = []; (s.result || []).forEach(function(row) { Object.keys(row).forEach(function(k) { if (_cols.indexOf(k) < 0) _cols.push(k); }); }); %>
+          <div class="tab-pane fade" id="seu-ebm-<%= s.table %>" role="tabpanel">
+            <div class="section-card">
+              <div class="section-header"><i class="bi bi-check2-square me-1"></i><%= s.label %> — what the SEU takes</div>
+              <% if (!(s.result || []).length) { %>
+                <div class="p-3 text-muted small">Nothing.</div>
+              <% } else { %>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead><tr><% _cols.forEach(function(col) { %><th class="small text-muted"><%= col %></th><% }) %></tr></thead>
+                    <tbody><% s.result.forEach(function(row) { %><tr><% _cols.forEach(function(col) { %><td class="small"><code><%= _fmtv(row[col]) %></code></td><% }) %></tr><% }) %></tbody>
+                  </table>
+                </div>
+              <% } %>
+            </div>
+            <% if ((s.conflicts || []).length) { %>
+              <div class="section-card">
+                <div class="section-header"><i class="bi bi-exclamation-diamond me-1"></i><%= s.label %> — conflicts and the picks</div>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th class="small text-muted">Conflict</th><th class="small text-muted">Options</th><th class="small text-muted">Pick</th></tr></thead>
+                    <tbody>
+                      <% s.conflicts.forEach(function(c) { %>
+                        <tr>
+                          <td class="small"><%= c.message %></td>
+                          <td class="small"><% (c.options || []).forEach(function(o) { %><div><%= o.sourceLabel %>: <code><%= _fmtv(o.value) %></code></div><% }) %></td>
+                          <td class="small"><% if (c.notice) { %><span class="text-muted">Notice</span><% } else if (c.resolution === null || c.resolution === undefined) { %><span class="text-muted">None</span><% } else { %><code><%= _fmtv(c.resolution) %></code><% } %></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            <% } %>
+            <% if ((s.leftOut || []).length) { %>
+              <div class="section-card">
+                <div class="section-header"><i class="bi bi-dash-circle me-1"></i><%= s.label %> — what the EBM leaves out, and why</div>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th class="small text-muted">Left out</th><th class="small text-muted">Why</th></tr></thead>
+                    <tbody><% s.leftOut.forEach(function(row) { %><tr><td class="small"><code><%= row.item %></code></td><td class="small"><%= row.reason %></td></tr><% }) %></tbody>
+                  </table>
+                </div>
+              </div>
+            <% } %>
+          </div>
+        <% }) %>
+
+        <%# Commented out (owner): the panes that were built from the pool. %>
+        <% if (false) { %>
         <%# ---------------------------------------------------------------- Parameters %>
         <div class="tab-pane fade" id="seu-ebm-parameters" role="tabpanel">
           <div class="section-card">
@@ -416,9 +465,7 @@
                           <td class="small"><% if (d) { %><code><%= d %></code><% } else { %>&mdash;<% } %></td>
                           <td class="small"><code><%= e.propertyName %></code></td>
                           <td class="small text-muted">
-                            <% if (e.source.kind === 'pack') { %>
-                              <a href="/aisworg/seu/packs/<%= e.source.id %>" target="_blank" rel="noopener"><%= sourceLabel(e.source) %></a>
-                            <% } else { %><%= sourceLabel(e.source) %><% } %>
+                            <a href="/aisworg/seu/<%= e.source.kind === 'pack' ? 'packs' : e.source.kind === 'template' ? 'templates' : 'profiles' %>/<%= e.source.id %>" target="_blank" rel="noopener"><%= sourceLabel(e.source) %></a>
                           </td>
                         </tr>
                       <% }) %>
@@ -477,6 +524,8 @@
             <% } %>
           </details>
         </div>
+
+        <% } %>
 
       </div>
     </div>

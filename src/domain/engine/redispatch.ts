@@ -11,18 +11,20 @@ import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
 import type { EventRow } from "../../dblayer/seuTypes.js";
 import { getSystemActor } from "../../dblayer/constants.js";
+import { loadSettled, configurationParameter } from "./ebmSettled.js";
 
-async function resolveEbmPool(seuId: string): Promise<Array<{ propertyName: string; value: unknown }>> {
-  const { data: seu } = await seusDB.findById(seuId);
-  if (!seu?.active_ebm_id) return [];
-  const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
-  return (ebm?.behaviors as { pool?: Array<{ propertyName: string; value: unknown }> } | null)?.pool ?? [];
-}
+// Commented out (owner): nothing reads the EBM's pool. The Profile configuration is read from the EBM's settled result.
+// async function resolveEbmPool(seuId: string): Promise<Array<{ propertyName: string; value: unknown }>> {
+//   const { data: seu } = await seusDB.findById(seuId);
+//   if (!seu?.active_ebm_id) return [];
+//   const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
+//   return (ebm?.behaviors as { pool?: Array<{ propertyName: string; value: unknown }> } | null)?.pool ?? [];
+// }
 
 export async function resolveRedispatchThresholds(seuId: string): Promise<{ maxAttempts: number | null; attentionThreshold: number | null }> {
-  const pool = await resolveEbmPool(seuId);
-  const maxAttempts = pool.find((e) => e.propertyName === "redispatchMaxAttempts")?.value;
-  const attentionThreshold = pool.find((e) => e.propertyName === "redispatchAttentionThreshold")?.value;
+  const settled = await loadSettled(seuId);
+  const maxAttempts = configurationParameter(settled, "redispatchMaxAttempts");
+  const attentionThreshold = configurationParameter(settled, "redispatchAttentionThreshold");
   return {
     maxAttempts: typeof maxAttempts === "number" ? maxAttempts : null,
     attentionThreshold: typeof attentionThreshold === "number" ? attentionThreshold : null,
@@ -30,8 +32,7 @@ export async function resolveRedispatchThresholds(seuId: string): Promise<{ maxA
 }
 
 async function resolveDispatchStrategies(seuId: string): Promise<Array<{ strategy: string; order: number }>> {
-  const pool = await resolveEbmPool(seuId);
-  const value = pool.find((e) => e.propertyName === "dispatchStrategyPreference")?.value;
+  const value = configurationParameter(await loadSettled(seuId), "dispatchStrategyPreference");
   return Array.isArray(value) ? (value as Array<{ strategy: string; order: number }>) : [];
 }
 

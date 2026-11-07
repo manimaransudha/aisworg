@@ -1195,6 +1195,17 @@
     "match_mode": "any"
   },
   {
+    "method": "GET",
+    "path": "/aisworg/seu/objectives/:id/resolve-conflicts",
+    "badges": [
+      "seu_commission"
+    ],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
     "method": "POST",
     "path": "/aisworg/seu/objectives/:id/compose-ebm",
     "badges": [

@@ -3,7 +3,7 @@ DROP TABLE IF EXISTS seu_capabilities CASCADE;
 CREATE TABLE seu_capabilities (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   seu_id         UUID NOT NULL REFERENCES seus(id) ON DELETE CASCADE,
-  capability_id  UUID NOT NULL REFERENCES capabilities(id),
+  capability_id  UUID NOT NULL REFERENCES capability_definitions(id),
   status         TEXT NOT NULL DEFAULT 'Unfulfilled'
                     CHECK (status IN ('Unfulfilled', 'Fulfilled')),
   UNIQUE (seu_id, capability_id)

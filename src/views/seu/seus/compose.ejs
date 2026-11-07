@@ -27,8 +27,14 @@
 
     <%# The action buttons sit in a toolbar that stays at the top of the page while the content scrolls.
          Submit buttons reach their form through the form attribute. %>
-    <% var _barConflicts = locals.compositionConflicts || []; %>
+    <%# Commented out (owner): the old conflicts are replaced by the Resolve Conflicts screen. var _barConflicts = locals.compositionConflicts || []; %>
+    <% var _barConflicts = []; %>
     <div class="d-flex align-items-center justify-content-end gap-2 mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
+      <% var _ebm = locals.ebmConflicts || {}; %>
+      <% var _ebmTotal = 0; var _ebmOpen = 0; Object.keys(_ebm).forEach(function(t) { (_ebm[t] || []).forEach(function(c) { _ebmTotal++; if (!c.notice && (c.resolution === null || c.resolution === undefined)) _ebmOpen++; }); }); %>
+      <% if (!locals.pending && _ebmTotal > 0) { %>
+        <a href="/aisworg/seu/objectives/<%= objectiveId %>/resolve-conflicts" class="btn btn-<%= _ebmOpen > 0 ? 'warning' : 'outline-secondary' %> btn-sm"><i class="bi bi-exclamation-diamond me-1"></i>Resolve Conflicts<%= _ebmOpen > 0 ? ' (' + _ebmOpen + ')' : '' %></a>
+      <% } %>
       <% if (locals.pending) { %>
         <button type="submit" form="compose-pending-form" class="btn btn-primary btn-sm"><i class="bi bi-play-fill me-1"></i>Compose</button>
       <% } else if (_barConflicts.length) { %>
@@ -62,11 +68,13 @@
     <% var report = compositionReport; %>
     <% var resolved = (typeof resolvedParameterOverrides !== 'undefined' && resolvedParameterOverrides) ? resolvedParameterOverrides : {}; %>
     <% var profileDetails = (typeof locals.profileDetails !== 'undefined' && locals.profileDetails) ? locals.profileDetails : []; %>
-    <% var pool = (typeof locals.unraveled !== 'undefined' && locals.unraveled && locals.unraveled.pool) ? locals.unraveled.pool : []; %>
-    <% var compositionConflicts = (typeof locals.compositionConflicts !== 'undefined' && locals.compositionConflicts) ? locals.compositionConflicts : []; %>
+    <%# Commented out (owner): the old composition is gone. %>
+    <% var pool = []; %>
+    <%# Commented out (owner): the old conflicts are replaced by the Resolve Conflicts screen. %>
     <% var resolvedCompositionConflicts = (typeof locals.resolvedCompositionConflicts !== 'undefined' && locals.resolvedCompositionConflicts) ? locals.resolvedCompositionConflicts : {}; %>
-    <% var isReady = !compositionConflicts.length; %>
-    <% var conflictingPropertyNames = compositionConflicts.map(function(c) { return c.propertyName; }); %>
+    <%# Commented out (owner): the old check. var isReady = !compositionConflicts.length; %>
+    <% var isReady = _ebmOpen === 0; %>
+    <% var conflictingPropertyNames = []; %>
     <% function poolEntryHasConflict(propertyName) {
          return conflictingPropertyNames.some(function(cp) { return cp === propertyName || cp.indexOf(propertyName + '.') === 0 || cp.indexOf(propertyName + '[') === 0; });
        } %>
@@ -141,6 +149,8 @@
       </div>
     <% }) %>
 
+    <%# Commented out (owner): the table built from the pool. The Resolve Conflicts screen shows what the SEU takes. %>
+    <% if (false) { %>
     <div class="section-card">
       <div class="section-header"><i class="bi bi-diagram-3 me-1"></i>Composition — everything this selection resolves to</div>
       <% if (!cleanPool.length) { %>
@@ -163,6 +173,8 @@
       <% } %>
     </div>
 
+    <% } %>
+
     <% if (report.warnings && report.warnings.length) { %>
       <div class="alert alert-warning">
         <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Warnings (non-blocking)</div>
@@ -172,7 +184,8 @@
       </div>
     <% } %>
 
-    <% if (compositionConflicts.length) { %>
+    <%# Commented out (owner): the old conflicts section is replaced by the Resolve Conflicts screen. %>
+    <% if (false) { %>
       <div class="section-card">
         <div class="section-header"><i class="bi bi-exclamation-diamond me-1"></i>Composition conflicts — properties two or more sources disagree on</div>
         <form id="compose-conflicts-form" method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm">
@@ -227,6 +240,13 @@
             </table>
           </div>
         </form>
+      </div>
+    <% } %>
+
+    <% if (!isReady) { %>
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-1"></i><%= _ebmOpen %> conflict<%= _ebmOpen === 1 ? ' is' : 's are' %> open.
+        <a href="/aisworg/seu/objectives/<%= objectiveId %>/resolve-conflicts" class="alert-link">Resolve Conflicts</a> to continue.
       </div>
     <% } %>
 

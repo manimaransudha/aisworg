@@ -2,7 +2,7 @@ BEGIN;
 DROP TABLE IF EXISTS services CASCADE;
 CREATE TABLE services (
   id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  providing_capability_id  UUID NOT NULL REFERENCES capabilities(id),
+  providing_capability_id  UUID NOT NULL REFERENCES capability_definitions(id),
   name                     TEXT NOT NULL,
   contract_description     TEXT NOT NULL,
   service_level            JSONB NOT NULL DEFAULT '{}',

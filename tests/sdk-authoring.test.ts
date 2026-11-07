@@ -764,7 +764,7 @@ test("Profile Inheritance: a tenant author inheriting an Active Platform Profile
 // Template `deliverableCatalogue` picker reads — only at the moment of
 // genuinely becoming (or ceasing to be) Active.
 function validDeliverableDefinitionContent(code: string, definitionVersion: string): Record<string, unknown> {
-  return { code, description: "What this kind of Deliverable is for.", definitionVersion };
+  return { code, name: code, description: "What this kind of Deliverable is for.", definitionVersion };
 }
 
 // A Deliverable Definition code is a composable Ontology value: it is proposed at save and must exist in the Ontology before the Definition is Published.
@@ -848,7 +848,7 @@ test("CR-049: inheriting from an Active Platform Deliverable Definition offers a
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentDeliverableDefinitionId: parent!.id,
-    content: { code: childCode, description: "A tenant specialisation", definitionVersion: "1.0.0" },
+    content: { code: childCode, name: childCode, description: "A tenant specialisation", definitionVersion: "1.0.0" },
   });
   assert.equal(child.ok, true, !child.ok ? child.errors.join("; ") : "assertion failed");
   if (!child.ok) return;
@@ -875,7 +875,7 @@ test("Deliverable Definition: a second Version of the same code superseding the 
   const v1Published = await advanceToActive("Deliverable", v1.draftId, ROOT_ACTOR_ID);
   assert.equal(v1Published.ok, true, !v1Published.ok ? v1Published.errors.join("; ") : "assertion failed");
 
-  const v2 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: { code, description: "Updated description for v2", definitionVersion: "1.0.1" } });
+  const v2 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: { code, name: code, description: "Updated description for v2", definitionVersion: "1.0.1" } });
   assert.equal(v2.ok, true, !v2.ok ? v2.errors.join("; ") : "assertion failed");
   if (!v2.ok) return;
   createdDeliverableDefinitionIds.push(v2.draftId);

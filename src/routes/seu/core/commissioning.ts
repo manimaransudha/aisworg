@@ -6,14 +6,16 @@ import { seusDB } from "../../../dblayer/seusDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
-import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
+// Commented out (owner): the SEU's Capabilities are read off the EBM.
+// import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
+// import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
-import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import type { CompositionSource } from "../../../domain/engine/compositionEngine.js";
-import { unravelComposition, detectCompositionConflicts, formatCompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
+// Commented out (owner): the old composition is replaced by Step 0, the detectors and the settle functions.
+// import { unravelComposition, detectCompositionConflicts, formatCompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
 import type { UnraveledComposition, CompositionConflict, CompositionConflictOption } from "../../../domain/engine/profileCompositionUnravel.js";
 import { catalogueFor } from "../../../domain/engine/deliverableSource.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
@@ -29,7 +31,8 @@ import { findCandidateTemplates } from "./templates.js";
 import { extractProfileDetails, getProfilePackCodes, extractExposedParameterOverrides, listRealProfilesForTemplate } from "./profiles.js";
 import type { ProfileDetail } from "./profiles.js";
 import { resolveLabels } from "./ontology.js";
-import type { CommissioningReport, SeuLifecycleState, SeuRow, TemplateRow, ProfileRow, ObjectiveRow, CapabilityRow, TemplateDeliverableSeed, EbmCompositionReport, EbmComposedPack, EbmRow } from "../../../dblayer/seuTypes.js";
+import { buildDetectionContext, describeComposition, detectEbmConflicts, settleEbm, type ActionedConflict, type EbmConflictTable, type EbmSettled } from "../../../domain/engine/conflicts/index.js";
+import type { ProfileDetailSource, RecordedConflict, CommissioningReport, SeuLifecycleState, SeuRow, TemplateRow, ProfileRow, ObjectiveRow, CapabilityRow, CapabilityDefinitionRow, TemplateDeliverableSeed, EbmCompositionReport, EbmComposedPack, EbmRow } from "../../../dblayer/seuTypes.js";
 import { EBM_RETIRED_STATE, EBM_VALIDATED_STATE, SEU_ACTIVATED_STATE, SEU_COMMISSIONED_STATE, SEU_CONFIGURED_STATE, SEU_FAILED_STATE, SEU_INITIATED_STATE, SEU_OPERATIONAL_STATE, SEU_VALIDATED_STATE, getPlatformTenantId, getSystemActor, ensureSeuSystemParticipant } from "../../../dblayer/constants.js";
 import { SeuLivenessError } from "../../../actions/validateSeuRequest.js";
  
@@ -45,7 +48,6 @@ export interface LivenessCheck {
 
 export async function checkRequestLiveness(input: { objective: ObjectiveRow; templates: TemplateRow[]; profile: ProfileRow; viewerTenantId: string }): Promise<LivenessCheck[]> {
   const checks: LivenessCheck[] = [];
-  const viewer = { isRoot: false, tenantId: input.viewerTenantId };
 
   checks.push({ item: "Objective", status: input.objective.status === "Active" ? "live" : "dead", detail: `status: ${input.objective.status}` });
   checks.push({ item: `Profile "${input.profile.code}"`, status: input.profile.status === "Active" ? "live" : "dead", detail: `status: ${input.profile.status}` });
@@ -66,16 +68,6 @@ export async function checkRequestLiveness(input: { objective: ObjectiveRow; tem
   for (const code of packCodes) {
     const pack = activePackByCode.get(code);
     checks.push(pack ? { item: `Pack "${code}"`, status: "live", detail: `Active version ${pack.pack_version}` } : { item: `Pack "${code}"`, status: "dead", detail: "has no Active version" });
-  }
-
-  const draft = (input.profile.draft_content ?? {}) as Record<string, unknown>;
-  for (const code of (draft.additionalCapabilityCodes as string[] | undefined) ?? []) {
-    const { data: concept } = await ontologyDB.findConcept("capability-name", code, viewer);
-    checks.push(
-      concept
-        ? { item: `Capability "${code}"`, status: "live", detail: "active capability-name concept" }
-        : { item: `Capability "${code}"`, status: "dead", detail: "not a live capability-name concept" }
-    );
   }
 
   for (const override of extractExposedParameterOverrides(input.profile.draft_content)) {
@@ -143,6 +135,8 @@ export async function initiateSeu(input: { objectiveId?: string | null; profileI
     const { data: defaultTenant } = await tenantsDB.findDefault();
     tenantId = defaultTenant?.id ?? null;
   }
+  // An SEU always belongs to a tenant: there is no SEU without one.
+  if (!tenantId) return { ok: false, reason: "this SEU has no tenant: none was given, the Objective's sponsoring authority names none, and there is no default tenant" };
   const birth = await transitionEngine.beginBirth({ entityType: "SEU", actorId: input.actorId });
   const { data: seu, error } = await seusDB.create({
     objectiveId: objective.id,
@@ -242,59 +236,44 @@ export async function finalizeCommissioning(input: {
   const composedPacks = ebm.composed_packs;
   const compositionReport = ebm.composition_report;
 
-  // The Capabilities the SEU must fulfil are the Capability entries of the EBM's pool. A Capability row belongs to the Pack that
-  // contributes it, so the row is the one of the Pack that is the entry's source. A code several Packs contribute yields one row.
-  const pool = (ebm.behaviors as { pool?: Array<{ propertyName: string; value: unknown; source?: { id?: string } }> } | null)?.pool ?? [];
-  const capabilityEntries = pool.filter((e) => {
-    const v = e.value as { code?: unknown; serviceLevel?: unknown } | null;
-    return typeof v?.code === "string" && v.code === e.propertyName && !("serviceLevel" in v);
-  });
-  const sourcePackIds = [...new Set(capabilityEntries.map((e) => e.source?.id).filter((id): id is string => !!id))];
-  const { data: packCapabilityRows, error: capabilityError } = sourcePackIds.length ? await capabilitiesDB.findByOriginatingPackIds(sourcePackIds) : { data: [] as CapabilityRow[], error: undefined };
-  if (capabilityError) throw capabilityError;
-  const requiredCapabilitiesByCode = new Map<string, CapabilityRow>();
-  for (const entry of capabilityEntries) {
-    if (requiredCapabilitiesByCode.has(entry.propertyName)) continue;
-    const row = (packCapabilityRows ?? []).find((r) => r.originating_pack_id === entry.source?.id && r.code === entry.propertyName);
-    if (row) requiredCapabilitiesByCode.set(entry.propertyName, row);
-  }
-  const missingCapabilityCodes = [...new Set(capabilityEntries.map((e) => e.propertyName))].filter((code) => !requiredCapabilitiesByCode.has(code));
-  if (missingCapabilityCodes.length > 0) throw new Error(`EBM ${ebm.id} composes Capabilities that no source Pack has a capabilities row for: ${missingCapabilityCodes.join(", ")}`);
+  // Commissioning reads everything off the EBM's settled result: the Capabilities the SEU takes, and the Deliverables, each with the Capability that produces it.
+  const settled = (ebm.behaviors as { settled?: { capabilities?: { result?: Array<{ capability: string; deliverables: string[]; definitionId: string | null }> }; services?: { result?: Array<{ deliverable: string; name: string | null }> } } } | null)?.settled;
+  const settledCapabilities = settled?.capabilities?.result;
+  const settledDeliverables = settled?.services?.result;
+  if (!settledCapabilities || !settledDeliverables) throw new Error(`EBM ${ebm.id} records no settled result; recompose it`);
+
+  // The SEU's Capabilities are the ones the EBM settled, each with the Capability Definition id the EBM recorded. Nothing is looked up here.
+  const missingCapabilityCodes = settledCapabilities.filter((r) => !r.definitionId).map((r) => r.capability);
+  if (missingCapabilityCodes.length > 0) throw new Error(`EBM ${ebm.id} settles Capabilities with no Capability Definition id: ${missingCapabilityCodes.join(", ")}`);
+  const requiredCapabilitiesByCode = new Map<string, { id: string; code: string }>(settledCapabilities.map((r) => [r.capability, { id: r.definitionId!, code: r.capability }]));
   const requiredCapabilities = [...requiredCapabilitiesByCode.values()];
   await ensureSeuSystemParticipant(seu.id);
   const systemActor = await getSystemActor(seu.id);
   await seuCapabilitiesDB.createMany(seu.id, requiredCapabilities.map((c) => c.id), systemActor.authorId, systemActor.authorBadge);
 
-  const deliverableLabelByCode = await resolveLabels(tenantId, "deliverable-name");
-  // The EBM's capability entries carry the catalogue Deliverables each Capability produces.
+  // Commented out (owner): a Deliverable's name is read off the EBM, which took it from the Deliverable Definition.
+  // const deliverableLabelByCode = await resolveLabels(tenantId, "deliverable-name");
+  // Each settled Capability lists the Deliverables whose Service names it.
   const capabilityIdByCode = new Map(requiredCapabilities.map((c) => [c.code, c.id]));
   const producingCapabilityByDeliverableCode = new Map<string, { id: string }>();
-  for (const entry of pool as Array<{ propertyName: string; deliverableCodes?: string[] }>) {
-    const capabilityId = capabilityIdByCode.get(entry.propertyName);
+  for (const entry of settledCapabilities) {
+    const capabilityId = capabilityIdByCode.get(entry.capability);
     if (!capabilityId) continue;
-    for (const deliverableCode of entry.deliverableCodes ?? []) {
-      if (!producingCapabilityByDeliverableCode.has(deliverableCode)) producingCapabilityByDeliverableCode.set(deliverableCode, { id: capabilityId });
-    }
-  }
-  // The catalogue is the one the EBM recorded as its source: the Profile's own when it carries one, otherwise the Template's.
-  const deliverableSource = compositionReport.deliverableSource;
-  if (!deliverableSource) throw new Error(`EBM ${ebm.id} has no recorded Deliverable source`);
-  const deliverableCatalogueByCode = new Map<string, TemplateDeliverableSeed>();
-  for (const t of templates) {
-    for (const seed of catalogueFor(t, profile, deliverableSource)) deliverableCatalogueByCode.set(seed.code, seed);
+    for (const deliverableCode of entry.deliverables) producingCapabilityByDeliverableCode.set(deliverableCode, { id: capabilityId });
   }
   const deliverableAuthorId = systemActor.authorId;
   // The starting state of a Deliverable is the to-state of its birth row. Commissioning creates the Deliverables as the SEU's system participant, as before.
   const { data: deliverableBirth } = await transitionDefinitionsDB.findBirth("Deliverable");
   if (!deliverableBirth) throw new Error("no birth Transition Definition for Deliverable");
   const deliverableIdByName = new Map<string, string>();
-  for (const seed of deliverableCatalogueByCode.values()) {
-    const producingCapability = producingCapabilityByDeliverableCode.get(seed.code);
-    const name = deliverableLabelByCode[seed.code] ?? seed.code;
+  for (const settledDeliverable of settledDeliverables) {
+    const producingCapability = producingCapabilityByDeliverableCode.get(settledDeliverable.deliverable);
+    if (!settledDeliverable.name) throw new Error(`EBM ${ebm.id} settles Deliverable ${settledDeliverable.deliverable} with no name`);
+    const name = settledDeliverable.name;
     const { data: deliverable } = await deliverablesDB.create({
       seuId: seu.id,
       name,
-      code: seed.code,
+      code: settledDeliverable.deliverable,
       producingCapabilityId: producingCapability?.id ?? null,
       state: deliverableBirth.to_state,
       authorId: deliverableAuthorId,
@@ -312,7 +291,7 @@ export async function finalizeCommissioning(input: {
 
   const report: CommissioningReport = {
     identity: { seuId: seu.id, templateCode: template.code, profileCode: profile.code, templateCodes: templates.map((t) => t.code), profileCodes: profiles.map((p) => p.code), ebmId: ebm.id },
-    composition: { packsUsed: composedPacks.map((p) => p.packCode), warnings: compositionReport.warnings, conflicts: compositionReport.conflicts },
+    composition: { packsUsed: composedPacks.map((p) => p.packCode), warnings: compositionReport.warnings, conflicts: (ebm.behaviors as { conflicts?: RecordedConflict[] } | null)?.conflicts ?? [] },
     validation: { errors: [] },
     runtime: {
       initialCapabilities: (requiredCapabilities ?? []).map((c) => c.code),
@@ -462,65 +441,82 @@ export async function previewCommissioningValidation(input: {
   resolvedParameterOverrides?: Record<string, string>;
   resolvedCompositionConflicts?: Record<string, unknown>;
   viewerTenantId: string;
-}): Promise<{ compositionReport: EbmCompositionReport; composedPacks: EbmComposedPack[]; profileDetails: ProfileDetail[]; unraveled: UnraveledComposition; compositionConflicts: CompositionConflict[] }> {
+}): Promise<{ compositionReport: EbmCompositionReport; composedPacks: EbmComposedPack[]; profileDetails: ProfileDetail[]; ebmConflicts: Record<EbmConflictTable, ActionedConflict[]>; recordedConflicts: RecordedConflict[]; settled: EbmSettled }> {
   const templateIds = [...new Set(input.selections.map((s) => s.templateId))];
   const profileIds = [...new Set(input.selections.map((s) => s.profileId).filter((id): id is string => !!id))];
-  const profiles: ProfileRow[] = [];
+  // Only the columns the Profile details read, not the whole row.
+  const profiles: ProfileDetailSource[] = [];
   for (const profileId of profileIds) {
-    const { data: profile } = await profilesDB.findById(profileId);
+    const { data: profile } = await profilesDB.findDetailSourceById(profileId);
     if (profile) profiles.push(profile);
   }
   const profileDetails = await Promise.all(profiles.map(extractProfileDetails));
 
-  const unraveled = await unravelComposition({ templateIds, profileIds }, input.viewerTenantId);
-  const compositionConflicts = detectCompositionConflicts(unraveled, input.resolvedCompositionConflicts);
-  const composedPacks = unraveled.composedPacks;
-  const compositionReport: EbmCompositionReport = { warnings: unraveled.warnings, deliverableSource: unraveled.deliverableSource, conflicts: [], parameterConflicts: [], resolutions: [] };
+  // Commented out (owner): the old composition is replaced by Step 0, the detectors and the settle functions.
+  // const unraveled = await unravelComposition({ templateIds, profileIds, resolutions: input.resolvedCompositionConflicts }, input.viewerTenantId);
+  // const compositionConflicts = detectCompositionConflicts(unraveled, input.resolvedCompositionConflicts);
+  const description = await describeComposition(await buildDetectionContext({ templateIds, profileIds, viewerTenantId: input.viewerTenantId }));
+  const composedPacks = description.composedPacks;
+  const compositionReport: EbmCompositionReport = { warnings: description.warnings, deliverableSource: description.deliverableSource, conflicts: [], parameterConflicts: [], resolutions: [] };
 
-  return { compositionReport, composedPacks, profileDetails, unraveled, compositionConflicts };
+  const ebmConflicts = await detectEbmConflicts({ templateIds, profileIds, viewerTenantId: input.viewerTenantId, resolutions: input.resolvedCompositionConflicts });
+
+  // Every conflict with the user's pick beside it. The Compose button stores it, and composition copies it into the EBM and the Commissioning Report.
+  const recordedConflicts: RecordedConflict[] = (Object.keys(ebmConflicts) as EbmConflictTable[]).flatMap((table) =>
+    ebmConflicts[table].map((c) => ({
+      table: c.table, key: c.key, kind: c.kind, action: c.action, message: c.message, notice: c.notice === true, resolvable: c.resolvable,
+      options: c.options.map((o) => ({ sourceKind: o.sourceKind, sourceLabel: o.sourceLabel, value: o.value })), resolution: c.resolution,
+    }))
+  );
+
+  // What the EBM saves: the conflicts with the picks, and the final result the SEU takes.
+  const settled = await settleEbm({ templateIds, profileIds, viewerTenantId: input.viewerTenantId, resolutions: input.resolvedCompositionConflicts });
+
+  return { compositionReport, composedPacks, profileDetails, ebmConflicts, recordedConflicts, settled };
 }
 
-export function applyConflictStrategy(
-  conflict: CompositionConflict,
-  strategy: string,
-  selection: { checkedSourceIds: string[]; baseSourceId?: string }
-): { ok: true; value: unknown; note?: string } | { ok: false; error: string } {
-  const toSource = (o: CompositionConflictOption): CompositionSource => ({ id: o.source.id, code: o.source.code, fields: { value: o.value } });
-  const checked = conflict.options.filter((o) => selection.checkedSourceIds.includes(o.source.id)).map(toSource);
-  const baseOption = selection.baseSourceId ? conflict.options.find((o) => o.source.id === selection.baseSourceId) : undefined;
-
-  if (strategy === "merge") {
-    const result = compositionEngine.merge(checked);
-    if (!result.ok) return { ok: false, error: result.error };
-    return { ok: true, value: result.fields.value, note: result.conflicts[0] };
-  }
-  const isScalar = (v: unknown): boolean => v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
-  if ((strategy === "union" || strategy === "intersection") && checked.every((s) => isScalar(s.fields.value))) {
-    const req = compositionEngine.strategyRequirements(strategy);
-    if (checked.length < req.minSources) return { ok: false, error: `${strategy === "union" ? "Union" : "Intersection"} requires at least ${req.minSources} sources, got ${checked.length}.` };
-    const distinct = [...new Set(checked.map((s) => s.fields.value))];
-    if (strategy === "union") return { ok: true, value: distinct };
-    if (distinct.length === 1) return { ok: true, value: distinct[0] };
-    return { ok: true, value: undefined, note: `Intersection: the checked sources don't all agree (${distinct.map((v) => JSON.stringify(v)).join(", ")}), so nothing survived for this field.` };
-  }
-  if (strategy === "union") {
-    const result = compositionEngine.union(checked);
-    if (!result.ok) return { ok: false, error: result.error };
-    return { ok: true, value: result.fields.value, note: result.conflicts[0] };
-  }
-  if (strategy === "intersection") {
-    const result = compositionEngine.intersection(checked);
-    if (!result.ok) return { ok: false, error: result.error };
-    return { ok: true, value: result.fields.value, note: "value" in result.fields ? undefined : "Intersection: the sources are not unanimous, so nothing survived for this field." };
-  }
-  if (strategy === "supplement") {
-    if (!baseOption) return { ok: false, error: `Supplement needs a base source — mark one as the base before applying.` };
-    const rest = checked.filter((s) => s.id !== baseOption.source.id);
-    const result = compositionEngine.supplement(toSource(baseOption), rest);
-    if (!result.ok) return { ok: false, error: result.error };
-    return { ok: true, value: result.fields.value };
-  }
-  if (!baseOption) return { ok: false, error: `Choose a source (mark it as the base) before applying "${strategy}".` };
-  const result = compositionEngine.specialize(toSource(baseOption));
-  return { ok: true, value: result.fields.value };
-}
+// Commented out (owner): the old conflict strategies are replaced by the Resolve Conflicts screen.
+// export function applyConflictStrategy(
+//   conflict: CompositionConflict,
+//   strategy: string,
+//   selection: { checkedSourceIds: string[]; baseSourceId?: string }
+// ): { ok: true; value: unknown; note?: string } | { ok: false; error: string } {
+//   const toSource = (o: CompositionConflictOption): CompositionSource => ({ id: o.source.id, code: o.source.code, fields: { value: o.value } });
+//   const checked = conflict.options.filter((o) => selection.checkedSourceIds.includes(o.source.id)).map(toSource);
+//   const baseOption = selection.baseSourceId ? conflict.options.find((o) => o.source.id === selection.baseSourceId) : undefined;
+//
+//   if (strategy === "merge") {
+//     const result = compositionEngine.merge(checked);
+//     if (!result.ok) return { ok: false, error: result.error };
+//     return { ok: true, value: result.fields.value, note: result.conflicts[0] };
+//   }
+//   const isScalar = (v: unknown): boolean => v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+//   if ((strategy === "union" || strategy === "intersection") && checked.every((s) => isScalar(s.fields.value))) {
+//     const req = compositionEngine.strategyRequirements(strategy);
+//     if (checked.length < req.minSources) return { ok: false, error: `${strategy === "union" ? "Union" : "Intersection"} requires at least ${req.minSources} sources, got ${checked.length}.` };
+//     const distinct = [...new Set(checked.map((s) => s.fields.value))];
+//     if (strategy === "union") return { ok: true, value: distinct };
+//     if (distinct.length === 1) return { ok: true, value: distinct[0] };
+//     return { ok: true, value: undefined, note: `Intersection: the checked sources don't all agree (${distinct.map((v) => JSON.stringify(v)).join(", ")}), so nothing survived for this field.` };
+//   }
+//   if (strategy === "union") {
+//     const result = compositionEngine.union(checked);
+//     if (!result.ok) return { ok: false, error: result.error };
+//     return { ok: true, value: result.fields.value, note: result.conflicts[0] };
+//   }
+//   if (strategy === "intersection") {
+//     const result = compositionEngine.intersection(checked);
+//     if (!result.ok) return { ok: false, error: result.error };
+//     return { ok: true, value: result.fields.value, note: "value" in result.fields ? undefined : "Intersection: the sources are not unanimous, so nothing survived for this field." };
+//   }
+//   if (strategy === "supplement") {
+//     if (!baseOption) return { ok: false, error: `Supplement needs a base source — mark one as the base before applying.` };
+//     const rest = checked.filter((s) => s.id !== baseOption.source.id);
+//     const result = compositionEngine.supplement(toSource(baseOption), rest);
+//     if (!result.ok) return { ok: false, error: result.error };
+//     return { ok: true, value: result.fields.value };
+//   }
+//   if (!baseOption) return { ok: false, error: `Choose a source (mark it as the base) before applying "${strategy}".` };
+//   const result = compositionEngine.specialize(toSource(baseOption));
+//   return { ok: true, value: result.fields.value };
+// }

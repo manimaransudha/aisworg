@@ -67,8 +67,8 @@ export const qualityGateEngine = {
     const named = gates.some((g) => g.applicability_deliverable_names.length > 0);
     if (named && input.entityType === "Deliverable") {
       const { data: deliverable } = await deliverablesDB.findById(input.entityId);
-      const name = deliverable?.name;
-      gates = gates.filter((g) => g.applicability_deliverable_names.length === 0 || (name && g.applicability_deliverable_names.includes(name)));
+      const code = deliverable?.code;
+      gates = gates.filter((g) => g.applicability_deliverable_names.length === 0 || (code && g.applicability_deliverable_names.includes(code)));
     }
     if (gates.length === 0) return { outcome: "NotApplicable" };
 

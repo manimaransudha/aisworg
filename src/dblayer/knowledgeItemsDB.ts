@@ -143,16 +143,16 @@ export const knowledgeItemsDB = {
   async findEngineeringCapital(): Promise<DbResult<EngineeringCapitalRow[]>> {
     try {
       const { rows } = await query<EngineeringCapitalRow>(
-        `SELECT k.*, d.name AS deliverable_name, c.code AS capability_code, c.name AS capability_name, o.statement AS objective_statement
+        `SELECT k.*, d.name AS deliverable_name, c.code AS capability_code, c.default_label AS capability_name, o.statement AS objective_statement
          FROM knowledge_items k
          JOIN deliverables d ON d.id = k.deliverable_id
          JOIN seus s ON s.id = k.seu_id
          JOIN objectives o ON o.id = s.objective_id
-         LEFT JOIN capabilities c ON c.id = d.producing_capability_id
+         LEFT JOIN capability_definitions c ON c.id = d.producing_capability_id
          WHERE k.acquisition_scope != 'SEU'
          ORDER BY
            CASE k.acquisition_scope WHEN 'Platform' THEN 1 WHEN 'Enterprise' THEN 2 WHEN 'Capability' THEN 3 END,
-           c.name NULLS LAST,
+           c.default_label NULLS LAST,
            k.created_at DESC`
       );
       return { data: rows };
