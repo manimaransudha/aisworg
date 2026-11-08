@@ -21,6 +21,8 @@ import {
 
 const run = randomUUID().slice(0, 8);
 const prefix = `/aisworg/seu/zz-web-route-${run}`;
+// An API path, which the gate refuses with 403 and otherwise lets through to the app, which has no such route.
+const apiPrefix = `/aisworg/api/zz-web-route-${run}`;
 let server: ReturnType<typeof app.listen>;
 let root: Session;
 let tester: Session;
@@ -46,7 +48,7 @@ before(async () => {
 
 after(async () => {
   await new Promise<void>((resolve, reject) => server.close((err: Error | undefined) => (err ? reject(err) : resolve())));
-  await pool.query("DELETE FROM route_authority WHERE path LIKE $1", [`${prefix}%`]);
+  await pool.query("DELETE FROM route_authority WHERE path LIKE $1 OR path LIKE $2", [`${prefix}%`, `${apiPrefix}%`]);
 });
 
 const readable = (text: string) => text.replace(/&quot;|&#34;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/&gt;/g, ">").replace(/&lt;/g, "<");
@@ -134,19 +136,20 @@ test("a row is updated with the badges, roles and mode posted, refused with an i
 });
 
 test("a row is deleted, which takes the route out of the gate; the gate refuses a path with no row to a user who is not root, a row that asks for nothing lets the path through, and a deleted row refuses it again", async () => {
-  const path = `${prefix}/gated`;
+  const path = `${apiPrefix}/gated`;
   const gatedPath = path.replace(/^\/aisworg/, "");
   const refusedBefore = await getPage(tester, gatedPath);
 
   hasAlert(await submit("/seu/route-authority", { method: "GET", path }), /added\./);
   const allowed = await getPage(tester, gatedPath);
-  assert.notEqual(`${allowed.status} ${allowed.html}`, `${refusedBefore.status} ${refusedBefore.html}`, "a row that asks for no badge or role changes the gate's answer");
+  assert.equal(refusedBefore.status, 403, "the gate refuses a path with no row");
+  assert.notEqual(allowed.status, 403, "a row that asks for no badge or role changes the gate's answer");
 
   const row = await rowFor("GET", path);
   hasAlert(await submit(`/seu/route-authority/${row.id}/delete`), /Row deleted\./);
   assert.equal(await rowFor("GET", path), undefined);
   const refusedAfter = await getPage(tester, gatedPath);
-  assert.equal(`${refusedAfter.status} ${refusedAfter.html}`, `${refusedBefore.status} ${refusedBefore.html}`, "the deleted row refuses the request as before");
+  assert.equal(refusedAfter.status, 403, "the deleted row refuses the request as before");
 
   hasAlert(await submit(`/seu/route-authority/${row.id}/delete`), /Row deleted\./);
 });

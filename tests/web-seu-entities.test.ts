@@ -55,7 +55,8 @@ before(async () => {
   const { data: ebm } = await ebmsDB.findById(t.seu.active_ebm_id!);
   const source = (ebm!.composition_report as { deliverableSource: { type: "Template" | "Profile"; id: string } }).deliverableSource;
   const gated = new Set(((await dependencyDefinitionsDB.findByOwner(source.type, source.id)).data ?? []).filter((r) => r.to_entity_type === "Deliverable" && r.to_name).map((r) => r.to_name));
-  const free = fresh.filter((d) => !gated.has(d.name) && !(d.code && gated.has(d.code)));
+  const busy = new Set(((await commandsDB.findBySeuId(t.seu.id)).data ?? []).map((c) => c.entity_id));
+  const free = fresh.filter((d) => !gated.has(d.name) && !(d.code && gated.has(d.code)) && !busy.has(d.id));
   assert.ok(free.length >= 1 && fresh.length >= 3, `commissioning left ${fresh.length} Deliverables in ${birthState}, ${free.length} of them not gated by a dependency`);
   const movable = free[0];
   const [a, b] = fresh.filter((d) => d.id !== movable.id);

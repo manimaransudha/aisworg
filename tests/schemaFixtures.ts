@@ -48,7 +48,7 @@ import { advanceAuthoringDraftToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "
 const PLATFORM_VIEWER = { isRoot: false, tenantId: null as string | null };
 
 // The version every fixture row carries. A change to what a builder authors needs a new value here.
-export const FIXTURE_VERSION = "1.0.2";
+export const FIXTURE_VERSION = "1.0.3";
 
 // An arbitrary number that names the advisory lock the builders take.
 const FIXTURE_LOCK_KEY = 726450917;
