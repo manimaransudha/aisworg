@@ -16,11 +16,15 @@ import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { governedTransitionsFor } from "../src/domain/engine/policyChecks.js";
+import { loadPolicyChecks } from "../src/domain/engine/policyChecks.js";
 import { policyEngine } from "../src/domain/engine/policyEngine.js";
-import { profileOwnCatalogue, resolveSeuOwningScope, loadSeuCatalogue } from "../src/domain/engine/deliverableSource.js";
+import pool from "../src/utils/db.js";
+import { templatesDB } from "../src/dblayer/templatesDB.js";
+import { profilesDB } from "../src/dblayer/profilesDB.js";
+import { profileOwnCatalogue, resolveSeuOwningScope, loadSeuCatalogue, resolveDeliverableSource, catalogueFor } from "../src/domain/engine/deliverableSource.js";
 import type { PolicyApplicabilityDeliverable } from "../src/dblayer/seuTypes.js";
 import { createTestSeu, createTestEbm, type TestSeu } from "./engineFixtures.js";
-import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const DEFAULT_HOP = "Deliverable|Approved|Baselined";
@@ -155,4 +159,60 @@ test("an SEU with an EBM takes the source the EBM recorded, and fails when the E
   const recordedSeu = { template_id: recorded.seu.template_id, profile_id: recorded.seu.profile_id, active_ebm_id: withSource.data.id };
   assert.deepEqual(await resolveSeuOwningScope(recordedSeu), { dependencyDefinitionIds: ["dep-1", "dep-2"] });
   assert.ok(Array.isArray(await loadSeuCatalogue(recordedSeu)), "the Template is the source, so the catalogue is the Template's");
+});
+
+test("the Policy Engine applies nothing outside an SEU, and evaluates a Policy when no context is given", async () => {
+  const hop = `Deliverable|zz-nocontext-from-${run}|zz-nocontext-to-${run}`;
+  const policy = await createPolicy("nocontext", hop, {});
+  await activateEbm([policy.id]);
+  const base = { entityType: "Deliverable" as const, fromState: `zz-nocontext-from-${run}`, toState: `zz-nocontext-to-${run}`, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE };
+  assert.equal((await policyEngine.evaluate({ ...base, seuId: null })).outcome, "NotApplicable");
+  const result = await policyEngine.evaluate({ ...base, seuId: t.seu.id });
+  assert.deepEqual([result.outcome, result.satisfiedPolicyIds], ["Passed", [policy.id]]);
+});
+
+test("the checks of a transition come from the materialised Policies, and from the Policy Definitions only for the hops they govern and only when no materialised Policy has their code", async () => {
+  const { rows } = await pool.query<{ id: string; code: string; scope: string | null; conditions: Array<{ applicabilityDeliverables?: PolicyApplicabilityDeliverable[] }> | null }>(
+    "SELECT id, code, scope, conditions FROM policy_definitions WHERE status = 'Active'"
+  );
+  let found: { id: string; code: string; hop: string } | null = null;
+  for (const definition of rows) {
+    for (const condition of definition.conditions ?? []) {
+      const governed = governedTransitionsFor((definition.scope ?? "Transition") as "Transition", condition.applicabilityDeliverables ?? []).find((g) => g.governedTransition);
+      if (governed?.governedTransition) found ??= { id: definition.id, code: definition.code, hop: governed.governedTransition };
+    }
+  }
+  assert.ok(found, "an Active Policy Definition governs a transition");
+
+  const checks = await loadPolicyChecks([found.id], found.hop);
+  assert.ok(checks.length > 0 && checks.every((c) => c.code === found!.code), JSON.stringify(checks));
+  assert.deepEqual(await loadPolicyChecks([found.id], `Deliverable|zz-other-${run}|zz-other-to-${run}`), [], "a definition governs only its own hops");
+  assert.deepEqual(await loadPolicyChecks([randomUUID()], found.hop), [], "an id that names nothing");
+
+  const materialised = await createPolicy("materialised", `Deliverable|zz-m-from-${run}|zz-m-to-${run}`, {});
+  await pool.query("UPDATE policies SET code = $2 WHERE id = $1", [materialised.id, `${found.code}::zz-${run}`]);
+  const both = await loadPolicyChecks([materialised.id, found.id], found.hop);
+  assert.deepEqual(both.map((c) => c.id), [materialised.id], "the materialised Policy takes the place of the definition of the same code");
+});
+
+test("a Profile that carries its own catalogue is the source of the catalogue, and the Template is the source otherwise", async () => {
+  const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `zz-source-template-${run}`, name: "Source template", deliverableCatalogue: [{ code: "zz-from-template" }] as never });
+  const { data: otherTemplate } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `zz-source-other-${run}`, name: "Other template", deliverableCatalogue: [{ code: "zz-from-other" }] as never });
+  assert.ok(template && otherTemplate);
+  const { data: profile } = await profilesDB.upsert({
+    status: "Active", tenantId: PLATFORM_TENANT_ID, code: `zz-source-profile-${run}`, name: "Source profile", baseTemplateId: template.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development",
+  });
+  assert.ok(profile);
+
+  const fromTemplate = await resolveDeliverableSource(template, profile);
+  assert.deepEqual([fromTemplate.type, fromTemplate.id], ["Template", template.id]);
+  assert.deepEqual(catalogueFor(template, profile, fromTemplate), [{ code: "zz-from-template" }]);
+
+  await pool.query("UPDATE profiles SET draft_content = $2 WHERE id = $1", [profile.id, JSON.stringify({ deliverableCatalogue: [{ code: "zz-own" }] })]);
+  const { data: withOwn } = await profilesDB.findById(profile.id);
+  assert.ok(withOwn);
+  const fromProfile = await resolveDeliverableSource(template, withOwn);
+  assert.deepEqual([fromProfile.type, fromProfile.id], ["Profile", profile.id]);
+  assert.deepEqual(catalogueFor(template, withOwn, fromProfile), [{ code: "zz-own" }]);
+  assert.deepEqual(catalogueFor(otherTemplate, withOwn, fromProfile), [{ code: "zz-from-other" }], "the Profile is the source only for its own base Template");
 });

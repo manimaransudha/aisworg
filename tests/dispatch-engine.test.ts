@@ -31,6 +31,7 @@ import { applyParticipantHop } from "../src/routes/seu/core/participants.js";
 import { dispatchEngine } from "../src/domain/engine/dispatchEngine.js";
 import { redispatchRequestHandler } from "../src/domain/engine/redispatchRequest.js";
 import { redispatchHandler } from "../src/domain/engine/redispatch.js";
+import { workItemGeneratedHandler } from "../src/domain/engine/workItemGenerated.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import type { CommandRow, EventRow, ParticipantRow, SeuRow, WorkItemRow } from "../src/dblayer/seuTypes.js";
 import { ensureWebAppTemplateFixture, seuBirthState, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
@@ -302,4 +303,45 @@ test("the redispatch handler of a Command that is not for a Deliverable has no p
   await redispatchHandler(await publishRequest(plain, work.workItem.id, "RedispatchRequested"));
   assert.equal((await workItemOf(work.workItem.id)).status, "Disposed");
   assert.equal((await eventsOf(work.workItem.id)).find((e) => e.event_type === "DispatchRejected")?.payload.reason, "no_producing_capability_declared");
+});
+
+test("the redispatch handler escalates at the threshold when no limit is configured, and says so", async () => {
+  const thresholdOnly = await createSeu("threshold-only", [{ parameter: "redispatchAttentionThreshold", value: 1 }]);
+  const busy = await createParticipant(thresholdOnly, "busy");
+  await makeUnavailable(thresholdOnly, busy);
+  const work = await makeWork(thresholdOnly, [busy]);
+  await redispatchHandler(await publishRequest(thresholdOnly, work.workItem.id, "RedispatchRequested"));
+
+  const { data: items } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", work.deliverableId);
+  const escalation = (items ?? []).find((i) => i.category === "Escalation");
+  assert.ok(escalation?.description?.includes("limit none configured"), JSON.stringify(escalation));
+  assert.equal((await workItemOf(work.workItem.id)).status, "Generated", "the Work Item waits, as no limit stops it");
+});
+
+test("a Work Item whose Deliverable no longer exists is dispatched without a producing Capability and rejected, by the redispatch handler and the Work Item handler alike", async () => {
+  const chosen = await createParticipant(plain, "orphan");
+  const orphan = async () => {
+    const work = await makeWork(plain, [chosen]);
+    await pool.query("UPDATE commands SET entity_id = $2 WHERE id = $1", [work.command.id, randomUUID()]);
+    return work;
+  };
+  // The rejection raises an Obligation on the missing Deliverable, which cannot be resolved to an SEU, so the handlers fail with that reason.
+  const redispatched = await orphan();
+  await assert.rejects(async () => redispatchHandler(await publishRequest(plain, redispatched.workItem.id, "RedispatchRequested")), /deliverable not found/);
+  const generated = await orphan();
+  await assert.rejects(async () => workItemGeneratedHandler(await publishRequest(plain, generated.workItem.id, "WorkItemGenerated")), /deliverable not found/);
+});
+
+test("the Work Item handler dispatches with the target completion its event carries", async () => {
+  const chosen = await createParticipant(plain, "target");
+  const work = await makeWork(plain, [chosen]);
+  const target = new Date(Date.now() + 7_200_000);
+  const event = await eventBus.publish({
+    eventType: "WorkItemGenerated", originatingObjectType: "WorkItem", originatingObjectId: work.workItem.id, seuId: plain.seu.id, correlationId: randomUUID(),
+    actorId: plain.systemActorId, authorityBadge: ROOT_ACTOR_BADGE, payload: { targetCompletionAt: target.toISOString() },
+  });
+  await workItemGeneratedHandler(event);
+  const workItem = await workItemOf(work.workItem.id);
+  assert.equal(workItem.status, "Dispatched");
+  assert.equal(new Date(workItem.target_completion_at as string).getTime(), target.getTime());
 });

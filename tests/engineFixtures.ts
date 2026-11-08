@@ -14,9 +14,9 @@ import { ensureWebAppTemplateFixture, seuBirthState, ensureActorParticipant, PLA
 
 export interface TestSeu { seu: SeuRow; systemParticipantId: string; systemActorId: string }
 
-// A plain SEU row (not commissioned through the pipeline) with its system participant, and root as a participant of it.
-export async function createTestSeu(label: string, lifecycleState?: SeuLifecycleState): Promise<TestSeu> {
-  const { template, profile } = await ensureWebAppTemplateFixture();
+// A plain SEU row (not commissioned through the pipeline) with its system participant, and root as a participant of it unless `rootParticipant` is false. `base` names the Template and Profile of the SEU, which are the shared fixture ones otherwise.
+export async function createTestSeu(label: string, lifecycleState?: SeuLifecycleState, options: { rootParticipant?: boolean; base?: { template: { id: string }; profile: { id: string } } } = {}): Promise<TestSeu> {
+  const { template, profile } = options.base ?? (await ensureWebAppTemplateFixture());
   const { objective } = await createObjective({ statement: `${label} ${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: ROOT_ACTOR_ID });
   const { data: seu, error } = await seusDB.create({
     lifecycleState: lifecycleState ?? (await seuBirthState()), authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective.id, templateId: template.id, profileId: profile.id,
@@ -24,7 +24,7 @@ export async function createTestSeu(label: string, lifecycleState?: SeuLifecycle
   });
   assert.ok(seu && !error, error?.message ?? "the SEU is created");
   const systemParticipantId = await ensureSeuSystemParticipant(seu.id);
-  await ensureActorParticipant(seu.id, ROOT_ACTOR_ID);
+  if (options.rootParticipant !== false) await ensureActorParticipant(seu.id, ROOT_ACTOR_ID);
   return { seu, systemParticipantId, systemActorId: (await getSystemActor(seu.id)).actorId };
 }
 

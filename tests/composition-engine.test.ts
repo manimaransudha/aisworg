@@ -102,3 +102,8 @@ test("compose reports a parameter that two Profiles override differently, and no
   const resolved = await compositionEngine.compose({ templateIds: [], profileIds: [left.id, right.id], resolvedParameterOverrides: { [conflict.key]: "large" } });
   assert.deepEqual(resolved.compositionReport.parameterConflicts, []);
 });
+
+test("union and intersection refuse fewer than two sources", () => {
+  assert.deepEqual(compositionEngine.union([source("a", {})]), { ok: false, error: "Union requires at least 2 sources, got 1." });
+  assert.deepEqual(compositionEngine.intersection([source("a", {})]), { ok: false, error: "Intersection requires at least 2 sources, got 1." });
+});

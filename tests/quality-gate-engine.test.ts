@@ -102,3 +102,22 @@ test("an SEU with no EBM evaluates the active gates of the edge", async () => {
   assert.equal((await qualityGateEngine.evaluate({ ...input(), ...edge })).outcome, "Passed");
   assert.equal((await qualityGateEngine.evaluate({ ...input(), fromState: `zz-no-gate-${run}`, toState: `zz-no-gate-to-${run}` })).outcome, "NotApplicable", "an edge with no gate");
 });
+
+test("evaluating no gates is not applicable, and a review or evidence gate with nothing to show blocks", async () => {
+  assert.deepEqual(await qualityGateEngine.evaluateByIds([], input()), { outcome: "NotApplicable" });
+
+  const unconfigured = await createGate("review-unconfigured", { type: "requires_accepted_review" });
+  const noConfig = await qualityGateEngine.evaluateByIds([unconfigured.id], input());
+  assert.equal(noConfig.outcome, "Blocked");
+  assert.equal("reason" in noConfig && noConfig.reason, "requires_accepted_review criteria has no reviewGateId configured");
+
+  const noReview = await createGate("review-none", { type: "requires_accepted_review", reviewGateId: randomUUID() });
+  const missing = await qualityGateEngine.evaluateByIds([noReview.id], input());
+  assert.equal(missing.outcome, "Blocked");
+  assert.equal("reason" in missing && missing.reason, "no Accepted, passing Review found for this entity against the required Review Gate");
+
+  const evidence = await createGate("evidence-none", { type: "requires_accepted_evidence_or_approved_decision" });
+  const noEvidence = await qualityGateEngine.evaluateByIds([evidence.id], input());
+  assert.equal(noEvidence.outcome, "Blocked");
+  assert.ok("reason" in noEvidence && /no accepted Evidence of category ".*" or approved Decision/.test(noEvidence.reason), JSON.stringify(noEvidence));
+});
