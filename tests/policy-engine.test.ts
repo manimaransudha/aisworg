@@ -58,8 +58,7 @@ let packId: string;
 // The SEU is commissioned on the fixture Profile, so its EBM lists the Policies the fixture Pack contributes: a Policy and a Standard for the Deliverable transitions the fixtures govern.
 let f: FixtureSeu;
 let outputDeliverable: DeliverableRow;
-let inputDeliverable: DeliverableRow;
-let reviewDeliverable: DeliverableRow;
+let otherDeliverable: DeliverableRow;
 let reviewPolicy: PolicyRow;
 let coveragePolicy: PolicyRow;
 let standard: PolicyRow;
@@ -78,8 +77,11 @@ before(async () => {
   assert.ok(reviewPolicy && coveragePolicy && standard, "the EBM lists the fixture Policies and the fixture Standard");
   const deliverables = (await deliverablesDB.findBySeuId(f.seu.id)).data ?? [];
   const byCode = (code: string) => deliverables.find((d) => d.code === code)!;
-  [outputDeliverable, inputDeliverable, reviewDeliverable] = [byCode(FIXTURE_CODES.output.code), byCode(FIXTURE_CODES.input.code), byCode(FIXTURE_CODES.review.code)];
-  assert.ok(outputDeliverable && inputDeliverable && reviewDeliverable, "commissioning made the fixture Deliverables");
+  outputDeliverable = byCode(FIXTURE_CODES.output.code);
+  assert.ok(outputDeliverable, "commissioning made the Deliverable the fixture Service produces");
+  // A Deliverable the Policies do not name is any other Deliverable the commissioning made.
+  otherDeliverable = deliverables.find((d) => d.code !== FIXTURE_CODES.output.code)!;
+  assert.ok(otherDeliverable, `commissioning made a Deliverable besides the output one (it made ${deliverables.map((d) => d.code).join(", ")})`);
 });
 
 async function createPolicy(label: string, hop: string, fields: { constraintType?: "Policy" | "Standard"; condition?: Record<string, unknown>; names?: string[] }) {
@@ -101,7 +103,7 @@ test("the Policy Engine applies a Policy that names Deliverables only to those D
   const hop = hopOf(reviewPolicy);
   const applied = await evaluate(hop, outputDeliverable.id, { reviewState: "reviewed" });
   assert.deepEqual([applied.outcome, applied.satisfiedPolicyIds], ["Passed", [reviewPolicy.id]]);
-  assert.equal((await evaluate(hop, inputDeliverable.id, { reviewState: "reviewed" })).outcome, "NotApplicable", "a Deliverable the Policy does not name");
+  assert.equal((await evaluate(hop, otherDeliverable.id, { reviewState: "reviewed" })).outcome, "NotApplicable", "a Deliverable the Policy does not name");
 });
 
 test("the Policy Engine blocks on a failed Policy, records a failed Standard as a deviation and finds no Policy for a hop nothing governs", async () => {

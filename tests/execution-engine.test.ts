@@ -273,10 +273,10 @@ test("a Standard that fails does not stop the hop: it is approved with condition
 });
 
 test("a Work Item records what the EBM settled and what its governance outcome names: the locations, the checklists, the capital, the Policies, the Authority rule and the open Attention Items", async () => {
-  // The SEU is commissioned on the fixture Profile, so its EBM settles the fixture Pack's content. The fixture tenant's Deliverable Definition for the input Deliverable has a guide location.
+  // The SEU is commissioned on the fixture Profile, so its EBM settles the fixture Pack's content. The fixture tenant's Deliverable Definition for the output Deliverable, the one the fixture Service produces, has a guide location.
   const contextSeu = await commissionFixtureSeu("execution-engine-context");
   const fixtureTenant = contextSeu.tenantId;
-  const code = contextSeu.fixtures.inputDeliverable.code;
+  const code = contextSeu.fixtures.outputDeliverable.code;
   const { data: definition } = await deliverableDefinitionsDB.findActiveByCodeVisibleTo(code, fixtureTenant);
   assert.ok(definition?.guide_location, "the fixture Deliverable Definition has a guide location");
   const deliverable = ((await deliverablesDB.findBySeuId(contextSeu.seu.id)).data ?? []).find((d) => d.code === code);

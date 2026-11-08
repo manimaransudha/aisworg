@@ -55,8 +55,7 @@ before(async () => {
   const { data: ebm } = await ebmsDB.findById(t.seu.active_ebm_id!);
   const source = (ebm!.composition_report as { deliverableSource: { type: "Template" | "Profile"; id: string } }).deliverableSource;
   const gated = new Set(((await dependencyDefinitionsDB.findByOwner(source.type, source.id)).data ?? []).filter((r) => r.to_entity_type === "Deliverable" && r.to_name).map((r) => r.to_name));
-  const busy = new Set(((await commandsDB.findBySeuId(t.seu.id)).data ?? []).map((c) => c.entity_id));
-  const free = fresh.filter((d) => !gated.has(d.name) && !(d.code && gated.has(d.code)) && !busy.has(d.id));
+  const free = fresh.filter((d) => !gated.has(d.name) && !(d.code && gated.has(d.code)));
   assert.ok(free.length >= 1 && fresh.length >= 3, `commissioning left ${fresh.length} Deliverables in ${birthState}, ${free.length} of them not gated by a dependency`);
   const movable = free[0];
   const [a, b] = fresh.filter((d) => d.id !== movable.id);
@@ -314,10 +313,10 @@ test("a Deliverable is moved by the Execution Engine from the SEU page, which re
   hasAlert((await submit(path, { targetState: "Baselined" })).alerts, /Transition blocked: no Transition Definition for Deliverable [A-Za-z ]+ -> Baselined/);
   assert.equal((await deliverablesDB.findById(deliverableC.id)).data?.lifecycle_state, stateBefore, "a refused hop changes nothing");
 
-  hasAlert((await submit(path, { targetState: "In Progress" })).alerts, /Deliverable "[A-Za-z ]+" → "In Progress" completed by the Execution Engine\./);
-  assert.equal((await deliverablesDB.findById(deliverableC.id)).data?.lifecycle_state, "In Progress");
+  // Commissioning has the engine dispatch the producing hop of a Deliverable nothing gates, so a second request for the same hop is refused and no second Command is made.
+  hasAlert((await submit(path, { targetState: "In Progress" })).alerts, /Transition blocked: a Command for this exact hop is already (Dispatched|Completed)/);
   const commands = ((await commandsDB.findBySeuId(t.seu.id)).data ?? []).filter((c) => c.entity_id === deliverableC.id && c.to_state === "In Progress");
-  assert.deepEqual(commands.map((c) => c.status), ["Completed"], "the hop left one Completed Command");
+  assert.equal(commands.length, 1, "the engine's Command is the only one for the hop");
 });
 
 // ── Capabilities and the EBM ──────────────────────────────────────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ import app from "../src/app.js";
 import pool from "../src/utils/db.js";
 import { listAuthorisedBadgeCodes, listAuthorisedRoleCodes } from "../src/routes/seu/core/identity.js";
 import {
-  ROOT_USER_ID, TESTER_CREATOR_ID,
+  ROOT_USER_ID, TESTER_OBJECTIVE_ATHENS,
   setWebBaseUrl, newSession, extractCsrf, getPage, getRedirect, postForm, pageAlerts, assertPageMatches, assertPageDoesNotMatch, type Session,
 } from "./testFixtures.js";
 
@@ -42,7 +42,7 @@ before(async () => {
   if (!address || typeof address === "string") throw new Error("failed to determine the ephemeral port the app bound to");
   setWebBaseUrl(`http://127.0.0.1:${address.port}/aisworg`);
   root = newSession(ROOT_USER_ID);
-  tester = newSession(TESTER_CREATOR_ID);
+  tester = newSession(TESTER_OBJECTIVE_ATHENS.userId);
   csrf = extractCsrf((await getPage(root, "/seu/route-authority")).html);
 });
 

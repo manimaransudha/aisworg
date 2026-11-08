@@ -9,6 +9,10 @@ import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
+import { templatesDB } from "../src/dblayer/templatesDB.js";
+import { profilesDB } from "../src/dblayer/profilesDB.js";
+import { resolveDeliverableSource } from "../src/domain/engine/deliverableSource.js";
+import { ensureFixtureTenant, buildStage4Fixtures } from "./schemaFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { dependencyDefinitionsDB } from "../src/dblayer/dependencyDefinitionsDB.js";
@@ -28,11 +32,35 @@ let t: FixtureSeu;
 let owner: { type: "Template" | "Profile"; id: string };
 let birthState: string;
 
+// The EBM records the dependency rows of its source when it is composed, so the rows the engine tests read are written before the SEU is commissioned.
+const gateNames = { source: code("source"), other: code("other"), gated: code("gated"), open: code("open"), ghost: code("ghost"), reqSource: code("req-source"), reqTarget: code("req-target") };
+// The other of Template and Profile, which no SEU takes its rows from, so the graph test rewrites rows nobody is gated by.
+let graphOwner: { type: "Template" | "Profile"; id: string };
+
 before(async () => {
+  const tenantId = await ensureFixtureTenant("dependency-flow");
+  const fixtures = await buildStage4Fixtures(tenantId);
+  const [{ data: template }, { data: profile }] = await Promise.all([templatesDB.findById(fixtures.template.id), profilesDB.findById(fixtures.profile.id)]);
+  assert.ok(template && profile);
+  const source = await resolveDeliverableSource(template, profile);
+  owner = { type: source.type, id: source.id };
+  graphOwner = source.type === "Profile" ? { type: "Template", id: template.id } : { type: "Profile", id: profile.id };
+  await dependencyDefinitionsDB.deleteByOwner(owner.type, owner.id);
+  const edge = async (fromName: string, toName: string | null, fromEntityType: "Deliverable" | "Obligation" = "Deliverable", fromState = "Approved") => {
+    const { error } = await dependencyDefinitionsDB.create({
+      owningEntityType: owner.type, owningEntityId: owner.id, fromEntityType, fromName: fromEntityType === "Deliverable" ? fromName : null, fromState, toEntityType: "Deliverable", toName,
+      toState: toName ? "In Progress" : null, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
+    });
+    assert.ok(!error, error?.message);
+  };
+  for (const [from, to] of [[gateNames.source, null], [gateNames.source, gateNames.gated], [gateNames.other, gateNames.gated], [gateNames.source, gateNames.ghost], [gateNames.source, gateNames.open]] as Array<[string, string | null]>) await edge(from, to);
+  await edge(gateNames.reqSource, gateNames.reqTarget);
+  await edge("", gateNames.reqTarget, "Obligation", "Verified");
+
   t = await commissionFixtureSeu("dependency-flow");
   const { data: ebm } = await ebmsDB.findById(t.seu.active_ebm_id!);
-  const source = (ebm!.composition_report as { deliverableSource: { type: "Template" | "Profile"; id: string } }).deliverableSource;
-  owner = { type: source.type, id: source.id };
+  const recorded = (ebm!.composition_report as { deliverableSource: { type: "Template" | "Profile"; id: string } }).deliverableSource;
+  assert.deepEqual([recorded.type, recorded.id], [owner.type, owner.id], "the EBM took the rows written for the source");
   const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");
   assert.ok(birth);
   birthState = birth.to_state;
@@ -40,7 +68,7 @@ before(async () => {
 
 const materialise = (graph: Parameters<typeof materialiseDependencyGraph>[0]["dependencyGraph"], codes: string[]) =>
   materialiseDependencyGraph({
-    owningEntityType: owner.type, owningEntityId: owner.id, deliverableCatalogue: codes.map((c) => ({ code: c })), dependencyGraph: graph,
+    owningEntityType: graphOwner.type, owningEntityId: graphOwner.id, deliverableCatalogue: codes.map((c) => ({ code: c })), dependencyGraph: graph,
     tenantId: t.tenantId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
 
@@ -68,7 +96,7 @@ test("a dependency graph becomes one row for each entry that names Deliverables 
 
   const second = await materialise([{ fromType: "Deliverable", fromCode: a, toCode: b }], [a, b]);
   assert.equal(second.data?.length, 1);
-  assert.equal((await dependencyDefinitionsDB.findByOwner(owner.type, owner.id)).data?.length, 1, "the old rows are gone");
+  assert.equal((await dependencyDefinitionsDB.findByOwner(graphOwner.type, graphOwner.id)).data?.length, 1, "the old rows are gone");
 });
 
 async function createDeliverable(name: string, state: string = birthState): Promise<DeliverableRow> {
@@ -78,16 +106,7 @@ async function createDeliverable(name: string, state: string = birthState): Prom
 }
 
 test("a Deliverable reaching a state announces only the gated Deliverables whose every dependency now holds", async () => {
-  const [source, other, gated, open, ghost] = [code("source"), code("other"), code("gated"), code("open"), code("ghost")];
-  const row = (fromName: string, toName: string | null) => dependencyDefinitionsDB.create({
-    owningEntityType: owner.type, owningEntityId: owner.id, fromEntityType: "Deliverable", fromName, fromState: "Approved", toEntityType: "Deliverable", toName,
-    toState: toName ? "In Progress" : null, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
-  });
-  await dependencyDefinitionsDB.deleteByOwner(owner.type, owner.id);
-  for (const [from, to] of [[source, null], [source, gated], [other, gated], [source, ghost], [source, open]] as Array<[string, string | null]>) {
-    const { error } = await row(from, to);
-    assert.ok(!error, error?.message);
-  }
+  const { source, other, gated, open } = gateNames;
   await createDeliverable(source, "Approved");
   await createDeliverable(other);
   await createDeliverable(gated);
@@ -103,16 +122,7 @@ test("a Deliverable reaching a state announces only the gated Deliverables whose
 });
 
 test("the Execution Engine refuses a Deliverable whose dependency rows are not satisfied, and says which, by name or by kind", async () => {
-  const [source, target] = [code("req-source"), code("req-target")];
-  await dependencyDefinitionsDB.deleteByOwner(owner.type, owner.id);
-  await dependencyDefinitionsDB.create({
-    owningEntityType: owner.type, owningEntityId: owner.id, fromEntityType: "Deliverable", fromName: source, fromState: "Approved", toEntityType: "Deliverable", toName: target,
-    toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
-  });
-  await dependencyDefinitionsDB.create({
-    owningEntityType: owner.type, owningEntityId: owner.id, fromEntityType: "Obligation", fromName: null, fromState: "Verified", toEntityType: "Deliverable", toName: target,
-    toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
-  });
+  const [source, target] = [gateNames.reqSource, gateNames.reqTarget];
   await createDeliverable(source);
   const gatedDeliverable = await createDeliverable(target);
   await createObligationAsRoot({ relatedObjectType: "Deliverable", relatedObjectId: gatedDeliverable.id, category: "Operational", title: `Open obligation ${run}` });

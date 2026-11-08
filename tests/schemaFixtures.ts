@@ -48,7 +48,7 @@ import { advanceAuthoringDraftToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "
 const PLATFORM_VIEWER = { isRoot: false, tenantId: null as string | null };
 
 // The version every fixture row carries. A change to what a builder authors needs a new value here.
-export const FIXTURE_VERSION = "1.0.3";
+export const FIXTURE_VERSION = "1.0.5";
 
 // An arbitrary number that names the advisory lock the builders take.
 const FIXTURE_LOCK_KEY = 726450917;
@@ -122,7 +122,8 @@ export async function ensureFixtureTenant(label: string): Promise<string> {
 async function withFixtureLock<T>(work: () => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {
-    await client.query("SELECT pg_advisory_lock($1)", [FIXTURE_LOCK_KEY]);
+    // Polls for the lock, because a build under load outlasts the query timeout of a single blocking lock request.
+    while (!(await client.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [FIXTURE_LOCK_KEY])).rows[0].locked) await new Promise((r) => setTimeout(r, 500));
     return await work();
   } finally {
     await client.query("SELECT pg_advisory_unlock($1)", [FIXTURE_LOCK_KEY]).catch(() => undefined);
@@ -328,7 +329,7 @@ export async function maximalService(tenantId: string, input: { code: string; ca
 
 // ---- Policy -----------------------------------------------------------------------------------------------------------
 
-// `standard` makes it a Standard that governs the third Deliverable transition for the named Deliverable, so it does not meet the Policy's two and fails until the producing Capability is Fulfilled.
+// `standard` makes it a Standard that governs the fourth Deliverable transition (Approved to Baselined) for the named Deliverable, which needs no attached reference and meets neither the Policy's two hops nor the gates and fails until the producing Capability is Fulfilled.
 export async function maximalPolicy(tenantId: string, input: { code: string; deliverableCode: string; standard?: boolean }): Promise<FixtureRow> {
   const [category] = await platformConceptCodes("category:policy", 1);
   const environments = await platformConceptCodes("category:environment", 2);
@@ -339,7 +340,7 @@ export async function maximalPolicy(tenantId: string, input: { code: string; del
   const [priority] = await platformConceptCodes("category:obligation-priority", 1);
   const [obligationSeverity] = await platformConceptCodes("category:obligation-severity", 1);
   const [approver] = await authorityBadgeCodes(1);
-  const transitions = await deliverableTransitions(3);
+  const transitions = await deliverableTransitions(4);
   const evidence = { title: "Fixture evidence", category: evidenceCategory, description: "Evidence that satisfies the condition.", collectionMethod: "Attached by the reviewer." };
   const content: Record<string, unknown> = {
     code: input.code,
@@ -381,7 +382,7 @@ export async function maximalPolicy(tenantId: string, input: { code: string; del
           },
         ],
         applicabilityDeliverables: input.standard
-          ? [{ name: input.deliverableCode, transitions: [transitions[2]], governingCondition: { type: "field_in", field: "producingCapabilityStatus", values: "Fulfilled" } }]
+          ? [{ name: input.deliverableCode, transitions: [transitions[3]], governingCondition: { type: "field_in", field: "producingCapabilityStatus", values: "Fulfilled" } }]
           : [
               { name: input.deliverableCode, transitions: [transitions[0]], governingCondition: { type: "field_in", field: "reviewState", values: "reviewed,waived" } },
               { name: input.deliverableCode, transitions: [transitions[1]], governingCondition: { type: "threshold", field: "coveragePercent", operator: "gte", value: "80" } },
@@ -669,6 +670,7 @@ export async function maximalProfile(tenantId: string, input: { template: Fixtur
 export interface Stage1Fixtures {
   tenantId: string;
   capability: FixtureRow;
+  capabilityB: FixtureRow;
   inputDeliverable: FixtureRow;
   outputDeliverable: FixtureRow;
   service: FixtureRow;
@@ -681,6 +683,8 @@ export interface Stage1Fixtures {
 async function stage1(tenantId: string): Promise<Stage1Fixtures> {
   await assertFixtureCodesSeeded();
   const capability = await maximalCapability(tenantId, { code: FIXTURE_CODES.capability.code });
+  // The Pack declares both Capabilities, and an EBM settles only Capabilities that have a Definition, so both have one.
+  const capabilityB = await maximalCapability(tenantId, { code: FIXTURE_CODES.capabilityB.code });
   const inputDeliverable = await maximalDeliverable(tenantId, { code: FIXTURE_CODES.input.code });
   const outputDeliverable = await maximalDeliverable(tenantId, { code: FIXTURE_CODES.output.code });
   const service = await maximalService(tenantId, {
@@ -692,7 +696,7 @@ async function stage1(tenantId: string): Promise<Stage1Fixtures> {
   });
   const policy = await maximalPolicy(tenantId, { code: `fixture-policy`, deliverableCode: FIXTURE_CODES.output.code });
   const standardPolicy = await maximalPolicy(tenantId, { code: `fixture-standard`, deliverableCode: FIXTURE_CODES.output.code, standard: true });
-  return { tenantId, capability, inputDeliverable, outputDeliverable, service, policy, standardPolicy };
+  return { tenantId, capability, capabilityB, inputDeliverable, outputDeliverable, service, policy, standardPolicy };
 }
 
 export interface Stage2Fixtures extends Stage1Fixtures {
@@ -700,7 +704,7 @@ export interface Stage2Fixtures extends Stage1Fixtures {
   pack: FixtureRow;
 }
 
-// The Pack declares two Capabilities, only one of which has a Capability Definition, so a view meets both a found and a missing reference.
+// The Pack declares two Capabilities, each with a Capability Definition.
 async function stage2(tenantId: string): Promise<Stage2Fixtures> {
   const stage1Rows = await stage1(tenantId);
   const base = await basePack(tenantId);

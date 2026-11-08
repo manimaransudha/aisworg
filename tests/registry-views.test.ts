@@ -211,14 +211,15 @@ test("the Pack view resolves its Service, Capabilities, Policy and Packs, and li
   assert.equal(view.pack.id, stage1.pack.id);
   assert.equal(view.refs["service-definition"][stage1.service.code]?.id, stage1.service.id);
   assert.equal(view.refs["capability-name"][FIXTURE_CODES.capability.code]?.id, stage1.capability.id);
-  assert.equal(view.refs["capability-name"][FIXTURE_CODES.capabilityB.code], undefined, "a Capability with no Definition has no reference");
+  assert.equal(view.refs["capability-name"][FIXTURE_CODES.capabilityB.code]?.id, stage1.capabilityB.id);
   assert.equal(view.refs.policy[stage1.policy.code]?.name, stage1.policy.shownName);
   assert.equal(view.refs["pack-code"][stage1.basePack.code]?.name, stage1.basePack.shownName);
-  assert.equal(view.policies.length, 1);
-  assert.equal(view.policies[0]!.name, stage1.policy.shownName);
-  assert.equal(view.policies[0]!.scope, "Transition");
-  assert.equal(view.policies[0]!.conditions.length, 1);
-  assert.equal(view.policies[0]!.environments.length, 2);
+  assert.equal(view.policies.length, 2, "the Policy and the Standard the Pack adopts");
+  const adopted = view.policies.find((p) => p.name === stage1.policy.shownName)!;
+  assert.ok(adopted);
+  assert.equal(adopted.scope, "Transition");
+  assert.equal(adopted.conditions.length, 1);
+  assert.equal(adopted.environments.length, 2);
 });
 
 test("the Template view resolves the Packs of every category and the catalogue Deliverables, and draws the dependency graph", async () => {
