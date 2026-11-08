@@ -207,6 +207,13 @@ https://console.tailscale.com/admin/machines GMAIL
 
 git log -1 --oneline
 
+----------
+
+NODE_OPTIONS=--trace-deprecation pnpm test:dot (trace depreciation)
+
+pnpm test:coverage:html ( to get the test coverage)
+
+
 ---------
 
 pnpm exec tsx src/dblayer/seed/seedRouteAuthority.ts

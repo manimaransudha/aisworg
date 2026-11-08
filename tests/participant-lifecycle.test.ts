@@ -28,7 +28,7 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, waitUntilAsync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, waitUntilAsync, getEmptyPoolTenantId, deactivateParticipants } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 // Ch.30 Event Bus redesign — publish() still persists every event
@@ -40,6 +40,13 @@ async function participantEventTypes(participantId: string): Promise<string[]> {
   return (data ?? []).map((e) => e.event_type);
 }
 
+// Commissioning fulfils a Capability by itself when an eligible Participant already exists, so these tests commission
+// in the empty-pool tenant and fulfil with their own fixture Participant. Each is released when the file finishes.
+const fixtureParticipantMasterIds: string[] = [];
+after(async () => {
+  await deactivateParticipants(fixtureParticipantMasterIds);
+});
+
 async function commissionAndFulfil(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   let fulfilled: Awaited<ReturnType<typeof fulfilCapability>> | undefined;
@@ -47,7 +54,7 @@ async function commissionAndFulfil(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: await getEmptyPoolTenantId(),
     },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
@@ -61,6 +68,7 @@ async function commissionAndFulfil(statementPrefix: string) {
   const seuId = result.seu.id;
   assert.ok(fulfilled);
   const { participant, seuCapabilityId } = fulfilled;
+  fixtureParticipantMasterIds.push(participant.participant_id);
   // Dispatch of the producing Work Item is asynchronous and follows the fulfilment, so wait until the Participant holds it.
   await waitUntilAsync(async () => (await participantsDB.findById(participant.id)).data?.state === "Assigned", 30000);
   return { seuId, participant, seuCapabilityId };

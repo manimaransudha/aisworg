@@ -67,6 +67,7 @@ const USERS: SeedUser[] = [
     {"badge":"objective_achieve","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}
   ] },
   {email: "tester-acceptance-journey@test.local", name: "Test — Acceptance Journey (Athens)", avatar_url: null, display_name: "Athens Test Acceptance Journey", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME, participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: allNounVerbBadges() },
+  {email: "tester-acceptance-journey-babylon@test.local", name: "Test — Acceptance Journey (Babylon)", avatar_url: null, display_name: "Babylon Test Acceptance Journey", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: BABYLON_TENANT_NAME, participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: allNounVerbBadges() },
 ];
 
 export async function seedTestIdentity(): Promise<void> {

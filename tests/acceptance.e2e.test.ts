@@ -16,7 +16,7 @@ import fetchCookie from "fetch-cookie";
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
 import { objectiveInitialState } from "../src/routes/seu/core/objectives.js";
-import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, countCapabilityRequests, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
+import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, countCapabilityRequests, deactivateParticipants, TESTER_ACCEPTANCE_JOURNEY_BABYLON } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
@@ -55,7 +55,7 @@ function extractCsrf(html: string): string {
 // same as web-flow.e2e.test.ts did before that fix. root bypasses every
 // badge/tenant check by design (CR-076's own requireBadge/requireTenantScope
 // included), so a suite that only ever runs as root can't actually exercise
-// those gates. TESTER_ACCEPTANCE_JOURNEY (testFixtures.ts,
+// those gates. TESTER_ACCEPTANCE_JOURNEY_BABYLON (testFixtures.ts,
 // seedIdentityBaseline.ts) is a real, non-root, tenant-scoped seeded user who
 // holds every real noun_verb badge (every verb this journey needs), so this
 // journey now runs as a real, authorised identity instead of an implicit
@@ -74,10 +74,13 @@ before(async () => {
   webBaseUrl = `http://127.0.0.1:${address.port}/aisworg/seu`;
   const jarFetch = fetchCookie(fetch, new CookieJar());
   request = (async (input: any, init?: any) =>
-    jarFetch(input, { ...init, headers: { ...(init?.headers ?? {}), "x-test-user-id": TESTER_ACCEPTANCE_JOURNEY.userId } })) as unknown as typeof jarFetch;
+    jarFetch(input, { ...init, headers: { ...(init?.headers ?? {}), "x-test-user-id": TESTER_ACCEPTANCE_JOURNEY_BABYLON.userId } })) as unknown as typeof jarFetch;
 });
 
+// The fixture Participant is released when the file finishes, so Babylon's pool is empty again for the next run.
+const fixtureParticipantMasterIds: string[] = [];
 after(async () => {
+  await deactivateParticipants(fixtureParticipantMasterIds);
   await new Promise<void>((resolve, reject) => server.close((err: Error | undefined) => (err ? reject(err) : resolve())));
 });
 
@@ -113,7 +116,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   assert.equal(objective.requiredCapabilities.length, 3);
 
   // Commissioning needs an Active Objective: the leaf is activated through its governed hop.
-  await grantTransitionBadge(TESTER_ACCEPTANCE_JOURNEY.participantId, "Objective", await objectiveInitialState(), "Active");
+  await grantTransitionBadge(TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId, "Objective", await objectiveInitialState(), "Active");
   const activateRes = await request(`${baseUrl}/objectives/${objective.id}/transition/activate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
   assert.equal(activateRes.status, 200, await activateRes.text());
 
@@ -128,12 +131,12 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
 
   // 4 — commission: Save (the birth row) and Validate, then the Composition Engine and the hops to Operational (Ch.8, Ch.37).
   // The API route POST /commission is commented out: an SEU is initiated only through the Save and Validate buttons.
-  const commissioned = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ACCEPTANCE_JOURNEY.participantId });
+  const commissioned = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId });
   assert.equal(commissioned.ok, true, !commissioned.ok ? JSON.stringify(commissioned) : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
   const seuId = commissioned.seu.id;
   assert.equal(commissioned.seu.lifecycle_state, "Validated");
-  const driven = await driveCommissioningToActive({ seuId, actorId: TESTER_ACCEPTANCE_JOURNEY.participantId });
+  const driven = await driveCommissioningToActive({ seuId, actorId: TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId });
   assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
   assert.equal(driven.ok && driven.seu.lifecycle_state, "Operational");
   const { data: ebm } = driven.ok && driven.seu.active_ebm_id ? await ebmsDB.findById(driven.seu.active_ebm_id) : { data: null };
@@ -154,12 +157,13 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   // loadAvailableCandidates requires a real master reference to ever select a
   // candidate) — via the web form route, the real documented Fulfilment path.
   const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+  fixtureParticipantMasterIds.push(participantMasterId);
   // resolveAuthor (core/attentionItems.ts, reused by fulfilCapabilityWithParticipants)
   // needs a participants row for this actor's own participants_master id inside
   // this exact SEU — same requirement ensureRootActorParticipant exists to satisfy
-  // for the root actor; TESTER_ACCEPTANCE_JOURNEY needs the same thing here.
-  await ensureActorParticipant(seuId, TESTER_ACCEPTANCE_JOURNEY.participantId);
-  await grantRouteBadges(TESTER_ACCEPTANCE_JOURNEY.participantId, "POST", `/aisworg/seu/seus/${seuId}/capabilities/${requirementsCapability.capabilityId}/fulfil`);
+  // for the root actor; TESTER_ACCEPTANCE_JOURNEY_BABYLON needs the same thing here.
+  await ensureActorParticipant(seuId, TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId);
+  await grantRouteBadges(TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId, "POST", `/aisworg/seu/seus/${seuId}/capabilities/${requirementsCapability.capabilityId}/fulfil`);
   const detailPage = await request(`${webBaseUrl}/seus/${seuId}`);
   assert.equal(detailPage.status, 200);
   const csrf = extractCsrf(await detailPage.text());

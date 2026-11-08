@@ -267,6 +267,8 @@ export const TESTER_OBJECTIVE_ACHIEVE_ONLY = await getTesterIdentity("tester-obj
 // tenant-scoped, holds every real noun_verb badge (seedIdentityBaseline.ts's
 // allNounVerbBadges()).
 export const TESTER_ACCEPTANCE_JOURNEY = await getTesterIdentity("tester-acceptance-journey@test.local");
+// Babylon has no Participant holding an engineering Capability, so a journey that fulfils one by hand starts from an empty pool.
+export const TESTER_ACCEPTANCE_JOURNEY_BABYLON = await getTesterIdentity("tester-acceptance-journey-babylon@test.local");
 
 // Polls for the producing Command and its Work Item that the Execution Engine generates once a Deliverable is In
 // Progress (CommandGenerated -> WorkItemGenerated -> Dispatch, all asynchronous consumers). It does not complete the
