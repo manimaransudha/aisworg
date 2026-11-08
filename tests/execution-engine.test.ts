@@ -57,7 +57,7 @@ after(async () => {
   await reloadIfLoaded();
 });
 
-async function createDeliverable(lifecycle: string = deliverableBirthState, on: TestSeu = t, fields: { code?: string } = {}) {
+async function createDeliverable(lifecycle: string = deliverableBirthState, on: TestSeu = t, fields: { code?: string; producingCapabilityId?: string } = {}) {
   const { data, error } = await deliverablesDB.create({
     seuId: on.seu.id, ...fields, name: `execution-engine ${run} ${randomUUID()}`, state: lifecycle, authorId: on.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
   });
@@ -190,6 +190,9 @@ import { createDecision } from "../src/routes/seu/core/decisions.js";
 import { raiseAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { createEvidenceAsRoot } from "./testFixtures.js";
 import { createTestEbm } from "./engineFixtures.js";
+import { authorityRulesDB } from "../src/dblayer/authorityRulesDB.js";
+import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
+import { ensureFixtureTenant, buildStage1Fixtures } from "./schemaFixtures.js";
 
 test("governance refuses a Deliverable while an Obligation blocks its SEU, and while a Decision on it is not Approved", async () => {
   const blockedSeu = await createTestSeu("execution-engine-seu-blocked");
@@ -264,7 +267,8 @@ test("a Standard that fails does not stop the hop: it is approved with condition
   assert.ok(birth);
   const { data: ebm } = await ebmsDB.create({
     seuId: standardSeu.seu.id, templateId: standardSeu.seu.template_id, profileId: standardSeu.seu.profile_id, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
-    status: birth.to_state as never, composedPacks: [], compositionReport: {} as never, behaviors: null, applicablePolicyIds: [standard.id],
+    status: birth.to_state as never, composedPacks: [], behaviors: null, applicablePolicyIds: [standard.id],
+    compositionReport: { deliverableSource: { type: "Template", id: standardSeu.seu.template_id, dependencyDefinitionIds: [] } } as never,
   });
   assert.ok(ebm);
   await seusDB.setActiveEbm(standardSeu.seu.id, ebm.id);
@@ -279,11 +283,17 @@ test("a Standard that fails does not stop the hop: it is approved with condition
 });
 
 test("a Work Item records what the EBM settled and what its governance outcome names: the locations, the checklists, the capital, the Policies, the Authority rule and the open Attention Items", async () => {
-  const contextSeu = await createTestSeu("execution-engine-context");
-  const { rows: definitions } = await pool.query<{ code: string; guide_location: string | null }>("SELECT code, guide_location FROM deliverable_definitions WHERE status = 'Active' AND guide_location IS NOT NULL LIMIT 1");
-  const { rows: rules } = await pool.query<{ id: string; code: string }>("SELECT id, code FROM authority_rules LIMIT 1");
-  assert.ok(definitions[0] && rules[0], "the database holds an Active Deliverable Definition with a guide location and an Authority rule");
-  const code = definitions[0].code;
+  // The SEU belongs to a fixture tenant whose Active Deliverable Definition has a guide location, which is what the Work Item reads as the input location.
+  const fixtureTenant = await ensureFixtureTenant("execution-engine");
+  const fixtures = await buildStage1Fixtures(fixtureTenant);
+  const contextSeu = await createTestSeu("execution-engine-context", undefined, { tenantId: fixtureTenant });
+  const code = fixtures.inputDeliverable.code;
+  const { data: definition } = await deliverableDefinitionsDB.findActiveByCodeVisibleTo(code, fixtureTenant);
+  assert.ok(definition?.guide_location, "the fixture Deliverable Definition has a guide location");
+  const { data: rule, error: ruleError } = await authorityRulesDB.upsert({
+    code: `zz-rule-${run}`, governedTransition: `Deliverable|zz-from-${run}|zz-to-${run}`, authorisedRole: "lead", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
+  });
+  assert.ok(rule && !ruleError, ruleError?.message);
 
   await createTestEbm(contextSeu.seu, {
     settled: {
@@ -294,9 +304,9 @@ test("a Work Item records what the EBM settled and what its governance outcome n
       checklists: { result: [{ pack: "zz-pack", checklist: "Review", items: [{ statement: "Check the thing" }, { statement: "" }] }] },
       engineeringCapital: { result: [{ type: "repository", url: null, packs: ["zz-pack"] }, { type: "wiki", url: "https://wiki", packs: [] }] },
     },
-  }, true);
+  }, true, true);
 
-  const deliverable = await createDeliverable(deliverableBirthState, contextSeu, { code });
+  const deliverable = await createDeliverable(deliverableBirthState, contextSeu, { code, producingCapabilityId: capabilityId });
   const uncoded = await createDeliverable(deliverableBirthState, contextSeu);
   const policy = (await policiesDB.upsert({
     code: `zz-context-${run}`, name: `execution-engine context ${run}`, condition: { type: "always_true" }, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
@@ -309,7 +319,7 @@ test("a Work Item records what the EBM settled and what its governance outcome n
   const governance = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(governance);
   const { data: outcome, error } = await governanceEvaluationOutcomesDB.create({
-    ...governance.governanceOutcome, satisfied_policy_ids: [policy.id], applicable_authority_rule_id: rules[0].id, open_attention_item_ids: [attentionItem.id],
+    ...governance.governanceOutcome, satisfied_policy_ids: [policy.id], applicable_authority_rule_id: rule.id, open_attention_item_ids: [attentionItem.id],
     author_id: contextSeu.systemParticipantId, author_badge: ROOT_ACTOR_BADGE,
   });
   assert.ok(outcome && !error, error?.message);
@@ -325,12 +335,12 @@ test("a Work Item records what the EBM settled and what its governance outcome n
   };
 
   const context = await generate(deliverable.id);
-  assert.deepEqual([context.inputLocation, context.outputLocation], [definitions[0].guide_location, "vcs://output"]);
+  assert.deepEqual([context.inputLocation, context.outputLocation], [definition.guide_location, "vcs://output"]);
   assert.deepEqual(context.applicableChecklists, [{ packCode: "zz-pack", checklistName: "Review", statement: "Check the thing" }]);
   assert.deepEqual(context.engineeringCapital, [{ packCode: "zz-pack", type: "repository" }]);
   assert.deepEqual(context.profileConfiguration, { primaryProgrammingLanguage: "typescript" });
   assert.deepEqual(context.governingPolicies, [{ id: policy.id, code: policy.code, name: policy.name }]);
-  assert.deepEqual(context.applicableAuthority, { ruleId: rules[0].id, code: rules[0].code });
+  assert.deepEqual(context.applicableAuthority, { ruleId: rule.id, code: rule.code });
   assert.deepEqual(context.openAttentionItems.map((i) => i.id), [attentionItem.id]);
 
   const bare = await generate(uncoded.id);
