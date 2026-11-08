@@ -46,7 +46,7 @@ async function createPolicy(label: string, condition: Record<string, unknown>) {
 }
 
 const input = (overrides: Record<string, unknown> = {}) => ({
-  entityType: "AttentionItem" as const, entityId: randomUUID(), seuId: testSeu.seu.id, authorId: testSeu.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE, ...overrides,
+  entityType: "AttentionItem" as const, entityId: randomUUID(), seuId: testSeu.seu.id, authorId: testSeu.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE, tenantId: testSeu.seu.tenant_id, ...overrides,
 });
 
 test("a policy criteria gate blocks when it names no Policy, or a Policy that does not exist", async () => {

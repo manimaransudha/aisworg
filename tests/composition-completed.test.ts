@@ -5,6 +5,8 @@
 //     CompositionCompleted event it would receive. Event subscriptions are not loaded in this file, so the events the handler publishes run no handler.
 //   - Rows are not deleted, as in the other tests that create SEUs.
 import "dotenv/config";
+// The Event Bus is loaded first: it loads the handler registry, which loads the handler under test. Loading the handler first meets the registry before the handler exists.
+import "../src/domain/engine/eventBus.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

@@ -5,6 +5,8 @@
 //     a Deliverable that is Approved and produced by it (the handler leaves that one alone). Event subscriptions are not loaded in this file.
 //   - Rows are not deleted, as in the other tests that create SEUs.
 import "dotenv/config";
+// The Event Bus is loaded first: it loads the handler registry, which loads the handler under test. Loading the handler first meets the registry before the handler exists.
+import "../src/domain/engine/eventBus.js";
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

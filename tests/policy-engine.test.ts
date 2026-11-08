@@ -83,7 +83,7 @@ async function activateEbm(policyIds: string[]) {
 const evaluate = (hop: string, entityId: string | null, context: Record<string, unknown> = {}) => {
   const [entityType, fromState, toState] = hop.split("|");
   return policyEngine.evaluate({
-    entityType: entityType as "Deliverable", seuId: t.seu.id, entityId, fromState, toState, context, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
+    entityType: entityType as "Deliverable", seuId: t.seu.id, entityId, fromState, toState, context, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
 };
 

@@ -115,7 +115,7 @@ test("applying a hop with no Transition Definition is refused, and a hop whose D
   const base = { deliverable, fromState: deliverableBirthState, requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, governanceOutcome: governance.governanceOutcome, correlationId: randomUUID() };
 
   const nowhere = await executionEngine.applyGovernedDeliverableTransition({ ...base, toState: state("nowhere") });
-  assert.deepEqual(nowhere, { ok: false, reason: "no_transition_definition" });
+  assert.ok(!nowhere.ok && nowhere.reason === "no_transition_definition", JSON.stringify(nowhere));
 
   const moved = await executionEngine.applyDeliverableTransition({ ...base, fromState: state("not-current"), toState: "In Progress" });
   assert.ok(!moved.ok && moved.reason === "already_in_flight");

@@ -12,7 +12,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
-import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 const handlerName = `zz-no-handler-${randomUUID().slice(0, 8)}`;
 
@@ -40,7 +40,8 @@ test("loading subscriptions skips a subscription whose handler is not registered
 });
 
 test("a version event that cannot be recorded does not fail the publish, and a version event with no tenant is refused", async () => {
-  const event = await publish({ versionEvent: "zz-version-event", tenantId: randomUUID(), fromState: "A", toState: "B" });
+  // The event is written for a real tenant, and its version event names an actor that is not a participants_master row, so only the version event is refused.
+  const event = await publish({ versionEvent: "zz-version-event", tenantId: PLATFORM_TENANT_ID, actorId: randomUUID(), fromState: "A", toState: "B" });
   assert.ok(event.id, "the event is published");
   await assert.rejects(() => publish({ versionEvent: "zz-version-event" }), /no tenantId/);
 });

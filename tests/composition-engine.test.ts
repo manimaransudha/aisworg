@@ -10,6 +10,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
+import pool from "../src/utils/db.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
@@ -86,7 +87,8 @@ test("compose reports a parameter that two Profiles override differently, and no
       authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development",
     });
     assert.ok(profile);
-    await profilesDB.setDraftContent(profile.id, { exposedParameterOverrides: overrides.map((o) => ({ sourceType: "service", ...o })) });
+    // The overrides are written to the draft column directly: the governed draft write validates them against the Profile schema, and compose reads the column as it is.
+    await pool.query("UPDATE profiles SET draft_content = $2 WHERE id = $1", [profile.id, JSON.stringify({ exposedParameterOverrides: overrides.map((o) => ({ sourceType: "service", ...o })) })]);
     return profile;
   };
   const left = await createProfile("left", [{ sourceCode: "svc", parameterName: "size", value: "small" }, { sourceCode: "svc", parameterName: "shape", value: "round" }]);
