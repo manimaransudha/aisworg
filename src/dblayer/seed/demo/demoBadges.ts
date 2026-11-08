@@ -88,7 +88,7 @@ export async function grantTransitionBadge(participantId: string, entityType: Tr
 
 // Grants every badge with one of the prefixes (for example "seu_") that a transition_definitions verb or a route_authority row declares, in one write.
 export async function grantBadgesWithPrefixes(participantId: string, prefixes: string[]): Promise<void> {
-  const { data: definitions, error } = await transitionDefinitionsDB.listAll();
+  const { data: definitions, error } = await transitionDefinitionsDB.findAllRows();
   if (error) throw error;
   const { data: routes, error: routesError } = await routeAuthorityDB.findAll();
   if (routesError) throw routesError;
@@ -111,7 +111,7 @@ export async function grantBadgesWithPrefixes(participantId: string, prefixes: s
 // Grants every badge any governed transition_definitions row resolves to, in one write. Run before each
 // step so no transition, direct or event-driven, can meet a missing badge.
 export async function grantAllTransitionBadges(participantId: string): Promise<void> {
-  const { data: definitions, error } = await transitionDefinitionsDB.listAll();
+  const { data: definitions, error } = await transitionDefinitionsDB.findAllRows();
   if (error) throw error;
   const { data: master, error: findError } = await participantsMasterDB.findById(participantId);
   if (findError) throw findError;

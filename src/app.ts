@@ -33,6 +33,7 @@ import { listTopLevelDocFolders } from "./domain/sdk/docsTree.js";
 import { resolveNavRouteVisibility } from "./domain/identity/navRouteAccess.js";
 import { loadRouteAuthorityCache } from "./domain/identity/routeAuthorityCache.js";
 import { loadTransitionDefinitionsCache } from "./dblayer/transitionDefinitionsDB.js";
+import { getPlatformTenantId } from "./dblayer/constants.js";
 import { scheduleDemoReset } from "./dblayer/seed/demo/demoSchedule.js";
 import { routeAuthorityGate } from "./middleware/routeAuthorityGate.js";
 
@@ -40,6 +41,7 @@ import { requireActorId } from "./domain/identity/heldBadges.js";
 await eventBus.loadSubscriptions();
 await loadRouteAuthorityCache();
 await loadTransitionDefinitionsCache();
+await getPlatformTenantId();
 
 const app = express();
 const PORT = process.env.PORT || 4800;

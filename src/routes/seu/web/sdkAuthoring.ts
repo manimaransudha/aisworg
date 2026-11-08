@@ -601,9 +601,9 @@ async function resolvedSchemaFor(kind: SchemaDefinitionEntityKind, pinnedSchemaD
 }
 
 async function nextHop(kind: SchemaDefinitionEntityKind, fromState: string): Promise<{ verb: string; toState: string } | null> {
-  const defs = await listCurrentTransitionDefinitions();
-  const match = defs.find((d) => d.entityType === entityTypeForKind(kind) && d.isActive && d.fromState === fromState && d.verb);
-  return match ? { verb: match.verb!, toState: match.toState } : null;
+  const { data: defs } = await transitionDefinitionsDB.findAllRows();
+  const match = (defs ?? []).find((d) => d.entity_type === entityTypeForKind(kind) && d.is_active && d.from_state === fromState && d.verb);
+  return match ? { verb: match.verb!, toState: match.to_state } : null;
 }
 
 // A Profile's dependency graph may name the Capabilities of the Packs its base Template and the Profile itself select.

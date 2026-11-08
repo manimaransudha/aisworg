@@ -148,7 +148,13 @@ export const TEST_APPROVER_EMAIL = "tester-approver@test.local";
 export const TEST_CREATOR_EMAIL = "tester-creator@test.local";
 export const TEST_ALL_EMAIL = "tester-all@test.local";
 
+// The Platform tenant id never changes while a process runs, so it is read once and kept. The app loads it at start (app.ts).
+// Only a successful read is kept, so a process that starts before the tenant is provisioned reads it again on the next call.
+let platformTenantIdCache: string | null = null;
+
 export async function getPlatformTenantId(): Promise<string> {
+    if (platformTenantIdCache) return platformTenantIdCache;
+
     const result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
 
     if (result.error) {
@@ -166,7 +172,8 @@ export async function getPlatformTenantId(): Promise<string> {
         );
     }
 
-    return result.data.id;
+    platformTenantIdCache = result.data.id;
+    return platformTenantIdCache;
 }
 
 export async function getTesterId(email: string): Promise<string> {

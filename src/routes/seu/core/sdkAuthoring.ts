@@ -39,7 +39,6 @@ import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine, type CompositionSource } from "../../../domain/engine/compositionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import { listCurrentTransitionDefinitions } from "./transitionDefinitions.js";
 import type { CapabilityDefinitionRow, CapabilityRole, DeliverableDefinitionRow, PolicyDefinitionRow, ServiceDefinitionRow, EvidenceDefinition, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { packContent } from "../../../domain/engine/entityAdapters.js";
@@ -436,12 +435,12 @@ export function entityTypeForKind(kind: SchemaDefinitionEntityKind): TransitionE
 }
 
 async function canonicalForwardEdges(kind: SchemaDefinitionEntityKind): Promise<Set<string>> {
-  const allTds = await listCurrentTransitionDefinitions();
+  const { data: allTds } = await transitionDefinitionsDB.findAllRows();
   const byFromState = new Map<string, Array<{ toState: string }>>();
-  for (const d of allTds) {
-    if (d.entityType !== entityTypeForKind(kind) || !d.isActive || !d.verb) continue;
-    if (!byFromState.has(d.fromState)) byFromState.set(d.fromState, []);
-    byFromState.get(d.fromState)!.push({ toState: d.toState });
+  for (const d of allTds ?? []) {
+    if (d.entity_type !== entityTypeForKind(kind) || !d.is_active || !d.verb) continue;
+    if (!byFromState.has(d.from_state)) byFromState.set(d.from_state, []);
+    byFromState.get(d.from_state)!.push({ toState: d.to_state });
   }
   const edges = new Set<string>();
   const visited = new Set(["Draft"]);

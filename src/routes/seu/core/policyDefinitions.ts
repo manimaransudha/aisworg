@@ -29,13 +29,8 @@ export type PolicyDefinitionValidationResult = { ok: true } | { ok: false; error
 
 
 export async function listTransitionsForEntityType(entityType: string): Promise<string[]> {
-  const { data } = await transitionDefinitionsDB.listAll();
-  const transitions = new Set<string>();
-  for (const row of data ?? []) {
-    if (row.entity_type !== entityType || !row.is_active) continue;
-    transitions.add(`${entityType}|${row.from_state}|${row.to_state}`);
-  }
-  return [...transitions].sort();
+  const { data } = await transitionDefinitionsDB.listActiveEdges(entityType);
+  return data ?? [];
 }
 
 const EXCEPTION_COMPOSITIONS = new Set(["all", "any"]);

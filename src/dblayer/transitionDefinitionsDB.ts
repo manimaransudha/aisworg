@@ -198,6 +198,34 @@ export const transitionDefinitionsDB = {
     }
   },
 
+  // Every transition_definitions row, from the cache when it is loaded. For callers that read the row's own columns and need no
+  // join (listAll adds the authority rule and the policy counts). Callers read the rows and do not change them.
+  async findAllRows(): Promise<DbResult<TransitionDefinitionRow[]>> {
+    if (cache) return { data: cache };
+    try {
+      const { rows } = await query<TransitionDefinitionRow>("SELECT * FROM transition_definitions ORDER BY entity_type, from_state, to_state");
+      return { data: rows };
+    } catch (err) {
+      logger.error("[transitionDefinitionsDB] findAllRows error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // The "<EntityType>|<from>|<to>" edge of every active transition, sorted: the values the transition pickers and validators accept.
+  // Pass an entity type to list only its edges.
+  async listActiveEdges(entityType?: string): Promise<DbResult<string[]>> {
+    const edgesOf = (rows: Array<{ entity_type: string; from_state: string; to_state: string }>): string[] =>
+      [...new Set(rows.filter((r) => entityType === undefined || r.entity_type === entityType).map((r) => `${r.entity_type}|${r.from_state}|${r.to_state}`))].sort();
+    if (cache) return { data: edgesOf(cache.filter((r) => r.is_active)) };
+    try {
+      const { rows } = await query<{ entity_type: string; from_state: string; to_state: string }>("SELECT entity_type, from_state, to_state FROM transition_definitions WHERE is_active");
+      return { data: edgesOf(rows) };
+    } catch (err) {
+      logger.error("[transitionDefinitionsDB] listActiveEdges error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findPossibleNextStates(entityType: TransitionEntityType, fromState: string): Promise<DbResult<string[]>> {
     if (cache) return { data: (byFrom.get(fromKey(entityType, fromState)) ?? []).map((r) => r.to_state) };
     try {

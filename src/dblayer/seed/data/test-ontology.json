@@ -3085,5 +3085,176 @@
     "is_mandatory": null,
     "text_type": "text",
     "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "schema-fixture-capability",
+    "default_label": "Schema Fixture Capability",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "schema-fixture-capability-b",
+    "default_label": "Schema Fixture Capability B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "schema-fixture-consumer-a",
+    "default_label": "Schema Fixture Consumer A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "capability-name",
+    "code": "schema-fixture-consumer-b",
+    "default_label": "Schema Fixture Consumer B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Capability"
+  },
+  {
+    "concept_type": "service-name",
+    "code": "schema-fixture-service",
+    "default_label": "Schema Fixture Service",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "schema-fixture-input",
+    "default_label": "Schema Fixture Input",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "schema-fixture-output",
+    "default_label": "Schema Fixture Output",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "schema-fixture-review",
+    "default_label": "Schema Fixture Review",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "schema-fixture-pack",
+    "default_label": "Schema Fixture Pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "technology-name",
+    "code": "schema-fixture-pack-base",
+    "default_label": "Schema Fixture Pack Base",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "schema-fixture-pack-engineering",
+    "default_label": "Schema Fixture Pack Engineering",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "compliance-name",
+    "code": "schema-fixture-pack-compliance",
+    "default_label": "Schema Fixture Pack Compliance",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "domain-name",
+    "code": "schema-fixture-pack-domain",
+    "default_label": "Schema Fixture Pack Domain",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-pack-organisation",
+    "default_label": "Schema Fixture Pack Organisation",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "integration-name",
+    "code": "schema-fixture-pack-integration",
+    "default_label": "Schema Fixture Pack Integration",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "deliverable-name",
+    "code": "schema-fixture-extra",
+    "default_label": "Schema Fixture Extra",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Deliverable"
+  },
+  {
+    "concept_type": "template-categories",
+    "code": "schema-fixture-template",
+    "default_label": "Schema Fixture Template",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": null
+  },
+  {
+    "concept_type": "participating-organisations",
+    "code": "schema-fixture-organisation-a",
+    "default_label": "Schema Fixture Organisation A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
+  },
+  {
+    "concept_type": "participating-organisations",
+    "code": "schema-fixture-organisation-b",
+    "default_label": "Schema Fixture Organisation B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
   }
 ]

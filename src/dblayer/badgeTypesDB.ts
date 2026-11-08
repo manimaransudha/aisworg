@@ -74,19 +74,20 @@ export const badgeTypesDB = {
     }
   },
 
-  async resolveForTenant(code: string, tenantId: string | null): Promise<DbResult<BadgeTypeRow | null>> {
-    try {
-      if (tenantId) {
-        const tenantRow = await query<BadgeTypeRow>("SELECT * FROM badge_types WHERE code = $1 AND tenant_id = $2", [code, tenantId]);
-        if (tenantRow.rows[0]) return { data: tenantRow.rows[0] };
-      }
-      const { rows } = await query<BadgeTypeRow>("SELECT * FROM badge_types WHERE code = $1 AND tenant_id IS NULL", [code]);
-      return { data: rows[0] ?? null };
-    } catch (err) {
-      logger.error("[badgeTypesDB] resolveForTenant error", err as Error);
-      return { error: err as Error };
-    }
-  },
+  // resolveForTenant is commented out: no code or test calls it. The tenant's badge types are read through findAllForTenant.
+  // async resolveForTenant(code: string, tenantId: string | null): Promise<DbResult<BadgeTypeRow | null>> {
+  //   try {
+  //     if (tenantId) {
+  //       const tenantRow = await query<BadgeTypeRow>("SELECT * FROM badge_types WHERE code = $1 AND tenant_id = $2", [code, tenantId]);
+  //       if (tenantRow.rows[0]) return { data: tenantRow.rows[0] };
+  //     }
+  //     const { rows } = await query<BadgeTypeRow>("SELECT * FROM badge_types WHERE code = $1 AND tenant_id IS NULL", [code]);
+  //     return { data: rows[0] ?? null };
+  //   } catch (err) {
+  //     logger.error("[badgeTypesDB] resolveForTenant error", err as Error);
+  //     return { error: err as Error };
+  //   }
+  // },
 
   async findAllForTenant(tenantId: string | null): Promise<DbResult<BadgeTypeRow[]>> {
     try {
@@ -105,23 +106,25 @@ export const badgeTypesDB = {
     }
   },
 
-  async findPlatformDefault(code: string): Promise<DbResult<BadgeTypeRow | null>> {
-    try {
-      const { rows } = await query<BadgeTypeRow>("SELECT * FROM badge_types WHERE code = $1 AND tenant_id IS NULL", [code]);
-      return { data: rows[0] ?? null };
-    } catch (err) {
-      logger.error("[badgeTypesDB] findPlatformDefault error", err as Error);
-      return { error: err as Error };
-    }
-  },
+  // findPlatformDefault is commented out: no code or test calls it.
+  // async findPlatformDefault(code: string): Promise<DbResult<BadgeTypeRow | null>> {
+  //   try {
+  //     const { rows } = await query<BadgeTypeRow>("SELECT * FROM badge_types WHERE code = $1 AND tenant_id IS NULL", [code]);
+  //     return { data: rows[0] ?? null };
+  //   } catch (err) {
+  //     logger.error("[badgeTypesDB] findPlatformDefault error", err as Error);
+  //     return { error: err as Error };
+  //   }
+  // },
 
-  async findRegistrationDefault(): Promise<DbResult<BadgeTypeRow | null>> {
-    try {
-      const { rows } = await query<BadgeTypeRow>("SELECT * FROM badge_types WHERE is_registration_default = TRUE AND tenant_id IS NULL LIMIT 1");
-      return { data: rows[0] ?? null };
-    } catch (err) {
-      logger.error("[badgeTypesDB] findRegistrationDefault error", err as Error);
-      return { error: err as Error };
-    }
-  },
+  // findRegistrationDefault is commented out: no code or test calls it.
+  // async findRegistrationDefault(): Promise<DbResult<BadgeTypeRow | null>> {
+  //   try {
+  //     const { rows } = await query<BadgeTypeRow>("SELECT * FROM badge_types WHERE is_registration_default = TRUE AND tenant_id IS NULL LIMIT 1");
+  //     return { data: rows[0] ?? null };
+  //   } catch (err) {
+  //     logger.error("[badgeTypesDB] findRegistrationDefault error", err as Error);
+  //     return { error: err as Error };
+  //   }
+  // },
 };

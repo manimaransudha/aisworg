@@ -4,9 +4,7 @@
 //
 //   - Each page is fetched over HTTP from the real app, so the route_authority gate, the controller, the view model and the EJS
 //     view run together with the core function.
-//   - Policy, Capability, Deliverable and Service rows are the maximal Active fixtures of tests/schemaFixtures.ts, built in a tenant
-//     of their own. Pack, Profile and Template rows are seeded Platform rows: for each kind, the visible row whose view carries the
-//     most references. Those three move to schema fixtures in later stages.
+//   - Every row shown is a maximal Active fixture of tests/schemaFixtures.ts, built in a tenant of their own.
 //   - A viewer with the participant role (the role the route's own route_authority row declares) sees a Platform row.
 //     A viewer with no role is redirected. An id that does not exist redirects to the list with a "not found" message.
 //   - buildDependencyGraphLayout is called directly: the Template authoring page uses it as well.
@@ -18,9 +16,6 @@ import { randomUUID } from "node:crypto";
 import app from "../src/app.js";
 import { query } from "../src/utils/db.js";
 import { userDB } from "../src/dblayer/userDB.js";
-import { packsDB } from "../src/dblayer/packsDB.js";
-import { profilesDB } from "../src/dblayer/profilesDB.js";
-import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { lookupRouteAuthority } from "../src/domain/identity/routeAuthorityCache.js";
 import { NO_EXPIRY_DATE } from "../src/dblayer/constants.js";
 import { createParticipantMaster } from "../src/routes/seu/core/participantsMaster.js";
@@ -32,16 +27,16 @@ import { getServiceDefinitionView } from "../src/routes/seu/core/serviceDefiniti
 import { getProfileView } from "../src/routes/seu/core/profileView.js";
 import { getTemplateView, buildDependencyGraphLayout } from "../src/routes/seu/core/templateView.js";
 import {
-  PLATFORM_TENANT_ID, ROOT_USER_ID,
+  ROOT_USER_ID,
   setWebBaseUrl, newSession, getPage, getRedirect, assertPageMatches, type Session,
 } from "./testFixtures.js";
-import { createFixtureTenant, buildStage1Fixtures, type Stage1Fixtures } from "./schemaFixtures.js";
+import { ensureFixtureTenant, buildStage4Fixtures, FIXTURE_CODES, type Stage4Fixtures } from "./schemaFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const rootViewer = { isRoot: true, tenantId: null };
 const createdEmails: string[] = [];
 let tenantId: string;
-let stage1: Stage1Fixtures;
+let stage1: Stage4Fixtures;
 let server: ReturnType<typeof app.listen>;
 let participantViewer: Session;
 let noRoleViewer: Session;
@@ -68,25 +63,10 @@ function rowOf(kind: Kind): Promise<{ id: string; name: string }> {
   return picked.get(kind.label)!;
 }
 
-async function richest<T extends { id: string; name: string; tenant_id: string }>(rows: T[], score: (id: string) => Promise<number | null>): Promise<{ id: string; name: string }> {
-  let best: { id: string; name: string; score: number } | null = null;
-  for (const row of rows.filter((r) => r.tenant_id === PLATFORM_TENANT_ID).slice(0, 60)) {
-    const s = await score(row.id);
-    if (s !== null && (!best || s > best.score)) best = { id: row.id, name: row.name, score: s };
-  }
-  assert.ok(best, "the database holds no visible Platform row to show");
-  return { id: best.id, name: best.name };
-}
-
-const refCount = (refs: Record<string, Record<string, unknown>>): number => Object.values(refs).reduce((n, group) => n + Object.keys(group).length, 0);
-
 const KINDS: Kind[] = [
   {
     label: "Pack", listPath: "/seu/packs", notFound: "Pack not found.",
-    pick: async () => richest((await packsDB.findAll()).data ?? [], async (id) => {
-      const view = await getPackView(id, rootViewer);
-      return view ? refCount(view.refs) + view.policies.length : null;
-    }),
+    pick: async () => ({ id: stage1.pack.id, name: stage1.pack.shownName }),
   },
   {
     label: "Policy Definition", listPath: "/seu/policy-definitions", notFound: "Policy Definition not found.",
@@ -106,17 +86,11 @@ const KINDS: Kind[] = [
   },
   {
     label: "Profile", listPath: "/seu/profiles", notFound: "Profile not found.",
-    pick: async () => richest((await profilesDB.findAll()).data ?? [], async (id) => {
-      const view = await getProfileView(id, rootViewer);
-      return view ? refCount(view.refs) + Object.keys(view.parameterSources).length : null;
-    }),
+    pick: async () => ({ id: stage1.profile.id, name: stage1.profile.shownName }),
   },
   {
     label: "Template", listPath: "/seu/templates", notFound: "Template not found.",
-    pick: async () => richest((await templatesDB.findAll()).data ?? [], async (id) => {
-      const view = await getTemplateView(id, rootViewer);
-      return view ? refCount(view.refs) + Object.keys(view.parameterSources).length + (view.graph ? 100 : 0) : null;
-    }),
+    pick: async () => ({ id: stage1.template.id, name: stage1.template.shownName }),
   },
 ];
 
@@ -140,8 +114,8 @@ before(async () => {
   setWebBaseUrl(`http://127.0.0.1:${address.port}/aisworg`);
 
   // The fixture rows and the two viewers live in this tenant. The tenant stays, with the rows, as in the other tests that create tenant rows.
-  tenantId = await createFixtureTenant("views");
-  stage1 = await buildStage1Fixtures(tenantId);
+  tenantId = await ensureFixtureTenant("views");
+  stage1 = await buildStage4Fixtures(tenantId);
 
   // The role the page's own route_authority row declares, not a role guessed here.
   const declared = lookupRouteAuthority("GET", "/aisworg/seu/packs/x")?.roles ?? [];
@@ -231,8 +205,69 @@ test("the Policy view carries the condition and the Ontology labels of its categ
   for (const environment of stage1.policy.content.applicabilityEnvironments as string[]) assert.equal(typeof view.labels["category:environment"]?.[environment], "string");
 });
 
+test("the Pack view resolves its Service, Capabilities, Policy and Packs, and lists the Policy it adopts", async () => {
+  const view = await getPackView(stage1.pack.id, { isRoot: false, tenantId });
+  assert.ok(view);
+  assert.equal(view.pack.id, stage1.pack.id);
+  assert.equal(view.refs["service-definition"][stage1.service.code]?.id, stage1.service.id);
+  assert.equal(view.refs["capability-name"][FIXTURE_CODES.capability.code]?.id, stage1.capability.id);
+  assert.equal(view.refs["capability-name"][FIXTURE_CODES.capabilityB.code], undefined, "a Capability with no Definition has no reference");
+  assert.equal(view.refs.policy[stage1.policy.code]?.name, stage1.policy.shownName);
+  assert.equal(view.refs["pack-code"][stage1.basePack.code]?.name, stage1.basePack.shownName);
+  assert.equal(view.policies.length, 1);
+  assert.equal(view.policies[0]!.name, stage1.policy.shownName);
+  assert.equal(view.policies[0]!.scope, "Transition");
+  assert.equal(view.policies[0]!.conditions.length, 1);
+  assert.equal(view.policies[0]!.environments.length, 2);
+});
+
+test("the Template view resolves the Packs of every category and the catalogue Deliverables, and draws the dependency graph", async () => {
+  const view = await getTemplateView(stage1.template.id, { isRoot: false, tenantId });
+  assert.ok(view);
+  assert.equal(view.template.id, stage1.template.id);
+
+  const packs = [stage1.pack, stage1.basePack, stage1.engineeringPack, stage1.compliancePack, stage1.domainPack, stage1.organisationPack, stage1.integrationPack];
+  for (const pack of packs) assert.equal(view.refs["pack-code"][pack.code]?.id, pack.id, `Pack ${pack.code} is resolved`);
+  assert.ok(packs.every((pack) => view.refs["pack-code"][pack.code]?.mandatory === false), "no fixture Pack is Mandatory");
+
+  assert.equal(view.refs["deliverable-name"][FIXTURE_CODES.input.code]?.id, stage1.inputDeliverable.id);
+  assert.equal(view.refs["deliverable-name"][FIXTURE_CODES.output.code]?.id, stage1.outputDeliverable.id);
+  assert.equal(view.refs["deliverable-name"][FIXTURE_CODES.review.code], undefined, "a catalogue Deliverable with no Definition has no reference");
+  assert.equal(view.refs["deliverable-name"][FIXTURE_CODES.extra.code], undefined);
+
+  assert.equal(view.parameterSources[`service::${stage1.service.code}`], stage1.service.shownName);
+
+  assert.ok(view.graph, "the dependency graph is drawn");
+  const catalogue = [FIXTURE_CODES.input.code, FIXTURE_CODES.output.code, FIXTURE_CODES.review.code, FIXTURE_CODES.extra.code];
+  assert.deepEqual(view.graph.nodes.map((n) => n.code).sort(), [...catalogue].sort());
+  assert.equal(view.graph.edges.length, 4, "the four Deliverable edges are drawn");
+  const linked = view.graph.nodes.filter((n) => n.href !== null).map((n) => n.code).sort();
+  assert.deepEqual(linked, [FIXTURE_CODES.input.code, FIXTURE_CODES.output.code].sort(), "a node links to its Deliverable Definition when it has one");
+});
+
+test("the Profile view resolves its Template and Packs, names the Service behind each override, and labels its Ontology values", async () => {
+  const view = await getProfileView(stage1.profile.id, { isRoot: false, tenantId });
+  assert.ok(view);
+  assert.equal(view.profile.id, stage1.profile.id);
+  assert.equal(view.refs["template-code"][stage1.template.code]?.id, stage1.template.id);
+
+  const selected = [stage1.pack, stage1.basePack, stage1.engineeringPack, stage1.compliancePack, stage1.domainPack, stage1.organisationPack, stage1.integrationPack];
+  for (const pack of selected) assert.equal(view.refs["pack-code"][pack.code]?.id, pack.id, `Pack ${pack.code} is resolved`);
+
+  const overrides = stage1.profile.content.exposedParameterOverrides as Array<{ sourceType: string; sourceCode: string }>;
+  const services = overrides.filter((row) => row.sourceType === "service");
+  assert.ok(services.length > 0, "the Profile overrides at least one Service parameter");
+  for (const row of services) assert.equal(view.parameterSources[`service::${row.sourceCode}`], stage1.service.shownName);
+
+  assert.equal(typeof view.labels["category:environment"]?.[stage1.profile.content.environment as string], "string");
+  assert.equal(view.content.knowledgeLocations && (view.content.knowledgeLocations as unknown[]).length, 1);
+});
+
 test("a tenant other than the owner sees none of the fixture rows", async () => {
-  const other = await createFixtureTenant("views-other");
+  const other = await ensureFixtureTenant("views-other");
+  assert.equal(await getProfileView(stage1.profile.id, { isRoot: false, tenantId: other }), null);
+  assert.equal(await getTemplateView(stage1.template.id, { isRoot: false, tenantId: other }), null);
+  assert.equal(await getPackView(stage1.pack.id, { isRoot: false, tenantId: other }), null);
   assert.equal(await getServiceDefinitionView(stage1.service.id, { isRoot: false, tenantId: other }), null);
   assert.equal(await getCapabilityDefinitionView(stage1.capability.id, { isRoot: false, tenantId: other }), null);
   assert.equal(await getDeliverableDefinitionView(stage1.inputDeliverable.id, { isRoot: false, tenantId: other }), null);

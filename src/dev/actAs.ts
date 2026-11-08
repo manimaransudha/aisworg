@@ -59,7 +59,7 @@ export async function listBadgeTypes(tenantId: string | null): Promise<BadgeType
 }
 
 export async function listNounVerbBadgeCodes(): Promise<string[]> {
-  const { data } = await transitionDefinitionsDB.listAll();
+  const { data } = await transitionDefinitionsDB.findAllRows();
   const codes = new Set(
     (data ?? [])
       .filter((td) => td.is_active && !td.retired_at && td.verb)

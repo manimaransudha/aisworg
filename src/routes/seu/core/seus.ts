@@ -134,7 +134,7 @@ export async function listSeusPaginated(
 
 // The SEU lifecycle states, in lifecycle order: the birth state first, then each state reached by the SEU's transition_definitions rows.
 export async function listSeuLifecycleStates(): Promise<string[]> {
-  const [{ data: definitions }, { data: birth }] = await Promise.all([transitionDefinitionsDB.listAll(), transitionDefinitionsDB.findBirth("SEU")]);
+  const [{ data: definitions }, { data: birth }] = await Promise.all([transitionDefinitionsDB.findAllRows(), transitionDefinitionsDB.findBirth("SEU")]);
   const edges = (definitions ?? []).filter((d) => d.entity_type === "SEU" && d.is_active && d.from_state !== BIRTH_STATE);
   const ordered: string[] = birth ? [birth.to_state] : [];
   for (let i = 0; i < ordered.length; i++) {

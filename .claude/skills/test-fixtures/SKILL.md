@@ -1,11 +1,11 @@
 ---
 name: test-fixtures
-description: Write or fix tests and test fixtures in this repo (tests/, tests/testFixtures.ts) — how a test gets the badges it needs, why a granted badge must be restored, how to find published rows without fixed versions, and the participant and superuser fixture rules. Use whenever the user asks to write, fix, align or review a test or fixture, or reports an authority_denied, duplicate-key or fixed-version failure in a test.
+description: Write or fix tests and test fixtures in this repo (tests/, tests/testFixtures.ts, tests/schemaFixtures.ts) — how a test gets the badges it needs, why a granted badge must be restored, how to find published rows without fixed versions, the participant and superuser fixture rules, the schema fixtures (one maximal Active row per entity kind) and the HTTP helpers for testing controllers. Use whenever the user asks to write, fix, align or review a test or fixture, or reports an authority_denied, duplicate-key or fixed-version failure in a test.
 ---
 
 # Test fixtures
 
-Source: `tests/testFixtures.ts`. Read the helper you need there before writing a new one.
+Source: `tests/testFixtures.ts` and `tests/schemaFixtures.ts`. Read the helper you need there before writing a new one.
 
 ## Badges
 
@@ -44,6 +44,30 @@ Source: `tests/testFixtures.ts`. Read the helper you need there before writing a
 - Fulfil a Capability with a real `participants_master` Participant (`ensureEligibleParticipant`, `participantMasterId`). An ad-hoc `{type, displayName}` Participant can never be dispatched.
 - A missing "No superuser provisioned." error is a recurring gap with no shared fixture helper. Ask before adding one, because it touches many test files.
 - `actorId`, `authorityBadge` and `author_id` are plain strings. `tsc` cannot catch a wrong value. Verify these at runtime.
+
+## Schema fixtures
+
+Source: `tests/schemaFixtures.ts`. Used by `tests/registry-views.test.ts`.
+
+- A schema fixture is one maximal, Active row of a schema entity kind: every property of the latest schema carries a value, including the nested rows. Use it when a test needs a fully populated Capability, Deliverable, Service, Policy, Pack, Template or Profile, instead of a seeded row picked at run time.
+- `buildStage1Fixtures(tenantId)` builds a Capability, two Deliverables, a Service and a Policy. `buildStage2Fixtures` adds a Pack and its base Pack. `buildStage3Fixtures` adds a Pack of every category and the Template. `buildStage4Fixtures` adds the Profile. Each stage includes the ones before it. The tenant comes from `ensureFixtureTenant(label)`.
+- A row is created with `createAuthoringDraft` and moved to Active with `advanceAuthoringDraftToActive`, the calls the authoring pages make. The production validators check every fixture, so a wrong value fails in the setup with the validator's own message.
+- Building is an upsert. A row is looked up by code, version and tenant and created only when it is missing, so a second run reuses it and nothing accumulates. A row left short of Active by an earlier run is moved on. Change `FIXTURE_VERSION` whenever a builder authors something different, otherwise the next run reuses the stale row. `db:clean-slate` removes the fixture rows with the rest of the data, and a test never deletes them.
+- The builders take a Postgres advisory lock, so two test files that build fixtures at the same time cannot both create a row.
+- Every code that names an entity (capability, service, deliverable, Pack, Template, participating organisation) is a fixture-only concept of the test Ontology, in `src/dblayer/seed/data/test-ontology.json`, with a code that starts `schema-fixture-`. `FIXTURE_CODES` lists them, and `seedTestOntology` loads them at the start of a test run. A fixture that needs another code adds its row to that file. It never borrows a seeded code: a Pack writes rows keyed by those codes (review gates by transition and code, authority rules by code), so a shared code would overwrite a seeded row.
+- The category vocabularies (`category:*`), `role-name`, `worktype-name`, `technology`, the checklist vocabularies, the composition strategies, the installation classifications and the Profile configuration vocabularies are read from the Platform Ontology. A fixture only refers to them.
+- A fixture quality gate applies to a fixture-only deliverable-name. The gate engine scans every active gate of a transition when no SEU is given, so a gate with no deliverable names would reach real Deliverables.
+- There is no TransitionDefinition fixture: a persisted row would change how the engine moves real entities.
+- The read-only `comments` property is not filled, because a transition writes it. The fixtures contain no derived rows, such as a child Template that inherits from a parent.
+
+## Testing a controller over HTTP
+
+- The helpers are in `tests/testFixtures.ts`: `setWebBaseUrl`, `newSession`, `getPage`, `getRedirect`, `postForm`, `extractCsrf`, `assertPageMatches`, `assertPageDoesNotMatch` and `pageAlerts`. A test file boots the app itself with `app.listen(0)` and calls `setWebBaseUrl("http://127.0.0.1:<port>/aisworg")`. It never imports the app in the fixtures, because that would start the app in every test file.
+- `newSession(userId)` logs in as a seeded or created user through the `x-test-user-id` header. Omitting the id leaves the session logged out.
+- `grantRouteBadges` grants only the badges a `route_authority` row declares. A row with `roles` also needs `grantRole(participantId, role)`, which returns a restore function. Read the role from `lookupRouteAuthority`, not from a literal.
+- A test that needs a role creates its own user (`userDB.createLocalPending`, `setActive`, and `createParticipantMaster` with the role) and deletes the user and its `participants_master` row at the end. Granting a role to a shared tester races with the other test files, which run in separate processes against one database.
+- A denied or failed request redirects with a flash message. Read the `Location` with `getRedirect` or `postForm`, then fetch it as a separate request with `getPage`. Following a GET redirect to another GET in one request loses the session cookie, so the flash does not show.
+- Set up data and read results through core functions. Use the web layer only for the page or form under test.
 
 ## Known issues
 

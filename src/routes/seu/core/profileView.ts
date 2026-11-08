@@ -2,8 +2,6 @@ import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
-import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
-import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
@@ -61,14 +59,16 @@ export async function getProfileView(id: string, viewer: { isRoot: boolean; tena
     const found = own ?? (await templatesDB.findActiveByCode(code, platformTenantId)).data;
     if (found) refs["template-code"][code] = { name: found.name, note: null, id: found.id };
   }
-  for (const code of new Set(codesOf("capabilityCode"))) {
-    const { data: capability } = await capabilityDefinitionsDB.findActiveByCodeVisibleTo(code, viewer.tenantId);
-    if (capability) refs["capability-name"][code] = { name: capability.default_label, note: capability.description, id: capability.id };
-  }
-  for (const code of new Set(codesOf("deliverableCode"))) {
-    const { data: deliverable } = await deliverableDefinitionsDB.findActiveByCodeVisibleTo(code, viewer.tenantId);
-    if (deliverable) refs["deliverable-name"][code] = { name: labels["deliverable-name"]?.[code] ?? code, note: deliverable.description, id: deliverable.id };
-  }
+  // Commented out: no Profile property has list rows with a capabilityCode or a deliverableCode key (the graph uses fromCapabilityCode, the knowledge
+  // locations deliverableCodes, the catalogue code), so these two lookups never find a code. refs["capability-name"] and refs["deliverable-name"] stay empty.
+  // for (const code of new Set(codesOf("capabilityCode"))) {
+  //   const { data: capability } = await capabilityDefinitionsDB.findActiveByCodeVisibleTo(code, viewer.tenantId);
+  //   if (capability) refs["capability-name"][code] = { name: capability.default_label, note: capability.description, id: capability.id };
+  // }
+  // for (const code of new Set(codesOf("deliverableCode"))) {
+  //   const { data: deliverable } = await deliverableDefinitionsDB.findActiveByCodeVisibleTo(code, viewer.tenantId);
+  //   if (deliverable) refs["deliverable-name"][code] = { name: labels["deliverable-name"]?.[code] ?? code, note: deliverable.description, id: deliverable.id };
+  // }
   const parameterSources: Record<string, string> = {};
   for (const p of Array.isArray(content.exposedParameterOverrides) ? (content.exposedParameterOverrides as Array<Record<string, unknown>>) : []) {
     const type = String(p.sourceType ?? "");

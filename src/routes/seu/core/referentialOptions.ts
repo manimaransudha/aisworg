@@ -41,10 +41,7 @@ const SOURCE_LOADERS: Record<string, (viewer: Viewer) => Promise<string[]>> = {
   "role-name": conceptCodes("role-name"),
   "worktype-name": conceptCodes("worktype-name"),
   "dispatch-strategy-preference": conceptCodes("dispatch-strategy-preference"),
-  "transition-definition": async () => {
-    const { data } = await transitionDefinitionsDB.listAll();
-    return [...new Set((data ?? []).filter((t) => t.is_active).map((t) => `${t.entity_type}|${t.from_state}|${t.to_state}`))].sort();
-  },
+  "transition-definition": async () => (await transitionDefinitionsDB.listActiveEdges()).data ?? [],
   "noun": async () => (await listActiveNouns()).map((n) => n.code).sort(),
   "authority-badge": async () => Object.entries(await activeMappingByNoun()).flatMap(([noun, verbs]) => verbs.map((verb) => `${noun}_${verb}`)).sort(),
 };

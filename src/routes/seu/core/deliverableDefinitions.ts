@@ -30,9 +30,9 @@ export async function validateDeliverableDefinitionSeed(seed: DeliverableDefinit
 
   const tenantId = seed.tenantId ?? (await getPlatformTenantId());
 
-  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   if (seed.parentDeliverableDefinitionId) {
     const { data: parent } = await deliverableDefinitionsDB.findById(seed.parentDeliverableDefinitionId);
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     if (!parent) {
       errors.push(`parentDeliverableDefinitionId "${seed.parentDeliverableDefinitionId}" not found`);
     } else if (parent.status !== "Active") {
