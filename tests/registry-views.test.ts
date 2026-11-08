@@ -1,9 +1,12 @@
-// The Registry view pages for a Pack, a Policy Definition, a Profile and a Template, and the core views behind them
-// (src/routes/seu/core/packView.ts, policyView.ts, profileView.ts, templateView.ts).
+// The Registry view pages for a Pack, a Policy Definition, a Profile, a Template, a Capability Definition, a Deliverable Definition
+// and a Service Definition, and the core views behind them (src/routes/seu/core/packView.ts, policyView.ts, profileView.ts,
+// templateView.ts, capabilityDefinitions.ts, deliverableDefinitions.ts, serviceDefinitions.ts).
 //
 //   - Each page is fetched over HTTP from the real app, so the route_authority gate, the controller, the view model and the EJS
 //     view run together with the core function.
-//   - The rows shown are seeded Platform rows: for each kind, the visible row whose view carries the most references.
+//   - Policy, Capability, Deliverable and Service rows are the maximal Active fixtures of tests/schemaFixtures.ts, built in a tenant
+//     of their own. Pack, Profile and Template rows are seeded Platform rows: for each kind, the visible row whose view carries the
+//     most references. Those three move to schema fixtures in later stages.
 //   - A viewer with the participant role (the role the route's own route_authority row declares) sees a Platform row.
 //     A viewer with no role is redirected. An id that does not exist redirects to the list with a "not found" message.
 //   - buildDependencyGraphLayout is called directly: the Template authoring page uses it as well.
@@ -15,9 +18,7 @@ import { randomUUID } from "node:crypto";
 import app from "../src/app.js";
 import { query } from "../src/utils/db.js";
 import { userDB } from "../src/dblayer/userDB.js";
-import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { lookupRouteAuthority } from "../src/domain/identity/routeAuthorityCache.js";
@@ -25,17 +26,22 @@ import { NO_EXPIRY_DATE } from "../src/dblayer/constants.js";
 import { createParticipantMaster } from "../src/routes/seu/core/participantsMaster.js";
 import { getPackView } from "../src/routes/seu/core/packView.js";
 import { getPolicyView } from "../src/routes/seu/core/policyView.js";
+import { getCapabilityDefinitionView } from "../src/routes/seu/core/capabilityDefinitions.js";
+import { getDeliverableDefinitionView } from "../src/routes/seu/core/deliverableDefinitions.js";
+import { getServiceDefinitionView } from "../src/routes/seu/core/serviceDefinitions.js";
 import { getProfileView } from "../src/routes/seu/core/profileView.js";
 import { getTemplateView, buildDependencyGraphLayout } from "../src/routes/seu/core/templateView.js";
 import {
-  PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, ROOT_USER_ID,
+  PLATFORM_TENANT_ID, ROOT_USER_ID,
   setWebBaseUrl, newSession, getPage, getRedirect, assertPageMatches, type Session,
 } from "./testFixtures.js";
+import { createFixtureTenant, buildStage1Fixtures, type Stage1Fixtures } from "./schemaFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const rootViewer = { isRoot: true, tenantId: null };
 const createdEmails: string[] = [];
 let tenantId: string;
+let stage1: Stage1Fixtures;
 let server: ReturnType<typeof app.listen>;
 let participantViewer: Session;
 let noRoleViewer: Session;
@@ -45,7 +51,7 @@ interface Kind {
   label: string;
   listPath: string;
   notFound: string;
-  // The id of the seeded Platform row to show, and the name it is shown by.
+  // The id of the row to show, and the name the page shows it by.
   pick: () => Promise<{ id: string; name: string }>;
 }
 
@@ -84,10 +90,19 @@ const KINDS: Kind[] = [
   },
   {
     label: "Policy Definition", listPath: "/seu/policy-definitions", notFound: "Policy Definition not found.",
-    pick: async () => richest((await policyDefinitionsDB.findAll()).data ?? [], async (id) => {
-      const view = await getPolicyView(id, rootViewer);
-      return view ? Object.keys(view.labels).length : null;
-    }),
+    pick: async () => ({ id: stage1.policy.id, name: stage1.policy.shownName }),
+  },
+  {
+    label: "Capability Definition", listPath: "/seu/capability-definitions", notFound: "Capability Definition not found.",
+    pick: async () => ({ id: stage1.capability.id, name: stage1.capability.shownName }),
+  },
+  {
+    label: "Deliverable Definition", listPath: "/seu/deliverable-definitions", notFound: "Deliverable Definition not found.",
+    pick: async () => ({ id: stage1.inputDeliverable.id, name: stage1.inputDeliverable.shownName }),
+  },
+  {
+    label: "Service Definition", listPath: "/seu/service-definitions", notFound: "Service Definition not found.",
+    pick: async () => ({ id: stage1.service.id, name: stage1.service.shownName }),
   },
   {
     label: "Profile", listPath: "/seu/profiles", notFound: "Profile not found.",
@@ -124,9 +139,9 @@ before(async () => {
   if (!address || typeof address === "string") throw new Error("failed to determine the ephemeral port the app bound to");
   setWebBaseUrl(`http://127.0.0.1:${address.port}/aisworg`);
 
-  const { data: tenant, error } = await tenantsDB.create({ code: `rv-${run}`, name: `Registry views ${run}`, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, is_system: false });
-  if (error || !tenant) throw error ?? new Error("tenant not created");
-  tenantId = tenant.id;
+  // The fixture rows and the two viewers live in this tenant. The tenant stays, with the rows, as in the other tests that create tenant rows.
+  tenantId = await createFixtureTenant("views");
+  stage1 = await buildStage1Fixtures(tenantId);
 
   // The role the page's own route_authority row declares, not a role guessed here.
   const declared = lookupRouteAuthority("GET", "/aisworg/seu/packs/x")?.roles ?? [];
@@ -140,8 +155,6 @@ after(async () => {
   await new Promise<void>((resolve, reject) => server.close((err: Error | undefined) => (err ? reject(err) : resolve())));
   await query("DELETE FROM participants_master WHERE user_id IN (SELECT id FROM users WHERE email = ANY($1::text[]))", [createdEmails]);
   await query("DELETE FROM users WHERE email = ANY($1::text[])", [createdEmails]);
-  await query("DELETE FROM participants_master WHERE tenant_id = $1", [tenantId]);
-  await query("DELETE FROM tenants WHERE id = $1", [tenantId]);
 });
 
 for (const kind of KINDS) {
@@ -178,6 +191,53 @@ for (const kind of KINDS) {
     assertPageMatches(list.html, new RegExp(kind.notFound.replace(".", "\\.")));
   });
 }
+
+test("the Service view finds its Capability and its Deliverables Active in the viewer's own tenant, and labels its consumers", async () => {
+  const view = await getServiceDefinitionView(stage1.service.id, { isRoot: false, tenantId });
+  assert.ok(view);
+  assert.equal(view.serviceDefinition.id, stage1.service.id);
+  assert.equal(view.capability.id, stage1.capability.id);
+  assert.equal(view.capability.displayName, stage1.capability.content.defaultLabel);
+  assert.equal(view.deliverableIds[stage1.inputDeliverable.code], stage1.inputDeliverable.id);
+  assert.equal(view.deliverableIds[stage1.outputDeliverable.code], stage1.outputDeliverable.id);
+  for (const code of stage1.service.content.consumers as string[]) assert.equal(typeof view.labels.capabilities[code], "string", `consumer ${code} has an Ontology label`);
+});
+
+test("the Capability view labels its category, roles and worktypes and names the Active Service aligned to it", async () => {
+  const view = await getCapabilityDefinitionView(stage1.capability.id, { isRoot: false, tenantId });
+  assert.ok(view);
+  assert.equal(view.capabilityDefinition.id, stage1.capability.id);
+  assert.equal(view.activeServiceId, stage1.service.id);
+  assert.equal(typeof view.labels.category[stage1.capability.content.category as string], "string");
+  for (const role of stage1.capability.content.roles as Array<{ name: string; worktypes: string[] }>) {
+    assert.equal(typeof view.labels.roles[role.name], "string", `role ${role.name} has an Ontology label`);
+    for (const worktype of role.worktypes) assert.equal(typeof view.labels.worktypes[worktype], "string", `worktype ${worktype} has an Ontology label`);
+  }
+});
+
+test("the Deliverable Definition view shows the code with its hyphens as spaces", async () => {
+  const view = await getDeliverableDefinitionView(stage1.inputDeliverable.id, { isRoot: false, tenantId });
+  assert.ok(view);
+  assert.equal(view.displayName, stage1.inputDeliverable.code.replace(/-/g, " "));
+  assert.equal(view.deliverableDefinition.id, stage1.inputDeliverable.id);
+});
+
+test("the Policy view carries the condition and the Ontology labels of its category and environments", async () => {
+  const view = await getPolicyView(stage1.policy.id, { isRoot: false, tenantId });
+  assert.ok(view);
+  assert.equal(view.policy.id, stage1.policy.id);
+  assert.ok(Array.isArray(view.content.conditions) && view.content.conditions.length === 1, "the one condition is shown");
+  assert.equal(typeof view.labels["category:policy"]?.[stage1.policy.content.category as string], "string");
+  for (const environment of stage1.policy.content.applicabilityEnvironments as string[]) assert.equal(typeof view.labels["category:environment"]?.[environment], "string");
+});
+
+test("a tenant other than the owner sees none of the fixture rows", async () => {
+  const other = await createFixtureTenant("views-other");
+  assert.equal(await getServiceDefinitionView(stage1.service.id, { isRoot: false, tenantId: other }), null);
+  assert.equal(await getCapabilityDefinitionView(stage1.capability.id, { isRoot: false, tenantId: other }), null);
+  assert.equal(await getDeliverableDefinitionView(stage1.inputDeliverable.id, { isRoot: false, tenantId: other }), null);
+  assert.equal(await getPolicyView(stage1.policy.id, { isRoot: false, tenantId: other }), null);
+});
 
 test("buildDependencyGraphLayout lays a prerequisite to the left of what it gates and returns null for no nodes", async () => {
   assert.equal(await buildDependencyGraphLayout({}, rootViewer), null);
