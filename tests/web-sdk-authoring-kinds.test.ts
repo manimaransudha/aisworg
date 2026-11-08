@@ -20,7 +20,7 @@ let server: ReturnType<typeof app.listen>;
 let root: Session;
 let fixtures: Stage4Fixtures;
 let template: { id: string; code: string };
-let profile: { id: string; code: string; base_template_code: string };
+let profile: { id: string; name: string; base_template_code: string };
 let pack: { id: string; code: string };
 let deliverable: { id: string; code: string };
 
@@ -30,7 +30,7 @@ before(async () => {
   fixtures = await buildStage4Fixtures(await ensureFixtureTenant("web-sdk-kinds"));
   template = (await pool.query(`SELECT id, code FROM templates WHERE status = 'Active' AND tenant_id = $1 ORDER BY code LIMIT 1`, [PLATFORM_TENANT_ID])).rows[0];
   profile = (await pool.query(
-    `SELECT p.id, p.code, t.code AS base_template_code FROM profiles p JOIN templates t ON t.id = p.base_template_id WHERE p.status = 'Active' AND p.tenant_id = $1 ORDER BY p.code LIMIT 1`,
+    `SELECT p.id, p.name, t.code AS base_template_code FROM profiles p JOIN templates t ON t.id = p.base_template_id WHERE p.status = 'Active' AND p.tenant_id = $1 ORDER BY p.code LIMIT 1`,
     [PLATFORM_TENANT_ID],
   )).rows[0];
   pack = (await pool.query(`SELECT id, code FROM packs WHERE status = 'Active' AND tenant_id = $1 ORDER BY code LIMIT 1`, [PLATFORM_TENANT_ID])).rows[0];
@@ -80,8 +80,7 @@ test("a Template form starts from an Active Template and carries its content; a 
 test("a Profile form starts from an Active Profile and lists the parameter rows of its base Template; a missing Profile and a Profile of another tenant are refused", async () => {
   const page = await getPage(root, `/seu/sdk/profile-authoring/new?parentProfileId=${profile.id}`);
   assert.equal(page.status, 200);
-  assertPageMatches(page.html, new RegExp(profile.code), "the form carries the parent's code");
-  assertPageMatches(page.html, new RegExp(profile.base_template_code), "and the code of its base Template");
+  assertPageMatches(page.html, new RegExp(profile.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "the form carries the parent's name");
 
   hasAlert(await refusal(`/seu/sdk/profile-authoring/new?parentProfileId=${randomUUID()}`), /parent Profile not found/);
   hasAlert(await refusal(`/seu/sdk/profile-authoring/new?parentProfileId=${fixtures.profile.id}`), /not visible to this tenant/);

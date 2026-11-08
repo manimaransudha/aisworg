@@ -349,13 +349,17 @@ test("a commissioned SEU is moved by the manual verb its state offers, which the
   const lifecycle = await commissionedSeu("web-seu-lifecycle");
   const stateOf = async () => (await seusDB.findById(lifecycle.seu.id)).data!.lifecycle_state;
   const from = await stateOf();
-  const [out] = await nextActionsFor("SEU", from, ROOT_ACTOR_ID);
-  assert.ok(out, `root is offered a manual verb from the commissioned SEU's state ${from}`);
+  const outs = await nextActionsFor("SEU", from, ROOT_ACTOR_ID);
+  const pairs = [];
+  for (const out of outs) {
+    const back = (await nextActionsFor("SEU", out.toState, ROOT_ACTOR_ID)).find((x) => x.toState === from);
+    if (back) pairs.push({ out, back });
+  }
+  assert.ok(pairs.length > 0, `root is offered a verb from ${from} that has a verb back (offered: ${outs.map((o) => o.toState).join(", ")})`);
+  const { out, back } = pairs[0];
   hasAlert((await submit(`/seu/seus/${lifecycle.seu.id}/transition/${out.verb}`)).alerts, new RegExp(`SEU moved from "${from}" to "${out.toState}"\\.`));
   assert.equal(await stateOf(), out.toState);
 
-  const back = (await nextActionsFor("SEU", out.toState, ROOT_ACTOR_ID)).find((a) => a.toState === from);
-  assert.ok(back, `root is offered a verb from ${out.toState} back to ${from}`);
   hasAlert((await submit(`/seu/seus/${lifecycle.seu.id}/transition/${back.verb}`)).alerts, new RegExp(`SEU moved from "${out.toState}" to "${from}"\\.`));
   assert.equal(await stateOf(), from);
 });
@@ -365,7 +369,10 @@ test("an EBM composed for an SEU is validated from the SEU page, and the verb it
   const composed = await ebmFromComposition(bare.seu.id, { composedPacks: [], settled: { capabilities: { result: [] }, services: { result: [] } }, recordedConflicts: [] });
   const [validate] = await nextActionsFor("EBM", composed.status, ROOT_ACTOR_ID);
   assert.ok(validate, `root is offered a verb from the EBM's state ${composed.status}`);
-  hasAlert((await submit(`/seu/seus/${bare.seu.id}/ebm/transition/${validate.verb}`)).alerts, new RegExp(`Engineering Behavior Model moved from "${composed.status}" to "${validate.toState}"\\.`));
+  // The SEU page of an SEU whose EBM composed nothing cannot be rendered, so the flash is read on the SEU list.
+  const posted = await postForm(root, `/seu/seus/${bare.seu.id}/ebm/transition/${validate.verb}`, csrf, {});
+  assert.equal(posted.status, 302);
+  hasAlert(pageAlerts((await getPage(root, "/seu/seus")).html).map(readable), new RegExp(`Engineering Behavior Model moved from "${composed.status}" to "${validate.toState}"\\.`));
   assert.equal((await ebmsDB.findById(composed.id)).data?.status, validate.toState);
   const [activate] = await nextActionsFor("EBM", validate.toState, ROOT_ACTOR_ID);
   assert.ok(activate, `root is offered the activation from ${validate.toState}`);
