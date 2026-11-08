@@ -78,7 +78,7 @@ test("the Capability request handler requests nothing for a Capability that is F
     eventType: "DeliverableReady", originatingObjectType: "Deliverable", originatingObjectId: deliverable.id, seuId: t.seu.id, payload: { toEntityType: "Deliverable", toState: "In Progress" },
   });
   const commissioned = await publishTestEvent({ eventType: "SEUCommissioned", originatingObjectType: "SEU", originatingObjectId: t.seu.id, seuId: t.seu.id });
-  const requests = async () => (await eventTypesOn("SEU", t.seu.id)).filter((type) => type === "CapabilityRequested").length;
+  const requests = async () => ((await eventsDB.findByOriginatingObject("SEU", t.seu.id)).data ?? []).filter((e) => e.event_type === "CapabilityRequested" && (e.payload as { capabilityId?: string } | null)?.capabilityId === capability).length;
 
   await publishTestEvent({ eventType: "CapabilityRequested", originatingObjectType: "SEU", originatingObjectId: t.seu.id, seuId: t.seu.id, payload: { capabilityId: capability } });
   const inFlight = await requests();

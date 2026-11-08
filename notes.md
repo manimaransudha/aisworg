@@ -213,7 +213,7 @@ NODE_OPTIONS=--trace-deprecation pnpm test:dot (trace depreciation)
 
 pnpm test:coverage:html ( to get the test coverage)
 
-NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts --test-reporter=spec tests/transition-definitions-controller.test.ts > output.txt 2>&1
+NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts --test-reporter=spec tests/governing-condition.test.ts > output.txt 2>&1
 
 
 ---------
@@ -268,3 +268,21 @@ Fw2 L2 Bw U Bw Dw' B2 Lw2 Bw' L' F Dw2 R B2 R' D U2 L' B' Uw2
 Lw' D2 U Bw F' Uw' U Fw2 R Rw Bw2 F Dw Rw2 D R B2 Lw U2 R
 Bw' L Dw2 F' Rw Bw U Fw2 Rw2 Dw2 B2 Rw Fw D Uw2 L' B F L B'
 
+
+-----------
+
+
+Live but untested files, by size of gap
+
+File	Uncovered	Reachable how
+redispatch.ts	40–122	DispatchDeferred → redispatchRequest → RedispatchRequested → redispatch (max attempts, attention threshold, retry)
+redispatchRequest.ts	6–17	same chain
+dispatchStrategies.ts	40–101	six strategies (specialist, cost, confidence, load, locality, organisation), configured per SEU
+governingConditionTypes.ts	10–20, 32–38	comparison and threshold conditions on a Policy
+ebmActivated.ts	10–52	EBMActivated handler, mostly guard branches
+dependencyDefinitionEngine.ts	43–81, 91–93	not traced yet
+deliverableKickoff.ts	198–232	not traced yet
+compositionCompleted.ts	103–117 and guards	not traced yet
+compositionEngine.ts	268–318	not traced yet
+dispatchEngine.ts	92–118, 160–171	not traced yet
+qualityGateEngine.ts	141–156, 211–229	not traced yet

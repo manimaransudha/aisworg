@@ -140,13 +140,13 @@ test("a row is deleted, which takes the route out of the gate; the gate refuses 
 
   hasAlert(await submit("/seu/route-authority", { method: "GET", path }), /added\./);
   const allowed = await getPage(tester, gatedPath);
-  assert.notEqual(allowed.status, refusedBefore.status, "a row that asks for no badge or role changes the gate's answer");
+  assert.notEqual(`${allowed.status} ${allowed.html}`, `${refusedBefore.status} ${refusedBefore.html}`, "a row that asks for no badge or role changes the gate's answer");
 
   const row = await rowFor("GET", path);
   hasAlert(await submit(`/seu/route-authority/${row.id}/delete`), /Row deleted\./);
   assert.equal(await rowFor("GET", path), undefined);
   const refusedAfter = await getPage(tester, gatedPath);
-  assert.equal(refusedAfter.status, refusedBefore.status, "the deleted row refuses the request as before");
+  assert.equal(`${refusedAfter.status} ${refusedAfter.html}`, `${refusedBefore.status} ${refusedBefore.html}`, "the deleted row refuses the request as before");
 
   hasAlert(await submit(`/seu/route-authority/${row.id}/delete`), /Row deleted\./);
 });

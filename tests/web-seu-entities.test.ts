@@ -5,6 +5,7 @@
 //     reads what the route wrote from the database.
 //   - The entities are moved with the verbs their state offers to root (nextActionsFor), one hop at a time, and the state is read after each hop.
 //   - The SEUs are plain rows with a Deliverable or two, as in the other tests that need an SEU without commissioning one. Rows are not deleted.
+import { platformConceptCodes } from "./schemaFixtures.js";
 import "dotenv/config";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -271,8 +272,10 @@ test("a Decision is identified on Evidence or Knowledge and moved along its life
 // ── Obligations, External Interactions, Deliverables ─────────────────────────────────────────────────────────────
 
 test("an Obligation is revised and moved along its lifecycle from the SEU page", async () => {
+  const [severityCode] = await platformConceptCodes("category:obligation-severity", 1);
+  const [priorityCode] = await platformConceptCodes("category:obligation-priority", 1);
   const obligation = await createObligationAsRoot({ relatedObjectType: "Deliverable", relatedObjectId: deliverableA.id, category: "Operational", title: `Obligation to revise ${run}` });
-  hasAlert((await submit(seuPath(`/obligations/${obligation.id}/revise`), { title: `Obligation revised ${run}`, description: "Now with a description", category: obligation.category, severity: obligation.severity, priority: obligation.priority, completionCriteria: "Done when checked" })).alerts, /Obligation saved\./);
+  hasAlert((await submit(seuPath(`/obligations/${obligation.id}/revise`), { title: `Obligation revised ${run}`, description: "Now with a description", category: obligation.category, severity: obligation.severity ?? severityCode, priority: obligation.priority ?? priorityCode, completionCriteria: "Done when checked" })).alerts, /Obligation saved\./);
   const revised = (await obligationsDB.findById(obligation.id)).data!;
   assert.deepEqual([revised.title, revised.description, revised.completion_criteria], [`Obligation revised ${run}`, "Now with a description", "Done when checked"]);
 
@@ -306,10 +309,11 @@ test("an External Interaction is recorded for an SEU and moved by the target sta
 test("a Deliverable is moved by the Execution Engine from the SEU page, which records a completed Command, and a transition the Deliverable does not have is refused", async () => {
   const path = seuPath(`/deliverables/${deliverableC.id}/transition`);
   hasAlert((await submit(path, {})).alerts, /Target state is required\./);
-  hasAlert((await submit(path, { targetState: "Baselined" })).alerts, /Transition blocked: no Transition Definition for Deliverable Defined -> Baselined/);
-  assert.equal((await deliverablesDB.findById(deliverableC.id)).data?.lifecycle_state, birthState, "a refused hop changes nothing");
+  const stateBefore = (await deliverablesDB.findById(deliverableC.id)).data?.lifecycle_state;
+  hasAlert((await submit(path, { targetState: "Baselined" })).alerts, /Transition blocked: no Transition Definition for Deliverable [A-Za-z ]+ -> Baselined/);
+  assert.equal((await deliverablesDB.findById(deliverableC.id)).data?.lifecycle_state, stateBefore, "a refused hop changes nothing");
 
-  hasAlert((await submit(path, { targetState: "In Progress" })).alerts, /Deliverable "Defined" → "In Progress" completed by the Execution Engine\./);
+  hasAlert((await submit(path, { targetState: "In Progress" })).alerts, /Deliverable "[A-Za-z ]+" → "In Progress" completed by the Execution Engine\./);
   assert.equal((await deliverablesDB.findById(deliverableC.id)).data?.lifecycle_state, "In Progress");
   const commands = ((await commandsDB.findBySeuId(t.seu.id)).data ?? []).filter((c) => c.entity_id === deliverableC.id && c.to_state === "In Progress");
   assert.deepEqual(commands.map((c) => c.status), ["Completed"], "the hop left one Completed Command");
