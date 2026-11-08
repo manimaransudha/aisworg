@@ -20,26 +20,28 @@ import { createDecision } from "../src/routes/seu/core/decisions.js";
 import { createKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
 import { dependencyDefinitionEngine } from "../src/domain/engine/dependencyDefinitionEngine.js";
 import type { DependencyDefinitionEntityType, DependencyDefinitionRow, DeliverableRow } from "../src/dblayer/seuTypes.js";
-import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
+import { commissionedSeu, initiatedSeu, type CommissionedSeu, type ScenarioSeu } from "./webScenarios.js";
 import { createObligationAsRoot, createEvidenceAsRoot, supportingEvidenceReferences, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const UNREACHED = "zz-unreached";
 let t: CommissionedSeu;
-let other: CommissionedSeu;
+let other: ScenarioSeu;
 let birthState: string;
 let service: { code: string; providing_capability_id: string };
 let capabilityStatus: string;
 
 before(async () => {
-  t = await commissionedSeu("dependency-rows");
-  other = await commissionedSeu("dependency-rows-other");
+  t = await commissionedSeu("dependency-rows", "clean", { conflictSet: "rows" });
+  // The other SEU is only initiated, so it requires no Capability.
+  other = await initiatedSeu("dependency-rows-other");
   const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");
   assert.ok(birth, "the Deliverable has a birth row");
   birthState = birth.to_state;
   const { rows } = await pool.query<{ code: string; providing_capability_id: string }>("SELECT code, providing_capability_id FROM services WHERE is_active = true ORDER BY created_at LIMIT 1");
   assert.ok(rows[0], "the database holds an active Service");
   service = rows[0];
+  // The SEU's composition has no Capability, so it requires only the Capability added here.
   await seuCapabilitiesDB.createMany(t.seu.id, [service.providing_capability_id], t.systemParticipantId, ROOT_ACTOR_BADGE);
   const { data: capabilities } = await seuCapabilitiesDB.findBySeuId(t.seu.id);
   const own = (capabilities ?? []).find((c) => c.capability_id === service.providing_capability_id);

@@ -180,7 +180,7 @@ test("governed evaluation refuses an edge with no verb, and an actor who is not 
   const from = state("open-i");
   const to = state("done-i");
   await addEdge(from, to, { verb });
-  const stranger = await commissionedSeu("transition-engine-stranger", "clean", { rootParticipant: false });
+  const stranger = await commissionedSeu("transition-engine-stranger", "rich", { rootParticipant: false });
   await assert.rejects(
     () => transitionEngine.evaluateGoverned({ entityType: "AttentionItem", fromState: from, toState: to, actorId: ROOT_ACTOR_ID, gateEntityId: randomUUID(), gateSeuId: stranger.seu.id }),
     /No participants row for participants_master/

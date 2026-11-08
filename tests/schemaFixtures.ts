@@ -355,16 +355,19 @@ export async function maximalPolicy(tenantId: string, input: { code: string; del
         statement: "Every output is reviewed before it moves on.",
         severity,
         requiredEvidence: evidence,
-        exceptionRules: [
-          {
-            exceptionStatement: "A reviewer may waive the review for an unchanged output.",
-            duration: "90 days",
-            exceptionScope: "This SEU only",
-            exceptionApprovers: [approver],
-            exceptionComposition: "all",
-            reviewRequirements: "Checked again at the next release.",
-          },
-        ],
+        // Only a Policy may declare exception rules.
+        ...(input.standard ? {} : {
+          exceptionRules: [
+            {
+              exceptionStatement: "A reviewer may waive the review for an unchanged output.",
+              duration: "90 days",
+              exceptionScope: "This SEU only",
+              exceptionApprovers: [approver],
+              exceptionComposition: "all",
+              reviewRequirements: "Checked again at the next release.",
+            },
+          ],
+        }),
         relatedObligations: [
           {
             title: "Record the review",

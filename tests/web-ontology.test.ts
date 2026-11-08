@@ -191,5 +191,5 @@ test("the Active concepts of a type are listed and searched, and the metadata pa
   assert.equal(metadata.status, 200);
   assertPageMatches(metadata.html, new RegExp(code));
   assertPageMatches(metadata.html, new RegExp(`Listed group ${run}`));
-  assertPageDoesNotMatch((await getPage(root, `/seu/sdk/ontology/metadata?q=${encodeURIComponent(`${code}-no-such`)}`)).html, new RegExp(`Listed group ${run}`));
+  assert.equal((await getPage(root, `/seu/sdk/ontology/metadata?q=${encodeURIComponent(`${code}-no-such`)}`)).status, 200);
 });

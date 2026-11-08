@@ -170,7 +170,7 @@ test("the Work Queue lists the outstanding Work Items of the SEU with the Delive
   assertPageMatches(searched.html, new RegExp(first.deliverable.name));
   assertPageDoesNotMatch(searched.html, new RegExp(second.deliverable.name), "the search narrows the queue");
 
-  const empty = await commissionScenario("unsettled", "web-work-queue-empty");
+  const empty = await commissionScenario("unsettled", "web-work-queue-empty", { conflictSet: "queue" });
   const emptyPage = await getPage(root, `/seu/seus/${empty.seu.id}/work-queue`);
   assert.equal(emptyPage.status, 200);
   assertPageMatches(emptyPage.html, /No outstanding Work Items/);

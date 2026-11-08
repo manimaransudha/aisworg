@@ -27,7 +27,7 @@ before(async () => {
   const { data: pack } = await packsDB.findByCode("development");
   assert.ok(pack, "the development Pack is seeded");
   packId = pack.id;
-  testSeu = await commissionedSeu("quality-gate-engine");
+  testSeu = await commissionedSeu("quality-gate-engine", "unsettled", { conflictSet: "gates" });
 });
 
 async function createGate(label: string, criteria: Record<string, unknown>): Promise<QualityGateRow> {

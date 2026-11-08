@@ -299,7 +299,7 @@ test("the commissioning routes of an Objective with no SEU lead to the form that
 });
 
 test("the validation page of an Objective's SEU shows that the request passed once the SEU is validated, and a failure with its reason and references", async () => {
-  const { seu } = await commissionScenario("clean", "web-objectives-validate");
+  const { seu } = await commissionScenario("rich", "web-objectives-validate");
   const path = `/seu/objectives/${seu.objective_id}/validate-commission`;
   const passed = await getPage(root, path);
   assert.equal(passed.status, 200);
@@ -313,7 +313,7 @@ test("the validation page of an Objective's SEU shows that the request passed on
 });
 
 test("composition that finds no conflict leaves the SEU Operational with its EBM, and the compose and resolve pages lead to the SEU", async () => {
-  const { seu, objectiveId, conflictKeys } = await commissionScenario("clean", "web-objectives-clean");
+  const { seu, objectiveId, conflictKeys } = await commissionScenario("clean", "web-objectives-clean", { conflictSet: "objectives" });
   assert.deepEqual(conflictKeys, [], "the composition found no conflict");
   assert.ok(seu.active_ebm_id, "the SEU has its EBM");
   const composed = await getRedirect(root, `/seu/objectives/${objectiveId}/compose-ebm`);
@@ -324,7 +324,7 @@ test("composition that finds no conflict leaves the SEU Operational with its EBM
 });
 
 test("composition that finds conflicts nobody settled stores them, announces nothing and leaves the SEU without an EBM; picking an option on the Resolve Conflicts page settles one and the composition then completes", async () => {
-  const { seu, objectiveId, templateId, profileId, conflictKeys } = await commissionScenario("unsettled", "web-objectives-unsettled");
+  const { seu, objectiveId, templateId, profileId, conflictKeys } = await commissionScenario("unsettled", "web-objectives-unsettled", { conflictSet: "objectives" });
   assert.ok(conflictKeys.length > 0, "the composition found conflicts");
   assert.equal(seu.active_ebm_id, null, "no EBM while a conflict is open");
   assert.equal(seu.lifecycle_state, "Validated");
@@ -360,7 +360,7 @@ test("composition that finds conflicts nobody settled stores them, announces not
 });
 
 test("composition that finds conflicts and settles them takes the SEU to Operational with the picks recorded", async () => {
-  const { seu, conflictKeys } = await commissionScenario("settled", "web-objectives-settled");
+  const { seu, conflictKeys } = await commissionScenario("settled", "web-objectives-settled", { conflictSet: "objectives" });
   assert.ok(conflictKeys.length > 0, "the composition found conflicts");
   assert.ok(seu.active_ebm_id, "the settled composition made the EBM");
   const stored = seu.composition_report as { resolvedCompositionConflicts: Record<string, unknown> };

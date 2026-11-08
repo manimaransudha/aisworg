@@ -32,10 +32,11 @@ let producing: DeliverableRow;
 let approved: DeliverableRow;
 
 before(async () => {
-  t = await commissionedSeu("deliverable-kickoff");
+  t = await commissionedSeu("deliverable-kickoff", "clean", { conflictSet: "kickoff" });
   const { rows } = await pool.query<{ id: string }>("SELECT id FROM capability_definitions ORDER BY created_at LIMIT 2");
   assert.ok(rows.length === 2, "the database holds two Capability Definitions");
   [capabilityId, unrelatedCapabilityId] = [rows[0].id, rows[1].id];
+  // The SEU's composition has no Capability, so it requires only the one added here.
   await seuCapabilitiesDB.createMany(t.seu.id, [capabilityId], t.systemParticipantId, ROOT_ACTOR_BADGE);
   const { data: capabilities } = await seuCapabilitiesDB.findBySeuId(t.seu.id);
   capabilityCode = (capabilities ?? []).find((c) => c.capability_id === capabilityId)!.capability_code;
@@ -90,7 +91,8 @@ test("a Deliverable transition into In Progress is refused without its Command, 
     requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, correlationId: randomUUID(),
   });
   assert.ok(command && !error, error?.message);
+  const producingCommands = async () => ((await commandsDB.findBySeuId(t.seu.id)).data ?? []).filter((c) => c.from_state === "In Progress" && c.to_state === "In Progress").length;
+  const before = await producingCommands();
   await deliverableKickoffHandler(await event("DeliverableTransitioned", { toState: "In Progress", commandId: command.id }, randomUUID()));
-  const { data: commands } = await commandsDB.findBySeuId(t.seu.id);
-  assert.equal((commands ?? []).filter((c) => c.from_state === "In Progress" && c.to_state === "In Progress").length, 0, "no producing Command is issued");
+  assert.equal(await producingCommands(), before, "no producing Command is issued");
 });

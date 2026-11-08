@@ -27,6 +27,7 @@ import { listConceptsForType } from "../src/routes/seu/core/ontology.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
+import { dependencyDefinitionsDB } from "../src/dblayer/dependencyDefinitionsDB.js";
 import { commissionScenario, type ScenarioSeu } from "./webScenarios.js";
 import {
   ROOT_USER_ID, ROOT_ACTOR_ID, createActiveObjective, createObligationAsRoot, ensureWebAppTemplateFixture,
@@ -44,14 +45,20 @@ let deliverableC: { id: string; name: string };
 let birthState: string;
 
 before(async () => {
-  t = await commissionScenario("clean", "web-seu-entities");
+  t = await commissionScenario("rich", "web-seu-entities");
   const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");
   assert.ok(birth);
   birthState = birth.to_state;
-  // The Deliverables are the ones commissioning made for the SEU. Three that are still in the birth state are used.
+  // The Deliverables are the ones commissioning made for the SEU. Three that are still in the birth state are used, and the third is one that no dependency gates, so it can be moved.
   const fresh = ((await deliverablesDB.findBySeuId(t.seu.id)).data ?? []).filter((d) => d.lifecycle_state === birthState);
-  assert.ok(fresh.length >= 3, `commissioning left ${fresh.length} Deliverables in ${birthState}, three are needed`);
-  [deliverableA, deliverableB, deliverableC] = fresh.slice(0, 3).map((d) => ({ id: d.id, name: d.name }));
+  const { data: ebm } = await ebmsDB.findById(t.seu.active_ebm_id!);
+  const source = (ebm!.composition_report as { deliverableSource: { type: "Template" | "Profile"; id: string } }).deliverableSource;
+  const gated = new Set(((await dependencyDefinitionsDB.findByOwner(source.type, source.id)).data ?? []).filter((r) => r.to_entity_type === "Deliverable" && r.to_name).map((r) => r.to_name));
+  const free = fresh.filter((d) => !gated.has(d.name) && !(d.code && gated.has(d.code)));
+  assert.ok(free.length >= 1 && fresh.length >= 3, `commissioning left ${fresh.length} Deliverables in ${birthState}, ${free.length} of them not gated by a dependency`);
+  const movable = free[0];
+  const [a, b] = fresh.filter((d) => d.id !== movable.id);
+  [deliverableA, deliverableB, deliverableC] = [a, b, movable].map((d) => ({ id: d.id, name: d.name }));
 
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", () => resolve()));
@@ -265,7 +272,7 @@ test("a Decision is identified on Evidence or Knowledge and moved along its life
 
 test("an Obligation is revised and moved along its lifecycle from the SEU page", async () => {
   const obligation = await createObligationAsRoot({ relatedObjectType: "Deliverable", relatedObjectId: deliverableA.id, category: "Operational", title: `Obligation to revise ${run}` });
-  hasAlert((await submit(seuPath(`/obligations/${obligation.id}/revise`), { title: `Obligation revised ${run}`, description: "Now with a description", category: obligation.category, completionCriteria: "Done when checked" })).alerts, /Obligation saved\./);
+  hasAlert((await submit(seuPath(`/obligations/${obligation.id}/revise`), { title: `Obligation revised ${run}`, description: "Now with a description", category: obligation.category, severity: obligation.severity, priority: obligation.priority, completionCriteria: "Done when checked" })).alerts, /Obligation saved\./);
   const revised = (await obligationsDB.findById(obligation.id)).data!;
   assert.deepEqual([revised.title, revised.description, revised.completion_criteria], [`Obligation revised ${run}`, "Now with a description", "Done when checked"]);
 
@@ -322,7 +329,7 @@ test("the Capability routes refuse a replacement with no type or name, a release
 });
 
 test("the EBM routes refuse a transition for an SEU with no EBM, and a verb the EBM's state does not offer", async () => {
-  const bare = await commissionScenario("unsettled", "web-seu-ebm-none");
+  const bare = await commissionScenario("unsettled", "web-seu-ebm-none", { conflictSet: "entities" });
   assert.equal(bare.seu.active_ebm_id, null);
   hasAlert((await submit(`/seu/seus/${bare.seu.id}/ebm/transition/validate`)).alerts, /This SEU has no Engineering Behavior Model to transition yet\./);
 

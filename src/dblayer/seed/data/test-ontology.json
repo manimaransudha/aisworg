@@ -3213,6 +3213,168 @@
     "ui_grouping": "Packs"
   },
   {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-objectives-a",
+    "default_label": "Schema Fixture Web Conflict objectives A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-objectives-b",
+    "default_label": "Schema Fixture Web Conflict objectives B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-entities-a",
+    "default_label": "Schema Fixture Web Conflict entities A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-entities-b",
+    "default_label": "Schema Fixture Web Conflict entities B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-queue-a",
+    "default_label": "Schema Fixture Web Conflict queue A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-queue-b",
+    "default_label": "Schema Fixture Web Conflict queue B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-kickoff-a",
+    "default_label": "Schema Fixture Web Conflict kickoff A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-kickoff-b",
+    "default_label": "Schema Fixture Web Conflict kickoff B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-rows-a",
+    "default_label": "Schema Fixture Web Conflict rows A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-rows-b",
+    "default_label": "Schema Fixture Web Conflict rows B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-branches-a",
+    "default_label": "Schema Fixture Web Conflict branches A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-branches-b",
+    "default_label": "Schema Fixture Web Conflict branches B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-gates-a",
+    "default_label": "Schema Fixture Web Conflict gates A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-gates-b",
+    "default_label": "Schema Fixture Web Conflict gates B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-transition-a",
+    "default_label": "Schema Fixture Web Conflict transition A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-transition-b",
+    "default_label": "Schema Fixture Web Conflict transition B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-execution-a",
+    "default_label": "Schema Fixture Web Conflict execution A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-execution-b",
+    "default_label": "Schema Fixture Web Conflict execution B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
     "concept_type": "integration-name",
     "code": "schema-fixture-pack-integration",
     "default_label": "Schema Fixture Pack Integration",

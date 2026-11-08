@@ -41,7 +41,7 @@ async function capabilityId(offset = 0): Promise<string> {
 }
 
 async function operationalSeu(label: string): Promise<{ t: CommissionedSeu; capability: string; seuCapabilityId: string }> {
-  const t = await commissionedSeu(label);
+  const t = await commissionedSeu(label, "clean", { conflictSet: "branches" });
   const capability = await capabilityId();
   await seuCapabilitiesDB.createMany(t.seu.id, [capability], t.systemParticipantId, ROOT_ACTOR_BADGE);
   const { data } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(t.seu.id, capability);
@@ -248,7 +248,7 @@ test("the eligibility Policies of a settled EBM are the Eligibility ones, once e
 test("an Evidence item with no SEU relationship cannot be placed in an SEU, and a Knowledge Item or Decision is not moved for an actor who is not a Participant of its SEU or when it does not exist", async () => {
   await assert.rejects(async () => getEntityAdapter("Evidence").seuId?.({ id: randomUUID() } as never), /has no SEU relationship/);
 
-  const t = await commissionedSeu("adapters");
+  const t = await commissionedSeu("adapters", "clean", { conflictSet: "branches" });
   const deliverable = await createDeliverable(t, "subject", "Defined", null);
   const evidence = await createEvidenceAsRoot({ seuId: t.seu.id, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Analytical Evidence", title: `adapters ${run}` });
   const decision = await createDecision({

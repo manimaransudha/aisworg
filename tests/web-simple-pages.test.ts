@@ -60,7 +60,7 @@ async function submit(pathName: string, fields: Record<string, string | string[]
 const hasAlert = (result: { alerts: string[] }, pattern: RegExp) => assert.ok(result.alerts.some((a) => pattern.test(a)), `expected ${pattern}, the page showed ${JSON.stringify(result.alerts)}`);
 
 test("the event list shows an event by its type and filters by SEU, event type, entity type and the code or name in its payload", async () => {
-  const { seu } = await commissionScenario("clean", "web-events");
+  const { seu } = await commissionScenario("rich", "web-events");
   const plain = `ZzWebPlain${run}`;
   const scoped = `ZzWebScoped${run}`;
   await publishTestEvent({ eventType: plain, originatingObjectType: "ZzProbe", originatingObjectId: randomUUID(), payload: { code: `plain-code-${run}` } });
@@ -115,7 +115,7 @@ test("the demo dashboard greets a visitor with its entry to the demo, and the ro
 });
 
 test("the compliance page of an SEU shows its evaluation, and a waiver is refused without its fields or for a requirement that does not exist, and granted for one that does", async () => {
-  const { seu } = await commissionScenario("clean", "web-compliance");
+  const { seu } = await commissionScenario("rich", "web-compliance");
   const page = await getPage(root, `/seu/seus/${seu.id}/compliance`);
   assert.equal(page.status, 200);
 
@@ -202,6 +202,6 @@ test("the participant list shows the participants the viewer may see, filters th
   const ofType = await getPage(root, `/seu/participants?status=External&q=${encodeURIComponent(displayName)}`);
   assertPageMatches(ofType.html, new RegExp(displayName));
   const otherType = await getPage(root, `/seu/participants?status=Automated&q=${encodeURIComponent(displayName)}`);
-  assertPageDoesNotMatch(otherType.html, new RegExp(displayName));
+  assertPageMatches(otherType.html, /No Participants match your search\./, "the search box echoes the query, so the empty result is what shows the Participant is filtered out");
   assert.equal((await getPage(root, "/seu/participants?status=NotAType&sort=tenant&dir=desc")).status, 200, "a type that does not exist filters nothing");
 });

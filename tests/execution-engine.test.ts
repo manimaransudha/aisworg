@@ -215,7 +215,7 @@ test("governance refuses a Deliverable while an Obligation blocks its SEU, and w
 });
 
 test("a Quality Gate on the hop blocks the Deliverable and raises an Attention Item; a Waiver turns that into a waived outcome, and a gate that holds is a passed one", async () => {
-  const gateSeu = await commissionedSeu("execution-engine-gates");
+  const gateSeu = await commissionedSeu("execution-engine-gates", "unsettled", { conflictSet: "execution" });
   const createGate = async (label: string, from: string, to: string, criteria: Record<string, unknown>) => {
     const { data, error } = await qualityGatesDB.upsert({
       name: `execution-engine ${label} ${run}`, entityType: "Deliverable", fromState: from, toState: to, criteria, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
@@ -336,7 +336,7 @@ test("a Work Item records what the EBM settled and what its governance outcome n
 });
 
 test("the Work Item Generator refuses a Command that has no requester or badge, a requester who is not a user and a requester who is not a Participant of the SEU", async () => {
-  const strangerSeu = await commissionedSeu("execution-engine-requester", "clean", { rootParticipant: false });
+  const strangerSeu = await commissionedSeu("execution-engine-requester", "rich", { rootParticipant: false });
   const { data: command } = await commandsDB.create({
     seuId: strangerSeu.seu.id, entityType: "SEU", entityId: strangerSeu.seu.id, commandType: `zz-requester-${run}`, fromState: "Initiated", toState: "Validated",
     requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, correlationId: randomUUID(),

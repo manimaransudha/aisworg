@@ -34,7 +34,7 @@ let deliverableId: string;
 let deliverableName: string;
 
 before(async () => {
-  t = await commissionScenario("clean", "web-reviews");
+  t = await commissionScenario("rich", "web-reviews");
   // The reviewed Deliverable is one that commissioning made for the SEU.
   const [deliverable] = (await deliverablesDB.findBySeuId(t.seu.id)).data ?? [];
   assert.ok(deliverable, "commissioning made a Deliverable");

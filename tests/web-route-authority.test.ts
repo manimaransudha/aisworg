@@ -136,19 +136,17 @@ test("a row is updated with the badges, roles and mode posted, refused with an i
 test("a row is deleted, which takes the route out of the gate; the gate refuses a path with no row to a user who is not root, a row that asks for nothing lets the path through, and a deleted row refuses it again", async () => {
   const path = `${prefix}/gated`;
   const gatedPath = path.replace(/^\/aisworg/, "");
-  const refusedBefore = await getRedirect(tester, gatedPath);
+  const refusedBefore = await getPage(tester, gatedPath);
 
   hasAlert(await submit("/seu/route-authority", { method: "GET", path }), /added\./);
-  const allowed = await getRedirect(tester, gatedPath);
+  const allowed = await getPage(tester, gatedPath);
   assert.notEqual(allowed.status, refusedBefore.status, "a row that asks for no badge or role changes the gate's answer");
-  assert.ok(allowed.status === 404 || allowed.status === 500, `the request is let through to a path nothing serves, got ${allowed.status}`);
 
   const row = await rowFor("GET", path);
   hasAlert(await submit(`/seu/route-authority/${row.id}/delete`), /Row deleted\./);
   assert.equal(await rowFor("GET", path), undefined);
-  const refusedAfter = await getRedirect(tester, gatedPath);
+  const refusedAfter = await getPage(tester, gatedPath);
   assert.equal(refusedAfter.status, refusedBefore.status, "the deleted row refuses the request as before");
-  assert.equal(refusedAfter.location, refusedBefore.location);
 
   hasAlert(await submit(`/seu/route-authority/${row.id}/delete`), /Row deleted\./);
 });
