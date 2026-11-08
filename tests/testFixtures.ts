@@ -862,14 +862,24 @@ export async function settleCapabilityRequests(seuId: string, capabilityId: stri
 // Fulfilment runs in the CapabilityRequested handler after the request returns, so a test that requested it waits
 // here until the handler has consumed the latest CapabilityRequested of that Capability, including the events the
 // handler publishes. A failed handler throws with its recorded error.
-export async function waitForCapabilityFulfilled(seuId: string, capabilityId: string): Promise<void> {
+async function capabilityRequests(seuId: string, capabilityId: string) {
+  const { data: events, error } = await eventsDB.findByOriginatingObject("SEU", seuId);
+  if (error) throw error;
+  return (events ?? [])
+    .filter((e) => e.event_type === "CapabilityRequested" && (e.payload as { capabilityId?: string }).capabilityId === capabilityId)
+    .sort((x, y) => new Date(x.occurred_at).getTime() - new Date(y.occurred_at).getTime());
+}
+
+// Commissioning raises its own CapabilityRequested for each Capability. A test that makes its own request passes the
+// count taken before it, so the wait settles on its own request and not on the earlier automatic one.
+export async function countCapabilityRequests(seuId: string, capabilityId: string): Promise<number> {
+  return (await capabilityRequests(seuId, capabilityId)).length;
+}
+
+export async function waitForCapabilityFulfilled(seuId: string, capabilityId: string, priorRequestCount = 0): Promise<void> {
   const latestRequest = async () => {
-    const { data: events, error } = await eventsDB.findByOriginatingObject("SEU", seuId);
-    if (error) throw error;
-    return (events ?? [])
-      .filter((e) => e.event_type === "CapabilityRequested" && (e.payload as { capabilityId?: string }).capabilityId === capabilityId)
-      .sort((x, y) => new Date(x.occurred_at).getTime() - new Date(y.occurred_at).getTime())
-      .pop();
+    const requests = await capabilityRequests(seuId, capabilityId);
+    return requests.length > priorRequestCount ? requests.pop() : undefined;
   };
   // An empty-named request fulfils the whole eligible pool, which accumulates fixture Participants across runs.
   for (let attempt = 0; attempt < 900; attempt++) {

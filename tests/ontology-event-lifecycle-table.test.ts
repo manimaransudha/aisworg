@@ -175,6 +175,11 @@ test("PROPOSAL: a ConceptCreated event with no version creates a Draft through t
   const { data: concept } = await ontologyDB.findLatestVersion(conceptType, code, PLATFORM_TENANT_ID);
   assert.ok(concept, "the subscriber created the concept");
   assert.equal(concept!.status, "Draft");
+  // The handler publishes the birth event after the insert, so the row can exist before the event does.
+  await waitUntilAsync(async () => {
+    const { data: published } = await eventsDB.findByOriginatingObject("Ontology", concept!.id);
+    return (published ?? []).some((e) => e.event_type === "ConceptCreated");
+  });
   const { data: events } = await eventsDB.findByOriginatingObject("Ontology", concept!.id);
   const created = (events ?? []).filter((e) => e.event_type === "ConceptCreated");
   assert.equal(created.length, 1, "the birth event is published once");

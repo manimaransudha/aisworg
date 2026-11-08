@@ -16,7 +16,7 @@ import fetchCookie from "fetch-cookie";
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
 import { objectiveInitialState } from "../src/routes/seu/core/objectives.js";
-import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
+import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, countCapabilityRequests, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
@@ -163,6 +163,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   const detailPage = await request(`${webBaseUrl}/seus/${seuId}`);
   assert.equal(detailPage.status, 200);
   const csrf = extractCsrf(await detailPage.text());
+  const requestsBefore = await countCapabilityRequests(seuId, requirementsCapability.capabilityId);
   const fulfilParams = new URLSearchParams({ _csrf: csrf, participantMasterIds: participantMasterId });
   const fulfilRes = await request(`${webBaseUrl}/seus/${seuId}/capabilities/${requirementsCapability.capabilityId}/fulfil`, {
     method: "POST",
@@ -171,7 +172,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
     redirect: "manual",
   });
   assert.equal(fulfilRes.status, 302, "the web fulfil form must redirect, success or error");
-  await waitForCapabilityFulfilled(seuId, requirementsCapability.capabilityId);
+  await waitForCapabilityFulfilled(seuId, requirementsCapability.capabilityId, requestsBefore);
 
   const statusAfterFulfil = await request(`${baseUrl}/seus/${seuId}`);
   assert.equal(statusAfterFulfil.status, 200);

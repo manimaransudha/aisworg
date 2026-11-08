@@ -205,6 +205,8 @@ msudha@SudhaM aisworg % ps aux | grep -E "autossh|ssh .*vps-db" | grep -v grep
 TAILSPACE
 https://console.tailscale.com/admin/machines GMAIL
 
+git log -1 --oneline
+
 ---------
 
 pnpm exec tsx src/dblayer/seed/seedRouteAuthority.ts

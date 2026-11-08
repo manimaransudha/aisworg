@@ -4,3 +4,5 @@ node_modules/
 output.txt
 output.txt
 *.txt
+test-results.xml
+coverage/

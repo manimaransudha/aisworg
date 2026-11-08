@@ -34,7 +34,7 @@ import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { decisionsDB } from "../src/dblayer/decisionsDB.js";
 import { governanceEvaluationOutcomesDB } from "../src/dblayer/governanceEvaluationOutcomesDB.js";
 import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
-import { getEmptyPoolTenantId, driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, ensureTestFixturePacks, waitForDispatchedWorkItem, transitionDeliverableSync, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { getEmptyPoolTenantId, deactivateParticipants, driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, ensureTestFixturePacks, waitForDispatchedWorkItem, transitionDeliverableSync, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
@@ -180,7 +180,7 @@ async function driveDeliverableToApproved(deliverableId: string, tag: string): P
 // exact moment (compositionCompleted.ts); a Policy upserted after
 // commissioning has already completed is invisible to policyEngine.evaluate
 // (the bug the first version of this fixture actually had).
-async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: string) => Promise<void>, beforeCommenceWork?: (seuId: string) => Promise<void>): Promise<{ seuId: string; deliverableId: string; packId: string }> {
+async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: string) => Promise<void>, beforeCommenceWork?: (seuId: string) => Promise<void>, tenantId?: string): Promise<{ seuId: string; deliverableId: string; packId: string }> {
   const packSeed = { code: `cr109-isolated-pack-${run}`, name: "CR-109 Isolated Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   await registerOrganisationName(packSeed.code);
   const published = await publishPack({ seed: packSeed as any, actorId: TESTER_ALL_ID, activate: true });
@@ -223,7 +223,7 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
 
-  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID });
+  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID, tenantId });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
@@ -331,55 +331,63 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
   const run = randomUUID().slice(0, 8);
   let standardPolicyId = "";
   let obligationId = "";
-  const { seuId, deliverableId } = await commissionIsolatedSeu(run, async (packId) => {
-    const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
-    if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("no participants_master row for user_id 1 — is db:clean-slate seeded?");
-    const { data: standardPolicy } = await policiesDB.upsert({
-      code: `cr109-standard-deviation-${run}`, name: "CR-109 always-deviates Standard policy",
-      constraintType: "Standard", scope: "Transition", governedTransition: "Deliverable|Defined|In Progress",
-      condition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] },
-      originatingPackId: packId,
-      authorId: rootMaster.id,
-      authorBadge: "root",
-    });
-    assert.ok(standardPolicy);
-    standardPolicyId = standardPolicy!.id;
-  }, async (activatedSeuId) => {
-    // Raised and fulfilled before commence-work, so the hop the engine makes at Operational is the first governance
-    // evaluation of the Deliverable and records this open Obligation as consulted.
-    const { data: seuDeliverables } = await deliverablesDB.findBySeuId(activatedSeuId);
-    const head = (seuDeliverables ?? [])[0];
-    assert.ok(head, "expected the one head-of-chain Deliverable");
-    const created = await createObligationAsRoot({
-      relatedObjectType: "Deliverable", relatedObjectId: head!.id,
-      category: "Engineering", title: "Follow up with security review after this hop",
-      // No blockedFromState/blockedToState — genuinely non-blocking, but still open (Identified).
-    });
-    assert.ok(created);
-    assert.equal(created!.status, "Identified", "open, not resolved");
-    obligationId = created!.id;
-    assert.ok(head!.producing_capability_id, "expected the isolated Template's requirements-analysis Capability to be declared");
-    await fulfilCapability({ seuId: activatedSeuId, capabilityId: head!.producing_capability_id!, capabilityCodes: ["requirements-analysis"] });
-  });
+  let fixtureParticipantMasterId: string | null = null;
+  // Commissioned in the empty-pool tenant so the automatic Capability request ends unavailable and the first governance
+  // evaluation waits for this test's own Obligation and fulfilment.
+  try {
+    const { seuId, deliverableId } = await commissionIsolatedSeu(run, async (packId) => {
+      const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+      if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("no participants_master row for user_id 1 — is db:clean-slate seeded?");
+      const { data: standardPolicy } = await policiesDB.upsert({
+        code: `cr109-standard-deviation-${run}`, name: "CR-109 always-deviates Standard policy",
+        constraintType: "Standard", scope: "Transition", governedTransition: "Deliverable|Defined|In Progress",
+        condition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] },
+        originatingPackId: packId,
+        authorId: rootMaster.id,
+        authorBadge: "root",
+      });
+      assert.ok(standardPolicy);
+      standardPolicyId = standardPolicy!.id;
+    }, async (activatedSeuId) => {
+      // Raised and fulfilled before commence-work, so the hop the engine makes at Operational is the first governance
+      // evaluation of the Deliverable and records this open Obligation as consulted.
+      const { data: seuDeliverables } = await deliverablesDB.findBySeuId(activatedSeuId);
+      const head = (seuDeliverables ?? [])[0];
+      assert.ok(head, "expected the one head-of-chain Deliverable");
+      const created = await createObligationAsRoot({
+        relatedObjectType: "Deliverable", relatedObjectId: head!.id,
+        category: "Engineering", title: "Follow up with security review after this hop",
+        // No blockedFromState/blockedToState — genuinely non-blocking, but still open (Identified).
+      });
+      assert.ok(created);
+      assert.equal(created!.status, "Identified", "open, not resolved");
+      obligationId = created!.id;
+      assert.ok(head!.producing_capability_id, "expected the isolated Template's requirements-analysis Capability to be declared");
+      const { participant } = await fulfilCapability({ seuId: activatedSeuId, capabilityId: head!.producing_capability_id!, capabilityCodes: ["requirements-analysis"] });
+      fixtureParticipantMasterId = participant.participant_id;
+    }, await getEmptyPoolTenantId());
 
-  // The hop is the engine's own governed transition. Its Command carries the governance outcome the producing
-  // Command reuses.
-  let hop: CommandRow | undefined;
-  await waitUntilAsync(async () => {
-    const { data: commands } = await commandsDB.findBySeuId(seuId);
-    hop = (commands ?? []).find((c) => c.entity_id === deliverableId && c.from_state === "Defined" && c.to_state === "In Progress");
-    return !!hop;
-  });
-  const hopCommand = hop as CommandRow | undefined;
-  const { data: outcome } = await governanceEvaluationOutcomesDB.findById(hopCommand!.governance_outcome_id!);
-  assert.equal(outcome!.outcome, "Approved-with-Conditions", "a real Standard-Policy deviation must produce this exact outcome, not a bare 'Approved'");
-  assert.ok(outcome!.deviated_policy_ids.includes(standardPolicyId), "the deviating Policy's real id must be recorded");
-  assert.ok(outcome!.consulted_obligation_ids.includes(obligationId), "the open, non-blocking Obligation's real id must be recorded even though it never blocked");
+    // The hop is the engine's own governed transition. Its Command carries the governance outcome the producing
+    // Command reuses.
+    let hop: CommandRow | undefined;
+    await waitUntilAsync(async () => {
+      const { data: commands } = await commandsDB.findBySeuId(seuId);
+      hop = (commands ?? []).find((c) => c.entity_id === deliverableId && c.from_state === "Defined" && c.to_state === "In Progress");
+      return !!hop;
+    });
+    const hopCommand = hop as CommandRow | undefined;
+    const { data: outcome } = await governanceEvaluationOutcomesDB.findById(hopCommand!.governance_outcome_id!);
+    assert.equal(outcome!.outcome, "Approved-with-Conditions", "a real Standard-Policy deviation must produce this exact outcome, not a bare 'Approved'");
+    assert.ok(outcome!.deviated_policy_ids.includes(standardPolicyId), "the deviating Policy's real id must be recorded");
+    assert.ok(outcome!.consulted_obligation_ids.includes(obligationId), "the open, non-blocking Obligation's real id must be recorded even though it never blocked");
 
-  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
-  const ec = workItem!.execution_context!;
-  assert.ok(!ec.governingPolicies.some((p) => p.id === standardPolicyId), "a deviated policy isn't 'satisfied' — governingPolicies reads satisfied_policy_ids, so it never lists the deviating Policy");
-  assert.ok(ec.activeObligations.some((o) => o.id === obligationId), "the Participant must still see the open Obligation for their own awareness (Ch.32 §11)");
+    const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
+    const ec = workItem!.execution_context!;
+    assert.ok(!ec.governingPolicies.some((p) => p.id === standardPolicyId), "a deviated policy isn't 'satisfied' — governingPolicies reads satisfied_policy_ids, so it never lists the deviating Policy");
+    assert.ok(ec.activeObligations.some((o) => o.id === obligationId), "the Participant must still see the open Obligation for their own awareness (Ch.32 §11)");
+  } finally {
+    if (fixtureParticipantMasterId) await deactivateParticipants([fixtureParticipantMasterId]);
+  }
 });
 
 test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model also blocks Source Code, with no new dependency edge", async () => {
