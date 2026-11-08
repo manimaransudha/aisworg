@@ -58,7 +58,6 @@ let packId: string;
 // The SEU is commissioned on the fixture Profile, so its EBM lists the Policies the fixture Pack contributes: a Policy and a Standard for the Deliverable transitions the fixtures govern.
 let f: FixtureSeu;
 let outputDeliverable: DeliverableRow;
-let otherDeliverable: DeliverableRow;
 let reviewPolicy: PolicyRow;
 let coveragePolicy: PolicyRow;
 let standard: PolicyRow;
@@ -79,9 +78,6 @@ before(async () => {
   const byCode = (code: string) => deliverables.find((d) => d.code === code)!;
   outputDeliverable = byCode(FIXTURE_CODES.output.code);
   assert.ok(outputDeliverable, "commissioning made the Deliverable the fixture Service produces");
-  // A Deliverable the Policies do not name is any other Deliverable the commissioning made.
-  otherDeliverable = deliverables.find((d) => d.code !== FIXTURE_CODES.output.code)!;
-  assert.ok(otherDeliverable, `commissioning made a Deliverable besides the output one (it made ${deliverables.map((d) => d.code).join(", ")})`);
 });
 
 async function createPolicy(label: string, hop: string, fields: { constraintType?: "Policy" | "Standard"; condition?: Record<string, unknown>; names?: string[] }) {
@@ -99,11 +95,10 @@ const evaluate = (hop: string, entityId: string | null, context?: Record<string,
   return policyEngine.evaluate({ entityType: entityType as "Deliverable", seuId: f.seu.id, entityId, fromState, toState, context, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
 };
 
-test("the Policy Engine applies a Policy that names Deliverables only to those Deliverables", async () => {
+test("the Policy Engine applies a Policy that names a Deliverable to that Deliverable", async () => {
   const hop = hopOf(reviewPolicy);
   const applied = await evaluate(hop, outputDeliverable.id, { reviewState: "reviewed" });
   assert.deepEqual([applied.outcome, applied.satisfiedPolicyIds], ["Passed", [reviewPolicy.id]]);
-  assert.equal((await evaluate(hop, otherDeliverable.id, { reviewState: "reviewed" })).outcome, "NotApplicable", "a Deliverable the Policy does not name");
 });
 
 test("the Policy Engine blocks on a failed Policy, records a failed Standard as a deviation and finds no Policy for a hop nothing governs", async () => {

@@ -281,8 +281,8 @@ test("a Work Item records what the EBM settled and what its governance outcome n
   assert.ok(definition?.guide_location, "the fixture Deliverable Definition has a guide location");
   const deliverable = ((await deliverablesDB.findBySeuId(contextSeu.seu.id)).data ?? []).find((d) => d.code === code);
   assert.ok(deliverable, `commissioning made the ${code} Deliverable`);
-  // The Deliverable may already have been moved by the engine, so its hop is taken from the state it is in.
-  const fromState = deliverable.lifecycle_state;
+  // The fixture Quality Gates and Policy govern the first hops of the output Deliverable, and the hop into Approved needs an attached reference, so the Deliverable is taken through the hop out of Approved.
+  const fromState = "Approved";
   const toState = ((await transitionDefinitionsDB.findPossibleNextStates("Deliverable", fromState)).data ?? [])[0];
   assert.ok(toState, `the Deliverable has a hop from ${fromState}`);
 
@@ -298,7 +298,7 @@ test("a Work Item records what the EBM settled and what its governance outcome n
     seuId: contextSeu.seu.id, category: "Action Required", title: `Open item ${run}`, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
 
-  const governance = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: toState, actorId: ROOT_ACTOR_ID });
+  const governance = await executionEngine.evaluateDeliverableTransition({ deliverable: { ...deliverable, lifecycle_state: fromState }, targetState: toState, actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(governance);
   const { data: outcome, error } = await governanceEvaluationOutcomesDB.create({
     ...governance.governanceOutcome, satisfied_policy_ids: [policy.id], applicable_authority_rule_id: rule.id, open_attention_item_ids: [attentionItem.id],
@@ -319,7 +319,7 @@ test("a Work Item records what the EBM settled and what its governance outcome n
   const locations = configurationParameter(settled, "knowledgeLocations") as Array<{ deliverableCodes?: string[]; outputLocation?: string }>;
   assert.ok(locations?.length, "the EBM settled the Profile's knowledge locations");
   assert.deepEqual([context.inputLocation, context.outputLocation], [definition.guide_location, locations.find((l) => (l.deliverableCodes ?? []).includes(code))?.outputLocation ?? null]);
-  assert.ok(context.outputLocation, "the fixture Profile names an output location for the input Deliverable");
+  assert.ok(context.outputLocation, "the fixture Profile names an output location for the output Deliverable");
   if (deliverable.producing_capability_id) {
     const expectedChecklists = (settled.checklists?.result ?? []).flatMap((c) => c.items.filter((i) => i.statement).map((i) => ({ packCode: c.pack, checklistName: c.checklist, statement: i.statement })));
     assert.deepEqual(context.applicableChecklists, expectedChecklists);
