@@ -16,18 +16,18 @@ import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import type { QualityGateRow } from "../src/dblayer/seuTypes.js";
-import { createTestSeu, type TestSeu } from "./engineFixtures.js";
+import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 let packId: string;
-let testSeu: TestSeu;
+let testSeu: CommissionedSeu;
 
 before(async () => {
   const { data: pack } = await packsDB.findByCode("development");
   assert.ok(pack, "the development Pack is seeded");
   packId = pack.id;
-  testSeu = await createTestSeu("quality-gate-engine");
+  testSeu = await commissionedSeu("quality-gate-engine");
 });
 
 async function createGate(label: string, criteria: Record<string, unknown>): Promise<QualityGateRow> {

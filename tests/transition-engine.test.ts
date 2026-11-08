@@ -18,7 +18,7 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
 import { triggerEngine } from "../src/domain/engine/triggerEngine.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
-import { createTestSeu } from "./engineFixtures.js";
+import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
@@ -87,7 +87,7 @@ test("a Quality Gate on an edge with no verb is refused with an error, because t
   assert.ok(gate && !error, error?.message);
   await addEdge(state("open-c"), state("done-c"), { requiredQualityGateIds: [gate.id] });
 
-  const { seu } = await createTestSeu("transition-engine-gate");
+  const { seu } = await commissionedSeu("transition-engine-gate");
   await assert.rejects(
     () => transitionEngine.evaluate({ entityType: "AttentionItem", fromState: state("open-c"), toState: state("done-c"), actorId: ROOT_ACTOR_ID, entityId: randomUUID(), seuId: seu.id }),
     /requires a resolved authority badge, but this transition is ungoverned/
@@ -170,7 +170,7 @@ test("governed evaluation refuses an edge with no verb, and an actor who is not 
   const noVerbFrom = state("open-h");
   const noVerbTo = state("done-h");
   await addEdge(noVerbFrom, noVerbTo);
-  const { seu } = await createTestSeu("transition-engine-governed");
+  const { seu } = await commissionedSeu("transition-engine-governed");
   await assert.rejects(
     () => transitionEngine.evaluateGoverned({ entityType: "AttentionItem", fromState: noVerbFrom, toState: noVerbTo, actorId: ROOT_ACTOR_ID, gateEntityId: randomUUID(), gateSeuId: seu.id }),
     /declares no verb/
@@ -180,7 +180,7 @@ test("governed evaluation refuses an edge with no verb, and an actor who is not 
   const from = state("open-i");
   const to = state("done-i");
   await addEdge(from, to, { verb });
-  const stranger = await createTestSeu("transition-engine-stranger", undefined, { rootParticipant: false });
+  const stranger = await commissionedSeu("transition-engine-stranger", "clean", { rootParticipant: false });
   await assert.rejects(
     () => transitionEngine.evaluateGoverned({ entityType: "AttentionItem", fromState: from, toState: to, actorId: ROOT_ACTOR_ID, gateEntityId: randomUUID(), gateSeuId: stranger.seu.id }),
     /No participants row for participants_master/
@@ -198,4 +198,18 @@ test("the manual next actions of a state list the hops whose badge the actor hol
   const { data: nobody } = await participantsMasterDB.create({ tenantId: PLATFORM_TENANT_ID, type: "Human", displayName: `transition-engine nobody ${run}`, userId: null });
   assert.ok(nobody);
   assert.deepEqual(await nextActionsFor("AttentionItem", from, nobody.id), [], "an actor with no badge is offered nothing");
+});
+
+test("a Policy that holds without a context is satisfied by a transition given no context", async () => {
+  const { data: pack } = await packsDB.findByCode("development");
+  assert.ok(pack);
+  const { data: policy, error } = await policiesDB.upsert({
+    code: `zz-no-context-${run}`, name: `transition-engine no context ${run}`, constraintType: "Policy", scope: "Transition", governedTransition: null, condition: { type: "always_true" },
+    originatingPackId: pack.id, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
+  });
+  assert.ok(policy && !error, error?.message);
+  const from = state("open-k");
+  const to = state("done-k");
+  await addEdge(from, to, { requiredPolicyIds: [policy.id], verb: await seededVerb() });
+  assert.equal((await transitionEngine.evaluate({ entityType: "AttentionItem", fromState: from, toState: to, actorId: ROOT_ACTOR_ID })).allowed, true);
 });

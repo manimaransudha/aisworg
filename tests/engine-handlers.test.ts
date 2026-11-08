@@ -20,7 +20,8 @@ import { conceptCreatedHandler } from "../src/domain/engine/conceptCreated.js";
 import { commandGeneratedHandler } from "../src/domain/engine/commandGenerated.js";
 import { workItemGeneratedHandler } from "../src/domain/engine/workItemGenerated.js";
 import { executionEngineKickoffHandler } from "../src/domain/engine/executionEngineKickoff.js";
-import { createTestSeu, createTestEbm, publishTestEvent } from "./engineFixtures.js";
+import { publishTestEvent } from "./engineFixtures.js";
+import { initiatedSeu, ebmFromComposition, commissionedSeu } from "./webScenarios.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 const eventTypesOf = async (type: string, id: string) => ((await eventsDB.findByOriginatingObject(type, id)).data ?? []).map((e) => e.event_type);
@@ -34,16 +35,16 @@ test("the EBM activation handler does nothing for an EBM that does not exist", a
 });
 
 test("the EBM activation handler fails the SEU when the EBM records no settled result", async () => {
-  const { seu } = await createTestSeu("ebm-activated-unsettled");
-  const ebm = await createTestEbm(seu, { settled: {} });
+  const { seu } = await initiatedSeu("ebm-activated-unsettled");
+  const ebm = await ebmFromComposition(seu.id, { composedPacks: [], settled: {}, recordedConflicts: [] });
   await ebmActivatedHandler(await publishTestEvent({ eventType: "EBMActivated", originatingObjectType: "EBM", originatingObjectId: ebm.id, seuId: seu.id }));
   assert.equal((await seusDB.findById(seu.id)).data?.lifecycle_state, "Failed");
 });
 
 test("the EBM activation handler fails the SEU when the commissioning steps are refused", async () => {
   // The SEU is still Initiated, so the first commissioning hop (to Configured) has no Transition Definition.
-  const { seu } = await createTestSeu("ebm-activated-refused");
-  const ebm = await createTestEbm(seu, { settled: { capabilities: { result: [] }, services: { result: [] } } });
+  const { seu } = await initiatedSeu("ebm-activated-refused");
+  const ebm = await ebmFromComposition(seu.id, { composedPacks: [], settled: { capabilities: { result: [] }, services: { result: [] } }, recordedConflicts: [] });
   await ebmActivatedHandler(await publishTestEvent({ eventType: "EBMActivated", originatingObjectType: "EBM", originatingObjectId: ebm.id, seuId: seu.id }));
   assert.equal((await seusDB.findById(seu.id)).data?.lifecycle_state, "Failed");
 });
@@ -106,7 +107,7 @@ test("the kickoff handler ignores a resolved Obligation or Attention Item that d
 });
 
 test("the kickoff handler leaves the SEU alone when the resolved Obligation did not block it, or the Obligation or Attention Item belongs to another object", async () => {
-  const { seu, systemParticipantId } = await createTestSeu("kickoff-unrelated", "Activated");
+  const { seu, systemParticipantId } = await commissionedSeu("kickoff-unrelated");
   const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");
   assert.ok(birth, "the Deliverable has a birth row");
   const { data: deliverable } = await deliverablesDB.create({ seuId: seu.id, name: `kickoff-unrelated ${randomUUID()}`, state: birth.to_state, authorId: systemParticipantId, authorBadge: ROOT_ACTOR_BADGE });

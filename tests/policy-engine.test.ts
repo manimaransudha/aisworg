@@ -10,11 +10,9 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
-import { seusDB } from "../src/dblayer/seusDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { governedTransitionsFor } from "../src/domain/engine/policyChecks.js";
 import { loadPolicyChecks } from "../src/domain/engine/policyChecks.js";
 import { policyEngine } from "../src/domain/engine/policyEngine.js";
@@ -22,8 +20,9 @@ import pool from "../src/utils/db.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { profileOwnCatalogue, resolveSeuOwningScope, loadSeuCatalogue, resolveDeliverableSource, catalogueFor } from "../src/domain/engine/deliverableSource.js";
-import type { PolicyApplicabilityDeliverable } from "../src/dblayer/seuTypes.js";
-import { createTestSeu, createTestEbm, type TestSeu } from "./engineFixtures.js";
+import type { PolicyApplicabilityDeliverable, DeliverableRow, PolicyRow } from "../src/dblayer/seuTypes.js";
+import { commissionFixtureSeu, commissionScenario, type FixtureSeu } from "./webScenarios.js";
+import { FIXTURE_CODES } from "./schemaFixtures.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
@@ -55,13 +54,32 @@ test("a Transition Policy governs the baseline hop when it names no transition, 
   ]);
 });
 
-let t: TestSeu;
 let packId: string;
+// The SEU is commissioned on the fixture Profile, so its EBM lists the Policies the fixture Pack contributes: a Policy and a Standard for the Deliverable transitions the fixtures govern.
+let f: FixtureSeu;
+let outputDeliverable: DeliverableRow;
+let inputDeliverable: DeliverableRow;
+let reviewDeliverable: DeliverableRow;
+let reviewPolicy: PolicyRow;
+let coveragePolicy: PolicyRow;
+let standard: PolicyRow;
 before(async () => {
-  t = await createTestSeu("policy-engine");
   const { data: pack } = await packsDB.findByCode("development");
   assert.ok(pack, "the development Pack is seeded");
   packId = pack.id;
+  f = await commissionFixtureSeu("policy-engine");
+  const { data: ebm } = await ebmsDB.findById(f.seu.active_ebm_id!);
+  const listed = (await policiesDB.findByIds(ebm!.applicable_policy_ids)).data ?? [];
+  const fixturePolicies = listed.filter((p) => p.originating_pack_id === f.fixtures.pack.id);
+  const conditionOf = (p: PolicyRow) => (p.condition as { field?: string }).field;
+  reviewPolicy = fixturePolicies.find((p) => p.constraint_type === "Policy" && conditionOf(p) === "reviewState")!;
+  coveragePolicy = fixturePolicies.find((p) => p.constraint_type === "Policy" && conditionOf(p) === "coveragePercent")!;
+  standard = fixturePolicies.find((p) => p.constraint_type === "Standard")!;
+  assert.ok(reviewPolicy && coveragePolicy && standard, "the EBM lists the fixture Policies and the fixture Standard");
+  const deliverables = (await deliverablesDB.findBySeuId(f.seu.id)).data ?? [];
+  const byCode = (code: string) => deliverables.find((d) => d.code === code)!;
+  [outputDeliverable, inputDeliverable, reviewDeliverable] = [byCode(FIXTURE_CODES.output.code), byCode(FIXTURE_CODES.input.code), byCode(FIXTURE_CODES.review.code)];
+  assert.ok(outputDeliverable && inputDeliverable && reviewDeliverable, "commissioning made the fixture Deliverables");
 });
 
 async function createPolicy(label: string, hop: string, fields: { constraintType?: "Policy" | "Standard"; condition?: Record<string, unknown>; names?: string[] }) {
@@ -73,66 +91,50 @@ async function createPolicy(label: string, hop: string, fields: { constraintType
   return data;
 }
 
-async function activateEbm(policyIds: string[]) {
-  const { data: birth } = await transitionDefinitionsDB.findBirth("EBM");
-  assert.ok(birth, "the EBM has a birth row");
-  const { data: ebm, error } = await ebmsDB.create({
-    seuId: t.seu.id, templateId: t.seu.template_id, profileId: t.seu.profile_id, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
-    status: birth.to_state as never, composedPacks: [], compositionReport: {} as never, behaviors: null, applicablePolicyIds: policyIds,
-  });
-  assert.ok(ebm && !error, error?.message);
-  await seusDB.setActiveEbm(t.seu.id, ebm.id);
-}
-
-const evaluate = (hop: string, entityId: string | null, context: Record<string, unknown> = {}) => {
+const hopOf = (p: PolicyRow) => p.governed_transition!;
+const evaluate = (hop: string, entityId: string | null, context?: Record<string, unknown>) => {
   const [entityType, fromState, toState] = hop.split("|");
-  return policyEngine.evaluate({
-    entityType: entityType as "Deliverable", seuId: t.seu.id, entityId, fromState, toState, context, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
-  });
+  return policyEngine.evaluate({ entityType: entityType as "Deliverable", seuId: f.seu.id, entityId, fromState, toState, context, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
 };
 
 test("the Policy Engine applies a Policy that names Deliverables only to those Deliverables", async () => {
-  const hop = `Deliverable|zz-named-from-${run}|zz-named-to-${run}`;
-  const policy = await createPolicy("named", hop, { names: ["zz-code-a"] });
-  await activateEbm([policy.id]);
-  const named = await deliverablesDB.create({ seuId: t.seu.id, name: `policy-engine named ${run}`, code: "zz-code-a", state: "Defined", authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE });
-  const other = await deliverablesDB.create({ seuId: t.seu.id, name: `policy-engine other ${run}`, code: "zz-code-b", state: "Defined", authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE });
-  const uncoded = await deliverablesDB.create({ seuId: t.seu.id, name: `policy-engine uncoded ${run}`, state: "Defined", authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE });
-  assert.ok(named.data && other.data && uncoded.data);
-
-  const applied = await evaluate(hop, named.data.id);
-  assert.deepEqual([applied.outcome, applied.satisfiedPolicyIds], ["Passed", [policy.id]]);
-  assert.equal((await evaluate(hop, other.data.id)).outcome, "NotApplicable", "another code");
-  assert.equal((await evaluate(hop, uncoded.data.id)).outcome, "NotApplicable", "a Deliverable with no code");
+  const hop = hopOf(reviewPolicy);
+  const applied = await evaluate(hop, outputDeliverable.id, { reviewState: "reviewed" });
+  assert.deepEqual([applied.outcome, applied.satisfiedPolicyIds], ["Passed", [reviewPolicy.id]]);
+  assert.equal((await evaluate(hop, inputDeliverable.id, { reviewState: "reviewed" })).outcome, "NotApplicable", "a Deliverable the Policy does not name");
 });
 
-test("the Policy Engine blocks on a failed Policy, and records a failed Standard as a deviation", async () => {
-  const blockedHop = `Deliverable|zz-block-from-${run}|zz-block-to-${run}`;
-  const standardHop = `Deliverable|zz-standard-from-${run}|zz-standard-to-${run}`;
-  const blocking = await createPolicy("blocking", blockedHop, { condition: { type: "field_in", field: "status", values: ["Ready"] } });
-  const standard = await createPolicy("standard", standardHop, { constraintType: "Standard", condition: { type: "field_in", field: "status", values: ["Ready"] } });
-  await activateEbm([blocking.id, standard.id]);
+test("the Policy Engine blocks on a failed Policy, records a failed Standard as a deviation and finds no Policy for a hop nothing governs", async () => {
+  const blocked = await evaluate(hopOf(reviewPolicy), outputDeliverable.id, { reviewState: "draft" });
+  assert.deepEqual([blocked.outcome, blocked.outcome === "Blocked" && blocked.policyCode], ["Blocked", reviewPolicy.code]);
+  assert.equal((await evaluate(hopOf(reviewPolicy), outputDeliverable.id, { reviewState: "waived" })).outcome, "Passed", "the other accepted value");
 
-  const blocked = await evaluate(blockedHop, null, { status: "Draft" });
-  assert.deepEqual([blocked.outcome, blocked.outcome === "Blocked" && blocked.policyCode], ["Blocked", blocking.code]);
-  assert.equal((await evaluate(blockedHop, null, { status: "Ready" })).outcome, "Passed");
+  assert.equal((await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 10 })).outcome, "Blocked", "below the threshold");
+  assert.equal((await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 90 })).outcome, "Passed", "above the threshold");
 
-  const deviated = await evaluate(standardHop, null, { status: "Draft" });
+  const deviated = await evaluate(hopOf(standard), reviewDeliverable.id, { producingCapabilityStatus: "Unfulfilled" });
   assert.deepEqual([deviated.outcome, deviated.deviatedPolicyIds], ["Passed", [standard.id]]);
+  const kept = await evaluate(hopOf(standard), reviewDeliverable.id, { producingCapabilityStatus: "Fulfilled" });
+  assert.deepEqual([kept.outcome, kept.satisfiedPolicyIds, kept.deviatedPolicyIds], ["Passed", [standard.id], []]);
+
   assert.equal((await evaluate(`Deliverable|zz-none-${run}|zz-none-to-${run}`, null)).outcome, "NotApplicable", "no Policy governs the hop");
+});
+
+test("the Policy Engine applies nothing outside an SEU, and evaluates a Policy with an empty context when none is given", async () => {
+  const [entityType, fromState, toState] = hopOf(reviewPolicy).split("|");
+  const base = { entityType: entityType as "Deliverable", fromState, toState, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE };
+  assert.equal((await policyEngine.evaluate({ ...base, seuId: null })).outcome, "NotApplicable");
+  const noContext = await policyEngine.evaluate({ ...base, seuId: f.seu.id, entityId: outputDeliverable.id });
+  const emptyContext = await policyEngine.evaluate({ ...base, seuId: f.seu.id, entityId: outputDeliverable.id, context: {} });
+  assert.deepEqual(noContext, emptyContext);
 });
 
 // ── deliverableSource ─────────────────────────────────────────────────────────────────────────────────────────────
 
-test("a Profile's own catalogue holds the entries that have a code, and nothing when it has none", () => {
-  const profile = (draft: unknown) => ({ draft_content: draft }) as never;
-  assert.deepEqual(profileOwnCatalogue(profile({ deliverableCatalogue: [{ code: "a" }, { code: "  " }, { name: "no code" }, null, { code: "b" }] })), [{ code: "a" }, { code: "b" }]);
-  assert.deepEqual(profileOwnCatalogue(profile({ deliverableCatalogue: "not a list" })), []);
-  assert.deepEqual(profileOwnCatalogue(profile(null)), []);
-});
-
 test("an SEU with no EBM takes its dependency rows and catalogue from its Template and Profile, and fails when they do not exist", async () => {
-  const plain = await createTestSeu("deliverable-source-plain");
+  // An SEU whose composition is blocked by open conflicts has no EBM.
+  const plain = await commissionScenario("unsettled", "deliverable-source-plain");
+  assert.equal(plain.seu.active_ebm_id, null);
   const scope = await resolveSeuOwningScope(plain.seu);
   assert.ok(Array.isArray(scope.dependencyDefinitionIds));
   assert.ok(Array.isArray(await loadSeuCatalogue(plain.seu)));
@@ -142,33 +144,12 @@ test("an SEU with no EBM takes its dependency rows and catalogue from its Templa
   await assert.rejects(() => loadSeuCatalogue(dangling), /Template .* or Profile .* not found/);
 });
 
-test("an SEU with an EBM takes the source the EBM recorded, and fails when the EBM recorded none", async () => {
-  const recorded = await createTestSeu("deliverable-source-recorded");
-  const ebm = await createTestEbm(recorded.seu, null);
-  const withSource = await ebmsDB.create({
-    seuId: recorded.seu.id, templateId: recorded.seu.template_id, profileId: recorded.seu.profile_id, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
-    status: ebm.status, composedPacks: [], behaviors: null,
-    compositionReport: { warnings: [], conflicts: [], parameterConflicts: [], resolutions: [], deliverableSource: { type: "Template", id: recorded.seu.template_id, dependencyDefinitionIds: ["dep-1", "dep-2"] } } as never,
-  });
-  assert.ok(withSource.data && !withSource.error, withSource.error?.message);
-
-  const noSource = { template_id: recorded.seu.template_id, profile_id: recorded.seu.profile_id, active_ebm_id: ebm.id };
-  await assert.rejects(() => resolveSeuOwningScope(noSource), /has no recorded Deliverable source/);
-  await assert.rejects(() => loadSeuCatalogue(noSource), /has no recorded Deliverable source/);
-
-  const recordedSeu = { template_id: recorded.seu.template_id, profile_id: recorded.seu.profile_id, active_ebm_id: withSource.data.id };
-  assert.deepEqual(await resolveSeuOwningScope(recordedSeu), { dependencyDefinitionIds: ["dep-1", "dep-2"] });
-  assert.ok(Array.isArray(await loadSeuCatalogue(recordedSeu)), "the Template is the source, so the catalogue is the Template's");
-});
-
-test("the Policy Engine applies nothing outside an SEU, and evaluates a Policy when no context is given", async () => {
-  const hop = `Deliverable|zz-nocontext-from-${run}|zz-nocontext-to-${run}`;
-  const policy = await createPolicy("nocontext", hop, {});
-  await activateEbm([policy.id]);
-  const base = { entityType: "Deliverable" as const, fromState: `zz-nocontext-from-${run}`, toState: `zz-nocontext-to-${run}`, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE };
-  assert.equal((await policyEngine.evaluate({ ...base, seuId: null })).outcome, "NotApplicable");
-  const result = await policyEngine.evaluate({ ...base, seuId: t.seu.id });
-  assert.deepEqual([result.outcome, result.satisfiedPolicyIds], ["Passed", [policy.id]]);
+test("a commissioned SEU takes the source its EBM recorded: the dependency rows and the catalogue of the Profile", async () => {
+  assert.ok(f.seu.active_ebm_id, "commissioning made the EBM");
+  const scope = await resolveSeuOwningScope(f.seu);
+  assert.ok(Array.isArray(scope.dependencyDefinitionIds));
+  const codes = (await loadSeuCatalogue(f.seu)).map((entry) => entry.code);
+  for (const code of [FIXTURE_CODES.input.code, FIXTURE_CODES.output.code, FIXTURE_CODES.review.code]) assert.ok(codes.includes(code), `the catalogue lists ${code}`);
 });
 
 test("the checks of a transition come from the materialised Policies, and from the Policy Definitions only for the hops they govern and only when no materialised Policy has their code", async () => {

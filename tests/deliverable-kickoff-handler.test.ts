@@ -19,11 +19,12 @@ import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
 import { deliverableKickoffHandler } from "../src/domain/engine/deliverableKickoff.js";
 import type { DeliverableRow } from "../src/dblayer/seuTypes.js";
-import { createTestSeu, publishTestEvent, type TestSeu } from "./engineFixtures.js";
+import { publishTestEvent } from "./engineFixtures.js";
+import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
-let t: TestSeu;
+let t: CommissionedSeu;
 let capabilityId: string;
 let capabilityCode: string;
 let unrelatedCapabilityId: string;
@@ -31,7 +32,7 @@ let producing: DeliverableRow;
 let approved: DeliverableRow;
 
 before(async () => {
-  t = await createTestSeu("deliverable-kickoff", "Operational");
+  t = await commissionedSeu("deliverable-kickoff");
   const { rows } = await pool.query<{ id: string }>("SELECT id FROM capability_definitions ORDER BY created_at LIMIT 2");
   assert.ok(rows.length === 2, "the database holds two Capability Definitions");
   [capabilityId, unrelatedCapabilityId] = [rows[0].id, rows[1].id];

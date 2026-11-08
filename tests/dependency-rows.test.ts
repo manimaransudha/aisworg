@@ -20,20 +20,20 @@ import { createDecision } from "../src/routes/seu/core/decisions.js";
 import { createKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
 import { dependencyDefinitionEngine } from "../src/domain/engine/dependencyDefinitionEngine.js";
 import type { DependencyDefinitionEntityType, DependencyDefinitionRow, DeliverableRow } from "../src/dblayer/seuTypes.js";
-import { createTestSeu, type TestSeu } from "./engineFixtures.js";
+import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
 import { createObligationAsRoot, createEvidenceAsRoot, supportingEvidenceReferences, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const UNREACHED = "zz-unreached";
-let t: TestSeu;
-let other: TestSeu;
+let t: CommissionedSeu;
+let other: CommissionedSeu;
 let birthState: string;
 let service: { code: string; providing_capability_id: string };
 let capabilityStatus: string;
 
 before(async () => {
-  t = await createTestSeu("dependency-rows");
-  other = await createTestSeu("dependency-rows-other");
+  t = await commissionedSeu("dependency-rows");
+  other = await commissionedSeu("dependency-rows-other");
   const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");
   assert.ok(birth, "the Deliverable has a birth row");
   birthState = birth.to_state;

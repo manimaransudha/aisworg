@@ -8,7 +8,7 @@ export function renderMarkdown(raw: string): string {
   const html = marked.parse(raw, { async: false });
   return sanitizeHtml(html, {
     allowedTags: ALLOWED_TAGS,
-    allowedAttributes: { a: ["href"], span: ["style"] },
+    allowedAttributes: { a: ["href", "rel", "target"], span: ["style"] },
     // A span may only set a text colour: a name, #hex or rgb().
     allowedStyles: { span: { color: [/^[a-z]+$/i, /^#[0-9a-f]{3,8}$/i, /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*[\d.]+\s*)?\)$/i] } },
     allowedSchemes: ["http", "https", "mailto"],
@@ -31,7 +31,7 @@ export function renderDocMarkdown(raw: string): string {
   return sanitizeHtml(html, {
     allowedTags: DOC_ALLOWED_TAGS,
     allowedAttributes: {
-      a: ["href"],
+      a: ["href", "rel", "target"],
       img: ["src", "alt", "title"],
       th: ["align"],
       td: ["align"],

@@ -64,13 +64,14 @@ export interface AuthoredDocument {
   widgets: AuthoredWidget[];
 }
 
-export function blankVariant(): AuthoredVariant {
-  return { matchValue: "", source: "", ontology: false, composable: false };
-}
-
-export function blankNote(): AuthoredNote {
-  return { date: "", note: "" };
-}
+// Commented out: no code and no test calls blankVariant or blankNote.
+// export function blankVariant(): AuthoredVariant {
+//   return { matchValue: "", source: "", ontology: false, composable: false };
+// }
+//
+// export function blankNote(): AuthoredNote {
+//   return { date: "", note: "" };
+// }
 
 export function blankWidget(kind: WidgetKind = "text"): AuthoredWidget {
   return {

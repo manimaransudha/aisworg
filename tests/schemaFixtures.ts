@@ -48,7 +48,7 @@ import { advanceAuthoringDraftToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "
 const PLATFORM_VIEWER = { isRoot: false, tenantId: null as string | null };
 
 // The version every fixture row carries. A change to what a builder authors needs a new value here.
-export const FIXTURE_VERSION = "1.0.1";
+export const FIXTURE_VERSION = "1.0.2";
 
 // An arbitrary number that names the advisory lock the builders take.
 const FIXTURE_LOCK_KEY = 726450917;
@@ -328,7 +328,8 @@ export async function maximalService(tenantId: string, input: { code: string; ca
 
 // ---- Policy -----------------------------------------------------------------------------------------------------------
 
-export async function maximalPolicy(tenantId: string, input: { code: string; deliverableCode: string }): Promise<FixtureRow> {
+// `standard` makes it a Standard that governs the first Deliverable transition for the named Deliverable and fails until the producing Capability is Fulfilled.
+export async function maximalPolicy(tenantId: string, input: { code: string; deliverableCode: string; standard?: boolean }): Promise<FixtureRow> {
   const [category] = await platformConceptCodes("category:policy", 1);
   const environments = await platformConceptCodes("category:environment", 2);
   const [severity] = await platformConceptCodes("category:policy-condition-severity", 1);
@@ -347,7 +348,7 @@ export async function maximalPolicy(tenantId: string, input: { code: string; del
     description: `Fixture Policy, every property of the Policy schema filled.`,
     category,
     scope: "Transition",
-    constraintType: "Policy",
+    constraintType: input.standard ? "Standard" : "Policy",
     applicabilityEnvironments: environments,
     conditions: [
       {
@@ -376,10 +377,12 @@ export async function maximalPolicy(tenantId: string, input: { code: string; del
             requiredEvidence: evidence,
           },
         ],
-        applicabilityDeliverables: [
-          { name: input.deliverableCode, transitions: [transitions[0]], governingCondition: { type: "field_in", field: "reviewState", values: "reviewed,waived" } },
-          { name: input.deliverableCode, transitions: [transitions[1]], governingCondition: { type: "threshold", field: "coveragePercent", operator: "gte", value: "80" } },
-        ],
+        applicabilityDeliverables: input.standard
+          ? [{ name: input.deliverableCode, transitions: [transitions[0]], governingCondition: { type: "field_in", field: "producingCapabilityStatus", values: "Fulfilled" } }]
+          : [
+              { name: input.deliverableCode, transitions: [transitions[0]], governingCondition: { type: "field_in", field: "reviewState", values: "reviewed,waived" } },
+              { name: input.deliverableCode, transitions: [transitions[1]], governingCondition: { type: "threshold", field: "coveragePercent", operator: "gte", value: "80" } },
+            ],
       },
     ],
   };
@@ -416,7 +419,7 @@ export async function basePack(tenantId: string): Promise<FixtureRow> {
 
 export async function maximalPack(
   tenantId: string,
-  input: { base: FixtureRow; service: FixtureRow; policy: FixtureRow; capabilityCodes: string[]; outputDeliverableCode: string; reviewDeliverableCode: string }
+  input: { base: FixtureRow; service: FixtureRow; policy: FixtureRow; standardPolicy: FixtureRow; capabilityCodes: string[]; outputDeliverableCode: string; reviewDeliverableCode: string }
 ): Promise<FixtureRow> {
   const [role] = await platformConceptCodes("role-name", 1);
   const evidenceCategories = await platformConceptCodes("category:evidence", 3);
@@ -450,7 +453,7 @@ export async function maximalPack(
     contributionCapabilities: input.capabilityCodes.map((code) => ({ code })),
     contributionCompetencies: [{ dimension: PACK_CATEGORY, value: FIXTURE_CODES.technology.code }],
     contributionServices: [{ code: input.service.code, serviceDefinitionId: input.service.id, serviceLevel: [{ code: FIXTURE_SERVICE_LEVEL_CODE, target: 90 }] }],
-    contributionPolicies: [input.policy.code],
+    contributionPolicies: [input.policy.code, input.standardPolicy.code],
     contributionAuthorityRules: [{ code: `fixture-rule`, authorisedRole: role, governedTransition: transitions[0] }],
     contributionEngineeringCapital: [{ type: FIXTURE_CODES.capital.code, url: `https://example.test/fixtures/capital` }],
     contributionChecklists: [
@@ -667,6 +670,7 @@ export interface Stage1Fixtures {
   outputDeliverable: FixtureRow;
   service: FixtureRow;
   policy: FixtureRow;
+  standardPolicy: FixtureRow;
 }
 
 // The Service is aligned to the Capability and reads the two Deliverables, so the Registry pages find each of them Active. The Policy
@@ -684,7 +688,8 @@ async function stage1(tenantId: string): Promise<Stage1Fixtures> {
     consumers: [FIXTURE_CODES.consumerA.code, FIXTURE_CODES.consumerB.code],
   });
   const policy = await maximalPolicy(tenantId, { code: `fixture-policy`, deliverableCode: FIXTURE_CODES.output.code });
-  return { tenantId, capability, inputDeliverable, outputDeliverable, service, policy };
+  const standardPolicy = await maximalPolicy(tenantId, { code: `fixture-standard`, deliverableCode: FIXTURE_CODES.review.code, standard: true });
+  return { tenantId, capability, inputDeliverable, outputDeliverable, service, policy, standardPolicy };
 }
 
 export interface Stage2Fixtures extends Stage1Fixtures {
@@ -700,6 +705,7 @@ async function stage2(tenantId: string): Promise<Stage2Fixtures> {
     base,
     service: stage1Rows.service,
     policy: stage1Rows.policy,
+    standardPolicy: stage1Rows.standardPolicy,
     capabilityCodes: [FIXTURE_CODES.capability.code, FIXTURE_CODES.capabilityB.code],
     outputDeliverableCode: FIXTURE_CODES.output.code,
     reviewDeliverableCode: FIXTURE_CODES.review.code,

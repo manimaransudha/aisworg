@@ -2,15 +2,14 @@
 // announces to the Deliverables it gates (dependencyDefinitionEngine.evaluateAndPublishFromTransition), and what the Execution Engine says to a
 // Deliverable whose gate is not open.
 //
-//   - The Template and the Profile are written for this test, so the dependency rows they own are the test's own. The SEU is a plain row on them.
+//   - The SEU is commissioned on the fixture Profile in a tenant of its own, so the dependency rows its source owns are the test's own.
 //   - Deliverable names carry the run tag. Rows are not deleted, as in the other tests that create SEUs.
 import "dotenv/config";
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-import { templatesDB } from "../src/dblayer/templatesDB.js";
-import { profilesDB } from "../src/dblayer/profilesDB.js";
+import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { dependencyDefinitionsDB } from "../src/dblayer/dependencyDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
@@ -18,26 +17,22 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { materialiseDependencyGraph, DEFAULT_DELIVERABLE_REQUIRED_STATE } from "../src/domain/engine/materialiseDependencyGraph.js";
 import { dependencyDefinitionEngine } from "../src/domain/engine/dependencyDefinitionEngine.js";
 import { executionEngine } from "../src/domain/engine/executionEngine.js";
-import type { DeliverableRow, TemplateRow } from "../src/dblayer/seuTypes.js";
-import { createTestSeu, type TestSeu } from "./engineFixtures.js";
-import { createObligationAsRoot, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import type { DeliverableRow } from "../src/dblayer/seuTypes.js";
+import { commissionFixtureSeu, type FixtureSeu } from "./webScenarios.js";
+import { createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const code = (name: string) => `zz-${name}-${run}`;
-let template: TemplateRow;
-let t: TestSeu;
+let t: FixtureSeu;
+// The object the SEU's EBM recorded as the source of its Deliverables and dependency rows: the fixture Profile, which carries its own catalogue.
+let owner: { type: "Template" | "Profile"; id: string };
 let birthState: string;
 
 before(async () => {
-  const { data: created } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `zz-dependency-flow-${run}`, name: "Dependency flow", deliverableCatalogue: [] });
-  assert.ok(created);
-  template = created;
-  const { data: profile } = await profilesDB.upsert({
-    status: "Active", tenantId: PLATFORM_TENANT_ID, code: `zz-dependency-flow-profile-${run}`, name: "Dependency flow", baseTemplateId: template.id,
-    authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development",
-  });
-  assert.ok(profile);
-  t = await createTestSeu("dependency-flow", undefined, { base: { template, profile } });
+  t = await commissionFixtureSeu("dependency-flow");
+  const { data: ebm } = await ebmsDB.findById(t.seu.active_ebm_id!);
+  const source = (ebm!.composition_report as { deliverableSource: { type: "Template" | "Profile"; id: string } }).deliverableSource;
+  owner = { type: source.type, id: source.id };
   const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");
   assert.ok(birth);
   birthState = birth.to_state;
@@ -45,8 +40,8 @@ before(async () => {
 
 const materialise = (graph: Parameters<typeof materialiseDependencyGraph>[0]["dependencyGraph"], codes: string[]) =>
   materialiseDependencyGraph({
-    owningEntityType: "Template", owningEntityId: template.id, deliverableCatalogue: codes.map((c) => ({ code: c })), dependencyGraph: graph,
-    tenantId: PLATFORM_TENANT_ID, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
+    owningEntityType: owner.type, owningEntityId: owner.id, deliverableCatalogue: codes.map((c) => ({ code: c })), dependencyGraph: graph,
+    tenantId: t.tenantId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
 
 test("a dependency graph becomes one row for each entry that names Deliverables of the catalogue, and a new graph replaces the old rows", async () => {
@@ -73,7 +68,7 @@ test("a dependency graph becomes one row for each entry that names Deliverables 
 
   const second = await materialise([{ fromType: "Deliverable", fromCode: a, toCode: b }], [a, b]);
   assert.equal(second.data?.length, 1);
-  assert.equal((await dependencyDefinitionsDB.findByOwner("Template", template.id)).data?.length, 1, "the old rows are gone");
+  assert.equal((await dependencyDefinitionsDB.findByOwner(owner.type, owner.id)).data?.length, 1, "the old rows are gone");
 });
 
 async function createDeliverable(name: string, state: string = birthState): Promise<DeliverableRow> {
@@ -85,10 +80,10 @@ async function createDeliverable(name: string, state: string = birthState): Prom
 test("a Deliverable reaching a state announces only the gated Deliverables whose every dependency now holds", async () => {
   const [source, other, gated, open, ghost] = [code("source"), code("other"), code("gated"), code("open"), code("ghost")];
   const row = (fromName: string, toName: string | null) => dependencyDefinitionsDB.create({
-    owningEntityType: "Template", owningEntityId: template.id, fromEntityType: "Deliverable", fromName, fromState: "Approved", toEntityType: "Deliverable", toName,
+    owningEntityType: owner.type, owningEntityId: owner.id, fromEntityType: "Deliverable", fromName, fromState: "Approved", toEntityType: "Deliverable", toName,
     toState: toName ? "In Progress" : null, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
-  await dependencyDefinitionsDB.deleteByOwner("Template", template.id);
+  await dependencyDefinitionsDB.deleteByOwner(owner.type, owner.id);
   for (const [from, to] of [[source, null], [source, gated], [other, gated], [source, ghost], [source, open]] as Array<[string, string | null]>) {
     const { error } = await row(from, to);
     assert.ok(!error, error?.message);
@@ -109,13 +104,13 @@ test("a Deliverable reaching a state announces only the gated Deliverables whose
 
 test("the Execution Engine refuses a Deliverable whose dependency rows are not satisfied, and says which, by name or by kind", async () => {
   const [source, target] = [code("req-source"), code("req-target")];
-  await dependencyDefinitionsDB.deleteByOwner("Template", template.id);
+  await dependencyDefinitionsDB.deleteByOwner(owner.type, owner.id);
   await dependencyDefinitionsDB.create({
-    owningEntityType: "Template", owningEntityId: template.id, fromEntityType: "Deliverable", fromName: source, fromState: "Approved", toEntityType: "Deliverable", toName: target,
+    owningEntityType: owner.type, owningEntityId: owner.id, fromEntityType: "Deliverable", fromName: source, fromState: "Approved", toEntityType: "Deliverable", toName: target,
     toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
   await dependencyDefinitionsDB.create({
-    owningEntityType: "Template", owningEntityId: template.id, fromEntityType: "Obligation", fromName: null, fromState: "Verified", toEntityType: "Deliverable", toName: target,
+    owningEntityType: owner.type, owningEntityId: owner.id, fromEntityType: "Obligation", fromName: null, fromState: "Verified", toEntityType: "Deliverable", toName: target,
     toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
   await createDeliverable(source);

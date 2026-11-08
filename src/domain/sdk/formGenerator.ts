@@ -298,40 +298,41 @@ function collectOntologyTypesFromItemProps(itemProps: Record<string, JsonSchemaP
   }
 }
 
-export function ontologyComposableFieldsIn(schema: JsonSchemaDocument): Array<{ fieldName: string; multi: boolean; resolveConceptType: (content: Record<string, unknown>) => string }> {
-  const result: Array<{ fieldName: string; multi: boolean; resolveConceptType: (content: Record<string, unknown>) => string }> = [];
-  for (const [name, def] of Object.entries(schema.properties ?? {})) {
-    const multi = def["x-widget"] === "referential-multi-select";
-    if (!multi && def["x-widget"] !== "referential-select") continue;
-    const byValue = def["x-referential-source-by-value"];
-    if (byValue) {
-      result.push({
-        fieldName: name,
-        multi,
-        resolveConceptType: (content) => {
-          const resolved = byValue.values[String(content[byValue.field] ?? "")] ?? byValue.default;
-          return resolved.ontology && resolved.composable ? resolved.source : "";
-        },
-      });
-      continue;
-    }
-    if (def["x-ontology"] !== true || def["x-ontology-composable"] !== true) continue;
-    const driverField = def["x-referential-source-by"];
-    const driverSuffix = def["x-referential-source-suffix"] ?? "";
-    const fixedSource = (def["x-referential-source"] ?? "").trim();
-    if (!driverField && !fixedSource) continue;
-    result.push({
-      fieldName: name,
-      multi,
-      resolveConceptType: (content) => {
-        if (!driverField) return fixedSource;
-        const driverValue = String(content[driverField] ?? "").trim();
-        return driverValue ? `${driverValue.toLowerCase()}${driverSuffix}` : "";
-      },
-    });
-  }
-  return result;
-}
+// Commented out: no code and no test calls ontologyComposableFieldsIn.
+// export function ontologyComposableFieldsIn(schema: JsonSchemaDocument): Array<{ fieldName: string; multi: boolean; resolveConceptType: (content: Record<string, unknown>) => string }> {
+//   const result: Array<{ fieldName: string; multi: boolean; resolveConceptType: (content: Record<string, unknown>) => string }> = [];
+//   for (const [name, def] of Object.entries(schema.properties ?? {})) {
+//     const multi = def["x-widget"] === "referential-multi-select";
+//     if (!multi && def["x-widget"] !== "referential-select") continue;
+//     const byValue = def["x-referential-source-by-value"];
+//     if (byValue) {
+//       result.push({
+//         fieldName: name,
+//         multi,
+//         resolveConceptType: (content) => {
+//           const resolved = byValue.values[String(content[byValue.field] ?? "")] ?? byValue.default;
+//           return resolved.ontology && resolved.composable ? resolved.source : "";
+//         },
+//       });
+//       continue;
+//     }
+//     if (def["x-ontology"] !== true || def["x-ontology-composable"] !== true) continue;
+//     const driverField = def["x-referential-source-by"];
+//     const driverSuffix = def["x-referential-source-suffix"] ?? "";
+//     const fixedSource = (def["x-referential-source"] ?? "").trim();
+//     if (!driverField && !fixedSource) continue;
+//     result.push({
+//       fieldName: name,
+//       multi,
+//       resolveConceptType: (content) => {
+//         if (!driverField) return fixedSource;
+//         const driverValue = String(content[driverField] ?? "").trim();
+//         return driverValue ? `${driverValue.toLowerCase()}${driverSuffix}` : "";
+//       },
+//     });
+//   }
+//   return result;
+// }
 
 export function ontologyConceptTypesIn(schema: JsonSchemaDocument): string[] {
   const types = new Set<string>();
