@@ -106,11 +106,12 @@ test("the Policy Engine blocks on a failed Policy, records a failed Standard as 
   assert.deepEqual([blocked.outcome, blocked.outcome === "Blocked" && blocked.policyCode], ["Blocked", reviewPolicy.code]);
   assert.equal((await evaluate(hopOf(reviewPolicy), outputDeliverable.id, { reviewState: "waived" })).outcome, "Passed", "the other accepted value");
 
-  const below = await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 10 });
+  // The hop is also governed by the platform's Policy that the producing Capability is Fulfilled before work starts, so the context satisfies it and only the coverage Policy decides.
+  const fulfilled = { producingCapabilityStatus: "Fulfilled" };
+  const below = await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { ...fulfilled, coveragePercent: 10 });
   assert.deepEqual([below.outcome, below.outcome === "Blocked" && below.policyCode], ["Blocked", coveragePolicy.code], "below the threshold");
-  // Other Policies the EBM carries for the hop may also act, so the coverage Policy is what is read: it is satisfied at 90 and nothing else names it.
-  const above = await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 90 });
-  assert.ok(above.outcome === "Blocked" ? above.policyCode !== coveragePolicy.code : above.satisfiedPolicyIds.includes(coveragePolicy.id), `above the threshold: ${JSON.stringify(above)}`);
+  const above = await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { ...fulfilled, coveragePercent: 90 });
+  assert.equal(above.outcome, "Passed", `above the threshold: ${JSON.stringify(above)}`);
 
   const deviated = await evaluate(hopOf(standard), outputDeliverable.id, { producingCapabilityStatus: "Unfulfilled" });
   assert.deepEqual([deviated.outcome, deviated.deviatedPolicyIds], ["Passed", [standard.id]]);
