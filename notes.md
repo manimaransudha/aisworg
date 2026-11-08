@@ -229,7 +229,17 @@ pnpm tsx src/dblayer/recovery/run.ts
 
 ##### Import the test results
 
-scp root@100.65.51.120:/tmp/spec.txt /Volumes/Chennai/gitrepo/aisworg/output.txt
+scp root@100.65.51.120:/tmp/output.txt /Volumes/Chennai/gitrepo/aisworg/output.txt
+
+##### Coverage test report
+On VPS
+> pnpm test:coverage:html
+
+Browsable HTML, from your Mac (recommended):
+> scp -r root@100.65.51.120:~/aisworg/coverage ~/Downloads/aisworg-coverage
+
+open ~/Downloads/aisworg-coverage/index.html
+
 
 ##### Run only specific seeds
 

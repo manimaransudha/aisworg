@@ -21,7 +21,7 @@ import { getSeuStatus } from "../src/routes/seu/core/seus.js";
 import { getSeuEvents } from "../src/routes/seu/core/events.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
-import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, countCapabilityRequests, deactivateParticipants, TESTER_ACCEPTANCE_JOURNEY_BABYLON } from "./testFixtures.js";
+import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, grantRole, waitForDispatchedWorkItem, grantRouteBadges, countCapabilityRequests, deactivateParticipants, TESTER_ACCEPTANCE_JOURNEY_BABYLON } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
@@ -82,7 +82,10 @@ before(async () => {
 
 // The fixture Participant is released when the file finishes, so Babylon's pool is empty again for the next run.
 const fixtureParticipantMasterIds: string[] = [];
+// The roles granted to the journey user for the web routes, put back when the file finishes.
+const restoreRoles: Array<() => Promise<void>> = [];
 after(async () => {
+  for (const restore of restoreRoles) await restore();
   await deactivateParticipants(fixtureParticipantMasterIds);
   await new Promise<void>((resolve, reject) => server.close((err: Error | undefined) => (err ? reject(err) : resolve())));
 });
@@ -157,6 +160,8 @@ test("MVP acceptance: commission an SEU through the core and web paths, reach Op
   // this exact SEU — same requirement ensureRootActorParticipant exists to satisfy
   // for the root actor; TESTER_ACCEPTANCE_JOURNEY_BABYLON needs the same thing here.
   await ensureActorParticipant(seuId, TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId);
+  // The web detail page and the fulfil form require the participant role (route_authority); the seeded user holds general only.
+  restoreRoles.push(await grantRole(TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId, "participant"));
   await grantRouteBadges(TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId, "POST", `/aisworg/seu/seus/${seuId}/capabilities/${requirementsCapability.capabilityId}/fulfil`);
   const detailPage = await request(`${webBaseUrl}/seus/${seuId}`);
   assert.equal(detailPage.status, 200);
