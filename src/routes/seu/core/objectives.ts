@@ -217,11 +217,12 @@ export async function listCommissionableObjectives(tenantId?: string | null): Pr
   return all.filter((o) => o.commissionable);
 }
 
-export async function listSelectableObjectives(): Promise<ObjectiveListItem[]> {
-  const initialState = await objectiveInitialState();
-  const { data } = await objectivesDB.findByStatuses([initialState, "Active"]);
-  return (data ?? []).map((o) => toListItem(o, initialState));
-}
+// Commented out: no code and no test calls listSelectableObjectives.
+// export async function listSelectableObjectives(): Promise<ObjectiveListItem[]> {
+//   const initialState = await objectiveInitialState();
+//   const { data } = await objectivesDB.findByStatuses([initialState, "Active"]);
+//   return (data ?? []).map((o) => toListItem(o, initialState));
+// }
 
 export interface ObjectiveCommissioningCapabilityRef {
   code: string;

@@ -213,9 +213,8 @@ NODE_OPTIONS=--trace-deprecation pnpm test:dot (trace depreciation)
 
 pnpm test:coverage:html ( to get the test coverage)
 
-NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts --test-reporter=spec tests/policy-definition-validation.test.ts > output.txt 2>&1
+NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts --test-reporter=spec tests/transition-definitions-controller.test.ts > output.txt 2>&1
 
-tests/.ts
 
 ---------
 
