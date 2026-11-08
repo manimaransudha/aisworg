@@ -29,7 +29,7 @@ import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 import { dependencyDefinitionsDB } from "../src/dblayer/dependencyDefinitionsDB.js";
-import { commissionScenario, type ScenarioSeu } from "./webScenarios.js";
+import { commissionScenario, commissionedSeu, initiatedSeu, ebmFromComposition, type ScenarioSeu } from "./webScenarios.js";
 import {
   ROOT_USER_ID, ROOT_ACTOR_ID, createActiveObjective, createObligationAsRoot, ensureWebAppTemplateFixture,
   setWebBaseUrl, newSession, extractCsrf, getPage, getRedirect, postForm, pageAlerts, assertPageMatches, assertPageDoesNotMatch, type Session,
@@ -343,4 +343,36 @@ test("the EBM routes refuse a transition for an SEU with no EBM, and a verb the 
   assert.equal(refused.status, 302);
   assert.equal(refused.location, `/aisworg/seu/seus/${t.seu.id}`);
   hasAlert(pageAlerts((await getPage(root, "/seu/seus")).html).map(readable), new RegExp(`EBM transition blocked: no "zz-no-verb" step from ${ebm.status}`));
+});
+
+test("a commissioned SEU is moved by the manual verb its state offers, which the SEU page reports, and moved back by the verb the new state offers", async () => {
+  const lifecycle = await commissionedSeu("web-seu-lifecycle");
+  const stateOf = async () => (await seusDB.findById(lifecycle.seu.id)).data!.lifecycle_state;
+  const from = await stateOf();
+  const [out] = await nextActionsFor("SEU", from, ROOT_ACTOR_ID);
+  assert.ok(out, `root is offered a manual verb from the commissioned SEU's state ${from}`);
+  hasAlert((await submit(`/seu/seus/${lifecycle.seu.id}/transition/${out.verb}`)).alerts, new RegExp(`SEU moved from "${from}" to "${out.toState}"\\.`));
+  assert.equal(await stateOf(), out.toState);
+
+  const back = (await nextActionsFor("SEU", out.toState, ROOT_ACTOR_ID)).find((a) => a.toState === from);
+  assert.ok(back, `root is offered a verb from ${out.toState} back to ${from}`);
+  hasAlert((await submit(`/seu/seus/${lifecycle.seu.id}/transition/${back.verb}`)).alerts, new RegExp(`SEU moved from "${out.toState}" to "${from}"\\.`));
+  assert.equal(await stateOf(), from);
+});
+
+test("an EBM composed for an SEU is validated from the SEU page, and the verb it offers next is the activation", async () => {
+  const bare = await initiatedSeu("web-seu-ebm-validate");
+  const composed = await ebmFromComposition(bare.seu.id, { composedPacks: [], settled: { capabilities: { result: [] }, services: { result: [] } }, recordedConflicts: [] });
+  const [validate] = await nextActionsFor("EBM", composed.status, ROOT_ACTOR_ID);
+  assert.ok(validate, `root is offered a verb from the EBM's state ${composed.status}`);
+  hasAlert((await submit(`/seu/seus/${bare.seu.id}/ebm/transition/${validate.verb}`)).alerts, new RegExp(`Engineering Behavior Model moved from "${composed.status}" to "${validate.toState}"\\.`));
+  assert.equal((await ebmsDB.findById(composed.id)).data?.status, validate.toState);
+  const [activate] = await nextActionsFor("EBM", validate.toState, ROOT_ACTOR_ID);
+  assert.ok(activate, `root is offered the activation from ${validate.toState}`);
+});
+
+test("a Participant that is not on the Capability cannot be replaced, which the Capability route reports", async () => {
+  const capabilityId = (await pool.query<{ id: string }>("SELECT id FROM capability_definitions ORDER BY created_at LIMIT 1")).rows[0].id;
+  const replaced = await submit(seuPath(`/capabilities/${capabilityId}/participant/${randomUUID()}/replace`), { participantType: "Human", displayName: `Replacement ${run}` });
+  hasAlert(replaced.alerts, /Replacement blocked: Participant not found/);
 });
