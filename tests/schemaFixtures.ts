@@ -30,7 +30,11 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
-import { createAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
+import { createAuthoringDraft, entityTypeForKind } from "../src/routes/seu/core/sdkAuthoring.js";
+import { getEntityAdapter } from "../src/domain/engine/entityAdapters.js";
+import { validateAgainstSchema, type JsonSchemaDocument } from "../src/domain/sdk/formGenerator.js";
+import { validateOntologyFieldsAgainstSchema } from "../src/routes/seu/core/ontology.js";
+import { validateReferentialFields } from "../src/routes/seu/core/referentialOptions.js";
 import { activeMappingByNoun, listActiveNouns } from "../src/routes/seu/core/authorityVocabulary.js";
 import { listTransitionsForEntityType } from "../src/routes/seu/core/policyDefinitions.js";
 import { deriveExposableParameterCandidates, deriveOverridableParameterCandidates } from "../src/routes/seu/core/templates.js";
@@ -180,6 +184,32 @@ async function findExisting(kind: SchemaDefinitionEntityKind, tenantId: string, 
   return result.data ? { id: result.data.id, status: result.data.status } : null;
 }
 
+// The policy-validate-schema policy answers only yes or no. When it blocks a hop, this runs the same three checks on the row's content as it
+// stands and lists what they report, so the failure says which value is wrong.
+async function explainSchemaFailure(kind: SchemaDefinitionEntityKind, id: string): Promise<string> {
+  const adapter = getEntityAdapter(entityTypeForKind(kind));
+  const row = await adapter.findById(id);
+  if (!row || !adapter.schemaDefinitionId || !adapter.content) return "";
+  const schemaId = adapter.schemaDefinitionId(row);
+  const { data: schemaRow } = schemaId ? await schemaDefinitionsDB.findById(schemaId) : { data: null };
+  if (!schemaRow) return " The row's schema definition is missing.";
+  const schema = schemaRow.schema as JsonSchemaDocument;
+  const content = adapter.content(row);
+  const viewer = { isRoot: false, tenantId: (await adapter.tenantId(row)) as string | null };
+  const reasons = [
+    ...validateAgainstSchema(schema, content).map((e) => `schema: ${e}`),
+    ...(await validateOntologyFieldsAgainstSchema(schema, content, viewer)).map((e) => `ontology: ${e}`),
+    ...(await validateReferentialFields(schema, content, viewer)).map((e) => `referential: ${e}`),
+  ];
+  return reasons.length > 0 ? ` Reasons: ${reasons.join("; ")}` : " The schema, ontology and referential checks pass on the content as it stands now.";
+}
+
+// The failure message of a hop that did not reach Active, with the reasons when the schema policy blocked it.
+async function hopFailure(kind: SchemaDefinitionEntityKind, id: string, errors: string[]): Promise<string> {
+  const joined = errors.join("; ");
+  return /policy-validate-schema/.test(joined) ? `${joined}${await explainSchemaFailure(kind, id)}` : joined;
+}
+
 // The Active row of this content: the existing one, moved on to Active if an earlier run left it short of it, or a new one created through
 // the authoring path and walked to Active as the root actor. Returns the row id.
 async function authorActive(kind: SchemaDefinitionEntityKind, tenantId: string, content: Record<string, unknown>): Promise<string> {
@@ -189,7 +219,7 @@ async function authorActive(kind: SchemaDefinitionEntityKind, tenantId: string, 
   if (existing) {
     if (existing.status !== "Active") {
       const advanced = await advanceAuthoringDraftToActive(kind, existing.id, ROOT_ACTOR_ID);
-      if (!advanced.ok) throw new Error(`schemaFixtures: the existing ${kind} is ${existing.status} and could not reach Active: ${advanced.errors.join("; ")}`);
+      if (!advanced.ok) throw new Error(`schemaFixtures: the existing ${kind} is ${existing.status} and could not reach Active: ${await hopFailure(kind, existing.id, advanced.errors)}`);
     }
     return existing.id;
   }
@@ -198,7 +228,7 @@ async function authorActive(kind: SchemaDefinitionEntityKind, tenantId: string, 
   const created = await createAuthoringDraft({ kind, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId, schemaDefinitionId: schema.id, content });
   if (!created.ok) throw new Error(`schemaFixtures: the ${kind} draft was refused: ${created.errors.join("; ")}`);
   const active = await advanceAuthoringDraftToActive(kind, created.draftId, ROOT_ACTOR_ID);
-  if (!active.ok) throw new Error(`schemaFixtures: the ${kind} could not reach Active: ${active.errors.join("; ")}`);
+  if (!active.ok) throw new Error(`schemaFixtures: the ${kind} could not reach Active: ${await hopFailure(kind, created.draftId, active.errors)}`);
   return created.draftId;
 }
 
