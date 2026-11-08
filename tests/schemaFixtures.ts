@@ -328,7 +328,7 @@ export async function maximalService(tenantId: string, input: { code: string; ca
 
 // ---- Policy -----------------------------------------------------------------------------------------------------------
 
-// `standard` makes it a Standard that governs the first Deliverable transition for the named Deliverable and fails until the producing Capability is Fulfilled.
+// `standard` makes it a Standard that governs the third Deliverable transition for the named Deliverable, so it does not meet the Policy's two and fails until the producing Capability is Fulfilled.
 export async function maximalPolicy(tenantId: string, input: { code: string; deliverableCode: string; standard?: boolean }): Promise<FixtureRow> {
   const [category] = await platformConceptCodes("category:policy", 1);
   const environments = await platformConceptCodes("category:environment", 2);
@@ -339,7 +339,7 @@ export async function maximalPolicy(tenantId: string, input: { code: string; del
   const [priority] = await platformConceptCodes("category:obligation-priority", 1);
   const [obligationSeverity] = await platformConceptCodes("category:obligation-severity", 1);
   const [approver] = await authorityBadgeCodes(1);
-  const transitions = await deliverableTransitions(2);
+  const transitions = await deliverableTransitions(3);
   const evidence = { title: "Fixture evidence", category: evidenceCategory, description: "Evidence that satisfies the condition.", collectionMethod: "Attached by the reviewer." };
   const content: Record<string, unknown> = {
     code: input.code,
@@ -381,7 +381,7 @@ export async function maximalPolicy(tenantId: string, input: { code: string; del
           },
         ],
         applicabilityDeliverables: input.standard
-          ? [{ name: input.deliverableCode, transitions: [transitions[0]], governingCondition: { type: "field_in", field: "producingCapabilityStatus", values: "Fulfilled" } }]
+          ? [{ name: input.deliverableCode, transitions: [transitions[2]], governingCondition: { type: "field_in", field: "producingCapabilityStatus", values: "Fulfilled" } }]
           : [
               { name: input.deliverableCode, transitions: [transitions[0]], governingCondition: { type: "field_in", field: "reviewState", values: "reviewed,waived" } },
               { name: input.deliverableCode, transitions: [transitions[1]], governingCondition: { type: "threshold", field: "coveragePercent", operator: "gte", value: "80" } },
@@ -691,7 +691,7 @@ async function stage1(tenantId: string): Promise<Stage1Fixtures> {
     consumers: [FIXTURE_CODES.consumerA.code, FIXTURE_CODES.consumerB.code],
   });
   const policy = await maximalPolicy(tenantId, { code: `fixture-policy`, deliverableCode: FIXTURE_CODES.output.code });
-  const standardPolicy = await maximalPolicy(tenantId, { code: `fixture-standard`, deliverableCode: FIXTURE_CODES.review.code, standard: true });
+  const standardPolicy = await maximalPolicy(tenantId, { code: `fixture-standard`, deliverableCode: FIXTURE_CODES.output.code, standard: true });
   return { tenantId, capability, inputDeliverable, outputDeliverable, service, policy, standardPolicy };
 }
 

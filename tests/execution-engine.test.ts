@@ -254,15 +254,15 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
 });
 
 test("a Standard that fails does not stop the hop: it is approved with conditions and the deviation is recorded", async () => {
-  // The fixture Pack contributes a Standard for the review Deliverable that fails until its producing Capability is Fulfilled. The SEU is commissioned on it, so its EBM carries the Standard.
+  // The fixture Pack contributes a Standard for the output Deliverable that fails until its producing Capability is Fulfilled. The SEU is commissioned on it, so its EBM carries the Standard.
   const standardSeu = await commissionFixtureSeu("execution-engine-standard");
   const { data: ebm } = await ebmsDB.findById(standardSeu.seu.active_ebm_id!);
   const standards = ((await policiesDB.findByIds(ebm!.applicable_policy_ids)).data ?? []).filter((p) => p.constraint_type === "Standard");
   assert.ok(standards.length > 0, "the EBM carries the fixture Standard");
   const standard = standards[0];
   const [, from, to] = standard.governed_transition!.split("|");
-  const deliverable = ((await deliverablesDB.findBySeuId(standardSeu.seu.id)).data ?? []).find((d) => d.code === FIXTURE_CODES.review.code);
-  assert.ok(deliverable, "commissioning made the review Deliverable");
+  const deliverable = ((await deliverablesDB.findBySeuId(standardSeu.seu.id)).data ?? []).find((d) => d.code === FIXTURE_CODES.output.code);
+  assert.ok(deliverable, "commissioning made the output Deliverable");
   // The Standard governs one hop, so the Deliverable is evaluated for it from the state that hop leaves.
   const governance = await executionEngine.evaluateDeliverableTransition({ deliverable: { ...deliverable, lifecycle_state: from }, targetState: to, actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(governance);

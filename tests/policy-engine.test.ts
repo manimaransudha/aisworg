@@ -112,9 +112,9 @@ test("the Policy Engine blocks on a failed Policy, records a failed Standard as 
   assert.equal((await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 10 })).outcome, "Blocked", "below the threshold");
   assert.equal((await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 90 })).outcome, "Passed", "above the threshold");
 
-  const deviated = await evaluate(hopOf(standard), reviewDeliverable.id, { producingCapabilityStatus: "Unfulfilled" });
+  const deviated = await evaluate(hopOf(standard), outputDeliverable.id, { producingCapabilityStatus: "Unfulfilled" });
   assert.deepEqual([deviated.outcome, deviated.deviatedPolicyIds], ["Passed", [standard.id]]);
-  const kept = await evaluate(hopOf(standard), reviewDeliverable.id, { producingCapabilityStatus: "Fulfilled" });
+  const kept = await evaluate(hopOf(standard), outputDeliverable.id, { producingCapabilityStatus: "Fulfilled" });
   assert.deepEqual([kept.outcome, kept.satisfiedPolicyIds, kept.deviatedPolicyIds], ["Passed", [standard.id], []]);
 
   assert.equal((await evaluate(`Deliverable|zz-none-${run}|zz-none-to-${run}`, null)).outcome, "NotApplicable", "no Policy governs the hop");
