@@ -3256,5 +3256,176 @@
     "is_mandatory": null,
     "text_type": "text",
     "ui_grouping": "General"
+  },
+  {
+    "concept_type": "technology",
+    "code": "schema-fixture-technology",
+    "default_label": "Schema Fixture Technology",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Competencies"
+  },
+  {
+    "concept_type": "technology",
+    "code": "schema-fixture-language",
+    "default_label": "Schema Fixture Language",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Competencies"
+  },
+  {
+    "concept_type": "domain",
+    "code": "schema-fixture-domain",
+    "default_label": "Schema Fixture Domain",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Competencies"
+  },
+  {
+    "concept_type": "engineering-capital",
+    "code": "schema-fixture-capital",
+    "default_label": "Schema Fixture Capital",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Engineering Capital"
+  },
+  {
+    "concept_type": "checklist-configurable-dimension",
+    "code": "schema-fixture-dimension",
+    "default_label": "Schema Fixture Dimension",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "checklist-configurable-value",
+    "code": "schema-fixture-dimension-value",
+    "default_label": "Schema Fixture Dimension Value",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "feature-flag",
+    "code": "schema-fixture-flag-a",
+    "default_label": "Schema Fixture Flag A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
+  },
+  {
+    "concept_type": "feature-flag",
+    "code": "schema-fixture-flag-b",
+    "default_label": "Schema Fixture Flag B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "General"
+  },
+  {
+    "concept_type": "dispatch-strategy-preference",
+    "code": "schema-fixture-dispatch-a",
+    "default_label": "Schema Fixture Dispatch A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Profiles"
+  },
+  {
+    "concept_type": "dispatch-strategy-preference",
+    "code": "schema-fixture-dispatch-b",
+    "default_label": "Schema Fixture Dispatch B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Profiles"
+  },
+  {
+    "concept_type": "installation-classification",
+    "code": "schema-fixture-classification",
+    "default_label": "Schema Fixture Classification",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "target-cloud-provider",
+    "code": "schema-fixture-cloud",
+    "default_label": "Schema Fixture Cloud",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Profiles"
+  },
+  {
+    "concept_type": "primary-programming-language",
+    "code": "schema-fixture-language",
+    "default_label": "Schema Fixture Language",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Profiles"
+  },
+  {
+    "concept_type": "source-control-provider",
+    "code": "schema-fixture-scm",
+    "default_label": "Schema Fixture Scm",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Profiles"
+  },
+  {
+    "concept_type": "deployment-strategy",
+    "code": "schema-fixture-deployment",
+    "default_label": "Schema Fixture Deployment",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Profiles"
+  },
+  {
+    "concept_type": "ai-provider-preference",
+    "code": "schema-fixture-ai",
+    "default_label": "Schema Fixture Ai",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Profiles"
+  },
+  {
+    "concept_type": "default-repository-structure",
+    "code": "schema-fixture-repository",
+    "default_label": "Schema Fixture Repository",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Profiles"
+  },
+  {
+    "concept_type": "documentation-level",
+    "code": "schema-fixture-documentation",
+    "default_label": "Schema Fixture Documentation",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Profiles"
+  },
+  {
+    "concept_type": "development-methodology",
+    "code": "schema-fixture-methodology",
+    "default_label": "Schema Fixture Methodology",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Profiles"
   }
 ]

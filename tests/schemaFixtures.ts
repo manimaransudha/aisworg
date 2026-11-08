@@ -1,14 +1,16 @@
 // Schema fixtures: one maximal, Active row per schema entity kind, built through the governed authoring path.
 //
-//   - A row is created with createAuthoringDraft and moved to Active with advanceAuthoringDraftToActive, the same calls the
-//     authoring pages make. The production validators therefore check every fixture, and a wrong value fails here with the
+//   - A row is created with createAuthoringDraft (a Pack with createPackDraft, as the seeded Packs are) and moved to Active with
+//     advanceAuthoringDraftToActive, the calls the authoring pages and the seeds make. The production validators therefore check every fixture, and a wrong value fails here with the
 //     validator's own message.
 //   - "Maximal" means every property of the latest schema carries a value, including the nested rows.
 //   - Every code that names an entity (capability, service, deliverable, Pack) is a fixture-only concept of the test Ontology
 //     (src/dblayer/seed/data/test-ontology.json, codes starting "schema-fixture-"). A Pack writes rows into tables keyed by those
-//     codes, so a code that a seeded row also uses would overwrite that row. The category vocabularies (category:*), the role,
-//     worktype, technology and checklist vocabularies, the composition strategies, installation classifications and engineering
-//     capital types are read from the Platform Ontology: a fixture only refers to them.
+//     codes, so a code that a seeded row also uses would overwrite that row. The same holds for every other code a fixture uses: the
+//     competencies, the checklist dimension and value, the engineering capital type, the installation classification, the feature flags,
+//     the dispatch strategies and the Configuration Parameter values are all rows of the test Ontology. Only the category vocabularies
+//     (category:*), role-name and worktype-name are read from the Platform Ontology, and the composition strategy "specialization", which
+//     the composition engine keys its source rules on.
 //   - Rows live in a fixed tenant of their own, so activating one never supersedes a seeded Platform row. Building the fixtures is an
 //     upsert: a row is looked up by its code, version and tenant and created only when it is missing, so a second run reuses the rows and
 //     nothing accumulates. db:clean-slate removes them with the rest of the data. Change FIXTURE_VERSION whenever a builder changes what it
@@ -30,7 +32,8 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
-import { createAuthoringDraft, entityTypeForKind } from "../src/routes/seu/core/sdkAuthoring.js";
+import { createAuthoringDraft, entityTypeForKind, toPackSeedInput } from "../src/routes/seu/core/sdkAuthoring.js";
+import { createPackDraft } from "../src/routes/seu/core/packs.js";
 import { getEntityAdapter } from "../src/domain/engine/entityAdapters.js";
 import { validateAgainstSchema, type JsonSchemaDocument } from "../src/domain/sdk/formGenerator.js";
 import { validateOntologyFieldsAgainstSchema } from "../src/routes/seu/core/ontology.js";
@@ -45,7 +48,7 @@ import { advanceAuthoringDraftToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "
 const PLATFORM_VIEWER = { isRoot: false, tenantId: null as string | null };
 
 // The version every fixture row carries. A change to what a builder authors needs a new value here.
-export const FIXTURE_VERSION = "1.0.0";
+export const FIXTURE_VERSION = "1.0.1";
 
 // An arbitrary number that names the advisory lock the builders take.
 const FIXTURE_LOCK_KEY = 726450917;
@@ -71,6 +74,25 @@ export const FIXTURE_CODES = {
   template: { type: "template-categories", code: "schema-fixture-template" },
   organisationA: { type: "participating-organisations", code: "schema-fixture-organisation-a" },
   organisationB: { type: "participating-organisations", code: "schema-fixture-organisation-b" },
+  technology: { type: "technology", code: "schema-fixture-technology" },
+  languageTechnology: { type: "technology", code: "schema-fixture-language" },
+  domain: { type: "domain", code: "schema-fixture-domain" },
+  capital: { type: "engineering-capital", code: "schema-fixture-capital" },
+  dimension: { type: "checklist-configurable-dimension", code: "schema-fixture-dimension" },
+  dimensionValue: { type: "checklist-configurable-value", code: "schema-fixture-dimension-value" },
+  flagA: { type: "feature-flag", code: "schema-fixture-flag-a" },
+  flagB: { type: "feature-flag", code: "schema-fixture-flag-b" },
+  dispatchA: { type: "dispatch-strategy-preference", code: "schema-fixture-dispatch-a" },
+  dispatchB: { type: "dispatch-strategy-preference", code: "schema-fixture-dispatch-b" },
+  classification: { type: "installation-classification", code: "schema-fixture-classification" },
+  cloud: { type: "target-cloud-provider", code: "schema-fixture-cloud" },
+  language: { type: "primary-programming-language", code: "schema-fixture-language" },
+  scm: { type: "source-control-provider", code: "schema-fixture-scm" },
+  deployment: { type: "deployment-strategy", code: "schema-fixture-deployment" },
+  ai: { type: "ai-provider-preference", code: "schema-fixture-ai" },
+  repository: { type: "default-repository-structure", code: "schema-fixture-repository" },
+  documentation: { type: "documentation-level", code: "schema-fixture-documentation" },
+  methodology: { type: "development-methodology", code: "schema-fixture-methodology" },
 } as const;
 
 export interface FixtureRow {
@@ -210,6 +232,22 @@ async function hopFailure(kind: SchemaDefinitionEntityKind, id: string, errors: 
   return /policy-validate-schema/.test(joined) ? `${joined}${await explainSchemaFailure(kind, id)}` : joined;
 }
 
+// Creates the Draft and returns its id. A Pack is created with createPackDraft, as the seeded Packs are, because that also writes the rows its
+// contributions name: the capabilities, services, policies, checklists and gates. The authoring path stores the contributions only, and a
+// Template's Capability prerequisites and exposed parameters read those rows.
+async function createDraft(kind: SchemaDefinitionEntityKind, tenantId: string, content: Record<string, unknown>): Promise<string> {
+  if (kind === "Pack") {
+    const created = await createPackDraft({ ...toPackSeedInput(content), tenantId }, ROOT_ACTOR_ID);
+    if (!created.ok) throw new Error(`schemaFixtures: the Pack draft was refused: ${created.errors.join("; ")}`);
+    return created.pack.id;
+  }
+  const { data: schema } = await schemaDefinitionsDB.findLatest(kind);
+  if (!schema) throw new Error(`schemaFixtures: no schema_definitions grammar for ${kind}`);
+  const created = await createAuthoringDraft({ kind, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId, schemaDefinitionId: schema.id, content });
+  if (!created.ok) throw new Error(`schemaFixtures: the ${kind} draft was refused: ${created.errors.join("; ")}`);
+  return created.draftId;
+}
+
 // The Active row of this content: the existing one, moved on to Active if an earlier run left it short of it, or a new one created through
 // the authoring path and walked to Active as the root actor. Returns the row id.
 async function authorActive(kind: SchemaDefinitionEntityKind, tenantId: string, content: Record<string, unknown>): Promise<string> {
@@ -223,13 +261,10 @@ async function authorActive(kind: SchemaDefinitionEntityKind, tenantId: string, 
     }
     return existing.id;
   }
-  const { data: schema } = await schemaDefinitionsDB.findLatest(kind);
-  if (!schema) throw new Error(`schemaFixtures: no schema_definitions grammar for ${kind}`);
-  const created = await createAuthoringDraft({ kind, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId, schemaDefinitionId: schema.id, content });
-  if (!created.ok) throw new Error(`schemaFixtures: the ${kind} draft was refused: ${created.errors.join("; ")}`);
-  const active = await advanceAuthoringDraftToActive(kind, created.draftId, ROOT_ACTOR_ID);
-  if (!active.ok) throw new Error(`schemaFixtures: the ${kind} could not reach Active: ${await hopFailure(kind, created.draftId, active.errors)}`);
-  return created.draftId;
+  const draftId = await createDraft(kind, tenantId, content);
+  const active = await advanceAuthoringDraftToActive(kind, draftId, ROOT_ACTOR_ID);
+  if (!active.ok) throw new Error(`schemaFixtures: the ${kind} could not reach Active: ${await hopFailure(kind, draftId, active.errors)}`);
+  return draftId;
 }
 
 // ---- Capability -------------------------------------------------------------------------------------------------------
@@ -357,8 +392,8 @@ export async function maximalPolicy(tenantId: string, input: { code: string; del
 const PACK_CATEGORY = "Technology";
 const PACK_VERSION = FIXTURE_VERSION;
 
-// The competency vocabulary of the categories that must declare a competency: the Ontology concept type is the category in lower case.
-const COMPETENCY_CONCEPT_TYPE: Record<string, string> = { Technology: "technology", Domain: "domain" };
+// The competency of the categories that must declare one. Its Ontology concept type is the category in lower case.
+const COMPETENCY_FIXTURE: Record<string, { type: string; code: string }> = { Technology: FIXTURE_CODES.technology, Domain: FIXTURE_CODES.domain };
 
 // A Pack with the fields its category requires and nothing else.
 export async function minimalPack(tenantId: string, input: { category: string; code: string; name: string }): Promise<FixtureRow> {
@@ -367,13 +402,10 @@ export async function minimalPack(tenantId: string, input: { category: string; c
     name: input.name,
     category: input.category,
     packVersion: PACK_VERSION,
-    installationClassification: await platformConceptCode("installation-classification", "Optional"),
+    installationClassification: FIXTURE_CODES.classification.code,
   };
-  const competencyType = COMPETENCY_CONCEPT_TYPE[input.category];
-  if (competencyType) {
-    const [value] = await platformConceptCodes(competencyType, 1);
-    content.contributionCompetencies = [{ dimension: input.category, value }];
-  }
+  const competency = COMPETENCY_FIXTURE[input.category];
+  if (competency) content.contributionCompetencies = [{ dimension: input.category, value: competency.code }];
   return { id: await authorActive("Pack", tenantId, content), code: input.code, shownName: input.name, content };
 }
 
@@ -386,11 +418,7 @@ export async function maximalPack(
   tenantId: string,
   input: { base: FixtureRow; service: FixtureRow; policy: FixtureRow; capabilityCodes: string[]; outputDeliverableCode: string; reviewDeliverableCode: string }
 ): Promise<FixtureRow> {
-  const [technology] = await platformConceptCodes("technology", 1);
   const [role] = await platformConceptCodes("role-name", 1);
-  const [capitalType] = await platformConceptCodes("engineering-capital", 1);
-  const [dimension] = await platformConceptCodes("checklist-configurable-dimension", 1);
-  const [dimensionValue] = await platformConceptCodes("checklist-configurable-value", 1);
   const evidenceCategories = await platformConceptCodes("category:evidence", 3);
   const [obligationCategory] = await platformConceptCodes("category:obligation", 1);
   const [origin] = await platformConceptCodes("category:obligation-origin", 1);
@@ -407,7 +435,7 @@ export async function maximalPack(
     category: PACK_CATEGORY,
     description: `Fixture Pack, every property of the Pack schema filled.`,
     packVersion: PACK_VERSION,
-    installationClassification: await platformConceptCode("installation-classification", "Optional"),
+    installationClassification: FIXTURE_CODES.classification.code,
     migrationGuidance: "Re-run the fixture build after a schema change.",
     incompatiblePackVersions: "0.1.0",
     supportedPlatformVersion: "1.0.0",
@@ -420,17 +448,17 @@ export async function maximalPack(
       { type: "optional", version: PACK_VERSION, packCode: input.base.code },
     ],
     contributionCapabilities: input.capabilityCodes.map((code) => ({ code })),
-    contributionCompetencies: [{ dimension: PACK_CATEGORY, value: technology }],
+    contributionCompetencies: [{ dimension: PACK_CATEGORY, value: FIXTURE_CODES.technology.code }],
     contributionServices: [{ code: input.service.code, serviceDefinitionId: input.service.id, serviceLevel: [{ code: FIXTURE_SERVICE_LEVEL_CODE, target: 90 }] }],
     contributionPolicies: [input.policy.code],
     contributionAuthorityRules: [{ code: `fixture-rule`, authorisedRole: role, governedTransition: transitions[0] }],
-    contributionEngineeringCapital: [{ type: capitalType, url: `https://example.test/fixtures/capital` }],
+    contributionEngineeringCapital: [{ type: FIXTURE_CODES.capital.code, url: `https://example.test/fixtures/capital` }],
     contributionChecklists: [
       {
         name: checklistName,
         description: "The checks the fixture gates run.",
         items: [
-          { group: "Fixture group", statement: "The output is complete.", configurableKey: dimension, configurableValue: dimensionValue },
+          { group: "Fixture group", statement: "The output is complete.", configurableKey: FIXTURE_CODES.dimension.code, configurableValue: FIXTURE_CODES.dimensionValue.code },
           { statement: "The output is reviewed." },
         ],
       },
@@ -556,19 +584,25 @@ export async function maximalTemplate(tenantId: string, input: { packs: Template
 
 // ---- Profile ----------------------------------------------------------------------------------------------------------
 
-// Every Configuration Parameter takes the first value its vocabulary offers. The primary programming language must also be a
-// technology competency, so it is the first language that is both.
-async function configurationParameters(): Promise<Record<string, string>> {
+// The test-Ontology concept each Configuration Parameter takes. A parameter the Profile gains later has no entry here, and the build says so.
+const CONFIGURATION_FIXTURE: Record<string, { type: string; code: string }> = {
+  targetCloudProvider: FIXTURE_CODES.cloud,
+  primaryProgrammingLanguage: FIXTURE_CODES.language,
+  sourceControlProvider: FIXTURE_CODES.scm,
+  deploymentStrategy: FIXTURE_CODES.deployment,
+  aiProviderPreference: FIXTURE_CODES.ai,
+  defaultRepositoryStructure: FIXTURE_CODES.repository,
+  documentationLevel: FIXTURE_CODES.documentation,
+  developmentMethodology: FIXTURE_CODES.methodology,
+  domain: FIXTURE_CODES.domain,
+};
+
+function configurationParameters(): Record<string, string> {
   const values: Record<string, string> = {};
   for (const parameter of CONFIGURATION_PARAMETER_FIELDS) {
-    if (parameter.field === "primaryProgrammingLanguage") {
-      const technologies = new Set(await allPlatformConceptCodes("technology"));
-      const language = (await allPlatformConceptCodes(parameter.parameterCode)).find((code) => technologies.has(code));
-      if (!language) throw new Error("schemaFixtures: no primary-programming-language concept is also a technology concept");
-      values[parameter.field as string] = language;
-    } else {
-      values[parameter.field as string] = (await platformConceptCodes(parameter.parameterCode, 1))[0]!;
-    }
+    const fixture = CONFIGURATION_FIXTURE[parameter.field as string];
+    if (!fixture) throw new Error(`schemaFixtures: the Configuration Parameter "${String(parameter.field)}" has no test-Ontology concept in CONFIGURATION_FIXTURE`);
+    values[parameter.field as string] = fixture.code;
   }
   return values;
 }
@@ -579,8 +613,8 @@ export async function maximalProfile(tenantId: string, input: { template: Fixtur
   const { packs } = input;
   const codes = (rows: FixtureRow[]): Array<{ packCode: string }> => rows.map((row) => ({ packCode: row.code }));
   const [environment] = await platformConceptCodes("category:environment", 1);
-  const featureFlags = await platformConceptCodes("feature-flag", 2);
-  const strategies = await platformConceptCodes("dispatch-strategy-preference", 2);
+  const featureFlags = [FIXTURE_CODES.flagA.code, FIXTURE_CODES.flagB.code];
+  const strategies = [FIXTURE_CODES.dispatchA.code, FIXTURE_CODES.dispatchB.code];
   const catalogue = [FIXTURE_CODES.input.code, FIXTURE_CODES.output.code, FIXTURE_CODES.review.code];
   const overridable = await deriveOverridableParameterCandidates(input.template.code, tenantId);
   const exposedParameterOverrides = overridable.flatMap((candidate) => {
@@ -596,7 +630,7 @@ export async function maximalProfile(tenantId: string, input: { template: Fixtur
     baseTemplateCode: input.template.code,
     environment,
     profileVersion: PACK_VERSION,
-    ...(await configurationParameters()),
+    ...configurationParameters(),
     technologyPackCodes: codes(packs.technology.slice(0, 1)),
     engineeringPackCodes: codes([packs.engineering]),
     compliancePackCodes: codes([packs.compliance]),
