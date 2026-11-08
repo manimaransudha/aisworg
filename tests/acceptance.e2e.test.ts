@@ -21,7 +21,7 @@ import { getSeuStatus } from "../src/routes/seu/core/seus.js";
 import { getSeuEvents } from "../src/routes/seu/core/events.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
-import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, grantRole, waitForDispatchedWorkItem, grantRouteBadges, countCapabilityRequests, deactivateParticipants, TESTER_ACCEPTANCE_JOURNEY_BABYLON } from "./testFixtures.js";
+import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, grantRole, waitForDispatchedWorkItem, grantRouteBadges, countCapabilityRequests, deactivateParticipants, extractCsrf, TESTER_ACCEPTANCE_JOURNEY_BABYLON } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
@@ -45,14 +45,6 @@ let request: (input: string, init?: RequestInit) => Promise<FetchResponse>;
 // form route is the real, documented Capability Fulfilment path (Integration
 // Test Handoff Brief.md) and already accepts participantMasterIds, so this
 // one step goes through it instead of the JSON API.
-function extractCsrf(html: string): string {
-  const field = html.match(/name="_csrf" value="([^"]+)"/);
-  if (field) return field[1];
-  const meta = html.match(/name="csrf-token" content="([^"]+)"/);
-  if (meta) return meta[1];
-  throw new Error("no _csrf token found on the page — page markup may have changed since this test was written");
-}
-
 // (owner: "root was used in legacy test suite as we did not build the
 // demarcation between tenants etc.") — this file used the NODE_ENV=test
 // auto-login shim's implicit root fallback (no x-test-user-id header sent),

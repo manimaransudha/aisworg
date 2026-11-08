@@ -89,6 +89,9 @@ Propose a complete fix always grounded in the specifications and what is already
 ### Reject Overly Broad Requests
 Do not start executing on a request that is too broad to scope — e.g. "migrate the codebase," "refactor this area," "fix the tests," or anything with no named file, directory, or explicit list. Stop and ask which files/directories/scope to apply to before doing any exploration or editing. Proceed without asking only when the request already names an exact file, a specific directory, or an explicit file list.
 
+### Do Not Deliver Unchecked Work
+Before writing or changing a file, verify every assumption it depends on by reading the code (signatures, return shapes, fixtures, routes, rows, config). If an assumption cannot be settled by reading, stop and ask before writing. Never hand over a file with a "not checked" or "assumes" list. Running tsc, tests or db:clean-slate remains forbidden without an explicit instruction, so reading is the only verification allowed.
+
 ## Output & Communication
 
 ### Long-Form Output Goes to a File

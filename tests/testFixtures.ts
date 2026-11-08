@@ -1,5 +1,8 @@
 import { applyConflictPick, blockingEbmConflicts } from "../src/domain/engine/conflicts/index.js";
 import { serviceChoiceKey } from "../src/domain/engine/conflicts/services.js";
+import assert from "node:assert/strict";
+import { CookieJar } from "tough-cookie";
+import fetchCookie from "fetch-cookie";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -1395,4 +1398,112 @@ export async function transitionAndPublish(input: Parameters<typeof transitionEn
   const result = await transitionEntity(input);
   if (result.ok) await publishTransition(result);
   return result;
+}
+
+// ---- Web-layer HTTP helpers ---------------------------------------------------------------------------------------
+// Shared by the tests that drive the real web app over HTTP (web-flow.e2e.test.ts and the controller tests). A test file
+// boots the app itself (app.listen(0)), then calls setWebBaseUrl with `http://127.0.0.1:<port>/aisworg`. Each test file
+// runs in its own process, so this module-level value is never shared between files.
+export type Session = (input: string, init?: RequestInit) => Promise<Response>;
+
+let webBaseUrl = "";
+
+export function setWebBaseUrl(url: string): void {
+  webBaseUrl = url;
+}
+
+// Each test gets its own cookie jar (own session, own dev-mode auto-login
+// identity) so fixtures never bleed across tests, mirroring separate browser
+// sessions rather than one shared login.
+//
+// (owner: "root was used in legacy test suite as we did not build the
+// demarcation between tenants etc.") — root bypasses every tenant/badge
+// check (badgeAuthorityEngine's own root bypass + the "isRoot" branch in
+// every tenant-reach gate this session built), so a test that only ever logs
+// in as root can never actually notice a broken scoping check. Passing a
+// real seeded user id here (app.js's NODE_ENV=test shim, extended this
+// session to read an `x-test-user-id` header) logs the session in as that
+// real row for real — real tenant_id, real badge_grants, via the same
+// buildSessionUser/ensureBadgeBootstrap/getPlatformBadges path a genuine
+// Google-OAuth login uses. Every call site now passes a real user id — the
+// app.ts test shim's own no-header path is intentionally a no-op (an
+// unauthenticated request should stay unauthenticated, not silently default
+// to root), so omitting the id here leaves the session logged out, not root.
+// assert.match/doesNotMatch print the whole page as the failure message. These print the pattern and the page's
+// alert texts instead.
+export function pageAlerts(html: string): string[] {
+  return [...html.matchAll(/class="alert[^"]*alert-(?:success|danger|warning)[^"]*"[^>]*>([\s\S]*?)<\/div>/g)].map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+}
+
+export function assertPageMatches(html: string, pattern: RegExp, message?: string): void {
+  assert.ok(pattern.test(html), `${message ?? "page does not match"}: ${pattern}. Alerts on the page: ${JSON.stringify(pageAlerts(html))}`);
+}
+
+export function assertPageDoesNotMatch(html: string, pattern: RegExp, message?: string): void {
+  assert.ok(!pattern.test(html), `${message ?? "page matches"}: ${pattern}. Alerts on the page: ${JSON.stringify(pageAlerts(html))}`);
+}
+
+export function newSession(testUserId?: string): Session {
+  if (testUserId === undefined) return fetchCookie(fetch, new CookieJar());
+  const jarFetch = fetchCookie(fetch, new CookieJar());
+  return (async (input: any, init?: any) =>
+    jarFetch(input, { ...init, headers: { ...(init?.headers ?? {}), "x-test-user-id": String(testUserId) } })) as unknown as Session;
+}
+
+// A hidden form field is the primary source (matches what a real form submit
+// actually sends), but every form this file has relied on so far happens to
+// be badge-gated — a badge-less viewer (CR-076's own TESTER_OBJECTIVE_ACHIEVE_ONLY tests)
+// can land on a real page with none of them rendered at all. partials/head.ejs's
+// own <meta name="csrf-token"> is unconditional on every page regardless of
+// badges, so it's the fallback, not the primary (keeps every other, already-
+// passing test's real-form-token behavior unchanged).
+export function extractCsrf(html: string): string {
+  const field = html.match(/name="_csrf" value="([^"]+)"/);
+  if (field) return field[1];
+  const meta = html.match(/name="csrf-token" content="([^"]+)"/);
+  if (meta) return meta[1];
+  throw new Error("no _csrf token found on the page — page markup may have changed since this test was written");
+}
+
+export async function getPage(request: Session, path: string): Promise<{ status: number; html: string }> {
+  const res = await request(`${webBaseUrl}${path}`);
+  return { status: res.status, html: await res.text() };
+}
+
+// redirect: 'manual' GET counterpart to postForm, for the same reason: a
+// denied GET (requireBadge's own redirect) followed by getPage's own
+// default auto-follow lands on the right page but — a real, observed gap in
+// this fetch-cookie/undici combination specifically for a GET-to-GET
+// redirect chain, not exercised by any other test in this file (every other
+// flash check here is POST-then-separate-GET) — loses the session cookie
+// somewhere in the auto-followed hop, so the flash set right before the
+// redirect never shows up on the followed page. Every flash check reuses the
+// same safe two-step shape postForm's own tests already rely on: capture the
+// Location header manually, then re-fetch it as its own separate request.
+export async function getRedirect(request: Session, path: string, referer?: string): Promise<{ status: number; location: string | null }> {
+  const res = await request(`${webBaseUrl}${path}`, { redirect: "manual", headers: referer ? { referer: `${webBaseUrl}${referer}` } : undefined });
+  return { status: res.status, location: res.headers.get("location") };
+}
+
+// redirect: 'manual' so we can assert on the 302 + Location header directly,
+// exactly as the brief asks — the redirect target and status code are the
+// contract a real browser (and a real bug) would hit first.
+export async function postForm(
+  request: Session,
+  path: string,
+  csrf: string,
+  fields: Record<string, string | string[]>
+): Promise<{ status: number; location: string | null }> {
+  const params = new URLSearchParams();
+  params.append("_csrf", csrf);
+  for (const [key, value] of Object.entries(fields)) {
+    for (const v of Array.isArray(value) ? value : [value]) params.append(key, v);
+  }
+  const res = await request(`${webBaseUrl}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
+    redirect: "manual",
+  });
+  return { status: res.status, location: res.headers.get("location") };
 }

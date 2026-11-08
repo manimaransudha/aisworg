@@ -131,7 +131,7 @@ export async function setAuthorisedRoles(input: { id: string; roles: string[]; a
     await assertCanonicalCategory("authorised-role", role, viewer);
   }
 
-  const { data: existingMaster } = await participantsMasterDB.findById(input.id);
+  const { data: existingMaster } = await participantsMasterDB.findByUserId(input.id);
   const master = existingMaster ?? (await createParticipantMaster({
     tenantId: user.tenant_id,
     type: "Human",
@@ -169,7 +169,7 @@ export async function setAuthorisedBadges(input: { id: string; badges: string[];
     if (!grantable.has(badge)) return { ok: false, detail: `"${badge}" is not a real badge. Allowed: ${[...grantable].join(", ") || "(none registered)"}` };
   }
 
-  const { data: existingMaster } = await participantsMasterDB.findById(input.id);
+  const { data: existingMaster } = await participantsMasterDB.findByUserId(input.id);
   const master = existingMaster ?? (await createParticipantMaster({
     tenantId: user.tenant_id,
     type: "Human",
