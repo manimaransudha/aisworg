@@ -281,10 +281,10 @@ test("a Work Item records what the EBM settled and what its governance outcome n
   assert.ok(definition?.guide_location, "the fixture Deliverable Definition has a guide location");
   const deliverable = ((await deliverablesDB.findBySeuId(contextSeu.seu.id)).data ?? []).find((d) => d.code === code);
   assert.ok(deliverable, `commissioning made the ${code} Deliverable`);
-  // The fixture Quality Gates and Policy govern the first hops of the output Deliverable, and the hop into Approved needs an attached reference, so the Deliverable is taken through the hop out of Approved.
-  const fromState = "Approved";
-  const toState = ((await transitionDefinitionsDB.findPossibleNextStates("Deliverable", fromState)).data ?? [])[0];
-  assert.ok(toState, `the Deliverable has a hop from ${fromState}`);
+  // The fixture Quality Gates and Policy govern two hops of the output Deliverable and the hop into Approved needs an attached reference, so the Deliverable is taken through its birth hop, which only the fixture Standard governs.
+  const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");
+  assert.ok(birth);
+  const [fromState, toState] = [birth.from_state, birth.to_state];
 
   const { data: rule, error: ruleError } = await authorityRulesDB.upsert({
     code: `zz-rule-${run}`, governedTransition: `Deliverable|zz-from-${run}|zz-to-${run}`, authorisedRole: "lead", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,

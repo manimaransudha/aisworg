@@ -106,8 +106,11 @@ test("the Policy Engine blocks on a failed Policy, records a failed Standard as 
   assert.deepEqual([blocked.outcome, blocked.outcome === "Blocked" && blocked.policyCode], ["Blocked", reviewPolicy.code]);
   assert.equal((await evaluate(hopOf(reviewPolicy), outputDeliverable.id, { reviewState: "waived" })).outcome, "Passed", "the other accepted value");
 
-  assert.equal((await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 10 })).outcome, "Blocked", "below the threshold");
-  assert.equal((await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 90 })).outcome, "Passed", "above the threshold");
+  const below = await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 10 });
+  assert.deepEqual([below.outcome, below.outcome === "Blocked" && below.policyCode], ["Blocked", coveragePolicy.code], "below the threshold");
+  // Other Policies the EBM carries for the hop may also act, so the coverage Policy is what is read: it is satisfied at 90 and nothing else names it.
+  const above = await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 90 });
+  assert.ok(above.outcome === "Blocked" ? above.policyCode !== coveragePolicy.code : above.satisfiedPolicyIds.includes(coveragePolicy.id), `above the threshold: ${JSON.stringify(above)}`);
 
   const deviated = await evaluate(hopOf(standard), outputDeliverable.id, { producingCapabilityStatus: "Unfulfilled" });
   assert.deepEqual([deviated.outcome, deviated.deviatedPolicyIds], ["Passed", [standard.id]]);
@@ -130,7 +133,7 @@ test("the Policy Engine applies nothing outside an SEU, and evaluates a Policy w
 
 test("an SEU with no EBM takes its dependency rows and catalogue from its Template and Profile, and fails when they do not exist", async () => {
   // An SEU whose composition is blocked by open conflicts has no EBM.
-  const plain = await commissionScenario("unsettled", "deliverable-source-plain");
+  const plain = await commissionScenario("unsettled", "deliverable-source-plain", { conflictSet: "transition" });
   assert.equal(plain.seu.active_ebm_id, null);
   const scope = await resolveSeuOwningScope(plain.seu);
   assert.ok(Array.isArray(scope.dependencyDefinitionIds));
