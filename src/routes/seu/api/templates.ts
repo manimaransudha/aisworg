@@ -3,20 +3,9 @@ const require = createRequire(import.meta.url);
 const express = require("express");
 const router = express.Router();
 
-import type { Request, Response } from "express";
-import { logger } from "../../../utils/logger.js";
-import { findCandidateTemplates } from "../core/templates.js";
+import { notImplemented } from "./notImplemented.js";
 
-router.get("/templates", async (req: Request, res: Response) => {
-  try {
-    const raw = typeof req.query.capabilityCodes === "string" ? req.query.capabilityCodes : "";
-    const capabilityCodes = raw.split(",").map((s) => s.trim()).filter(Boolean);
-    const candidates = await findCandidateTemplates(capabilityCodes, req.session?.user?.tenant_id ?? null);
-    res.status(200).json({ candidates });
-  } catch (err) {
-    logger.error("[api/seu/templates] GET error", err as Error);
-    res.status(400).json({ error: (err as Error).message });
-  }
-});
+// Unused, untested and so considered not implemented.
+router.get("/templates", notImplemented);
 
 export { router };

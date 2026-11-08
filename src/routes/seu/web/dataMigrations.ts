@@ -8,16 +8,14 @@ import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
-import { requireBadge } from "../../../middleware/requireBadge.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { DATA_MIGRATION_TARGETS, resolveRootActor, runDataMigrations } from "../core/dataMigrations.js";
 import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 const backTo = "/aisworg/seu/data-migrations";
-const gate = requireBadge(["root"]);
 
-router.get("/data-migrations", gate, attachVM("seu/data-migrations/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/data-migrations", attachVM("seu/data-migrations/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Data Migrations";
     const params = parseListParams(req.query, { sortable: ["target", "tables"], defaultSort: "target", defaultDir: "asc" });
@@ -34,7 +32,7 @@ router.get("/data-migrations", gate, attachVM("seu/data-migrations/index"), asyn
   }
 });
 
-router.post("/data-migrations/run", gate, async (req: Request, res: Response) => {
+router.post("/data-migrations/run", async (req: Request, res: Response) => {
   try {
     const userId = requireActorId(req);
 

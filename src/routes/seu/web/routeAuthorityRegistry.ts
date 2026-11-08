@@ -8,7 +8,6 @@ import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
-import { requireBadge } from "../../../middleware/requireBadge.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { routeAuthorityDB } from "../../../dblayer/routeAuthorityDB.js";
@@ -20,7 +19,6 @@ import { requireActorId } from "../../../domain/identity/heldBadges.js";
 
 const backTo = "/aisworg/seu/route-authority";
 const adminBadge = process.env.ROUTE_AUTHORITY_ADMIN_BADGE || "root";
-const gate = requireBadge([adminBadge]);
 
 async function resolveRouteAuthorityAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
   const userId = requireActorId(req);
@@ -43,7 +41,7 @@ function parseMultiValue(raw: unknown): string[] {
   return (Array.isArray(raw) ? raw : raw ? [raw] : []).filter((v): v is string => typeof v === "string" && v.trim() !== "");
 }
 
-router.get("/route-authority", gate, attachVM("seu/route-authority/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/route-authority", attachVM("seu/route-authority/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data: rows } = await routeAuthorityDB.findAll();
     req.vm.req.title = "Route Authority";
@@ -61,7 +59,7 @@ router.get("/route-authority", gate, attachVM("seu/route-authority/index"), asyn
   }
 });
 
-router.get("/route-authority/new", gate, attachVM("seu/route-authority/edit"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/route-authority/new", attachVM("seu/route-authority/edit"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "New route authority row";
     req.vm.req.row = null;
@@ -75,7 +73,7 @@ router.get("/route-authority/new", gate, attachVM("seu/route-authority/edit"), a
   }
 });
 
-router.get("/route-authority/:id/edit", gate, attachVM("seu/route-authority/edit"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/route-authority/:id/edit", attachVM("seu/route-authority/edit"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data: row } = await routeAuthorityDB.findById(String(req.params.id));
     if (!row) return redirects.seu.routeAuthorityById.error(req, res, "Route authority row not found.");
@@ -101,7 +99,7 @@ function readForm(body: Record<string, unknown>): { method: string; path: string
   return { method, path, badges: parseMultiValue(body.badges), roles: parseMultiValue(body.roles), matchMode, description };
 }
 
-router.post("/route-authority", gate, async (req: Request, res: Response) => {
+router.post("/route-authority", async (req: Request, res: Response) => {
   try {
     const parsed = readForm(req.body ?? {});
     if ("error" in parsed) return redirects.seu.routeAuthority.error(req, res, parsed.error);
@@ -117,7 +115,7 @@ router.post("/route-authority", gate, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/route-authority/:id/update", gate, async (req: Request, res: Response) => {
+router.post("/route-authority/:id/update", async (req: Request, res: Response) => {
   const id = String(req.params.id);
   try {
     const parsed = readForm(req.body ?? {});
@@ -132,7 +130,7 @@ router.post("/route-authority/:id/update", gate, async (req: Request, res: Respo
   }
 });
 
-router.post("/route-authority/:id/delete", gate, async (req: Request, res: Response) => {
+router.post("/route-authority/:id/delete", async (req: Request, res: Response) => {
   try {
     const { error } = await routeAuthorityDB.delete(String(req.params.id));
     if (error) return redirects.seu.routeAuthorityById.error(req, res, error.message);

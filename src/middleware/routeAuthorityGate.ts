@@ -26,13 +26,34 @@ function isSelfCrud(path: string): boolean {
     || path === "/aisworg/seu/data-migrations" || path.startsWith("/aisworg/seu/data-migrations/");
 }
 
+function sessionExpired(req: Request, res: Response, api: boolean): void {
+  if (api) {
+    res.status(401).json({ success: false, message: "Session expired — please log in again." });
+    return;
+  }
+  redirectsFor(req).authfail(req, res, "Session expired — please log in again.");
+}
+
 export function routeAuthorityGate() {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    if (isSelfCrud(req.path) || isPublic(req.path)) {
+    if (isPublic(req.path)) {
       next();
       return;
     }
     const api = apiMode(req.path);
+    if (isSelfCrud(req.path)) {
+      if (!req.session?.user) {
+        sessionExpired(req, res, api);
+        return;
+      }
+      const held = await resolveHeldBadges(req);
+      if (!held.has("root")) {
+        deny(req, res, api, "self-CRUD path requires the root badge", "badgefail");
+        return;
+      }
+      next();
+      return;
+    }
     const found = lookupRouteAuthority(req.method, req.path);
 
     const rootBypassAllowedNoRow = process.env.NODE_ENV !== "production" && (req.session?.user?.platformBadges ?? []).includes("root");
@@ -54,11 +75,7 @@ export function routeAuthorityGate() {
 
     const user = req.session?.user;
     if (!user) {
-      if (api) {
-        res.status(401).json({ success: false, message: "Session expired — please log in again." });
-        return;
-      }
-      redirectsFor(req).authfail(req, res, "Session expired — please log in again.");
+      sessionExpired(req, res, api);
       return;
     }
 

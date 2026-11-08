@@ -1,7 +1,6 @@
 import type { UserRow } from '../dblayer/userDB.js';
 import { logger } from '../utils/logger.js';
 import { isGodUser } from '../dev/actAs.js';
-import { safeBack } from './safeBack.js';
 import { participantsMasterDB } from '../dblayer/participantsMasterDB.js';
 import { createParticipantMaster } from '../routes/seu/core/participantsMaster.js';
 import { tenantsDB } from '../dblayer/tenantsDB.js';

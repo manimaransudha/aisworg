@@ -219,25 +219,36 @@ pnpm test:coverage:html ( to get the test coverage)
 pnpm exec tsx src/dblayer/seed/seedRouteAuthority.ts
 
 ----------
+##### The test scripts
+- pnpm test: compact output, written to /tmp/output.txt.
+- pnpm test:report: spec output plus test-results.xml.
+- pnpm test:coverage:html: text table plus coverage/index.html.
 
-pnpm test:spec > /tmp/spec.txt 2>&1
-
+##### Reset the database completely
 pnpm tsx src/dblayer/recovery/run.ts
 
-pnpm test > output.txt 2>&1
+##### Import the test results
+
 scp root@100.65.51.120:/tmp/spec.txt /Volumes/Chennai/gitrepo/aisworg/output.txt
 
+##### Run only specific seeds
 
 pnpm tsx src/dblayer/seed/seedOntologyConcepts.ts
-
 pnpm tsx src/dblayer/seed/seedPolicyDefinitions.ts
 pnpm tsx src/dblayer/seed/seedSchemaDefinitions.ts
-
 pnpm tsx src/dblayer/seed/seedTransitionDefinitions.ts
 pnpm tsx src/dblayer/seed/seedRouteAuthority.ts
 pnpm tsx src/dblayer/seed/seedEventSubscriptions.ts
 
 pnpm tsx src/dblayer/seed/demo/demoSeed.ts
+
+##### Nginx
+
+reload without dropping connections:
+> sudo nginx -t && sudo systemctl reload nginx
+
+restart
+> sudo systemctl restart nginx
 
 run .claude/skills/implementation-traceability skill correctly, accurately and completely including verifying all cited range on src/docs/SEU Studio Specifications/06_Platform Architectire/41_Version Management.md . There should be nothing that should be unchecked. 
 

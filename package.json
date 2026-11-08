@@ -18,9 +18,8 @@
     "seed:sdlc-phase-packs": "tsx src/dblayer/seed/seedSdlcPhasePacks.ts",
     "seed:sdlc-standard-templates": "tsx src/dblayer/seed/seedSdlcStandardTemplates.ts",
     "db:clean-slate": "tsx src/dblayer/seed/cleanSlate.ts",
-    "test": "NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts tests/**/*.test.js tests/**/*.test.ts > /tmp/output.txt 2>&1",
+    "test": "NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts --test-reporter=dot tests/**/*.test.js tests/**/*.test.ts > /tmp/output.txt 2>&1",
     "test:report": "NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results.xml tests/**/*.test.js tests/**/*.test.ts > /tmp/output.txt 2>&1",
-    "test:dot": "NODE_ENV=test node --import tsx --test --test-global-setup=tests/globalSetup.ts --test-reporter=dot tests/**/*.test.js tests/**/*.test.ts > /tmp/output.txt 2>&1",
     "test:coverage:html": "NODE_ENV=test c8 --include='src/**' --reporter=text --reporter=html node --import tsx --test --test-global-setup=tests/globalSetup.ts tests/**/*.test.js tests/**/*.test.ts > /tmp/output.txt 2>&1"
   },
   "keywords": [],

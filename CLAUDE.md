@@ -53,7 +53,7 @@
 
 - Generation of action buttons and the authority to do transitions are defined and have to be used through src/middleware/requireBadge.ts strictly. NO HARDCODING of checking authority as part of the code logic. The field role in the user table is not equal to authority. 
 
-- All objects/entities are tenancy scoped unless explicitly stated. src/middleware/requireTenant.ts , src/middleware/requireTenantScope.ts etc. have to be used strictly. NO HARDCODING of checking tenant scope as part of the code logic. 
+- All objects/entities are tenancy scoped unless explicitly stated. src/middleware/requireTenantScope.ts etc. have to be used strictly. NO HARDCODING of checking tenant scope as part of the code logic. 
 
 - Specifications for the platform are in design/foundations/03_Book 3 (Refined). Code implementation may have a refined construct  but conceptually should follow the specification. 
 

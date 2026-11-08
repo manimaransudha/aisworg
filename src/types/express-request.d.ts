@@ -6,6 +6,5 @@ declare module "express-serve-static-core" {
       req: Record<string, unknown>;
       opt: Record<string, unknown>;
     };
-    tenantScope?: { isRoot: boolean; tenantId: string | null };
   }
 }

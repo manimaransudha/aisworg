@@ -220,8 +220,8 @@ Specification: src/docs/SEU Studio Specifications/01_Engineering Definition/01_P
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Packs are visible to the Composition Engine, Pack Registry and Administration Services, and runtime services may query metadata.<br>Ref: §14</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/api/packs.ts:18-27, 31-38<br>src/dblayer/packsDB.ts:262-303</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Tenant-scoped listing is done with requireTenant and requireTenantScope. Composition reads Active Packs.<br>Gap: no distinct Pack Registry component exists. The packs table and the listing route serve as the registry.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/packs.ts:22-27<br>src/routes/seu/api/packs.ts:32-39<br>src/dblayer/packsDB.ts:262-303</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The web route GET /aisworg/seu/packs lists Packs for the viewer tenant, and requireTenantScope guards single-Pack access in the API. The API list route GET /aisworg/api/seu/packs is commented out. Composition reads Active Packs.<br>Gap: no distinct Pack Registry component exists. The packs table and the listing route serve as the registry.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>

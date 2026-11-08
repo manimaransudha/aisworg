@@ -45,6 +45,8 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { deactivateParticipants, waitForCapabilityFulfilled, settleCapabilityRequests, ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_USER_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, TESTER_OBJECTIVE_ACHIEVE_ONLY, grantBadge, grantRole, grantRouteBadges, ensureSeuRequesterParticipant, ensureActorParticipant } from "./testFixtures.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
+import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
+import { listAttentionItemsBySeu } from "../src/routes/seu/core/attentionItems.js";
 import type { CommandRow, WorkItemRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
@@ -296,10 +298,9 @@ async function commissionSeu(request: Session, statementPrefix: string, sponsor:
 }
 
 // The Execution Engine makes every Deliverable transition itself. Only producing work (In Progress -> In Progress)
-// has a Work Item. These flows stub the Participant by immediately reporting `done` to the CSRF-exempt result-in
-// callback (POST /api/seu/work-items/:id/result), which records the reference and disposes the Work Item. A
+// has a Work Item. These flows stub the Participant by immediately reporting `done` through completeWorkItem (the core function behind the work-queue form), which records the reference and disposes the Work Item. A
 // governance-blocked transition creates no Command and is asserted directly on the form POST instead.
-async function completeOutstanding(request: Session, seuId: string, deliverableId: string, targetState: string): Promise<void> {
+async function completeOutstanding(seuId: string, deliverableId: string, targetState: string): Promise<void> {
   // Only producing work has a Work Item. The Execution Engine makes every other transition itself.
   if (targetState !== "In Progress") return;
   // Command generation, Work Item generation and Dispatch all run in their
@@ -326,22 +327,18 @@ async function completeOutstanding(request: Session, seuId: string, deliverableI
     return !!workItem;
   });
   assert.ok(workItem, `expected an outstanding Work Item for ${targetState}`);
-  const res = await request(`${baseUrl}/api/seu/work-items/${workItem!.id}/result`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ outcome: "done", reference: `vcs://webflow/${deliverableId}@${targetState}` }),
-  });
-  assert.equal(res.status, 200, `result-in callback should record the reference: ${await res.text()}`);
+  const result = await completeWorkItem({ workItemId: workItem!.id, outcome: "done", reference: `vcs://webflow/${deliverableId}@${targetState}` });
+  assert.equal(result.ok, true, `the result should record the reference: ${JSON.stringify(result)}`);
 }
 
-// Dispatch (web form) + complete (result callback) in one call, for flows that
+// Dispatch (web form) + complete (completeWorkItem) in one call, for flows that
 // just need the Deliverable actually moved before their real assertions.
 async function webTransitionAndComplete(request: Session, seuId: string, csrf: string, deliverableId: string, targetState: string): Promise<void> {
   // The person's click lands some time after the engine's own kickoff.
   if (targetState === "In Progress") await new Promise((resolve) => setTimeout(resolve, 1500));
   const posted = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState });
   assert.equal(posted.status, 302, `transition dispatch to ${targetState} should redirect`);
-  await completeOutstanding(request, seuId, deliverableId, targetState);
+  await completeOutstanding(seuId, deliverableId, targetState);
 }
 
 function findDeliverableId(html: string, name: string): string {
@@ -485,7 +482,7 @@ test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Delivera
   assert.equal(requirementsState, "In-Progress", "the Execution Engine made the transition");
 
   // The Participant reports `done` on the producing Work Item -> the result-in callback records the reference.
-  await completeOutstanding(request, seuId, deliverableId, "In Progress");
+  await completeOutstanding(seuId, deliverableId, "In Progress");
   const after1 = await getPage(request, `/seu/seus/${seuId}`);
   assertPageMatches(after1.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/);
 });
@@ -513,6 +510,22 @@ test("Flow 4 — Deliverable transition, invalid: rejected with an explicit erro
   // In Progress -> In Progress is the producing Command's hop: with the engine's own Command still in flight the
   // repeat click is refused as already in flight; once it has completed there is no Transition Definition.
   assertPageMatches(after1.html, /no Transition Definition for Deliverable In Progress -&gt; In Progress|a Command for this exact hop is already/);
+});
+
+test("Flow 4b — Work Queue result form, invalid outcome: redirects to the Work Queue with an explicit error and records nothing", async () => {
+  const request = newSession(ROOT_USER_ID);
+  const { seuId, csrf } = await commissionSeu(request, "webflow-invalid-work-item-outcome");
+
+  // The outcome is validated before the Work Item is looked up, so a made-up Work Item id is enough to reach the check.
+  const result = await postForm(request, `/seu/seus/${seuId}/work-items/00000000-0000-0000-0000-000000000000/complete`, csrf, {
+    outcome: "totally-not-valid",
+  });
+  assert.equal(result.status, 302, "an invalid outcome must still be a graceful redirect, not a 500");
+  assert.ok(result.location?.endsWith(`/aisworg/seu/seus/${seuId}/work-queue`), `expected a redirect to the Work Queue, got ${result.location}`);
+
+  const queue = await getPage(request, `/seu/seus/${seuId}/work-queue`);
+  assertPageMatches(queue.html, /alert-danger/);
+  assertPageMatches(queue.html, /Outcome must be done, failed or blocked\./);
 });
 
 test("Flow 5 — Deliverable transition, dependency gating (regression: must never go green by accident)", async () => {
@@ -590,7 +603,7 @@ test("Phase 3 — the Deliverable stays in Defined until the Capability is fulfi
   await waitForCapabilityFulfilled(seuId, capabilityId);
 
   // Fulfilling the Capability lets the engine make the hop and then issue the producing Command.
-  await completeOutstanding(request, seuId, deliverableId, "In Progress");
+  await completeOutstanding(seuId, deliverableId, "In Progress");
 
   const { data: commands } = await commandsDB.findBySeuId(seuId);
   const hop = (commands ?? []).filter((c) => c.entity_id === deliverableId && c.from_state === "Defined" && c.to_state === "In Progress");
@@ -1039,15 +1052,13 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   const blocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
   assert.equal(blocked.status, 302, "a blocked transition is still a graceful redirect, not a 500");
 
-  // The SEU-scoped JSON API, not the platform-wide /seu/attention page: under
+  // The SEU-scoped core read (listAttentionItemsBySeu), not the platform-wide /seu/attention page: under
   // real concurrent suite load, every other test file's own real Attention
   // Items (the automatic Execution Engine now genuinely completes multi-hop
   // dispatch, so there's a lot more of them than there used to be) compete
   // for the same shared, paginated inbox, and this SEU's own row isn't
   // guaranteed to land within any fixed pageSize.
-  const scopedResAfterBlock = await request(`${baseUrl}/api/seu/attention-items?seuId=${seuId}`);
-  assert.equal(scopedResAfterBlock.status, 200);
-  const scopedBodyAfterBlock = (await scopedResAfterBlock.json()) as { attentionItems: Array<{ id: string; category: string; title: string; status: string }> };
+  const scopedBodyAfterBlock = { attentionItems: await listAttentionItemsBySeu(seuId) };
   // The SEU-scoped API returns every Attention Item regardless of status, not
   // just open ones (listAttentionItemsBySeu has no status filter) — the
   // already-Closed commissioning-time stray (resolveDispatchRejectionObligations
@@ -1063,9 +1074,7 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   // add a second row (AM-002 dedup, same discipline as Phase 7's Obligation
   // dedup).
   await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
-  const scopedRes = await request(`${baseUrl}/api/seu/attention-items?seuId=${seuId}`);
-  assert.equal(scopedRes.status, 200);
-  const scopedBody = (await scopedRes.json()) as { attentionItems: Array<{ id: string; category: string; title: string; status: string }> };
+  const scopedBody = { attentionItems: await listAttentionItemsBySeu(seuId) };
   const actionRequired = scopedBody.attentionItems.filter(
     (a) => a.category === "Action Required" && a.status !== "Resolved" && a.status !== "Closed"
   );

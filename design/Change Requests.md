@@ -4,6 +4,7 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-141](design/change-requests/CR-141-sdk-authoring-route-authority.md) | SDK authoring: route authority for the `:slug` routes, and removal of `requireBadge` from sdkAuthoring.ts | 🟡 Raised — design in progress |
 | [CR-140](design/change-requests/CR-140-review-gate-deliverable.md) | Review gate: the governed step names the Deliverable, as a quality gate does | 🟡 Raised — design in progress |
 | [CR-139](design/change-requests/CR-139-ebm-composition-conflict-rules.md) | EBM composition: Deliverable-driven Capabilities and conflict rules for every Pack contribution | ✅ Built 2026-11-06 |
 | [CR-138](design/change-requests/CR-138-registry-view-pages.md) | Registry view pages, separate from the form generator, starting with Capability | ✅ Closed 2026-11-03 |

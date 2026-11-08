@@ -122,8 +122,8 @@
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Platform access is tenant scoped.<br>Ref: §3 and §7 Participant and Data Security, §16 zero implicit trust</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/requireTenant.ts:3-9<br>src/middleware/requireTenantScope.ts:25-80</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every request resolves a tenant scope and row lookups deny with not found when the row tenant differs from the viewer tenant. Only a root badge crosses tenants.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/middleware/requireTenantScope.ts:25-80</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Row lookups deny with not found when the row tenant differs from the viewer tenant. Only a root badge crosses tenants.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>

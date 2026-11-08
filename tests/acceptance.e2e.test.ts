@@ -1,6 +1,6 @@
 // M5 — the MVP acceptance test: the full commissioning journey from the Build
-// Plan §4 table, run over real HTTP against the real Express app (booted here
-// on an ephemeral port, not the dev server) and a real Postgres database.
+// Plan §4 table, run through the core functions, plus the web form for Capability Fulfilment, against the real
+// Express app (booted here on an ephemeral port, not the dev server) and a real Postgres database.
 // Nothing in the engine/core/dblayer layers is mocked. Session auth is carried
 // via fetch-cookie + tough-cookie, exactly like a real browser/API client
 // would — NODE_ENV=test still leaves app.js's dev-mode auto-login middleware
@@ -15,13 +15,17 @@ import fetchCookie from "fetch-cookie";
 
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
-import { objectiveInitialState } from "../src/routes/seu/core/objectives.js";
+import { objectiveInitialState, createObjective } from "../src/routes/seu/core/objectives.js";
+import { transitionEntity, publishTransition } from "../src/domain/engine/entityTransition.js";
+import { getSeuStatus } from "../src/routes/seu/core/seus.js";
+import { getSeuEvents } from "../src/routes/seu/core/events.js";
+import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
+import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, countCapabilityRequests, deactivateParticipants, TESTER_ACCEPTANCE_JOURNEY_BABYLON } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
 let server: ReturnType<typeof app.listen>;
-let baseUrl: string;
 let webBaseUrl: string;
 // Node's own fetch/Response ambient types (no "DOM" lib configured) declare
 // json()/text() as Promise<unknown> — every real caller here destructures
@@ -70,7 +74,6 @@ before(async () => {
   await new Promise<void>((resolve) => server.once("listening", () => resolve()));
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("failed to determine the ephemeral port the app bound to");
-  baseUrl = `http://127.0.0.1:${address.port}/aisworg/api/seu`;
   webBaseUrl = `http://127.0.0.1:${address.port}/aisworg/seu`;
   const jarFetch = fetchCookie(fetch, new CookieJar());
   request = (async (input: any, init?: any) =>
@@ -84,41 +87,33 @@ after(async () => {
   await new Promise<void>((resolve, reject) => server.close((err: Error | undefined) => (err ? reject(err) : resolve())));
 });
 
-test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a Capability, progress a Deliverable", async () => {
+test("MVP acceptance: commission an SEU through the core and web paths, reach Operational, fulfil a Capability, progress a Deliverable", async () => {
   // 0 — CR-009: an Engineering Objective needs a Strategic parent (only
   // Strategic may be a root). Create the root first. An Objective is born into
   // the initial state of its birth row, and a child can be added under it there.
-  const rootRes = await request(`${baseUrl}/objectives`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      statement: "Acceptance test: customer portal programme",
-      requiredCapabilityCodes: ["requirements-analysis"],
-      tier: "Strategic",
-    }),
+  const actorId = TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId;
+  const { objective: root } = await createObjective({
+    statement: "Acceptance test: customer portal programme",
+    requiredCapabilityCodes: ["requirements-analysis"],
+    tier: "Strategic",
+    requestedBy: actorId,
   });
-  const root = await rootRes.json();
-  assert.equal(rootRes.status, 201, JSON.stringify(root));
 
   // 1 — create an Objective (Ch.1) — an Engineering leaf under the root
-  const objectiveRes = await request(`${baseUrl}/objectives`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      statement: "Acceptance test: stand up a customer web portal",
-      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      tier: "Engineering",
-      parentObjectiveId: root.id,
-    }),
+  const { objective, requiredCapabilities } = await createObjective({
+    statement: "Acceptance test: stand up a customer web portal",
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+    tier: "Engineering",
+    parentObjectiveId: root.id,
+    requestedBy: actorId,
   });
-  const objective = await objectiveRes.json();
-  assert.equal(objectiveRes.status, 201, JSON.stringify(objective));
-  assert.equal(objective.requiredCapabilities.length, 3);
+  assert.equal(requiredCapabilities.length, 3);
 
   // Commissioning needs an Active Objective: the leaf is activated through its governed hop.
-  await grantTransitionBadge(TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId, "Objective", await objectiveInitialState(), "Active");
-  const activateRes = await request(`${baseUrl}/objectives/${objective.id}/transition/activate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-  assert.equal(activateRes.status, 200, await activateRes.text());
+  await grantTransitionBadge(actorId, "Objective", await objectiveInitialState(), "Active");
+  const activated = await transitionEntity({ entityType: "Objective", entityId: objective.id, targetState: "Active", actorId });
+  assert.equal(activated.ok, true, JSON.stringify(activated));
+  if (activated.ok) await publishTransition(activated);
 
   // 2/3 — select a Template against the Objective's required Capabilities
   // (Ch.6 §11) and apply a Profile (Ch.7). There is no JSON API for either
@@ -142,9 +137,8 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   const { data: ebm } = driven.ok && driven.seu.active_ebm_id ? await ebmsDB.findById(driven.seu.active_ebm_id) : { data: null };
   assert.ok(ebm?.composed_packs.some((p) => p.packCode === "development"), "expected the fixture Template's own mandatory Pack to have been composed");
 
-  const statusRes = await request(`${baseUrl}/seus/${seuId}`);
-  assert.equal(statusRes.status, 200);
-  const status = await statusRes.json();
+  const status = await getSeuStatus(seuId);
+  assert.ok(status);
   assert.equal(status.seu.lifecycle_state, "Operational");
   assert.ok(status.deliverables.length >= 1, "expected the Template's Deliverable Catalogue to have been seeded at commissioning");
 
@@ -178,10 +172,10 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   assert.equal(fulfilRes.status, 302, "the web fulfil form must redirect, success or error");
   await waitForCapabilityFulfilled(seuId, requirementsCapability.capabilityId, requestsBefore);
 
-  const statusAfterFulfil = await request(`${baseUrl}/seus/${seuId}`);
-  assert.equal(statusAfterFulfil.status, 200);
-  const statusAfterFulfilBody = await statusAfterFulfil.json();
+  const statusAfterFulfilBody = await getSeuStatus(seuId);
+  assert.ok(statusAfterFulfilBody);
   const requirementsCapabilityAfterFulfil = statusAfterFulfilBody.capabilities.find((c: { code: string }) => c.code === "requirements-analysis");
+  assert.ok(requirementsCapabilityAfterFulfil);
   assert.equal(requirementsCapabilityAfterFulfil.status, "Fulfilled", JSON.stringify(requirementsCapabilityAfterFulfil));
 
   // 7/8 — progress a Deliverable through its lifecycle (Ch.15/Ch.29), gated by dependency readiness + Authority/Policy
@@ -190,79 +184,47 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   // The engine starts the first Deliverable off the kickoff, so this read may land before or after that hop.
   assert.ok(["Defined", "In Progress"].includes(requirementsSpec.lifecycleState), requirementsSpec.lifecycleState);
 
-  const transitionRes = await request(`${baseUrl}/deliverables/${requirementsSpec.id}/transition`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ targetState: "In Progress" }),
-  });
-  const transitioned = await transitionRes.json();
+  const transitioned = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId, requestedBy: actorId });
   // Defined -> In Progress is a governed hop. The Execution Engine makes it off the kickoff, so this manual request
-  // either makes it (202) or finds the Deliverable already In Progress (409 no_transition_definition). The producing
+  // either makes it or finds the Deliverable already In Progress (no_transition_definition or already_in_flight). The producing
   // Command (In Progress -> In Progress) is then polled for.
-  if (transitionRes.status === 202) {
+  if (transitioned.ok) {
     assert.equal(transitioned.fromState, "Defined");
     assert.equal(transitioned.toState, "In Progress");
   } else {
-    assert.equal(transitionRes.status, 409, JSON.stringify(transitioned));
     assert.ok(transitioned.reason === "no_transition_definition" || transitioned.reason === "already_in_flight", JSON.stringify(transitioned));
   }
   const { command: dispatchedCommand, workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
   console.log("[DEBUG dispatched]", JSON.stringify({ commandId: dispatchedCommand.id, commandStatus: dispatchedCommand.status, workItemId: workItem.id, workItemStatus: workItem.status }));
 
-  // The Participant reports the result to the result-in callback, which drives
-  // the governed transition.
-  const resultRes = await request(`${baseUrl}/work-items/${workItem.id}/result`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ outcome: "done", reference: "vcs://acceptance/req-spec@1" }),
-  });
-  const resulted = await resultRes.json();
-  console.log("[DEBUG result response]", resultRes.status, JSON.stringify(resulted));
-  assert.equal(resultRes.status, 200, JSON.stringify(resulted));
+  // The Participant reports the result, which drives the governed transition.
+  const resulted = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference: "vcs://acceptance/req-spec@1" });
+  console.log("[DEBUG result]", resulted.ok, JSON.stringify(resulted.ok ? resulted.outcome : resulted));
+  assert.equal(resulted.ok, true, JSON.stringify(resulted));
+  assert.ok(resulted.ok && resulted.outcome === "done");
   assert.equal(resulted.deliverable.lifecycle_state, "In Progress");
 
-  // Result-in callback contract (Participant Integration Plan): the same Work
-  // Item is no longer outstanding, so a replayed result is rejected (409),
-  // an unknown Work Item is a 404, and an invalid outcome is a 400 — the edge
-  // adapter's error surface a real Participant integration depends on.
-  const replayRes = await request(`${baseUrl}/work-items/${workItem.id}/result`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ outcome: "done" }),
-  });
-  assert.equal(replayRes.status, 409, "a replayed result on a disposed Work Item must be a conflict, not a re-apply");
-  assert.equal((await replayRes.json()).reason, "not_outstanding");
+  // Result-in contract: the same Work Item is no longer outstanding, so a replayed result is rejected,
+  // and an unknown Work Item is not found.
+  const replayed = await completeWorkItem({ workItemId: workItem.id, outcome: "done" });
+  assert.equal(replayed.ok, false, "a replayed result on a disposed Work Item must be a conflict, not a re-apply");
+  assert.equal(!replayed.ok && replayed.reason, "not_outstanding");
 
-  const unknownRes = await request(`${baseUrl}/work-items/00000000-0000-0000-0000-000000000000/result`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ outcome: "done" }),
-  });
-  assert.equal(unknownRes.status, 404);
-
-  const badOutcomeRes = await request(`${baseUrl}/work-items/${workItem.id}/result`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ outcome: "totally-not-valid" }),
-  });
-  assert.equal(badOutcomeRes.status, 400);
+  const unknown = await completeWorkItem({ workItemId: "00000000-0000-0000-0000-000000000000", outcome: "done" });
+  assert.equal(unknown.ok, false);
+  assert.equal(!unknown.ok && unknown.reason, "not_found");
 
   // Dependency gating is real, not decorative: the downstream Deliverable must
   // still be blocked, since its upstream dependency hasn't reached 'Approved' yet.
   const architectureDoc = status.deliverables.find((d: { name: string }) => d.name === "Architecture Decision Record");
   assert.ok(architectureDoc);
-  const blockedRes = await request(`${baseUrl}/deliverables/${architectureDoc.id}/transition`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ targetState: "In Progress" }),
-  });
-  assert.equal(blockedRes.status, 409);
-  const blocked = await blockedRes.json();
-  assert.equal(blocked.reason, "dependency_not_satisfied");
+  const blocked = await transitionDeliverable({ deliverableId: architectureDoc.id, targetState: "In Progress", actorId, requestedBy: actorId });
+  assert.equal(blocked.ok, false);
+  assert.equal(!blocked.ok && blocked.reason, "dependency_not_satisfied");
 
   // Final assertion — the brief's own definition of "MVP done."
-  const finalStatusRes = await request(`${baseUrl}/seus/${seuId}`);
-  const finalStatus = await finalStatusRes.json();
+  const finalStatus = await getSeuStatus(seuId);
+  assert.ok(finalStatus);
   assert.equal(finalStatus.seu.lifecycle_state, "Operational");
   assert.ok(finalStatus.capabilities.some((c: { status: string }) => c.status === "Fulfilled"), "expected at least one Capability Fulfilled");
   assert.ok(
@@ -270,8 +232,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
     "expected at least one Deliverable to have moved beyond Defined"
   );
 
-  const eventsRes = await request(`${baseUrl}/seus/${seuId}/events`);
-  const { events } = await eventsRes.json();
+  const events = await getSeuEvents(seuId);
   const eventTypes = events.map((e: { event_type: string }) => e.event_type);
   assert.ok(eventTypes.includes("SEUOperational"));
   assert.ok(eventTypes.includes("CapabilityFulfilled"));
