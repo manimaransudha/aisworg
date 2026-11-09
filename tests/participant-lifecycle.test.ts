@@ -192,7 +192,13 @@ test("CR-128 Entity 19: a failed Work Item returns the Participant to Idle throu
   const result = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   if (!result.ok) assert.ok(result.reason === "no_transition_definition" || result.reason === "already_in_flight", JSON.stringify(result));
   const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
-  assert.equal((await participantsDB.findById(participant.id)).data?.state, "Assigned");
+  // The Work Item row exists before the dispatch moves the Participant, so the Participant's state is waited for.
+  let assigned = (await participantsDB.findById(participant.id)).data;
+  for (let attempt = 0; attempt < 50 && assigned?.state !== "Assigned"; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assigned = (await participantsDB.findById(participant.id)).data;
+  }
+  assert.equal(assigned?.state, "Assigned");
 
   const failed = await completeWorkItem({ workItemId: workItem.id, outcome: "failed" });
   assert.equal(failed.ok, true, !failed.ok ? JSON.stringify(failed) : "assertion failed");
