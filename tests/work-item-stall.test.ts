@@ -15,6 +15,7 @@ import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { sweepStalledWorkItems } from "../src/routes/seu/core/workItemHeartbeat.js";
 import { servicesDB } from "../src/dblayer/servicesDB.js";
+import { packsDB } from "../src/dblayer/packsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, transitionDeliverableSync } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
@@ -48,7 +49,10 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
   // target parsed as a bare number of seconds).
   const { data: services } = await servicesDB.findByCapabilityId(capability.capabilityId);
   assert.ok(services && services.length > 0, "the producing Capability should provide a Service carrying the SLA");
-  const svc = services[0];
+  // The Capability is provided by both the Platform Pack and its test-platform copy. The SLA is declared on the test-tenant Service only, so the Platform Pack is never written.
+  const owners = await Promise.all(services.map(async (s) => (await packsDB.findById(s.originating_pack_id!)).data));
+  const svc = services.find((_, i) => owners[i]?.tenant_id === PLATFORM_TENANT_ID);
+  assert.ok(svc, "the producing Capability should be provided by a Service from a test-tenant Pack");
   await servicesDB.upsertFromPack({
     code: svc.code,
     providingCapabilityId: svc.providing_capability_id,
