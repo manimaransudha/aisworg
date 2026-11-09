@@ -271,18 +271,42 @@ Bw' L Dw2 F' Rw Bw U Fw2 Rw2 Dw2 B2 Rw Fw D Uw2 L' B F L B'
 
 -----------
 
+Snapshot: 78 tables, 11,241 rows. It is saved at /private/tmp/claude-501/-Volumes-Chennai-gitrepo-aisworg/f51a1ec6-5036-4dee-867d-2eae275b71be/scratchpad/snapshot_before.json.
 
-Live but untested files, by size of gap
+All tables that hold rows after clean-slate:
 
-File	Uncovered	Reachable how
-redispatch.ts	40–122	DispatchDeferred → redispatchRequest → RedispatchRequested → redispatch (max attempts, attention threshold, retry)
-redispatchRequest.ts	6–17	same chain
-dispatchStrategies.ts	40–101	six strategies (specialist, cost, confidence, load, locality, organisation), configured per SEU
-governingConditionTypes.ts	10–20, 32–38	comparison and threshold conditions on a Policy
-ebmActivated.ts	10–52	EBMActivated handler, mostly guard branches
-dependencyDefinitionEngine.ts	43–81, 91–93	not traced yet
-deliverableKickoff.ts	198–232	not traced yet
-compositionCompleted.ts	103–117 and guards	not traced yet
-compositionEngine.ts	268–318	not traced yet
-dispatchEngine.ts	92–118, 160–171	not traced yet
-qualityGateEngine.ts	141–156, 211–229	not traced yet
+Tenants and identity: tenants 4, users 11, participants_master 28.
+Ontology and reference data:
+ontology_concepts 2,424
+route_authority 308
+transition_definitions 178
+authority_noun_verbs 155, authority_nouns 25, authority_verbs 59
+event_registry 43, event_subscriptions 21
+schema_definitions 9
+pack_category 6
+Events and versions: events 3,731, version_events 1,628.
+Definitions:
+packs 130
+templates 18
+profiles 18
+profile_packs 52
+template_packs 217
+template_capabilities 629
+dependency_definitions 485
+deliverable_definitions 188
+capability_definitions 93
+capabilities 158
+service_definitions 93
+services 29
+policies 30
+policy_definitions 51
+checklists 128
+review_gates 103
+authority_rules 169
+metric_definitions 9
+quality_gates 2
+objectives 8
+objective_root_sequences 1
+The other tables are empty.
+
+pnpm exec tsx src/dblayer/seed/cleanTestData.ts

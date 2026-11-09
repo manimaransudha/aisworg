@@ -8,8 +8,8 @@ import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js"
 import { publishTemplate } from "../../routes/seu/core/templates.js";
 import { publishProfile, type ProfileSeedInput } from "../../routes/seu/core/profiles.js";
 import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../seuTypes.js";
-import { userDB } from "../userDB.js";
-import { INITIAL_VERSION, getPlatformTenantId } from "../constants.js";
+import { getTestPlatformActor, getTestPlatformTenantId } from "./seedTestIdentity.js";
+import { INITIAL_VERSION } from "../constants.js";
 import { packsDB } from "../packsDB.js";
 import { templatesDB } from "../templatesDB.js";
 import { profilesDB } from "../profilesDB.js";
@@ -47,21 +47,21 @@ async function waitForActive(find: () => Promise<{ id: string } | null | undefin
 }
 
 export async function seedCr104Demo(actor: SeedActor): Promise<void> {
-  const mandatorySeed = loadJson<PackSeedInput>("cr104-demo-mandatory.pack.json");
-  const platformTenantId = await getPlatformTenantId();
-  if (!(await packsDB.findActiveByCode(mandatorySeed.code, platformTenantId)).data) {
+  const testTenantId = await getTestPlatformTenantId();
+  const mandatorySeed = { ...loadJson<PackSeedInput>("cr104-demo-mandatory.pack.json"), tenantId: testTenantId };
+  if (!(await packsDB.findActiveByCode(mandatorySeed.code, testTenantId)).data) {
     const mandatoryResult = await publishPack({ seed: mandatorySeed, actorId: actor.authoredBy, activate: true });
-    if (!mandatoryResult.ok && !(await waitForActive(async () => (await packsDB.findActiveByCode(mandatorySeed.code, platformTenantId)).data))) throw new Error(`[seed:cr104-demo] failed to publish "${mandatorySeed.code}": ${(mandatoryResult.errors ?? []).join("; ")}`);
+    if (!mandatoryResult.ok && !(await waitForActive(async () => (await packsDB.findActiveByCode(mandatorySeed.code, testTenantId)).data))) throw new Error(`[seed:cr104-demo] failed to publish "${mandatorySeed.code}": ${(mandatoryResult.errors ?? []).join("; ")}`);
   }
 
-  const policyPackSeed = loadJson<PackSeedInput>("cr104-demo-seu-eligibility-policies.pack.json");
-  if (!(await packsDB.findActiveByCode(policyPackSeed.code, platformTenantId)).data) {
+  const policyPackSeed = { ...loadJson<PackSeedInput>("cr104-demo-seu-eligibility-policies.pack.json"), tenantId: testTenantId };
+  if (!(await packsDB.findActiveByCode(policyPackSeed.code, testTenantId)).data) {
     const policyPackResult = await publishPack({ seed: policyPackSeed, actorId: actor.authoredBy, activate: true });
-    if (!policyPackResult.ok && !(await waitForActive(async () => (await packsDB.findActiveByCode(policyPackSeed.code, platformTenantId)).data))) throw new Error(`[seed:cr104-demo] failed to publish "${policyPackSeed.code}": ${(policyPackResult.errors ?? []).join("; ")}`);
+    if (!policyPackResult.ok && !(await waitForActive(async () => (await packsDB.findActiveByCode(policyPackSeed.code, testTenantId)).data))) throw new Error(`[seed:cr104-demo] failed to publish "${policyPackSeed.code}": ${(policyPackResult.errors ?? []).join("; ")}`);
   }
 
   const minimalTemplateSeed = loadJson<MinimalTemplateSeed>("cr104-demo-minimal.template.json");
-  let templateId = (await templatesDB.findActiveByCode(minimalTemplateSeed.code, platformTenantId)).data?.id;
+  let templateId = (await templatesDB.findActiveByCode(minimalTemplateSeed.code, testTenantId)).data?.id;
   if (!templateId) {
     const templateResult = await publishTemplate({
     seed: {
@@ -72,23 +72,24 @@ export async function seedCr104Demo(actor: SeedActor): Promise<void> {
       deliverableCatalogue: minimalTemplateSeed.deliverableCatalogue,
       dependencyGraph: minimalTemplateSeed.dependencyGraph,
       purpose: minimalTemplateSeed.purpose,
+      tenantId: testTenantId,
     },
     actorId: actor.authoredBy
     });
     if (templateResult.ok) templateId = templateResult.templateId;
     else {
-      templateId = (await waitForActive(async () => (await templatesDB.findActiveByCode(minimalTemplateSeed.code, platformTenantId)).data))?.id;
+      templateId = (await waitForActive(async () => (await templatesDB.findActiveByCode(minimalTemplateSeed.code, testTenantId)).data))?.id;
       if (!templateId) throw new Error(`[seed:cr104-demo] failed to publish template "${minimalTemplateSeed.code}": ${templateResult.errors.join("; ")}`);
     }
   }
 
-  const profileSeed = loadJson<ProfileSeedInput>("cr104-demo-development.profile.json");
-  let profileId = (await profilesDB.findActiveByCode(profileSeed.code, platformTenantId)).data?.id;
+  const profileSeed = { ...loadJson<ProfileSeedInput>("cr104-demo-development.profile.json"), tenantId: testTenantId };
+  let profileId = (await profilesDB.findActiveByCode(profileSeed.code, testTenantId)).data?.id;
   if (!profileId) {
     const profileResult = await publishProfile({ seed: profileSeed, actorId: actor.authoredBy });
     if (profileResult.ok) profileId = profileResult.profileId;
     else {
-      profileId = (await waitForActive(async () => (await profilesDB.findActiveByCode(profileSeed.code, platformTenantId)).data))?.id;
+      profileId = (await waitForActive(async () => (await profilesDB.findActiveByCode(profileSeed.code, testTenantId)).data))?.id;
       if (!profileId) throw new Error(`[seed:cr104-demo] failed to publish profile "${profileSeed.code}": ${profileResult.errors.join("; ")}`);
     }
   }
@@ -98,8 +99,7 @@ export async function seedCr104Demo(actor: SeedActor): Promise<void> {
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  const { actorId, actorBadge } = await userDB.getSuperuserId();
-    if (!actorId) throw new Error(`Provision a superuser before this operation.`);
+  const { actorId, actorBadge } = await getTestPlatformActor();
     
   seedCr104Demo({ authoredBy: actorId, authorBadge: actorBadge })
     .catch((err) => {

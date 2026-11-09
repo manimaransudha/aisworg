@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { tenantsDB } from "../tenantsDB.js";
-import { ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, TEST_PLATFORM_TENANT_NAME, NO_EXPIRY_DATE } from "../constants.js";
+import { ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, TEST_PLATFORM_TENANT_NAME, TEST_PLATFORM_USER_EMAIL, NO_EXPIRY_DATE } from "../constants.js";
 
 const require = createRequire(import.meta.url);
 const bcrypt = require("bcryptjs");
@@ -80,6 +80,16 @@ export async function getTestPlatformTenantId(): Promise<string> {
   if (!result.data?.id) throw new Error(`${TEST_PLATFORM_TENANT_NAME} not provisioned -- run db:clean-slate, which seeds it`);
   testPlatformTenantIdCache = result.data.id;
   return testPlatformTenantIdCache;
+}
+
+// The test-platform participant (id and badge) that authors every test seed, provisioned by db:clean-slate.
+export async function getTestPlatformActor(): Promise<{ actorId: string; actorBadge: string }> {
+  const { rows } = await pool.query<{ id: string }>(
+    "SELECT pm.id FROM participants_master pm JOIN users u ON u.id = pm.user_id WHERE lower(u.email) = lower($1)",
+    [TEST_PLATFORM_USER_EMAIL]
+  );
+  if (rows.length === 0) throw new Error(`${TEST_PLATFORM_USER_EMAIL} is not provisioned -- run db:clean-slate first.`);
+  return { actorId: rows[0].id, actorBadge: "root" };
 }
 
 export async function seedTestIdentity(): Promise<void> {
