@@ -459,3 +459,9 @@ Not run, not type-checked. This replaces the role grant described under "Built: 
 | 4 | Nothing has been loaded in a browser. |
 | 5 | The demo skill (`.claude/skills/demo/SKILL.md`) is not yet updated for the steps above. |
 | 6 | `redirects.seu.demoRootStepsEnabled` is unused. |
+
+## To be done
+
+Declare items are tested
+Test the commission and execution for access , roles etc. 
+Clean up the scenarios and steps & deploy
