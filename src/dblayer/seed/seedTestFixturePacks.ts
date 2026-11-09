@@ -19,8 +19,9 @@ function loadJson<T>(fileName: string): T {
   return JSON.parse(readFileSync(path.join(dataDir, fileName), "utf8")) as T;
 }
 
+// Published first: the technology Packs require test-development, so it must be Active before they are published.
+const FOUNDATION_TEST_FIXTURE_PACK_FILES = ["test-openup-development.pack.json"];
 const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
-  "test-openup-development.pack.json",
   "test-openup-configuration-and-change-management.pack.json",
   "test-openup-project-management.pack.json",
   "test-openup-test.pack.json",
@@ -99,7 +100,7 @@ const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
   "test-technologycpp.pack.json",
 ];
 const DEPENDENT_TEST_FIXTURE_PACK_FILES = ["test-domain-ebook-library.pack.json", "test-technology-nodejs.pack.json"];
-const TEST_FIXTURE_PACK_FILES = [...INDEPENDENT_TEST_FIXTURE_PACK_FILES, ...DEPENDENT_TEST_FIXTURE_PACK_FILES];
+const TEST_FIXTURE_PACK_FILES = [...FOUNDATION_TEST_FIXTURE_PACK_FILES, ...INDEPENDENT_TEST_FIXTURE_PACK_FILES, ...DEPENDENT_TEST_FIXTURE_PACK_FILES];
 
 async function publishBatch(files: string[], actorId: string, tenantId: string, serviceDefinitionIdByCode: Map<string, string>): Promise<PromiseSettledResult<void>[]> {
   return Promise.allSettled(
@@ -112,6 +113,20 @@ async function publishBatch(files: string[], actorId: string, tenantId: string, 
       }
     })
   );
+}
+
+// Packs publish in parallel, so one can resolve a dependency before the Pack it requires is Active. A Pack already Active is skipped by
+// publishBatch, so a retry publishes only the Packs that lost the race. Same pattern as seedCapabilityPatternPacksWithRetry in cleanSlate.ts.
+async function publishBatchWithRetry(files: string[], actorId: string, tenantId: string, serviceDefinitionIdByCode: Map<string, string>, attempts = 3): Promise<number> {
+  for (let attempt = 1; ; attempt++) {
+    const results = await publishBatch(files, actorId, tenantId, serviceDefinitionIdByCode);
+    const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
+    if (failures.length === 0) return results.length;
+    const isDependencyRace = failures.every((m) => /required dependency not resolved/.test(m));
+    if (!isDependencyRace || attempt === attempts) throw new Error(`[seed:test-fixture-packs] ${failures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${failures.join(" | ")}`);
+    logger.info(`[seed:test-fixture-packs] attempt ${attempt}/${attempts} lost a Pack-dependency publish race (${failures.length} Pack(s)) — retrying.`);
+    await purgeUnfinishedFixturePacks();
+  }
 }
 
 // A failed earlier run leaves a fixture Pack part-way through its lifecycle, with the content it was created with. Those rows
@@ -136,21 +151,14 @@ export async function seedAllTestFixturePacks(): Promise<void> {
   await seedTestOntology({ authoredBy: actorId, authorBadge: actorBadge });
   await purgeUnfinishedFixturePacks();
   const serviceDefinitionIdByCode = await loadServiceDefinitionIdByCode(tenantId);
-  const independentResults = await publishBatch(INDEPENDENT_TEST_FIXTURE_PACK_FILES, actorId, tenantId, serviceDefinitionIdByCode);
-  const independentFailures = independentResults.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
-  if (independentFailures.length > 0) {
-    throw new Error(`[seed:test-fixture-packs] ${independentFailures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${independentFailures.join(" | ")}`);
-  }
-
-  const dependentResults = await publishBatch(DEPENDENT_TEST_FIXTURE_PACK_FILES, actorId, tenantId, serviceDefinitionIdByCode);
-  const dependentFailures = dependentResults.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
-  if (dependentFailures.length > 0) {
-    throw new Error(`[seed:test-fixture-packs] ${dependentFailures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${dependentFailures.join(" | ")}`);
-  }
+  const publishStage = (files: string[]) => publishBatchWithRetry(files, actorId, tenantId, serviceDefinitionIdByCode);
+  const foundationCount = await publishStage(FOUNDATION_TEST_FIXTURE_PACK_FILES);
+  const independentCount = await publishStage(INDEPENDENT_TEST_FIXTURE_PACK_FILES);
+  const dependentCount = await publishStage(DEPENDENT_TEST_FIXTURE_PACK_FILES);
 
   await seedCr104Demo({ authoredBy: actorId, authorBadge: actorBadge });
 
-  logger.info(`[seed:test-fixture-packs] ${independentResults.length + dependentResults.length} published — ${TEST_FIXTURE_PACK_FILES.length} test-fixture Packs total.`);
+  logger.info(`[seed:test-fixture-packs] ${foundationCount + independentCount + dependentCount} published — ${TEST_FIXTURE_PACK_FILES.length} test-fixture Packs total.`);
 }
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
