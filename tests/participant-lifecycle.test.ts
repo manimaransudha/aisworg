@@ -151,7 +151,12 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
   // Dispatch of the producing Work Item (In Progress -> In Progress) moves the Participant to Assigned and stops
   // there: it holds an outstanding Work Item, not yet done. Dispatch is asynchronous, so wait for it.
   const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
-  const { data: assigned } = await participantsDB.findById(participant.id);
+  // The Work Item row exists before the dispatch moves the Participant, so the Participant's state is waited for as well.
+  let assigned = (await participantsDB.findById(participant.id)).data;
+  for (let attempt = 0; attempt < 50 && assigned?.state !== "Assigned"; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assigned = (await participantsDB.findById(participant.id)).data;
+  }
   assert.equal(assigned?.state, "Assigned", "dispatched: the Participant is Assigned, holding the outstanding Work Item");
   assert.ok((await participantEventTypes(participant.id)).includes("ParticipantAssigned"), "expected Assigned on dispatch");
   assert.ok((await participantEventTypes(participant.id)).includes("ParticipantTransitioned"), "expected the generic event after the row's event");
