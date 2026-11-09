@@ -276,8 +276,7 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
   assert.ok(ec.relevantKnowledge.some((k) => k.id === knowledge!.id && k.title === knowledge!.title), "the actual Knowledge, not just a count");
 });
 
-test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Command generation and Dispatch reads it, not a live query", async (t) => {
-  t.after(await emptyParticipantPool(await getEmptyPoolTenantId()));
+test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Command generation and Dispatch reads it, not a live query", async () => {
   const seuId = await commissionCr104MinimalSeu("cr109-pool-persistence", PLATFORM_TENANT_ID);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
@@ -301,7 +300,8 @@ test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Co
   assert.ok(workItem.participant_id && pool!.participant_ids.includes(workItem.participant_id), "the Work Item goes to a member of the persisted pool");
 });
 
-test("Ch.12 §9 / CR-109 §6.2: with no eligible Participant the producing Capability stays unfulfilled and the Deliverable stays in Defined", async () => {
+test("Ch.12 §9 / CR-109 §6.2: with no eligible Participant the producing Capability stays unfulfilled and the Deliverable stays in Defined", async (t) => {
+  t.after(await emptyParticipantPool(await getEmptyPoolTenantId()));
   {
     const seuId = await commissionCr104MinimalSeu("cr109-pool-no-capability", await getEmptyPoolTenantId());
     const detail = await getSeuDetailView(seuId);

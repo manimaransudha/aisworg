@@ -28,7 +28,7 @@ import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { listServiceDefinitionsWithNextStates } from "../src/routes/seu/core/serviceDefinitions.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 import { TESTER_ALL_ID } from "./testFixtures.js";
-import { deliverableByCode } from "./testFixtures.js";
+import { deliverableByCode, emptyParticipantPool } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
@@ -63,7 +63,9 @@ test("commissioning wires the Deliverable-type dependency graph, and seeds the S
   assert.equal(sourceCodeEdge?.targetLabel, "Architecture Decision Record");
 });
 
-test("a Deliverable-type edge resolves Satisfied once the real SEU's upstream Deliverable reaches the required state", async () => {
+test("a Deliverable-type edge resolves Satisfied once the real SEU's upstream Deliverable reaches the required state", async (t) => {
+  // With an eligible Participant the Capability is fulfilled and the Deliverable moves to In Progress by itself, over the state this test sets.
+  t.after(await emptyParticipantPool(PLATFORM_TENANT_ID));
   const seuId = await commissionTestSeu("phase2-fulfil");
 
   const before = await getSeuDetailView(seuId);

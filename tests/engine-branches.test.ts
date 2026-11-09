@@ -29,7 +29,7 @@ import { createDecision } from "../src/routes/seu/core/decisions.js";
 import { createKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
 import { eligibilityPoliciesOf, competencyRequirementsOf } from "../src/domain/engine/ebmSettled.js";
 import type { DeliverableRow } from "../src/dblayer/seuTypes.js";
-import { publishTestEvent } from "./engineFixtures.js";
+import { publishTestEvent, recordTestEvent } from "./engineFixtures.js";
 import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
 import { createObligationAsRoot, createEvidenceAsRoot, supportingEvidenceReferences, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
@@ -75,13 +75,13 @@ test("the Capability request handler ignores an event with no SEU, a readiness t
 test("the Capability request handler requests nothing for a Capability that is Fulfilled or that a request is already in flight for", async () => {
   const { t, capability, seuCapabilityId } = await operationalSeu("on-ready-skips");
   const deliverable = await createDeliverable(t, "producing", "Defined", capability);
-  const readyEvent = await publishTestEvent({
+  const readyEvent = await recordTestEvent({
     eventType: "DeliverableReady", originatingObjectType: "Deliverable", originatingObjectId: deliverable.id, seuId: t.seu.id, payload: { toEntityType: "Deliverable", toState: "In Progress" },
   });
-  const commissioned = await publishTestEvent({ eventType: "SEUCommissioned", originatingObjectType: "SEU", originatingObjectId: t.seu.id, seuId: t.seu.id });
+  const commissioned = await recordTestEvent({ eventType: "SEUCommissioned", originatingObjectType: "SEU", originatingObjectId: t.seu.id, seuId: t.seu.id });
   const requests = async () => ((await eventsDB.findByOriginatingObject("SEU", t.seu.id)).data ?? []).filter((e) => e.event_type === "CapabilityRequested" && (e.payload as { capabilityId?: string } | null)?.capabilityId === capability).length;
 
-  await publishTestEvent({ eventType: "CapabilityRequested", originatingObjectType: "SEU", originatingObjectId: t.seu.id, seuId: t.seu.id, payload: { capabilityId: capability } });
+  await recordTestEvent({ eventType: "CapabilityRequested", originatingObjectType: "SEU", originatingObjectId: t.seu.id, seuId: t.seu.id, payload: { capabilityId: capability } });
   const inFlight = await requests();
   await capabilityOnReadyHandler(readyEvent);
   await capabilityOnReadyHandler(commissioned);

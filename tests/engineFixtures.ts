@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
+import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { ensureSeuSystemParticipant, getSystemActor } from "../src/dblayer/constants.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
@@ -40,6 +41,16 @@ export async function createTestEbm(seu: SeuRow, behaviors: Record<string, unkno
   assert.ok(ebm && !error, error?.message ?? "the EBM is created");
   if (activate) await seusDB.setActiveEbm(seu.id, ebm.id);
   return ebm;
+}
+
+// Records an event as root without dispatching it: no handler runs even when the process has event subscriptions loaded.
+export async function recordTestEvent(input: { eventType: string; originatingObjectType: string; originatingObjectId: string; seuId?: string | null; payload?: Record<string, unknown> }): Promise<EventRow> {
+  const { data, error } = await eventsDB.append({
+    eventType: input.eventType, originatingObjectType: input.originatingObjectType, originatingObjectId: input.originatingObjectId, seuId: input.seuId ?? null,
+    correlationId: randomUUID(), actorId: ROOT_ACTOR_ID, authorityBadge: ROOT_ACTOR_BADGE, payload: input.payload ?? {},
+  });
+  if (error || !data) throw error ?? new Error(`failed to record event ${input.eventType}`);
+  return data;
 }
 
 // Publishes an event as root. Event subscriptions are not loaded in a handler test, so no handler runs; the test calls the handler with the row.
