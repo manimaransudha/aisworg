@@ -27,9 +27,9 @@ import {
 // adds a Participant for it.
 const UNHELD_CAPABILITY_CODE = "change-management";
 
-async function commissionSeuWithCapability(statementPrefix: string, options?: { capabilityCode?: string; withEligibleParticipant?: boolean; tenantId?: string }): Promise<{ seuId: string; capabilityId: string }> {
-  const capabilityCode = options?.capabilityCode ?? "requirements-analysis";
-  const withEligibleParticipant = options?.withEligibleParticipant ?? true;
+async function commissionSeuWithCapability(statementPrefix: string, options: { capabilityCode?: string; withEligibleParticipant?: boolean; tenantId: string }): Promise<{ seuId: string; capabilityId: string }> {
+  const capabilityCode = options.capabilityCode ?? "requirements-analysis";
+  const withEligibleParticipant = options.withEligibleParticipant ?? true;
   await ensureWebAppTemplateFixture();
   await ensureEventSubscriptionsLoaded();
   let capabilityId: string | undefined;
@@ -37,7 +37,7 @@ async function commissionSeuWithCapability(statementPrefix: string, options?: { 
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: capabilityCode === "requirements-analysis" ? ["requirements-analysis", "architecture-design", "software-construction"] : [capabilityCode],
-      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: options?.tenantId,
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: options.tenantId,
     },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);

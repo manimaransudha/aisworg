@@ -768,14 +768,9 @@ export async function ensureEligibleParticipant(seuId: string, capabilityCodes: 
   return participant.id;
 }
 
-// Babylon AI-Native onboards no Participant that holds an engineering Capability, so a Capability required by an SEU
-// commissioned there has an empty eligible pool and ends in CapabilityUnavailable. No Participant of any shared pool
-// is ever toggled, so parallel test files cannot disturb each other. A test that later fulfils a Capability there
-// with a fixture Participant releases it through deactivateParticipants when it finishes.
+// The tenant tests commission in: the test-platform tenant, where the Template, Profile and Packs of the fixtures are published.
 export async function getEmptyPoolTenantId(): Promise<string> {
-  const { data: tenant } = await tenantsDB.findByName(BABYLON_TENANT_NAME);
-  if (!tenant) throw new Error(`getEmptyPoolTenantId: tenant "${BABYLON_TENANT_NAME}" not found — is db:clean-slate seeded?`);
-  return tenant.id;
+  return getTestPlatformTenantId();
 }
 
 export async function deactivateParticipants(participantMasterIds: string[]): Promise<void> {

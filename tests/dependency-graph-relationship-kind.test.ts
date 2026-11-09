@@ -137,7 +137,7 @@ async function publishParentTemplate(dependencyGraph: Array<Record<string, unkno
     { code: ARCH_CODE, category: "Architecture" },
     { code: DATA_ARCH_CODE, category: "Architecture" },
   ];
-  const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: templateContent(REAL_TEMPLATE_CODE, version, catalogue, dependencyGraph) });
+  const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: templateContent(REAL_TEMPLATE_CODE, version, catalogue, dependencyGraph), tenantId: PLATFORM_TENANT_ID });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) throw new Error("unreachable");
   createdTemplateIds.push(created.draftId);
@@ -213,8 +213,7 @@ test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own De
     actorId: ROOT_ACTOR_ID,
     content: templateContent(REAL_TEMPLATE_CODE, parentVersion, [{ code: archCode, category: "Architecture" }, { code: dataArchCode, category: "Architecture" }], [
       { toCode: dataArchCode, fromType: "Deliverable", fromCode: archCode, requiredState: "Approved", relationshipKind: "decomposition" },
-    ]),
-  });
+    ]), tenantId: PLATFORM_TENANT_ID });
   assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : "assertion failed");
   if (!parentCreated.ok) return;
   createdTemplateIds.push(parentCreated.draftId);

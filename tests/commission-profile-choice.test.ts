@@ -186,8 +186,8 @@ test("Objective-first commissioning offers a real Profile choice when more than 
 
   // CR-009: Engineering Objectives need a Strategic parent (only Strategic may be a root).
   // CR-075 — createObjective now requires the parent to be Proposed when adding a child under it.
-  const { objective: pcRoot } = await createObjective({ statement: `verify-profile-choice-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
-  const { objective } = await createActiveObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: TESTER_ALL_ID,});
+  const { objective: pcRoot } = await createObjective({ statement: `verify-profile-choice-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: ROOT_ACTOR_ID, });
+  const { objective } = await createActiveObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: ROOT_ACTOR_ID,});
   assert.equal(objective.status, "Active");
 
   // 1. getObjectiveDetail surfaces both real Profiles as real candidates,

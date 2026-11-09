@@ -94,7 +94,7 @@ async function commissionBlockedSeu(run: string) {
 
   const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID, timeoutMs: 30000 });
   assert.equal(result.ok, false, "an unsatisfied SEU-scoped Policy must block the Activated -> Operational hop");
-  if (!result.ok) assert.equal(result.stage, "blocked");
+  if (!result.ok) assert.equal(result.stage, "blocked", `stopped at stage ${result.stage}: ${result.reason}`);
 
   const { data: seu } = await seusDB.findById(requested.seu.id);
   assert.equal(seu?.lifecycle_state, "Activated", "a Policy block leaves the SEU Activated, not Operational");

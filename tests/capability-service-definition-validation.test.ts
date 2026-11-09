@@ -5,6 +5,7 @@
 //   - Every Ontology code a valid seed uses is a test Ontology concept (tests/schemaFixtures.ts) or a Platform role-name / worktype-name concept.
 //   - The parent rules and the inheritance functions use the Active Capability and Service of a schema fixture tenant, an Active Platform
 //     row, and a Draft that copyXAsNewDraft makes from the fixture (one more Draft per run, as in the other tests that create tenant rows).
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import "dotenv/config";
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
@@ -20,7 +21,7 @@ import {
   validateServiceDefinitionSeed, listInheritableServiceDefinitions, inheritedServiceDefinitionContent, copyServiceDefinitionAsNewDraft,
   type ServiceDefinitionSeedInput,
 } from "../src/routes/seu/core/serviceDefinitions.js";
-import { PLATFORM_TENANT_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
+import { ROOT_ACTOR_ID } from "./testFixtures.js";
 import { ensureFixtureTenant, buildStage1Fixtures, platformConceptCodes, FIXTURE_CODES, type Stage1Fixtures } from "./schemaFixtures.js";
 
 let ownerTenant: string;
@@ -101,7 +102,7 @@ test("Capability: listInheritableCapabilityDefinitions lists the Active Platform
   assert.deepEqual(listed.map((c) => c.code), [...listed.map((c) => c.code)].sort((a, b) => a.localeCompare(b)));
   for (const item of listed.slice(0, 20)) {
     const { data: row } = await capabilityDefinitionsDB.findById(item.id);
-    assert.equal(row?.tenant_id, PLATFORM_TENANT_ID);
+    assert.equal(row?.tenant_id, await getPlatformTenantId());
     assert.equal(row?.status, "Active");
     assert.deepEqual(item, { id: row!.id, code: row!.code, defaultLabel: row!.default_label, version: row!.version });
   }
@@ -180,7 +181,7 @@ test("Service: listInheritableServiceDefinitions lists the Active Platform rows 
   assert.deepEqual(listed.map((s) => s.code), [...listed.map((s) => s.code)].sort((a, b) => a.localeCompare(b)));
   for (const item of listed.slice(0, 20)) {
     const { data: row } = await serviceDefinitionsDB.findById(item.id);
-    assert.equal(row?.tenant_id, PLATFORM_TENANT_ID);
+    assert.equal(row?.tenant_id, await getPlatformTenantId());
     assert.equal(row?.status, "Active");
     assert.deepEqual(item, { id: row!.id, code: row!.code, name: row!.name, capabilityCode: row!.capability_code, version: row!.version });
   }

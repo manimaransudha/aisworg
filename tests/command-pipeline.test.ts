@@ -22,10 +22,10 @@ import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, transitionDeliverableSync } from "./testFixtures.js";
-import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, PLATFORM_TENANT_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 
-async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>, tenantId?: string) {
+async function commissionTestSeu(statementPrefix: string, beforeCommenceWork: ((seuId: string) => Promise<void>) | undefined, tenantId: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync(
     {
@@ -89,7 +89,7 @@ test("a Deliverable does not move to In Progress while nobody fulfils its produc
 });
 
 test("the producing Command leaves a traceable Command and a Completed/Disposed Work Item assigned to the fulfilling Participant", async () => {
-  const seuId = await commissionTestSeu("phase3-trace", fulfilRequirementsAnalysis);
+  const seuId = await commissionTestSeu("phase3-trace", fulfilRequirementsAnalysis, PLATFORM_TENANT_ID);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
@@ -139,7 +139,7 @@ test("the producing Command leaves a traceable Command and a Completed/Disposed 
 });
 
 test("executionEngine rejects dispatch when no Participant fulfils the producing Capability, marking the Command Failed", async () => {
-  const seuId = await commissionTestSeu("phase3-engine");
+  const seuId = await commissionTestSeu("phase3-engine", undefined, PLATFORM_TENANT_ID);
   const detail = await getSeuDetailView(seuId);
   const architectureCapability = detail?.capabilities.find((c) => c.code === "architecture-design");
   assert.ok(architectureCapability);
@@ -167,7 +167,7 @@ test("executionEngine rejects dispatch when no Participant fulfils the producing
 });
 
 test("executionEngine rejects dispatch when the entity has no producing Capability declared at all", async () => {
-  const seuId = await commissionTestSeu("phase3-no-capability");
+  const seuId = await commissionTestSeu("phase3-no-capability", undefined, PLATFORM_TENANT_ID);
   const detail = await getSeuDetailView(seuId);
   // The architecture Deliverable depends on the requirements one, so the kickoff has not generated any Command for it.
   const architectureSpec = detail?.deliverables.find((d) => d.name === "Architecture Decision Record");
@@ -202,7 +202,7 @@ test("executionEngine rejects dispatch when the entity has no producing Capabili
 // must fail the Work Item and Command, and must raise a single Attention Item —
 // exactly the "cannot automatically continue" case (Ch.34).
 test("a Participant reporting 'blocked' fails the Work Item, and raises an Attention Item", async () => {
-  const seuId = await commissionTestSeu("phase3-blocked", fulfilRequirementsAnalysis);
+  const seuId = await commissionTestSeu("phase3-blocked", fulfilRequirementsAnalysis, PLATFORM_TENANT_ID);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
@@ -233,7 +233,7 @@ test("a Participant reporting 'blocked' fails the Work Item, and raises an Atten
 });
 
 test("completeWorkItem is idempotent-safe: a second result on an already-completed Work Item is rejected, not re-applied", async () => {
-  const seuId = await commissionTestSeu("phase3-double", fulfilRequirementsAnalysis);
+  const seuId = await commissionTestSeu("phase3-double", fulfilRequirementsAnalysis, PLATFORM_TENANT_ID);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);

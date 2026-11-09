@@ -71,7 +71,7 @@ function assertTransitionRequested(result: { ok: boolean; reason?: string }): vo
 // Deliverable transition also checks its owning SEU isn't blocked
 // (seu_blocked). This Profile omits that optional Pack entirely so real
 // commissioning actually reaches Operational.
-async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>, holdAtActivated?: (seuId: string) => Promise<void>, tenantId?: string): Promise<string> {
+async function commissionCr104MinimalSeu(statementPrefix: string, tenantId: string, beforeCommenceWork?: (seuId: string) => Promise<void>, holdAtActivated?: (seuId: string) => Promise<void>): Promise<string> {
   // db:clean-slate does not seed the cr104 demo; seedAllTestFixturePacks (seedCr104Demo) does, and is idempotent.
   await ensureTestFixturePacks();
   const { data: template } = await templatesDB.findActiveByCode("cr104-demo-minimal");
@@ -174,7 +174,7 @@ async function driveDeliverableToApproved(deliverableId: string, tag: string): P
 // exact moment (compositionCompleted.ts); a Policy upserted after
 // commissioning has already completed is invisible to policyEngine.evaluate
 // (the bug the first version of this fixture actually had).
-async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: string) => Promise<void>, beforeCommenceWork?: (seuId: string) => Promise<void>, tenantId?: string): Promise<{ seuId: string; deliverableId: string; packId: string }> {
+async function commissionIsolatedSeu(run: string, tenantId: string, beforeCommission?: (packId: string) => Promise<void>, beforeCommenceWork?: (seuId: string) => Promise<void>): Promise<{ seuId: string; deliverableId: string; packId: string }> {
   const packSeed = { tenantId: PLATFORM_TENANT_ID, code: "cr109-isolated-pack", name: "CR-109 Isolated Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: packSeed as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `isolated pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
@@ -243,7 +243,7 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
   // The producing Command is generated when the Capability is fulfilled (the engine already made the hop to In
   // Progress at commence-work), and its Work Item snapshots the Execution Context then. Decision, Evidence and
   // Knowledge are therefore attached first and the Capability is fulfilled last.
-  const seuId = await commissionCr104MinimalSeu("cr109-real-content");
+  const seuId = await commissionCr104MinimalSeu("cr109-real-content", PLATFORM_TENANT_ID);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
@@ -277,7 +277,7 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
 });
 
 test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Command generation and Dispatch reads it, not a live query", async () => {
-  const seuId = await commissionCr104MinimalSeu("cr109-pool-persistence");
+  const seuId = await commissionCr104MinimalSeu("cr109-pool-persistence", PLATFORM_TENANT_ID);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
@@ -302,7 +302,7 @@ test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Co
 
 test("Ch.12 §9 / CR-109 §6.2: with no eligible Participant the producing Capability stays unfulfilled and the Deliverable stays in Defined", async () => {
   {
-    const seuId = await commissionCr104MinimalSeu("cr109-pool-no-capability", undefined, undefined, await getEmptyPoolTenantId());
+    const seuId = await commissionCr104MinimalSeu("cr109-pool-no-capability", await getEmptyPoolTenantId());
     const detail = await getSeuDetailView(seuId);
     const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
     assert.ok(requirementsSpec);
@@ -329,7 +329,7 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
   // Commissioned in the empty-pool tenant so the automatic Capability request ends unavailable and the first governance
   // evaluation waits for this test's own Obligation and fulfilment.
   try {
-    const { seuId, deliverableId } = await commissionIsolatedSeu(run, async (packId) => {
+    const { seuId, deliverableId } = await commissionIsolatedSeu(run, PLATFORM_TENANT_ID, async (packId) => {
       const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
       if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("no participants_master row for user_id 1 — is db:clean-slate seeded?");
       const { data: standardPolicy } = await policiesDB.upsert({
@@ -387,7 +387,7 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
 test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model also blocks Source Code, with no new dependency edge", async () => {
   // The SEU is held at Activated, with its Deliverables already created, while the open Decision is attached. The
   // engine then makes its governed hop at Operational, so the Decision exists before the hop is evaluated.
-  const seuId = await commissionCr104MinimalSeu("cr109-transitivity", undefined, async (activatedSeuId) => {
+  const seuId = await commissionCr104MinimalSeu("cr109-transitivity", PLATFORM_TENANT_ID, undefined, async (activatedSeuId) => {
     const activatedDetail = await getSeuDetailView(activatedSeuId);
     const req = (await deliverableByCode(activatedDetail, "requirements-analysis-model"));
     assert.ok(req);
@@ -428,7 +428,7 @@ test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model 
 // ---------------------------------------------------------------------------
 
 test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation for real (no entry declared) and does not leak Requirements Analysis Model's own Decisions/Evidence/Knowledge", async () => {
-  const seuId = await commissionCr104MinimalSeu("cr109-source-code-scoping", async (seuId) => {
+  const seuId = await commissionCr104MinimalSeu("cr109-source-code-scoping", PLATFORM_TENANT_ID, async (seuId) => {
     const detail = await getSeuDetailView(seuId);
     const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
     assert.ok(reqAnalysisCapability);
@@ -468,7 +468,7 @@ test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation 
 });
 
 test("CR-109 Source Code §5a: decision_blocked triggers even when only ONE of several related Decisions is still open, and clears only once every one of them reaches Approved", async () => {
-  const seuId = await commissionCr104MinimalSeu("cr109-source-code-partial-block", async (seuId) => {
+  const seuId = await commissionCr104MinimalSeu("cr109-source-code-partial-block", PLATFORM_TENANT_ID, async (seuId) => {
     const detail = await getSeuDetailView(seuId);
     const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
     assert.ok(reqAnalysisCapability);

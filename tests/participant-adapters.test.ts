@@ -19,7 +19,6 @@ import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
 import { capabilityDefinitionsDB } from "../src/dblayer/capabilityDefinitionsDB.js";
-import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { registerAdapter, resolveAdapter } from "../src/adapters/adapterRegistry.js";
 import { humanOnUiAdapter } from "../src/adapters/humanOnUiAdapter.js";
 import { externalOrchestratorAdapter } from "../src/adapters/externalOrchestratorAdapter.js";
@@ -34,7 +33,7 @@ import { deliverableByCode } from "./testFixtures.js";
 const captured: Array<{ workItemId: string; body: any; auth: string | undefined }> = [];
 let captureServer: http.Server;
 let captureUrl: string;
-let defaultTenantId: string;
+let commissionTenantId: string;
 
 // Ch.30 Event Bus redesign — dispatch is fire-and-forget, so anything
 // waiting on assignmentDelivery's own side effect (here, delivery to the
@@ -52,9 +51,7 @@ before(async () => {
   // DB-backed (event_subscriptions), loaded into memory here instead of the
   // old imperative registerAssignmentDelivery() call.
   await eventBus.loadSubscriptions();
-  const { data: def } = await tenantsDB.findDefault();
-  assert.ok(def, "a default tenant must be seeded");
-  defaultTenantId = def!.id;
+  commissionTenantId = PLATFORM_TENANT_ID;
   captureServer = http.createServer((req, res) => {
     let raw = "";
     req.on("data", (c) => (raw += c));
@@ -77,8 +74,8 @@ after(async () => {
   // file set is global. Clear it so later e2e files (which boot the app and
   // register the delivery subscriber) don't try to deliver to this now-closed
   // capture server.
-  const { data: caps } = await capabilityDefinitionsDB.findActiveByCodesVisibleTo(["requirements-analysis"], defaultTenantId);
-  for (const cap of caps ?? []) await executionTargetsDB.deleteByTenantAndCapability(defaultTenantId, cap.id);
+  const { data: caps } = await capabilityDefinitionsDB.findActiveByCodesVisibleTo(["requirements-analysis"], commissionTenantId);
+  for (const cap of caps ?? []) await executionTargetsDB.deleteByTenantAndCapability(commissionTenantId, cap.id);
   await new Promise<void>((resolve) => captureServer.close(() => resolve()));
 });
 
@@ -131,7 +128,7 @@ test("both adapters implement the one contract; the registry resolves by mode; a
 test("external-orchestrator: dispatching delivers the assignment to the tenant endpoint over the adapter", async () => {
   const before = captured.length;
   const { deliverableId } = await commissionAndFulfil("adapter-external", async (capabilityId) => {
-    await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl, adapterAuthRef: "secret-token" });
+    await executionTargetsDB.upsert({ tenantId: commissionTenantId, capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl, adapterAuthRef: "secret-token" });
   });
 
   // Dispatch itself is async now (WorkItemGenerated -> dispatchEngine); wait
@@ -154,7 +151,7 @@ test("human-on-UI (default, no execution target): dispatching makes no external 
   // step 6). Clear any target another test set for this Capability so this exercises the true default.
   const before = captured.length;
   const { deliverableId } = await commissionAndFulfil("adapter-human", async (capabilityId) => {
-    await executionTargetsDB.deleteByTenantAndCapability(defaultTenantId, capabilityId);
+    await executionTargetsDB.deleteByTenantAndCapability(commissionTenantId, capabilityId);
   });
 
   const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
@@ -168,7 +165,7 @@ test("human-on-UI (default, no execution target): dispatching makes no external 
 test("the platform-side flow is identical either way: the Deliverable is dispatched-and-outstanding regardless of adapter", async () => {
   // Same Capability, both modes, same observable platform result (outstanding).
   const external = await commissionAndFulfil("adapter-invariance-ext", async (capabilityId) => {
-    await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl });
+    await executionTargetsDB.upsert({ tenantId: commissionTenantId, capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl });
   });
   const human = await commissionAndFulfil("adapter-invariance-hum");
 

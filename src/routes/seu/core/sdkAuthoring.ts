@@ -671,7 +671,7 @@ async function withDefaultTemplatePurpose(content: Record<string, unknown>, code
   return { ...content, purpose: concept.description };
 }
 
-async function emitConceptCreatedForCompetencies(packId: string, packCode: string, competencies: Array<{ dimension?: string; value?: string }> | undefined, ctx: { actorId: string; badge: string; tenantId?: string }): Promise<void> {
+async function emitConceptCreatedForCompetencies(packId: string, packCode: string, competencies: Array<{ dimension?: string; value?: string }> | undefined, ctx: { actorId: string; badge: string; tenantId: string }): Promise<void> {
   for (const comp of competencies ?? []) {
     if (!comp.dimension?.trim() || !comp.value?.trim()) continue;
     await emitConceptCreated({ originatingObjectType: "Pack", originatingObjectId: packId, originatingEntityCode: packCode, code: comp.value, conceptType: comp.dimension.toLowerCase(), ...ctx });

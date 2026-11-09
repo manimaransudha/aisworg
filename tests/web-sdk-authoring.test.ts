@@ -66,7 +66,7 @@ async function submit(pathName: string, fields: Record<string, string | string[]
 async function approvedCode(label: string): Promise<string> {
   const code = `zz-web-${label}-${run}`;
   const actor = { isRoot: true, tenantId: PLATFORM_TENANT_ID, actorId: ROOT_ACTOR_ID, actorBadge: ROOT_ACTOR_BADGE };
-  await addConcept({ conceptType: "capability-name", code, defaultLabel: `Web ${label} capability` }, actor);
+  await addConcept({ conceptType: "capability-name", code, defaultLabel: `Web ${label} capability` , targetTenantId: PLATFORM_TENANT_ID }, actor);
   await approveConcept("capability-name", code, PLATFORM_TENANT_ID, actor);
   return code;
 }

@@ -4,6 +4,7 @@
 //   - The test creates its own tenants and users under a random run tag and removes them, with their participants_master rows, at the end.
 //   - Roles and badges are taken from what the Ontology and the authority vocabulary hold at run time, not from literals.
 //   - SMTP settings are removed for the run, so createPlatformUser returns the verification link and sends no mail.
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import "dotenv/config";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -129,8 +130,9 @@ test("listTenantsForManagement lists the non-system tenants and listAllTenants a
   assert.ok(managed.every((t) => !t.is_system));
 
   const all = await listAllTenants();
+  const platformTenantId = await getPlatformTenantId();
   assert.ok(all.some((t) => t.id === tenantA.id));
-  assert.ok(all.some((t) => t.id === PLATFORM_TENANT_ID && t.is_system));
+  assert.ok(all.some((t) => t.id === platformTenantId && t.is_system));
 });
 
 // ---- creating users ---------------------------------------------------------
@@ -153,16 +155,18 @@ test("createPlatformUser creates a pending Tenant user, grants the roles and ret
   assert.equal(await masterRowCount(user.id), 1);
 });
 
-test("createPlatformUser makes a Platform user in the system tenant", async () => {
-  const platform = await tenantsDB.findById(PLATFORM_TENANT_ID);
-  assert.equal(platform.data?.is_system, true);
+test("createPlatformUser makes a user in the tenant given; the user's type follows the tenant's is_system", async () => {
+  const testPlatformTenantId = PLATFORM_TENANT_ID;
+  const tenant = await tenantsDB.findById(testPlatformTenantId);
+  assert.equal(tenant.data?.is_system, false);
 
   const email = `idt-${run}-platform@test.local`;
   createdEmails.push(email);
-  const result = await createPlatformUser({ email, tenantId: PLATFORM_TENANT_ID });
+  const result = await createPlatformUser({ email, tenantId: testPlatformTenantId });
   assert.equal(result.ok, true);
   const user = await userDB.findByEmail(email);
-  assert.equal(user?.type, "Platform");
+  assert.equal(user?.type, "Tenant");
+  assert.equal(user?.tenant_id, testPlatformTenantId);
   assert.equal(user?.name, email, "the name defaults to the email");
 });
 

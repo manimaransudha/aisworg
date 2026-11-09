@@ -77,7 +77,7 @@ test("DEFINITION: the six Ontology rows match the table", async () => {
 test("BIRTH: a new code lands in the birth row's state and publishes ConceptCreated with the real actor and badge", async () => {
   const conceptType = freshConceptType();
   const code = "first-code";
-  const created = await addConcept({ conceptType, code, defaultLabel: "First Code" }, ACTOR);
+  const created = await addConcept({ conceptType, code, defaultLabel: "First Code" , targetTenantId: PLATFORM_TENANT_ID }, ACTOR);
   assert.equal(created.version, "1.0.0");
   const { data: birth } = await transitionDefinitionsDB.findBirth("Ontology");
   assert.equal(created.status, birth!.to_state, "state from the birth row");
@@ -91,12 +91,12 @@ test("BIRTH: a new code lands in the birth row's state and publishes ConceptCrea
 test("DRIVEN: a new Version of an existing code is born Draft; its approval deprecates the previous Active Version", async () => {
   const conceptType = freshConceptType();
   const code = "second-code";
-  const v1 = await addConcept({ conceptType, code, defaultLabel: "V1 Label" }, ACTOR);
+  const v1 = await addConcept({ conceptType, code, defaultLabel: "V1 Label" , targetTenantId: PLATFORM_TENANT_ID }, ACTOR);
   // v1 lands in Draft (row 1/New); it must be Active before it can be the
   // "already Active" thing row 2/Edit supersedes — same as a real
   // ontology_approve holder approving it first.
   await approveConcept(conceptType, code, PLATFORM_TENANT_ID, ACTOR);
-  const v2 = await addConcept({ conceptType, code, defaultLabel: "V2 Label" }, ACTOR);
+  const v2 = await addConcept({ conceptType, code, defaultLabel: "V2 Label" , targetTenantId: PLATFORM_TENANT_ID }, ACTOR);
   assert.equal(v2.version, "1.0.1", "editing an existing code bumps the patch version");
   assert.equal(v2.status, "Draft", "a new Version waits for approval, like a new code");
   assert.equal((await ontologyDB.findConceptById(v1.id)).data?.status, "Active", "the previous Version stays Active until the new one is approved");
@@ -114,7 +114,7 @@ test("DRIVEN: a new Version of an existing code is born Draft; its approval depr
 test("DRIVEN: row 3 (Edit metadata — text_type/ui_grouping) publishes ConceptUpdated in place, no new Version", async () => {
   const conceptType = freshConceptType();
   const code = "third-code";
-  const created = await addConcept({ conceptType, code, defaultLabel: "Third Code" }, ACTOR);
+  const created = await addConcept({ conceptType, code, defaultLabel: "Third Code" , targetTenantId: PLATFORM_TENANT_ID }, ACTOR);
   // updateConceptMeta only edits the Active row (ontologyDB.findActiveConcept)
   // — approve the freshly-added Draft first.
   await approveConcept(conceptType, code, PLATFORM_TENANT_ID, ACTOR);
@@ -130,13 +130,13 @@ test("DRIVEN: row 3 (Edit metadata — text_type/ui_grouping) publishes ConceptU
 
 test("DRIVEN: Compose (Specialization) is born Draft and publishes OntologyComposed after ConceptCreated", async () => {
   const sourceType = freshConceptType();
-  const source = await addConcept({ conceptType: sourceType, code: "source-code", defaultLabel: "Source Label", description: "Source description" }, ACTOR);
+  const source = await addConcept({ conceptType: sourceType, code: "source-code", defaultLabel: "Source Label", description: "Source description" , targetTenantId: PLATFORM_TENANT_ID }, ACTOR);
   // composeConcept requires the source to be Active — approve the
   // freshly-added Draft first.
   await approveConcept(sourceType, "source-code", PLATFORM_TENANT_ID, ACTOR);
 
   const targetType = freshConceptType();
-  const composed = await composeConcept({ conceptType: targetType, code: "composed-code", strategy: "specialization", sourceConceptId: source.id }, ACTOR);
+  const composed = await composeConcept({ conceptType: targetType, code: "composed-code", strategy: "specialization", sourceConceptId: source.id, targetTenantId: PLATFORM_TENANT_ID }, ACTOR);
   assert.equal(composed.composition_strategy, "specialization");
   assert.equal(composed.status, "Draft", "a composed concept waits for approval");
 
@@ -150,7 +150,7 @@ test("DRIVEN: Compose (Specialization) is born Draft and publishes OntologyCompo
 test("REJECT: refused without a comment, keeps the trimmed comment with actor and badge, leaves the concept Draft", async () => {
   const conceptType = freshConceptType();
   const code = "reject-code";
-  const created = await addConcept({ conceptType, code, defaultLabel: "Reject Code" }, ACTOR);
+  const created = await addConcept({ conceptType, code, defaultLabel: "Reject Code" , targetTenantId: PLATFORM_TENANT_ID }, ACTOR);
   await assert.rejects(() => rejectConcept(conceptType, code, PLATFORM_TENANT_ID, "   ", ACTOR), /policy-comment-required/);
   assert.equal((await ontologyDB.getConceptComments(created.id)).data?.length, 0, "a refused reject stores no comment");
 
@@ -169,7 +169,7 @@ test("PROPOSAL: a ConceptCreated event with no version creates a Draft through t
   await ensureEventSubscriptionsLoaded();
   const conceptType = freshConceptType();
   const code = "proposed-code";
-  await emitConceptCreated({ originatingObjectType: "Pack", originatingObjectId: randomUUID(), code, conceptType, actorId: TESTER_ALL_ID, badge: "root" });
+  await emitConceptCreated({ originatingObjectType: "Pack", originatingObjectId: randomUUID(), code, conceptType, actorId: TESTER_ALL_ID, badge: "root", tenantId: PLATFORM_TENANT_ID });
   await waitUntilAsync(async () => !!(await ontologyDB.findLatestVersion(conceptType, code, PLATFORM_TENANT_ID)).data);
   const { data: concept } = await ontologyDB.findLatestVersion(conceptType, code, PLATFORM_TENANT_ID);
   assert.ok(concept, "the subscriber created the concept");
@@ -196,7 +196,7 @@ test("SYNC: syncConceptFromEntity returns an Active concept", async () => {
 test("DRIVEN: rows 5-7 (Deprecate/Retire/Archive) each publish their matching event", async () => {
   const conceptType = freshConceptType();
   const code = "lifecycle-code";
-  const created = await addConcept({ conceptType, code, defaultLabel: "Lifecycle Code" }, ACTOR);
+  const created = await addConcept({ conceptType, code, defaultLabel: "Lifecycle Code" , targetTenantId: PLATFORM_TENANT_ID }, ACTOR);
   // deprecateConcept only accepts an Active row — approve the freshly-added
   // Draft first.
   await approveConcept(conceptType, code, PLATFORM_TENANT_ID, ACTOR);

@@ -5,6 +5,7 @@
 //   - Every Ontology code a valid seed uses is a test Ontology concept (tests/schemaFixtures.ts) or a Platform category concept.
 //   - The parent rules and the two inheritance functions use the Active Policy of a schema fixture tenant, an Active Platform Policy,
 //     and a bare Draft in a fixture tenant.
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import "dotenv/config";
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
@@ -19,7 +20,7 @@ import {
   type PolicyDefinitionSeedInput,
 } from "../src/routes/seu/core/policyDefinitions.js";
 import type { PolicyCondition } from "../src/dblayer/seuTypes.js";
-import { PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 import { ensureFixtureTenant, buildStage1Fixtures, platformConceptCodes, authorityBadgeCodes, deliverableTransitions, FIXTURE_CODES, FIXTURE_VERSION } from "./schemaFixtures.js";
 
 const run = randomUUID().slice(0, 8);
@@ -214,7 +215,7 @@ test("listInheritablePolicyDefinitions lists the Active Platform Policies by cod
   assert.deepEqual(listed.map((p) => p.code), [...listed.map((p) => p.code)].sort((a, b) => a.localeCompare(b)));
   for (const item of listed) {
     const { data: row } = await policyDefinitionsDB.findById(item.id);
-    assert.equal(row?.tenant_id, PLATFORM_TENANT_ID);
+    assert.equal(row?.tenant_id, await getPlatformTenantId());
     assert.equal(row?.status, "Active");
     assert.deepEqual(item, { id: row!.id, code: row!.code, name: row!.name, category: row!.category, version: row!.version });
   }

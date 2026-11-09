@@ -9,7 +9,7 @@ import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import type { JsonSchemaDocument, JsonSchemaProperty } from "../../../domain/sdk/formGenerator.js";
 import type { OntologyConceptRow } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { getPlatformTenantId, INITIAL_VERSION } from "../../../dblayer/constants.js";
+import { INITIAL_VERSION } from "../../../dblayer/constants.js";
 
 export interface OntologyActor extends OntologyViewer {
   actorId: string;
@@ -142,12 +142,12 @@ export async function emitConceptCreated(input: {
   sourceRow?: Record<string, unknown>;
   actorId: string;
   badge: string;
-  tenantId?: string;
+  tenantId: string;
 }): Promise<void> {
   const code = input.code.trim();
   const conceptType = input.conceptType.trim();
   if (!code || !conceptType) return;
-  const tenantId = input.tenantId ?? (await getPlatformTenantId());
+  const tenantId = input.tenantId;
   const { data: concept } = await ontologyDB.findConcept(conceptType, code, { isRoot: false, tenantId });
   if (concept) return;
   const { data: priorEvents } = await eventsDB.findByOriginatingObject(input.originatingObjectType, input.originatingObjectId);
@@ -227,7 +227,7 @@ async function collectComposableValues(
 export async function proposeComposableOntologyValues(
   schema: JsonSchemaDocument,
   content: Record<string, unknown>,
-  ctx: { originatingObjectType: string; originatingObjectId: string; originatingEntityCode?: string | null; actorId: string; badge: string; tenantId?: string }
+  ctx: { originatingObjectType: string; originatingObjectId: string; originatingEntityCode?: string | null; actorId: string; badge: string; tenantId: string }
 ): Promise<void> {
   await collectComposableValues(schema.properties ?? {}, content, content, async (conceptType, value, fieldName, _label, row) => {
     await emitConceptCreated({ ...ctx, code: value, conceptType, fieldName, sourceRow: row });
@@ -322,7 +322,7 @@ export async function addConcept(
   if (conceptType === "deliverable-name") {
     throw new Error('Deliverable names are authored at /aisworg/seu/sdk/deliverable-authoring now, not added directly here — use "Inherit" there to derive from an existing Platform Deliverable Definition, or start a new one.');
   }
-  const tenantId = actor.isRoot ? (input.targetTenantId ?? (await getPlatformTenantId())) : actor.tenantId;
+  const tenantId = actor.isRoot ? (input.targetTenantId ?? actor.tenantId) : actor.tenantId;
   if (!tenantId) throw new Error("no tenant to add this concept to");
 
   const { data: latest } = await ontologyDB.findLatestVersion(conceptType, code, tenantId);
@@ -524,7 +524,7 @@ export async function composeConcept(
   const code = input.code.trim();
   assertOntologyCodeFormat("concept type", conceptType);
   assertOntologyCodeFormat("code", code);
-  const tenantId = actor.isRoot ? (input.targetTenantId ?? (await getPlatformTenantId())) : actor.tenantId;
+  const tenantId = actor.isRoot ? (input.targetTenantId ?? actor.tenantId) : actor.tenantId;
   if (!tenantId) throw new Error("no tenant to compose this concept into");
 
   let result: OntologyConceptRow;

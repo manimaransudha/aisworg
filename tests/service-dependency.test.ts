@@ -78,7 +78,10 @@ test("a Deliverable-type edge resolves Satisfied once the real SEU's upstream De
   const after1 = await getSeuDetailView(seuId);
   const archDocAfter = after1?.deliverables.find((d) => d.name === "Architecture Decision Record");
   const edgeAfter = archDocAfter?.dependencyEdges.find((e) => e.dependencyType === "Deliverable");
-  assert.equal(edgeAfter?.readinessState, "Satisfied");
+  assert.equal(
+    edgeAfter?.readinessState, "Satisfied",
+    `edge ${JSON.stringify(edgeAfter)}; upstream ${JSON.stringify({ id: upstream!.id, name: upstream!.name })}; deliverables ${JSON.stringify(after1?.deliverables.map((d) => ({ name: d.name, state: d.lifecycleState })))}`
+  );
 });
 
 test("Service Registry exposes each Service Definition's declared Service Level and providing Capability (Ch.11 §7-§8)", async () => {

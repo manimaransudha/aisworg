@@ -4,6 +4,7 @@
 //   - The test creates one bare Draft per kind in its own tenant, with the same fixtures and test-only Ontology codes the lifecycle tests use, and calls the
 //     core view functions directly. Rows are not deleted, as in the other tests that create tenant rows.
 //   - The page itself is covered by registry-views.test.ts.
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import "dotenv/config";
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
@@ -22,7 +23,7 @@ import { getPackView } from "../src/routes/seu/core/packView.js";
 import { getPolicyView } from "../src/routes/seu/core/policyView.js";
 import { getProfileView } from "../src/routes/seu/core/profileView.js";
 import { getTemplateView } from "../src/routes/seu/core/templateView.js";
-import { PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, uniqueTestPackVersion } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, uniqueTestPackVersion } from "./testFixtures.js";
 
 type Viewer = { isRoot: boolean; tenantId: string | null };
 
@@ -100,7 +101,8 @@ interface Kind {
 }
 
 async function firstVisiblePlatformId(rows: Array<{ id: string; tenant_id: string }>, view: Kind["view"]): Promise<string> {
-  for (const row of rows.filter((r) => r.tenant_id === PLATFORM_TENANT_ID).slice(0, 60)) {
+  const platformTenantId = await getPlatformTenantId();
+  for (const row of rows.filter((r) => r.tenant_id === platformTenantId).slice(0, 60)) {
     if (await view(row.id, { isRoot: true, tenantId: null })) return row.id;
   }
   throw new Error("the database holds no Platform row the view can show");

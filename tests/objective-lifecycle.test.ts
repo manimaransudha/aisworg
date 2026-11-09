@@ -362,7 +362,7 @@ test("findCandidateTemplates picks the tightest-fitting satisfying Template, not
   const { data: webAppCapabilities } = await templatesDB.getRequiredCapabilities(webApp.id);
   assert.ok(webAppCapabilities && webAppCapabilities.length > 0);
 
-  const candidates = await findCandidateTemplates(webAppCapabilities!.map((c) => c.code));
+  const candidates = await findCandidateTemplates(webAppCapabilities!.map((c) => c.code), PLATFORM_TENANT_ID);
   const satisfying = candidates.filter((c) => c.satisfies);
   assert.ok(satisfying.length >= 1);
 

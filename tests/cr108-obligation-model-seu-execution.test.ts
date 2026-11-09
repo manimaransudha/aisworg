@@ -227,6 +227,7 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
 
   const driven = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID, timeoutMs: 30000 });
   assert.equal(driven.ok, false, "the unsatisfied Policy must block Activated -> Operational");
+  if (!driven.ok) assert.equal(driven.stage, "blocked", `stopped at stage ${driven.stage}: ${driven.reason}`);
 
   const { data: seu } = await seusDB.findById(requested.seu.id);
   assert.equal(seu?.lifecycle_state, "Activated");

@@ -7,6 +7,7 @@
 // tenant's assignment carries its own VCS binding. Only the edge configuration
 // differs. Run against the real dev database, with a local capture server
 // standing in for the tenants' orchestrators.
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, before, after } from "node:test";
@@ -165,7 +166,7 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
   const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
   void fixtureTemplate;
   // The SEU's producing Capability is the Active Capability Definition its EBM recorded, so the execution target is upserted against that id.
-  const { data: reqAnalysisDefinition } = await capabilityDefinitionsDB.findActiveByCode("requirements-analysis", await getTestPlatformTenantId());
+  const { data: reqAnalysisDefinition } = await capabilityDefinitionsDB.findActiveByCode("requirements-analysis", await getPlatformTenantId());
   const reqAnalysisCapId = reqAnalysisDefinition?.id;
   assert.ok(reqAnalysisCapId);
 

@@ -92,7 +92,7 @@ after(async () => {
 // this fixture's own known Template/Profile ids directly is both correct
 // and robust to however many other rows the picker happens to offer.
 // `sponsor` owns the Objectives and so decides the SEU's tenant: Athens by default, Babylon where the pool must be empty.
-async function commissionSeu(request: Session, statementPrefix: string, sponsor: { participantId: string } = TESTER_OBJECTIVE_ATHENS, withFixtureParticipant = true): Promise<{ seuId: string; csrf: string }> {
+async function commissionSeu(request: Session, statementPrefix: string, sponsor: { participantId: string } = { participantId: ROOT_ACTOR_ID }, withFixtureParticipant = true): Promise<{ seuId: string; csrf: string }> {
   const { template: fixtureTemplate, profile: fixtureProfile } = await ensureWebAppTemplateFixture();
   const { objective: root } = await createActiveObjective({
     statement: `${statementPrefix}-root-${randomUUID()}`,
@@ -478,7 +478,7 @@ test("Phase 3 — the Deliverable stays in Defined until the Capability is fulfi
   const request = newSession(ROOT_USER_ID);
   const fixtureParticipantIds: string[] = [];
   try {
-  const { seuId, csrf } = await commissionSeu(request, "webflow-phase3", TESTER_OBJECTIVE_BABYLON, false);
+  const { seuId, csrf } = await commissionSeu(request, "webflow-phase3", { participantId: ROOT_ACTOR_ID }, false);
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
@@ -861,16 +861,16 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createActiveObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
-  const { objective } = await createActiveObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
+  const { objective: root } = await createActiveObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: ROOT_ACTOR_ID });
+  const { objective } = await createActiveObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: ROOT_ACTOR_ID });
 
-  const commissioned = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_OBJECTIVE_ATHENS.participantId, tenantId: PLATFORM_TENANT_ID });
+  const commissioned = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: ROOT_ACTOR_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(commissioned.ok, true, !commissioned.ok ? `Validate Request failed: ${JSON.stringify(commissioned)}` : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
   const seuId = commissioned.seu.id;
   await ensureSeuRequesterParticipant(seuId);
 
-  const driven = await driveCommissioningToActive({ seuId, actorId: TESTER_OBJECTIVE_ATHENS.participantId, timeoutMs: 45000 });
+  const driven = await driveCommissioningToActive({ seuId, actorId: ROOT_ACTOR_ID, timeoutMs: 45000 });
   assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
 
   // Unlike commissionSeu, this SEU's requested_by is TESTER_OBJECTIVE_ATHENS

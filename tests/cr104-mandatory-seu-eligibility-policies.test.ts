@@ -143,7 +143,7 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
   // checked precisely below.
   const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID, timeoutMs: 30000 });
   assert.equal(result.ok, false, "an unsatisfied SEU-scoped Policy must block the Activated -> Operational hop");
-  if (!result.ok) assert.equal(result.stage, "blocked");
+  if (!result.ok) assert.equal(result.stage, "blocked", `stopped at stage ${result.stage}: ${result.reason}`);
 
   // Confirm the materialised fact itself: this Policy landed in
   // seu_scoped_policy_ids, never applicable_policy_ids (entity-scoped).

@@ -4,8 +4,7 @@
 //   - Each case has an SEU of its own, a plain row in the Operational state with the rows the case needs. Event subscriptions are not loaded in this
 //     file, so the events the handlers publish run no handler.
 //   - Rows are not deleted, as in the other tests that create SEUs.
-import { idsOfTenant } from "./entityTenantCache.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
+import { activeCapabilityDefinitionIds } from "./entityTenantCache.js";
 import "dotenv/config";
 // The Event Bus is loaded first: it loads the handler registry, which loads the handlers under test.
 import "../src/domain/engine/eventBus.js";
@@ -37,7 +36,7 @@ import { createObligationAsRoot, createEvidenceAsRoot, supportingEvidenceReferen
 const run = randomUUID().slice(0, 8);
 
 async function capabilityId(offset = 0): Promise<string> {
-  const id = idsOfTenant("CapabilityDefinition", await getPlatformTenantId())[offset];
+  const id = (await activeCapabilityDefinitionIds())[offset];
   assert.ok(id, "the Platform tenant holds a Capability Definition");
   return id;
 }

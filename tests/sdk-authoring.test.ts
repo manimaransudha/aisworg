@@ -267,7 +267,7 @@ async function ensureCr026ParentTemplate(): Promise<TemplateRow> {
     cr026ParentCache = (async () => {
       const templateVersion = uniqueVersion();
       const content = validTemplateContent(REAL_TEMPLATE_CODE, templateVersion);
-      const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content });
+      const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content, tenantId: PLATFORM_TENANT_ID });
       if (!created.ok) throw new Error(`ensureCr026ParentTemplate: ${created.errors.join("; ")}`);
       createdTemplateIds.push(created.draftId);
       await saveAuthoringDraft({ actorId: ROOT_ACTOR_ID, kind: "Template", id: created.draftId, content });
@@ -289,7 +289,7 @@ test("Pack authoring (entity-direct): root creates a Draft, authors, and publish
   const code = REAL_PACK_CODE;
   const packVersion = uniqueVersion();
 
-  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(code, packVersion) });
+  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(code, packVersion), tenantId: PLATFORM_TENANT_ID });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
 
@@ -329,7 +329,7 @@ test("Pack authoring authority is noun × verb: a non-root holder of the Pack li
   for (const v of ["define", "validate", "publish", "activate", "deprecate", "retire"]) await grant(publisherId, `pack_${v}`);
 
   const okVersion = uniqueVersion();
-  const okDraft = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: publisherId, content: validPackContent(REAL_PACK_CODE, okVersion) });
+  const okDraft = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: publisherId, content: validPackContent(REAL_PACK_CODE, okVersion), tenantId: PLATFORM_TENANT_ID });
   assert.equal(okDraft.ok, true, !okDraft.ok ? okDraft.errors.join("; ") : "assertion failed");
   if (!okDraft.ok) return;
   const okPublish = await advanceToActive("Pack", okDraft.draftId, publisherId);
@@ -340,7 +340,7 @@ test("Pack authoring authority is noun × verb: a non-root holder of the Pack li
   // A holder with NO Pack authority is denied at the governed transition.
   const outsiderId = await createTestUser("pack-outsider");
   await grant(outsiderId, "pack_define");
-  const denyDraft = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: outsiderId, content: validPackContent(REAL_PACK_CODE, uniqueVersion()) });
+  const denyDraft = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: outsiderId, content: validPackContent(REAL_PACK_CODE, uniqueVersion()), tenantId: PLATFORM_TENANT_ID });
   assert.equal(denyDraft.ok, true);
   if (!denyDraft.ok) return;
   const denied = await publishAuthoringDraft({ kind: "Pack", id: denyDraft.draftId, actorId: outsiderId });
@@ -362,7 +362,7 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   await grant(activator, "pack_retire");
 
   const packVersion = uniqueVersion();
-  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: author, content: validPackContent(REAL_PACK_CODE, packVersion) });
+  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: author, content: validPackContent(REAL_PACK_CODE, packVersion), tenantId: PLATFORM_TENANT_ID });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   const { data: draftPack } = await packsDB.findById(created.draftId);
@@ -408,7 +408,7 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
 
 test("Pack authoring: Publish is blocked by referential validation (unresolvable dependency), leaving the Draft a Draft", async () => {
   const packVersion = uniqueVersion();
-  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(REAL_PACK_CODE, packVersion) });
+  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(REAL_PACK_CODE, packVersion), tenantId: PLATFORM_TENANT_ID });
   assert.equal(created.ok, true);
   if (!created.ok) return;
 
@@ -445,7 +445,7 @@ test("CR-081: creating a new Pack from an EXISTING code inherits its content (in
   // only re-asserted code/name/packVersion, like this test used to, could
   // never have noticed contributions being dropped.
   const sourceContent = { ...validPackContent(REAL_PACK_CODE, sourceVersion), contributionCapabilities: [{ code: "engineering-work-review", name: "Code Review", description: "Ensures code changes are reviewed." }] };
-  const sourceCreated = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: sourceContent });
+  const sourceCreated = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: sourceContent, tenantId: PLATFORM_TENANT_ID });
   assert.equal(sourceCreated.ok, true, !sourceCreated.ok ? sourceCreated.errors.join("; ") : "assertion failed");
   if (!sourceCreated.ok) return;
   const publishedSource = await advanceToActive("Pack", sourceCreated.draftId, ROOT_ACTOR_ID);
@@ -475,7 +475,7 @@ test("CR-081: creating a new Pack from an EXISTING code inherits its content (in
   assert.equal(inheritedCapabilities?.length, 1, "Capabilities tab content must survive branching, flattened to contributionCapabilities");
   assert.equal(inheritedCapabilities?.[0]?.code, "engineering-work-review");
 
-  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: inherited.content });
+  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: inherited.content, tenantId: PLATFORM_TENANT_ID });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   assert.notEqual(created.draftId, sourceCreated.draftId, "a genuinely new row, not the source Pack itself");
@@ -511,7 +511,7 @@ test("CR-081: creating a new Pack by TYPING A NEW CODE (never published before) 
   // every other test in this file growing packs.code_pack_version_tenant_key
   // rows it never deletes.
   const newCode = `test-pack-typed-new-${randomUUID()}`;
-  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(newCode, "1.0.0") });
+  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(newCode, "1.0.0"), tenantId: PLATFORM_TENANT_ID });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
 
@@ -548,7 +548,7 @@ function validTemplateContent(code: string, templateVersion: string): Record<str
 
 test("Template authoring (entity-direct): the same pipeline as Pack produces a real Active Template row", async () => {
   const templateVersion = uniqueVersion();
-  const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
+  const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion), tenantId: PLATFORM_TENANT_ID });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
@@ -578,7 +578,7 @@ test("Profile authoring (entity-direct): produces a real Active Profile row refe
   // Platform tenant (root authors here).
   const content: Record<string, unknown> = { code, name: "SDK Test Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github", optionalPackCodes: [] };
 
-  const created = await createAuthoringDraft({ kind: "Profile", authorBadge: "profile_define", schemaDefinitionId: await schemaDefinitionIdFor("Profile"), actorId: ROOT_ACTOR_ID, content });
+  const created = await createAuthoringDraft({ kind: "Profile", authorBadge: "profile_define", schemaDefinitionId: await schemaDefinitionIdFor("Profile"), actorId: ROOT_ACTOR_ID, content, tenantId: PLATFORM_TENANT_ID });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
 
@@ -597,7 +597,7 @@ test("Profile authoring (entity-direct): produces a real Active Profile row refe
 
 test("Template authoring: referential validation rejects a mandatoryPackCode that doesn't resolve to a real Pack (blocks publish)", async () => {
   const templateVersion = uniqueVersion();
-  const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
+  const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion), tenantId: PLATFORM_TENANT_ID });
   assert.equal(created.ok, true);
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
@@ -779,7 +779,7 @@ test("Deliverable Definition authoring (entity-direct): produces a real Active r
   const definitionVersion = uniqueVersion();
   await ensureDeliverableNameConcept(code);
 
-  const created = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, definitionVersion) });
+  const created = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, definitionVersion), tenantId: PLATFORM_TENANT_ID });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   createdDeliverableDefinitionIds.push(created.draftId);
@@ -800,24 +800,24 @@ test("Deliverable Definition authoring (entity-direct): produces a real Active r
 });
 
 test("Deliverable Definition authoring: validation rejects an empty code, a non-semver version, and a duplicate code+version+tenant", async () => {
-  const emptyCode = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent("", uniqueVersion()) });
+  const emptyCode = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent("", uniqueVersion()), tenantId: PLATFORM_TENANT_ID });
   assert.equal(emptyCode.ok, false);
   assert.match((!emptyCode.ok && emptyCode.errors.join(";")) || "", /code is required/);
 
   const code = `sdk-test-deliverable-badver-${randomUUID()}`;
-  const badVersion = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "not-a-version") });
+  const badVersion = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "not-a-version"), tenantId: PLATFORM_TENANT_ID });
   assert.equal(badVersion.ok, false);
   assert.match((!badVersion.ok && badVersion.errors.join(";")) || "", /semver/);
 
   const dupeCode = `sdk-test-deliverable-dupe-${randomUUID()}`;
   const dupeVersion = uniqueVersion();
   createdOntologyConceptCodes.push(dupeCode);
-  const first = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
+  const first = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion), tenantId: PLATFORM_TENANT_ID });
   assert.equal(first.ok, true, !first.ok ? first.errors.join("; ") : "assertion failed");
   if (!first.ok) return;
   createdDeliverableDefinitionIds.push(first.draftId);
 
-  const second = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
+  const second = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion), tenantId: PLATFORM_TENANT_ID });
   assert.equal(second.ok, false);
   assert.match((!second.ok && second.errors.join(";")) || "", /already exists at version|duplicate key|code_version_tenant_key|failed to create/);
 });
@@ -831,7 +831,7 @@ test("CR-049: inheriting from an Active Platform Deliverable Definition offers a
   const parentCode = `sdk-test-deliverable-parent-${randomUUID()}`;
   const parentVersion = uniqueVersion();
   await ensureDeliverableNameConcept(parentCode);
-  const parentCreated = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(parentCode, parentVersion) });
+  const parentCreated = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(parentCode, parentVersion), tenantId: PLATFORM_TENANT_ID });
   assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : "assertion failed");
   if (!parentCreated.ok) return;
   createdDeliverableDefinitionIds.push(parentCreated.draftId);
@@ -869,14 +869,14 @@ test("Deliverable Definition: a second Version of the same code superseding the 
   const code = `sdk-test-deliverable-supersede-${randomUUID()}`;
   await ensureDeliverableNameConcept(code);
 
-  const v1 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "1.0.0") });
+  const v1 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "1.0.0"), tenantId: PLATFORM_TENANT_ID });
   assert.equal(v1.ok, true, !v1.ok ? v1.errors.join("; ") : "assertion failed");
   if (!v1.ok) return;
   createdDeliverableDefinitionIds.push(v1.draftId);
   const v1Published = await advanceToActive("Deliverable", v1.draftId, ROOT_ACTOR_ID);
   assert.equal(v1Published.ok, true, !v1Published.ok ? v1Published.errors.join("; ") : "assertion failed");
 
-  const v2 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: { code, name: code, description: "Updated description for v2", definitionVersion: "1.0.1" } });
+  const v2 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: { code, name: code, description: "Updated description for v2", definitionVersion: "1.0.1" }, tenantId: PLATFORM_TENANT_ID });
   assert.equal(v2.ok, true, !v2.ok ? v2.errors.join("; ") : "assertion failed");
   if (!v2.ok) return;
   createdDeliverableDefinitionIds.push(v2.draftId);

@@ -69,7 +69,7 @@ test("compose reports Packs that assign different roles to one transition, and P
   });
   const template = await createTemplate("conflicts", [first.code, second.code]);
 
-  const { composedPacks, compositionReport } = await compositionEngine.compose({ templateIds: [template.id], profileIds: [] });
+  const { composedPacks, compositionReport } = await compositionEngine.compose({ templateIds: [template.id], profileIds: [], viewerTenantId: PLATFORM_TENANT_ID });
   assert.deepEqual(composedPacks.map((p) => p.packCode).sort(), [first.code, second.code].sort());
   assert.equal(compositionReport.conflicts.length, 2, JSON.stringify(compositionReport.conflicts));
   const authority = compositionReport.conflicts.find((c) => c.startsWith("Authority conflict"));

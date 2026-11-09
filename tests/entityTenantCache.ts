@@ -1,5 +1,7 @@
 import { query } from "../src/utils/db.js";
 import { testScopeTenantIds } from "./ontologyTestCache.js";
+import { capabilityDefinitionsDB } from "../src/dblayer/capabilityDefinitionsDB.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 
 // Test-only index of which tenant owns a definition: (entity kind, id, code, tenant) for Platform and every test tenant. It holds no row data. A test
 // asks it for the tenant of a Pack, Template, Profile or definition and passes that tenant to the production function, whose own query then finds the
@@ -77,4 +79,15 @@ export function codesOfTenant(kind: EntityKind, tenantId: string): string[] {
 // The ids the tenant holds for the kind, in code order (each version and status is its own row).
 export function idsOfTenant(kind: EntityKind, tenantId: string): string[] {
   return [...entries.get(kind)!.values()].filter((e) => e.tenantId === tenantId).sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0)).map((e) => e.id);
+}
+
+// The Active Capability Definitions of the Platform tenant, in code order: the cache lists the codes and the production finder returns the Active row of each.
+export async function activeCapabilityDefinitionIds(): Promise<string[]> {
+  const platformTenantId = await getPlatformTenantId();
+  const ids: string[] = [];
+  for (const code of codesOfTenant("CapabilityDefinition", platformTenantId)) {
+    const { data } = await capabilityDefinitionsDB.findActiveByCode(code, platformTenantId);
+    if (data) ids.push(data.id);
+  }
+  return ids;
 }

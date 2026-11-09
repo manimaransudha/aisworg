@@ -8,6 +8,7 @@
 // compositionEngine's multi-Pack override-conflict path exercised with real,
 // versioned data for the first time. Run against the real dev database, no
 // mocking.
+import { ATHENS_TENANT_NAME, getPlatformTenantId } from "../src/dblayer/constants.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -30,13 +31,11 @@ import { createAuthoringDraft, saveAuthoringDraft } from "../src/routes/seu/core
 import { validatePackSeed, publishPack, createPackDraft, listPacksWithNextStates, packCodeVersionSummaries, type PackSeedInput } from "../src/routes/seu/core/packs.js";
 import { ensureTestFixturePacks, uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, serviceDefinitionIdFor } from "./testFixtures.js";
 
-// CR-026 — a real, seeded tenant (seedIdentityBaseline.ts's ATHENS_TENANT_ID's
-// sibling "Demo" tenant), used only to prove Pack's tenant-scoped versioning
-// against a genuine second tenant, not a made-up UUID.
-const { data: demoTenant, error: demoTenantErr } = await tenantsDB.findByCode("demo");
-if (demoTenantErr) throw demoTenantErr;
-if (!demoTenant) throw new Error("demo tenant not provisioned");
-const DEMO_TENANT_ID = demoTenant.id;
+// CR-026 — the seeded Athens test tenant, used only to prove Pack's tenant-scoped versioning against a genuine second tenant, not a made-up UUID.
+const { data: secondTenant, error: secondTenantErr } = await tenantsDB.findByName(ATHENS_TENANT_NAME);
+if (secondTenantErr) throw secondTenantErr;
+if (!secondTenant) throw new Error("Athens tenant not provisioned");
+const SECOND_TENANT_ID = secondTenant.id;
 
 // CR-079 bug fix — `code` used to be a freshly-registered, random-UUID-
 // suffixed capability-name concept per call (registerTestOntologyCode).
@@ -159,12 +158,12 @@ test("validatePackSeed rejects a service whose Service Definition is not Active"
 });
 
 test("validatePackSeed rejects a service whose Active Service Definition belongs to another tenant", async () => {
-  const demoDefinition = await freshServiceDefinition(DEMO_TENANT_ID);
+  const secondDefinition = await freshServiceDefinition(SECOND_TENANT_ID);
   for (const targetState of ["Validated", "Published", "Active"] as const) {
-    const advanced = await transitionAndPublish({ entityType: "Service", entityId: demoDefinition.id, targetState, actorId: ROOT_ACTOR_ID });
+    const advanced = await transitionAndPublish({ entityType: "Service", entityId: secondDefinition.id, targetState, actorId: ROOT_ACTOR_ID });
     assert.ok(advanced.ok, !advanced.ok ? `${"detail" in advanced ? advanced.detail : advanced.reason}` : "assertion failed");
   }
-  const result = await validatePackSeed(await seedWithService({ code: demoDefinition.code, serviceDefinitionId: demoDefinition.id }, "requirements-analysis"));
+  const result = await validatePackSeed(await seedWithService({ code: secondDefinition.code, serviceDefinitionId: secondDefinition.id }, "requirements-analysis"));
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.ok(result.errors.some((e) => e.includes("not visible to this tenant")), JSON.stringify(result.errors));
@@ -520,12 +519,12 @@ test("CR-026: two tenants publishing the exact same (code, packVersion) no longe
   const platformResult = await publishPack({ seed: await freshPackSeed({ code, packVersion: version, tenantId: PLATFORM_TENANT_ID }), actorId: TESTER_ALL_ID, activate: true });
   assert.equal(platformResult.ok, true, !platformResult.ok ? JSON.stringify(platformResult.errors) : "assertion failed");
 
-  const tenantResult = await publishPack({ seed: await freshPackSeed({ code, packVersion: version, tenantId: DEMO_TENANT_ID }), actorId: TESTER_ALL_ID, activate: true });
+  const tenantResult = await publishPack({ seed: await freshPackSeed({ code, packVersion: version, tenantId: SECOND_TENANT_ID }), actorId: TESTER_ALL_ID, activate: true });
   assert.equal(tenantResult.ok, true, !tenantResult.ok ? JSON.stringify(tenantResult.errors) : "a tenant's own Pack at the same (code, packVersion) as Platform's must not collide");
   assert.notEqual(tenantResult.pack!.id, platformResult.pack!.id, "must be two genuinely distinct rows, not one resolved for both tenants");
 
   const { data: platformActive } = await packsDB.findActiveByCode(code, PLATFORM_TENANT_ID);
-  const { data: tenantActive } = await packsDB.findActiveByCode(code, DEMO_TENANT_ID);
+  const { data: tenantActive } = await packsDB.findActiveByCode(code, SECOND_TENANT_ID);
   assert.equal(platformActive?.id, platformResult.pack!.id, "Platform's own Active row, unaffected by the tenant's activation");
   assert.equal(tenantActive?.id, tenantResult.pack!.id, "the tenant's own Active row, distinct from Platform's");
 });
@@ -590,13 +589,15 @@ test("packCodeVersionSummaries: version is a sequence per code, not per branch �
   assert.ok(summary!.versions.every((v) => v.version !== `${base}.5.0`), "the Draft-status version must never appear in the branch list");
   assert.equal(summary!.nextVersion, `${base}.5.1`, "nextVersion must bump from the HIGHEST version across every status (9.5.0, the invisible Draft) — not from whichever version merely happens to be Active (9.0.1)");
 
-  // Tenant fallback — a different tenant with NOTHING of its own under this
-  // code sees Platform's own branchable versions as a content source, but
-  // its OWN nextVersion is unaffected — a fresh "1.0.0", not a continuation
-  // of Platform's own "9.5.1".
-  const demoSummaries = await packCodeVersionSummaries(DEMO_TENANT_ID);
-  const demoSummary = demoSummaries[code];
-  assert.ok(demoSummary, "a tenant with nothing of its own under this code must still see Platform's versions as a fallback");
-  assert.equal(demoSummary!.versions.filter((v) => v.version.startsWith(`${base}.`)).length, 2, "the same 2 branchable (Published-through-Archived) Platform versions, Draft still excluded");
-  assert.equal(demoSummary!.nextVersion, "1.0.0", "the fallback offers Platform's CONTENT to branch from, but this tenant's own version sequence starts fresh — never continues Platform's numbering");
+  // Tenant fallback — a tenant with NOTHING of its own under a code sees the Platform tenant's branchable versions as a content source, but its OWN
+  // nextVersion is unaffected: a fresh "1.0.0". The Platform tenant is read, never written: a seeded Platform code is used.
+  const platformPacks = (await packsDB.findAllForTenant(await getPlatformTenantId())).data ?? [];
+  const branchable = platformPacks.filter((p) => ["Published", "Active", "Retired", "Archived"].includes(p.status));
+  assert.ok(branchable.length > 0, "the Platform tenant holds a Pack with a branchable version");
+  const platformCode = branchable[0]!.code;
+  const platformVersions = branchable.filter((p) => p.code === platformCode).map((p) => p.pack_version).sort();
+  const secondSummary = (await packCodeVersionSummaries(SECOND_TENANT_ID))[platformCode];
+  assert.ok(secondSummary, "a tenant with nothing of its own under this code must still see Platform's versions as a fallback");
+  assert.deepEqual(secondSummary!.versions.map((v) => v.version).sort(), platformVersions, "the same branchable Platform versions");
+  assert.equal(secondSummary!.nextVersion, "1.0.0", "the fallback offers Platform's CONTENT to branch from, but this tenant's own version sequence starts fresh — never continues Platform's numbering");
 });
