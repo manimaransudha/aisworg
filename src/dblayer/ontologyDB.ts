@@ -1,6 +1,6 @@
 import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { getPlatformTenantId, PLATFORM_TENANT_NAME, INITIAL_VERSION } from "./constants.js";
+import { getPlatformTenantId, PLATFORM_TENANT_NAME, INITIAL_VERSION, ONTOLOGY_CACHE_TTL_MS } from "./constants.js";
 import { userDB } from "./userDB.js";
 import type { DbResult, OntologyConceptRow, OntologyConceptCommentRow, TenantConceptAliasRow } from "./seuTypes.js";
 import { tenantsDB } from "./tenantsDB.js"
@@ -15,9 +15,68 @@ async function visibleTenantIds(viewer: OntologyViewer): Promise<string[] | null
   return [...ids];
 }
 
+// One entry per tenant that has logged in: every ontology_concepts row of Platform plus that tenant, all statuses. The finders read it first and
+// go to the database when the viewer is root or the tenant has no entry. A write reloads the entries that hold the written tenant.
+const ontologyCache = new Map<string, { rows: OntologyConceptRow[]; loaded_at: number }>();
+
+const reloading = new Map<string, Promise<void>>();
+
+// The rows of a tenant's entry, or undefined when the tenant has none. An entry older than ONTOLOGY_CACHE_TTL_MS is loaded again first, once
+// when several reads find it expired together; if that load fails the read goes to the database.
+async function liveEntry(tenantId: string): Promise<OntologyConceptRow[] | undefined> {
+  const entry = ontologyCache.get(tenantId);
+  if (!entry) return undefined;
+  if (Date.now() - entry.loaded_at < ONTOLOGY_CACHE_TTL_MS) return entry.rows;
+  let pending = reloading.get(tenantId);
+  if (!pending) {
+    pending = loadOntologyCache(tenantId).finally(() => reloading.delete(tenantId));
+    reloading.set(tenantId, pending);
+  }
+  await pending;
+  const fresh = ontologyCache.get(tenantId);
+  return fresh && Date.now() - fresh.loaded_at < ONTOLOGY_CACHE_TTL_MS ? fresh.rows : undefined;
+}
+
+export async function loadOntologyCache(tenantId: string): Promise<void> {
+  try {
+    const platformTenantId = await getPlatformTenantId();
+    const tenantIds = [...new Set([platformTenantId, tenantId])];
+    const { rows } = await query<OntologyConceptRow>("SELECT * FROM ontology_concepts WHERE tenant_id = ANY($1::uuid[])", [tenantIds]);
+    ontologyCache.set(tenantId, { rows, loaded_at: Date.now() });
+    logger.info(`[ontologyCache] loaded ${rows.length} ontology_concepts rows for tenant ${tenantId}.`);
+  } catch (err) {
+    logger.error(`[ontologyCache] failed to load tenant ${tenantId} -- reads for it go to the database`, err as Error);
+  }
+}
+
+async function refreshOntologyCacheFor(writtenTenantId: string): Promise<void> {
+  const platformTenantId = await getPlatformTenantId();
+  const loaded = [...ontologyCache.keys()];
+  const affected = writtenTenantId === platformTenantId ? loaded : loaded.filter((tenantId) => tenantId === writtenTenantId);
+  for (const tenantId of affected) await loadOntologyCache(tenantId);
+}
+
+async function cachedRows(viewer: OntologyViewer): Promise<OntologyConceptRow[] | null> {
+  if (viewer.isRoot || !viewer.tenantId) return null;
+  return (await liveEntry(viewer.tenantId)) ?? null;
+}
+
+// The rows a tenant owns, from its own entry, or null when the tenant has no entry.
+async function cachedOwnRows(tenantId: string): Promise<OntologyConceptRow[] | null> {
+  const entry = await liveEntry(tenantId);
+  return entry ? entry.filter((r) => r.tenant_id === tenantId) : null;
+}
+
+const byText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
 export const ontologyDB = {
   async findConcept(conceptType: string, code: string, viewer: OntologyViewer): Promise<DbResult<OntologyConceptRow | null>> {
     try {
+      const cached = await cachedRows(viewer);
+      if (cached) {
+        const matches = cached.filter((r) => r.concept_type === conceptType && r.code === code && r.status === "Active");
+        return { data: matches.find((r) => r.tenant_id === viewer.tenantId) ?? matches[0] ?? null };
+      }
       const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<OntologyConceptRow>(
@@ -34,6 +93,8 @@ export const ontologyDB = {
 
   async findActiveConcept(conceptType: string, code: string, tenantId: string): Promise<DbResult<OntologyConceptRow | null>> {
     try {
+      const own = await cachedOwnRows(tenantId);
+      if (own) return { data: own.find((r) => r.concept_type === conceptType && r.code === code && r.status === "Active") ?? null };
       const { rows } = await query<OntologyConceptRow>(
         "SELECT * FROM ontology_concepts WHERE concept_type = $1 AND code = $2 AND tenant_id = $3 AND status = 'Active' LIMIT 1",
         [conceptType, code, tenantId]
@@ -47,6 +108,10 @@ export const ontologyDB = {
 
   async findConceptById(id: string): Promise<DbResult<OntologyConceptRow | null>> {
     try {
+      for (const tenantId of [...ontologyCache.keys()]) {
+        const hit = (await liveEntry(tenantId))?.find((r) => r.id === id);
+        if (hit) return { data: hit };
+      }
       const { rows } = await query<OntologyConceptRow>("SELECT * FROM ontology_concepts WHERE id = $1", [id]);
       return { data: rows[0] ?? null };
     } catch (err) {
@@ -57,6 +122,8 @@ export const ontologyDB = {
 
   async findLatestVersion(conceptType: string, code: string, tenantId: string): Promise<DbResult<OntologyConceptRow | null>> {
     try {
+      const own = await cachedOwnRows(tenantId);
+      if (own) return { data: own.filter((r) => r.concept_type === conceptType && r.code === code).sort((a, b) => byText(b.created_at, a.created_at))[0] ?? null };
       const { rows } = await query<OntologyConceptRow>(
         "SELECT * FROM ontology_concepts WHERE concept_type = $1 AND code = $2 AND tenant_id = $3 ORDER BY created_at DESC LIMIT 1",
         [conceptType, code, tenantId]
@@ -70,6 +137,8 @@ export const ontologyDB = {
 
   async findConceptByCodeAndVersion(conceptType: string, code: string, tenantId: string, version: string): Promise<DbResult<OntologyConceptRow | null>> {
     try {
+      const own = await cachedOwnRows(tenantId);
+      if (own) return { data: own.find((r) => r.concept_type === conceptType && r.code === code && r.version === version) ?? null };
       const { rows } = await query<OntologyConceptRow>(
         "SELECT * FROM ontology_concepts WHERE concept_type = $1 AND code = $2 AND tenant_id = $3 AND version = $4 LIMIT 1",
         [conceptType, code, tenantId, version]
@@ -83,6 +152,11 @@ export const ontologyDB = {
 
   async findConceptsByType(conceptType: string, viewer: OntologyViewer, opts?: { includeInactive?: boolean }): Promise<DbResult<OntologyConceptRow[]>> {
     try {
+      const cached = await cachedRows(viewer);
+      if (cached) {
+        const matches = cached.filter((r) => r.concept_type === conceptType && (opts?.includeInactive || r.status === "Active"));
+        return { data: matches.sort((a, b) => byText(a.code, b.code) || (opts?.includeInactive ? byText(b.version, a.version) : 0)) };
+      }
       const tenantIds = await visibleTenantIds(viewer);
       const activeClause = opts?.includeInactive ? "" : " AND status = 'Active'";
       const order = opts?.includeInactive ? "ORDER BY code, version DESC" : "ORDER BY code";
@@ -101,6 +175,8 @@ export const ontologyDB = {
 
   async listDistinctConceptTypes(viewer: OntologyViewer): Promise<DbResult<string[]>> {
     try {
+      const cached = await cachedRows(viewer);
+      if (cached) return { data: [...new Set(cached.map((r) => r.concept_type))].sort(byText) };
       const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<{ concept_type: string }>("SELECT DISTINCT concept_type FROM ontology_concepts WHERE tenant_id = ANY($1::uuid[]) ORDER BY concept_type", [tenantIds])
@@ -114,6 +190,12 @@ export const ontologyDB = {
 
   async findConceptTypeUiGroupings(viewer: OntologyViewer): Promise<DbResult<Array<{ concept_type: string; ui_grouping: string }>>> {
     try {
+      const cached = await cachedRows(viewer);
+      if (cached) {
+        const pairs = new Map<string, { concept_type: string; ui_grouping: string }>();
+        for (const r of cached) if (r.ui_grouping !== null && r.status === "Active") pairs.set(`${r.concept_type}\u0000${r.ui_grouping}`, { concept_type: r.concept_type, ui_grouping: r.ui_grouping });
+        return { data: [...pairs.values()].sort((a, b) => byText(a.concept_type, b.concept_type) || byText(a.ui_grouping, b.ui_grouping)) };
+      }
       const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<{ concept_type: string; ui_grouping: string }>(
@@ -134,6 +216,11 @@ export const ontologyDB = {
 
   async findAllActiveConcepts(viewer: OntologyViewer): Promise<DbResult<Array<{ concept_type: string; code: string; default_label: string; text_type: "text" | "markdown"; ui_grouping: string | null; tenant_id: string }>>> {
     try {
+      const cached = await cachedRows(viewer);
+      if (cached) {
+        const active = cached.filter((r) => r.status === "Active").sort((a, b) => byText(a.concept_type, b.concept_type) || byText(a.code, b.code));
+        return { data: active.map((r) => ({ concept_type: r.concept_type, code: r.code, default_label: r.default_label, text_type: r.text_type, ui_grouping: r.ui_grouping, tenant_id: r.tenant_id })) };
+      }
       const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<{ concept_type: string; code: string; default_label: string; text_type: "text" | "markdown"; ui_grouping: string | null; tenant_id: string }>(
@@ -153,6 +240,8 @@ export const ontologyDB = {
 
   async findDistinctUiGroupings(viewer: OntologyViewer): Promise<DbResult<string[]>> {
     try {
+      const cached = await cachedRows(viewer);
+      if (cached) return { data: [...new Set(cached.filter((r) => r.ui_grouping !== null && r.status === "Active").map((r) => r.ui_grouping as string))].sort(byText) };
       const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<{ ui_grouping: string }>(
@@ -190,6 +279,7 @@ export const ontologyDB = {
           input.authorId, input.authorBadge,
         ]
       );
+      await refreshOntologyCacheFor(input.tenantId);
       return { data: rows[0] };
     } catch (err) {
       logger.error("[ontologyDB] insertConceptVersion error", err as Error);
@@ -222,6 +312,7 @@ export const ontologyDB = {
             author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge`,
         }
       );
+      for (const tenantId of new Set(rows.map((r) => r.tenantId))) await refreshOntologyCacheFor(tenantId);
       return { data: inserted };
     } catch (err) {
       logger.error("[ontologyDB] bulkInsertConceptVersions error", err as Error);
@@ -232,6 +323,7 @@ export const ontologyDB = {
   async updateConceptStatus(id: string, status: OntologyConceptRow["status"]): Promise<DbResult<OntologyConceptRow | null>> {
     try {
       const { rows } = await query<OntologyConceptRow>("UPDATE ontology_concepts SET status = $1 WHERE id = $2 RETURNING *", [status, id]);
+      if (rows[0]) await refreshOntologyCacheFor(rows[0].tenant_id);
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[ontologyDB] updateConceptStatus error", err as Error);
@@ -251,6 +343,7 @@ export const ontologyDB = {
       }
       values.push(id);
       const { rows } = await query<OntologyConceptRow>(`UPDATE ontology_concepts SET ${sets.join(", ")} WHERE id = $${values.length} RETURNING *`, values);
+      if (rows[0]) await refreshOntologyCacheFor(rows[0].tenant_id);
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[ontologyDB] updateConceptMeta error", err as Error);
@@ -297,6 +390,8 @@ export const ontologyDB = {
 
   async findDraftConcepts(viewer: OntologyViewer): Promise<DbResult<OntologyConceptRow[]>> {
     try {
+      const cached = await cachedRows(viewer);
+      if (cached) return { data: cached.filter((r) => r.status === "Draft").sort((a, b) => byText(a.created_at, b.created_at)) };
       const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<OntologyConceptRow>(

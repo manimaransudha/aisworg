@@ -89,9 +89,9 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
   const codeA = "conflict-a";
   const codeB = "conflict-b";
   // Two packs contributing authority rules for the SAME governedTransition with DIFFERENT roles.
-  const packA = { code: codeA, name: "Conflict A", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
+  const packA = { tenantId: PLATFORM_TENANT_ID, code: codeA, name: "Conflict A", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: { authorityRules: [{ code: `auth-a-${run}`, governedTransition: `x.transition.${run}`, authorisedRole: "general" }] } };
-  const packB = { code: codeB, name: "Conflict B", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
+  const packB = { tenantId: PLATFORM_TENANT_ID, code: codeB, name: "Conflict B", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: { authorityRules: [{ code: `auth-b-${run}`, governedTransition: `x.transition.${run}`, authorisedRole: "super" }] } };
   const pubA = await publishPack({ seed: packA as any, actorId: TESTER_ALL_ID, activate: true });
   const pubB = await publishPack({ seed: packB as any, actorId: TESTER_ALL_ID, activate: true });
@@ -150,7 +150,7 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
   // SEU Pending, awaiting human resolution), so it can't exercise this
   // test's own subject: does a real Failed SEU permanently block retry.
   await ensureStaleTestPackConcepts();
-  const stalePack = { code: "retry-stale-pack-test", name: "Retry Stale Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
+  const stalePack = { tenantId: PLATFORM_TENANT_ID, code: "retry-stale-pack-test", name: "Retry Stale Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: stalePack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, "the stale Pack publishes and activates first");
   const { data: activePack } = await packsDB.findActiveByCode(stalePack.code);
@@ -231,7 +231,7 @@ test("Validate Request: a Template mandating a since-Retired Pack fails commissi
   // a random per-run suffix here would fail validatePackSeed outright, same
   // as it always would.
   await ensureStaleTestPackConcepts();
-  const stalePack = { code: "stale-pack-test", name: "Stale Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
+  const stalePack = { tenantId: PLATFORM_TENANT_ID, code: "stale-pack-test", name: "Stale Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: stalePack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, "the stale Pack publishes and activates first");
   const { data: activePack } = await packsDB.findActiveByCode(stalePack.code);

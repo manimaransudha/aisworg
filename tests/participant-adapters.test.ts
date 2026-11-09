@@ -26,6 +26,7 @@ import { eventBus } from "../src/domain/engine/eventBus.js";
 import type { ParticipantAdapter } from "../src/adapters/participantAdapter.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 // A local server standing in for a tenant's external orchestrator, capturing
 // every assignment the platform delivers.
@@ -104,7 +105,7 @@ async function commissionAndFulfil(prefix: string, beforeFulfil?: (capabilityId:
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
   const detail = await getSeuDetailView(seuId);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const deliverable = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(deliverable);
   return { seuId, deliverableId: deliverable.id, capabilityId };
 }

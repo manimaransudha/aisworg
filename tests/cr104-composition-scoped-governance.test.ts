@@ -31,32 +31,6 @@ import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscript
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
-// A category "Organisation" Pack's own `code` must be a canonical
-// organisation-name Ontology concept (validatePackSeed, packs.ts) — same
-// registration real seed Packs get via cleanSlate.ts, done directly here
-// since these codes are per-test-run random and never seeded. Platform-
-// scoped (PLATFORM_TENANT_ID), same tenant every other fixture Pack's own
-// organisation-name concept lives under.
-async function registerOrganisationName(code: string): Promise<void> {
-  await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, status, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, 'Active', $3, $4, $5) ON CONFLICT DO NOTHING",
-    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
-  );
-}
-
-// A Quality Gate's own applicabilityDeliverableNames must each be a real,
-// canonical deliverable-name Ontology concept (packs.ts's own
-// assertCanonicalCategory check, same discipline Template's deliverableCatalogue
-// entries already get) — registered directly here for the same reason
-// registerOrganisationName is: these codes are per-test-run random and never
-// seeded elsewhere.
-async function registerDeliverableName(code: string): Promise<void> {
-  await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, status, tenant_id, author_id, author_badge) VALUES ('deliverable-name', $1, $2, 'Active', $3, $4, $5) ON CONFLICT DO NOTHING",
-    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
-  );
-}
-
 // Two Templates: one mandates the scoped Pack (and therefore its Quality
 // Gate + Policy), one mandates nothing at all. Same shape as
 // governance-ebm-sharpening.test.ts's own FR-3.6/3.7 conflict fixture —
@@ -99,7 +73,8 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   // Progress" + category "Review Evidence" is free there — the shared
   // "development" fixture only uses that category on "In Progress|Approved").
   const scopedPack = {
-    code: `cr104-scoped-pack-${run}`,
+    tenantId: PLATFORM_TENANT_ID,
+    code: "cr104-scoped-pack",
     name: "CR-104 Scoped Pack",
     category: "Organisation",
     packVersion: uniqueTestPackVersion(),
@@ -110,7 +85,6 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
       ],
     },
   };
-  await registerOrganisationName(scopedPack.code);
   const published = await publishPack({ seed: scopedPack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `scoped pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(scopedPack.code);
@@ -194,8 +168,7 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
   const unsatisfiedCondition = { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] };
 
   // Pack 1: only a Standard (non-blocking) policy.
-  const standardPack = { code: `cr104-standard-pack-${run}`, name: "CR-104 Standard Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
-  await registerOrganisationName(standardPack.code);
+  const standardPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-standard-pack", name: "CR-104 Standard Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   assert.ok((await publishPack({ seed: standardPack as any, actorId: TESTER_ALL_ID, activate: true })).ok);
   const { data: standardPackRow } = await packsDB.findActiveByCode(standardPack.code);
   const { data: standardPolicy } = await policiesDB.upsert({
@@ -210,8 +183,7 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
   const standardSeu = await commissionAgainstTemplate(standardTemplate!.id, `cr104-standard-${run}`);
 
   // Pack 2: a real, blocking Policy constraint.
-  const blockingPack = { code: `cr104-blocking-pack-${run}`, name: "CR-104 Blocking Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
-  await registerOrganisationName(blockingPack.code);
+  const blockingPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-blocking-pack", name: "CR-104 Blocking Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   assert.ok((await publishPack({ seed: blockingPack as any, actorId: TESTER_ALL_ID, activate: true })).ok);
   const { data: blockingPackRow } = await packsDB.findActiveByCode(blockingPack.code);
   const { data: blockingPolicy } = await policiesDB.upsert({
@@ -240,7 +212,8 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
   const otherName = "test-plan";
 
   const namedPack = {
-    code: `cr104-named-pack-${run}`, name: "CR-104 Named Pack", category: "Organisation",
+    tenantId: PLATFORM_TENANT_ID,
+    code: "cr104-named-pack", name: "CR-104 Named Pack", category: "Organisation",
     packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: {
       qualityGates: [
@@ -248,7 +221,6 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
       ],
     },
   };
-  await registerOrganisationName(namedPack.code);
   const namedPublished = await publishPack({ seed: namedPack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(namedPublished.ok, `named pack must publish: ${!namedPublished.ok ? JSON.stringify(namedPublished) : ""}`);
 

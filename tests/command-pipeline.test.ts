@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { executionEngine } from "../src/domain/engine/executionEngine.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
@@ -72,7 +73,7 @@ test("a Deliverable does not move to In Progress while nobody fulfils its produc
   if (ownTenantErr || !ownTenant) throw ownTenantErr ?? new Error("failed to create the test tenant");
   const seuId = await commissionTestSeu("phase3-defer", undefined, ownTenant.id);
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec, "expected a seeded Requirements Analysis Model deliverable");
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
 
@@ -82,7 +83,7 @@ test("a Deliverable does not move to In Progress while nobody fulfils its produc
   if (!moved.ok) assert.equal(moved.reason, "policy_blocked", JSON.stringify(moved));
 
   const after = await getSeuDetailView(seuId);
-  assert.equal(after?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "Defined", "the Deliverable stays in Defined");
+  assert.equal((await deliverableByCode(after, "requirements-analysis-model"))?.lifecycleState, "Defined", "the Deliverable stays in Defined");
   const { data: commands } = await commandsDB.findBySeuId(seuId);
   assert.equal((commands ?? []).filter((c) => c.entity_id === requirementsSpec.id && c.status === "Completed").length, 0, "no Command completed for the Deliverable");
 });
@@ -90,7 +91,7 @@ test("a Deliverable does not move to In Progress while nobody fulfils its produc
 test("the producing Command leaves a traceable Command and a Completed/Disposed Work Item assigned to the fulfilling Participant", async () => {
   const seuId = await commissionTestSeu("phase3-trace", fulfilRequirementsAnalysis);
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
   // Defined -> In Progress is a governed hop: the Execution Engine makes it off the kickoff, so a manual request that
@@ -203,7 +204,7 @@ test("executionEngine rejects dispatch when the entity has no producing Capabili
 test("a Participant reporting 'blocked' fails the Work Item, and raises an Attention Item", async () => {
   const seuId = await commissionTestSeu("phase3-blocked", fulfilRequirementsAnalysis);
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
   const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
@@ -217,7 +218,7 @@ test("a Participant reporting 'blocked' fails the Work Item, and raises an Atten
 
   // A blocked result changes no engineering state: the Deliverable stays where the engine put it.
   const after = await getSeuDetailView(seuId);
-  assert.equal(after?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "In Progress", "a blocked result never changes the Deliverable's state");
+  assert.equal((await deliverableByCode(after, "requirements-analysis-model"))?.lifecycleState, "In Progress", "a blocked result never changes the Deliverable's state");
 
   // Work Item Failed, Command Failed, but the raw reference is still stored.
   const { data: workItem } = await workItemsDB.findById(dispatchedWorkItem.id);
@@ -234,7 +235,7 @@ test("a Participant reporting 'blocked' fails the Work Item, and raises an Atten
 test("completeWorkItem is idempotent-safe: a second result on an already-completed Work Item is rejected, not re-applied", async () => {
   const seuId = await commissionTestSeu("phase3-double", fulfilRequirementsAnalysis);
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
   const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });

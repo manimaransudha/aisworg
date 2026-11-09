@@ -3589,5 +3589,131 @@
     "is_mandatory": null,
     "text_type": "text",
     "ui_grouping": "Profiles"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr108-ec-pack",
+    "default_label": "cr108-ec-pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr104-scoped-pack",
+    "default_label": "cr104-scoped-pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr104-standard-pack",
+    "default_label": "cr104-standard-pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr104-blocking-pack",
+    "default_label": "cr104-blocking-pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr104-named-pack",
+    "default_label": "cr104-named-pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr104-platform-mandatory",
+    "default_label": "cr104-platform-mandatory",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr104-tenant-mandatory",
+    "default_label": "cr104-tenant-mandatory",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr104-seu-policy-pack",
+    "default_label": "cr104-seu-policy-pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr104-eligibility-pack",
+    "default_label": "cr104-eligibility-pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr107-seu-policy-pack",
+    "default_label": "cr107-seu-policy-pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr108-pack-obligation",
+    "default_label": "cr108-pack-obligation",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr108-attn-pack",
+    "default_label": "cr108-attn-pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "cr109-isolated-pack",
+    "default_label": "cr109-isolated-pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "webflow-phase8-isolated-pack",
+    "default_label": "webflow-phase8-isolated-pack",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
   }
 ]

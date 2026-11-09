@@ -17,6 +17,7 @@ import { transitionEvidence } from "../src/routes/seu/core/evidence.js";
 import { getQualityMetrics } from "../src/routes/seu/core/telemetry.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
@@ -39,7 +40,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   const seuId = result.seu.id;
 
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
   await resolveDispatchRejectionObligations(seuId);
   return { seuId, deliverableId: requirementsSpec.id };

@@ -23,6 +23,9 @@ export const ATHENS_TENANT_NAME = "Athens AI-Native";
 export const BABYLON_TENANT_NAME = "Babylon AI-Native";
 export const TEST_PLATFORM_TENANT_CODE = "test-platform";
 export const TEST_PLATFORM_TENANT_NAME = "Test Platform";
+// A tenant's Ontology cache entry (ontologyDB) is dropped when it is older than this, and is loaded again at the tenant's next login.
+export const ONTOLOGY_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
+
 export const TEST_PLATFORM_USER_EMAIL = "test_platform_id@local.com";
 export const CAMBODIA_TENANT_NAME = "Cambodia AI-Native";
 // The competency dimensions that hold the role types and work types of the Capabilities composed in an EBM.

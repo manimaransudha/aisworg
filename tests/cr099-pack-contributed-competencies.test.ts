@@ -14,7 +14,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { validatePackSeed, type PackSeedInput } from "../src/routes/seu/core/packs.js";
-import { uniqueTestPackVersion } from "./testFixtures.js";
+import { uniqueTestPackVersion, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 function freshPackSeed(overrides: Partial<PackSeedInput> = {}): PackSeedInput {
   return {
@@ -24,6 +24,7 @@ function freshPackSeed(overrides: Partial<PackSeedInput> = {}): PackSeedInput {
     packVersion: uniqueTestPackVersion(),
     installationClassification: "Optional",
     contributions: {},
+    tenantId: PLATFORM_TENANT_ID,
     ...overrides,
   } as PackSeedInput;
 }

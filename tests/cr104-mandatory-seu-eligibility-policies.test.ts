@@ -43,13 +43,6 @@ import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective, seuBirthState } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 
-async function registerOrganisationName(code: string): Promise<void> {
-  await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, status, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, 'Active', $3, $4, $5) ON CONFLICT DO NOTHING",
-    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
-  );
-}
-
 async function createTestTenant(label: string): Promise<string> {
   const { data: tenant, error } = await tenantsDB.create({
     code: `${label}-${randomUUID().slice(0, 8)}`,
@@ -67,8 +60,7 @@ test("CR-104: a Pack marked installation_classification 'Mandatory' composes int
   const run = randomUUID().slice(0, 8);
 
   // Platform-scoped: no tenantId given, defaults to PLATFORM_TENANT_ID.
-  const platformMandatory = { code: `cr104-platform-mandatory-${run}`, name: "CR-104 Platform Mandatory", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory", contributions: {} };
-  await registerOrganisationName(platformMandatory.code);
+  const platformMandatory = { tenantId: PLATFORM_TENANT_ID, code: "cr104-platform-mandatory", name: "CR-104 Platform Mandatory", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory", contributions: {} };
   const platformPublished = await publishPack({ seed: platformMandatory as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(platformPublished.ok, `platform-mandatory pack must publish: ${!platformPublished.ok ? JSON.stringify(platformPublished) : ""}`);
   const { data: platformPackRow } = await packsDB.findActiveByCode(platformMandatory.code);
@@ -88,8 +80,7 @@ test("CR-104: a Pack marked installation_classification 'Mandatory' composes int
   // tenant, and two Templates — one in that tenant (must compose it), one
   // in a different tenant (must NOT).
   const tenantId = await createTestTenant(`cr104-tenant-${run}`);
-  const tenantMandatory = { code: `cr104-tenant-mandatory-${run}`, name: "CR-104 Tenant Mandatory", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory", contributions: {}, tenantId };
-  await registerOrganisationName(tenantMandatory.code);
+  const tenantMandatory = { code: "cr104-tenant-mandatory", name: "CR-104 Tenant Mandatory", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory", contributions: {}, tenantId };
   const tenantPublished = await publishPack({ seed: tenantMandatory as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(tenantPublished.ok, `tenant-mandatory pack must publish: ${!tenantPublished.ok ? JSON.stringify(tenantPublished) : ""}`);
   const { data: tenantPackRow } = await packsDB.findActiveByCode(tenantMandatory.code);
@@ -113,8 +104,7 @@ test("CR-104: a Pack marked installation_classification 'Mandatory' composes int
 test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks the SEU's own commence-work transition, never the entity-scoped path — and raises a real Obligation instead of hard-failing the SEU", async () => {
   const run = randomUUID().slice(0, 8);
 
-  const seuPolicyPack = { code: `cr104-seu-policy-pack-${run}`, name: "CR-104 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
-  await registerOrganisationName(seuPolicyPack.code);
+  const seuPolicyPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-seu-policy-pack", name: "CR-104 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: seuPolicyPack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `seu policy pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(seuPolicyPack.code);
@@ -175,8 +165,7 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
 test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directly, checked against the Participant's own behaviour_context, resolved from the SEU's own EBM", async () => {
   const run = randomUUID().slice(0, 8);
 
-  const eligibilityPack = { code: `cr104-eligibility-pack-${run}`, name: "CR-104 Eligibility Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
-  await registerOrganisationName(eligibilityPack.code);
+  const eligibilityPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-eligibility-pack", name: "CR-104 Eligibility Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: eligibilityPack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `eligibility pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(eligibilityPack.code);

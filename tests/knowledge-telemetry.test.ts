@@ -14,6 +14,7 @@ import { createKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
 import { getKnowledgeMetrics } from "../src/routes/seu/core/telemetry.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, createEvidenceAsRoot as createEvidence, ROOT_ACTOR_ID, ensureActorParticipant, supportingEvidenceReferences } from "./testFixtures.js";
 import { TESTER_ALL_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 async function commissionTestSeuWithDeliverable(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
@@ -26,7 +27,7 @@ async function commissionTestSeuWithDeliverable(statementPrefix: string) {
   const seuId = result.seu.id;
 
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
   return { seuId, deliverableId: requirementsSpec.id };
 }

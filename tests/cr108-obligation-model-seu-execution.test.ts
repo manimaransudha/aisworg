@@ -32,6 +32,7 @@ import pool from "../src/utils/db.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createObligationAsRoot as createObligation, grantBadge, createActiveObjective } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { raiseMyObligation } from "../src/routes/seu/core/participantHome.js";
 import { transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
@@ -57,13 +58,6 @@ import {
 import type { SeuRow } from "../src/dblayer/seuTypes.js";
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
-async function registerOrganisationName(code: string): Promise<void> {
-  await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, status, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, 'Active', $3, $4, $5) ON CONFLICT DO NOTHING",
-    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
-  );
-}
-
 // --- Item 1: a Pack's own obligationDefinitions[].applicabilityDeliverables
 // naming SEU|Activated|Operational must genuinely gate commence-work, the
 // same way a Policy already does — same shared "SEU stays Activated, a real
@@ -72,7 +66,8 @@ async function registerOrganisationName(code: string): Promise<void> {
 async function commissionSeuBlockedByPackObligation(run: string) {
   const obligationCode = `cr108-ob-${run}`;
   const pack = {
-    code: `cr108-pack-obligation-${run}`, name: "CR-108 Pack Obligation Pack", category: "Organisation",
+    tenantId: PLATFORM_TENANT_ID,
+    code: "cr108-pack-obligation", name: "CR-108 Pack Obligation Pack", category: "Organisation",
     packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: {
       obligationDefinitions: [
@@ -91,7 +86,6 @@ async function commissionSeuBlockedByPackObligation(run: string) {
       ],
     },
   };
-  await registerOrganisationName(pack.code);
   const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `pack obligation pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(pack.code);
@@ -184,8 +178,7 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   // Attention Item, leaving the Obligation itself untouched, to isolate
   // AttentionItemTransitioned as the real trigger — not a side effect of the
   // Obligation's own resolution.
-  const pack = { code: `cr108-attn-pack-${run}`, name: "CR-108 Attention Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
-  await registerOrganisationName(pack.code);
+  const pack = { tenantId: PLATFORM_TENANT_ID, code: "cr108-attn-pack", name: "CR-108 Attention Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `attention pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(pack.code);
@@ -336,7 +329,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   const seuId = result.seu.id;
 
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
   await resolveDispatchRejectionObligations(seuId);
 
@@ -387,6 +380,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
 test("CR-108 follow-on: Work Item Execution Context includes every Deliverable Obligation, the composing Pack's own Checklists/Engineering Capital matched via producing Capability, and relevant Profile Configuration only", async () => {
   const run = randomUUID().slice(0, 8);
   const pack = {
+    tenantId: PLATFORM_TENANT_ID,
     code: "cr108-ec-pack", name: "CR-108 Execution Context Pack", category: "Organisation",
     packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: {
@@ -405,7 +399,6 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
   // nothing removes it, so a fresh Pack per run grows the table for every test that looks the code up.
   let packId = (await packsDB.findActiveByCode(pack.code)).data?.id;
   if (!packId) {
-    await registerOrganisationName(pack.code);
     const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });
     assert.ok(published.ok, `execution-context pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
     packId = published.pack!.id;
@@ -458,7 +451,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
       const detail = await getSeuDetailView(seuId);
       const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
       assert.ok(capability);
-      const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+      const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
       assert.ok(requirementsSpec);
 
       // Unrelated to the Governance Evaluation Outcome the transition below
@@ -482,7 +475,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
   await resolveDispatchRejectionObligations(seuId);
 
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
   const clicked = await clickTransitionAfterLag({ deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: TESTER_ALL_ID });

@@ -157,6 +157,7 @@ test("deriveOverridableParameterCandidates: a candidate the Template did NOT fla
 
 function baseProfileSeed(templateCode: string): Omit<ProfileSeedInput, "exposedParameterOverrides"> {
   return {
+    tenantId: PLATFORM_TENANT_ID,
     code: `test-cr088-profile-${randomUUID()}`,
     name: "CR-088 fixture Profile",
     baseTemplateCode: templateCode,

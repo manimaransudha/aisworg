@@ -30,13 +30,6 @@ import { initiateAndValidateSeu } from "./testFixtures.js";
 import type { SeuRow } from "../src/dblayer/seuTypes.js";
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
-async function registerOrganisationName(code: string): Promise<void> {
-  await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, status, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, 'Active', $3, $4, $5) ON CONFLICT DO NOTHING",
-    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
-  );
-}
-
 
 // Shared setup: a Template whose Template carries an always-unsatisfied
 // SEU-scoped Policy on "SEU|Activated|Operational" (same mechanism CR-104's
@@ -45,8 +38,7 @@ async function registerOrganisationName(code: string): Promise<void> {
 // incoming dependency_definitions row resolves dependency-ready trivially,
 // exactly the "head-of-chain" shape CR-107 was raised over).
 async function commissionBlockedSeu(run: string) {
-  const pack = { code: `cr107-seu-policy-pack-${run}`, name: "CR-107 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
-  await registerOrganisationName(pack.code);
+  const pack = { tenantId: PLATFORM_TENANT_ID, code: "cr107-seu-policy-pack", name: "CR-107 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `seu policy pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(pack.code);

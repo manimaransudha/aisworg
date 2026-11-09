@@ -20,6 +20,7 @@ import { getFlowMetrics, getGovernanceMetrics } from "../src/routes/seu/core/tel
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 // Ch.30 Event Bus redesign — publish() still persists every event
 // synchronously (only dispatch/consumption is fire-and-forget), so querying
@@ -59,7 +60,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
     await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, capabilityCodes: ["requirements-analysis"] });
   });
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
   await resolveDispatchRejectionObligations(seuId);
   return { seuId, deliverableId: requirementsSpec.id };

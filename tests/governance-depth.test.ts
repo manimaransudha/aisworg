@@ -25,6 +25,7 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
@@ -65,7 +66,7 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
   await ensureCoreEngineeringQualityGates();
   const seuId = await commissionTestSeu("phase4-quality-gate", fulfilRequirementsAnalysis);
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
   // The automatic commence-work rescan (off SEUOperational) already hit this
   // Deliverable's own then-unfulfilled Capability — a real, by-design
@@ -116,7 +117,7 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
 test("Obligation lifecycle runs through the generic transitionEngine (Ch.23 §9) and rejects an undefined transition", async () => {
   const seuId = await commissionTestSeu("phase4-obligation-lifecycle");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec.id, category: "Compliance", title: "Phase4 test: lifecycle walk", severity: "Medium" });

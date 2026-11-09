@@ -26,6 +26,7 @@ import { computeRowActions } from "../src/routes/seu/core/sdkAuthoring.js";
 import { syncConceptFromEntity } from "../src/routes/seu/core/ontology.js";
 import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
 import { transitionAndPublish } from "./testFixtures.js";
+import { forgetTestOntologyConcepts } from "./ontologyTestCache.js";
 import { loadPolicyChecks } from "../src/domain/engine/policyChecks.js";
 import { ONTOLOGY_VALUES_PRESENT_POLICY_CODE, VALIDATE_SCHEMA_POLICY_CODE } from "../src/dblayer/constants.js";
 import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
@@ -40,7 +41,10 @@ after(async () => {
     await pool.query("DELETE FROM events WHERE originating_object_type = 'DeliverableDefinition' AND originating_object_id = ANY($1::uuid[])", [createdIds]);
     await pool.query("DELETE FROM deliverable_definitions WHERE id = ANY($1::uuid[])", [createdIds]);
   }
-  if (createdConceptCodes.length) await pool.query("DELETE FROM ontology_concepts WHERE concept_type = 'deliverable-name' AND code = ANY($1::text[])", [createdConceptCodes]);
+  if (createdConceptCodes.length) {
+    await pool.query("DELETE FROM ontology_concepts WHERE concept_type = 'deliverable-name' AND code = ANY($1::text[])", [createdConceptCodes]);
+    forgetTestOntologyConcepts("deliverable-name", createdConceptCodes);
+  }
 });
 
 async function birthState(): Promise<string> {

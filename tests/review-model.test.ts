@@ -24,6 +24,7 @@ import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot, getEmptyPoolTenantId } from "./testFixtures.js";
 import { TESTER_ALL_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
@@ -38,7 +39,7 @@ async function commissionSeu(prefix: string) {
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const deliverable = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(deliverable);
   return { seuId: result.seu.id, deliverable };
 }

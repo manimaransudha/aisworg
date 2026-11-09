@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability, createActiveObjective } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
@@ -53,13 +54,6 @@ import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 function assertTransitionRequested(result: { ok: boolean; reason?: string }): void {
   if (result.ok) return;
   assert.ok(result.reason === "no_transition_definition" || result.reason === "already_in_flight", JSON.stringify(result));
-}
-
-async function registerOrganisationName(code: string): Promise<void> {
-  await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, status, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, 'Active', $3, $4, $5) ON CONFLICT DO NOTHING",
-    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
-  );
 }
 
 // --- Fixture 1: the real cr104-demo-minimal Template (real dependency chain,
@@ -181,8 +175,7 @@ async function driveDeliverableToApproved(deliverableId: string, tag: string): P
 // commissioning has already completed is invisible to policyEngine.evaluate
 // (the bug the first version of this fixture actually had).
 async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: string) => Promise<void>, beforeCommenceWork?: (seuId: string) => Promise<void>, tenantId?: string): Promise<{ seuId: string; deliverableId: string; packId: string }> {
-  const packSeed = { code: `cr109-isolated-pack-${run}`, name: "CR-109 Isolated Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
-  await registerOrganisationName(packSeed.code);
+  const packSeed = { tenantId: PLATFORM_TENANT_ID, code: "cr109-isolated-pack", name: "CR-109 Isolated Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: packSeed as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `isolated pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(packSeed.code);
@@ -252,7 +245,7 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
   // Knowledge are therefore attached first and the Capability is fulfilled last.
   const seuId = await commissionCr104MinimalSeu("cr109-real-content");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
@@ -286,7 +279,7 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
 test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Command generation and Dispatch reads it, not a live query", async () => {
   const seuId = await commissionCr104MinimalSeu("cr109-pool-persistence");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
@@ -311,7 +304,7 @@ test("Ch.12 §9 / CR-109 §6.2: with no eligible Participant the producing Capab
   {
     const seuId = await commissionCr104MinimalSeu("cr109-pool-no-capability", undefined, undefined, await getEmptyPoolTenantId());
     const detail = await getSeuDetailView(seuId);
-    const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
+    const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
     assert.ok(requirementsSpec);
 
     // The Mandatory Policy blocks Defined -> In Progress until the producing Capability is Fulfilled.
@@ -396,7 +389,7 @@ test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model 
   // engine then makes its governed hop at Operational, so the Decision exists before the hop is evaluated.
   const seuId = await commissionCr104MinimalSeu("cr109-transitivity", undefined, async (activatedSeuId) => {
     const activatedDetail = await getSeuDetailView(activatedSeuId);
-    const req = activatedDetail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
+    const req = (await deliverableByCode(activatedDetail, "requirements-analysis-model"));
     assert.ok(req);
     const { data: openDecision } = await decisionsDB.create({ status: "Identified", participantId: await rootParticipantId(activatedSeuId), authorityBadge: ROOT_ACTOR_BADGE,
       seuId: activatedSeuId,
@@ -407,7 +400,7 @@ test("CR-109 §5a transitivity: an open Decision on Requirements Analysis Model 
     assert.ok(openDecision);
   });
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   const sourceCode = detail?.deliverables.find((d) => d.name === "source-code" || d.name === "Source Code");
   assert.ok(requirementsSpec && sourceCode);
   assert.equal(requirementsSpec.lifecycleState, "Defined", "the open Decision stopped the engine's own hop");
@@ -442,7 +435,7 @@ test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation 
     await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, capabilityCodes: ["requirements-analysis"] });
   });
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   const sourceCode = detail?.deliverables.find((d) => d.name === "source-code" || d.name === "Source Code");
   const constructionCapability = detail?.capabilities.find((c) => c.code === "software-construction");
   assert.ok(requirementsSpec && sourceCode && constructionCapability);
@@ -482,7 +475,7 @@ test("CR-109 Source Code §5a: decision_blocked triggers even when only ONE of s
     await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, capabilityCodes: ["requirements-analysis"] });
   });
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "requirements-analysis-model" || d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   const sourceCode = detail?.deliverables.find((d) => d.name === "source-code" || d.name === "Source Code");
   const constructionCapability = detail?.capabilities.find((c) => c.code === "software-construction");
   assert.ok(requirementsSpec && sourceCode && constructionCapability);

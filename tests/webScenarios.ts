@@ -48,7 +48,7 @@ export type ConflictSet = "objectives" | "entities" | "queue" | "kickoff" | "row
 
 async function conflictingBase(run: string, set: ConflictSet, packs: "one" | "two"): Promise<{ templateId: string; profileId: string }> {
   const packOf = (code: string, role: string) => ({
-    code: `schema-fixture-web-conflict-${set}-${code}`, name: `Web conflict ${code}`, category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
+    tenantId: PLATFORM_TENANT_ID, code: `schema-fixture-web-conflict-${set}-${code}`, name: `Web conflict ${code}`, category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: { authorityRules: [{ code: `web-auth-${code}-${run}`, governedTransition: `x.transition.${run}`, authorisedRole: role }] },
   });
   const a = packOf("a", "general");

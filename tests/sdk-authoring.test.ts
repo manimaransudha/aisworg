@@ -26,6 +26,7 @@ import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsD
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind, TemplateRow } from "../src/dblayer/seuTypes.js";
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { forgetTestOntologyConcepts } from "./ontologyTestCache.js";
 import {
   createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft,
   listInheritableTemplates, inheritedTemplateContent,
@@ -130,6 +131,7 @@ after(async () => {
   if (userIdsToDelete.length) await pool.query("DELETE FROM users WHERE id = ANY($1::uuid[])", [userIdsToDelete]);
   if (createdOntologyConceptCodes.length) {
     await pool.query("DELETE FROM ontology_concepts WHERE concept_type = 'deliverable-name' AND code = ANY($1::text[])", [createdOntologyConceptCodes]);
+    forgetTestOntologyConcepts("deliverable-name", createdOntologyConceptCodes);
   }
   if (createdDeliverableDefinitionIds.length) {
     await pool.query("UPDATE deliverable_definitions SET parent_deliverable_definition_id = NULL WHERE id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);

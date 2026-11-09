@@ -30,6 +30,7 @@ import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, waitUntilAsync, getEmptyPoolTenantId, deactivateParticipants } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 // Ch.30 Event Bus redesign — publish() still persists every event
 // synchronously (only dispatch/consumption is fire-and-forget), so querying
@@ -143,7 +144,7 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
   const { seuId, participant } = await commissionAndFulfil("participant-lifecycle-dispatch");
 
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
   const result = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
@@ -176,7 +177,7 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
 test("CR-128 Entity 19: a failed Work Item returns the Participant to Idle through the Assigned -> Idle row and publishes ParticipantIdle", async () => {
   const { seuId, participant } = await commissionAndFulfil("participant-lifecycle-failed");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
   const result = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });

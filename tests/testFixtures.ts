@@ -16,6 +16,8 @@ import { transitionDeliverable, type TransitionDeliverableResult } from "../src/
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
+import { installTestOntologyCache } from "./ontologyTestCache.js";
+import { loadEntityTenantCache } from "./entityTenantCache.js";
 import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
 import { BIRTH_STATE, getTesterId, INITIAL_VERSION, BABYLON_TENANT_NAME, TEST_PLATFORM_USER_EMAIL } from "../src/dblayer/constants.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
@@ -86,7 +88,7 @@ async function withSeedLock(seed: () => Promise<void>): Promise<void> {
 }
 
 export function ensureTestFixturePacks(): Promise<void> {
-  if (!testFixturePacksCached) testFixturePacksCached = withSeedLock(seedAllTestFixturePacks);
+  if (!testFixturePacksCached) testFixturePacksCached = withSeedLock(seedAllTestFixturePacks).then(loadEntityTenantCache);
   return testFixturePacksCached;
 }
 
@@ -167,6 +169,10 @@ export async function getTestPlatformSuperuserId(): Promise<{ userId: string; ac
 
 // The *AsRoot fixture helpers below author as this actor, not as TESTER_ALL_ID (a badge-holding tester, not root).
 export const { userId: ROOT_USER_ID, actorId: ROOT_ACTOR_ID, actorBadge: ROOT_ACTOR_BADGE } = await getTestPlatformSuperuserId();
+
+// Every test process that imports the fixtures reads the Ontology from the test cache (ontologyTestCache.ts), which holds Platform and all test tenants.
+await installTestOntologyCache();
+await loadEntityTenantCache();
 
 // CR-079's own permanent-concept pattern (conflict-a/conflict-b,
 // test-enterprise-web-application) applied to a one-off test Pack that needs
@@ -1514,4 +1520,13 @@ export async function postForm(
     redirect: "manual",
   });
   return { status: res.status, location: res.headers.get("location") };
+}
+
+// The SEU's Deliverable whose code (the deliverable-name Ontology code) is `code`, as the detail view shows it. The view carries the label as `name`,
+// which depends on the Ontology a tenant sees, so a test matches by the code the Deliverable row stores.
+export async function deliverableByCode<T extends { id: string }>(detail: { seu: { id: string }; deliverables: T[] } | null | undefined, code: string): Promise<T | undefined> {
+  if (!detail) return undefined;
+  const { data } = await deliverablesDB.findBySeuId(detail.seu.id);
+  const id = (data ?? []).find((d) => d.code === code)?.id;
+  return id ? detail.deliverables.find((d) => d.id === id) : undefined;
 }

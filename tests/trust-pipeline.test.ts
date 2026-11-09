@@ -21,6 +21,7 @@ import { addKnowledgeValidationNote, createKnowledgeItem, listKnowledgeValidatio
 import { createDecision, transitionDecision } from "../src/routes/seu/core/decisions.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot as createEvidence, supportingEvidenceReferences } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
@@ -50,7 +51,7 @@ async function commissionAndApproveRequirementsSpec(statementPrefix: string) {
     await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, capabilityCodes: ["requirements-analysis"] });
   });
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
   // The automatic commence-work rescan (off SEUOperational) has already hit
   // this Deliverable's own then-unfulfilled Capability by the time
@@ -309,7 +310,7 @@ test("Evidence can be linked to more than one object, findByRelatedObject finds 
 test("Evidence preserves its full provenance as evidence_relationships rows — Deliverable, Participant, Capability and Decision all resolve to real labels", async () => {
   const seuId = await commissionTestSeu("phase5-evidence-provenance");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
 

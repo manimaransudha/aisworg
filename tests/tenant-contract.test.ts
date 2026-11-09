@@ -31,6 +31,7 @@ import { seusDB } from "../src/dblayer/seusDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, driveCommissioningToActive, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 const captured: Array<{ url: string; body: any; auth: string | undefined }> = [];
 let captureServer: http.Server;
@@ -138,7 +139,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
   assert.equal(seuRow?.tenant_id, tenantId, "the commissioned SEU belongs to its tenant");
 
   const detail = await getSeuDetailView(seuId);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const deliverable = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(deliverable);
 
   // Defined -> In Progress is a governed hop: the Execution Engine makes it off the kickoff, so a manual request that

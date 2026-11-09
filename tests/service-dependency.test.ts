@@ -27,6 +27,7 @@ import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { listServiceDefinitionsWithNextStates } from "../src/routes/seu/core/serviceDefinitions.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 import { TESTER_ALL_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
@@ -70,7 +71,7 @@ test("a Deliverable-type edge resolves Satisfied once the real SEU's upstream De
   const edgeBefore = archDocBefore?.dependencyEdges.find((e) => e.dependencyType === "Deliverable");
   assert.equal(edgeBefore?.readinessState, "Pending");
 
-  const upstream = before?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const upstream = (await deliverableByCode(before, "requirements-analysis-model"));
   assert.ok(upstream);
   await deliverablesDB.updateLifecycleState(upstream!.id, "Approved");
 

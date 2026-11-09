@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { attestationsDB } from "../src/dblayer/attestationsDB.js";
 import { deliverableReferencesDB } from "../src/dblayer/deliverableReferencesDB.js";
@@ -40,7 +41,7 @@ async function commissionAndFulfil(statementPrefix: string) {
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
   const detail = await getSeuDetailView(seuId);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const deliverable = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(deliverable);
   // The automatic commence-work rescan (off SEUOperational) already hit this
   // Deliverable's own then-unfulfilled Capability — a real, by-design

@@ -16,6 +16,7 @@ import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { explainDeliverable, impactOfDeliverable } from "../src/routes/seu/core/traceability.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, transitionDeliverableSync, produceDeliverable, ensureActorParticipant, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 async function commissionWebApp(prefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
@@ -40,7 +41,7 @@ test("backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be
     await fulfilCapability({ seuId, capabilityId: reqCap.capabilityId, capabilityCodes: ["requirements-analysis"] });
   });
   const detail = await getSeuDetailView(seuId);
-  const reqSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const reqSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(reqSpec);
   await resolveDispatchRejectionObligations(seuId);
 
@@ -72,7 +73,7 @@ test("backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be
 test("forward navigation + impact analysis (FR-20.3/20.5): a Deliverable surfaces every downstream Deliverable it impacts", async () => {
   const seuId = await commissionWebApp("trace-impact");
   const detail = await getSeuDetailView(seuId);
-  const reqSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const reqSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   const archDoc = detail?.deliverables.find((d) => d.name === "Architecture Decision Record");
   assert.ok(reqSpec && archDoc, "web-application template seeds a downstream Architecture Decision Record");
 

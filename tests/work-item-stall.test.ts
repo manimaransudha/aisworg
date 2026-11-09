@@ -17,6 +17,7 @@ import { servicesDB } from "../src/dblayer/servicesDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, transitionDeliverableSync } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 // Must outlast the wait for the dispatched Work Item (the post-commissioning Participant creation load can take over a minute) yet stay below the one-hour offset of the late sweep.
 const SLA_SECONDS = 600;
@@ -33,7 +34,7 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
   const seuId = result.seu.id;
 
   const detail = await getSeuDetailView(seuId);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const deliverable = (await deliverableByCode(detail, "requirements-analysis-model"));
   const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(deliverable && capability);
 

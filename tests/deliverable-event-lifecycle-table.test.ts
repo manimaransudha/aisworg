@@ -24,6 +24,7 @@ import {
   resolveDispatchRejectionObligations, fulfilCapabilityAsRoot as fulfilCapability, produceDeliverable, transitionDeliverableSync,
   ROOT_ACTOR_ID, TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY,
 } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 interface TableRow {
   row: number;
@@ -61,7 +62,7 @@ async function commissionAndProduce(prefix: string): Promise<{ seuId: string; de
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const deliverable = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(deliverable);
   await resolveDispatchRejectionObligations(result.seu.id);
   await ensureActorParticipant(result.seu.id, ROOT_ACTOR_ID);

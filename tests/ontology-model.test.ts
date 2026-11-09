@@ -14,6 +14,7 @@ import { evidenceDB } from "../src/dblayer/evidenceDB.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
 import { TESTER_ALL_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
@@ -21,7 +22,7 @@ async function commissionSeu(prefix: string) {
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const deliverable = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(deliverable);
   return { seuId: result.seu.id, deliverableId: deliverable.id };
 }

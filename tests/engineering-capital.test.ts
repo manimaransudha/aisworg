@@ -15,6 +15,7 @@ import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { createKnowledgeItem, getEngineeringCapital, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, ROOT_ACTOR_ID, ensureActorParticipant, supportingEvidenceReferences } from "./testFixtures.js";
 import { TESTER_ALL_ID } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
@@ -31,7 +32,7 @@ async function commissionTestSeu(statementPrefix: string) {
 async function commissionSeuWithPublishedKnowledge(statementPrefix: string) {
   const seuId = await commissionTestSeu(statementPrefix);
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
@@ -71,7 +72,7 @@ test("promoting a Published Knowledge Item's scope raises a visible Organisation
 test("Acquisition Scope promotion requires the Knowledge Item to be Published first", async () => {
   const seuId = await commissionTestSeu("phase6-not-published");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
   await ensureActorParticipant(seuId, ROOT_ACTOR_ID);

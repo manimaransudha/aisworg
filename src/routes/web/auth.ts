@@ -8,6 +8,7 @@ const crypto   = require('crypto');
 import { passport }    from '../../domain/auth/passportConfig.js';
 import { userDB }      from '../../dblayer/userDB.js';
 import { tenantsDB }   from '../../dblayer/tenantsDB.js';
+import { loadOntologyCache } from '../../dblayer/ontologyDB.js';
 import { DEMO_TENANT_NAME } from '../../dblayer/constants.js';
 import { emailService } from '../../domain/auth/emailService.js';
 import { buildSessionUser } from '../../middleware/auth.js';
@@ -59,6 +60,7 @@ router.post('/login', loginLimiter, (req: Request, res: Response, next: NextFunc
 
     req.session.user = await buildSessionUser(user);
     await ensureBadgeBootstrap(user);
+    await loadOntologyCache(user.tenant_id);
     req.session.user.platformBadges = await getPlatformBadges(requireActorId(req));
     logger.info(`[Auth] Local login: ${user.email}`);
     return res.redirect(postLoginRedirectPath(req.session.user));
@@ -76,6 +78,7 @@ router.get('/google/callback',
     if (!googleUser) return res.redirect('/aisworg/auth/disabled');
     req.session.user = await buildSessionUser(googleUser);
     await ensureBadgeBootstrap(googleUser);
+    await loadOntologyCache(googleUser.tenant_id);
     req.session.user.platformBadges = await getPlatformBadges(requireActorId(req));
     logger.info(`[Auth] Google login: ${googleUser.email}`);
     const isRoot = (req.session.user.platformBadges ?? []).includes('root');

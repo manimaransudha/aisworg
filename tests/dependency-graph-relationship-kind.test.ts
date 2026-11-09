@@ -33,6 +33,7 @@ import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsD
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { forgetTestOntologyConcepts } from "./ontologyTestCache.js";
 import { createAuthoringDraft, saveAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
 import { syncConceptFromEntity } from "../src/routes/seu/core/ontology.js";
 import { ensureTestFixturePacks, advanceAuthoringDraftToActive } from "./testFixtures.js";
@@ -48,6 +49,7 @@ before(async () => {
 after(async () => {
   if (createdOntologyConceptCodes.length) {
     await pool.query("DELETE FROM ontology_concepts WHERE concept_type = 'deliverable-name' AND code = ANY($1::text[])", [createdOntologyConceptCodes]);
+    forgetTestOntologyConcepts("deliverable-name", createdOntologyConceptCodes);
   }
   if (createdDeliverableDefinitionIds.length) {
     await pool.query("UPDATE deliverable_definitions SET parent_deliverable_definition_id = NULL WHERE id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);

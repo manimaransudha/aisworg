@@ -770,13 +770,6 @@ function findExternalInteractionId(html: string): string {
   return match[1];
 }
 
-async function registerOrganisationName(code: string): Promise<void> {
-  await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, status, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, 'Active', $3, $4, $5) ON CONFLICT DO NOTHING",
-    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
-  );
-}
-
 // Phase 8's own fixture: an isolated, single-Capability Template/Pack/Profile
 // (same minimal idiom cr109-work-item-generator.test.ts's own
 // commissionIsolatedSeu uses), carrying its own "No Unresolved Obligations"
@@ -801,7 +794,8 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
   // driveCommissioningToActive below grants whatever badge each governed hop
   // it drives (Validate/Activate/commence-work) actually requires, itself.
   const packSeed = {
-    code: `webflow-phase8-isolated-pack-${randomUUID().slice(0, 8)}`,
+    tenantId: PLATFORM_TENANT_ID,
+    code: "webflow-phase8-isolated-pack",
     name: "WebFlow Phase8 Isolated Pack",
     category: "Organisation",
     packVersion: uniqueTestPackVersion(),
@@ -829,7 +823,6 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
       ],
     },
   };
-  await registerOrganisationName(packSeed.code);
   const published = await publishPack({ seed: packSeed as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `isolated Phase8 pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
 

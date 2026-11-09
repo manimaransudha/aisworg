@@ -25,6 +25,7 @@ import {
   resolveDispatchRejectionObligations, createEvidenceAsRoot, fulfilCapabilityAsRoot as fulfilCapability, produceDeliverable, transitionDeliverableSync,
   ROOT_ACTOR_ID, TESTER_ALL_ID,
 } from "./testFixtures.js";
+import { deliverableByCode } from "./testFixtures.js";
 
 async function commissionAndFulfil(prefix: string): Promise<{ seuId: string; deliverableId: string }> {
   await ensureWebAppTemplateFixture();
@@ -45,7 +46,7 @@ async function commissionAndFulfil(prefix: string): Promise<{ seuId: string; del
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const deliverable = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(deliverable);
   await resolveDispatchRejectionObligations(result.seu.id);
   await ensureActorParticipant(result.seu.id, ROOT_ACTOR_ID);
