@@ -49,10 +49,10 @@ after(async () => {
 const readable = (text: string) => text.replace(/&quot;|&#34;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/&gt;/g, ">").replace(/&lt;/g, "<");
 
 // Posts a form, then reads the flash message on the data migrations page, which shows one.
-async function submit(pathName: string, fields: Record<string, string | string[]> = {}): Promise<{ location: string | null; alerts: string[] }> {
-  const posted = await postForm(root, pathName, csrf, fields);
+async function submit(pathName: string, fields: Record<string, string | string[]> = {}, as: { session: Session; csrf: string } = { session: root, csrf }): Promise<{ location: string | null; alerts: string[] }> {
+  const posted = await postForm(as.session, pathName, as.csrf, fields);
   assert.equal(posted.status, 302, `POST ${pathName}`);
-  const page = await getPage(root, "/seu/data-migrations");
+  const page = await getPage(as.session, "/seu/data-migrations");
   assert.equal(page.status, 200);
   return { location: posted.location, alerts: pageAlerts(page.html).map(readable) };
 }
@@ -181,12 +181,15 @@ test("the documentation is browsed from its top folders down to a file, and a pa
 });
 
 test("the dev act-as switch accepts root, refuses a badge that does not exist, and resets", async () => {
-  hasAlert(await submit("/seu/dev/act-as", { badgeType: "root" }), /Now acting as root \(full access\) · default tenant\./);
-  hasAlert(await submit("/seu/dev/act-as", { badgeType: "" }), /Now acting as root/);
-  hasAlert(await submit("/seu/dev/act-as", { badgeType: `zz-no-badge-${run}`, tenantId: PLATFORM_TENANT_ID }), new RegExp(`Unknown badge type "zz-no-badge-${run}" for the selected tenant\\.`));
-  hasAlert(await submit("/seu/dev/act-as/reset"), /Acting context reset to root \(full access\)\./);
-  hasAlert(await submit("/seu/dev/act-as", { badgeType: "root", tenantId: PLATFORM_TENANT_ID }), /Now acting as root \(full access\)\./);
-  hasAlert(await submit("/seu/dev/act-as/reset"), /Acting context reset to root/);
+  // Act-as is open only to the superuser (SUPERUSER_EMAIL), so this test alone signs in as that user.
+  const god = newSession((await userDB.getSuperuserId()).userId);
+  const as = { session: god, csrf: extractCsrf((await getPage(god, "/seu/data-migrations")).html) };
+  hasAlert(await submit("/seu/dev/act-as", { badgeType: "root" }, as), /Now acting as root \(full access\) · default tenant\./);
+  hasAlert(await submit("/seu/dev/act-as", { badgeType: "" }, as), /Now acting as root/);
+  hasAlert(await submit("/seu/dev/act-as", { badgeType: `zz-no-badge-${run}`, tenantId: PLATFORM_TENANT_ID }, as), new RegExp(`Unknown badge type "zz-no-badge-${run}" for the selected tenant\\.`));
+  hasAlert(await submit("/seu/dev/act-as/reset", {}, as), /Acting context reset to root \(full access\)\./);
+  hasAlert(await submit("/seu/dev/act-as", { badgeType: "root", tenantId: PLATFORM_TENANT_ID }, as), /Now acting as root \(full access\)\./);
+  hasAlert(await submit("/seu/dev/act-as/reset", {}, as), /Acting context reset to root/);
 });
 
 test("the participant list shows the participants the viewer may see, filters them by type and searches them", async () => {

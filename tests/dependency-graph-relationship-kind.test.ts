@@ -27,7 +27,6 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { userDB } from "../src/dblayer/userDB.js";
-import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
@@ -68,10 +67,6 @@ after(async () => {
 });
 
 const { actorId: ROOT_ACTOR_ID } = await userDB.getSuperuserId();
-const { data: demoTenant, error: demoTenantErr } = await tenantsDB.findByCode("demo");
-if (demoTenantErr) throw demoTenantErr;
-if (!demoTenant) throw new Error("demo tenant not provisioned");
-const DEMO_TENANT_ID = demoTenant.id;
 const REAL_TEMPLATE_CODE = "test-dependency-graph-template"; // test-only template-categories concept, so activating a new version never supersedes a seeded Template
 
 // Real deliverable-name Ontology codes (migration 048) standing in for this
@@ -158,7 +153,7 @@ test("CR-049 Phase 2: a plain 'dependency' edge is unrestricted on Template Inhe
   const childCreated = await createAuthoringDraft({
     kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
-    tenantId: DEMO_TENANT_ID,
+    tenantId: PLATFORM_TENANT_ID,
     parentTemplateId: parent.id,
     content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: ARCH_CODE, category: "Architecture" }], []),
   });
@@ -177,7 +172,7 @@ test("CR-049 Phase 2: a Decomposition edge is locked — dropping it on a derive
   const childCreated = await createAuthoringDraft({
     kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
-    tenantId: DEMO_TENANT_ID,
+    tenantId: PLATFORM_TENANT_ID,
     parentTemplateId: parent.id,
     content: templateContent(REAL_TEMPLATE_CODE, version, catalogue, [DECOMPOSITION_EDGE]),
   });
@@ -222,13 +217,13 @@ test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own De
 
   const tenantArchCode = `phase2-tenant-architecture-${randomUUID()}`;
   const tenantDataArchCode = `phase2-tenant-data-architecture-${randomUUID()}`;
-  await publishDeliverableDefinition(tenantArchCode, DEMO_TENANT_ID, platformArchId);
-  await publishDeliverableDefinition(tenantDataArchCode, DEMO_TENANT_ID, platformDataArchId);
+  await publishDeliverableDefinition(tenantArchCode, PLATFORM_TENANT_ID, platformArchId);
+  await publishDeliverableDefinition(tenantDataArchCode, PLATFORM_TENANT_ID, platformDataArchId);
 
   const childCreated = await createAuthoringDraft({
     kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
-    tenantId: DEMO_TENANT_ID,
+    tenantId: PLATFORM_TENANT_ID,
     parentTemplateId: parentCreated.draftId,
     content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: tenantArchCode, category: "Architecture" }, { code: tenantDataArchCode, category: "Architecture" }], [
       { toCode: tenantDataArchCode, fromType: "Deliverable", fromCode: tenantArchCode, requiredState: "Approved", relationshipKind: "decomposition" },
@@ -248,13 +243,13 @@ test("CR-049 Phase 2: renaming a locked edge to an UNRELATED Deliverable Definit
   // A tenant Deliverable Definition with NO parent_deliverable_definition_id
   // at all — not derived from Platform's "Architecture" in any way.
   const unrelatedCode = `phase2-unrelated-${randomUUID()}`;
-  await publishDeliverableDefinition(unrelatedCode, DEMO_TENANT_ID);
+  await publishDeliverableDefinition(unrelatedCode, PLATFORM_TENANT_ID);
 
   const version = uniqueVersion();
   const childCreated = await createAuthoringDraft({
     kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
-    tenantId: DEMO_TENANT_ID,
+    tenantId: PLATFORM_TENANT_ID,
     parentTemplateId: parent.id,
     content: templateContent(REAL_TEMPLATE_CODE, version, [{ code: ARCH_CODE, category: "Architecture" }, { code: DATA_ARCH_CODE, category: "Architecture" }], [DECOMPOSITION_EDGE]),
   });
@@ -282,7 +277,7 @@ test("CR-049 Phase 2: a Derivation edge is freely editable on Template Inheritan
   const childCreated = await createAuthoringDraft({
     kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
-    tenantId: DEMO_TENANT_ID,
+    tenantId: PLATFORM_TENANT_ID,
     parentTemplateId: parent.id,
     content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: ARCH_CODE, category: "Architecture" }], []),
   });

@@ -29,7 +29,7 @@ import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
-import { createObligationAsRoot as createObligation, createActiveObjective } from "./testFixtures.js";
+import { createObligationAsRoot as createObligation, createActiveObjective, emptyParticipantPool } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
@@ -474,7 +474,8 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
 // producing Command (In Progress -> In Progress) is the one that dispatches to a Participant. With nobody fulfilling
 // the Capability the hop is blocked by policy, so the Deliverable stays in Defined. Fulfilling the Capability
 // (CapabilityFulfilled) makes the kickoff make the hop and issue the producing Command, which then dispatches.
-test("Phase 3 — the Deliverable stays in Defined until the Capability is fulfilled, then the hop is made and the producing Command and Work Item dispatch", async () => {
+test("Phase 3 — the Deliverable stays in Defined until the Capability is fulfilled, then the hop is made and the producing Command and Work Item dispatch", async (t) => {
+  t.after(await emptyParticipantPool(PLATFORM_TENANT_ID));
   const request = newSession(ROOT_USER_ID);
   const fixtureParticipantIds: string[] = [];
   try {

@@ -773,6 +773,19 @@ export async function getEmptyPoolTenantId(): Promise<string> {
   return getTestPlatformTenantId();
 }
 
+// Simulates an empty Participant pool in a tenant: every active Participant of the tenant that is not a user's own (the seeded pool and the
+// fixture Participants other tests leave behind) is deactivated. The returned function puts exactly those back.
+export async function emptyParticipantPool(tenantId: string): Promise<() => Promise<void>> {
+  const { rows } = await query<{ id: string }>(
+    "UPDATE participants_master SET is_active = FALSE WHERE tenant_id = $1 AND is_active = TRUE AND user_id IS NULL RETURNING id",
+    [tenantId]
+  );
+  const ids = rows.map((r) => r.id);
+  return async () => {
+    await query("UPDATE participants_master SET is_active = TRUE WHERE id = ANY($1::uuid[])", [ids]);
+  };
+}
+
 export async function deactivateParticipants(participantMasterIds: string[]): Promise<void> {
   await query("UPDATE participants_master SET is_active = FALSE WHERE id = ANY($1::uuid[])", [participantMasterIds]);
 }

@@ -85,7 +85,9 @@ test("the Capability request handler requests nothing for a Capability that is F
   const inFlight = await requests();
   await capabilityOnReadyHandler(readyEvent);
   await capabilityOnReadyHandler(commissioned);
-  assert.equal(await requests(), inFlight, "a request is in flight");
+  const afterHandlers = await requests();
+  const requested = ((await eventsDB.findByOriginatingObject("SEU", t.seu.id)).data ?? []).filter((e) => e.event_type === "CapabilityRequested").map((e) => `${e.occurred_at} actor=${e.actor_id} seq=${e.sequence}`);
+  assert.equal(afterHandlers, inFlight, `a request is in flight; before the handlers ${inFlight}, after ${afterHandlers}; CapabilityRequested events: ${requested.join(" | ")}`);
 
   await pool.query("UPDATE seu_capabilities SET status = 'Fulfilled' WHERE id = $1", [seuCapabilityId]);
   await capabilityOnReadyHandler(readyEvent);

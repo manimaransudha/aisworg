@@ -31,7 +31,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
-import { createObligationAsRoot as createObligation, grantBadge, createActiveObjective } from "./testFixtures.js";
+import { createObligationAsRoot as createObligation, grantBadge, createActiveObjective, emptyParticipantPool } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { raiseMyObligation } from "../src/routes/seu/core/participantHome.js";
@@ -304,7 +304,8 @@ async function attachUserToParticipantMaster(participantMasterId: string, userId
   await pool.query("UPDATE participants_master SET user_id = $1 WHERE id = $2", [userId, participantMasterId]);
 }
 
-test("CR-108 item 3: a Participant can raise an Obligation against their own dispatched Deliverable, and is rejected for one that isn't theirs", async () => {
+test("CR-108 item 3: a Participant can raise an Obligation against their own dispatched Deliverable, and is rejected for one that isn't theirs", async (t) => {
+  t.after(await emptyParticipantPool(await getEmptyPoolTenantId()));
   const run = randomUUID().slice(0, 8);
   await ensureWebAppTemplateFixture();
   const userId = await createTestUser(run);

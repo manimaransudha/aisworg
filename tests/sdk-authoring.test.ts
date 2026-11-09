@@ -18,7 +18,6 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { userDB } from "../src/dblayer/userDB.js";
-import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
@@ -170,15 +169,6 @@ after(async () => {
 // (parent's code, "1.0.0", tenant) — two Drafts inheriting the SAME parent
 // under the SAME tenant would collide on that first free version, the same
 // way two Drafts of anything else would (assertTemplateCodeVersionFree).
-const { data: demoTenant, error: demoTenantErr } = await tenantsDB.findByCode("demo");
-if (demoTenantErr) throw demoTenantErr;
-if (!demoTenant) throw new Error("demo tenant not provisioned");
-const DEMO_TENANT_ID = demoTenant.id;
-
-const { data: athensTenant, error: athensTenantErr } = await tenantsDB.findByCode("athens");
-if (athensTenantErr) throw athensTenantErr;
-if (!athensTenant) throw new Error("athens tenant not provisioned");
-const ATHENS_TENANT_ID = athensTenant.id;
 
 // Bug fix (owner, 2026-10-03): "the requiredbadge has to be inserted for
 // actor" — createAuthoringDraft/publishAuthoringDraft resolve actorId
@@ -619,10 +609,10 @@ test("Template authoring: referential validation rejects a mandatoryPackCode tha
 test("CR-026: a tenant author inheriting an Active Platform Template gets a Draft locked to the parent's code, owned by their own tenant, with parent_template_id recorded", async () => {
   const parent = await ensureCr026ParentTemplate();
 
-  const inheritable = await listInheritableTemplates(DEMO_TENANT_ID);
+  const inheritable = await listInheritableTemplates(PLATFORM_TENANT_ID);
   assert.ok(inheritable.some((t) => t.id === parent.id), "the Active Platform Template must be offered to a tenant viewer's Inherit dropdown");
 
-  const inherited = await inheritedTemplateContent(parent.id, DEMO_TENANT_ID);
+  const inherited = await inheritedTemplateContent(parent.id, PLATFORM_TENANT_ID);
   assert.equal(inherited.ok, true, !inherited.ok ? inherited.error : "assertion failed");
   if (!inherited.ok) return;
   assert.equal(inherited.content.code, parent.code, "the pre-filled content's code matches the parent's");
@@ -632,7 +622,7 @@ test("CR-026: a tenant author inheriting an Active Platform Template gets a Draf
   const created = await createAuthoringDraft({
     kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
-    tenantId: DEMO_TENANT_ID,
+    tenantId: PLATFORM_TENANT_ID,
     parentTemplateId: parent.id,
     content: { ...inherited.content, name: "Tenant's inherited Web Application", code: "attempted-override" },
   });
@@ -642,13 +632,20 @@ test("CR-026: a tenant author inheriting an Active Platform Template gets a Draf
 
   const { data: draft } = await templatesDB.findById(created.draftId);
   assert.equal(draft?.code, parent.code, "code is FORCED to the parent's code, ignoring the tampered submission");
-  assert.equal(draft?.tenant_id, DEMO_TENANT_ID, "the new Draft is owned by the inheriting tenant, not Platform");
+  assert.equal(draft?.tenant_id, PLATFORM_TENANT_ID, "the new Draft is owned by the inheriting tenant, not Platform");
   assert.equal(draft?.parent_template_id, parent.id, "lineage recorded");
   assert.equal(draft?.template_version, "1.0.0", "the tenant's own version starts fresh, independent of the parent's");
 
   // Same code, different tenant — legal now (templates_code_version_tenant_key).
   const { data: parentStillFine } = await templatesDB.findById(parent.id);
   assert.equal(parentStillFine?.status, "Active", "the parent Template is untouched by a tenant inheriting from it");
+
+  // The parent and the child share one tenant (test-platform) and one code, and the next test's child takes the same first version, so this Draft goes now.
+  await pool.query("DELETE FROM template_packs WHERE template_id = $1", [created.draftId]);
+  await pool.query("DELETE FROM template_capabilities WHERE template_id = $1", [created.draftId]);
+  await pool.query("DELETE FROM version_events WHERE entity_type = 'Template' AND entity_id = $1", [created.draftId]);
+  await pool.query("DELETE FROM events WHERE originating_object_type = 'Template' AND originating_object_id = $1", [created.draftId]);
+  await pool.query("DELETE FROM templates WHERE id = $1", [created.draftId]);
 });
 
 test("CR-026: saving a Derived Template is refused if it drops one of its parent's mandatory Packs, and publishing succeeds with the full set", async () => {
@@ -658,11 +655,11 @@ test("CR-026: saving a Derived Template is refused if it drops one of its parent
 
   // A different tenant than the previous test's — same parent, same starting
   // version ("1.0.0"); the two tests don't collide with EACH OTHER because
-  // DEMO_TENANT_ID and ATHENS_TENANT_ID differ, but both still shared the
+  // PLATFORM_TENANT_ID and PLATFORM_TENANT_ID differ, but both still shared the
   // SAME parent+version identity axis with every other file touching
   // ensureWebAppTemplateFixture, which is what actually collided — see
   // ensureCr026ParentTemplate above.
-  const inherited = await inheritedTemplateContent(parent.id, ATHENS_TENANT_ID);
+  const inherited = await inheritedTemplateContent(parent.id, PLATFORM_TENANT_ID);
   assert.equal(inherited.ok, true);
   if (!inherited.ok) return;
 
@@ -675,7 +672,7 @@ test("CR-026: saving a Derived Template is refused if it drops one of its parent
   const inheritedContent = inherited.content as Record<string, unknown>;
   const sanitisedContent = inheritedContent;
 
-  const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, tenantId: ATHENS_TENANT_ID, parentTemplateId: parent.id, content: sanitisedContent });
+  const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, tenantId: PLATFORM_TENANT_ID, parentTemplateId: parent.id, content: sanitisedContent });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
@@ -718,7 +715,7 @@ test("Profile Inheritance: a tenant author inheriting an Active Platform Profile
     tenantId: PLATFORM_TENANT_ID,
     // CR-091 Part 2/3 — category retired; the three Platform-mandatory
     // Configuration Parameters are required here (Platform tenant).
-    content: { code, name: "SDK Test Parent Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github", optionalPackCodes: [] },
+    content: { code, name: "SDK Test Parent Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github", optionalPackCodes: [], profileVersion: "9.0.0" },
   });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
@@ -728,10 +725,10 @@ test("Profile Inheritance: a tenant author inheriting an Active Platform Profile
   const { data: parent } = await profilesDB.findById(created.draftId);
   assert.equal(parent?.status, "Active");
 
-  const inheritable = await listInheritableProfiles(DEMO_TENANT_ID);
+  const inheritable = await listInheritableProfiles(PLATFORM_TENANT_ID);
   assert.ok(inheritable.some((p) => p.id === parent!.id), "the Active Platform Profile must be offered to a tenant viewer's Inherit dropdown");
 
-  const inherited = await inheritedProfileContent(parent!.id, DEMO_TENANT_ID);
+  const inherited = await inheritedProfileContent(parent!.id, PLATFORM_TENANT_ID);
   assert.equal(inherited.ok, true, !inherited.ok ? inherited.error : "assertion failed");
   if (!inherited.ok) return;
   assert.equal(inherited.content.code, parent!.code, "the pre-filled content's code matches the parent's");
@@ -741,7 +738,7 @@ test("Profile Inheritance: a tenant author inheriting an Active Platform Profile
   const inheritedDraft = await createAuthoringDraft({
     kind: "Profile", schemaDefinitionId: await schemaDefinitionIdFor("Profile"), authorBadge: "profile_define",
     actorId: ROOT_ACTOR_ID,
-    tenantId: DEMO_TENANT_ID,
+    tenantId: PLATFORM_TENANT_ID,
     parentProfileId: parent!.id,
     content: { ...inherited.content, name: "Tenant's inherited Profile", code: "attempted-override" },
   });
@@ -751,7 +748,7 @@ test("Profile Inheritance: a tenant author inheriting an Active Platform Profile
 
   const { data: draft } = await profilesDB.findById(inheritedDraft.draftId);
   assert.equal(draft?.code, parent!.code, "code is FORCED to the parent's code, ignoring the tampered submission");
-  assert.equal(draft?.tenant_id, DEMO_TENANT_ID, "the new Draft is owned by the inheriting tenant, not Platform");
+  assert.equal(draft?.tenant_id, PLATFORM_TENANT_ID, "the new Draft is owned by the inheriting tenant, not Platform");
   assert.equal(draft?.parent_profile_id, parent!.id, "lineage recorded");
   assert.equal(draft?.profile_version, "1.0.0", "the tenant's own version starts fresh, independent of the parent's");
 
@@ -828,26 +825,18 @@ test("Deliverable Definition authoring: validation rejects an empty code, a non-
 // name — CR-049's own "Claims Adjudication Rules Document" derives from
 // "Business Rules" example).
 test("CR-049: inheriting from an Active Platform Deliverable Definition offers an editable starting point — code is NOT locked, unlike Template", async () => {
-  const parentCode = `sdk-test-deliverable-parent-${randomUUID()}`;
-  const parentVersion = uniqueVersion();
-  await ensureDeliverableNameConcept(parentCode);
-  const parentCreated = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(parentCode, parentVersion), tenantId: PLATFORM_TENANT_ID });
-  assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : "assertion failed");
-  if (!parentCreated.ok) return;
-  createdDeliverableDefinitionIds.push(parentCreated.draftId);
-  const parentPublished = await advanceToActive("Deliverable", parentCreated.draftId, ROOT_ACTOR_ID);
-  assert.equal(parentPublished.ok, true, !parentPublished.ok ? parentPublished.errors.join("; ") : "assertion failed");
-  const { data: parent } = await deliverableDefinitionsDB.findByCodeAndVersion(parentCode, parentVersion, PLATFORM_TENANT_ID);
-
+  // The Inherit dropdown offers only the real Platform's Definitions; reading one is allowed, so the parent is an Active Definition of the real Platform and the child is written to test-platform.
   const inheritable = await listInheritableDeliverableDefinitions();
-  assert.ok(inheritable.some((d) => d.id === parent!.id), "the Active Platform Deliverable Definition must be offered to the Inherit dropdown");
+  assert.ok(inheritable.length > 0, "the real Platform must hold at least one Active Deliverable Definition");
+  const parent = (await deliverableDefinitionsDB.findById(inheritable[0]!.id)).data;
+  assert.ok(parent, "the offered Definition must exist");
 
   const childCode = `sdk-test-deliverable-child-${randomUUID()}`;
   createdOntologyConceptCodes.push(childCode);
   const child = await createAuthoringDraft({
     kind: "Deliverable", authorBadge: "deliverabledefinition_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"),
     actorId: ROOT_ACTOR_ID,
-    tenantId: DEMO_TENANT_ID,
+    tenantId: PLATFORM_TENANT_ID,
     parentDeliverableDefinitionId: parent!.id,
     content: { code: childCode, name: childCode, description: "A tenant specialisation", definitionVersion: "1.0.0" },
   });
@@ -857,7 +846,7 @@ test("CR-049: inheriting from an Active Platform Deliverable Definition offers a
 
   const { data: childDraft } = await deliverableDefinitionsDB.findById(child.draftId);
   assert.equal(childDraft?.code, childCode, "unlike Template Inheritance, the child keeps its OWN code, not the parent's");
-  assert.equal(childDraft?.tenant_id, DEMO_TENANT_ID);
+  assert.equal(childDraft?.tenant_id, PLATFORM_TENANT_ID);
   assert.equal(childDraft?.parent_deliverable_definition_id, parent!.id, "lineage recorded");
 
   const { data: parentStillFine } = await deliverableDefinitionsDB.findById(parent!.id);

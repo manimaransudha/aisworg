@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
+import { fulfilCapabilityAsRoot as fulfilCapability, emptyParticipantPool } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { executionEngine } from "../src/domain/engine/executionEngine.js";
@@ -20,7 +20,6 @@ import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, transitionDeliverableSync } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, PLATFORM_TENANT_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
@@ -66,12 +65,9 @@ async function waitForCommandStatus(seuId: string, deliverableId: string, status
   return resolvedCommand as CommandRow;
 }
 
-test("a Deliverable does not move to In Progress while nobody fulfils its producing Capability", async () => {
-  // A tenant of its own: the shared empty-pool tenant gets eligible fixture Participants from parallel test files,
-  // and the auto-fulfilment would then fulfil the Capability this test expects to stay unfulfilled.
-  const { data: ownTenant, error: ownTenantErr } = await tenantsDB.create({ code: `phase3-defer-${randomUUID().slice(0, 8)}`, name: "Phase3 Defer", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, is_system: false });
-  if (ownTenantErr || !ownTenant) throw ownTenantErr ?? new Error("failed to create the test tenant");
-  const seuId = await commissionTestSeu("phase3-defer", undefined, ownTenant.id);
+test("a Deliverable does not move to In Progress while nobody fulfils its producing Capability", async (t) => {
+  t.after(await emptyParticipantPool(PLATFORM_TENANT_ID));
+  const seuId = await commissionTestSeu("phase3-defer", undefined, PLATFORM_TENANT_ID);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec, "expected a seeded Requirements Analysis Model deliverable");

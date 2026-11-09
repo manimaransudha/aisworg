@@ -20,8 +20,7 @@ import type { EventRow } from "../src/dblayer/seuTypes.js";
 import { getSystemActor, CAPABILITY_RETRY_DELAY_SECONDS } from "../src/dblayer/constants.js";
 import {
   ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant, ensureEventSubscriptionsLoaded, getEmptyPoolTenantId, deactivateParticipants, settleCapabilityRequests,
-  waitForCapabilityFulfilled, ensureActorParticipant, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID,
-} from "./testFixtures.js";
+  waitForCapabilityFulfilled, ensureActorParticipant, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 
 // "change-management" is a seeded Capability that no seeded Participant holds, so its pool stays empty unless a test
 // adds a Participant for it.
@@ -105,11 +104,12 @@ test("DRIVEN: a request for a Capability no Participant holds publishes Capabili
 });
 
 test("DRIVEN: the retry sweep re-requests an unavailable Capability after the delay and skips one already in flight", async () => {
-  // Commissioned where the pool is empty and settled first, so the commissioning's own request is finished and the
+  // Commissioned for a Capability no Participant holds, so the pool is empty by data and no other file's Participants matter. It is settled
+  // first, so the commissioning's own request is finished and the
   // only request in flight is the sweep's. The Participant is added afterwards, so the re-request can be fulfilled.
-  const { seuId, capabilityId } = await commissionSeuWithCapability("cr126-retry-sweep", { withEligibleParticipant: false, tenantId: await getEmptyPoolTenantId() });
+  const { seuId, capabilityId } = await commissionSeuWithCapability("cr126-retry-sweep", { capabilityCode: UNHELD_CAPABILITY_CODE, withEligibleParticipant: false, tenantId: await getEmptyPoolTenantId() });
   await settleCapabilityRequests(seuId, capabilityId);
-  const fixtureParticipantId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+  const fixtureParticipantId = await ensureEligibleParticipant(seuId, [UNHELD_CAPABILITY_CODE]);
   try {
     const systemActor = await getSystemActor(seuId);
 

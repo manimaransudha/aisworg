@@ -14,7 +14,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapabilityAsRoot as fulfilCapability, createActiveObjective } from "./testFixtures.js";
+import { fulfilCapabilityAsRoot as fulfilCapability, createActiveObjective, emptyParticipantPool } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
@@ -276,7 +276,8 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
   assert.ok(ec.relevantKnowledge.some((k) => k.id === knowledge!.id && k.title === knowledge!.title), "the actual Knowledge, not just a count");
 });
 
-test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Command generation and Dispatch reads it, not a live query", async () => {
+test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Command generation and Dispatch reads it, not a live query", async (t) => {
+  t.after(await emptyParticipantPool(await getEmptyPoolTenantId()));
   const seuId = await commissionCr104MinimalSeu("cr109-pool-persistence", PLATFORM_TENANT_ID);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));

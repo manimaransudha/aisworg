@@ -15,7 +15,7 @@ import { assertCanonicalCategory } from "./ontology.js";
 import { raiseAttentionItem, resolveAuthor } from "./attentionItems.js";
 import type { AttentionItemRow, ObligationDefinition, ObligationRow, PolicyApplicabilityDeliverable, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { getPlatformTenantId, getSystemActor } from "../../../dblayer/constants.js";
+import { getSystemActor } from "../../../dblayer/constants.js";
  
 export async function resolveSeuIdFromRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<string> {
   if (relatedObjectType === "SEU") return relatedObjectId;
@@ -134,8 +134,9 @@ export async function raiseObligationForBlockedTransition(input: {
   if (!policy) throw new Error(`policy "${input.policyCode}" not found while raising a blocked-transition Obligation`);
 
   const { plainCode, conditionIndex } = parseMaterializedPolicyCode(policy.code);
-  const PLATFORM_TENANT_ID = await getPlatformTenantId();
-  const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(plainCode, PLATFORM_TENANT_ID);
+  const { data: seu } = await seusDB.findById(input.seuId);
+  if (!seu) throw new Error(`SEU "${input.seuId}" not found while raising a blocked-transition Obligation`);
+  const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(plainCode, seu.tenant_id);
   const condition = definition?.conditions?.[conditionIndex];
   const declaredObligations = condition?.relatedObligations ?? [];
 
