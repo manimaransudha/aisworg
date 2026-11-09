@@ -7,6 +7,8 @@
 //     completes them through the page and reads what the completion left behind: the Work Item, the Command, the reference, the Participant and the
 //     Attention Item of a failure.
 //   - Rows are not deleted, as in the other tests that create SEUs.
+import { idsOfTenant } from "./entityTenantCache.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import "dotenv/config";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -117,9 +119,9 @@ let deliverableBirthState: string;
 
 before(async () => {
   t = await commissionedSeu("web-work-queue");
-  const { rows } = await pool.query<{ id: string }>("SELECT id FROM capability_definitions ORDER BY created_at LIMIT 1");
-  assert.ok(rows[0], "the database holds a Capability Definition");
-  capabilityId = rows[0].id;
+  const [firstCapabilityId] = idsOfTenant("CapabilityDefinition", await getPlatformTenantId());
+  assert.ok(firstCapabilityId, "the Platform tenant holds a Capability Definition");
+  capabilityId = firstCapabilityId;
   const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");
   assert.ok(birth);
   deliverableBirthState = birth.to_state;

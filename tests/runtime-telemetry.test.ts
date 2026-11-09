@@ -3,6 +3,7 @@
 // metrics are real numbers derived from a real dispatched transition, and
 // that per-SEU scoping (Build order step 2's pattern) works for this
 // category too — not just Flow/Governance.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -23,8 +24,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
-    },
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
       const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");

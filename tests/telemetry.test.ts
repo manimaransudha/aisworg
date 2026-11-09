@@ -5,6 +5,7 @@
 // raises a real Organisational Learning Obligation (FR-35.8 / Ch.35 §11),
 // exactly once, not once per blocked attempt. Run against the real dev
 // database, no mocking.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -43,8 +44,7 @@ async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
-    },
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID },
     beforeCommenceWork
   );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");

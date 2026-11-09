@@ -35,7 +35,7 @@ before(async () => {
 
 test("FR-3.3: a commissioned SEU's Engineering Behavior Model is versioned (version 1 for the first)", async () => {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({ statement: `ebm-version-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  const result = await commissionFromFormSync({ statement: `ebm-version-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const { data: seu } = await seusDB.findById(result.seu.id);
@@ -64,7 +64,7 @@ test("FR-21.1: an SEU exposes one effective Governance Model derived from its EB
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
-  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID });
+  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(requested.ok, true, !requested.ok ? `commissioning failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
   const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID });
@@ -117,7 +117,7 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
   // Rules per governedTransition first, so this is still a real, genuine
   // cross-Pack role-SET disagreement (general vs super), not a false
   // positive from Pack A's/B's own internal multiplicity.
-  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID });
+  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
@@ -175,7 +175,7 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
   const { objective: retryRoot } = await createObjective({ statement: `retry-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, });
   const { objective } = await createActiveObjective({ statement: `retry-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: retryRoot.id, requestedBy: TESTER_ALL_ID });
 
-  const firstAttempt = await initiateSeu({ objectiveId: objective.id, profileId: conflictProfile!.id, actorId: TESTER_ALL_ID });
+  const firstAttempt = await initiateSeu({ objectiveId: objective.id, profileId: conflictProfile!.id, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(firstAttempt.ok, true, !firstAttempt.ok ? `SEU creation itself failed: ${firstAttempt.reason}` : "assertion failed");
   if (!firstAttempt.ok) throw new Error("unreachable");
   const firstValidation = await validateSeu({ seuId: firstAttempt.seu.id, actorId: TESTER_ALL_ID });
@@ -207,7 +207,7 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
   // The Objective must not be permanently stuck on this one Failed attempt —
   // migration 179's partial unique index (active states only) plus
   // seusDB.findByObjectiveId's own matching filter.
-  const secondAttempt = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: cleanProfile!.id, actorId: TESTER_ALL_ID });
+  const secondAttempt = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: cleanProfile!.id, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(secondAttempt.ok, true, !secondAttempt.ok ? `retry blocked: ${secondAttempt.reason}` : "assertion failed");
   if (!secondAttempt.ok) throw new Error("unreachable");
   assert.notEqual(secondAttempt.seu.id, firstAttempt.seu.id, "retry creates its own new SEU row — the Failed one is never reused or deleted");
@@ -256,7 +256,7 @@ test("Validate Request: a Template mandating a since-Retired Pack fails commissi
   // asynchronously in validateRequestHandler, off that event. Poll for its
   // real, async CommissionFailed outcome instead of checking commissionSeu's
   // own synchronous return value.
-  const result = await initiateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID });
+  const result = await initiateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.ok, true, !result.ok ? `SEU creation itself failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const validation = await validateSeu({ seuId: result.seu.id, actorId: TESTER_ALL_ID });

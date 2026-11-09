@@ -2,6 +2,7 @@
 // — Plan.md), Build order step 6 — Quality Telemetry, narrowed to rework
 // rate and Deliverable acceptance rate. Proves both are real numbers
 // derived from real Quality Gate evaluations / Deliverable states.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -26,8 +27,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
-    },
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
       const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");

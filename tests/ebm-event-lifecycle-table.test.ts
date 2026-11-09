@@ -6,6 +6,7 @@
 //   - BIRTH: the composed EBM carries the birth row's state, and EBMCreated is published with the real actor and badge.
 //   - DEAD REFERENCE: validateEbm takes the Retire row, publishes EBMRetired and raises the Attention Item.
 //   - BUTTONS AND GUARDS: nextActionsFor lists only manual hops the viewer holds the badge for; no skips, no way back.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
@@ -34,8 +35,7 @@ async function commissionedSeu(): Promise<{ seuId: string; active: EbmRow }> {
     statement: `ebm-lifecycle-table-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorId: TESTER_ALL_ID,
-    requestedBy: TESTER_ALL_ID,
-  });
+    requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.ok, true, result.ok ? "" : `${result.stage}: ${result.reason}`);
   if (!result.ok) throw new Error("commissioning failed");
   const { data: seu } = await seusDB.findById(result.seu.id);

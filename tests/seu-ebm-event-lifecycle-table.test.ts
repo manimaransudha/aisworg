@@ -26,6 +26,7 @@
 //   - DRIVEN: a real commissionFromFormSync run all the way to Operational,
 //     asserting the SEU/EBM events actually published match
 //     transition_definitions.event_type.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after, before } from "node:test";
 import assert from "node:assert/strict";
@@ -116,8 +117,7 @@ test("DRIVEN: a real commissioning run publishes every real SEU/EBM event, match
     statement: `seu-ebm-lifecycle-table-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorId: TESTER_ALL_ID,
-    requestedBy: TESTER_ALL_ID,
-  });
+    requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.ok, true, result.ok ? "" : `${result.stage}: ${result.reason}`);
   if (!result.ok) return;
 

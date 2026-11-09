@@ -4,6 +4,8 @@
 //   - The SEU is a plain row in the Operational state, with the Capability of a Service, a Deliverable that is In Progress and produced by that Capability, and
 //     a Deliverable that is Approved and produced by it (the handler leaves that one alone). Event subscriptions are not loaded in this file.
 //   - Rows are not deleted, as in the other tests that create SEUs.
+import { idsOfTenant } from "./entityTenantCache.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import "dotenv/config";
 // The Event Bus is loaded first: it loads the handler registry, which loads the handler under test. Loading the handler first meets the registry before the handler exists.
 import "../src/domain/engine/eventBus.js";
@@ -33,9 +35,9 @@ let approved: DeliverableRow;
 
 before(async () => {
   t = await commissionedSeu("deliverable-kickoff", "clean", { conflictSet: "kickoff" });
-  const { rows } = await pool.query<{ id: string }>("SELECT id FROM capability_definitions ORDER BY created_at LIMIT 2");
-  assert.ok(rows.length === 2, "the database holds two Capability Definitions");
-  [capabilityId, unrelatedCapabilityId] = [rows[0].id, rows[1].id];
+  const ids = idsOfTenant("CapabilityDefinition", await getPlatformTenantId());
+  assert.ok(ids.length >= 2, "the Platform tenant holds two Capability Definitions");
+  [capabilityId, unrelatedCapabilityId] = [ids[0], ids[1]];
   // The SEU's composition has no Capability, so it requires only the one added here.
   await seuCapabilitiesDB.createMany(t.seu.id, [capabilityId], t.systemParticipantId, ROOT_ACTOR_BADGE);
   const { data: capabilities } = await seuCapabilitiesDB.findBySeuId(t.seu.id);

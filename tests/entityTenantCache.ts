@@ -68,3 +68,13 @@ export async function tenantOfId(kind: EntityKind, id: string): Promise<string> 
   rememberEntity(kind, rows[0]);
   return rows[0].tenant_id;
 }
+
+// The distinct codes the tenant holds for the kind, in code order. Each version and status is its own row; the production finder picks the Active one.
+export function codesOfTenant(kind: EntityKind, tenantId: string): string[] {
+  return [...new Set([...entries.get(kind)!.values()].filter((e) => e.tenantId === tenantId).map((e) => e.code))].sort();
+}
+
+// The ids the tenant holds for the kind, in code order (each version and status is its own row).
+export function idsOfTenant(kind: EntityKind, tenantId: string): string[] {
+  return [...entries.get(kind)!.values()].filter((e) => e.tenantId === tenantId).sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0)).map((e) => e.id);
+}

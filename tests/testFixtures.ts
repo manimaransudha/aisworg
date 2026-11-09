@@ -1392,7 +1392,7 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
 
 // The new commissioning path for tests: Save (initiateSeu), then Validate (validateSeu), as the two buttons do. The SEU is
 // Validated when this returns ok; a dead reference leaves it Failed.
-export async function initiateAndValidateSeu(input: { objectiveId: string; profileId: string; actorId: string; tenantId?: string | null }): Promise<{ ok: true; seu: SeuRow } | { ok: false; stage: string; reason: string; seuId?: string }> {
+export async function initiateAndValidateSeu(input: { objectiveId: string; profileId: string; actorId: string; tenantId: string }): Promise<{ ok: true; seu: SeuRow } | { ok: false; stage: string; reason: string; seuId?: string }> {
   const initiated = await initiateSeu(input);
   if (!initiated.ok) return { ok: false, stage: "initiate_seu", reason: initiated.reason };
   const validated = await validateSeu({ seuId: initiated.seu.id, actorId: input.actorId });

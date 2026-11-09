@@ -7,6 +7,7 @@
 // tenant's assignment carries its own VCS binding. Only the edge configuration
 // differs. Run against the real dev database, with a local capture server
 // standing in for the tenants' orchestrators.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -219,17 +220,3 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
   assert.equal(deliveredB!.body.vcsBinding.provider, "gitlab");
 });
 
-test("a SEU commissioned without a named tenant belongs to the seeded default tenant", async () => {
-  await ensureWebAppTemplateFixture();
-  const { data: def } = await tenantsDB.findDefault();
-  assert.ok(def, "a default tenant is seeded");
-  const result = await commissionFromFormSync({
-    statement: `tenant-default-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
-  });
-  assert.equal(result.ok, true);
-  if (!result.ok) throw new Error("unreachable");
-  const { data: seuRow } = await seusDB.findById(result.seu.id);
-  assert.equal(seuRow?.tenant_id, def!.id, "no tenant named -> default tenant");
-});

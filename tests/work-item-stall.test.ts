@@ -4,6 +4,7 @@
 // declared SLA (turnaround_time on the Service Level) raises an Escalation
 // Attention Item, unattended. Timing is driven by an injected `now` so the test
 // is deterministic (no sleeping). Run against the real dev database.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -27,8 +28,7 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
   const result = await commissionFromFormSync({
     statement: `${prefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
-  });
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;

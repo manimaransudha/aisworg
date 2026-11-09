@@ -290,7 +290,7 @@ test("validateSeu requires the Objective to be Active — blocks Defined, succee
   if (!published.ok) throw new Error("unreachable");
   const profile = { id: published.profileId };
 
-  const blocked = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ALL_ID });
+  const blocked = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(blocked.ok, false);
   if (!blocked.ok) assert.ok(blocked.reason.includes("not Active"), `expected reason to mention "not Active", got: ${blocked.reason}`);
 
@@ -302,7 +302,7 @@ test("validateSeu requires the Objective to be Active — blocks Defined, succee
   // Active check this test is actually about), so its own lifecycle_state
   // stays 'Pending' here; driveCommissioningToActive runs the rest (Compose
   // EBM, Validate, Activate) to confirm it genuinely completes.
-  const allowed = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ALL_ID });
+  const allowed = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(allowed.ok, true);
   if (!allowed.ok) throw new Error("unreachable");
   const completed = await driveCommissioningToActive({ seuId: allowed.seu.id, actorId: TESTER_ALL_ID });
@@ -334,7 +334,7 @@ test("initiateAndValidateSeu takes an explicit Profile choice — a partial-cove
     // status omitted — defaults Active, matching the one-shot quick-commission path
   });
 
-  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ALL_ID });
+  const requested = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(requested.ok, true, !requested.ok ? JSON.stringify(requested) : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
   const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorId: TESTER_ALL_ID });

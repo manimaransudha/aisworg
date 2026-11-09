@@ -5,6 +5,7 @@
 //   FR-20.4 backward navigation + FR-20.6/20.7 permanent provenance
 //   FR-20.3 forward navigation + FR-20.5 impact analysis
 // Run against the real dev database, no mocking.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -24,8 +25,7 @@ async function commissionWebApp(prefix: string, beforeCommenceWork?: (seuId: str
     {
       statement: `${prefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
-    },
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID },
     beforeCommenceWork
   );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");

@@ -206,7 +206,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   }
 
   // 2. Explicitly choosing the Template + nodejs Profile actually composes it.
-  const requestedChoice = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: nodejsPublished.profileId, actorId: TESTER_ALL_ID });
+  const requestedChoice = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: nodejsPublished.profileId, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(requestedChoice.ok, true, !requestedChoice.ok ? JSON.stringify(requestedChoice) : "assertion failed");
   if (!requestedChoice.ok) return;
   const chosen = await driveCommissioningToActive({ seuId: requestedChoice.seu.id, actorId: TESTER_ALL_ID });

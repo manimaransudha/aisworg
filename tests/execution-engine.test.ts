@@ -6,6 +6,8 @@
 //   - The edges with a submit verb or with no verb are written for a Deliverable state that carries the run tag, so no real Deliverable
 //     transition is touched. The edges are deleted when the file ends.
 //   - Rows are not deleted, as in the other tests that create SEUs.
+import { idsOfTenant } from "./entityTenantCache.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import "dotenv/config";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -37,9 +39,9 @@ const edges: Array<[string, string]> = [];
 
 before(async () => {
   t = await commissionedSeu("execution-engine");
-  const { rows } = await pool.query<{ id: string }>("SELECT id FROM capability_definitions ORDER BY created_at LIMIT 1");
-  assert.ok(rows[0], "the database holds a Capability Definition");
-  capabilityId = rows[0].id;
+  const [firstCapabilityId] = idsOfTenant("CapabilityDefinition", await getPlatformTenantId());
+  assert.ok(firstCapabilityId, "the Platform tenant holds a Capability Definition");
+  capabilityId = firstCapabilityId;
   const { data: pack } = await packsDB.findByCode("development");
   assert.ok(pack, "the development Pack is seeded");
   packId = pack.id;

@@ -7,6 +7,7 @@
 // a transition to "Failed" automatically raises an Exception-category
 // Attention Item (Ch.36 §13 -> Ch.34 cross-chapter link). Run against the
 // real dev database, no mocking.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -31,8 +32,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
-    },
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID },
     // Fulfil before the Execution Engine's own automatic commence-work
     // attempt (executionEngineKickoff, off SEUActivated) reaches Dispatch —
     // otherwise it races an unfulfilled Capability into a real, spurious

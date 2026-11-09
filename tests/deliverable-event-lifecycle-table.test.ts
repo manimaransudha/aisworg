@@ -8,6 +8,7 @@
 //   - BIRTH: the birth row is read for creation and the creation badge is checked.
 //   - DRIVEN: commissioning creates the Deliverables through the birth row; each governed hop publishes the hop's own
 //     event and then DeliverableTransitioned, which every Deliverable transition publishes. No mocking.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -50,8 +51,7 @@ async function commissionAndProduce(prefix: string): Promise<{ seuId: string; de
     {
       statement: `${prefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
-    },
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
       const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");

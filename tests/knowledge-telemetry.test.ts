@@ -3,6 +3,7 @@
 // and Evidence generation only. Proves both are real counts derived from
 // real Knowledge Items/Evidence, correctly broken down by Acquisition Scope,
 // and correctly scoped per SEU.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -21,8 +22,7 @@ async function commissionTestSeuWithDeliverable(statementPrefix: string) {
   const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
-  });
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   if (!result.ok) throw new Error(`commissioning failed: ${result.reason}`);
   const seuId = result.seu.id;
 

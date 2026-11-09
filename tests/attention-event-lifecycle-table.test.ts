@@ -6,6 +6,7 @@
 //     event and then AttentionItemTransitioned with one correlation id; a refused hop writes and publishes nothing; an
 //     actor with no participant row in the SEU is refused.
 //   - GUARD: only the AttentionItem adapter writes the status and no code names the birth event as a literal.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
@@ -69,8 +70,7 @@ test("DRIVEN setup: a real SEU to hang Attention Items off", async () => {
     statement: `attention-lifecycle-table-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorId: TESTER_ALL_ID,
-    requestedBy: TESTER_ALL_ID,
-  });
+    requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.ok, true, result.ok ? "" : `${result.stage}: ${result.reason}`);
   if (!result.ok) return;
   seuId = result.seu.id;

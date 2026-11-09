@@ -75,7 +75,7 @@ export async function commissionScenario(kind: CompositionScenario, label: strin
   const { objective: strategic } = await createObjective({ statement: `${label} strategic ${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID });
   const { objective } = await createActiveObjective({ statement: `${label} ${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: strategic.id, requestedBy: TESTER_ALL_ID });
 
-  const validated = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: base.profileId, actorId: TESTER_ALL_ID });
+  const validated = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: base.profileId, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.ok(validated.ok, validated.ok ? "" : `${validated.stage}: ${validated.reason}`);
   if (!validated.ok) throw new Error("unreachable");
 
@@ -133,7 +133,7 @@ export async function initiatedSeu(label: string): Promise<ScenarioSeu> {
   const { template, profile } = await ensureWebAppTemplateFixture();
   const { objective: strategic } = await createObjective({ statement: `${label} strategic ${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID });
   const { objective } = await createActiveObjective({ statement: `${label} ${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: strategic.id, requestedBy: TESTER_ALL_ID });
-  const initiated = await initiateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ALL_ID });
+  const initiated = await initiateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.ok(initiated.ok, initiated.ok ? "" : initiated.reason);
   if (!initiated.ok) throw new Error("unreachable");
   await ensureActorParticipant(initiated.seu.id, ROOT_ACTOR_ID);

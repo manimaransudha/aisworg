@@ -7,6 +7,8 @@
 //   - Two SEUs are used. One has an active EBM that settles redispatchMaxAttempts 3, redispatchAttentionThreshold 2 and a cost-optimisation
 //     preference; the other has no EBM, so no limit, no threshold and the default strategy apply.
 //   - Rows are not deleted, as in the other tests that create SEUs.
+import { idsOfTenant } from "./entityTenantCache.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import "dotenv/config";
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
@@ -69,9 +71,9 @@ async function createSeu(what: string, config: Array<{ parameter: string; value:
 }
 
 before(async () => {
-  const { rows } = await pool.query<{ id: string }>("SELECT id FROM capability_definitions ORDER BY created_at LIMIT 1");
-  assert.ok(rows[0], "the database holds a Capability Definition");
-  capabilityId = rows[0].id;
+  const [firstCapabilityId] = idsOfTenant("CapabilityDefinition", await getPlatformTenantId());
+  assert.ok(firstCapabilityId, "the Platform tenant holds a Capability Definition");
+  capabilityId = firstCapabilityId;
   const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");
   assert.ok(birth, "the Deliverable has a birth row");
   deliverableBirthState = birth.to_state;

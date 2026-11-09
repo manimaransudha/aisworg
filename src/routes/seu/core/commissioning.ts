@@ -3,7 +3,6 @@ import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 // Commented out (owner): the SEU's Capabilities are read off the EBM.
@@ -130,13 +129,9 @@ export async function initiateSeu(input: { objectiveId?: string | null; profileI
     return { ok: false, reason: `this Objective is already assigned to an SEU (${existingSeu.id})` };
   }
 
-  let tenantId = input.tenantId ?? objective.sponsoring_authority?.tenant ?? null;
-  if (!tenantId) {
-    const { data: defaultTenant } = await tenantsDB.findDefault();
-    tenantId = defaultTenant?.id ?? null;
-  }
+  const tenantId = input.tenantId ?? objective.sponsoring_authority?.tenant ?? null;
   // An SEU always belongs to a tenant: there is no SEU without one.
-  if (!tenantId) return { ok: false, reason: "this SEU has no tenant: none was given, the Objective's sponsoring authority names none, and there is no default tenant" };
+  if (!tenantId) return { ok: false, reason: "this SEU has no tenant: none was given and the Objective's sponsoring authority names none" };
   const birth = await transitionEngine.beginBirth({ entityType: "SEU", actorId: input.actorId });
   const { data: seu, error } = await seusDB.create({
     objectiveId: objective.id,
@@ -387,7 +382,7 @@ export async function commissionFromForm(input: {
   requiredCapabilityCodes: string[];
   actorId: string;
   requestedBy: string;
-  tenantId?: string | null;
+  tenantId: string;
 }): Promise<CommissionFromFormResult> {
   const container = await ensureOneShotContainer(input.requestedBy);
 
@@ -423,11 +418,7 @@ export async function commissionFromForm(input: {
     };
   }
 
-  let tenantId = input.tenantId ?? null;
-  if (!tenantId) {
-    const { data: defaultTenant } = await tenantsDB.findDefault();
-    tenantId = defaultTenant?.id ?? null;
-  }
+  const tenantId = input.tenantId;
 
   const initiated = await initiateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: input.actorId, tenantId });
   if (!initiated.ok) return { ok: false, stage: "initiate_seu", reason: initiated.reason };

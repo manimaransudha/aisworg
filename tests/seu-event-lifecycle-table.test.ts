@@ -63,7 +63,7 @@ async function publishedProfile(): Promise<string> {
 async function initiated(actorId: string = TESTER_ALL_ID) {
   const objective = await activeLeafObjective();
   const profileId = await publishedProfile();
-  const result = await initiateSeu({ objectiveId: objective.id, profileId, actorId });
+  const result = await initiateSeu({ objectiveId: objective.id, profileId, actorId, tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.ok, true, result.ok ? "" : result.reason);
   if (!result.ok) throw new Error("unreachable");
   return { seu: result.seu, objective, profileId };
@@ -115,22 +115,22 @@ test("SAVE: a missing Objective, a missing Profile, a second SEU for the Objecti
   const objective = await activeLeafObjective();
   const profileId = await publishedProfile();
 
-  const noObjective = await initiateSeu({ objectiveId: null, profileId, actorId: TESTER_ALL_ID });
+  const noObjective = await initiateSeu({ objectiveId: null, profileId, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(noObjective.ok, false);
-  const noProfile = await initiateSeu({ objectiveId: objective.id, profileId: null, actorId: TESTER_ALL_ID });
+  const noProfile = await initiateSeu({ objectiveId: objective.id, profileId: null, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(noProfile.ok, false);
   const { data: none } = await seusDB.findByObjectiveId(objective.id);
   assert.equal(none, null, "the refusals wrote nothing");
 
-  await assert.rejects(() => initiateSeu({ objectiveId: objective.id, profileId, actorId: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId }), /seu_commission/);
+  await assert.rejects(() => initiateSeu({ objectiveId: objective.id, profileId, actorId: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId, tenantId: PLATFORM_TENANT_ID }), /seu_commission/);
   const { data: stillNone } = await seusDB.findByObjectiveId(objective.id);
   assert.equal(stillNone, null, "an actor without seu_commission wrote nothing");
 
-  const first = await initiateSeu({ objectiveId: objective.id, profileId, actorId: TESTER_ALL_ID });
+  const first = await initiateSeu({ objectiveId: objective.id, profileId, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(first.ok, true);
-  const again = await initiateSeu({ objectiveId: objective.id, profileId, actorId: TESTER_ALL_ID });
+  const again = await initiateSeu({ objectiveId: objective.id, profileId, actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(again.ok && first.ok && again.seu.id === first.seu.id, true, "the same Profile reuses the Initiated SEU");
-  const second = await initiateSeu({ objectiveId: objective.id, profileId: await publishedProfile(), actorId: TESTER_ALL_ID });
+  const second = await initiateSeu({ objectiveId: objective.id, profileId: await publishedProfile(), actorId: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(second.ok, false, "an Objective has one SEU");
 });
 

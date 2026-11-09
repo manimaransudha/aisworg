@@ -864,7 +864,7 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
   const { objective: root } = await createActiveObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
   const { objective } = await createActiveObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
 
-  const commissioned = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_OBJECTIVE_ATHENS.participantId });
+  const commissioned = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile!.id, actorId: TESTER_OBJECTIVE_ATHENS.participantId, tenantId: PLATFORM_TENANT_ID });
   assert.equal(commissioned.ok, true, !commissioned.ok ? `Validate Request failed: ${JSON.stringify(commissioned)}` : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
   const seuId = commissioned.seu.id;

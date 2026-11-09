@@ -2,6 +2,7 @@
 // work (In Progress -> In Progress) has a Work Item, the kickoff requests only `governed` hops, and a hop requires an
 // attestation when its Transition Definition carries the policy-attestation-required Policy Definition.
 // Run against the real dev database, no mocking.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -34,8 +35,7 @@ async function commissionAndFulfil(prefix: string): Promise<{ seuId: string; del
     {
       statement: `${prefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
-    },
+      actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
       const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");

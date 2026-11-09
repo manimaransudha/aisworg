@@ -5,6 +5,8 @@
 //     reads what the route wrote from the database.
 //   - The entities are moved with the verbs their state offers to root (nextActionsFor), one hop at a time, and the state is read after each hop.
 //   - The SEUs are plain rows with a Deliverable or two, as in the other tests that need an SEU without commissioning one. Rows are not deleted.
+import { idsOfTenant } from "./entityTenantCache.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { platformConceptCodes } from "./schemaFixtures.js";
 import "dotenv/config";
 import { test, before, after } from "node:test";
@@ -323,7 +325,7 @@ test("a Deliverable is moved by the Execution Engine from the SEU page, which re
 // ── Capabilities and the EBM ──────────────────────────────────────────────────────────────────────────────────────
 
 test("the Capability routes refuse a replacement with no type or name, a release of no Participant and a request for a Capability the SEU does not require", async () => {
-  const capabilityId = (await pool.query<{ id: string }>("SELECT id FROM capability_definitions ORDER BY created_at LIMIT 1")).rows[0].id;
+  const capabilityId = idsOfTenant("CapabilityDefinition", await getPlatformTenantId())[0];
   const base = seuPath(`/capabilities/${capabilityId}`);
   hasAlert((await submit(`${base}/participant/${randomUUID()}/replace`, { participantType: "Human", displayName: " " })).alerts, /Replacement Participant type and display name are required\./);
   hasAlert((await submit(`${base}/release`, {})).alerts, /At least one Participant is required\./);
@@ -379,7 +381,7 @@ test("an EBM composed for an SEU is validated from the SEU page, and the verb it
 });
 
 test("a Participant that is not on the Capability cannot be replaced, which the Capability route reports", async () => {
-  const capabilityId = (await pool.query<{ id: string }>("SELECT id FROM capability_definitions ORDER BY created_at LIMIT 1")).rows[0].id;
+  const capabilityId = idsOfTenant("CapabilityDefinition", await getPlatformTenantId())[0];
   const replaced = await submit(seuPath(`/capabilities/${capabilityId}/participant/${randomUUID()}/replace`), { participantType: "Human", displayName: `Replacement ${run}` });
   hasAlert(replaced.alerts, /Replacement blocked: Participant not found/);
 });

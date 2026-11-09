@@ -12,8 +12,13 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import app from "../src/app.js";
-import pool from "../src/utils/db.js";
-import { PLATFORM_TENANT_ID, ROOT_USER_ID, setWebBaseUrl, newSession, getPage, getRedirect, pageAlerts, assertPageMatches, type Session } from "./testFixtures.js";
+import { templatesDB } from "../src/dblayer/templatesDB.js";
+import { profilesDB } from "../src/dblayer/profilesDB.js";
+import { packsDB } from "../src/dblayer/packsDB.js";
+import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
+import { codesOfTenant, type EntityKind } from "./entityTenantCache.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+import { ROOT_USER_ID, setWebBaseUrl, newSession, getPage, getRedirect, pageAlerts, assertPageMatches, type Session } from "./testFixtures.js";
 import { ensureFixtureTenant, buildStage4Fixtures, type Stage4Fixtures } from "./schemaFixtures.js";
 
 let server: ReturnType<typeof app.listen>;
@@ -27,14 +32,26 @@ let deliverable: { id: string; code: string };
 const readable = (text: string) => text.replace(/&quot;|&#34;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/&gt;/g, ">").replace(/&lt;/g, "<");
 
 before(async () => {
+  // The parents are read-only Platform rows (the test-platform tenant is not the Platform tenant).
+  const platformTenantId = await getPlatformTenantId();
   fixtures = await buildStage4Fixtures(await ensureFixtureTenant("web-sdk-kinds"));
-  template = (await pool.query(`SELECT id, code FROM templates WHERE status = 'Active' AND tenant_id = $1 ORDER BY code LIMIT 1`, [PLATFORM_TENANT_ID])).rows[0];
-  profile = (await pool.query(
-    `SELECT p.id, p.name, t.code AS base_template_code FROM profiles p JOIN templates t ON t.id = p.base_template_id WHERE p.status = 'Active' AND p.tenant_id = $1 ORDER BY p.code LIMIT 1`,
-    [PLATFORM_TENANT_ID],
-  )).rows[0];
-  pack = (await pool.query(`SELECT id, code FROM packs WHERE status = 'Active' AND tenant_id = $1 ORDER BY code LIMIT 1`, [PLATFORM_TENANT_ID])).rows[0];
-  deliverable = (await pool.query(`SELECT id, code FROM deliverable_definitions WHERE status = 'Active' AND tenant_id = $1 ORDER BY code LIMIT 1`, [PLATFORM_TENANT_ID])).rows[0];
+  // The cache lists the codes the Platform tenant holds; the production finder returns the Active row of each.
+  const firstActive = async <T>(kind: EntityKind, find: (code: string) => Promise<{ data?: T | null }>): Promise<T | undefined> => {
+    for (const code of codesOfTenant(kind, platformTenantId)) {
+      const { data } = await find(code);
+      if (data) return data;
+    }
+    return undefined;
+  };
+  const templateRow = await firstActive("Template", (code) => templatesDB.findActiveByCode(code, platformTenantId));
+  template = templateRow && { id: templateRow.id, code: templateRow.code };
+  const profileRow = await firstActive("Profile", (code) => profilesDB.findActiveByCode(code, platformTenantId));
+  const baseTemplate = profileRow ? (await templatesDB.findById(profileRow.base_template_id)).data : null;
+  profile = profileRow && baseTemplate ? { id: profileRow.id, name: profileRow.name, base_template_code: baseTemplate.code } : (undefined as never);
+  const packRow = await firstActive("Pack", (code) => packsDB.findActiveByCode(code, platformTenantId));
+  pack = packRow && { id: packRow.id, code: packRow.code };
+  const deliverableRow = await firstActive("DeliverableDefinition", (code) => deliverableDefinitionsDB.findActiveByCode(code, platformTenantId));
+  deliverable = deliverableRow && { id: deliverableRow.id, code: deliverableRow.code };
   assert.ok(template && profile && pack && deliverable, "the seed holds an Active Platform Template, Profile, Pack and Deliverable Definition");
 
   server = app.listen(0);

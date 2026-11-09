@@ -22,7 +22,7 @@ import { getSeuEvents } from "../src/routes/seu/core/events.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { grantTransitionBadge, waitForCapabilityFulfilled, ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, grantRole, waitForDispatchedWorkItem, grantRouteBadges, countCapabilityRequests, deactivateParticipants, extractCsrf, TESTER_ACCEPTANCE_JOURNEY_BABYLON } from "./testFixtures.js";
-import { initiateAndValidateSeu } from "./testFixtures.js";
+import { initiateAndValidateSeu, PLATFORM_TENANT_ID } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
 let server: ReturnType<typeof app.listen>;
@@ -121,7 +121,7 @@ test("MVP acceptance: commission an SEU through the core and web paths, reach Op
 
   // 4 — commission: Save (the birth row) and Validate, then the Composition Engine and the hops to Operational (Ch.8, Ch.37).
   // The API route POST /commission is commented out: an SEU is initiated only through the Save and Validate buttons.
-  const commissioned = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId });
+  const commissioned = await initiateAndValidateSeu({ objectiveId: objective.id, profileId: profile.id, actorId: TESTER_ACCEPTANCE_JOURNEY_BABYLON.participantId, tenantId: PLATFORM_TENANT_ID });
   assert.equal(commissioned.ok, true, !commissioned.ok ? JSON.stringify(commissioned) : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
   const seuId = commissioned.seu.id;

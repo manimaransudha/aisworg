@@ -15,6 +15,7 @@
 //   - DRIVEN: every row is actually exercised through transitionKnowledgeItem/
 //     promoteKnowledgeItemScope and the events it publishes are asserted
 //     against eventsDB directly — no mocking.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -39,8 +40,7 @@ async function commissionTestSeuAndDeliverable(): Promise<{ seuId: string; deliv
   const result = await commissionFromFormSync({
     statement: `knowledge-lifecycle-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
-  });
+    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);

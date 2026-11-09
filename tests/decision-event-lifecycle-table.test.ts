@@ -9,6 +9,7 @@
 //     refused; Supersede needs a replacing Decision and a comment and sets superseded_by.
 //   - BUTTONS: nextActionsFor offers the manual verbs and nothing for the birth row.
 //   - GUARD: only the Decision adapter writes the status and no code names the birth event as a literal.
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import "dotenv/config";
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
@@ -88,8 +89,7 @@ test("DRIVEN setup: a real SEU and Deliverable to hang Decisions off", async () 
     statement: `decision-lifecycle-table-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorId: TESTER_ALL_ID,
-    requestedBy: TESTER_ALL_ID,
-  });
+    requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.ok, true, result.ok ? "" : `${result.stage}: ${result.reason}`);
   if (!result.ok) return;
   seuId = result.seu.id;
