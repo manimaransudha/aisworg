@@ -46,8 +46,7 @@ import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { listAttentionItemsBySeu } from "../src/routes/seu/core/attentionItems.js";
 import type { CommandRow, WorkItemRow } from "../src/dblayer/seuTypes.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 let server: ReturnType<typeof app.listen>;
 

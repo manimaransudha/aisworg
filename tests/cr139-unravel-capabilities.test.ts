@@ -8,12 +8,11 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { flattenComposedPacks } from "../src/domain/engine/conflicts/composedPacks.js";
 import { unravelCapabilities } from "../src/domain/engine/conflicts/unravelCapabilities.js";
 import { ROOT_ACTOR_ID } from "./testFixtures.js";
 
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 async function createPack(capabilityCodes: string[]): Promise<string> {
   const { data: schema } = await schemaDefinitionsDB.findLatest("Pack");

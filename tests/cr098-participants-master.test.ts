@@ -18,8 +18,7 @@ import { findEligibleParticipants } from "../src/routes/seu/core/participantElig
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { listRegisteredOnboardingTypes, resolveOnboardingAdapter } from "../src/adapters/participantOnboardingRegistry.js";
 import { loadOnboardingOntology } from "../src/adapters/mockOnboardingData.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 // Real, already-seeded canonical Ontology values (checked directly against
 // the migrations, not guessed): participant-types (194), capability-name

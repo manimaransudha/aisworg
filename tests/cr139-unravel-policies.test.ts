@@ -7,12 +7,11 @@ import { randomUUID } from "node:crypto";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { unravelPolicies } from "../src/domain/engine/conflicts/unravelPolicies.js";
 import type { ComposedPacks } from "../src/domain/engine/conflicts/composedPacks.js";
 import { ROOT_ACTOR_ID } from "./testFixtures.js";
 
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 async function packListing(policies: string[]): Promise<ComposedPacks> {
   const { data: schema } = await schemaDefinitionsDB.findLatest("Pack");

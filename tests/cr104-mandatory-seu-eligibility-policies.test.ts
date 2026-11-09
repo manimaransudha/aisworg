@@ -37,9 +37,9 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
-import { getPlatformTenantId, ensureSeuSystemParticipant } from "../src/dblayer/constants.js";
+import { ensureSeuSystemParticipant } from "../src/dblayer/constants.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective, seuBirthState } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 

@@ -8,13 +8,12 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { authorityRulesDB } from "../src/dblayer/authorityRulesDB.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { detectAuthorityRuleConflictsFrom, authorityRuleKey } from "../src/domain/engine/conflicts/authorityRules.js";
 import { unravelAuthorityRules, type AuthorityRuleRow } from "../src/domain/engine/conflicts/unravelAuthorityRules.js";
 import type { ComposedPacks } from "../src/domain/engine/conflicts/composedPacks.js";
 import { ROOT_ACTOR_ID } from "./testFixtures.js";
 
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 const STEP = "Deliverable|In Progress|Approved";
 
 const packRow = (pack: string, ...roles: string[]): AuthorityRuleRow => ({ packId: `id-${pack}`, packCode: pack, step: STEP, roles: [...roles].sort() });

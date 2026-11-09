@@ -26,7 +26,7 @@ import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { tenantContractsDB } from "../src/dblayer/tenantContractsDB.js";
 import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
 import { capabilityDefinitionsDB } from "../src/dblayer/capabilityDefinitionsDB.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
+import { getTestPlatformTenantId } from "../src/dblayer/seed/seedTestIdentity.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, driveCommissioningToActive, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
@@ -162,7 +162,7 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
   const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
   void fixtureTemplate;
   // The SEU's producing Capability is the Active Capability Definition its EBM recorded, so the execution target is upserted against that id.
-  const { data: reqAnalysisDefinition } = await capabilityDefinitionsDB.findActiveByCode("requirements-analysis", await getPlatformTenantId());
+  const { data: reqAnalysisDefinition } = await capabilityDefinitionsDB.findActiveByCode("requirements-analysis", await getTestPlatformTenantId());
   const reqAnalysisCapId = reqAnalysisDefinition?.id;
   assert.ok(reqAnalysisCapId);
 

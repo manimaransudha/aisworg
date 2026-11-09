@@ -23,8 +23,6 @@
 // import { profilesDB } from "../src/dblayer/profilesDB.js";
 // import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 // import { unravelComposition, detectCompositionConflicts } from "../src/domain/engine/profileCompositionUnravel.js";
-// import { getPlatformTenantId } from "../src/dblayer/constants.js";
-// const PLATFORM_TENANT_ID = await getPlatformTenantId();
 // import type { PackContributions } from "../src/dblayer/seuTypes.js";
 // import { ROOT_ACTOR_ID, serviceDefinitionIdFor } from "./testFixtures.js";
 //

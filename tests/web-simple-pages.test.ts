@@ -127,11 +127,11 @@ test("the compliance page of an SEU shows its evaluation, and a waiver is refuse
   const frameworkCode = `zz-framework-${run}`;
   const requirementCode = `zz-requirement-${run}`;
   const { error: frameworkError } = await complianceDB.upsertFramework({ code: frameworkCode, name: `Web framework ${run}`, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
-  assert.ok(!frameworkError, frameworkError?.message);
+  assert.ok(!frameworkError, frameworkError);
   const { error: requirementError } = await complianceDB.upsertRequirement({
     code: requirementCode, frameworkCode, name: `Web requirement ${run}`, criteria: { type: "always_true" }, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(!requirementError, requirementError?.message);
+  assert.ok(!requirementError, requirementError);
 
   const granted = await submit(waiversPath, { requirementCode, rationale: "Accepted for the web test" });
   hasAlert(granted, new RegExp(`Waiver granted for "${requirementCode}"\\.`));
@@ -193,7 +193,7 @@ test("the participant list shows the participants the viewer may see, filters th
   const displayName = `Web Participant ${run}`;
   const rootTenantId = (await userDB.findById(ROOT_USER_ID))!.tenant_id;
   const { data: created, error } = await participantsMasterDB.create({ tenantId: rootTenantId, type: "External", displayName, userId: null });
-  assert.ok(created && !error, error?.message);
+  assert.ok(created && !error, error);
 
   const searched = await getPage(root, `/seu/participants?q=${encodeURIComponent(displayName)}`);
   assert.equal(searched.status, 200);

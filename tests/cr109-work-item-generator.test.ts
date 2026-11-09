@@ -36,7 +36,6 @@ import { governanceEvaluationOutcomesDB } from "../src/dblayer/governanceEvaluat
 import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
 import { getEmptyPoolTenantId, deactivateParticipants, driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, ensureTestFixturePacks, waitForDispatchedWorkItem, transitionDeliverableSync, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 
 async function rootParticipantId(seuId: string): Promise<string> {
@@ -45,7 +44,7 @@ async function rootParticipantId(seuId: string): Promise<string> {
   return data!.id;
 }
 
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 
 // Defined -> In Progress is a governed hop: the Execution Engine makes it off the kickoff, so a manual request that

@@ -27,7 +27,7 @@ const edges: Array<[string, string]> = [];
 
 async function addEdge(from: string, to: string, fields: { requiredQualityGateIds?: string[]; requiredPolicyIds?: string[]; verb?: string | null; versionEvent?: string | null } = {}): Promise<void> {
   const { error } = await transitionDefinitionsDB.upsert({ entityType: "AttentionItem", fromState: from, toState: to, ...fields });
-  assert.ok(!error, error?.message);
+  assert.ok(!error, error);
   edges.push([from, to]);
 }
 
@@ -84,7 +84,7 @@ test("a Quality Gate on an edge with no verb is refused with an error, because t
     name: `transition-engine gate ${run}`, entityType: "AttentionItem", fromState: state("open-c"), toState: state("done-c"),
     criteria: { type: "no_unresolved_obligations" }, originatingPackId: pack.id, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(gate && !error, error?.message);
+  assert.ok(gate && !error, error);
   await addEdge(state("open-c"), state("done-c"), { requiredQualityGateIds: [gate.id] });
 
   const { seu } = await commissionedSeu("transition-engine-gate");
@@ -132,7 +132,7 @@ test("an implemented Policy is decided by its function: satisfied by a comment, 
       code, name: `transition-engine ${code}`, constraintType: "Policy", scope: "Transition", governedTransition: null, condition: { type: "implemented" },
       originatingPackId: pack.id, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
     });
-    assert.ok(data && !error, error?.message);
+    assert.ok(data && !error, error);
     return data;
   };
   const verb = await seededVerb();
@@ -207,7 +207,7 @@ test("a Policy that holds without a context is satisfied by a transition given n
     code: `zz-no-context-${run}`, name: `transition-engine no context ${run}`, constraintType: "Policy", scope: "Transition", governedTransition: null, condition: { type: "always_true" },
     originatingPackId: pack.id, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(policy && !error, error?.message);
+  assert.ok(policy && !error, error);
   const from = state("open-k");
   const to = state("done-k");
   await addEdge(from, to, { requiredPolicyIds: [policy.id], verb: await seededVerb() });

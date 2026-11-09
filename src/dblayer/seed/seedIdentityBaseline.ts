@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { tenantsDB } from "../tenantsDB.js";
-import { PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, CAMBODIA_TENANT_NAME, NO_EXPIRY_DATE } from "../constants.js";
+import { PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, CAMBODIA_TENANT_NAME, TEST_PLATFORM_TENANT_NAME, TEST_PLATFORM_USER_EMAIL, NO_EXPIRY_DATE } from "../constants.js";
 
 const require = createRequire(import.meta.url);
 const bcrypt = require("bcryptjs");
@@ -41,6 +41,7 @@ interface SeedUser {
 
 const USERS: SeedUser[] = [
   {email: "superadmin@cambodia.com", name: "Super Admin Cambodia", avatar_url: null, display_name: "Cambodia admin", auth_provider: "local", provider_id: null, is_active: false, is_protected: false, type: "Tenant", tenant_name: CAMBODIA_TENANT_NAME ,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}] },
+  {email: TEST_PLATFORM_USER_EMAIL, name: "Test Platform", avatar_url: null, display_name: "Test Platform admin", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: TEST_PLATFORM_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}] },
   {email: "tester-all@test.local", name: "Test — All Badges", avatar_url: null, display_name: "Platform Test All", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: DEMO_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}] },
   {email: "tester-creator@test.local", name: "Test — Creator", avatar_url: null, display_name: "Platform Test Creator", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: DEMO_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}] },
   {email: "tester-approver@test.local", name: "Test — Approver", avatar_url: null, display_name: "Platform Test Approver", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: DEMO_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}] },

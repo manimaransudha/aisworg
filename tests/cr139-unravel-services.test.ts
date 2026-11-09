@@ -7,11 +7,10 @@ import { randomUUID } from "node:crypto";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { serviceDefinitionsDB } from "../src/dblayer/serviceDefinitionsDB.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { unravelServices } from "../src/domain/engine/conflicts/unravelServices.js";
 import { ROOT_ACTOR_ID } from "./testFixtures.js";
 
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 async function templateAndProfile(catalogueCodes: string[]) {
   const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `test-unravel-services-template-${randomUUID()}`, name: "Fixture Template", deliverableCatalogue: catalogueCodes.map((code) => ({ code })) });

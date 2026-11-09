@@ -25,8 +25,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind, TemplateRow } from "../src/dblayer/seuTypes.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import {
   createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft,
   listInheritableTemplates, inheritedTemplateContent,

@@ -51,7 +51,7 @@ before(async () => {
       owningEntityType: owner.type, owningEntityId: owner.id, fromEntityType, fromName: fromEntityType === "Deliverable" ? fromName : null, fromState, toEntityType: "Deliverable", toName,
       toState: toName ? "In Progress" : null, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
     });
-    assert.ok(!error, error?.message);
+    assert.ok(!error, error);
   };
   for (const [from, to] of [[gateNames.source, null], [gateNames.source, gateNames.gated], [gateNames.other, gateNames.gated], [gateNames.source, gateNames.ghost], [gateNames.source, gateNames.open]] as Array<[string, string | null]>) await edge(from, to);
   await edge(gateNames.reqSource, gateNames.reqTarget);
@@ -101,7 +101,7 @@ test("a dependency graph becomes one row for each entry that names Deliverables 
 
 async function createDeliverable(name: string, state: string = birthState): Promise<DeliverableRow> {
   const { data, error } = await deliverablesDB.create({ seuId: t.seu.id, name, state, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE });
-  assert.ok(data && !error, error?.message);
+  assert.ok(data && !error, error);
   return data;
 }
 

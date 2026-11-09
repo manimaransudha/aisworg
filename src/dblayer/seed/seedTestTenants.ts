@@ -1,7 +1,7 @@
 import "dotenv/config";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
-import { PLATFORM_TENANT_NAME, ATHENS_TENANT_NAME, BABYLON_TENANT_NAME } from "../constants.js";
+import { ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, TEST_PLATFORM_USER_EMAIL } from "../constants.js";
 
 // Test-fixture tenants. Athens and Babylon exist only for the test suite (tests/globalSetup.ts), never in db:clean-slate.
 interface SeedTenant {
@@ -20,10 +20,13 @@ export async function seedTestTenants(): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const platform = await client.query("SELECT id, author_badge FROM tenants WHERE name = $1", [PLATFORM_TENANT_NAME]);
-    if (platform.rows.length === 0) throw new Error("seedTestTenants: Platform tenant not found -- run db:clean-slate first.");
-    const platformId = platform.rows[0].id;
-    const platformBadge = platform.rows[0].author_badge;
+    const actor = await client.query(
+      "SELECT pm.id FROM participants_master pm JOIN users u ON u.id = pm.user_id WHERE lower(u.email) = lower($1)",
+      [TEST_PLATFORM_USER_EMAIL]
+    );
+    if (actor.rows.length === 0) throw new Error(`seedTestTenants: ${TEST_PLATFORM_USER_EMAIL} is not provisioned -- run db:clean-slate first.`);
+    const authorId = actor.rows[0].id;
+    const authorBadge = "root";
     for (const t of TENANTS) {
       await client.query(
         `INSERT INTO tenants (code, name, status, is_system, author_id, author_badge)
@@ -35,7 +38,7 @@ export async function seedTestTenants(): Promise<void> {
          is_system = EXCLUDED.is_system,
          author_id = EXCLUDED.author_id,
          author_badge = EXCLUDED.author_badge`,
-        [t.code, t.name, t.status, t.is_system, platformId, platformBadge]
+        [t.code, t.name, t.status, t.is_system, authorId, authorBadge]
       );
     }
     await client.query("COMMIT");

@@ -41,6 +41,8 @@
 
 - schema-changing CRs must list which test fixtures need updating and fix them in the same build pass, not after the suite breaks.
 
+- tests and test fixtures never WRITE under the Platform tenant id (reading is allowed). Every test write lands in a test tenant (seeded athens/babylon, schema-fixtures-*, or a per-run tenant), so the test-data cleanup script identifies test rows by tenant alone (own tenant_id, SEU's tenant, or author's participants_master tenant).
+
 - "No superuser provisioned." test failures are a recurring, not one-off, gap: tests/testFixtures.ts has no shared helper that provisions a superuser (real participants_master row + badge) once. Each test file stands up its own tenant/actor fixture independently and keeps omitting the participants_master insert for the actor it uses. When this surfaces again, the fix belongs in a shared fixture helper, not a per-test patch — ask before adding one, since it touches many test files.
 
 - actorId/authorityBadge/author_id are typed `string`/`string | null` with no branding — `tsc` cannot catch a wrong-but-string value (e.g. `"1"` where a UUID row id is required, or a silently-missing badge). NOT NULL and UUID-format violations only surface at the DB. Do not expect typecheck to catch these; they need runtime/DB-level verification (tests, fixtures) or a branded-type change (a design decision requiring explicit approval), not a types-only fix.

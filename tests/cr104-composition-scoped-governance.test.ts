@@ -29,8 +29,7 @@ import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { policyEngine } from "../src/domain/engine/policyEngine.js";
 import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 // A category "Organisation" Pack's own `code` must be a canonical
 // organisation-name Ontology concept (validatePackSeed, packs.ts) — same

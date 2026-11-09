@@ -21,6 +21,9 @@ export const DEMO_RESET_CRON = "0 0 * * *";
 export const DEMO_RESET_TIMEZONE = "America/Los_Angeles";
 export const ATHENS_TENANT_NAME = "Athens AI-Native";
 export const BABYLON_TENANT_NAME = "Babylon AI-Native";
+export const TEST_PLATFORM_TENANT_CODE = "test-platform";
+export const TEST_PLATFORM_TENANT_NAME = "Test Platform";
+export const TEST_PLATFORM_USER_EMAIL = "test_platform_id@local.com";
 export const CAMBODIA_TENANT_NAME = "Cambodia AI-Native";
 // The competency dimensions that hold the role types and work types of the Capabilities composed in an EBM.
 export const COMPETENCY_DIMENSION_ROLE = "Role";

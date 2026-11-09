@@ -35,13 +35,13 @@ async function createGate(label: string, criteria: Record<string, unknown>): Pro
     name: `quality-gate-engine ${label} ${run}`, entityType: "AttentionItem", fromState: `zz-from-${label}-${run}`, toState: `zz-to-${label}-${run}`,
     criteria, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(data && !error, error?.message);
+  assert.ok(data && !error, error);
   return data;
 }
 
 async function createPolicy(label: string, condition: Record<string, unknown>) {
   const { data, error } = await policiesDB.upsert({ code: `zz-policy-${label}-${run}`, name: `quality-gate-engine ${label}`, condition, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
-  assert.ok(data && !error, error?.message);
+  assert.ok(data && !error, error);
   return data;
 }
 
@@ -86,7 +86,7 @@ test("a Waiver granted for the gate and the entity turns the block into a waived
   const { data: waiver, error } = await qualityGateWaiversDB.grant({
     qualityGateId: gate.id, seuId: testSeu.seu.id, entityType: "AttentionItem", entityId: waivedEntity, rationale: "quality-gate-engine test", grantedBy: ROOT_ACTOR_ID, authorityBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(waiver && !error, error?.message);
+  assert.ok(waiver && !error, error);
 
   const waived = await qualityGateEngine.evaluateByIds([gate.id], input({ entityId: waivedEntity }));
   assert.equal(waived.outcome, "Waived");

@@ -26,8 +26,6 @@
 // import { unravelComposition, detectCompositionConflicts } from "../src/domain/engine/profileCompositionUnravel.js";
 // import { validateProfileSeed, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 // import { addConcept, type OntologyActor } from "../src/routes/seu/core/ontology.js";
-// import { getPlatformTenantId } from "../src/dblayer/constants.js";
-// const PLATFORM_TENANT_ID = await getPlatformTenantId();
 // import type { PackContributions } from "../src/dblayer/seuTypes.js";
 // import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 //

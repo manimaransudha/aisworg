@@ -14,9 +14,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import { serviceDefinitionsDB } from "../src/dblayer/serviceDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { transitionAndPublish } from "./testFixtures.js";

@@ -1,7 +1,7 @@
 import "dotenv/config";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
-import { PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, CAMBODIA_TENANT_NAME, TEMP_TENANT_ID } from "../constants.js";
+import { PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, CAMBODIA_TENANT_NAME, TEMP_TENANT_ID, TEST_PLATFORM_TENANT_CODE, TEST_PLATFORM_TENANT_NAME } from "../constants.js";
 interface SeedTenant {
   code: string;
   name: string;
@@ -15,6 +15,7 @@ const PLATFORM_TENANT: SeedTenant =
 const TENANTS: SeedTenant[] = [
   { code: "demo", name: DEMO_TENANT_NAME, status: "Operational", is_system: true },
   { code: "cambodia", name: CAMBODIA_TENANT_NAME, status: "Operational", is_system: false},
+  { code: TEST_PLATFORM_TENANT_CODE, name: TEST_PLATFORM_TENANT_NAME, status: "Operational", is_system: false},
 ];
 
 export async function seedTenantsBaseline(): Promise<void> {

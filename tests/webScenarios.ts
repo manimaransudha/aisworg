@@ -56,7 +56,7 @@ async function conflictingBase(run: string, set: ConflictSet, packs: "one" | "tw
   const used = packs === "one" ? [a] : [a, b];
   for (const pack of used) {
     const published = await publishPack({ seed: pack as never, actorId: TESTER_ALL_ID, activate: true });
-    assert.ok(published.ok, published.ok ? "" : `the conflicting Pack does not publish: ${published.errors.join("; ")}`);
+    assert.ok(published.ok, published.ok ? "" : `the conflicting Pack does not publish: ${(published.errors ?? []).join("; ")}`);
   }
   const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `web-conflict-tpl-${run}`, name: "Web conflict Template", deliverableCatalogue: [] });
   assert.ok(template);

@@ -10,13 +10,12 @@ import type { Request } from "express";
 
 import pool from "../src/utils/db.js";
 import { userDB } from "../src/dblayer/userDB.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import { badgeAuthorityEngine } from "../src/domain/engine/badgeAuthorityEngine.js";
 import { requireActorId, resolveAuthorBadge, type HeldBadges } from "../src/domain/identity/heldBadges.js";
 import { grantQualityGateWaiver } from "../src/routes/seu/core/qualityGateWaivers.js";
 import { ROOT_ACTOR_ID } from "./testFixtures.js";
 
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 const createdUserIds: string[] = [];
 const createdParticipantMasterIds: string[] = [];
 

@@ -18,7 +18,8 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { deliverableKickoffHandler } from "../src/domain/engine/deliverableKickoff.js";
 import type { EventRow } from "../src/dblayer/seuTypes.js";
 import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
-import { ATTESTATION_REQUIRED_POLICY_CODE, PRODUCE_COMMAND_VERB, commandTypeFor, getPlatformTenantId } from "../src/dblayer/constants.js";
+import { ATTESTATION_REQUIRED_POLICY_CODE, PRODUCE_COMMAND_VERB, commandTypeFor } from "../src/dblayer/constants.js";
+import { getTestPlatformTenantId } from "../src/dblayer/seed/seedTestIdentity.js";
 import {
   ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, ensureActorParticipant,
   resolveDispatchRejectionObligations, createEvidenceAsRoot, fulfilCapabilityAsRoot as fulfilCapability, produceDeliverable, transitionDeliverableSync,
@@ -108,7 +109,7 @@ test("the kickoff requests only governed hops: a manual hop stays where it is un
 });
 
 test("the seed stores the attestation Policy Definition's UUID on exactly the hops that require an attestation", async () => {
-  const { data: policyDefinition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(ATTESTATION_REQUIRED_POLICY_CODE, await getPlatformTenantId());
+  const { data: policyDefinition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(ATTESTATION_REQUIRED_POLICY_CODE, await getTestPlatformTenantId());
   assert.ok(policyDefinition, `${ATTESTATION_REQUIRED_POLICY_CODE} must be seeded as an Active Policy Definition`);
 
   for (const [from, to, expected] of [["Defined", "In Progress", false], ["In Progress", "Approved", true], ["Approved", "Baselined", true]] as const) {

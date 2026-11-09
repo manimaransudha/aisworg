@@ -85,7 +85,7 @@ async function createPolicy(label: string, hop: string, fields: { constraintType
     code: `zz-policy-${label}-${run}`, name: `policy-engine ${label}`, constraintType: fields.constraintType ?? "Policy", scope: "Transition", governedTransition: hop,
     condition: fields.condition ?? { type: "always_true" }, applicabilityDeliverableNames: fields.names ?? [], originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(data && !error, error?.message);
+  assert.ok(data && !error, error);
   return data;
 }
 

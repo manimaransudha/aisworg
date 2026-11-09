@@ -41,7 +41,7 @@ async function createActivePack(label: string, contributions: Record<string, unk
     code: `zz-composition-${label}-${run}`, name: `Composition ${label}`, category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: contributions as never, dependencies: [], authoredBy: ROOT_ACTOR_ID, status: "Active", authorBadge: "root", schemaDefinitionId: schema.id, tenantId: PLATFORM_TENANT_ID,
   });
-  assert.ok(pack && !error, error?.message);
+  assert.ok(pack && !error, error);
   return pack;
 }
 
@@ -73,9 +73,11 @@ test("compose reports Packs that assign different roles to one transition, and P
   assert.deepEqual(composedPacks.map((p) => p.packCode).sort(), [first.code, second.code].sort());
   assert.equal(compositionReport.conflicts.length, 2, JSON.stringify(compositionReport.conflicts));
   const authority = compositionReport.conflicts.find((c) => c.startsWith("Authority conflict"));
+  assert.ok(authority, "the composition report has an Authority conflict");
   assert.ok(authority?.includes(`on "${contested}"`));
   assert.ok(authority?.includes(`${first.code} requires "lead"`) && authority?.includes(`${second.code} requires "manager"`), authority);
   const qualityGate = compositionReport.conflicts.find((c) => c.startsWith("Quality Gate conflict"));
+  assert.ok(qualityGate, "the composition report has a Quality Gate conflict");
   assert.ok(qualityGate?.includes(`${contested} [Exit]`) && qualityGate?.includes(first.code) && qualityGate?.includes(second.code), qualityGate);
 });
 

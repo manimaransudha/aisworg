@@ -5,7 +5,8 @@ import path from "node:path";
 import { logger } from "../../utils/logger.js";
 import { ontologyDB } from "../ontologyDB.js";
 import type { OntologyConceptRow } from "../seuTypes.js";
-import { getPlatformTenantId, INITIAL_VERSION } from "../constants.js";
+import { INITIAL_VERSION } from "../constants.js";
+import { getTestPlatformTenantId } from "./seedTestIdentity.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,7 +32,7 @@ interface TestOntologyConceptSeed {
 
 export async function seedTestOntology(actor: SeedActor): Promise<void> {
   const seeds = JSON.parse(readFileSync(path.join(__dirname, "data", "test-ontology.json"), "utf8")) as TestOntologyConceptSeed[];
-  const tenantId = await getPlatformTenantId();
+  const tenantId = await getTestPlatformTenantId();
 
   const seen = new Set<string>();
   const duplicates: string[] = [];

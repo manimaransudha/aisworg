@@ -53,7 +53,7 @@ async function createDeliverable(t: CommissionedSeu, label: string, state: strin
   const { data, error } = await deliverablesDB.create({
     seuId: t.seu.id, name: `engine-branches ${label} ${run} ${randomUUID()}`, state, producingCapabilityId: capability, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(data && !error, error?.message);
+  assert.ok(data && !error, error);
   return data;
 }
 
@@ -127,7 +127,7 @@ test("a resolved Obligation, a fulfilled Capability and a rejected dispatch re-i
   const { data: root } = await participantsDB.findBySeuIdAndParticipantMasterId(t.seu.id, ROOT_ACTOR_ID);
   assert.ok(root);
   const { error } = await capabilityFulfilmentsDB.create({ seuCapabilityId, participantId: root.id, authorId: root.id, authorBadge: ROOT_ACTOR_BADGE });
-  assert.ok(!error, error?.message);
+  assert.ok(!error, error);
   await assert.rejects(() => send("CapabilityFulfilled", { capabilityId: capability }), /has no transition Command to take its governance outcome from/);
 
   const { data: transition } = await commandsDB.create({

@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { tenantsDB } from "../tenantsDB.js";
-import { ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, NO_EXPIRY_DATE } from "../constants.js";
+import { ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, TEST_PLATFORM_TENANT_NAME, NO_EXPIRY_DATE } from "../constants.js";
 
 const require = createRequire(import.meta.url);
 const bcrypt = require("bcryptjs");
@@ -69,6 +69,18 @@ const USERS: SeedUser[] = [
   {email: "tester-acceptance-journey@test.local", name: "Test — Acceptance Journey (Athens)", avatar_url: null, display_name: "Athens Test Acceptance Journey", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME, participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: allNounVerbBadges() },
   {email: "tester-acceptance-journey-babylon@test.local", name: "Test — Acceptance Journey (Babylon)", avatar_url: null, display_name: "Babylon Test Acceptance Journey", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: BABYLON_TENANT_NAME, participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":NO_EXPIRY_DATE,"seu_ids":[]}], authorised_badges: allNounVerbBadges() },
 ];
+
+let testPlatformTenantIdCache: string | null = null;
+
+// The id of the test-platform tenant, seeded by seedTestTenants.
+export async function getTestPlatformTenantId(): Promise<string> {
+  if (testPlatformTenantIdCache) return testPlatformTenantIdCache;
+  const result = await tenantsDB.findByName(TEST_PLATFORM_TENANT_NAME);
+  if (result.error) throw new Error(`Error retrieving details for ${TEST_PLATFORM_TENANT_NAME}`);
+  if (!result.data?.id) throw new Error(`${TEST_PLATFORM_TENANT_NAME} not provisioned -- run db:clean-slate, which seeds it`);
+  testPlatformTenantIdCache = result.data.id;
+  return testPlatformTenantIdCache;
+}
 
 export async function seedTestIdentity(): Promise<void> {
   const client = await pool.connect();

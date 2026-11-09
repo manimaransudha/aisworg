@@ -45,7 +45,7 @@ before(async () => {
     const { data, error } = await deliverablesDB.create({
       seuId: t.seu.id, name: `kickoff ${label} ${run}`, state, producingCapabilityId: capabilityId, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
     });
-    assert.ok(data && !error, error?.message);
+    assert.ok(data && !error, error);
     return data;
   };
   producing = await create("producing", "In Progress");
@@ -90,7 +90,7 @@ test("a Deliverable transition into In Progress is refused without its Command, 
     seuId: t.seu.id, entityType: "Deliverable", entityId: producing.id, commandType: `zz-kickoff-${run}`, fromState: "Defined", toState: "In Progress",
     requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, correlationId: randomUUID(),
   });
-  assert.ok(command && !error, error?.message);
+  assert.ok(command && !error, error);
   const producingCommands = async () => ((await commandsDB.findBySeuId(t.seu.id)).data ?? []).filter((c) => c.from_state === "In Progress" && c.to_state === "In Progress").length;
   const before = await producingCommands();
   await deliverableKickoffHandler(await event("DeliverableTransitioned", { toState: "In Progress", commandId: command.id }, randomUUID()));

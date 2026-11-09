@@ -60,13 +60,13 @@ async function createDeliverable(lifecycle: string = deliverableBirthState, on: 
   const { data, error } = await deliverablesDB.create({
     seuId: on.seu.id, ...fields, name: `execution-engine ${run} ${randomUUID()}`, state: lifecycle, authorId: on.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(data && !error, error?.message);
+  assert.ok(data && !error, error);
   return data;
 }
 
 async function addEdge(from: string, to: string, withVerb: boolean): Promise<void> {
   const { error } = await transitionDefinitionsDB.upsert({ entityType: "Deliverable", fromState: from, toState: to, verb: withVerb ? verb : null });
-  assert.ok(!error, error?.message);
+  assert.ok(!error, error);
   edges.push([from, to]);
 }
 
@@ -149,21 +149,21 @@ test("a Work Item records the Quality Gate of the governance outcome of its Comm
     name: `execution-engine gate ${run}`, entityType: "AttentionItem", fromState: state("gate-from"), toState: state("gate-to"),
     criteria: { type: "no_unresolved_obligations" }, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(gate && !gateError, gateError?.message);
+  assert.ok(gate && !gateError, gateError);
 
   const deliverable = await createDeliverable();
   const governance = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(governance);
   const draft: GovernanceEvaluationOutcomeDraft = { ...governance.governanceOutcome, outcome: "Waived", quality_gate_id: gate.id, quality_gate_outcome: "Waived", originating_pack_id: packId };
   const { data: outcome, error: outcomeError } = await governanceEvaluationOutcomesDB.create({ ...draft, author_id: t.systemParticipantId, author_badge: ROOT_ACTOR_BADGE });
-  assert.ok(outcome && !outcomeError, outcomeError?.message);
+  assert.ok(outcome && !outcomeError, outcomeError);
 
   const create = async (entityId: string, governanceOutcomeId: string | null) => {
     const { data: command, error } = await commandsDB.create({
       seuId: t.seu.id, entityType: "Deliverable", entityId, commandType: `zz-work-item-${run}`, fromState: deliverableBirthState, toState: "In Progress",
       requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, correlationId: randomUUID(), governanceOutcomeId,
     });
-    assert.ok(command && !error, error?.message);
+    assert.ok(command && !error, error);
     return command;
   };
 
@@ -220,7 +220,7 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
     const { data, error } = await qualityGatesDB.upsert({
       name: `execution-engine ${label} ${run}`, entityType: "Deliverable", fromState: from, toState: to, criteria, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
     });
-    assert.ok(data && !error, error?.message);
+    assert.ok(data && !error, error);
     return data;
   };
 
@@ -237,7 +237,7 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
   const { error: waiverError } = await qualityGateWaiversDB.grant({
     qualityGateId: gate.id, seuId: gateSeu.seu.id, entityType: "Deliverable", entityId: deliverable.id, rationale: "execution-engine test", grantedBy: ROOT_ACTOR_ID, authorityBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(!waiverError, waiverError?.message);
+  assert.ok(!waiverError, waiverError);
   const waived = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: blockedTo, actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(waived);
   assert.deepEqual([waived.governanceOutcome.outcome, waived.governanceOutcome.quality_gate_id, waived.governanceOutcome.originating_pack_id], ["Waived", gate.id, packId]);
@@ -289,7 +289,7 @@ test("a Work Item records what the EBM settled and what its governance outcome n
   const { data: rule, error: ruleError } = await authorityRulesDB.upsert({
     code: `zz-rule-${run}`, governedTransition: `Deliverable|zz-from-${run}|zz-to-${run}`, authorisedRole: "lead", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(rule && !ruleError, ruleError?.message);
+  assert.ok(rule && !ruleError, ruleError);
   const policy = (await policiesDB.upsert({
     code: `zz-context-${run}`, name: `execution-engine context ${run}`, condition: { type: "always_true" }, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   })).data;
@@ -304,7 +304,7 @@ test("a Work Item records what the EBM settled and what its governance outcome n
     ...governance.governanceOutcome, satisfied_policy_ids: [policy.id], applicable_authority_rule_id: rule.id, open_attention_item_ids: [attentionItem.id],
     author_id: contextSeu.systemParticipantId, author_badge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(outcome && !error, error?.message);
+  assert.ok(outcome && !error, error);
 
   const { data: command } = await commandsDB.create({
     seuId: contextSeu.seu.id, entityType: "Deliverable", entityId: deliverable.id, commandType: `zz-context-${run}`, fromState, toState,

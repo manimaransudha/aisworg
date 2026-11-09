@@ -68,6 +68,7 @@ async function commissionAndFulfil(statementPrefix: string) {
   const seuId = result.seu.id;
   assert.ok(fulfilled);
   const { participant, seuCapabilityId } = fulfilled;
+  assert.ok(participant.participant_id, "the fulfilled Participant has no participants_master id");
   fixtureParticipantMasterIds.push(participant.participant_id);
   // Dispatch of the producing Work Item is asynchronous and follows the fulfilment, so wait until the Participant holds it.
   await waitUntilAsync(async () => (await participantsDB.findById(participant.id)).data?.state === "Assigned", 30000);

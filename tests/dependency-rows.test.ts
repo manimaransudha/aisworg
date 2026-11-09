@@ -53,7 +53,7 @@ async function createDeliverable(label: string): Promise<DeliverableRow> {
   const { data, error } = await deliverablesDB.create({
     seuId: t.seu.id, name: `dependency-rows ${run} ${label} ${randomUUID()}`, state: birthState, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(data && !error, error?.message);
+  assert.ok(data && !error, error);
   return data;
 }
 

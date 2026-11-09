@@ -13,11 +13,10 @@ import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../src/dblayer/serviceDefinitionsDB.js";
 import { capabilityDefinitionsDB } from "../src/dblayer/capabilityDefinitionsDB.js";
 import { COMPETENCY_DIMENSION_ROLE, COMPETENCY_DIMENSION_WORK_TYPE } from "../src/dblayer/constants.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
 import type { PackContributions } from "../src/dblayer/seuTypes.js";
 import { ROOT_ACTOR_ID, serviceDefinitionIdFor } from "./testFixtures.js";
 
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 async function createPack(contributions: PackContributions): Promise<string> {
   const { data: schema } = await schemaDefinitionsDB.findLatest("Pack");

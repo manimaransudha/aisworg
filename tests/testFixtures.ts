@@ -17,7 +17,7 @@ import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
-import { BIRTH_STATE, getPlatformTenantId, getTesterId, INITIAL_VERSION, BABYLON_TENANT_NAME } from "../src/dblayer/constants.js";
+import { BIRTH_STATE, getTesterId, INITIAL_VERSION, BABYLON_TENANT_NAME, TEST_PLATFORM_USER_EMAIL } from "../src/dblayer/constants.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { userDB } from "../src/dblayer/userDB.js";
 import { commissionFromForm, validateEbm, validateSeu, initiateSeu, previewCommissioningValidation, attemptSeuCommenceWork } from "../src/routes/seu/core/commissioning.js";
@@ -55,8 +55,8 @@ import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import type { CommandRow, DeliverableRow, EventRow, ObligationRow, ProfileRow, SeuLifecycleState, SeuRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
-// get platform tenant id
-export const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { getTestPlatformTenantId } from "../src/dblayer/seed/seedTestIdentity.js";
+export const PLATFORM_TENANT_ID = await getTestPlatformTenantId();
   
 // Test-only Pack twins (migration 119 / seedTestFixturePacks.ts) — every real
 // seed Pack mirrored under a `test-` prefixed code. NOT used by
@@ -153,12 +153,20 @@ export const TESTER_ALL_ID = await getTesterId("tester-all@test.local");
 export const TESTER_CREATOR_ID = await getTesterId("tester-creator@test.local");
 export const TESTER_APPROVER_ID = await getTesterId("tester-approver@test.local");
 
-// userDB.getSuperuserId() — the one real, governed resolution of the
-// SUPERUSER_EMAIL-provisioned "root" actor (participants_master id +
-// authorBadge "root"), same mechanism every src/dblayer/seed/*.ts script
-// already uses. The *AsRoot fixture helpers below author as this actor, not
-// as TESTER_ALL_ID (a badge-holding tester, not root).
-export const { userId: ROOT_USER_ID, actorId: ROOT_ACTOR_ID, actorBadge: ROOT_ACTOR_BADGE } = await userDB.getSuperuserId();
+// The test counterpart of userDB.getSuperuserId(): resolves the "root" actor of the test-platform tenant
+// (TEST_PLATFORM_USER_EMAIL, seeded by seedTestIdentity) as users.id, participants_master.id and the
+// authorBadge "root". Tests author as this actor and never as the real SUPERUSER_EMAIL superuser.
+export async function getTestPlatformSuperuserId(): Promise<{ userId: string; actorId: string; actorBadge: string }> {
+  const user = await userDB.findByEmail(TEST_PLATFORM_USER_EMAIL);
+  if (!user) throw new Error(`getTestPlatformSuperuserId: ${TEST_PLATFORM_USER_EMAIL} is not provisioned -- db:clean-slate seeds it`);
+  const { data: participant, error } = await participantsMasterDB.findByUserId(user.id);
+  if (error) throw error;
+  if (!participant) throw new Error(`getTestPlatformSuperuserId: ${TEST_PLATFORM_USER_EMAIL} is not registered as a participant`);
+  return { userId: user.id, actorId: participant.id, actorBadge: "root" };
+}
+
+// The *AsRoot fixture helpers below author as this actor, not as TESTER_ALL_ID (a badge-holding tester, not root).
+export const { userId: ROOT_USER_ID, actorId: ROOT_ACTOR_ID, actorBadge: ROOT_ACTOR_BADGE } = await getTestPlatformSuperuserId();
 
 // CR-079's own permanent-concept pattern (conflict-a/conflict-b,
 // test-enterprise-web-application) applied to a one-off test Pack that needs
@@ -518,7 +526,7 @@ export async function driveCommissioningToActive(input: {
     seuForCompose = seu ?? null;
   }
   if (!seuForCompose) return { ok: false, stage: "compose_ebm", reason: "SEU not found before Compose EBM", seuId: input.seuId };
-  const composeViewerTenantId = seuForCompose.tenant_id ?? PLATFORM_TENANT_ID;
+  const composeViewerTenantId = seuForCompose.tenant_id;
   const composeSelections = [{ templateId: seuForCompose.template_id, profileId: seuForCompose.profile_id }];
   let resolvedCompositionConflicts: Record<string, unknown> = {};
   let preview = await previewCommissioningValidation({ selections: composeSelections, viewerTenantId: composeViewerTenantId });
@@ -743,7 +751,7 @@ export async function ensureEligibleParticipant(seuId: string, capabilityCodes: 
     heldCompetency[dimension] = codes.map((code) => ({ code, proficiency: "Expert" }));
   }
   const { data: participant, error } = await participantsMasterDB.create({
-    tenantId: seu.tenant_id ?? PLATFORM_TENANT_ID,
+    tenantId: seu.tenant_id,
     type: "Human",
     displayName: `Test Fixture Participant ${randomUUID()}`,
     capabilities: capabilityCodes,
@@ -1328,7 +1336,7 @@ async function seedCoreGates(): Promise<void> {
 
 // The id of the Active Platform Service Definition a seeded Service code names, for a Pack contributionServices[] entry.
 export async function serviceDefinitionIdFor(code: string): Promise<string> {
-  const { data, error } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(code, await getPlatformTenantId());
+  const { data, error } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(code, await getTestPlatformTenantId());
   if (error || !data) throw error ?? new Error(`no Active Service Definition "${code}" -- run db:clean-slate`);
   return data.id;
 }

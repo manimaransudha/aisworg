@@ -30,8 +30,7 @@ import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { deriveExposableParameterCandidates, deriveOverridableParameterCandidates, publishTemplate, extractExposedParameters } from "../src/routes/seu/core/templates.js";
 import { validateProfileSeed, validateOverrideValues, publishProfile, extractExposedParameterOverrides, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import { uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 
 // A real, already-seeded, Active canonical Policy — confirmed directly

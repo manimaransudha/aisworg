@@ -55,8 +55,7 @@ import {
   waitForDispatchedWorkItem, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID,
 } from "./testFixtures.js";
 import type { SeuRow } from "../src/dblayer/seuTypes.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(

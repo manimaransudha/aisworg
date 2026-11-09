@@ -22,8 +22,7 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
 import { ontologyDB } from "../src/dblayer/ontologyDB.js";
-import { getPlatformTenantId } from "../src/dblayer/constants.js";
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 import { addConcept, approveConcept, rejectConcept, updateConceptMeta, composeConcept, deprecateConcept, retireConcept, archiveConcept, emitConceptCreated, syncConceptFromEntity, type OntologyActor } from "../src/routes/seu/core/ontology.js";
 import { TESTER_ALL_ID, ensureEventSubscriptionsLoaded, waitUntilAsync } from "./testFixtures.js";
 

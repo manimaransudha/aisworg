@@ -23,9 +23,9 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { ensureWebAppTemplateFixture, ROOT_ACTOR_ID, TESTER_ALL_ID, ROOT_ACTOR_BADGE, seuBirthState } from "./testFixtures.js";
-import { ensureSeuSystemParticipant, getPlatformTenantId } from "../src/dblayer/constants.js";
+import { ensureSeuSystemParticipant } from "../src/dblayer/constants.js";
 
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 // deliverables.author_id is a FK to participants(id) (the SEU-scoped
 // engagement row), not participants_master directly — same two-hop shape

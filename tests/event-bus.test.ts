@@ -31,7 +31,7 @@ test("loading subscriptions skips a subscription whose handler is not registered
   // ConceptCreated is consumed by a handler that ignores an event with no concept in its payload, so the published event has no side effect.
   const eventType = "ConceptCreated";
   const { error } = await eventsDB.bulkUpsertSubscriptions([{ eventType, handlerName, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE }]);
-  assert.ok(!error, error?.message);
+  assert.ok(!error, error);
 
   await eventBus.loadSubscriptions();
   const event = await publish({ eventType });

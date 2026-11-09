@@ -69,7 +69,7 @@ test("a form has a field for each property in the order the schema names, with t
   assert.deepEqual(fields.map((f) => f.name), ["title", "blob", "rows", "mode", "notes", "ver", "obj", "pick", "kind", "sub", "multi", "scoped"]);
   assert.deepEqual(fields.map((f) => f.kind), ["string", "json", "referential-list", "select", "textarea", "version", "json", "db-select", "referential-select", "referential-select", "referential-multi-select", "referential-multi-select"]);
   const title = field(fields, "title");
-  assert.deepEqual([title.required, title.help, title.showWhen, title.group, (title as { value: string }).value], [true, "Help", "mode", "g", ""]);
+  assert.deepEqual([title.required, (title as { help?: string }).help, title.showWhen, title.group, (title as { value: string }).value], [true, "Help", "mode", "g", ""]);
 });
 
 test("a plain field takes its value from the content, then from the default of its schema", () => {
@@ -88,7 +88,7 @@ test("a JSON field shows the content formatted, or an empty array or object", ()
 
 test("a database select field names its source", () => {
   const pick = field(generateFields(schema, { pick: "chosen" }), "pick");
-  assert.deepEqual([pick.kind, (pick as { dbSource: string }).dbSource, (pick as { value: string }).value, pick.help], ["db-select", "db-src", "chosen", "from the database"]);
+  assert.deepEqual([pick.kind, (pick as { dbSource: string }).dbSource, (pick as { value: string }).value, (pick as { help?: string }).help], ["db-select", "db-src", "chosen", "from the database"]);
   assert.equal((field(generateFields(schema, {}), "pick") as { value: string }).value, "");
 });
 
