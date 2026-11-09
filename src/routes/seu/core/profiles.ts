@@ -31,7 +31,7 @@ export interface ProfileSeedInput {
   environment: string;
   optionalPackCodes?: string[];
   profileVersion: string;
-  tenantId?: string;
+  tenantId: string;
   parentProfileId?: string | null;
   description?: string;
   featureFlagCodes?: string[];
@@ -217,6 +217,7 @@ export async function getProfilePackSelections(profileId: string): Promise<Pick<
 }
 
 export async function validateProfileSeed(seed: ProfileSeedInput): Promise<ProfileValidationResult> {
+  if (!seed.tenantId) return { ok: false, errors: ["tenantId is required"] };
   const errors: string[] = [];
   if (!seed.code?.trim()) errors.push("code is required");
   if (!seed.name?.trim()) errors.push("name is required");
@@ -224,7 +225,7 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   const profileVersionError = semverError("profileVersion", seed.profileVersion);
   if (profileVersionError) errors.push(profileVersionError);
 
-  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? (await getPlatformTenantId()) };
+  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId };
 
   if (!seed.baseTemplateCode?.trim()) {
     errors.push("baseTemplateCode is required");
@@ -294,8 +295,9 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
 // The sanity checks the schema cannot carry (CR-128). They run when the form is saved and again when the Profile is created.
 // Save is not a transition: there is no gate, only an error message.
 export async function validateProfileOnSave(seed: ProfileSeedInput): Promise<string[]> {
+  if (!seed.tenantId) return ["tenantId is required"];
   const errors: string[] = [];
-  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? (await getPlatformTenantId()) };
+  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId };
 
   for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
     const value = (seed[cp.field] as string | undefined)?.trim();
@@ -364,7 +366,7 @@ export async function validateProfileDeliverables(seed: ProfileSeedInput): Promi
     return errors;
   }
 
-  const tenantId = seed.tenantId ?? (await getPlatformTenantId());
+  const tenantId = seed.tenantId;
   const { data: baseTemplate } = seed.baseTemplateCode?.trim() ? await templatesDB.findActiveByCodeVisibleTo(seed.baseTemplateCode, tenantId) : { data: null };
   const baseCodes = new Set((baseTemplate?.deliverable_catalogue ?? []).map((entry) => entry.code));
   const codes = new Set<string>();
@@ -398,7 +400,7 @@ export async function validateProfileDeliverables(seed: ProfileSeedInput): Promi
 export async function validateProfileKeepsDeliverable(seed: ProfileSeedInput): Promise<string[]> {
   if ((seed.deliverableCatalogue ?? []).some((entry) => entry.code?.trim())) return [];
   if (!seed.baseTemplateCode?.trim()) return [];
-  const { data: baseTemplate } = await templatesDB.findActiveByCodeVisibleTo(seed.baseTemplateCode, seed.tenantId ?? (await getPlatformTenantId()));
+  const { data: baseTemplate } = await templatesDB.findActiveByCodeVisibleTo(seed.baseTemplateCode, seed.tenantId);
   return baseTemplate && baseTemplate.deliverable_catalogue.length > 0 ? ["deliverableCatalogue must keep at least one Deliverable"] : [];
 }
 
@@ -408,7 +410,7 @@ export async function validateOverrideValues(seed: ProfileSeedInput): Promise<st
   const errors: string[] = [];
   errors.push(...(await validateProfileDeliverables(seed)));
   if (!seed.baseTemplateCode?.trim()) return errors;
-  const candidates = await deriveOverridableParameterCandidates(seed.baseTemplateCode, seed.tenantId ?? (await getPlatformTenantId()));
+  const candidates = await deriveOverridableParameterCandidates(seed.baseTemplateCode, seed.tenantId);
   for (const row of seed.exposedParameterOverrides ?? []) {
     const candidate = candidates.find((c) => c.sourceType === row.sourceType && c.sourceCode === row.sourceCode && c.parameterName === row.parameterName);
     if (candidate?.numeric && row.value.trim() !== "" && !Number.isFinite(Number(row.value))) {
@@ -427,7 +429,7 @@ export async function createProfileDraft(seed: ProfileSeedInput, actorId: string
   const validation = await validateProfileSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
-  const tenantId = seed.tenantId ?? (await getPlatformTenantId());
+  const tenantId = seed.tenantId;
 
   const { data: template } = await templatesDB.findActiveByCodeVisibleTo(seed.baseTemplateCode, tenantId);
   if (!template) return { ok: false, errors: [`baseTemplateCode "${seed.baseTemplateCode}" not found`] };
@@ -593,7 +595,7 @@ export async function materialiseProfileDraft(profileId: string, seed: ProfileSe
     if (selectionError) throw selectionError;
   }
   // The overrides are rebuilt from the parameters the base Template flags overridable; a row for any other parameter is dropped (CR-128).
-  const candidates = seed.baseTemplateCode?.trim() ? await deriveOverridableParameterCandidates(seed.baseTemplateCode, seed.tenantId ?? (await getPlatformTenantId())) : [];
+  const candidates = seed.baseTemplateCode?.trim() ? await deriveOverridableParameterCandidates(seed.baseTemplateCode, seed.tenantId) : [];
   const overridable = new Set(candidates.map((c) => `${c.sourceType}::${c.sourceCode}::${c.parameterName}`));
   const exposedParameterOverrides = (seed.exposedParameterOverrides ?? []).filter((row) => overridable.has(`${row.sourceType}::${row.sourceCode}::${row.parameterName}`));
   const { error } = await profilesDB.setDraftContent(profileId, { ...seed, exposedParameterOverrides });
@@ -604,7 +606,7 @@ export async function materialiseProfileDraft(profileId: string, seed: ProfileSe
     owningEntityId: profileId,
     deliverableCatalogue: seed.deliverableCatalogue ?? [],
     dependencyGraph: seed.dependencyGraph ?? [],
-    tenantId: seed.tenantId || (await getPlatformTenantId()),
+    tenantId: seed.tenantId,
     authorId,
     authorBadge,
   });

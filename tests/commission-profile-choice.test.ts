@@ -173,12 +173,12 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // runs validateProfileSeed, so these need real values or it rejects both.
   const mandatoryConfigParams = { developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github" };
   const plainPublished = await publishProfile({
-    seed: { code: plainCode, name: "Plain Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: [], profileVersion: "1.0.0", ...mandatoryConfigParams },
+    seed: { tenantId: PLATFORM_TENANT_ID, code: plainCode, name: "Plain Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: [], profileVersion: "1.0.0", ...mandatoryConfigParams },
     actorId: TESTER_ALL_ID,
   });
   assert.equal(plainPublished.ok, true, !plainPublished.ok ? plainPublished.errors.join("; ") : "assertion failed");
   const nodejsPublished = await publishProfile({
-    seed: { code: nodejsCode, name: "Nodejs Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: ["technology-nodejs"], profileVersion: "1.0.0", ...mandatoryConfigParams },
+    seed: { tenantId: PLATFORM_TENANT_ID, code: nodejsCode, name: "Nodejs Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: ["technology-nodejs"], profileVersion: "1.0.0", ...mandatoryConfigParams },
     actorId: TESTER_ALL_ID,
   });
   assert.equal(nodejsPublished.ok, true, !nodejsPublished.ok ? nodejsPublished.errors.join("; ") : "assertion failed");

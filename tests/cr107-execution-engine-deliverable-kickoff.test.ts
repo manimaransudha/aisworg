@@ -79,6 +79,7 @@ async function commissionBlockedSeu(run: string) {
   const { objective } = await createActiveObjective({ statement: `cr107-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
+      tenantId: PLATFORM_TENANT_ID,
       code: `cr107-profile-${run}`,
       name: "CR-107 Profile",
       baseTemplateCode: template!.code,

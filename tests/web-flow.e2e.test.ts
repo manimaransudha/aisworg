@@ -852,6 +852,7 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
 
   const profilePublish = await publishProfile({
     seed: {
+      tenantId: PLATFORM_TENANT_ID,
       code: `webflow-phase8-isolated-profile-${randomUUID().slice(0, 8)}`,
       name: "WebFlow Phase8 Isolated Profile",
       baseTemplateCode: template!.code,

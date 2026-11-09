@@ -21,7 +21,7 @@ import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { initiateSeu, validateSeu } from "../src/routes/seu/core/commissioning.js";
 import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
-import { createActiveObjective, ensureWebAppTemplateFixture, ensureEventSubscriptionsLoaded, transitionAndPublish, ROOT_ACTOR_ID, TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY } from "./testFixtures.js";
+import { PLATFORM_TENANT_ID, createActiveObjective, ensureWebAppTemplateFixture, ensureEventSubscriptionsLoaded, transitionAndPublish, ROOT_ACTOR_ID, TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY } from "./testFixtures.js";
 
 before(async () => {
   await ensureEventSubscriptionsLoaded();
@@ -43,6 +43,7 @@ async function publishedProfile(): Promise<string> {
   const { template } = await ensureWebAppTemplateFixture();
   const published = await publishProfile({
     seed: {
+      tenantId: PLATFORM_TENANT_ID,
       code: `seu-lifecycle-profile-${randomUUID()}`,
       name: "SEU lifecycle test profile",
       baseTemplateCode: template.code,

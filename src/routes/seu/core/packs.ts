@@ -143,8 +143,9 @@ export type PackValidationResult = { ok: true } | { ok: false; errors: string[] 
 export async function validatePackSeed(seed: PackSeedInput, options?: { skipComposableChecks?: boolean }): Promise<PackValidationResult> {
   const errors: string[] = [];
 
+  if (!seed.tenantId) return { ok: false, errors: ["tenantId is required"] };
   if (!seed.name?.trim()) errors.push("name is required");
-  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? (await getPlatformTenantId()) };
+  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId };
   const { data: packSchemaRow } = await schemaDefinitionsDB.findLatest("Pack");
   if (packSchemaRow) {
     const packSchema = packSchemaRow.schema as JsonSchemaDocument;
@@ -185,7 +186,7 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
         errors.push(`Composition Strategy "${seed.compositionStrategy}" requires every composition source to share the same code — got: ${[...new Set(sourceCodes)].join(", ")}.`);
       }
       for (const code of sourceCodes) {
-        const sourcePack = await findActiveCompositionSource(code, seed.tenantId ?? (await getPlatformTenantId()));
+        const sourcePack = await findActiveCompositionSource(code, seed.tenantId);
         if (!sourcePack) errors.push(`composition source Pack "${code}" has no Active Version visible to this tenant.`);
       }
     }
@@ -287,13 +288,13 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
   }
 
   const packCapabilityCodes = (seed.contributions.capabilities ?? []).map((c) => c.code);
-  const packDeliverableNames = await deliverableNamesFromCapabilityCodes(packCapabilityCodes, ontologyViewer.tenantId ?? (await getPlatformTenantId()));
+  const packDeliverableNames = await deliverableNamesFromCapabilityCodes(packCapabilityCodes, ontologyViewer.tenantId);
   for (const policyCode of seed.contributions.policies ?? []) {
     if (!policyCode?.trim()) {
       errors.push("policy is missing a code");
       continue;
     }
-    const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(policyCode, ontologyViewer.tenantId ?? (await getPlatformTenantId()));
+    const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(policyCode, ontologyViewer.tenantId);
     if (!definition) {
       errors.push(`policy "${policyCode}" does not resolve to an Active Policy Definition visible to this tenant`);
       continue;
@@ -376,7 +377,7 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
   }
 
   const capabilityCodes = new Set((seed.contributions.capabilities ?? []).map((c) => c.code));
-  const viewerTenantId = ontologyViewer.tenantId ?? (await getPlatformTenantId());
+  const viewerTenantId = ontologyViewer.tenantId;
   for (const svc of seed.contributions.services ?? []) {
     const definition = await resolvePinnedServiceDefinition(svc, viewerTenantId);
     if (typeof definition === "string") {
@@ -422,7 +423,7 @@ export async function createPackDraft(seed: PackSeedInput, authorId: string): Pr
   const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
   if (!packSchema) return { ok: false, errors: [`no schema_definitions grammar for Pack`] };
   const birth = await transitionEngine.beginBirth({ entityType: "Pack", actorId: authorId });
-  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed), schemaDefinitionId: packSchema.id, status: birth.initialState as PackRow["status"], authoredBy: authorId, authorBadge: birth.authorityBadge, tenantId: seed.tenantId ?? (await getPlatformTenantId()) });
+  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed), schemaDefinitionId: packSchema.id, status: birth.initialState as PackRow["status"], authoredBy: authorId, authorBadge: birth.authorityBadge, tenantId: seed.tenantId });
   if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create pack")).message] };
 
   await materializeContributions(pack, seed);

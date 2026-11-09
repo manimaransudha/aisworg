@@ -10,17 +10,17 @@ import { ensureSeuSystemParticipant, getSystemActor } from "../src/dblayer/const
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import type { EbmRow, EventRow, SeuLifecycleState, SeuRow } from "../src/dblayer/seuTypes.js";
-import { ensureWebAppTemplateFixture, seuBirthState, ensureActorParticipant, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, seuBirthState, ensureActorParticipant, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 export interface TestSeu { seu: SeuRow; systemParticipantId: string; systemActorId: string }
 
 // A plain SEU row (not commissioned through the pipeline) with its system participant, and root as a participant of it unless `rootParticipant` is false. `base` names the Template and Profile of the SEU, which are the shared fixture ones otherwise. `tenantId` names its tenant, the Platform tenant otherwise.
-export async function createTestSeu(label: string, lifecycleState?: SeuLifecycleState, options: { rootParticipant?: boolean; tenantId?: string; base?: { template: { id: string }; profile: { id: string } } } = {}): Promise<TestSeu> {
+export async function createTestSeu(label: string, lifecycleState: SeuLifecycleState | undefined, options: { rootParticipant?: boolean; tenantId: string; base?: { template: { id: string }; profile: { id: string } } }): Promise<TestSeu> {
   const { template, profile } = options.base ?? (await ensureWebAppTemplateFixture());
   const { objective } = await createObjective({ statement: `${label} ${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: ROOT_ACTOR_ID });
   const { data: seu, error } = await seusDB.create({
     lifecycleState: lifecycleState ?? (await seuBirthState()), authorBadge: ROOT_ACTOR_BADGE, objectiveId: objective.id, templateId: template.id, profileId: profile.id,
-    tenantId: options.tenantId ?? PLATFORM_TENANT_ID, requestedBy: ROOT_ACTOR_ID,
+    tenantId: options.tenantId, requestedBy: ROOT_ACTOR_ID,
   });
   assert.ok(seu && !error, error?.message ?? "the SEU is created");
   const systemParticipantId = await ensureSeuSystemParticipant(seu.id);

@@ -86,6 +86,7 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
   const profileCode = `cr109-wig-profile-${randomUUID().slice(0, 8)}`;
   const profileResult = await publishProfile({
     seed: {
+      tenantId: PLATFORM_TENANT_ID,
       code: profileCode, name: "CR-109 Work Item Generator test Profile", baseTemplateCode: "cr104-demo-minimal",
       environment: "development", profileVersion: "1.0.0",
       // Mandatory Configuration Parameters for this tenant — same values
@@ -137,7 +138,7 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
   if (holdAtActivated) {
     const { data: seu } = await seusDB.findById(commissioned.seu.id);
     const { data: holdActor, error } = await participantsMasterDB.create({
-      tenantId: seu!.tenant_id ?? PLATFORM_TENANT_ID, type: "Human", displayName: `Hold Actor ${randomUUID()}`,
+      tenantId: seu!.tenant_id, type: "Human", displayName: `Hold Actor ${randomUUID()}`,
       capabilities: [], competency: {}, userId: null,
     });
     assert.ok(holdActor, `hold actor must be created: ${error}`);
@@ -205,6 +206,7 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
   const { objective } = await createActiveObjective({ statement: `cr109-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
+      tenantId: PLATFORM_TENANT_ID,
       code: `cr109-profile-${run}`,
       name: "CR-109 Isolated Profile",
       baseTemplateCode: template!.code,

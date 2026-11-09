@@ -83,6 +83,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
   const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
   const profilePublish = await publishProfile({
     seed: {
+      tenantId: await getTestPlatformTenantId(),
       code: `tenant-contract-profile-${randomUUID()}`,
       name: "Tenant Contract Profile",
       baseTemplateCode: fixtureTemplate.code,

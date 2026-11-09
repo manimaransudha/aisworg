@@ -18,7 +18,7 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_BADGE, createActiveObjective, transitionObjective } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
-import { TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, ROOT_ACTOR_ID } from "./testFixtures.js";
+import { TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, ROOT_ACTOR_ID, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 before(async () => {
   // Must run before this file's own first commissionSeu call — see
@@ -274,6 +274,7 @@ test("validateSeu requires the Objective to be Active — blocks Defined, succee
   const { template } = await ensureWebAppTemplateFixture();
   const published = await publishProfile({
     seed: {
+      tenantId: PLATFORM_TENANT_ID,
       code: `test-profile-${randomUUID()}`,
       name: "Test Profile",
       baseTemplateCode: template.code,

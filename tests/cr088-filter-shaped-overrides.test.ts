@@ -231,6 +231,7 @@ test("publishTemplate: materialises a non-sparse exposedParameters set from the 
 
   const result = await publishTemplate({
     seed: {
+      tenantId: PLATFORM_TENANT_ID,
       code: "test-cr088-publish-template",
       name: "CR-088 publishTemplate fixture",
       purpose: "CR-088 test fixture Template. Exercises non-sparse exposedParameters materialisation from Pack selections.",

@@ -42,10 +42,10 @@ import { activeMappingByNoun, listActiveNouns } from "../src/routes/seu/core/aut
 import { listTransitionsForEntityType } from "../src/routes/seu/core/policyDefinitions.js";
 import { deriveExposableParameterCandidates, deriveOverridableParameterCandidates } from "../src/routes/seu/core/templates.js";
 import { CONFIGURATION_PARAMETER_FIELDS } from "../src/routes/seu/core/profiles.js";
-import { advanceAuthoringDraftToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { advanceAuthoringDraftToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 // The viewer the production validators use when they check an Ontology value without naming one: the Platform vocabulary.
-const PLATFORM_VIEWER = { isRoot: false, tenantId: null as string | null };
+const PLATFORM_VIEWER = { isRoot: false, tenantId: PLATFORM_TENANT_ID };
 
 // The version every fixture row carries. A change to what a builder authors needs a new value here.
 export const FIXTURE_VERSION = "1.0.5";

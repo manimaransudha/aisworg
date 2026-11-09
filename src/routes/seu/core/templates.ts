@@ -65,7 +65,7 @@ export interface TemplateSeedInput {
   technologyPackCodes?: string[];
   deliverableCatalogue: TemplateDeliverableSeed[];
   dependencyGraph?: TemplateDependencyGraphEntry[];
-  tenantId?: string;
+  tenantId: string;
   parentTemplateId?: string | null;
   exposedParameters?: ExposedParameter[];
   purpose?: string;
@@ -279,11 +279,12 @@ export function findDeliverableDependencyCycle(dependencyGraph: TemplateDependen
 }
 
 export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { skipComposableChecks?: boolean }): Promise<TemplateValidationResult> {
+  if (!seed.tenantId) return { ok: false, errors: ["tenantId is required"] };
   const errors: string[] = [];
   if (!seed.name?.trim()) errors.push("name is required");
   const templateVersionError = semverError("templateVersion", seed.templateVersion);
   if (templateVersionError) errors.push(templateVersionError);
-  const templateOntologyViewer = { isRoot: false, tenantId: seed.tenantId ?? (await getPlatformTenantId()) };
+  const templateOntologyViewer = { isRoot: false, tenantId: seed.tenantId };
   const { data: templateSchemaRow } = await schemaDefinitionsDB.findLatest("Template");
   if (templateSchemaRow) {
     const templateSchema = templateSchemaRow.schema as JsonSchemaDocument;
@@ -303,7 +304,7 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
     }
   }
 
-  const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()));
+  const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(collectAllPackCodes(seed), seed.tenantId);
 
   const seenDeliverableCodes = new Set<string>((seed.deliverableCatalogue ?? []).map((entry) => entry.code).filter((code) => !!code?.trim()));
 
@@ -364,7 +365,7 @@ export async function validateTemplateOnSave(seed: TemplateSeedInput): Promise<s
       const parentGraph = await getDependencyGraphContent(parent.id, parent.tenant_id);
       const lockedParentEdges = parentGraph.filter((e) => LOCKED_RELATIONSHIP_KINDS.has(e.relationshipKind ?? "dependency"));
       if (lockedParentEdges.length > 0) {
-        const tenantId = seed.tenantId ?? (await getPlatformTenantId());
+        const tenantId = seed.tenantId;
         const candidateChildEdges = (seed.dependencyGraph ?? []).filter((e) => LOCKED_RELATIONSHIP_KINDS.has(e.relationshipKind ?? "dependency"));
         const consumed = new Set<number>();
         for (const parentEdge of lockedParentEdges) {
@@ -437,10 +438,10 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
     const { error: selectionError } = await templatesDB.setPackSelection(templateId, slot.listKind, (seed[slot.field] as string[] | undefined) ?? [], authorId, authorBadge);
     if (selectionError) throw selectionError;
   }
-  const capabilities = await deriveDedupedCapabilitiesFromPackCodes(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()));
+  const capabilities = await deriveDedupedCapabilitiesFromPackCodes(collectAllPackCodes(seed), seed.tenantId);
   const { error: capabilityError } = await templatesDB.setRequiredCapabilities(templateId, capabilities.map((c) => c.id), authorId, authorBadge);
   if (capabilityError) throw capabilityError;
-  const candidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()), seed.dependencyGraph ?? []);
+  const candidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId, seed.dependencyGraph ?? []);
   const existingByKey = new Map((seed.exposedParameters ?? []).map((e) => [`${e.sourceType}::${e.sourceCode}::${e.parameterName}`, e]));
   const exposedParameters: ExposedParameter[] = candidates.map((c) => {
     const saved = existingByKey.get(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`);
@@ -455,7 +456,7 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
 // error here: the unravel step rebuilds the list from the parameters the Packs carry and drops it (CR-128).
 export async function validateExposedParameterValues(seed: TemplateSeedInput): Promise<string[]> {
   const errors: string[] = [];
-  const candidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()), seed.dependencyGraph ?? []);
+  const candidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId, seed.dependencyGraph ?? []);
   for (const row of seed.exposedParameters ?? []) {
     const candidate = candidates.find((c) => c.sourceType === row.sourceType && c.sourceCode === row.sourceCode && c.parameterName === row.parameterName);
     if (candidate?.valueOptions && row.value && !candidate.valueOptions.includes(row.value)) {
@@ -471,7 +472,7 @@ export async function createTemplateDraft(seed: TemplateSeedInput, actorId: stri
   const validation = await validateTemplateSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
-  const tenantId = seed.tenantId ?? (await getPlatformTenantId());
+  const tenantId = seed.tenantId;
 
   if (!actorId) return { ok: false, errors: ["publishTemplate requires a real actorId to author the Draft"] };
   const { data: templateMaster } = await participantsMasterDB.findById(actorId);
@@ -598,13 +599,12 @@ export async function materialiseTemplateDraft(templateId: string, seed: Templat
   if (catalogueError) throw catalogueError;
   const result = await materialisePackSelectionsAndCapabilities(templateId, seed, authorId, authorBadge);
   if (!result.ok) return result;
-  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   await materialiseDependencyGraph({
     owningEntityType: "Template",
     owningEntityId: templateId,
     deliverableCatalogue: seed.deliverableCatalogue ?? [],
     dependencyGraph: seed.dependencyGraph ?? [],
-    tenantId: seed.tenantId || PLATFORM_TENANT_ID,
+    tenantId: seed.tenantId,
     authorId,
     authorBadge,
   });

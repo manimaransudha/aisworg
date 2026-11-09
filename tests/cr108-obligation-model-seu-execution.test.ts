@@ -108,6 +108,7 @@ async function commissionSeuBlockedByPackObligation(run: string) {
   const { objective } = await createActiveObjective({ statement: `cr108-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
+      tenantId: PLATFORM_TENANT_ID,
       code: `cr108-profile-${run}`,
       name: "CR-108 Profile",
       baseTemplateCode: template!.code,
@@ -216,6 +217,7 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   const { objective } = await createActiveObjective({ statement: `cr108-attn-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
+      tenantId: PLATFORM_TENANT_ID,
       code: `cr108-attn-profile-${run}`, name: "CR-108 Attention Profile", baseTemplateCode: template!.code,
       environment: "development", profileVersion: `1.0.${Date.now()}${process.pid}`,
       developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github",
@@ -424,6 +426,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
   const { objective } = await createActiveObjective({ statement: `cr108-ec-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
+      tenantId: PLATFORM_TENANT_ID,
       code: `cr108-ec-profile-${run}`, name: "CR-108 Execution Context Profile", baseTemplateCode: template!.code,
       environment: "development", profileVersion: `1.0.${Date.now()}${process.pid}`,
       developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github",

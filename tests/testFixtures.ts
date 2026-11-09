@@ -1133,7 +1133,7 @@ const TERMINAL_TEMPLATE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
 
 async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   const templateSeed = loadJson<TemplateSeed>("web-application.template.json");
-  const profileSeed = loadJson<ProfileSeed>("default-development.profile.json");
+  const profileSeed: ProfileSeed = { ...loadJson<ProfileSeed>("default-development.profile.json"), tenantId: PLATFORM_TENANT_ID };
   const templateVersion = INITIAL_VERSION;
   if (!templateSeed.purpose) throw new Error(`seed(): web-application.template.json is missing "purpose" (required by publishTemplate)`);
 
