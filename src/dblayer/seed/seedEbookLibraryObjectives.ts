@@ -1,10 +1,9 @@
 import { createObjective } from "../../routes/seu/core/objectives.js";
 import { logger } from "../../utils/logger.js";
-import { getTesterId, TEST_ALL_EMAIL } from "../constants.js";
-import { userDB } from "../userDB.js";
 
-export async function seedEbookLibraryObjectives(): Promise<void> {
-  const REQUESTED_BY = await getTesterId(TEST_ALL_EMAIL);
+// The requester is the root actor of the Platform tenant, so the Objectives belong to Platform.
+export async function seedEbookLibraryObjectives(input: { authoredBy: string }): Promise<void> {
+  const REQUESTED_BY = input.authoredBy;
 
   const { objective: root } = await createObjective({
     statement: "Deliver an ebook library management system enabling members to browse, borrow and return digital books.",

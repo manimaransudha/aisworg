@@ -253,6 +253,10 @@ pnpm tsx src/dblayer/seed/seedRouteAuthority.ts
 pnpm tsx src/dblayer/seed/seedEventSubscriptions.ts
 
 pnpm tsx src/dblayer/seed/demo/demoSeed.ts
+pnpm exec tsx src/dblayer/recovery/run.ts
+
+pnpm exec tsx -e 'import("./src/dblayer/seed/seedEbookLibraryObjectives.ts").then(async (m) => { await m.seedEbookLibraryObjectives(); process.exit(0); })'
+
 
 ##### Nginx
 

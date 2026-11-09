@@ -148,7 +148,7 @@ async function run(): Promise<void> {
   await withLookupMemo(async () => {
     await seedCapabilityPatternPacksWithRetry({ authoredBy: actorId, authorBadge: actorBadge });
     await seedSdlcStandardTemplates({ authoredBy: actorId, authorBadge: actorBadge });
-    await seedEbookLibraryObjectives();
+    await seedEbookLibraryObjectives({ authoredBy: actorId });
   });
   
   
