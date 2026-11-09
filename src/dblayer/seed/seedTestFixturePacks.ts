@@ -20,6 +20,7 @@ function loadJson<T>(fileName: string): T {
 }
 
 const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
+  "test-openup-development.pack.json",
   "test-openup-configuration-and-change-management.pack.json",
   "test-openup-project-management.pack.json",
   "test-openup-test.pack.json",

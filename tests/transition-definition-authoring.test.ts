@@ -17,6 +17,7 @@
 // already established, for the same reason: inserting against a real, seeded
 // triple would be a permanent, global change to this shared dev database.
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { getTestDevelopmentPack } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -36,7 +37,7 @@ import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtu
 import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 async function anyRealPackId(): Promise<string> {
-  const { data: pack } = await packsDB.findByCode("development");
+  const pack = await getTestDevelopmentPack();
   if (!pack) throw new Error("expected development pack to be seeded");
   return pack.id;
 }

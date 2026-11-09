@@ -8,6 +8,7 @@
 // has existed since the original MVP schema but was never actually exercised
 // by a test until now. Run against the real dev database, no mocking.
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { getTestDevelopmentPack } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -140,7 +141,7 @@ test("Constraint Type (Ch.24): a Standard-type Policy violation doesn't block a 
   const standardTransition = `test.standard.${unique}`;
   const policyTransition = `test.policy.${unique}`;
 
-  const { data: pack } = await packsDB.findByCode("development");
+  const pack = await getTestDevelopmentPack();
   assert.ok(pack);
 
   // Both policies have a condition that can never be satisfied (context never

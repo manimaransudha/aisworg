@@ -14,6 +14,7 @@ import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createObligationAsRoot as createObligation } from "./testFixtures.js";
+import { getTestDevelopmentPack } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
 import { evaluateCompliance, grantWaiver, generateComplianceReport, complianceHistory } from "../src/routes/seu/core/compliance.js";
 import { complianceDB } from "../src/dblayer/complianceDB.js";
@@ -55,7 +56,7 @@ function assertStatusConsistentWithCounts(status: string, counts: { total: numbe
 }
 
 test("compliance is evaluated per-SEU from engineering state: a required obligation drives its requirement satisfied/unsatisfied, deterministically and read-only", async () => {
-  const { data: corePack } = await packsDB.findByCode("development");
+  const corePack = await getTestDevelopmentPack();
   assert.ok(corePack);
   const run = randomUUID().slice(0, 8);
   const fwCode = `sec-fw-${run}`;
@@ -96,7 +97,7 @@ test("compliance is evaluated per-SEU from engineering state: a required obligat
 });
 
 test("a Waiver moves an unsatisfied requirement to Compliant with Exceptions", async () => {
-  const { data: corePack } = await packsDB.findByCode("development");
+  const corePack = await getTestDevelopmentPack();
   const run = randomUUID().slice(0, 8);
   const fwCode = `waiver-fw-${run}`;
   const reqCode = `waiver-req-${run}`;
@@ -117,7 +118,7 @@ test("a Waiver moves an unsatisfied requirement to Compliant with Exceptions", a
 });
 
 test("minimal conflict detection (FR-27.7): two applicable requirements declaring each other are reported", async () => {
-  const { data: corePack } = await packsDB.findByCode("development");
+  const corePack = await getTestDevelopmentPack();
   const run = randomUUID().slice(0, 8);
   const fwCode = `conflict-fw-${run}`;
   const a = `req-a-${run}`;
@@ -132,7 +133,7 @@ test("minimal conflict detection (FR-27.7): two applicable requirements declarin
 });
 
 test("the compliance report is a projection of engineering state (Ch.27 §12)", async () => {
-  const { data: corePack } = await packsDB.findByCode("development");
+  const corePack = await getTestDevelopmentPack();
   const run = randomUUID().slice(0, 8);
   const fwCode = `report-fw-${run}`;
   await complianceDB.upsertFramework({ code: fwCode, name: "Report Framework", originatingPackId: corePack!.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });

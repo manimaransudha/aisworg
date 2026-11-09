@@ -6,7 +6,7 @@
   "installationClassification": "Optional",
   "dependencies": [
     {
-      "packCode": "development",
+      "packCode": "test-development",
       "version": "1.0.0",
       "type": "required"
     }

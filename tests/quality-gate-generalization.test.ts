@@ -23,6 +23,7 @@
 // a permanent, global change to this shared, never-reset dev database that
 // could affect every other test and the real running app.
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { getTestDevelopmentPack } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -55,7 +56,7 @@ import { TESTER_ALL_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
 // originating_pack_id is a plain traceability FK — any real Pack id satisfies
 // it; which one doesn't matter for what this file is testing.
 async function anyRealPackId(): Promise<string> {
-  const { data: pack } = await packsDB.findByCode("development");
+  const pack = await getTestDevelopmentPack();
   if (!pack) throw new Error("expected development pack to be seeded");
   return pack.id;
 }

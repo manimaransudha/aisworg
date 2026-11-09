@@ -1151,8 +1151,11 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   const templateVersion = INITIAL_VERSION;
   if (!templateSeed.purpose) throw new Error(`seed(): web-application.template.json is missing "purpose" (required by publishTemplate)`);
 
+  await ensureTestFixturePacks();
   const packSelections: Partial<Record<"compliancePackCodes" | "domainPackCodes" | "engineeringPackCodes" | "integrationPackCodes" | "organisationPackCodes" | "technologyPackCodes", string[]>> = {};
-  for (const code of templateSeed.mandatoryPackCodes) {
+  // The Template seed names the Platform "development" Pack; the fixture Template composes its test-platform copy instead.
+  const mandatoryPackCodes = templateSeed.mandatoryPackCodes.map((code) => (code === "development" ? "test-development" : code));
+  for (const code of mandatoryPackCodes) {
     const { data: pack } = await packsDB.findByCode(code);
     if (!pack) throw new Error(`seed(): template ${templateSeed.code} requires unknown pack ${code} — is db:clean-slate seeded?`);
     const slot = PACK_SELECTION_SLOTS.find((s) => s.packCategory === pack.category);
@@ -1319,9 +1322,17 @@ export function ensureCoreEngineeringQualityGates(): Promise<void> {
   return coreGatesCached;
 }
 
+// The test-platform copy of the Development Pack: the fixture Template composes it, so a Quality Gate or Policy written to it applies to every fixture SEU.
+// Tests take their originating Pack from here and never from the real Platform "development" Pack.
+export async function getTestDevelopmentPack() {
+  await ensureTestFixturePacks();
+  const { data: pack } = await packsDB.findActiveByCode("test-development", PLATFORM_TENANT_ID);
+  if (!pack) throw new Error("test-development Pack is not published in the test-platform tenant");
+  return pack;
+}
+
 async function seedCoreGates(): Promise<void> {
-  const { data: corePack } = await packsDB.findByCode("development");
-  if (!corePack) throw new Error("development pack not found — seed baseline is missing entirely, not just its Quality Gates");
+  const corePack = await getTestDevelopmentPack();
 
   await qualityGatesDB.upsert({
     name: "No Unresolved Obligations",

@@ -20,6 +20,7 @@ import { triggerEngine } from "../src/domain/engine/triggerEngine.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { getTestDevelopmentPack } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const state = (name: string) => `zz-${name}-${run}`;
@@ -78,7 +79,7 @@ test("an edge with a submit verb is refused until the entity has been submitted,
 });
 
 test("a Quality Gate on an edge with no verb is refused with an error, because the gate's records need a badge", async () => {
-  const { data: pack } = await packsDB.findByCode("development");
+  const pack = await getTestDevelopmentPack();
   assert.ok(pack, "the development Pack is seeded");
   const { data: gate, error } = await qualityGatesDB.upsert({
     name: `transition-engine gate ${run}`, entityType: "AttentionItem", fromState: state("open-c"), toState: state("done-c"),
@@ -125,7 +126,7 @@ test("an edge that requires Policies but declares no verb is an error, because t
 });
 
 test("an implemented Policy is decided by its function: satisfied by a comment, blocked without one, and an unknown implementation is an error", async () => {
-  const { data: pack } = await packsDB.findByCode("development");
+  const pack = await getTestDevelopmentPack();
   assert.ok(pack);
   const createPolicy = async (code: string) => {
     const { data, error } = await policiesDB.upsert({
@@ -201,7 +202,7 @@ test("the manual next actions of a state list the hops whose badge the actor hol
 });
 
 test("a Policy that holds without a context is satisfied by a transition given no context", async () => {
-  const { data: pack } = await packsDB.findByCode("development");
+  const pack = await getTestDevelopmentPack();
   assert.ok(pack);
   const { data: policy, error } = await policiesDB.upsert({
     code: `zz-no-context-${run}`, name: `transition-engine no context ${run}`, constraintType: "Policy", scope: "Transition", governedTransition: null, condition: { type: "always_true" },

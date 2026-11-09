@@ -26,6 +26,7 @@ import { workItemGenerator } from "../src/domain/engine/workItemGenerator.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import type { GovernanceEvaluationOutcomeDraft } from "../src/dblayer/seuTypes.js";
 import { createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { getTestDevelopmentPack } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const state = (name: string) => `zz-${name}-${run}`;
@@ -41,7 +42,7 @@ before(async () => {
   const [firstCapabilityId] = (await activeCapabilityDefinitionIds());
   assert.ok(firstCapabilityId, "the Platform tenant holds a Capability Definition");
   capabilityId = firstCapabilityId;
-  const { data: pack } = await packsDB.findByCode("development");
+  const pack = await getTestDevelopmentPack();
   assert.ok(pack, "the development Pack is seeded");
   packId = pack.id;
   const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");

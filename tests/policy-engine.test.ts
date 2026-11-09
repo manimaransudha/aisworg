@@ -24,6 +24,7 @@ import type { PolicyApplicabilityDeliverable, DeliverableRow, PolicyRow } from "
 import { commissionFixtureSeu, commissionScenario, type FixtureSeu } from "./webScenarios.js";
 import { FIXTURE_CODES } from "./schemaFixtures.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { getTestDevelopmentPack } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const DEFAULT_HOP = "Deliverable|Approved|Baselined";
@@ -62,7 +63,7 @@ let reviewPolicy: PolicyRow;
 let coveragePolicy: PolicyRow;
 let standard: PolicyRow;
 before(async () => {
-  const { data: pack } = await packsDB.findByCode("development");
+  const pack = await getTestDevelopmentPack();
   assert.ok(pack, "the development Pack is seeded");
   packId = pack.id;
   f = await commissionFixtureSeu("policy-engine");

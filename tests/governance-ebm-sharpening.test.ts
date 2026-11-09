@@ -22,6 +22,7 @@ import { qualityGateEvaluationsDB } from "../src/dblayer/qualityGateEvaluationsD
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, ensureStaleTestPackConcepts, uniqueTestPackVersion, commissionFromFormSync, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, PLATFORM_TENANT_ID, createActiveObjective, transitionObjective } from "./testFixtures.js";
+import { getTestDevelopmentPack } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { initiateSeu, validateSeu } from "../src/routes/seu/core/commissioning.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
@@ -78,7 +79,7 @@ test("FR-21.1: an SEU exposes one effective Governance Model derived from its EB
   // "development" (openup-development.pack.json) is the fixture's own
   // mandatory Pack contributing software-construction — no Pack anywhere in
   // this codebase has "software-construction" as its own top-level code.
-  assert.ok(model!.ebm.composedPacks.some((p) => p.packCode === "development"), "the EBM's composed packs are listed");
+  assert.ok(model!.ebm.composedPacks.some((p) => p.packCode === "test-development"), "the EBM's composed packs are listed");
   assert.ok(model!.authorityRules.some((r) => r.governedTransition === "deliverable.transition"), "authority rules derived from composed packs");
   assert.ok(model!.qualityGates.length >= 1, "quality gates derived from composed packs");
   assert.ok(model!.authorityRules.every((r) => typeof r.fromPack === "string"), "each rule records the contributing pack (traceable)");
@@ -280,7 +281,7 @@ test("Validate Request: a Template mandating a since-Retired Pack fails commissi
 
 test("§4.3 / Open Q#3: a Quality Gate can gate a Pack transition with a null SEU; the CHECK rejects mis-scoped evaluations", async () => {
   const run = randomUUID().slice(0, 8);
-  const { data: corePack } = await packsDB.findByCode("development");
+  const corePack = await getTestDevelopmentPack();
   assert.ok(corePack);
 
   // A gate on a Pack transition (platform-level entity, no SEU). CR-058 —

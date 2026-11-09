@@ -23,6 +23,7 @@ import { reviewGatesDB } from "../src/dblayer/reviewGatesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot, getEmptyPoolTenantId, emptyParticipantPool } from "./testFixtures.js";
+import { getTestDevelopmentPack } from "./testFixtures.js";
 import { TESTER_ALL_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
 
@@ -109,7 +110,7 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
   // does) can block this test on a completely unrelated gate's own criteria.
   // Real, observed failure — a category-only fix (CR-058's own precedent)
   // was not enough here.
-  const { data: corePack } = await packsDB.findByCode("development");
+  const corePack = await getTestDevelopmentPack();
   assert.ok(corePack, "core pack must be seeded");
   const run = randomUUID();
   const fromState = `test-from-${run}`;

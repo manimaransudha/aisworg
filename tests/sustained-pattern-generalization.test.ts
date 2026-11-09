@@ -20,6 +20,7 @@
 //      runs correctly either way is what's actually true here, not a
 //      specific call-order-dependent outcome.
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { getTestDevelopmentPack } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -39,7 +40,7 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function anyRealPackId(): Promise<string> {
-  const { data: pack } = await packsDB.findByCode("development");
+  const pack = await getTestDevelopmentPack();
   if (!pack) throw new Error("expected development pack to be seeded");
   return pack.id;
 }

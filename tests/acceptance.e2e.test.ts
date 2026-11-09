@@ -130,7 +130,7 @@ test("MVP acceptance: commission an SEU through the core and web paths, reach Op
   assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
   assert.equal(driven.ok && driven.seu.lifecycle_state, "Operational");
   const { data: ebm } = driven.ok && driven.seu.active_ebm_id ? await ebmsDB.findById(driven.seu.active_ebm_id) : { data: null };
-  assert.ok(ebm?.composed_packs.some((p) => p.packCode === "development"), "expected the fixture Template's own mandatory Pack to have been composed");
+  assert.ok(ebm?.composed_packs.some((p) => p.packCode === "test-development"), "expected the fixture Template's own mandatory Pack to have been composed");
 
   const status = await getSeuStatus(seuId);
   assert.ok(status);

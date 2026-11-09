@@ -162,7 +162,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // own detectCompositionConflicts (design/mvp-build-plan/SEU Composition.md);
   // this test's own Template must mandate it too, or selecting the nodejs
   // Pack as optional leaves that dependency genuinely unsatisfied.
-  await templatesDB.setMandatoryPacks(template!.id, ["development"], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  await templatesDB.setMandatoryPacks(template!.id, ["test-development"], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
 
   // Two real Profiles for the same Template — one plain, one declaring
   // technology-nodejs as optional, so composing it is directly observable.
