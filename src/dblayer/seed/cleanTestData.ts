@@ -1,14 +1,16 @@
 import "dotenv/config";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
-import { ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, TEST_PLATFORM_TENANT_NAME, TEST_PLATFORM_USER_EMAIL, RESERVED_TENANT_CODES } from "../constants.js";
+import { ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, TEST_PLATFORM_TENANT_NAME, TEST_PLATFORM_USER_EMAIL, TEST_ALL_EMAIL, TEST_CREATOR_EMAIL, TEST_APPROVER_EMAIL, RESERVED_TENANT_CODES } from "../constants.js";
 
 // Removes the records the test suite leaves in the database.
 //
 // A test tenant is a tenant authored by the test-platform participant (every tenant a test creates), or one of the seeded test tenants
 // (Athens, Babylon, test-platform), which are found by name. Everything those tenants hold is deleted: rows with a tenant_id of their own,
 // rows reached through an SEU of those tenants, and rows reached through a Pack, Template, Profile or Objective of those tenants.
-// The test-platform tenant, its user and its participant stay, because tests author as that participant and db:clean-slate seeds it.
+// The test-platform tenant, its user and its participant, and the tester-* users and their participants, stay, because tests author as that participant and db:clean-slate seeds it.
+//
+// Global tables (authority verbs, nouns and noun-verbs, schema definitions) have no tenant; the rows a test participant authored in them are deleted last.
 //
 // Usage: pnpm exec tsx src/dblayer/seed/cleanTestData.ts [--dry-run]
 // Everything runs in one transaction. A dry run rolls it back after reporting the row counts, and so does any failure.
@@ -23,7 +25,8 @@ const TEMP_TABLES: Array<[string, string]> = [
   ["tcd", "SELECT id FROM capability_definitions WHERE tenant_id IN (SELECT id FROM tt)"],
   ["tdel", "SELECT id FROM deliverables WHERE seu_id IN (SELECT id FROM ts)"],
   ["tev", "SELECT id FROM events WHERE tenant_id IN (SELECT id FROM tt) OR seu_id IN (SELECT id FROM ts)"],
-  ["tpm", "SELECT id FROM participants_master WHERE tenant_id IN (SELECT id FROM tt) AND id <> (SELECT id FROM keep_participant)"],
+  ["tpm", "SELECT id FROM participants_master WHERE tenant_id IN (SELECT id FROM tt) AND id NOT IN (SELECT id FROM keep_pms)"],
+  ["tau", "SELECT id FROM participants_master WHERE tenant_id IN (SELECT id FROM tt)"],
 ];
 
 // Children first: the order of the foreign keys of the live database.
@@ -90,8 +93,22 @@ const DELETES: Array<[string, string]> = [
   ["tenant_concept_aliases", "tenant_id IN (SELECT id FROM tt)"],
   ["tenant_contracts", "tenant_id IN (SELECT id FROM tt)"],
   ["participants_master", "id IN (SELECT id FROM tpm)"],
-  ["users", "tenant_id IN (SELECT id FROM tt) AND id <> (SELECT id FROM keep_user)"],
+  ["users", "tenant_id IN (SELECT id FROM tt) AND id NOT IN (SELECT id FROM keep_users)"],
   ["tenants", "id IN (SELECT id FROM tt) AND id <> (SELECT tenant_id FROM keep_participant)"],
+];
+
+// Global tables have no tenant. A row in them is a test row when a participant of a test tenant (the kept test-platform participant included) authored it.
+// Run after DELETES, children first. Rows with an originating Pack are test rows only when the Pack is (deleted above), so the tables that carry
+// a Pack take only the rows that have none.
+const GLOBAL_DELETES: Array<[string, string]> = [
+  ["authority_noun_verbs", "author_id IN (SELECT id FROM tau)"],
+  ["authority_verbs", "author_id IN (SELECT id FROM tau)"],
+  ["authority_nouns", "author_id IN (SELECT id FROM tau)"],
+  ["schema_definitions", "author_id IN (SELECT id FROM tau)"],
+  ["authority_rules", "originating_pack_id IS NULL AND author_id IN (SELECT id FROM tau)"],
+  ["compliance_requirements", "originating_pack_id IS NULL AND author_id IN (SELECT id FROM tau)"],
+  ["compliance_frameworks", "originating_pack_id IS NULL AND author_id IN (SELECT id FROM tau)"],
+  ["metric_definitions", "originating_pack_id IS NULL AND author_id IN (SELECT id FROM tau)"],
 ];
 
 async function run(): Promise<void> {
@@ -124,13 +141,18 @@ async function run(): Promise<void> {
     await client.query("INSERT INTO keep_participant VALUES ($1, $2)", [keep.participant_id, keep.tenant_id]);
     await client.query("CREATE TEMP TABLE keep_user (id uuid) ON COMMIT DROP");
     await client.query("INSERT INTO keep_user VALUES ($1)", [keep.user_id]);
+    // db:clean-slate also seeds the tester-* users and their participants in the test-platform tenant, and tests resolve them by email, so they stay too.
+    await client.query("CREATE TEMP TABLE keep_users (id uuid) ON COMMIT DROP");
+    await client.query("INSERT INTO keep_users SELECT id FROM users WHERE lower(email) = ANY($1::text[])", [[TEST_PLATFORM_USER_EMAIL, TEST_ALL_EMAIL, TEST_CREATOR_EMAIL, TEST_APPROVER_EMAIL].map((e) => e.toLowerCase())]);
+    await client.query("CREATE TEMP TABLE keep_pms (id uuid) ON COMMIT DROP");
+    await client.query("INSERT INTO keep_pms SELECT id FROM participants_master WHERE user_id IN (SELECT id FROM keep_users)");
     for (const [name, select] of TEMP_TABLES) {
       await client.query(`CREATE TEMP TABLE ${name} (id uuid) ON COMMIT DROP`);
       await client.query(`INSERT INTO ${name} ${select}`);
     }
 
     let total = 0;
-    for (const [table, where] of DELETES) {
+    for (const [table, where] of [...DELETES, ...GLOBAL_DELETES]) {
       const result = await client.query(`DELETE FROM ${table} WHERE ${where}`);
       total += result.rowCount ?? 0;
       if (result.rowCount) logger.info(`[clean-test-data] ${table}: ${result.rowCount}`);

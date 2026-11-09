@@ -203,7 +203,7 @@ test("every metric of the registry is computed for an SEU with no data, and the 
     rework_rate: "reworkRate", deliverable_acceptance_rate: "acceptanceRate",
   };
   for (const { identifier, calculation_method } of rows) {
-    const result = await metricRegistryEngine.compute(identifier, { seuId: t.seu.id });
+    const result = await metricRegistryEngine.compute(identifier, { seuId: t.seu.id, tenantId: PLATFORM_TENANT_ID });
     assert.equal(result.outcome, "Computed", identifier);
     const field = nullField[calculation_method];
     if (field && result.outcome === "Computed") assert.equal((result.value as Record<string, unknown>)[field], null, `${identifier}: ${field}`);
@@ -216,7 +216,7 @@ test("the acceptance rate of an SEU whose Deliverables are not Baselined is zero
   const { rows } = await pool.query<{ identifier: string }>("SELECT identifier FROM metric_definitions WHERE calculation_method = 'deliverable_acceptance_rate'");
   assert.ok(rows[0], "the registry holds the acceptance rate");
   const rate = async () => {
-    const result = await metricRegistryEngine.compute(rows[0].identifier, { seuId: t.seu.id });
+    const result = await metricRegistryEngine.compute(rows[0].identifier, { seuId: t.seu.id, tenantId: PLATFORM_TENANT_ID });
     assert.equal(result.outcome, "Computed");
     return result.outcome === "Computed" ? (result.value as { acceptanceRate: number | null }).acceptanceRate : null;
   };

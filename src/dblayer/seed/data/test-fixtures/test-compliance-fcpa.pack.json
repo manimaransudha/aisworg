@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-fcpa-compliance-approval",
+        "code": "test-authority-fcpa-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-fcpa-deliverable-transition",
+        "code": "test-authority-fcpa-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-uk-compliance-approval",
+        "code": "test-authority-uk-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-uk-deliverable-transition",
+        "code": "test-authority-uk-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-pci-compliance-approval",
+        "code": "test-authority-pci-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-pci-deliverable-transition",
+        "code": "test-authority-pci-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

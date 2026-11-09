@@ -36,7 +36,7 @@ import { uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID }
 // A real, already-seeded, Active canonical Policy — confirmed directly
 // against the live DB (no *.pack.json adopts it today, but the Definition
 // itself is real Platform-seeded data, not test-only).
-const REAL_POLICY_CODE = "adr-required";
+const REAL_POLICY_CODE = "test-adr-required";
 
 async function buildFixturePack(): Promise<{ packId: string; packCode: string; checklistId: string }> {
   const packCode = `test-cr088-pack-${randomUUID()}`;

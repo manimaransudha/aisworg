@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-fda-compliance-approval",
+        "code": "test-authority-fda-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-fda-deliverable-transition",
+        "code": "test-authority-fda-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

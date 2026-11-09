@@ -1,0 +1,52 @@
+{
+  "code": "test-backup-validation",
+  "name": "Backup Validation",
+  "description": "The most recent production backup must have completed successfully, been restore-tested, and meet the declared retention minimum.",
+  "category": "Operational",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The most recent scheduled backup completed successfully.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Backup Completion Record",
+        "category": "Validation Evidence",
+        "description": "The most recent scheduled backup completed successfully.",
+        "collectionMethod": "Backup system's own completion log"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "A restoration test against the most recent backup succeeded within the declared cadence window.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Backup Validation Result",
+        "category": "Validation Evidence",
+        "description": "A restoration test against the most recent backup succeeded within the declared cadence window.",
+        "collectionMethod": "Backup restoration test output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Backup retention meets or exceeds the declared minimum duration.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Backup Retention Record",
+        "category": "Validation Evidence",
+        "description": "Backup retention meets or exceeds the declared minimum duration.",
+        "collectionMethod": "Backup system's own retention log"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

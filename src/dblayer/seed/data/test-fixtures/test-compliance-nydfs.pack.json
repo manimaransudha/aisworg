@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-nydfs-compliance-approval",
+        "code": "test-authority-nydfs-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-nydfs-deliverable-transition",
+        "code": "test-authority-nydfs-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

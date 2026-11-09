@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-itar-compliance-approval",
+        "code": "test-authority-itar-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-itar-deliverable-transition",
+        "code": "test-authority-itar-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

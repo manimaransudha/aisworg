@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-bipa-compliance-approval",
+        "code": "test-authority-bipa-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-bipa-deliverable-transition",
+        "code": "test-authority-bipa-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

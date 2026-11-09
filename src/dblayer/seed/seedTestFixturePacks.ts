@@ -11,6 +11,7 @@ import { getTestPlatformActor, getTestPlatformTenantId } from "./seedTestIdentit
 import { seedTestOntology } from "./seedTestOntology.js";
 import { loadServiceDefinitionIdByCode, stampServiceDefinitionIds } from "./serviceDefinitionIds.js";
 import { seedCr104Demo } from "./seedCr104Demo.js";
+import { seedTestPolicyDefinitions } from "./seedTestPolicyDefinitions.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data", "test-fixtures");
@@ -19,8 +20,9 @@ function loadJson<T>(fileName: string): T {
   return JSON.parse(readFileSync(path.join(dataDir, fileName), "utf8")) as T;
 }
 
-// Published first: the technology Packs require test-development, so it must be Active before they are published.
-const FOUNDATION_TEST_FIXTURE_PACK_FILES = ["test-openup-development.pack.json"];
+// Published first: the technology Packs require test-development, so it must be Active before they are published. The fixture Template
+// composes these three as its mandatory Packs.
+const FOUNDATION_TEST_FIXTURE_PACK_FILES = ["test-openup-development.pack.json", "test-openup-requirements.pack.json", "test-openup-architecture.pack.json"];
 const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
   "test-openup-configuration-and-change-management.pack.json",
   "test-openup-project-management.pack.json",
@@ -149,6 +151,7 @@ export async function seedAllTestFixturePacks(): Promise<void> {
   const { actorId, actorBadge } = await getTestPlatformActor();
   const tenantId = await getTestPlatformTenantId();
   await seedTestOntology({ authoredBy: actorId, authorBadge: actorBadge });
+  await seedTestPolicyDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await purgeUnfinishedFixturePacks();
   const serviceDefinitionIdByCode = await loadServiceDefinitionIdByCode(tenantId);
   const publishStage = (files: string[]) => publishBatchWithRetry(files, actorId, tenantId, serviceDefinitionIdByCode);

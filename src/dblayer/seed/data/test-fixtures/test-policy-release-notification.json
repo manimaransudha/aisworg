@@ -1,0 +1,78 @@
+{
+  "code": "test-release-notification",
+  "name": "Release Notification",
+  "description": "Stakeholders must be notified of a pending Release Package, with adequate lead time and support information.",
+  "category": "Customer",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "release-package"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "A notification record exists, sent to every declared stakeholder distribution list.",
+      "severity": "High",
+      "applicabilityDeliverables": [
+        {
+          "name": "release-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Notification Record — Recipients",
+        "category": "Validation Evidence",
+        "description": "A notification record exists, sent to every declared stakeholder distribution list.",
+        "collectionMethod": "Notification system's own send log"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Notification was sent at least the declared lead time before deployment.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [
+        {
+          "name": "release-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Notification Record — Sent At",
+        "category": "Validation Evidence",
+        "description": "Notification was sent at least the declared lead time before deployment.",
+        "collectionMethod": "Notification system's own send log"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Notification includes rollback status and support contact information.",
+      "severity": "Low",
+      "applicabilityDeliverables": [
+        {
+          "name": "release-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Notification Record — Content",
+        "category": "Validation Evidence",
+        "description": "Notification includes rollback status and support contact information.",
+        "collectionMethod": "Notification system's own send log"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

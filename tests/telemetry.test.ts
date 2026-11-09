@@ -71,7 +71,7 @@ test("Flow Telemetry: Deliverable cycle time is a real, non-negative number deri
   const toInProgress = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(toInProgress.ok, true);
 
-  const flow = await getFlowMetrics();
+  const flow = await getFlowMetrics(undefined, PLATFORM_TENANT_ID);
   const entry = flow.deliverableCycleTimes.find((d) => d.id === deliverableId);
   assert.ok(entry, "expected the just-transitioned Deliverable to appear in Flow Telemetry");
   assert.ok(entry!.cycle_time_seconds >= 0, "cycle time must be a non-negative real number");
@@ -86,7 +86,7 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
   const firstTry = await transitionDeliverable({ deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(firstTry.ok, true, !firstTry.ok ? JSON.stringify(firstTry) : "assertion failed");
 
-  const governance = await getGovernanceMetrics();
+  const governance = await getGovernanceMetrics(undefined, PLATFORM_TENANT_ID);
   const entry = governance.qualityGateLatencies.find((g) => g.entity_id === deliverableId);
   assert.ok(entry, "expected the passed gate evaluation to appear in Governance Telemetry");
   assert.equal(entry?.first_blocked_at, null, "never blocked, so no first_blocked_at");
@@ -115,7 +115,7 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
   const secondTry = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(secondTry.ok, true, !secondTry.ok ? JSON.stringify(secondTry) : "assertion failed");
 
-  const governanceAfter = await getGovernanceMetrics();
+  const governanceAfter = await getGovernanceMetrics(undefined, PLATFORM_TENANT_ID);
   const blockedEntry = governanceAfter.qualityGateLatencies.find((g) => g.entity_id === deliverableId2);
   assert.ok(blockedEntry?.first_blocked_at, "this one really was blocked before it passed");
   assert.ok(blockedEntry!.latency_seconds > 0, "friction must be reflected as positive latency");

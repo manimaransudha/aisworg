@@ -1,0 +1,111 @@
+{
+  "code": "test-test-coverage-threshold",
+  "name": "Test Coverage Threshold",
+  "description": "Source Code must meet differentiated line, branch and critical-path coverage thresholds before Verification passes.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "source-code"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Line coverage >= the threshold declared by the active governance tier.",
+      "severity": "High",
+      "applicabilityDeliverables": [
+        {
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Test Result — Line Coverage",
+        "category": "Validation Evidence",
+        "description": "Line coverage >= the threshold declared by the active governance tier.",
+        "collectionMethod": "Automated test suite execution output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": [
+        {
+          "identifier": "cc48504c-75d9-597f-a17b-4eb46f833747",
+          "exceptionStatement": "Legacy code under active remediation may be granted a temporary lower threshold, time-boxed and tracked as an Obligation.",
+          "duration": "Time-boxed per the linked remediation Obligation's own completion criteria",
+          "exceptionScope": "The specific legacy module(s) under remediation only",
+          "exceptionApprovers": [
+            "Deliverable_approve"
+          ],
+          "exceptionComposition": "any",
+          "reviewRequirements": "Tracked via a linked Obligation; reviewed at each remediation milestone."
+        }
+      ]
+    },
+    {
+      "statement": "Branch coverage >= the threshold declared by the active governance tier.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [
+        {
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Test Result — Branch Coverage",
+        "category": "Validation Evidence",
+        "description": "Branch coverage >= the threshold declared by the active governance tier.",
+        "collectionMethod": "Automated test suite execution output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Modules tagged critical-path (authentication, payment, data-integrity) meet a threshold at least 15 points higher than the general threshold.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Test Result — Line Coverage",
+        "category": "Validation Evidence",
+        "description": "Modules tagged critical-path (authentication, payment, data-integrity) meet a threshold at least 15 points higher than the general threshold.",
+        "collectionMethod": "Automated test suite execution output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "No source file is excluded from coverage measurement without a documented, Authority-approved justification.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [
+        {
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Coverage Exclusion Record",
+        "category": "Validation Evidence",
+        "description": "No source file is excluded from coverage measurement without a documented, Authority-approved justification.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-dsa-compliance-approval",
+        "code": "test-authority-dsa-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-dsa-deliverable-transition",
+        "code": "test-authority-dsa-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

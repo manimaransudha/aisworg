@@ -1612,6 +1612,24 @@
   },
   {
     "concept_type": "engineering-name",
+    "code": "test-architecture-solution-design",
+    "default_label": "Architecture & Solution Design (OpenUP Capability Pattern)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "test-requirements-analysis",
+    "default_label": "Requirements (OpenUP Capability Pattern)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
     "code": "test-development",
     "default_label": "Development (OpenUP Capability Pattern)",
     "description": null,

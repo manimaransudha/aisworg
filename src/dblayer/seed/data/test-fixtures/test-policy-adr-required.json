@@ -1,0 +1,52 @@
+{
+  "code": "test-adr-required",
+  "name": "ADR Required",
+  "description": "Every significant engineering decision must be recorded as an ADR, traceable to what it affects, and not left indefinitely in Draft.",
+  "category": "Documentation",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The decision has a linked ADR record.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "ADR Record",
+        "category": "Analytical Evidence",
+        "description": "The decision has a linked ADR record.",
+        "collectionMethod": "ADR document review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "The ADR references the Objective or Deliverable it affects.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "ADR Record — Affected Entity",
+        "category": "Analytical Evidence",
+        "description": "The ADR references the Objective or Deliverable it affects.",
+        "collectionMethod": "ADR document review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "The ADR's status is Published, not left in Draft beyond the declared grace period.",
+      "severity": "Low",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "ADR Record — Status",
+        "category": "Analytical Evidence",
+        "description": "The ADR's status is Published, not left in Draft beyond the declared grace period.",
+        "collectionMethod": "ADR document review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

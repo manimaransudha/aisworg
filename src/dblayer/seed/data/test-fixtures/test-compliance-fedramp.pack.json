@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-fedramp-compliance-approval",
+        "code": "test-authority-fedramp-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-fedramp-deliverable-transition",
+        "code": "test-authority-fedramp-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

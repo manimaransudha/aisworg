@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-hipaa-compliance-approval",
+        "code": "test-authority-hipaa-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-hipaa-deliverable-transition",
+        "code": "test-authority-hipaa-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

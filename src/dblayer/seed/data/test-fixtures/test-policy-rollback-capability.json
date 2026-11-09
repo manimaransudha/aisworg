@@ -1,0 +1,78 @@
+{
+  "code": "test-rollback-capability",
+  "name": "Rollback Capability",
+  "description": "A Release Package must have a documented rollback procedure, dry-run tested, completing within the declared recovery time objective.",
+  "category": "Operational",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "release-package"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Rollback procedure is documented for this release.",
+      "severity": "High",
+      "applicabilityDeliverables": [
+        {
+          "name": "release-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Rollback Procedure Document",
+        "category": "Analytical Evidence",
+        "description": "Rollback procedure is documented for this release.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Rollback was dry-run tested in a non-production environment for this release.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "release-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Rollback Test Result",
+        "category": "Validation Evidence",
+        "description": "Rollback was dry-run tested in a non-production environment for this release.",
+        "collectionMethod": "Rollback drill execution output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "The tested rollback completed within the declared recovery time objective (RTO).",
+      "severity": "Medium",
+      "applicabilityDeliverables": [
+        {
+          "name": "release-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Rollback Test Result — Duration",
+        "category": "Validation Evidence",
+        "description": "The tested rollback completed within the declared recovery time objective (RTO).",
+        "collectionMethod": "Rollback drill execution output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -1,0 +1,166 @@
+{
+  "code": "test-vendor-and-compliance-evidence-completeness",
+  "name": "Vendor and Compliance Evidence Completeness",
+  "description": "Compliance audit evidence names the specific control it satisfies, a security assessment exists for any data-handling vendor, and vendor performance is reviewed against its own contracted SLA.",
+  "category": "Organisation",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "compliance-audit-evidence",
+    "security-assessment-report",
+    "vendor-assessment",
+    "vendor-contract",
+    "vendor-performance-record"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Compliance Audit Evidence item names the specific control or requirement it evidences, not submitted as undifferentiated supporting material.",
+      "severity": "High",
+      "applicabilityDeliverables": [
+        {
+          "name": "compliance-audit-evidence",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "security-assessment-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-assessment",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-contract",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-performance-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Compliance Audit Evidence",
+        "category": "Analytical Evidence",
+        "description": "Every Compliance Audit Evidence item names the specific control or requirement it evidences, not submitted as undifferentiated supporting material.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "A Security Assessment Report exists for any Vendor Assessment covering a vendor with access to sensitive data.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "compliance-audit-evidence",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "security-assessment-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-assessment",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-contract",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-performance-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Security Assessment Report",
+        "category": "Analytical Evidence",
+        "description": "A Security Assessment Report exists for any Vendor Assessment covering a vendor with access to sensitive data.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Vendor Performance Records are reviewed against the Vendor Contract's own declared SLA at least once per contract term.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [
+        {
+          "name": "compliance-audit-evidence",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "security-assessment-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-assessment",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-contract",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-performance-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Vendor Performance Record",
+        "category": "Analytical Evidence",
+        "description": "Vendor Performance Records are reviewed against the Vendor Contract's own declared SLA at least once per contract term.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

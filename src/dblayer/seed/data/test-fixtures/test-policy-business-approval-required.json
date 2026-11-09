@@ -1,0 +1,52 @@
+{
+  "code": "test-business-approval-required",
+  "name": "Business Approval Required",
+  "description": "A recommended solution option requires business sponsor approval, naming the specific option, obtained before Architecture work begins.",
+  "category": "Customer",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Business sponsor approval is recorded for the recommended option.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Human Attestation",
+        "category": "Validation Evidence",
+        "description": "Business sponsor approval is recorded for the recommended option.",
+        "collectionMethod": "Manual sign-off recorded by the responsible participant"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "The approval record references the specific recommended option's comparative analysis, not the objective generally.",
+      "severity": "High",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Human Attestation — Approved Option",
+        "category": "Validation Evidence",
+        "description": "The approval record references the specific recommended option's comparative analysis, not the objective generally.",
+        "collectionMethod": "Manual sign-off recorded by the responsible participant"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Approval was obtained before Architecture work began, not retroactively.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Human Attestation — Timestamp",
+        "category": "Validation Evidence",
+        "description": "Approval was obtained before Architecture work began, not retroactively.",
+        "collectionMethod": "Manual sign-off recorded by the responsible participant"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

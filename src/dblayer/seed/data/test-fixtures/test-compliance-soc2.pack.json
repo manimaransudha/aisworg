@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-soc2-compliance-approval",
+        "code": "test-authority-soc2-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-soc2-deliverable-transition",
+        "code": "test-authority-soc2-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

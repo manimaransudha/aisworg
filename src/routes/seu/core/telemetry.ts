@@ -50,26 +50,27 @@ export interface QualityMetrics {
   acceptanceRate: number | null;
 }
 
-async function computeMetric<T>(identifier: string, seuId?: string): Promise<T> {
-  const result = await metricRegistryEngine.compute(identifier, { seuId });
+// tenantId is the tenant the MetricCalculated event is recorded under; when it is omitted the event takes the tenant of the system actor.
+async function computeMetric<T>(identifier: string, seuId?: string, tenantId?: string): Promise<T> {
+  const result = await metricRegistryEngine.compute(identifier, { seuId, tenantId });
   if (result.outcome === "NotFound") throw new Error(`no metric_definitions row for identifier "${identifier}" — did migration 017 run?`);
   if (result.outcome === "UnrecognisedMethod") throw new Error(`metric "${identifier}" declares calculation_method "${result.definition.calculation_method}", which metricRegistryEngine doesn't implement`);
   return result.value as T;
 }
 
-export async function getFlowMetrics(seuId?: string): Promise<FlowMetrics> {
-  return computeMetric<FlowMetrics>("deliverable-cycle-time", seuId);
+export async function getFlowMetrics(seuId?: string, tenantId?: string): Promise<FlowMetrics> {
+  return computeMetric<FlowMetrics>("deliverable-cycle-time", seuId, tenantId);
 }
 
-export async function getGovernanceMetrics(seuId?: string): Promise<GovernanceMetrics> {
-  return computeMetric<GovernanceMetrics>("quality-gate-latency", seuId);
+export async function getGovernanceMetrics(seuId?: string, tenantId?: string): Promise<GovernanceMetrics> {
+  return computeMetric<GovernanceMetrics>("quality-gate-latency", seuId, tenantId);
 }
 
-export async function getRuntimeMetrics(seuId?: string): Promise<RuntimeMetrics> {
+export async function getRuntimeMetrics(seuId?: string, tenantId?: string): Promise<RuntimeMetrics> {
   const [volume, latency, duration] = await Promise.all([
-    computeMetric<CommandVolumeValue>("command-generation-rate", seuId),
-    computeMetric<DispatchLatencyValue>("dispatch-latency", seuId),
-    computeMetric<WorkItemDurationValue>("work-item-duration", seuId),
+    computeMetric<CommandVolumeValue>("command-generation-rate", seuId, tenantId),
+    computeMetric<DispatchLatencyValue>("dispatch-latency", seuId, tenantId),
+    computeMetric<WorkItemDurationValue>("work-item-duration", seuId, tenantId),
   ]);
   return {
     commandsGenerated: volume.commandsGenerated,
@@ -80,10 +81,10 @@ export async function getRuntimeMetrics(seuId?: string): Promise<RuntimeMetrics>
   };
 }
 
-export async function getKnowledgeMetrics(seuId?: string): Promise<KnowledgeMetrics> {
+export async function getKnowledgeMetrics(seuId?: string, tenantId?: string): Promise<KnowledgeMetrics> {
   const [growth, evidence] = await Promise.all([
-    computeMetric<KnowledgeGrowthValue>("knowledge-growth", seuId),
-    computeMetric<EvidenceGenerationValue>("evidence-generation", seuId),
+    computeMetric<KnowledgeGrowthValue>("knowledge-growth", seuId, tenantId),
+    computeMetric<EvidenceGenerationValue>("evidence-generation", seuId, tenantId),
   ]);
   return {
     totalKnowledgeItems: growth.totalKnowledgeItems,
@@ -92,10 +93,10 @@ export async function getKnowledgeMetrics(seuId?: string): Promise<KnowledgeMetr
   };
 }
 
-export async function getQualityMetrics(seuId?: string): Promise<QualityMetrics> {
+export async function getQualityMetrics(seuId?: string, tenantId?: string): Promise<QualityMetrics> {
   const [rework, acceptance] = await Promise.all([
-    computeMetric<ReworkRateValue>("rework-rate", seuId),
-    computeMetric<AcceptanceRateValue>("deliverable-acceptance-rate", seuId),
+    computeMetric<ReworkRateValue>("rework-rate", seuId, tenantId),
+    computeMetric<AcceptanceRateValue>("deliverable-acceptance-rate", seuId, tenantId),
   ]);
   return {
     reworkEntities: rework.reworkEntities,

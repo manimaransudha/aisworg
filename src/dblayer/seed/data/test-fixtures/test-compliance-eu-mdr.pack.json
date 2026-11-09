@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-eu-mdr-compliance-approval",
+        "code": "test-authority-eu-mdr-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-eu-mdr-deliverable-transition",
+        "code": "test-authority-eu-mdr-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

@@ -1153,8 +1153,8 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
 
   await ensureTestFixturePacks();
   const packSelections: Partial<Record<"compliancePackCodes" | "domainPackCodes" | "engineeringPackCodes" | "integrationPackCodes" | "organisationPackCodes" | "technologyPackCodes", string[]>> = {};
-  // The Template seed names the Platform "development" Pack; the fixture Template composes its test-platform copy instead.
-  const mandatoryPackCodes = templateSeed.mandatoryPackCodes.map((code) => (code === "development" ? "test-development" : code));
+  // The Template seed names Platform Packs; the fixture Template composes their test-platform copies (test-<code>) instead.
+  const mandatoryPackCodes = templateSeed.mandatoryPackCodes.map((code) => `test-${code}`);
   for (const code of mandatoryPackCodes) {
     const { data: pack } = await packsDB.findByCode(code);
     if (!pack) throw new Error(`seed(): template ${templateSeed.code} requires unknown pack ${code} — is db:clean-slate seeded?`);

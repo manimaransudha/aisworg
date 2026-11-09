@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-automotive-compliance-approval",
+        "code": "test-authority-automotive-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-automotive-deliverable-transition",
+        "code": "test-authority-automotive-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

@@ -26,12 +26,11 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
-import { userDB } from "../src/dblayer/userDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
-import { PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { PLATFORM_TENANT_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
 import { forgetTestOntologyConcepts } from "./ontologyTestCache.js";
 import { createAuthoringDraft, saveAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
 import { syncConceptFromEntity } from "../src/routes/seu/core/ontology.js";
@@ -66,7 +65,6 @@ after(async () => {
   }
 });
 
-const { actorId: ROOT_ACTOR_ID } = await userDB.getSuperuserId();
 const REAL_TEMPLATE_CODE = "test-dependency-graph-template"; // test-only template-categories concept, so activating a new version never supersedes a seeded Template
 
 // Real deliverable-name Ontology codes (migration 048) standing in for this

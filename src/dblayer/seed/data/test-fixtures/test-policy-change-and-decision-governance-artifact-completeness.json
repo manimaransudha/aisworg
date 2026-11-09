@@ -1,0 +1,289 @@
+{
+  "code": "test-change-and-decision-governance-artifact-completeness",
+  "name": "Change and Decision Governance Artifact Completeness",
+  "description": "A Change Request has an impact analysis before approval, a Decision Record cites the risk assessment it relied on, a Data Migration Plan has a documented rollback, and unresolved policy conflicts don't carry silently into the next release.",
+  "category": "Organisation",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "change-request",
+    "decision-record",
+    "configuration-baseline-record",
+    "impact-analysis-report",
+    "policy-conflict-report",
+    "risk-assessment-report",
+    "data-migration-plan"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Change Request has an Impact Analysis Report before a Change Approval decision (O4) is made against it.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [
+        {
+          "name": "change-request",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "decision-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "configuration-baseline-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "impact-analysis-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "policy-conflict-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "risk-assessment-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "data-migration-plan",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Impact Analysis Report",
+        "category": "Analytical Evidence",
+        "description": "Every Change Request has an Impact Analysis Report before a Change Approval decision (O4) is made against it.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "A Decision Record cites the Risk Assessment Report it relied on, wherever the decision carries identified risk.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [
+        {
+          "name": "change-request",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "decision-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "configuration-baseline-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "impact-analysis-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "policy-conflict-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "risk-assessment-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "data-migration-plan",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Decision Record Review",
+        "category": "Analytical Evidence",
+        "description": "A Decision Record cites the Risk Assessment Report it relied on, wherever the decision carries identified risk.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "A Data Migration Plan includes a Configuration Baseline Record of the pre-migration state and a documented rollback path.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "change-request",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "decision-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "configuration-baseline-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "impact-analysis-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "policy-conflict-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "risk-assessment-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "data-migration-plan",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Rollback Procedure Document",
+        "category": "Analytical Evidence",
+        "description": "A Data Migration Plan includes a Configuration Baseline Record of the pre-migration state and a documented rollback path.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Any Policy Conflict Report raised against this Policy set is resolved, or explicitly accepted by an Authority holder, before the next Release.",
+      "severity": "High",
+      "applicabilityDeliverables": [
+        {
+          "name": "change-request",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "decision-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "configuration-baseline-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "impact-analysis-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "policy-conflict-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "risk-assessment-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "data-migration-plan",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Policy Conflict Report",
+        "category": "Analytical Evidence",
+        "description": "Any Policy Conflict Report raised against this Policy set is resolved, or explicitly accepted by an Authority holder, before the next Release.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [
+        {
+          "category": "Review Finding",
+          "title": "Unresolved Policy Conflict Report at Release",
+          "description": "A Policy Conflict Report remains unresolved at Release; the conflict must be tracked and resolved rather than allowed to pass silently.",
+          "origin": "Policies",
+          "priority": "High",
+          "severity": "High",
+          "completionCriteria": "The Policy Conflict Report reaches a resolved or explicitly accepted disposition.",
+          "requiredEvidence": {
+            "title": "Policy conflict resolution record",
+            "category": "Analytical Evidence",
+            "description": "Record showing the Policy Conflict Report's resolution or acceptance.",
+            "collectionMethod": "Manual document/analysis review"
+          }
+        }
+      ],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -17,10 +17,10 @@ import pool from "../src/utils/db.js";
 import { metricRegistryEngine } from "../src/domain/engine/metricRegistryEngine.js";
 import { metricDefinitionsDB } from "../src/dblayer/metricDefinitionsDB.js";
 import { query } from "../src/utils/db.js";
-import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 test("metricRegistryEngine.compute resolves a real metric_definitions row to its calculation_method and publishes MetricCalculated", async () => {
-  const result = await metricRegistryEngine.compute("deliverable-cycle-time");
+  const result = await metricRegistryEngine.compute("deliverable-cycle-time", { tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.outcome, "Computed");
   if (result.outcome !== "Computed") return;
   assert.equal(result.definition.identifier, "deliverable-cycle-time");
@@ -34,7 +34,7 @@ test("metricRegistryEngine.compute resolves a real metric_definitions row to its
 });
 
 test("metricRegistryEngine.compute fails closed for an unknown identifier", async () => {
-  const result = await metricRegistryEngine.compute(`no-such-metric-${randomUUID()}`);
+  const result = await metricRegistryEngine.compute(`no-such-metric-${randomUUID()}`, { tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.outcome, "NotFound");
 });
 
@@ -46,7 +46,7 @@ test("metricRegistryEngine.compute fails closed for a metric_definitions row nam
     [identifier, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
 
-  const result = await metricRegistryEngine.compute(identifier);
+  const result = await metricRegistryEngine.compute(identifier, { tenantId: PLATFORM_TENANT_ID });
   assert.equal(result.outcome, "UnrecognisedMethod");
   if (result.outcome === "UnrecognisedMethod") assert.equal(result.definition.calculation_method, "no-such-calculation-method");
 

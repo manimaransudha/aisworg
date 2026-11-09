@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-do178c-compliance-approval",
+        "code": "test-authority-do178c-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-do178c-deliverable-transition",
+        "code": "test-authority-do178c-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

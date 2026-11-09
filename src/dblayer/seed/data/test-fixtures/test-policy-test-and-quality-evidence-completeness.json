@@ -1,0 +1,166 @@
+{
+  "code": "test-test-and-quality-evidence-completeness",
+  "name": "Test and Quality Evidence Completeness",
+  "description": "Test and performance reports name the exact version they were run against, every open defect has an assigned severity and owner, and confidence/benchmark evidence is produced before, not after, the decision that relies on it.",
+  "category": "Quality",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "test-report-results",
+    "performance-load-test-report",
+    "defect-log",
+    "confidence-assessment",
+    "benchmark-report"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Test Report Results and Performance/Load Test Report names the specific build or version it was executed against.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [
+        {
+          "name": "test-report-results",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "performance-load-test-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "defect-log",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "confidence-assessment",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "benchmark-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Test Result — Version Under Test",
+        "category": "Validation Evidence",
+        "description": "Every Test Report Results and Performance/Load Test Report names the specific build or version it was executed against.",
+        "collectionMethod": "Automated test suite execution output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Every open entry in the Defect Log has an assigned severity and owner.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [
+        {
+          "name": "test-report-results",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "performance-load-test-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "defect-log",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "confidence-assessment",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "benchmark-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Defect Log Review",
+        "category": "Analytical Evidence",
+        "description": "Every open entry in the Defect Log has an assigned severity and owner.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "A Confidence Assessment or Benchmark Report is produced before the Release-stage decision that relies on it, not compiled retroactively to justify one already made.",
+      "severity": "Low",
+      "applicabilityDeliverables": [
+        {
+          "name": "test-report-results",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "performance-load-test-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "defect-log",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "confidence-assessment",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "benchmark-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Confidence Assessment",
+        "category": "Analytical Evidence",
+        "description": "A Confidence Assessment or Benchmark Report is produced before the Release-stage decision that relies on it, not compiled retroactively to justify one already made.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

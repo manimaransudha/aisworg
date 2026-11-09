@@ -25,17 +25,17 @@ async function packListing(policies: string[]): Promise<ComposedPacks> {
 }
 
 test("unravelPolicies: a Pack's listed Policy gives one rule for each Deliverable and step of its conditions", async () => {
-  const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo("test-coverage-threshold", PLATFORM_TENANT_ID);
-  assert.ok(definition, "the seed Policy test-coverage-threshold must be Active");
-  const composedPacks = await packListing(["test-coverage-threshold"]);
+  const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo("test-test-coverage-threshold", PLATFORM_TENANT_ID);
+  assert.ok(definition, "the seed Policy test-test-coverage-threshold must be Active");
+  const composedPacks = await packListing(["test-test-coverage-threshold"]);
   const { rules } = await unravelPolicies({ composedPacks }, PLATFORM_TENANT_ID);
   const expected = definition!.conditions.flatMap((c) => c.applicabilityDeliverables.flatMap((a) => a.transitions.map((step) => `${a.name}|${step}`))).sort();
   assert.deepEqual(rules.map((r) => `${r.deliverable}|${r.step}`).sort(), expected);
-  assert.ok(rules.every((r) => r.policyCode === "test-coverage-threshold" && r.packCode === composedPacks.packs[0].code));
+  assert.ok(rules.every((r) => r.policyCode === "test-test-coverage-threshold" && r.packCode === composedPacks.packs[0].code));
 });
 
 test("unravelPolicies: a condition with no governing field has no field and no rule", async () => {
-  const composedPacks = await packListing(["test-coverage-threshold"]);
+  const composedPacks = await packListing(["test-test-coverage-threshold"]);
   const { rules } = await unravelPolicies({ composedPacks }, PLATFORM_TENANT_ID);
   assert.ok(rules.length > 0);
   assert.ok(rules.every((r) => r.field === null && r.rule === null));

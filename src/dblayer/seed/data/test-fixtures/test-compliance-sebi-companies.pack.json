@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-sebi-compliance-approval",
+        "code": "test-authority-sebi-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-sebi-deliverable-transition",
+        "code": "test-authority-sebi-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

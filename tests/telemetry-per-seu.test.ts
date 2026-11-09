@@ -52,16 +52,16 @@ test("Flow Telemetry scoped to one SEU returns strictly that SEU's own Deliverab
   const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(toInProgressB.ok, true);
 
-  const scopedToA = await getFlowMetrics(a.seuId);
+  const scopedToA = await getFlowMetrics(a.seuId, PLATFORM_TENANT_ID);
   assert.ok(scopedToA.deliverableCycleTimes.some((d) => d.id === a.deliverableId));
   assert.ok(!scopedToA.deliverableCycleTimes.some((d) => d.id === b.deliverableId), "SEU A's scoped view must not include SEU B's Deliverable");
   assert.ok(scopedToA.deliverableCycleTimes.every((d) => d.seu_id === a.seuId));
 
-  const scopedToB = await getFlowMetrics(b.seuId);
+  const scopedToB = await getFlowMetrics(b.seuId, PLATFORM_TENANT_ID);
   assert.ok(scopedToB.deliverableCycleTimes.some((d) => d.id === b.deliverableId));
   assert.ok(!scopedToB.deliverableCycleTimes.some((d) => d.id === a.deliverableId), "SEU B's scoped view must not include SEU A's Deliverable");
 
-  const platformWide = await getFlowMetrics();
+  const platformWide = await getFlowMetrics(undefined, PLATFORM_TENANT_ID);
   assert.ok(platformWide.deliverableCycleTimes.some((d) => d.id === a.deliverableId));
   assert.ok(platformWide.deliverableCycleTimes.some((d) => d.id === b.deliverableId));
 });
@@ -78,7 +78,7 @@ test("Governance Telemetry scoped to one SEU excludes another SEU's Quality Gate
   const approvedB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(approvedB.ok, true);
 
-  const scopedToA = await getGovernanceMetrics(a.seuId);
+  const scopedToA = await getGovernanceMetrics(a.seuId, PLATFORM_TENANT_ID);
   assert.ok(scopedToA.qualityGateLatencies.every((row) => row.seu_id === a.seuId));
   assert.ok(!scopedToA.qualityGateLatencies.some((row) => row.seu_id === b.seuId));
 });

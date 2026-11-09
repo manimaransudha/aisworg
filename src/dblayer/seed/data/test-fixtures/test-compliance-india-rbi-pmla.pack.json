@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-rbi-compliance-approval",
+        "code": "test-authority-rbi-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-rbi-deliverable-transition",
+        "code": "test-authority-rbi-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

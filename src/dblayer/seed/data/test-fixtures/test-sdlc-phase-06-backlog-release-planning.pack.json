@@ -23,17 +23,17 @@
     ],
     "authorityRules": [
       {
-        "code": "authority-commission-seu",
+        "code": "test-authority-commission-seu",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-transition-deliverable",
+        "code": "test-authority-transition-deliverable",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-transition-objective",
+        "code": "test-authority-transition-objective",
         "governedTransition": "objective.transition",
         "authorisedRole": "general"
       }

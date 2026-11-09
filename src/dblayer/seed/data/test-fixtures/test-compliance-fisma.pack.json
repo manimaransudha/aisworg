@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-fisma-compliance-approval",
+        "code": "test-authority-fisma-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-fisma-deliverable-transition",
+        "code": "test-authority-fisma-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

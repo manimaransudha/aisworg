@@ -43,12 +43,14 @@ router.get("/telemetry", attachVM("seu/telemetry/index"), async (req: Request, r
       tenantId: isRoot ? null : sessionTenantId,
     });
     seus.seuId = seuId;
+    // The MetricCalculated events are recorded under the viewer's tenant.
+    const metricTenantId = sessionTenantId ?? undefined;
     const [flowMetrics, governanceMetrics, runtimeMetrics, knowledgeMetrics, qualityMetrics] = await Promise.all([
-      getFlowMetrics(seuId),
-      getGovernanceMetrics(seuId),
-      getRuntimeMetrics(seuId),
-      getKnowledgeMetrics(seuId),
-      getQualityMetrics(seuId),
+      getFlowMetrics(seuId, metricTenantId),
+      getGovernanceMetrics(seuId, metricTenantId),
+      getRuntimeMetrics(seuId, metricTenantId),
+      getKnowledgeMetrics(seuId, metricTenantId),
+      getQualityMetrics(seuId, metricTenantId),
       // listSeus(),
     ]);
 

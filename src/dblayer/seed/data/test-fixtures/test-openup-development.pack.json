@@ -69,77 +69,77 @@
     ],
     "authorityRules": [
       {
-        "code": "authority-commission-seu",
+        "code": "test-authority-commission-seu",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-transition-deliverable",
+        "code": "test-authority-transition-deliverable",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-transition-objective",
+        "code": "test-authority-transition-objective",
         "governedTransition": "objective.transition",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-transition-obligation",
+        "code": "test-authority-transition-obligation",
         "governedTransition": "obligation.transition",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-transition-evidence",
+        "code": "test-authority-transition-evidence",
         "governedTransition": "evidence.transition",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-transition-knowledge",
+        "code": "test-authority-transition-knowledge",
         "governedTransition": "knowledge.transition",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-transition-decision",
+        "code": "test-authority-transition-decision",
         "governedTransition": "decision.transition",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-promote-knowledge-to-capability",
+        "code": "test-authority-promote-knowledge-to-capability",
         "governedTransition": "knowledgescope.transition",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-promote-knowledge-to-enterprise",
+        "code": "test-authority-promote-knowledge-to-enterprise",
         "governedTransition": "knowledgescope.transition",
         "authorisedRole": "power"
       },
       {
-        "code": "authority-promote-knowledge-to-platform",
+        "code": "test-authority-promote-knowledge-to-platform",
         "governedTransition": "knowledgescope.transition",
         "authorisedRole": "super"
       },
       {
-        "code": "authority-transition-attentionitem",
+        "code": "test-authority-transition-attentionitem",
         "governedTransition": "attentionitem.transition",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-transition-externalinteraction",
+        "code": "test-authority-transition-externalinteraction",
         "governedTransition": "externalinteraction.transition",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-transition-pack",
+        "code": "test-authority-transition-pack",
         "governedTransition": "pack.transition",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-transition-pack-elevated",
+        "code": "test-authority-transition-pack-elevated",
         "governedTransition": "pack.transition",
         "authorisedRole": "power"
       },
       {
-        "code": "authority-transition-participant",
+        "code": "test-authority-transition-participant",
         "governedTransition": "participant.transition",
         "authorisedRole": "general"
       }

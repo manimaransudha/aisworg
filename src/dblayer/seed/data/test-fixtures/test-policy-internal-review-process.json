@@ -1,0 +1,52 @@
+{
+  "code": "test-internal-review-process",
+  "name": "Internal Review Process",
+  "description": "Decisions above a defined risk threshold require an Architecture Review Board review that concluded Approved.",
+  "category": "Organisation",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The decision has a recorded risk score.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Risk Assessment Record",
+        "category": "Analytical Evidence",
+        "description": "The decision has a recorded risk score.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Decisions scoring at or above the declared risk threshold have a recorded Architecture Review Board review.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Review Result — Architecture Review Board",
+        "category": "Validation Evidence",
+        "description": "Decisions scoring at or above the declared risk threshold have a recorded Architecture Review Board review.",
+        "collectionMethod": "Recorded outcome from the review process"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "The review's recorded outcome is Approved, not merely Reviewed or Rejected.",
+      "severity": "High",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Review Result — Outcome",
+        "category": "Validation Evidence",
+        "description": "The review's recorded outcome is Approved, not merely Reviewed or Rejected.",
+        "collectionMethod": "Recorded outcome from the review process"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

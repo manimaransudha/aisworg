@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-us-state-privacy-approval",
+        "code": "test-authority-us-state-privacy-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-us-state-deliverable-transition",
+        "code": "test-authority-us-state-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

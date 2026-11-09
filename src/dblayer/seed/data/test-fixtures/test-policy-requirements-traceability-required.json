@@ -1,0 +1,78 @@
+{
+  "code": "test-requirements-traceability-required",
+  "name": "Requirements Traceability Required",
+  "description": "Source Code and Requirements Specification must trace to each other bidirectionally, with no undeclared orphans on either side.",
+  "category": "Engineering",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "source-code"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Source Code module traces to at least one Requirements Specification item.",
+      "severity": "High",
+      "applicabilityDeliverables": [
+        {
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Traceability Record — Code To Requirement",
+        "category": "Analytical Evidence",
+        "description": "Every Source Code module traces to at least one Requirements Specification item.",
+        "collectionMethod": "Traceability tool/matrix review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Every Requirements Specification item traces to at least one Source Code module, or is explicitly marked Deferred or Rejected.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [
+        {
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Traceability Record — Requirement To Code",
+        "category": "Analytical Evidence",
+        "description": "Every Requirements Specification item traces to at least one Source Code module, or is explicitly marked Deferred or Rejected.",
+        "collectionMethod": "Traceability tool/matrix review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "No Requirements Specification item remains untraced and unmarked for more than one release cycle.",
+      "severity": "Low",
+      "applicabilityDeliverables": [
+        {
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Traceability Gap Report",
+        "category": "Analytical Evidence",
+        "description": "No Requirements Specification item remains untraced and unmarked for more than one release cycle.",
+        "collectionMethod": "Traceability tool/matrix review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

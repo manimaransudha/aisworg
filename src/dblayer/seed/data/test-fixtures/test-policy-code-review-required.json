@@ -1,0 +1,90 @@
+{
+  "code": "test-code-review-required",
+  "name": "Code Review Required",
+  "description": "Source Code requires a passed review, by a participant other than its author, addressing all prior findings, before Ready.",
+  "category": "Quality",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "source-code"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "At least one review_result with outcome Passed exists for the Work Item.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Review Result",
+        "category": "Validation Evidence",
+        "description": "At least one review_result with outcome Passed exists for the Work Item.",
+        "collectionMethod": "Recorded outcome from the review process"
+      },
+      "relatedObligations": [],
+      "exceptionRules": [
+        {
+          "identifier": "9a7ee052-38d3-5fd1-bd32-2b0bd49bcc4c",
+          "exceptionStatement": "Emergency hotfix, approved by an Authority holder, may defer review to within 24 hours post-release.",
+          "duration": "24 hours post-release",
+          "exceptionScope": "This hotfix release only",
+          "exceptionApprovers": [
+            "Deliverable_approve"
+          ],
+          "exceptionComposition": "any",
+          "reviewRequirements": "The deferred review must occur within the 24-hour window and be recorded."
+        }
+      ]
+    },
+    {
+      "statement": "The reviewing participant is not the same participant who authored the change.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Review Result — Reviewer Identity",
+        "category": "Validation Evidence",
+        "description": "The reviewing participant is not the same participant who authored the change.",
+        "collectionMethod": "Recorded outcome from the review process"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "All findings raised in a prior review round on this Deliverable are marked resolved or explicitly deferred with rationale.",
+      "severity": "High",
+      "applicabilityDeliverables": [
+        {
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Review Result — Prior Findings Status",
+        "category": "Validation Evidence",
+        "description": "All findings raised in a prior review round on this Deliverable are marked resolved or explicitly deferred with rationale.",
+        "collectionMethod": "Recorded outcome from the review process"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -47,7 +47,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
 }
 
 test("Quality Telemetry: rework rate distinguishes a first-try pass from a genuinely blocked-then-passed Deliverable", async () => {
-  const before = await getQualityMetrics();
+  const before = await getQualityMetrics(undefined, PLATFORM_TENANT_ID);
 
   // Approved -> Baselined is a manual hop gated by "Requires Accepted Evidence", and the kickoff requests only
   // governed hops, so nothing attempts it on its own. Real, Accepted Evidence is attached up front so that a later
@@ -77,7 +77,7 @@ test("Quality Telemetry: rework rate distinguishes a first-try pass from a genui
   const reworkedPass = await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "Approved", actorId: ROOT_ACTOR_ID });
   assert.equal(reworkedPass.ok, true);
 
-  const after = await getQualityMetrics();
+  const after = await getQualityMetrics(undefined, PLATFORM_TENANT_ID);
   const cleanEntry = after.reworkEntities.find((r) => r.entity_id === clean.deliverableId);
   const reworkedEntry = after.reworkEntities.find((r) => r.entity_id === reworked.deliverableId);
   assert.ok(cleanEntry, "expected the first-try-pass Deliverable to appear");
@@ -110,7 +110,7 @@ test("Quality Telemetry: Deliverable acceptance rate reflects the real lifecycle
   // Analysis Model (Architecture Decision Record, Source Code, ...) — only the one
   // this test explicitly transitions reaches Baselined, so acceptanceRate
   // is asserted as a real fraction of this SEU's total, not assumed to be 1.
-  const scoped = await getQualityMetrics(seuId);
+  const scoped = await getQualityMetrics(seuId, PLATFORM_TENANT_ID);
   assert.equal(scoped.byLifecycleState["Baselined"], 1, "exactly the one Deliverable this test transitioned reached Baselined");
   assert.ok(scoped.totalDeliverables >= 1);
   assert.equal(scoped.acceptanceRate, 1 / scoped.totalDeliverables);

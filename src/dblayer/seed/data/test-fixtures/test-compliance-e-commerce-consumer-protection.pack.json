@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-ecommerce-compliance-approval",
+        "code": "test-authority-ecommerce-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-ecommerce-deliverable-transition",
+        "code": "test-authority-ecommerce-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

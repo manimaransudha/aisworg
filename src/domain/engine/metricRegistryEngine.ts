@@ -27,6 +27,8 @@ export interface GovernanceMetricsValue {
 
 export interface MetricScope {
   seuId?: string;
+  // The tenant the MetricCalculated event is recorded under. When omitted, the event takes the tenant of the system actor that publishes it.
+  tenantId?: string;
 }
 
 async function deliverableCycleTime(scope: MetricScope): Promise<FlowMetricsValue> {
@@ -181,6 +183,7 @@ export const metricRegistryEngine = {
       correlationId: eventBus.newCorrelationId(),
       actorId: metricActorId,
       authorityBadge: SYSTEM_ACTOR_BADGE,
+      tenantId: scope.tenantId ?? null,
       payload: { identifier: definition.identifier, category: definition.category },
     });
 

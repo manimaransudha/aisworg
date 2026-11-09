@@ -36,7 +36,7 @@ test("Knowledge Telemetry: growth and Evidence generation are real counts, broke
   const a = await commissionTestSeuWithDeliverable("knowledge-telemetry-a");
   const b = await commissionTestSeuWithDeliverable("knowledge-telemetry-b");
 
-  const beforeA = await getKnowledgeMetrics(a.seuId);
+  const beforeA = await getKnowledgeMetrics(a.seuId, PLATFORM_TENANT_ID);
 
   await ensureActorParticipant(a.seuId, ROOT_ACTOR_ID);
   const evidenceA = await createEvidence({ seuId: a.seuId, relatedObjectType: "Deliverable", relatedObjectId: a.deliverableId, category: "Validation Evidence", title: "Test Evidence" });
@@ -47,12 +47,12 @@ test("Knowledge Telemetry: growth and Evidence generation are real counts, broke
   await ensureActorParticipant(b.seuId, ROOT_ACTOR_ID);
   await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId: b.seuId, deliverableId: b.deliverableId, category: "Technical Knowledge", title: "SEU B's own Knowledge Item", acquisitionScope: "SEU", evidenceReferences: await supportingEvidenceReferences(b.seuId, b.deliverableId) });
 
-  const afterA = await getKnowledgeMetrics(a.seuId);
+  const afterA = await getKnowledgeMetrics(a.seuId, PLATFORM_TENANT_ID);
   assert.equal(afterA.totalKnowledgeItems, beforeA.totalKnowledgeItems + 2);
   assert.equal(afterA.byAcquisitionScope.SEU, beforeA.byAcquisitionScope.SEU + 1);
   assert.equal(afterA.byAcquisitionScope.Platform, beforeA.byAcquisitionScope.Platform + 1);
   assert.equal(afterA.evidenceGenerated, beforeA.evidenceGenerated + 1);
 
-  const platformWide = await getKnowledgeMetrics();
+  const platformWide = await getKnowledgeMetrics(undefined, PLATFORM_TENANT_ID);
   assert.ok(platformWide.totalKnowledgeItems >= afterA.totalKnowledgeItems + 1, "platform-wide total must include SEU B's item too");
 });

@@ -43,7 +43,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
 }
 
 test("Runtime Telemetry: a real dispatched transition produces a non-negative dispatch latency and Work Item duration, scoped correctly per SEU", async () => {
-  const before = await getRuntimeMetrics();
+  const before = await getRuntimeMetrics(undefined, PLATFORM_TENANT_ID);
 
   const a = await commissionAndFulfilRequirementsSpec("runtime-telemetry-a");
   const b = await commissionAndFulfilRequirementsSpec("runtime-telemetry-b");
@@ -53,10 +53,10 @@ test("Runtime Telemetry: a real dispatched transition produces a non-negative di
   const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assert.equal(toInProgressB.ok, true);
 
-  const after = await getRuntimeMetrics();
+  const after = await getRuntimeMetrics(undefined, PLATFORM_TENANT_ID);
   assert.ok(after.commandsGenerated >= before.commandsGenerated + 2, "expected at least 2 more Commands generated (2 commissionings x automatic steps + 2 explicit transitions)");
 
-  const scopedToA = await getRuntimeMetrics(a.seuId);
+  const scopedToA = await getRuntimeMetrics(a.seuId, PLATFORM_TENANT_ID);
   assert.ok(scopedToA.dispatchLatencies.every((row) => row.seu_id === a.seuId));
   assert.ok(scopedToA.dispatchLatencies.every((row) => row.latency_seconds >= 0));
   assert.ok(scopedToA.workItemDurations.every((row) => row.seu_id === a.seuId));

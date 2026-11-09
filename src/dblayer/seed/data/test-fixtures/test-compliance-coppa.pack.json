@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-coppa-compliance-approval",
+        "code": "test-authority-coppa-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-coppa-deliverable-transition",
+        "code": "test-authority-coppa-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

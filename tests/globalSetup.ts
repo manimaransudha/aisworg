@@ -17,5 +17,8 @@ export async function globalSetup(): Promise<void> {
   const { getTestPlatformSuperuserId } = await import("./testFixtures.js");
   const { actorId, actorBadge } = await getTestPlatformSuperuserId();
   await seedTestOntology({ authoredBy: actorId, authorBadge: actorBadge });
+  // The test copies of the Platform Policy Definitions, in the test-platform tenant, for every test file.
+  const { seedTestPolicyDefinitions } = await import("../src/dblayer/seed/seedTestPolicyDefinitions.js");
+  await seedTestPolicyDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await pool.end();
 }

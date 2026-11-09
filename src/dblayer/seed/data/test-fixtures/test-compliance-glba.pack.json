@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-glba-compliance-approval",
+        "code": "test-authority-glba-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-glba-deliverable-transition",
+        "code": "test-authority-glba-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }

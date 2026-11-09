@@ -1,0 +1,57 @@
+{
+  "code": "test-engineering-standards",
+  "name": "Engineering Standards",
+  "description": "Engineering standards must be reviewed on a defined cadence, with revisions grounded in accumulated evidence rather than unstructured opinion.",
+  "category": "Organisation",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "engineering-standard"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The standard has been reviewed within the declared cadence window.",
+      "severity": "Medium",
+      "applicabilityDeliverables": [
+        {
+          "name": "engineering-standard",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Standard Review Record",
+        "category": "Analytical Evidence",
+        "description": "The standard has been reviewed within the declared cadence window.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    },
+    {
+      "statement": "Any revision to the standard cites accumulated Telemetry evidence as its basis, not unstructured opinion alone.",
+      "severity": "Low",
+      "applicabilityDeliverables": [
+        {
+          "name": "engineering-standard",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        }
+      ],
+      "requiredEvidence": {
+        "title": "Standard Review Record — Evidentiary Basis",
+        "category": "Analytical Evidence",
+        "description": "Any revision to the standard cites accumulated Telemetry evidence as its basis, not unstructured opinion alone.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "version": "1.0.0"
+}

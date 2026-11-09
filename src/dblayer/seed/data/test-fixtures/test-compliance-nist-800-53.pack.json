@@ -13,12 +13,12 @@
     "services": [],
     "authorityRules": [
       {
-        "code": "authority-nist-compliance-approval",
+        "code": "test-authority-nist-compliance-approval",
         "governedTransition": "seu.commission",
         "authorisedRole": "general"
       },
       {
-        "code": "authority-nist-deliverable-transition",
+        "code": "test-authority-nist-deliverable-transition",
         "governedTransition": "deliverable.transition",
         "authorisedRole": "general"
       }
