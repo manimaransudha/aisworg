@@ -7,7 +7,7 @@
 //   3. sweepUnavailableCapabilities re-requests a Capability whose latest event is CapabilityUnavailable once the
 //      delay has passed, and leaves it alone while the re-request is in flight.
 import "dotenv/config";
-import { test } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -19,12 +19,21 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import type { EventRow } from "../src/dblayer/seuTypes.js";
 import { getSystemActor, CAPABILITY_RETRY_DELAY_SECONDS } from "../src/dblayer/constants.js";
 import {
-  ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant, ensureEventSubscriptionsLoaded, getEmptyPoolTenantId, deactivateParticipants, settleCapabilityRequests,
+  ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant, ensureEventSubscriptionsLoaded, getEmptyPoolTenantId, emptyParticipantPool, deactivateParticipants, settleCapabilityRequests,
   waitForCapabilityFulfilled, ensureActorParticipant, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 
 // "change-management" is a seeded Capability that no seeded Participant holds, so its pool stays empty unless a test
 // adds a Participant for it.
 const UNHELD_CAPABILITY_CODE = "change-management";
+
+// Other files leave fixture Participants in the tenant, and commissioning would fulfil a Capability with one of them. The pool is emptied for this file and restored when it finishes.
+let restorePool: (() => Promise<void>) | undefined;
+before(async () => {
+  restorePool = await emptyParticipantPool(await getEmptyPoolTenantId());
+});
+after(async () => {
+  await restorePool?.();
+});
 
 async function commissionSeuWithCapability(statementPrefix: string, options: { capabilityCode?: string; withEligibleParticipant?: boolean; tenantId: string }): Promise<{ seuId: string; capabilityId: string }> {
   const capabilityCode = options.capabilityCode ?? "requirements-analysis";

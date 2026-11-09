@@ -6,7 +6,7 @@
 // affecting any real Deliverable flow on the shared dev database. Run against
 // the real dev database.
 import "dotenv/config";
-import { test, after } from "node:test";
+import { test, after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -22,9 +22,18 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { reviewGatesDB } from "../src/dblayer/reviewGatesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot, getEmptyPoolTenantId } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot, getEmptyPoolTenantId, emptyParticipantPool } from "./testFixtures.js";
 import { TESTER_ALL_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
+
+// Other files leave fixture Participants in the tenant, and commissioning would fulfil a Capability with one of them. The pool is emptied for this file and restored when it finishes.
+let restorePool: (() => Promise<void>) | undefined;
+before(async () => {
+  restorePool = await emptyParticipantPool(await getEmptyPoolTenantId());
+});
+after(async () => {
+  await restorePool?.();
+});
 
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();

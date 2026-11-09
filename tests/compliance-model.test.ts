@@ -6,7 +6,7 @@
 // here are attributed to development (which every commissioned SEU
 // composes) so they apply. Run against the real dev database.
 import "dotenv/config";
-import { test, after } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -18,9 +18,18 @@ import { deliverableByCode } from "./testFixtures.js";
 import { evaluateCompliance, grantWaiver, generateComplianceReport, complianceHistory } from "../src/routes/seu/core/compliance.js";
 import { complianceDB } from "../src/dblayer/complianceDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, getEmptyPoolTenantId, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, getEmptyPoolTenantId, emptyParticipantPool, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 // Commissioned where no Participant can fulfil a Capability, so no background kickoff moves a Deliverable while the test reads its state.
+// Other files leave fixture Participants in the tenant, and commissioning would fulfil a Capability with one of them. The pool is emptied for this file and restored when it finishes.
+let restorePool: (() => Promise<void>) | undefined;
+before(async () => {
+  restorePool = await emptyParticipantPool(await getEmptyPoolTenantId());
+});
+after(async () => {
+  await restorePool?.();
+});
+
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: await getEmptyPoolTenantId() });

@@ -322,7 +322,8 @@ test("Ch.12 §9 / CR-109 §6.2: with no eligible Participant the producing Capab
   }
 });
 
-test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obligation both show up on a real Approved-with-Conditions outcome", async () => {
+test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obligation both show up on a real Approved-with-Conditions outcome", async (t) => {
+  t.after(await emptyParticipantPool(await getEmptyPoolTenantId()));
   const run = randomUUID().slice(0, 8);
   let standardPolicyId = "";
   let obligationId = "";

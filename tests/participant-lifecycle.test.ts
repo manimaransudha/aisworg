@@ -14,7 +14,7 @@
 //      "now Assigned" (Available->Assigned and the repeat-cycle Idle
 //      ->Assigned).
 import "dotenv/config";
-import { test, after } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -28,7 +28,7 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, waitUntilAsync, getEmptyPoolTenantId, deactivateParticipants } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, waitUntilAsync, getEmptyPoolTenantId, emptyParticipantPool, deactivateParticipants } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
 
@@ -43,6 +43,15 @@ async function participantEventTypes(participantId: string): Promise<string[]> {
 
 // Commissioning fulfils a Capability by itself when an eligible Participant already exists, so these tests commission
 // in the empty-pool tenant and fulfil with their own fixture Participant. Each is released when the file finishes.
+// Other files leave fixture Participants in the tenant, and commissioning would fulfil a Capability with one of them. The pool is emptied for this file and restored when it finishes.
+let restorePool: (() => Promise<void>) | undefined;
+before(async () => {
+  restorePool = await emptyParticipantPool(await getEmptyPoolTenantId());
+});
+after(async () => {
+  await restorePool?.();
+});
+
 const fixtureParticipantMasterIds: string[] = [];
 after(async () => {
   await deactivateParticipants(fixtureParticipantMasterIds);
