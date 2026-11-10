@@ -1846,6 +1846,10 @@
               "value": {
                 "type": "string"
               },
+              "notRequired": {
+                "type": "boolean",
+                "x-help": "A Service Level the Profile marks as not required. The EBM composition omits it."
+              },
               "sourceCode": {
                 "type": "string"
               },

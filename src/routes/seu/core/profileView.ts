@@ -3,7 +3,9 @@ import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
+import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
+import { extractExposedParameterOverrides, resolveEffectiveParameters } from "./profiles.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
 import { generateFields, groupFieldsForDisplay, toSchemaRows, type FieldGroups, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { getAuthoringDraft } from "./sdkAuthoring.js";
@@ -21,6 +23,18 @@ export interface ProfileViewData {
   refs: Record<string, Record<string, PackViewRef>>;
   // The name of the Service or Policy behind each parameter override, keyed "<sourceType>::<sourceCode>".
   parameterSources: Record<string, string>;
+  // The name of the Capability of each Service behind a parameter override, keyed "<sourceType>::<sourceCode>".
+  parameterCapabilities: Record<string, string>;
+  // Every parameter the base Template exposes, with the Profile's effect on it: omitted, overridden, or the Template's own value.
+  parameters: ProfileViewParameter[];
+}
+
+export interface ProfileViewParameter {
+  sourceType: string;
+  sourceCode: string;
+  parameterName: string;
+  value: string;
+  state: "omitted" | "overridden" | "template";
 }
 
 // One Profile for the Registry view page. Returns null when the row does not exist or is not visible to the viewer's tenant.
@@ -70,11 +84,26 @@ export async function getProfileView(id: string, viewer: { isRoot: boolean; tena
   //   if (deliverable) refs["deliverable-name"][code] = { name: labels["deliverable-name"]?.[code] ?? code, note: deliverable.description, id: deliverable.id };
   // }
   const parameterSources: Record<string, string> = {};
-  for (const p of Array.isArray(content.exposedParameterOverrides) ? (content.exposedParameterOverrides as Array<Record<string, unknown>>) : []) {
+  const parameterCapabilities: Record<string, string> = {};
+  const parameters: ProfileViewParameter[] = (await resolveEffectiveParameters(profile)).map((e) => ({
+    sourceType: e.sourceType, sourceCode: e.sourceCode, parameterName: e.parameterName, value: e.notRequired ? "" : e.effectiveValue, state: e.notRequired ? "omitted" : e.overriddenByProfile ? "overridden" : "template",
+  }));
+  // An override whose parameter the Template does not carry a value for is still the Profile's own statement, so it is listed too.
+  const listed = new Set(parameters.map((q) => `${q.sourceType}::${q.sourceCode}::${q.parameterName}`));
+  for (const o of extractExposedParameterOverrides(profile.draft_content)) {
+    if (listed.has(`${o.sourceType}::${o.sourceCode}::${o.parameterName}`)) continue;
+    parameters.push({ sourceType: o.sourceType, sourceCode: o.sourceCode, parameterName: o.parameterName, value: o.notRequired ? "" : o.value, state: o.notRequired ? "omitted" : "overridden" });
+  }
+  for (const p of parameters) {
     const type = String(p.sourceType ?? "");
     const code = String(p.sourceCode ?? "");
     const { data: source } = type === "service" ? await serviceDefinitionsDB.findActiveByCodeVisibleTo(code, tenantId) : type === "policy" ? await policyDefinitionsDB.findActiveByCodeVisibleTo(code, tenantId) : { data: null };
     if (source) parameterSources[`${type}::${code}`] = source.name;
+    if (type === "service" && source && "capability_code" in source) {
+      const capabilityCode = String(source.capability_code ?? "");
+      const { data: capability } = capabilityCode ? await capabilityDefinitionsDB.findActiveByCodeVisibleTo(capabilityCode, tenantId) : { data: null };
+      if (capabilityCode) parameterCapabilities[`${type}::${code}`] = capability?.default_label ?? capabilityCode;
+    }
   }
-  return { profile, groups: groupFieldsForDisplay(schema, fields), content, labels, refs, parameterSources };
+  return { profile, groups: groupFieldsForDisplay(schema, fields), content, labels, refs, parameterSources, parameterCapabilities, parameters };
 }

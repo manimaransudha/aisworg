@@ -859,7 +859,8 @@
     "path": "/aisworg/seu/profiles/:id/copy",
     "badges": [],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
     "match_mode": "any"
   },

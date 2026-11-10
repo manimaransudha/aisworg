@@ -255,6 +255,9 @@ pnpm tsx src/dblayer/seed/seedEventSubscriptions.ts
 pnpm tsx src/dblayer/seed/demo/demoSeed.ts
 pnpm exec tsx src/dblayer/recovery/run.ts
 
+
+pnpm exec tsx src/dblayer/seed/cleanTestData.ts
+
 pnpm exec tsx -e 'import("./src/dblayer/seed/seedEbookLibraryObjectives.ts").then(async (m) => { await m.seedEbookLibraryObjectives(); process.exit(0); })'
 
 
@@ -275,42 +278,26 @@ Bw' L Dw2 F' Rw Bw U Fw2 Rw2 Dw2 B2 Rw Fw D Uw2 L' B F L B'
 
 -----------
 
-Snapshot: 78 tables, 11,241 rows. It is saved at /private/tmp/claude-501/-Volumes-Chennai-gitrepo-aisworg/f51a1ec6-5036-4dee-867d-2eae275b71be/scratchpad/snapshot_before.json.
+- Go back to competencies and show how to build a capability, say pharma labelling, declare the service and the deliverables required for the same. (Do we need this, it can be distracting; may be for training)
 
-All tables that hold rows after clean-slate:
+- Profiles . Choose Mobile application from the templates tab. You will see th demo tenant already has a few profiles defined. 
 
-Tenants and identity: tenants 4, users 11, participants_master 28.
-Ontology and reference data:
-ontology_concepts 2,424
-route_authority 308
-transition_definitions 178
-authority_noun_verbs 155, authority_nouns 25, authority_verbs 59
-event_registry 43, event_subscriptions 21
-schema_definitions 9
-pack_category 6
-Events and versions: events 3,731, version_events 1,628.
-Definitions:
-packs 130
-templates 18
-profiles 18
-profile_packs 52
-template_packs 217
-template_capabilities 629
-dependency_definitions 485
-deliverable_definitions 188
-capability_definitions 93
-capabilities 158
-service_definitions 93
-services 29
-policies 30
-policy_definitions 51
-checklists 128
-review_gates 103
-authority_rules 169
-metric_definitions 9
-quality_gates 2
-objectives 8
-objective_root_sequences 1
-The other tables are empty.
+You can use any of these to commission to SEU. 
 
-pnpm exec tsx src/dblayer/seed/cleanTestData.ts
+- I want to create my own profile one each for development and production. 
+Copy an existing one and edit or create new
+
+Let us say, we  copy ArchVault Catalogue Build to create a new Profile ArchVault Build Development. 
+
+The deliverables do not have dependencies. Let us build it. Deliverable Catalog 
+Dependency Graph 
+To: Deployment Manifest 
+From: Requirements Analysis Model
+
+To: Source Code
+From: 
+Remove the others. 
+Save draft and you should see the dependency graph updated
+draft editing is in sdk authoring
+
+Choose Configuration parameters

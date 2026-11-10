@@ -52,7 +52,7 @@
         var shown = g.fields.filter(function (f) { return inHeader.indexOf(f.name) === -1; });
         if (shown.length) tabs.push({ id: g.key, label: g.label, fields: shown });
       });
-      if ((groups.exposableParameters || []).length) tabs.push({ id: 'exposableParameters', label: 'Exposable Parameters', parameters: true });
+      if ((groups.exposableParameters || []).length) tabs.push({ id: 'exposableParameters', label: 'Exposable Service levels', parameters: true });
     %>
 
     <div class="mb-2">
@@ -84,13 +84,13 @@
           <div class="section-card">
             <div class="section-header"><span class="lp-toggle-title"><%= t.label %></span></div>
             <% if (t.parameters) { %>
-              <% var _params = Array.isArray(content.exposedParameters) ? content.exposedParameters : []; %>
+              <% var _params = (Array.isArray(content.exposedParameters) ? content.exposedParameters : []).filter(function (p) { return p.sourceType !== 'dependency'; }); %>
               <% if (_params.length === 0) { %>
                 <div class="p-3 small text-muted">This Template exposes no parameters.</div>
               <% } else { %>
                 <div class="table-responsive">
                   <table class="table align-middle mb-0">
-                    <thead><tr><th scope="col">Source</th><th scope="col">Parameter</th><th scope="col">Value</th><th scope="col">Overridable</th></tr></thead>
+                    <thead><tr><th scope="col">Service</th><th scope="col">Capability</th><th scope="col">Parameter</th><th scope="col">Value</th><th scope="col">Overridable</th></tr></thead>
                     <tbody>
                       <% _params.forEach(function (p) { %>
                         <% var _sourceName = parameterSources[p.sourceType + '::' + p.sourceCode]; %>
@@ -98,8 +98,8 @@
                           <td>
                             <div><%= _sourceName || p.sourceCode %></div>
                             <% if (_sourceName) { %><div class="small text-muted"><%= p.sourceCode %></div><% } %>
-                            <div class="small text-muted"><%= p.sourceType %></div>
                           </td>
+                          <td><%= parameterCapabilities[p.sourceType + '::' + p.sourceCode] || '—' %></td>
                           <td><%= p.parameterName %></td>
                           <td><%= isEmpty(p.value) ? '—' : p.value %></td>
                           <td><%= p.overridable === false || p.overridable === 'false' ? 'No' : 'Yes' %></td>

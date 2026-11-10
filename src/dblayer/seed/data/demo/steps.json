@@ -326,7 +326,7 @@
     "area": "Declare",
     "title": "A Template is the engineering blueprint for delivering software",
     "description": "Find the Template in the Registry - note",
-    "annotation": "A Template groups the typical processes that a type of work needs, such as the domain, compliance and technology Packs. A Profile is built on a Template. Templates describe the engineering structure required  and the default engineering assets that should be available when the SEU is commissioned.\n\nArchVault Digital Shelf is meant for mobiles. Check the Template Registry for a mobile platform development.",
+    "annotation": "A Template groups the typical processes that a type of work needs, such as the domain, compliance and technology Packs. A Profile is built on a Template. Templates describe the comprehensive engineering structure and engineering capital that should be available when the SEU is commissioned.\n\nArchVault Digital Shelf is being built for mobiles. Check the Template Registry for a mobile platform development.",
     "target": {},
     "payload": {}
   },
@@ -336,7 +336,7 @@
     "area": "Declare",
     "title": "Find the Template in the Registry",
     "description": "Open Registry, then Templates and find the Template.",
-    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Template Registry</span>. Each card shows the Template and the Packs it composes.\n\n Search for mobile and view the ",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Template Registry</span>. Each card shows the Template and the Packs it composes.\n\n Search for mobile to see a shorter list.\n\nYou will see the platform defines a blueprint. Demo hs tailored it for its engineering activities.",
     "target": {},
     "payload": {
       "routes": [
@@ -531,7 +531,7 @@
     "area": "Declare",
     "title": "A Profile fits a Template to a team",
     "description": "Find the Profile in the Registry - note",
-    "annotation": "A Profile selects the Packs a team uses and sets the parameters of its Template. A Software Engineering Unit is commissioned with one Profile.",
+    "annotation": "Templates are very broad. Profiles use the Templates and tailor it for use.",
     "target": {},
     "payload": {}
   },

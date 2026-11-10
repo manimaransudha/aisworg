@@ -68,6 +68,7 @@ router.get("/templates/:id", attachVM("seu/templates/view"), async (req: Request
     req.vm.req.labels = view.labels;
     req.vm.req.refs = view.refs;
     req.vm.req.parameterSources = view.parameterSources;
+    req.vm.req.parameterCapabilities = view.parameterCapabilities;
     req.vm.opt.graph = view.graph;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/templates/view", req.vm);

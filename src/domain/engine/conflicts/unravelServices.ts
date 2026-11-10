@@ -30,12 +30,15 @@ export interface ServicesUnraveled {
   levelSettings: Record<string, Record<string, ServiceLevelSetting>>;
   // The name of each catalogue Deliverable, from its Active Deliverable Definition.
   deliverableNames: Record<string, string>;
+  // For each Service, the level codes a Profile marks as not required. They stay in the conflict detection and are omitted from the settled result.
+  notRequiredLevels?: Record<string, string[]>;
 }
 
 // Gathers the facts of the Services table. The Service Definition's default levels come with each candidate, the Template's and Profile's values come separately.
 export async function unravelServices(input: { templates: TemplateRow[]; profiles: ProfileRow[] }, viewerTenantId: string): Promise<ServicesUnraveled> {
   const deliverableCodes = new Set<string>();
   const levelSettings: Record<string, Record<string, ServiceLevelSetting>> = {};
+  const notRequiredLevels: Record<string, string[]> = {};
 
   for (const profile of input.profiles) {
     const template = input.templates.find((t) => t.id === profile.base_template_id);
@@ -45,6 +48,7 @@ export async function unravelServices(input: { templates: TemplateRow[]; profile
 
     for (const parameter of await resolveEffectiveParameters(profile)) {
       if (parameter.sourceType !== "service") continue;
+      if (parameter.notRequired) (notRequiredLevels[parameter.sourceCode] ??= []).push(parameter.parameterName);
       const value = Number(parameter.effectiveValue);
       if (!Number.isFinite(value)) continue;
       const setBy = parameter.overriddenByProfile ? "profile" : "template";
@@ -65,5 +69,5 @@ export async function unravelServices(input: { templates: TemplateRow[]; profile
   const { data: definitions } = deliverableCodes.size > 0 ? await deliverableDefinitionsDB.findActiveByCodesVisibleTo([...deliverableCodes], viewerTenantId) : { data: [] };
   const deliverableNames = Object.fromEntries((definitions ?? []).map((d) => [d.code, d.name]));
 
-  return { deliverableCodes: [...deliverableCodes].sort(), candidates, levelSettings, deliverableNames };
+  return { deliverableCodes: [...deliverableCodes].sort(), candidates, levelSettings, deliverableNames, notRequiredLevels };
 }

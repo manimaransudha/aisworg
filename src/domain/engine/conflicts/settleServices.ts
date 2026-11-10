@@ -38,6 +38,7 @@ function finalLevels(facts: ServicesUnraveled, serviceCode: string, resolutions:
     if (pick === CONFLICT_NO_VALUE) delete levels[levelCode];
     else if (typeof pick === "number") levels[levelCode] = pick;
   }
+  for (const levelCode of facts.notRequiredLevels?.[serviceCode] ?? []) delete levels[levelCode];
   return levels;
 }
 

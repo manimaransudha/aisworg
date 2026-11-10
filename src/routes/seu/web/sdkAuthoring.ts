@@ -474,6 +474,7 @@ async function loadExposableParameterRows(content: Record<string, unknown>, view
 
 interface ProfileParameterOverrideRow extends ExposableParameterCandidate {
   value: string;
+  notRequired: boolean;
 }
 
 async function loadProfileParameterOverrideRows(content: Record<string, unknown>, viewerTenantId: string | null): Promise<ProfileParameterOverrideRow[]> {
@@ -484,7 +485,7 @@ async function loadProfileParameterOverrideRows(content: Record<string, unknown>
   const existingByKey = new Map(existing.map((e) => [`${e.sourceType}::${e.sourceCode}::${e.parameterName}`, e]));
   return candidates.map((c) => {
     const saved = existingByKey.get(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`);
-    return { ...c, value: saved?.value ?? "" };
+    return { ...c, value: saved?.value ?? "", notRequired: saved?.notRequired === true };
   });
 }
 
@@ -781,6 +782,7 @@ function reconstructProfileParameterOverrides(body: Record<string, unknown>): vo
   const rows = body.exposedParamOverrideRows;
   if (!rows || typeof rows !== "object") return;
   const rowList = Array.isArray(rows) ? rows : Object.values(rows as Record<string, unknown>);
+  console.log("[triage:notRequired] raw posted rows:", rowList.length, JSON.stringify(rowList.map((r) => { const o = r as Record<string, unknown>; return { sourceCode: o?.sourceCode, parameterName: o?.parameterName, value: o?.value, notRequired: o?.notRequired }; })));
   const overrides: ExposedParameterOverride[] = rowList
     .filter((r): r is Record<string, unknown> => typeof r === "object" && r !== null)
     .map((r) => ({
@@ -788,8 +790,11 @@ function reconstructProfileParameterOverrides(body: Record<string, unknown>): vo
       sourceCode: String(r.sourceCode ?? ""),
       parameterName: String(r.parameterName ?? ""),
       value: typeof r.value === "string" ? r.value.trim() : "",
+      notRequired: r.sourceType === "service" && (r.notRequired === "true" || r.notRequired === true),
     }))
-    .filter((r) => r.sourceCode && r.parameterName && r.value);
+    .map((r) => (r.notRequired ? { ...r, value: "" } : { sourceType: r.sourceType, sourceCode: r.sourceCode, parameterName: r.parameterName, value: r.value }))
+    .filter((r) => r.sourceCode && r.parameterName && (r.notRequired || r.value));
+  console.log("[triage:notRequired] saved overrides:", overrides.length, "notRequired:", overrides.filter((o) => o.notRequired).length, JSON.stringify(overrides));
   body.exposedParameterOverrides = JSON.stringify(overrides);
 }
 

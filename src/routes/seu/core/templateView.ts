@@ -104,6 +104,8 @@ export interface TemplateViewData {
   refs: Record<string, Record<string, PackViewRef>>;
   // The name of the Service or Policy behind each exposed parameter, keyed "<sourceType>::<sourceCode>".
   parameterSources: Record<string, string>;
+  // The name of the Capability of each Service behind an exposed parameter, keyed "<sourceType>::<sourceCode>".
+  parameterCapabilities: Record<string, string>;
   // The dependency graph drawn in columns, or null when the Template has none.
   graph: DependencyGraphLayout | null;
 }
@@ -142,17 +144,19 @@ export async function getTemplateView(id: string, viewer: { isRoot: boolean; ten
     if (deliverable) refs["deliverable-name"][code] = { name: labels["deliverable-name"]?.[code] ?? code, note: deliverable.description, id: deliverable.id };
   }
   const parameterSources: Record<string, string> = {};
+  const parameterCapabilities: Record<string, string> = {};
+  const capabilityLabels = Object.fromEntries((await listConceptsForType("capability-name", viewer)).map((c) => [c.code, c.default_label]));
   for (const p of Array.isArray(content.exposedParameters) ? (content.exposedParameters as Array<Record<string, unknown>>) : []) {
     const type = String(p.sourceType ?? "");
     const code = String(p.sourceCode ?? "");
     const { data: source } = type === "service" ? await serviceDefinitionsDB.findActiveByCodeVisibleTo(code, tenantId) : type === "policy" ? await policyDefinitionsDB.findActiveByCodeVisibleTo(code, tenantId) : { data: null };
     if (source) parameterSources[`${type}::${code}`] = source.name;
+    if (type === "service" && source && "capability_code" in source && source.capability_code) parameterCapabilities[`${type}::${code}`] = capabilityLabels[source.capability_code] ?? source.capability_code;
   }
-  const capabilityLabels = Object.fromEntries((await listConceptsForType("capability-name", viewer)).map((c) => [c.code, c.default_label]));
   const graph = layoutDependencyGraph(Array.isArray(content.dependencyGraph) ? (content.dependencyGraph as Array<Record<string, unknown>>) : [], rowCodes(content.deliverableCatalogue, "code"), (kind, code) =>
     kind === "Capability"
       ? { label: capabilityLabels[code] ?? code, href: null }
       : { label: labels["deliverable-name"]?.[code] ?? code, href: refs["deliverable-name"][code]?.id ? `/aisworg/seu/deliverable-definitions/${refs["deliverable-name"][code].id}` : null }
   );
-  return { template, groups: groupFieldsForDisplay(schema, fields), content, labels, refs, parameterSources, graph };
+  return { template, groups: groupFieldsForDisplay(schema, fields), content, labels, refs, parameterSources, parameterCapabilities, graph };
 }

@@ -76,3 +76,18 @@ test("a saved conflict carries its kind, action, message and the options with th
   assert.equal(conflict.action, "pick-one");
   assert.deepEqual(conflict.options.map((o) => [o.sourceKind, o.value]), [["definition", 90], ["pack", 99]]);
 });
+
+test("a level the Profile marks as not required is left out of the result, and conflict detection is unchanged", () => {
+  const withMark = { ...facts({ "doc-1": [svcA] }), notRequiredLevels: { "svc-a": ["latency"] } };
+  const packs = packList("svc-a", [{ code: "uptime", target: 90 }, { code: "latency", target: 5 }]);
+  const marked = settleServicesFrom(withMark, packs);
+  const plain = settleServicesFrom(facts({ "doc-1": [svcA] }), packs);
+  assert.deepEqual(marked.result[0].levels, { uptime: 90 });
+  assert.deepEqual(plain.result[0].levels, { uptime: 90 }, "the open latency conflict already leaves latency out, so compare with a resolved pick");
+  assert.deepEqual(marked.conflicts, plain.conflicts);
+
+  const key = serviceLevelKey("svc-a", "latency");
+  assert.deepEqual(settleServicesFrom(facts({ "doc-1": [svcA] }), packs, { [key]: 5 }).result[0].levels, { uptime: 90, latency: 5 });
+  assert.deepEqual(settleServicesFrom(withMark, packs, { [key]: 5 }).result[0].levels, { uptime: 90 }, "the mark wins over the user's pick");
+  assert.deepEqual(settleServicesFrom(withMark, [], {}).result[0].levels, { uptime: 90 });
+});

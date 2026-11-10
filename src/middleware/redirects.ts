@@ -67,7 +67,7 @@ const registry: PageRedirects[] = [];
 
 function page(spec: PageSpec): PageRedirects {
   const success = spec.success ?? spec.error;
-  const deny = spec.deny ?? HOME;
+  const deny = spec.deny ?? spec.error;
   const go = (flash: typeof flashError, req: Request, res: Response, msg: string, pattern: string, path?: string): void => {
     flash(req, res, path ?? fill(pattern, prefixParams(spec.prefix, requestPath(req))), msg);
   };

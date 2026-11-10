@@ -69,6 +69,8 @@ export interface ExposedParameterOverride {
   sourceCode: string;
   parameterName: string;
   value: string;
+  // The Profile marks this level as not required: the EBM composition omits it. The value is then empty.
+  notRequired?: boolean;
 }
 
 export interface KnowledgeLocation {
@@ -91,6 +93,7 @@ export interface EffectiveParameter {
   parameterName: string;
   effectiveValue: string;
   overriddenByProfile: boolean;
+  notRequired: boolean;
 }
 
 export async function resolveEffectiveParameters(profile: Pick<ProfileRow, "base_template_id" | "draft_content">): Promise<EffectiveParameter[]> {
@@ -98,7 +101,8 @@ export async function resolveEffectiveParameters(profile: Pick<ProfileRow, "base
   if (!template) return [];
   const exposed = extractExposedParameters(template.draft_content as Record<string, unknown> | null) ?? [];
   const overrides = extractExposedParameterOverrides(profile.draft_content);
-  const overrideByKey = new Map(overrides.map((o) => [`${o.sourceType}::${o.sourceCode}::${o.parameterName}`, o.value]));
+  const overrideByKey = new Map(overrides.filter((o) => !o.notRequired).map((o) => [`${o.sourceType}::${o.sourceCode}::${o.parameterName}`, o.value]));
+  const notRequiredKeys = new Set(overrides.filter((o) => o.notRequired).map((o) => `${o.sourceType}::${o.sourceCode}::${o.parameterName}`));
   return exposed
     .filter((e): e is typeof e & { value: string } => e.value !== undefined)
     .map((e) => {
@@ -110,6 +114,7 @@ export async function resolveEffectiveParameters(profile: Pick<ProfileRow, "base
         parameterName: e.parameterName,
         effectiveValue: overrideValue ?? e.value,
         overriddenByProfile: overrideValue !== undefined,
+        notRequired: e.overridable && notRequiredKeys.has(key),
       };
     });
 }

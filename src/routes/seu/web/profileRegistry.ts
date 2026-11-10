@@ -80,6 +80,8 @@ router.get("/profiles/:id", attachVM("seu/profiles/view"), async (req: Request, 
     req.vm.req.labels = view.labels;
     req.vm.req.refs = view.refs;
     req.vm.req.parameterSources = view.parameterSources;
+    req.vm.req.parameterCapabilities = view.parameterCapabilities;
+    req.vm.req.parameters = view.parameters;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/profiles/view", req.vm);
   } catch (err) {
