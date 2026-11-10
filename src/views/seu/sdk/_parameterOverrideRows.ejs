@@ -14,10 +14,16 @@
               <% if (groupRows.length) { %>
                 <div class="mb-3">
                   <div class="text-uppercase text-muted small fw-semibold mb-1"><%= g.label %></div>
+                  <% if (g.sourceType === 'service') { %>
+                    <div class="row g-2 text-muted small border-bottom pb-1"><div class="col-md-3">Deliverable</div><div class="col-md-5">Service Level</div><div class="col-md-4">Value</div></div>
+                  <% } %>
                   <% groupRows.forEach(function(entry) { %>
                     <% var row = entry.row, i = entry.idx; %>
-                    <div class="row g-2 align-items-center py-2 border-bottom">
-                      <div class="col-md-8">
+                    <div class="row g-2 align-items-center py-2 border-bottom po-row"<% if (row.sourceType === 'service') { %> data-deliverables="<%= (row.deliverables || []).join(' ') %>"<% } %>>
+                      <% if (row.sourceType === 'service') { %>
+                        <div class="col-md-3 small"><%= row.deliverableNames.length ? row.deliverableNames.join(', ') : '—' %></div>
+                      <% } %>
+                      <div class="col-md-<%= row.sourceType === 'service' ? 5 : 8 %>">
                         <div class="small fw-semibold"><%= row.parameterLabel %></div>
                         <% var cond = row.targetLevel === 'minimum' ? '≥ ' : row.targetLevel === 'maximum' ? '≤ ' : row.targetLevel === 'exact' ? '= ' : ''; %>
                         <div class="small text-muted"><%= row.sourceName %> · Template default: <%= cond %><%= row.defaultValue || '—' %><%= row.units ? ' ' + row.units : '' %></div>

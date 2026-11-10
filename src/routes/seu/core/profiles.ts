@@ -1,3 +1,4 @@
+import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { deriveCapabilityCodesFromPackCodes, deriveOverridableParameterCandidates, extractExposedParameters, findDeliverableDependencyCycle, getDependencyGraphContent, getPackSelectionsByCategory, PACK_SELECTION_SLOTS } from "./templates.js";
 import { materialiseDependencyGraph } from "../../../domain/engine/materialiseDependencyGraph.js";
@@ -397,6 +398,15 @@ export async function validateProfileDeliverables(seed: ProfileSeedInput): Promi
 
   const cycle = findDeliverableDependencyCycle(graph);
   if (cycle) errors.push(`dependencyGraph has a circular dependency: ${cycle.join(" → ")}`);
+
+  // A Service Level override belongs to a Service that makes a Deliverable of the catalogue. Dropping a Deliverable leaves the overrides of its Services behind.
+  for (const row of seed.exposedParameterOverrides ?? []) {
+    if (row.sourceType !== "service") continue;
+    const { data: service } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(row.sourceCode, tenantId);
+    if (service && !service.outputs.some((output) => codes.has(output))) {
+      errors.push(`exposedParameterOverrides "${row.parameterName}" of Service "${row.sourceCode}" belongs to no Deliverable of the catalogue — clear it on the Parameter Overrides tab`);
+    }
+  }
   return errors;
 }
 

@@ -38,7 +38,7 @@ import { transitionDefinitionsDB, loadTransitionDefinitionsCache } from "../../.
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { packCodeVersionSummaries } from "../core/packs.js";
-import { PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveExposableParameterCandidates, deriveOverridableParameterCandidates, getPackSelectionsByCategory, type ExposableParameterCandidate, type ExposedParameter, type PackSelectionsByCategory } from "../core/templates.js";
+import { PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveExposableParameterCandidates, candidatesForCatalogue, deriveOverridableParameterCandidates, getPackSelectionsByCategory, type ExposableParameterCandidate, type ExposedParameter, type PackSelectionsByCategory } from "../core/templates.js";
 import { baseTemplateDeliverables, CONFIGURATION_PARAMETER_FIELDS, deriveProfileGraphCapabilityCodes, type ExposedParameterOverride } from "../core/profiles.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
@@ -475,18 +475,27 @@ async function loadExposableParameterRows(content: Record<string, unknown>, view
 interface ProfileParameterOverrideRow extends ExposableParameterCandidate {
   value: string;
   notRequired: boolean;
+  // The names of the catalogue Deliverables the row's Service makes; empty for a row that is not a Service Level.
+  deliverableNames: string[];
 }
 
 async function loadProfileParameterOverrideRows(content: Record<string, unknown>, viewerTenantId: string | null): Promise<ProfileParameterOverrideRow[]> {
   const baseTemplateCode = typeof content.baseTemplateCode === "string" ? content.baseTemplateCode.trim() : "";
   if (!baseTemplateCode) return [];
-  const candidates = await deriveOverridableParameterCandidates(baseTemplateCode, viewerTenantId ?? (await getPlatformTenantId()));
+  const tenantId = viewerTenantId ?? (await getPlatformTenantId());
+  const catalogue = Array.isArray(content.deliverableCatalogue) ? (content.deliverableCatalogue as Array<{ code?: unknown }>) : [];
+  const catalogueCodes = catalogue.map((entry) => (typeof entry?.code === "string" ? entry.code.trim() : "")).filter(Boolean);
+  const candidates = candidatesForCatalogue(await deriveOverridableParameterCandidates(baseTemplateCode, tenantId), catalogueCodes);
   const existing = Array.isArray(content.exposedParameterOverrides) ? (content.exposedParameterOverrides as ExposedParameterOverride[]) : [];
   const existingByKey = new Map(existing.map((e) => [`${e.sourceType}::${e.sourceCode}::${e.parameterName}`, e]));
-  return candidates.map((c) => {
+  const deliverableLabels = await resolveLabels(tenantId, "deliverable-name");
+  const rows = candidates.map((c) => {
     const saved = existingByKey.get(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`);
-    return { ...c, value: saved?.value ?? "", notRequired: saved?.notRequired === true };
+    const shown = (c.deliverables ?? []).filter((d) => catalogueCodes.length === 0 || catalogueCodes.includes(d)).map((d) => deliverableLabels[d] ?? d).sort((a, b) => a.localeCompare(b));
+    return { ...c, value: saved?.value ?? "", notRequired: saved?.notRequired === true, deliverableNames: shown };
   });
+  // Ordered by Deliverable name; the sort is stable, so a Service's levels keep their order.
+  return rows.sort((a, b) => (a.deliverableNames[0] ?? "").localeCompare(b.deliverableNames[0] ?? ""));
 }
 
 async function loadOntologyOptions(schema: JsonSchemaDocument, viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, Array<{ code: string; label: string; description: string | null }>>> {
@@ -778,7 +787,7 @@ function reconstructExposedParameters(body: Record<string, unknown>): void {
   body.exposedParameters = JSON.stringify(exposedParameters);
 }
 
-function reconstructProfileParameterOverrides(body: Record<string, unknown>): void {
+export function reconstructProfileParameterOverrides(body: Record<string, unknown>): void {
   const rows = body.exposedParamOverrideRows;
   if (!rows || typeof rows !== "object") return;
   const rowList = Array.isArray(rows) ? rows : Object.values(rows as Record<string, unknown>);

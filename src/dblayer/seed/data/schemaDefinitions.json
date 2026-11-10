@@ -1885,7 +1885,7 @@
               }
             }
           },
-          "x-help": "The Deliverables this Profile's SEU produces. A new Profile starts with its base Template's catalogue; remove the entries this Profile does not need.",
+          "x-help": "The Deliverables this Profile's SEU produces. A new Profile starts with its base Template's catalogue; remove the entries this Profile does not need. Each time a Deliverable is dropped, check the Parameter Overrides tab: a Service Level override of a Service that makes none of the remaining Deliverables is rejected when the Profile is saved.",
           "x-group": "deliverables",
           "x-widget": "referential-list"
         },

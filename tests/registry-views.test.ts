@@ -317,3 +317,9 @@ test("buildDependencyGraphLayout clips a long label and falls back to the code w
   assert.equal(layout.edges.length, 0);
   assert.equal(layout.width, 220);
 });
+
+test("the Template view names the Capability of each Service behind an exposed parameter", async () => {
+  const view = await getTemplateView(stage1.template.id, { isRoot: false, tenantId });
+  assert.ok(view);
+  assert.ok(view.parameterCapabilities[`service::${stage1.service.code}`], "the Service's Capability is named");
+});

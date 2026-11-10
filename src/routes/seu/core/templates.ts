@@ -10,6 +10,7 @@ import { materialiseDependencyGraph, DEFAULT_DELIVERABLE_REQUIRED_STATE } from "
 import { dependencyDefinitionsDB } from "../../../dblayer/dependencyDefinitionsDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
+import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
@@ -91,6 +92,8 @@ export interface ExposableParameterCandidate {
   numeric?: boolean;
   targetLevel?: "minimum" | "maximum" | "exact";
   units?: string;
+  // A Service row: the codes of the Deliverables its Service Definition makes (its outputs).
+  deliverables?: string[];
 }
 
 export function extractExposedParameters(draftContent: Record<string, unknown> | null): ExposedParameter[] | undefined {
@@ -136,8 +139,10 @@ export async function deriveExposableParameterCandidates(
     const { data: capabilityDefinition } = await capabilityDefinitionsDB.findActiveByCodeVisibleTo(capability.code, viewerTenantId);
     const { data: services } = capabilityDefinition ? await servicesDB.findByCapabilityId(capabilityDefinition.id) : { data: [] };
     for (const service of services ?? []) {
+      const { data: serviceDefinition } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(service.code, viewerTenantId);
+      const deliverables = serviceDefinition?.outputs ?? [];
       for (const metric of service.service_level ?? []) {
-        add({ sourceType: "service", sourceCode: service.code, sourceName: service.name, parameterName: metric.code, parameterLabel: metric.label, valueBearing: true, defaultValue: String(metric.target), numeric: true, targetLevel: metric.target_level, units: metric.units });
+        add({ sourceType: "service", sourceCode: service.code, sourceName: service.name, parameterName: metric.code, parameterLabel: metric.label, valueBearing: true, defaultValue: String(metric.target), numeric: true, targetLevel: metric.target_level, units: metric.units, deliverables });
       }
     }
   }
@@ -198,6 +203,13 @@ export async function deriveOverridableParameterCandidates(baseTemplateCode: str
   const candidates = await deriveExposableParameterCandidates(packCodes, viewerTenantId, dependencyGraph);
   // A Profile changes dependencies by editing its own dependency graph, not by overriding one edge's required state.
   return candidates.filter((c) => c.sourceType !== "dependency" && overridableKeys.has(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`));
+}
+
+// A Profile that carries its own catalogue overrides only the Service Levels of Services that make one of its Deliverables.
+export function candidatesForCatalogue(candidates: ExposableParameterCandidate[], catalogueCodes: string[]): ExposableParameterCandidate[] {
+  if (catalogueCodes.length === 0) return candidates;
+  const wanted = new Set(catalogueCodes);
+  return candidates.filter((c) => c.sourceType !== "service" || (c.deliverables ?? []).some((d) => wanted.has(d)));
 }
 
 export type TemplateValidationResult = { ok: true } | { ok: false; errors: string[] };
