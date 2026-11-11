@@ -251,6 +251,12 @@ test("the Profile view resolves its Template and Packs, names the Service behind
   assert.ok(view);
   assert.equal(view.profile.id, stage1.profile.id);
   assert.equal(view.refs["template-code"][stage1.template.code]?.id, stage1.template.id);
+  assert.equal(view.refs["deliverable-name"][FIXTURE_CODES.input.code]?.id, stage1.inputDeliverable.id, "a catalogue Deliverable with a Definition is resolved");
+  assert.equal(view.refs["deliverable-name"][FIXTURE_CODES.output.code]?.id, stage1.outputDeliverable.id);
+  assert.ok(view.graph, "the dependency graph is drawn");
+  const nodeCodes = view.graph.nodes.map((n) => n.code);
+  for (const code of [FIXTURE_CODES.input.code, FIXTURE_CODES.output.code, FIXTURE_CODES.review.code]) assert.ok(nodeCodes.includes(code), `catalogue Deliverable ${code} is a node`);
+  assert.ok(view.graph.nodes.filter((n) => n.href !== null).map((n) => n.code).includes(FIXTURE_CODES.input.code), "a Deliverable with a Definition links to it");
 
   const selected = [stage1.pack, stage1.basePack, stage1.engineeringPack, stage1.compliancePack, stage1.domainPack, stage1.organisationPack, stage1.integrationPack];
   for (const pack of selected) assert.equal(view.refs["pack-code"][pack.code]?.id, pack.id, `Pack ${pack.code} is resolved`);

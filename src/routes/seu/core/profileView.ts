@@ -7,6 +7,7 @@ import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinition
 import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { baseTemplateDeliverables, extractExposedParameterOverrides, resolveEffectiveParameters } from "./profiles.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
 import { generateFields, groupFieldsForDisplay, toSchemaRows, type FieldGroups, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { getAuthoringDraft } from "./sdkAuthoring.js";
@@ -79,7 +80,10 @@ export async function getProfileView(id: string, viewer: { isRoot: boolean; tena
     const code = content.baseTemplateCode;
     const { data: own } = await templatesDB.findActiveByCode(code, tenantId);
     const found = own ?? (await templatesDB.findActiveByCode(code, platformTenantId)).data;
-    if (found) refs["template-code"][code] = { name: found.name, note: null, id: found.id };
+    if (found) {
+      const { data: tenant } = await tenantsDB.findById(found.tenant_id);
+      refs["template-code"][code] = { name: found.name, note: tenant?.name ?? null, id: found.id };
+    }
   }
   // Commented out: no Profile property has list rows with a capabilityCode or a deliverableCode key (the graph uses fromCapabilityCode, the knowledge
   // locations deliverableCodes, the catalogue code), so these two lookups never find a code. refs["capability-name"] and refs["deliverable-name"] stay empty.
@@ -113,10 +117,15 @@ export async function getProfileView(id: string, viewer: { isRoot: boolean; tena
     if (listed.has(`${o.sourceType}::${o.sourceCode}::${o.parameterName}`)) continue;
     parameters.push({ sourceType: o.sourceType, sourceCode: o.sourceCode, parameterName: o.parameterName, value: o.notRequired ? "" : o.value, state: o.notRequired ? "omitted" : "overridden" });
   }
+  // As the authoring form does, a Service Level is listed only when its Service makes a Deliverable of the Profile's catalogue.
+  const catalogueCodes = new Set(rowCodes(content.deliverableCatalogue, "code"));
+  const shown: ProfileViewParameter[] = [];
   for (const p of parameters) {
     const type = String(p.sourceType ?? "");
     const code = String(p.sourceCode ?? "");
     const { data: source } = type === "service" ? await serviceDefinitionsDB.findActiveByCodeVisibleTo(code, tenantId) : type === "policy" ? await policyDefinitionsDB.findActiveByCodeVisibleTo(code, tenantId) : { data: null };
+    if (type === "service" && catalogueCodes.size > 0 && !(source && "outputs" in source && (source.outputs ?? []).some((d: string) => catalogueCodes.has(d)))) continue;
+    shown.push(p);
     if (source) parameterSources[`${type}::${code}`] = source.name;
     if (type === "service" && source && "capability_code" in source) {
       const capabilityCode = String(source.capability_code ?? "");
@@ -124,5 +133,5 @@ export async function getProfileView(id: string, viewer: { isRoot: boolean; tena
       if (capabilityCode) parameterCapabilities[`${type}::${code}`] = capability?.default_label ?? capabilityCode;
     }
   }
-  return { profile, groups: groupFieldsForDisplay(schema, fields), content, labels, refs, parameterSources, parameterCapabilities, parameters, graph };
+  return { profile, groups: groupFieldsForDisplay(schema, fields), content, labels, refs, parameterSources, parameterCapabilities, parameters: shown, graph };
 }

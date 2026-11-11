@@ -43,6 +43,8 @@
         var key = refKey(x.referentialSource);
         if ((x.kind === 'referential' || x.kind === 'referential-select') && key) {
           var ref = refs[key] ? refs[key][v] : null;
+          // A base Template is shown as its name, then its code | the tenant that owns it.
+          if (ref && key === 'template-code') return '<div>' + (ref.id ? '<a href="' + esc(linkBase[key] + ref.id) + '" class="text-decoration-none">' + esc(ref.name) + '</a>' : esc(ref.name)) + '</div><div class="small text-muted">' + esc(v) + (ref.note ? ' | ' + esc(ref.note) : '') + '</div>';
           if (ref) return refLine(ref.name, v, ref.note, ref.id && linkBase[key] ? linkBase[key] + ref.id : null);
           var deliverableLabels = labels['deliverable-name'] || {};
           if (String(x.referentialSource).indexOf('self:') === 0) return deliverableLabels[v] ? refLine(deliverableLabels[v], v, null, null) : esc(v);
@@ -65,6 +67,15 @@
       if ((groups.configurationParameters || []).length) tabs.push({ id: 'configurationParameters', label: 'Configuration Parameters', fields: groups.configurationParameters });
       if ((groups.parameterOverrides || []).length) tabs.push({ id: 'parameterOverrides', label: 'Parameter Overrides', parameters: true });
     %>
+
+    <% if (locals.canCopy) { %>
+      <div class="d-flex align-items-center justify-content-end gap-2 mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
+        <form method="POST" action="/aisworg/seu/profiles/<%= profile.id %>/copy">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-copy me-1"></i>Copy</button>
+        </form>
+      </div>
+    <% } %>
 
     <div class="mb-2">
       <a href="/aisworg/seu/profiles" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>All Profiles</a>

@@ -103,8 +103,72 @@
       var removeBtn = e.target.closest ? e.target.closest('.remove-row-btn') : null;
       if (!removeBtn) return;
       var row = removeBtn.closest('.referential-list-row');
-      if (row) { row.remove(); notifyDirty(); }
+      if (!row) return;
+      var isCatalogue = group.getAttribute('data-field-name') === 'deliverableCatalogue';
+      var affected = isCatalogue ? serviceLevelsAffectedByRemoval(row) : { blocking: [], omitted: [] };
+      var blockedDependencies = isCatalogue ? dependenciesBlockingRemoval(row) : [];
+      showRemoveError(group, affected.blocking, blockedDependencies);
+      if (affected.blocking.length || blockedDependencies.length) return;
+      // The Service Levels already flagged Not required go with the Deliverable: their rows are not posted, so the override is deleted on save.
+      affected.omitted.forEach(function (p) { p.remove(); });
+      row.remove(); notifyDirty();
     });
+
+    // Profile authoring: the Service Levels whose Service would make none of the catalogue's Deliverables once this one is removed.
+    // `blocking` are the levels not flagged Not required (the removal is refused until they are flagged); `omitted` are the rows of levels already
+    // flagged Not required (they are deleted along with the Deliverable).
+    function serviceLevelsAffectedByRemoval(row) {
+      var result = { blocking: [], omitted: [] };
+      var overrides = document.getElementById('parameter-override-rows');
+      if (!overrides) return result;
+      var removedInput = row.querySelector('[name$="[code]"]');
+      var removed = removedInput ? (removedInput.value || '').trim() : '';
+      if (!removed) return result;
+      var remaining = [];
+      group.querySelectorAll('.referential-list-row').forEach(function (r) {
+        if (r === row || r.hasAttribute('data-rl-template')) return;
+        var input = r.querySelector('[name$="[code]"]');
+        var code = input ? (input.value || '').trim() : '';
+        if (code) remaining.push(code);
+      });
+      if (!remaining.length) return result;
+      overrides.querySelectorAll('.po-row[data-deliverables]').forEach(function (p) {
+        var own = p.getAttribute('data-deliverables').split(' ').filter(Boolean);
+        if (own.indexOf(removed) === -1 || own.some(function (c) { return remaining.indexOf(c) !== -1; })) return;
+        var notRequired = p.querySelector('[name$="[notRequired]"]');
+        if (notRequired && notRequired.checked) { result.omitted.push(p); return; }
+        var label = p.querySelector('.fw-semibold');
+        result.blocking.push(label ? label.textContent.trim() : 'a Service Level');
+      });
+      return result;
+    }
+
+    // A Deliverable cannot be removed while the dependency graph names it, as the gated ("to") or the prerequisite ("from") Deliverable.
+    // Returns a description of each such entry, empty when the removal is allowed.
+    function dependenciesBlockingRemoval(row) {
+      var removedInput = row.querySelector('[name$="[code]"]');
+      var removed = removedInput ? (removedInput.value || '').trim() : '';
+      if (!removed) return [];
+      var found = [];
+      document.querySelectorAll('[name^="dependencyGraph["][name$="[toCode]"], [name^="dependencyGraph["][name$="[fromCode]"]').forEach(function (input) {
+        if (input.closest('[data-rl-template]') || (input.value || '').trim() !== removed) return;
+        found.push(input.name.slice(-8) === '[toCode]' ? 'gated Deliverable' : 'prerequisite Deliverable');
+      });
+      return found;
+    }
+
+    function showRemoveError(container, labels, dependencies) {
+      var existing = container.querySelector('.rl-remove-error');
+      if (existing) existing.remove();
+      if (!labels.length && !dependencies.length) return;
+      var parts = [];
+      if (labels.length) parts.push('the Parameter Overrides tab has Service Level(s) of its Services not flagged Not required (' + labels.join(', ') + ')');
+      if (dependencies.length) parts.push('the dependency graph names it ' + dependencies.length + ' time(s) as a gated or prerequisite Deliverable');
+      var alert = document.createElement('div');
+      alert.className = 'alert alert-danger small py-2 rl-remove-error';
+      alert.textContent = 'This Deliverable cannot be removed: ' + parts.join(', and ') + '. Clear ' + (labels.length && dependencies.length ? 'them' : 'it') + ' first.';
+      container.insertBefore(alert, container.firstChild);
+    }
 
     // Dependencies tab (owner: "Pack code should include the pack and the
     // version number in the dropdown. Version should not be a text field...

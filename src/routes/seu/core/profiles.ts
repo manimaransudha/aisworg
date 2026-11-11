@@ -401,7 +401,8 @@ export async function validateProfileDeliverables(seed: ProfileSeedInput): Promi
 
   // A Service Level override belongs to a Service that makes a Deliverable of the catalogue. Dropping a Deliverable leaves the overrides of its Services behind.
   for (const row of seed.exposedParameterOverrides ?? []) {
-    if (row.sourceType !== "service") continue;
+    // A level flagged Not required is omitted from the EBM, so it does not hold its Deliverable in the catalogue.
+    if (row.sourceType !== "service" || row.notRequired) continue;
     const { data: service } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(row.sourceCode, tenantId);
     if (service && !(service.outputs ?? []).some((output) => codes.has(output))) {
       errors.push(`exposedParameterOverrides "${row.parameterName}" of Service "${row.sourceCode}" belongs to no Deliverable of the catalogue — clear it on the Parameter Overrides tab`);

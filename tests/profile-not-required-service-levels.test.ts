@@ -18,7 +18,7 @@ import { getProfileView } from "../src/routes/seu/core/profileView.js";
 import { unravelServices } from "../src/domain/engine/conflicts/unravelServices.js";
 import { reconstructProfileParameterOverrides } from "../src/routes/seu/web/sdkAuthoring.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
-import { ensureFixtureTenant, buildStage4Fixtures, type Stage4Fixtures } from "./schemaFixtures.js";
+import { ensureFixtureTenant, buildStage4Fixtures, FIXTURE_CODES, type Stage4Fixtures } from "./schemaFixtures.js";
 import type { ProfileRow, TemplateRow } from "../src/dblayer/seuTypes.js";
 
 let tenantId: string;
@@ -101,6 +101,22 @@ test("the Profile view lists a level the Profile marks as not required as omitte
   assert.deepEqual([omitted?.state, omitted?.value], ["omitted", ""]);
   const locked_ = view.parameters.find((p) => keyOf(p) === keyOf(locked));
   assert.equal(locked_?.state, "template", "a parameter the Profile does not touch shows the Template's value");
+});
+
+test("the Profile view lists a Service Level only when its Service makes a Deliverable of the Profile's own catalogue", async () => {
+  const { data: schema } = await schemaDefinitionsDB.findLatest("Profile");
+  assert.ok(schema, "the Profile grammar exists");
+  const created = await createAuthoringDraft({
+    kind: "Profile", actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId, schemaDefinitionId: schema.id,
+    content: { ...stage.profile.content, code: `test-catalogue-profile-${randomUUID()}`, deliverableCatalogue: [{ code: FIXTURE_CODES.review.code }], dependencyGraph: [], exposedParameterOverrides: [] },
+  });
+  assert.ok(created.ok, created.ok ? "" : created.errors.join("; "));
+  const view = await getProfileView(created.draftId, { isRoot: false, tenantId });
+  assert.ok(view);
+  assert.equal(view.parameters.filter((p) => p.sourceType === "service" && p.sourceCode === stage.service.code).length, 0, "the Service makes no Deliverable of this catalogue");
+
+  const full = await getProfileView(stage.profile.id, { isRoot: false, tenantId });
+  assert.ok(full && full.parameters.some((p) => keyOf(p) === keyOf(level)), "the fixture Profile's catalogue holds the Service's Deliverable");
 });
 
 test("reconstructProfileParameterOverrides: a ticked Service Level is kept with an empty value, an unticked blank row is dropped, a value is kept", () => {
