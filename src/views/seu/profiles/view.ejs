@@ -21,6 +21,7 @@
     <%
       var esc = function (v) { return String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
       var isEmpty = function (v) { return v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0); };
+      var graph = locals.graph || null;
       var linkBase = { 'pack-code': '/aisworg/seu/packs/', 'template-code': '/aisworg/seu/templates/', 'capability-name': '/aisworg/seu/capability-definitions/', 'deliverable-name': '/aisworg/seu/deliverable-definitions/' };
       // A referenced entity shows its name (linked to its view when it has one), the code muted, and a note muted below.
       var refLine = function (name, code, note, href) {
@@ -125,7 +126,9 @@
                 <% t.fields.forEach(function (f) { %>
                   <div class="mb-4">
                     <div class="pv-label"><%= f.label %></div>
-                    <% if (f.kind === 'referential-list') { %>
+                    <% if (f.name === 'dependencyGraph') { %>
+                      <%- include('../sdk/_dependencyGraphSvg', { graph: graph }) %>
+                    <% } else if (f.kind === 'referential-list') { %>
                       <% var _rows = rowsOf(f); %>
                       <% if (_rows.length === 0) { %>
                         <div class="small text-muted">None.</div>

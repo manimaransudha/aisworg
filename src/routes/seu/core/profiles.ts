@@ -403,7 +403,7 @@ export async function validateProfileDeliverables(seed: ProfileSeedInput): Promi
   for (const row of seed.exposedParameterOverrides ?? []) {
     if (row.sourceType !== "service") continue;
     const { data: service } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(row.sourceCode, tenantId);
-    if (service && !service.outputs.some((output) => codes.has(output))) {
+    if (service && !(service.outputs ?? []).some((output) => codes.has(output))) {
       errors.push(`exposedParameterOverrides "${row.parameterName}" of Service "${row.sourceCode}" belongs to no Deliverable of the catalogue — clear it on the Parameter Overrides tab`);
     }
   }

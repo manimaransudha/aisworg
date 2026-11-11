@@ -26,7 +26,7 @@ function clip(text: string): string {
 }
 
 // Lays the dependency graph out in columns: a prerequisite sits to the left of what it gates. Returns null when there are no nodes.
-function layoutDependencyGraph(
+export function layoutDependencyGraph(
   entries: Array<Record<string, unknown>>,
   catalogueCodes: string[],
   nameOf: (kind: "Deliverable" | "Capability", code: string) => { label: string; href: string | null }

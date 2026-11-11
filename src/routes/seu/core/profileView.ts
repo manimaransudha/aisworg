@@ -3,14 +3,16 @@ import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
+import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
-import { extractExposedParameterOverrides, resolveEffectiveParameters } from "./profiles.js";
+import { baseTemplateDeliverables, extractExposedParameterOverrides, resolveEffectiveParameters } from "./profiles.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
 import { generateFields, groupFieldsForDisplay, toSchemaRows, type FieldGroups, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { getAuthoringDraft } from "./sdkAuthoring.js";
 import { listConceptsForType } from "./ontology.js";
 import { ontologySourcesIn, type PackViewRef } from "./packView.js";
+import { layoutDependencyGraph, type DependencyGraphLayout } from "./templateView.js";
 import type { ProfileRow } from "../../../dblayer/seuTypes.js";
 
 export interface ProfileViewData {
@@ -27,6 +29,8 @@ export interface ProfileViewData {
   parameterCapabilities: Record<string, string>;
   // Every parameter the base Template exposes, with the Profile's effect on it: omitted, overridden, or the Template's own value.
   parameters: ProfileViewParameter[];
+  // The dependency graph drawn in columns, or null when the Profile has none.
+  graph: DependencyGraphLayout | null;
 }
 
 export interface ProfileViewParameter {
@@ -50,7 +54,11 @@ export async function getProfileView(id: string, viewer: { isRoot: boolean; tena
   const schema = schemaRow.schema as JsonSchemaDocument;
   const draft = await getAuthoringDraft("Profile", id);
   if (!draft) return null;
-  const content = toSchemaRows(schema, draft.content);
+  // A Profile with no catalogue of its own shows its base Template's, as the authoring form does.
+  const ownCatalogue = draft.content.deliverableCatalogue;
+  const baseTemplateCode = typeof draft.content.baseTemplateCode === "string" ? draft.content.baseTemplateCode.trim() : "";
+  const inherited = !(Array.isArray(ownCatalogue) && ownCatalogue.length > 0) && baseTemplateCode ? await baseTemplateDeliverables(baseTemplateCode, viewer.tenantId) : {};
+  const content = toSchemaRows(schema, { ...draft.content, ...inherited });
   const fields = generateFields(schema, content);
   const labels: Record<string, Record<string, string>> = {};
   for (const source of ontologySourcesIn(fields)) {
@@ -83,6 +91,17 @@ export async function getProfileView(id: string, viewer: { isRoot: boolean; tena
   //   const { data: deliverable } = await deliverableDefinitionsDB.findActiveByCodeVisibleTo(code, viewer.tenantId);
   //   if (deliverable) refs["deliverable-name"][code] = { name: labels["deliverable-name"]?.[code] ?? code, note: deliverable.description, id: deliverable.id };
   // }
+  const rowCodes = (v: unknown, key: string): string[] => (Array.isArray(v) ? v.map((r) => (r as Record<string, unknown>)?.[key]).filter((x): x is string => typeof x === "string") : []);
+  for (const code of new Set(rowCodes(content.deliverableCatalogue, "code"))) {
+    const { data: deliverable } = await deliverableDefinitionsDB.findActiveByCodeVisibleTo(code, viewer.tenantId);
+    if (deliverable) refs["deliverable-name"][code] = { name: labels["deliverable-name"]?.[code] ?? code, note: deliverable.description, id: deliverable.id };
+  }
+  const capabilityLabels = Object.fromEntries((await listConceptsForType("capability-name", viewer)).map((c) => [c.code, c.default_label]));
+  const graph = layoutDependencyGraph(Array.isArray(content.dependencyGraph) ? (content.dependencyGraph as Array<Record<string, unknown>>) : [], rowCodes(content.deliverableCatalogue, "code"), (kind, code) =>
+    kind === "Capability"
+      ? { label: capabilityLabels[code] ?? code, href: null }
+      : { label: labels["deliverable-name"]?.[code] ?? code, href: refs["deliverable-name"][code]?.id ? `/aisworg/seu/deliverable-definitions/${refs["deliverable-name"][code].id}` : null }
+  );
   const parameterSources: Record<string, string> = {};
   const parameterCapabilities: Record<string, string> = {};
   const parameters: ProfileViewParameter[] = (await resolveEffectiveParameters(profile)).map((e) => ({
@@ -105,5 +124,5 @@ export async function getProfileView(id: string, viewer: { isRoot: boolean; tena
       if (capabilityCode) parameterCapabilities[`${type}::${code}`] = capability?.default_label ?? capabilityCode;
     }
   }
-  return { profile, groups: groupFieldsForDisplay(schema, fields), content, labels, refs, parameterSources, parameterCapabilities, parameters };
+  return { profile, groups: groupFieldsForDisplay(schema, fields), content, labels, refs, parameterSources, parameterCapabilities, parameters, graph };
 }
