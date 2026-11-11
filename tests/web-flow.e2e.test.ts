@@ -1229,8 +1229,8 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
     requiredCapabilityCodes: ["architecture-design"],
   });
   assert.equal(blockedCreate.status, 302);
-  // routeAuthorityGate denies through redirects' badgefail outcome, which lands on "/aisworg".
-  assert.equal(blockedCreate.location, "/aisworg");
+  // routeAuthorityGate denies a non-GET request to the page's own destination, the Objectives list.
+  assert.equal(blockedCreate.location, "/aisworg/seu/objectives");
   const listAfter = await getPage(request, "/seu/objectives");
   assertPageDoesNotMatch(listAfter.html, new RegExp(blockedStatement), "the blocked create must not have applied");
 

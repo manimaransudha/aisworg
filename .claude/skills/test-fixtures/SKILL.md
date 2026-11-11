@@ -24,13 +24,14 @@ Source: `tests/testFixtures.ts` and `tests/schemaFixtures.ts`. Read the helper y
 - Direct DB-layer writes in a test (`decisionsDB.create`, `knowledgeItemsDB.create`) take the SEU-scoped `participants.id` of the actor, not the `participants_master` id, plus a badge.
 - A test that builds an ad-hoc transition definition with policies through `transitionDefinitionsDB.upsert` declares a `verb`. The engine throws when a transition needs a badge and the definition has none. Use a verb whose `<entity>_<verb>` badge the actor holds.
 - Engine-raised rows (work items, Attention Items, Obligations, the SEU capabilities and Deliverables) are authored by the SEU's system participant, which commissioning creates when the SEU is Commissioned. A test that creates an SEU with `seusDB.create` calls `ensureSeuSystemParticipant(seuId)` before anything engine-driven runs. `getSystemActor(seuId)` throws when it is missing.
-- `createDraft` and `upsert` require `tenantId` (`PLATFORM_TENANT_ID` in fixtures). Nothing defaults it.
+- `createDraft` and `upsert` require `tenantId`. Nothing defaults it. `PLATFORM_TENANT_ID` exported by `tests/testFixtures.ts` is the test-platform tenant (`getTestPlatformTenantId()`), not the real Platform tenant. A test never writes under the real one.
+- `templatesDB.upsert` resolves the superuser itself (`userDB.getSuperuserId`), and `profilesDB.upsert` takes no `draftContent`. A test that needs a Template or Profile with content uses a schema fixture or `createAuthoringDraft`, not these two.
 - A created row records the author's badge. Assert `"root"` for a root actor, not `null`.
 
 ## Seeded templates and codes
 
 - A test that publishes and activates a Platform Template under a seeded code supersedes the seeded row, because activating a newer version retires the tenant's previous Active one. `seedDemo` and commissioning then fail with "Platform Template not found" or an inactive template.
-- A test never reuses a seeded template code (`mobile-application`, `api-platform`, `saas-product`, and the rest). It uses its own test-only `template-categories` concept in `ontologyConcepts.json`, one per test file so files running in parallel do not supersede each other. Existing ones: `test-sdk-authoring-template`, `test-dependency-graph-template`, `test-template-lifecycle-template`, `test-cr088-publish-template`.
+- A test never reuses a seeded template code (`mobile-application`, `api-platform`, `saas-product`, and the rest). It uses its own test-only `template-categories` concept in `src/dblayer/seed/data/test-ontology.json`, one per test file so files running in parallel do not supersede each other. Existing ones: `test-sdk-authoring-template`, `test-dependency-graph-template`, `test-template-lifecycle-template`, `test-cr088-publish-template`.
 - After a full run, check that the seeded Platform templates are still Active before running `seedDemo`.
 
 ## Published rows and versions
@@ -47,7 +48,7 @@ Source: `tests/testFixtures.ts` and `tests/schemaFixtures.ts`. Read the helper y
 
 ## Schema fixtures
 
-Source: `tests/schemaFixtures.ts`. Used by `tests/registry-views.test.ts`.
+Source: `tests/schemaFixtures.ts`. Used by `tests/registry-views.test.ts` and the other tests that import it (grep `schemaFixtures` for the list).
 
 - A schema fixture is one maximal, Active row of a schema entity kind: every property of the latest schema carries a value, including the nested rows. Use it when a test needs a fully populated Capability, Deliverable, Service, Policy, Pack, Template or Profile, instead of a seeded row picked at run time.
 - `buildStage1Fixtures(tenantId)` builds a Capability, two Deliverables, a Service and a Policy. `buildStage2Fixtures` adds a Pack and its base Pack. `buildStage3Fixtures` adds a Pack of every category and the Template. `buildStage4Fixtures` adds the Profile. Each stage includes the ones before it. The tenant comes from `ensureFixtureTenant(label)`.
@@ -59,6 +60,18 @@ Source: `tests/schemaFixtures.ts`. Used by `tests/registry-views.test.ts`.
 - A fixture quality gate applies to a fixture-only deliverable-name. The gate engine scans every active gate of a transition when no SEU is given, so a gate with no deliverable names would reach real Deliverables.
 - There is no TransitionDefinition fixture: a persisted row would change how the engine moves real entities.
 - The read-only `comments` property is not filled, because a transition writes it. The fixtures contain no derived rows, such as a child Template that inherits from a parent.
+
+## Variants of a fixture row
+
+- The fixture rows are shared, reused across runs and never deleted, so a test never changes one. A test that needs a variant (for example the fixture Profile with one more override) builds it in one of two ways.
+  - A function that takes a row (`resolveEffectiveParameters` takes `Pick<ProfileRow, "base_template_id" | "draft_content">`, `unravelServices` takes rows) gets an in-memory copy: `{ ...row, draft_content: {...} }`. Nothing is written.
+  - A function that reads by id gets a Draft authored with `createAuthoringDraft` in the fixture tenant, with a per-run code and the fixture row's `content` as the base. It uses `ROOT_ACTOR_ID` and `ROOT_ACTOR_BADGE` and the latest schema (`schemaDefinitionsDB.findLatest(kind)`), as `createDraft` in `tests/schemaFixtures.ts` does.
+- Read the real fixture to learn what it holds before asserting on it, for example which parameters the Template exposes as overridable (`maximalTemplate` flags every other candidate) and which Deliverable the fixture Service makes (`FIXTURE_CODES.output`).
+
+## Tests against seeded definitions
+
+- A test that reads a real seeded definition (a Service, a Capability) reads its row in `src/dblayer/seed/data/*.json` first and checks the property it relies on: the number of levels, the outputs, the code. Do not assume a count or a code. A wrong assumption fails the test at its setup.
+- A test file that imports `tests/testFixtures.ts` or `tests/schemaFixtures.ts` needs the seeded database when it loads, because those modules look up the tester users and the test-platform tenant at import. A test of a pure function goes in its own file with no fixture import, so it runs without the database.
 
 ## Testing a controller over HTTP
 
