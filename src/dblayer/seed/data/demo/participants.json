@@ -30,6 +30,12 @@
         "payload": {
           "status": "completed"
         }
+      },
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
       }
     ],
     "authorisedRole": [
@@ -80,6 +86,12 @@
         "policy": "background-verification",
         "payload": {
           "status": "completed"
+        }
+      },
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
         }
       }
     ],
@@ -137,6 +149,12 @@
         "payload": {
           "status": "completed"
         }
+      },
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
       }
     ],
     "authorisedRole": [
@@ -175,6 +193,12 @@
           "code": "typescript",
           "proficiency": "Intermediate"
         }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
       ]
     },
     "cost": 480,
@@ -183,6 +207,12 @@
         "policy": "background-verification",
         "payload": {
           "status": "completed"
+        }
+      },
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
         }
       }
     ],
@@ -226,7 +256,14 @@
       ]
     },
     "cost": 30,
-    "behaviourContext": [],
+    "behaviourContext": [
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
+      }
+    ],
     "authorisedRole": [
       {
         "role": "general",
@@ -274,7 +311,14 @@
       ]
     },
     "cost": 40,
-    "behaviourContext": [],
+    "behaviourContext": [
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
+      }
+    ],
     "authorisedRole": [
       {
         "role": "general",
@@ -299,7 +343,8 @@
       "architecture-design",
       "engineering-documentation",
       "non-functional-requirements-engineering",
-      "test-strategy-and-design"
+      "test-strategy-and-design",
+      "test-automation-engineering"
     ],
     "competency": {
       "Technology": [
@@ -320,7 +365,14 @@
       ]
     },
     "cost": 35,
-    "behaviourContext": [],
+    "behaviourContext": [
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
+      }
+    ],
     "authorisedRole": [
       {
         "role": "general",
@@ -361,10 +413,23 @@
           "code": "typescript",
           "proficiency": "Intermediate"
         }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
       ]
     },
     "cost": 8,
-    "behaviourContext": [],
+    "behaviourContext": [
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
+      }
+    ],
     "authorisedRole": [
       {
         "role": "general",
@@ -384,7 +449,8 @@
     "displayName": "ArchVault Test Runner",
     "capabilities": [
       "software-validation",
-      "test-strategy-and-design"
+      "test-strategy-and-design",
+      "test-automation-engineering"
     ],
     "competency": {
       "Technology": [
@@ -396,10 +462,23 @@
           "code": "javascript",
           "proficiency": "Expert"
         }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
       ]
     },
     "cost": 6,
-    "behaviourContext": [],
+    "behaviourContext": [
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
+      }
+    ],
     "authorisedRole": [
       {
         "role": "general",
@@ -439,7 +518,14 @@
       ]
     },
     "cost": 700,
-    "behaviourContext": [],
+    "behaviourContext": [
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
+      }
+    ],
     "authorisedRole": [
       {
         "role": "general",
@@ -482,7 +568,14 @@
       ]
     },
     "cost": 650,
-    "behaviourContext": [],
+    "behaviourContext": [
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
+      }
+    ],
     "authorisedRole": [
       {
         "role": "general",
