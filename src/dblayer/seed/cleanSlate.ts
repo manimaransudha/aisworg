@@ -18,6 +18,7 @@ import { seedEventSubscriptions } from "./seedEventSubscriptions.js";
 import { seedCapabilityDefinitions } from "./seedCapabilityDefinitions.js";
 import { seedSchemaDefinitions } from "./seedSchemaDefinitions.js";
 import { seedDeliverableDefinitions } from "./seedDeliverableDefinitions.js";
+import { seedDemo } from "./demo/demoSeed.js";
 import { seedServiceDefinitions } from "./seedServiceDefinitions.js";
 import { seedMetricDefinitions } from "./seedMetricDefinitions.js";
  
@@ -150,7 +151,9 @@ async function run(): Promise<void> {
     await seedSdlcStandardTemplates({ authoredBy: actorId, authorBadge: actorBadge });
     await seedEbookLibraryObjectives({ authoredBy: actorId });
   });
-  
+
+  // The Demo tenant is seeded last, through its own governed path, once the platform data it reads exists.
+  await seedDemo();
   
   logger.info("[db:clean-slate] done. Sanity-check next: hit /aisworg/seu/sdk/pack-authoring (Create starts a fresh Draft directly — no bootstrap Template needed) and /aisworg/seu/telemetry (zero Deliverables measured) as a real user.");
 }
