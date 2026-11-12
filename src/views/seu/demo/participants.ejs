@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <%# Demo participant viewer. The sidebar lists the participants of the Demo tenant. The main area shows the chosen
+       participant's "My Work" page (quickview/_participantHome). Every form on it posts to the viewer's own routes, which
+       act as that participant, under the badges the participant holds. CR-083 section-card/section-header primitives. %>
+  <style>
+    .edge-note { font-size: 0.75rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h4 text-dark fw-bold mb-1">Demo participants</h2>
+      <p class="text-muted small mb-0">Choose a participant to see the page that participant sees. Actions on that page run as the chosen participant.</p>
+    </div>
+
+    <% const _base = locals.listBasePath || '/aisworg/seu/demo/participants'; %>
+    <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
+      <div class="section-card" style="min-width: 18rem; max-width: 22rem; width: 100%;">
+        <div class="section-header">Participants</div>
+        <div class="p-3">
+          <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search name or type' }) %>
+          <div class="small text-muted mb-2">Sort:
+            <%- sortLink('Name', 'name', list, _base) %> &middot;
+            <%- sortLink('Type', 'type', list, _base) %>
+          </div>
+          <% if (list.total === 0) { %>
+            <div class="text-muted small"><%= list.q ? 'No participants match your search.' : 'No participants in the Demo tenant yet.' %></div>
+          <% } else { %>
+            <div class="list-group list-group-flush">
+              <% list.items.forEach(function(p) { %>
+                <a href="<%= _base + listQueryString(list, { participantId: p.id }) %>"
+                   class="list-group-item list-group-item-action px-2 py-2 <%= list.participantId === p.id ? 'active' : '' %>">
+                  <div class="small fw-semibold"><%= p.display_name %></div>
+                  <div class="small <%= list.participantId === p.id ? '' : 'text-muted' %>"><%= p.type %></div>
+                </a>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="flex-grow-1" style="min-width: 0;">
+        <% if (locals.participantHome) { %>
+          <% var _name = participantHome.master ? participantHome.master.display_name : 'this participant'; %>
+          <h3 class="h5 text-dark fw-bold mb-1"><%= _name %></h3>
+          <p class="edge-note mb-3">You are viewing the page of <%= _name %>. Each action below is recorded under <%= _name %> and the badges that participant holds.</p>
+          <%- include('../../quickview/_participantHome', { participantHome: participantHome, csrfToken: csrfToken, actionBase: actionBase, obligationCategoryOptions: locals.obligationCategoryOptions, obligationSeverityOptions: locals.obligationSeverityOptions }) %>
+        <% } else { %>
+          <div class="section-card">
+            <div class="p-3 text-muted small">Choose a participant from the list.</div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

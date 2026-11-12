@@ -20,7 +20,7 @@
           // "is there a logged-in session" — not an authorization check.
           const _navRouteVisible = locals.navRouteVisible || {};
           const _nrv = (m, p) => !!_navRouteVisible[m + ' ' + p];
-          const _seuPlatformVisible = _nrv('GET','/aisworg') || _nrv('GET','/aisworg/quickview') || _nrv('GET','/aisworg/seu/objectives') || _nrv('GET','/aisworg/seu/seus') || _nrv('GET','/aisworg/seu/participants');
+          const _seuPlatformVisible = _nrv('GET','/aisworg') || _nrv('GET','/aisworg/quickview') || _nrv('GET','/aisworg/seu/objectives') || _nrv('GET','/aisworg/seu/seus') || _nrv('GET','/aisworg/seu/participants') || _nrv('GET','/aisworg/seu/demo/participants');
           const _governanceVisible = _nrv('GET','/aisworg/seu/attention') || _nrv('GET','/aisworg/seu/telemetry') || _nrv('GET','/aisworg/seu/knowledge/capital');
           const _registryVisible = _nrv('GET','/aisworg/seu/capability-definitions') || _nrv('GET','/aisworg/seu/participants') || _nrv('GET','/aisworg/seu/packs') || _nrv('GET','/aisworg/seu/templates') || _nrv('GET','/aisworg/seu/profiles') || _nrv('GET','/aisworg/seu/deliverable-definitions') || _nrv('GET','/aisworg/seu/service-definitions') || _nrv('GET','/aisworg/seu/policy-definitions') || _nrv('GET','/aisworg/seu/sdk/schema-registry');
           const _authoringVisible = _nrv('GET','/aisworg/seu/sdk/pack-authoring') || _nrv('GET','/aisworg/seu/sdk/template-authoring') || _nrv('GET','/aisworg/seu/sdk/profile-authoring') || _nrv('GET','/aisworg/seu/sdk/transition-definition-authoring') || _nrv('GET','/aisworg/seu/sdk/deliverable-authoring') || _nrv('GET','/aisworg/seu/sdk/service-authoring') || _nrv('GET','/aisworg/seu/sdk/policy-authoring') || _nrv('GET','/aisworg/seu/sdk/capability-authoring');
@@ -36,7 +36,7 @@
           <!-- SEU Platform dropdown — day-to-day engineering runtime: Objectives, SEUs -->
           <% if (_seuPlatformVisible) { %>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','quickview','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail','seu-participants'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','quickview','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail','seu-participants','seu-demo-participants'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               SEU Platform
             </a>
@@ -73,6 +73,11 @@
               <% if (_nrv('GET','/aisworg/seu/participants')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-participants' ? 'active' : '' %>" href="/aisworg/seu/participants">
                 <i class="bi bi-people me-2"></i>Participants
+              </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/demo/participants')) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-demo-participants' ? 'active' : '' %>" href="/aisworg/seu/demo/participants">
+                <i class="bi bi-person-badge me-2"></i>Demo Participants
               </a></li>
               <% } %>
               <%# CR-003: SEU commissioning is initiated from the Objectives screen (Commission SEU per Engineering, un-commissioned Objective), not a global navbar action. %>

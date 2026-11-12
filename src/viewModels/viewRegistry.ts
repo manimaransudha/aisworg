@@ -59,6 +59,7 @@ import {seu_events_indexVM} from "./seu_events_index.js";
 import {seu_versionEvents_indexVM} from "./seu_versionEvents_index.js";
 import {seu_data_migrations_indexVM} from "./seu_data_migrations_index.js";
 import {seu_demo_indexVM} from "./seu_demo_index.js";
+import {seu_demo_participantsVM} from "./seu_demo_participants.js";
 
 export const viewModels = {
   "auth/login": auth_loginVM,
@@ -121,5 +122,6 @@ export const viewModels = {
   "seu/compliance/index": seu_compliance_indexVM,
   "seu/events/index": seu_events_indexVM,
   "seu/versionEvents/index": seu_versionEvents_indexVM,
-  "seu/demo/index": seu_demo_indexVM
+  "seu/demo/index": seu_demo_indexVM,
+  "seu/demo/participants": seu_demo_participantsVM
 };

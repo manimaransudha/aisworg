@@ -136,6 +136,7 @@ export const redirects = {
     deliverableDefinitionsView: page({ prefix: "/aisworg/seu/deliverable-definitions/:id", error: "/aisworg/seu/deliverable-definitions" }),
     deliverableDefinitionsCopy: page({ prefix: "/aisworg/seu/deliverable-definitions/:id/copy", error: "/aisworg/seu/deliverable-definitions" }),
     demo: page({ prefix: "/aisworg/seu/demo", error: "/aisworg/seu/demo", tenantfail: "/aisworg/seu" }),
+    demoParticipants: page({ prefix: "/aisworg/seu/demo/participants", error: "/aisworg/seu/demo/participants", tenantfail: "/aisworg/seu" }),
     demoRootStepsEnabled: page({ prefix: "/aisworg/seu/demo/root/steps/:code/enabled", error: "/aisworg/seu/demo/root", tenantfail: "/aisworg/seu" }),
     devActAs: page({ prefix: "/aisworg/seu/dev/act-as", error: "/aisworg" }),
     identityBadgesUpdate: page({ prefix: "/aisworg/seu/identity/badges/:id/update", error: "/aisworg/seu/identity/badges" }),

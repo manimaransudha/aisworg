@@ -25,12 +25,21 @@ The Demo tenant is shown to prospective customers. It runs on real services with
 | Landing (after login) | `/aisworg/seu/dashboard/demo` | `views/seu/dashboardDemo.ejs`, `routes/seu/web/dashboard.ts`, `.lp-*` rules in `public/css/style.css` |
 | Demo | `/aisworg/seu/demo` | `views/seu/demo/index.ejs`, `routes/seu/web/demo.ts`, `routes/seu/core/demoSimulator.ts` |
 | Demo root | `/aisworg/seu/demo/root` | same view, root badge only, enables and disables steps |
+| Demo participants | `/aisworg/seu/demo/participants` | `views/seu/demo/participants.ejs`, `views/quickview/_participantHome.ejs`, `routes/seu/web/demo.ts`, `routes/seu/core/demoParticipantViewer.ts` |
 
 - Both pages and every demo POST route need a `route_authority` row in `src/dblayer/seed/data/routeAuthority.json`. A new demo route needs its row in the same pass.
 - Demo POST routes: `/demo/steps/:code/run`, `/demo/scenarios/:code/step`, `/demo/root/steps/:code/enabled`, `/demo/reset`, `/demo/contact`, and the guide routes under `/demo/guide`.
 - All demo routes are reachable only from the Demo tenant (`requireTenantScope.forParam`). Root is always in reach.
 - `src/dry-run-suite/demoLanding.md` is the user's content source. No code reads it.
 - Wording the user has fixed: sentence case, no "why" or "how" in titles, "Commission an SEU", "Governance" capitalised, "Capability" capitalised, "Declare" and not "Define". The landing page sections are Proposition and Inside SEU Studio. Both start collapsed, and the call to action sits above them.
+
+## Demo participants page
+
+- A link "Demo Participants" in the SEU Platform menu opens `/aisworg/seu/demo/participants`. The sidebar lists the participants of the Demo tenant (the shared Demo User is left out) with search and sort. `participantId` in the query string is the chosen participant and survives search and paging.
+- The main area shows that participant's "My Work" page, built by `getParticipantHomeView`. The page body is `views/quickview/_participantHome.ejs`, shared with the real participant home. The `actionBase` local is empty on the real home and is the viewer path for the chosen participant on this page.
+- Every form on this page posts to a viewer route under `/demo/participants/:participantId/...` (obligation, work item result, evidence and its transition, knowledge and its transition and scope promotion). The handler runs `actAsParticipant`, which refuses a participant outside the Demo tenant and then calls the same core function the real route calls with the participant as actor.
+- The participant is the actor and the recorded badge is one that participant holds. `participantBadges.json` and `grantBadgesToMany` give the demo participants the badges these forms need when the roster is seeded. A new form on the page needs its badge added there.
+- The viewer routes have `route_authority` rows with the `demo` role and no badge. The participant's badges are checked in the core functions.
 
 ## Demo page structure
 

@@ -2103,6 +2103,78 @@
   },
   {
     "method": "GET",
+    "path": "/aisworg/seu/demo/participants",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/participants/:participantId/seus/:seuId/obligations",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/participants/:participantId/work-items/:workItemId/complete",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/participants/:participantId/seus/:seuId/evidence",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/participants/:participantId/seus/:seuId/evidence/:evidenceId/transition",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/participants/:participantId/seus/:seuId/knowledge",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/participants/:participantId/seus/:seuId/knowledge/:knowledgeItemId/transition",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/participants/:participantId/seus/:seuId/knowledge/:knowledgeItemId/promote-scope",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
     "path": "/aisworg/seu/demo/root",
     "badges": [
       "root"

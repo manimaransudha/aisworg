@@ -7,9 +7,10 @@ import { participantsMasterDB } from "../../participantsMasterDB.js";
 import { capabilityDefinitionsDB } from "../../capabilityDefinitionsDB.js";
 import { COMPETENCY_DIMENSION_ROLE, COMPETENCY_DIMENSION_WORK_TYPE } from "../../constants.js";
 import type { ParticipantType } from "../../seuTypes.js";
-import type { DemoActor } from "./demoBadges.js";
+import { grantBadgesToMany, type DemoActor } from "./demoBadges.js";
 
 const dataFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data", "demo", "participants.json");
+const badgesFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data", "demo", "participantBadges.json");
 
 interface DemoParticipantSeed {
   type: ParticipantType;
@@ -98,5 +99,8 @@ export async function seedDemoParticipants(actor: DemoActor): Promise<void> {
   if (created.error) throw created.error;
   const updated = await participantsMasterDB.updateProfiles(changed.map((r) => ({ ...r, isActive: true })));
   if (updated.error) throw updated.error;
+  // The badges the "My Work" forms need, so the Demo viewer can act as a chosen participant under that participant's own badges.
+  const wanted = JSON.parse(readFileSync(badgesFile, "utf8")) as { badges: string[]; prefixes: string[] };
+  await grantBadgesToMany([...(created.data ?? []), ...(updated.data ?? [])], wanted);
   logger.info(`[seed:demo] participants: ${fresh.length} created, ${changed.length} updated from participants.json.`);
 }

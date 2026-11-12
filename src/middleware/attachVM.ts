@@ -41,6 +41,7 @@ export function attachVM(viewName: keyof typeof viewModels) {
         else if (url.includes('/seu/tenant-admin/users')) activePage = 'seu-tenant-admin-users';
         else if (url.includes('/seu/data-migrations')) activePage = 'seu-data-migrations';
         else if (url.includes('/seu/docs')) activePage = 'seu-docs';
+        else if (url.includes('/seu/demo/participants')) activePage = 'seu-demo-participants';
         else if (url.includes('/seu/demo/root')) activePage = 'seu-demo-root';
         else if (url.includes('/seu/demo')) activePage = 'seu-demo';
         else if (url.includes('/seu/identity')) activePage = 'seu-identity';

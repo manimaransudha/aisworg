@@ -23,6 +23,8 @@ function _qs(overrides) {
     seuId: overrides.seuId !== undefined ? overrides.seuId : (_list ? _list.seuId : ''),
     // The Commission SEU page's Objective - no-op elsewhere.
     objectiveId: overrides.objectiveId !== undefined ? overrides.objectiveId : (_list ? _list.objectiveId : ''),
+    // The Demo Participants page's selected participant - no-op elsewhere.
+    participantId: overrides.participantId !== undefined ? overrides.participantId : (_list ? _list.participantId : ''),
   };
   const p = new URLSearchParams();
   if (st.q) p.set('q', st.q);
@@ -34,6 +36,7 @@ function _qs(overrides) {
   if (st.status) p.set('status', st.status);
   if (st.seuId) p.set('seuId', st.seuId);
   if (st.objectiveId) p.set('objectiveId', st.objectiveId);
+  if (st.participantId) p.set('participantId', st.participantId);
   const s = p.toString();
   return s ? ('?' + s) : '';
 }
@@ -52,6 +55,7 @@ if (_list) {
     <% if (_list.status) { %><input type="hidden" name="status" value="<%= _list.status %>"><% } %>
     <% if (_list.seuId) { %><input type="hidden" name="seuId" value="<%= _list.seuId %>"><% } %>
     <% if (_list.objectiveId) { %><input type="hidden" name="objectiveId" value="<%= _list.objectiveId %>"><% } %>
+    <% if (_list.participantId) { %><input type="hidden" name="participantId" value="<%= _list.participantId %>"><% } %>
     <div class="input-group input-group-sm" style="width: 16rem; max-width: 100%;">
       <span class="input-group-text"><i class="bi bi-search"></i></span>
       <input type="text" name="q" class="form-control" placeholder="<%= _ph %>" value="<%= _list.q %>">

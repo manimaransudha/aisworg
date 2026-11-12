@@ -17,6 +17,15 @@ import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { DEMO_TENANT_NAME, DEMO_AREAS, DEMO_VISITOR_STEP_KIND, DEMO_NOTE_STEP_KIND, DEMO_STEPS_TAB } from "../../../dblayer/constants.js";
 import type { TenantRow } from "../../../dblayer/seuTypes.js";
 import { resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
+import { nextActionsFor } from "../../../domain/engine/entityTransition.js";
+import { evidenceDB } from "../../../dblayer/evidenceDB.js";
+import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
+import { createEvidence, transitionEvidence } from "../core/evidence.js";
+import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
+import { getParticipantHomeView, completeMyWorkItem, raiseMyObligation } from "../core/participantHome.js";
+import type { WorkItemOutcome } from "../core/workItems.js";
+import { listViewerParticipants, getViewerParticipant, getViewerObligationOptions, resolveViewerAuthorBadge } from "../core/demoParticipantViewer.js";
+import type { AcquisitionScope, ParticipantMasterRow } from "../../../dblayer/seuTypes.js";
 import { listAreaContent, saveAreaContent, createStep, updateStep, createScenario, updateScenario, setScenarioEnabled } from "../core/demoCatalogue.js";
 import { getDemoActor } from "../../../dblayer/seed/demo/demoBadges.js";
 import { listStepKinds, listAllSteps, listScenarios, runStep, setStepEnabled, advanceScenario, resetDemo, getGuide } from "../core/demoSimulator.js";
@@ -144,6 +153,137 @@ router.post("/demo/scenarios/:code/step", async (req: Request, res: Response) =>
     return redirects.seu.demo.error(req, res, (err as Error).message, backTo);
   }
 });
+
+// Participant viewer: the visitor chooses a Demo participant and sees, and acts through, that participant's "My Work" page.
+// Each action runs as the chosen participant, under the badges that participant holds. The route's own authority is the Demo role.
+const participantsPath = "/aisworg/seu/demo/participants";
+const viewerBack = (participantId: string): string => `${participantsPath}?participantId=${encodeURIComponent(participantId)}`;
+
+router.get("/demo/participants", attachVM("seu/demo/participants"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { tenantId } = await getDemoActor();
+    const roster = await listViewerParticipants(tenantId);
+    const chosenId = typeof req.query.participantId === "string" ? req.query.participantId : "";
+    const params = parseListParams(req.query, { sortable: ["name", "type"], defaultSort: "name", defaultDir: "asc" });
+    const list = paginateList(roster, params, {
+      searchFields: [(p) => p.display_name, (p) => p.type],
+      sortFields: { name: (p) => p.display_name, type: (p) => p.type },
+    });
+    list.participantId = chosenId || undefined;
+    req.vm.req.title = "Demo Participants";
+    req.vm.req.list = list;
+    req.vm.opt.listBasePath = participantsPath;
+    req.vm.opt.flash = getFlash(req);
+    if (chosenId) {
+      const chosen = roster.find((p) => p.id === chosenId);
+      if (!chosen) return redirects.seu.demoParticipants.error(req, res, "That participant is not in the Demo tenant.", participantsPath);
+      const options = await getViewerObligationOptions(tenantId);
+      req.vm.opt.participantHome = await getParticipantHomeView(chosen.id);
+      req.vm.opt.actionBase = `${participantsPath}/${chosen.id}`;
+      req.vm.opt.obligationCategoryOptions = options.categories;
+      req.vm.opt.obligationSeverityOptions = options.severities;
+    }
+    return renderView(req, res, "seu/demo/participants", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/demo] GET /demo/participants error", err as Error);
+    next(err);
+  }
+});
+
+// Runs one form action as the chosen participant. The participant must belong to the Demo tenant. The action returns the message shown to the visitor, or throws.
+async function actAsParticipant(req: Request, res: Response, run: (participant: ParticipantMasterRow) => Promise<string>): Promise<void> {
+  const participantId = String(req.params.participantId);
+  const back = viewerBack(participantId);
+  try {
+    const { tenantId } = await getDemoActor();
+    const participant = await getViewerParticipant(participantId, tenantId);
+    return redirects.seu.demoParticipants.success(req, res, await run(participant), back);
+  } catch (err) {
+    logger.error("[web/seu/demo] POST /demo/participants/:participantId action error", err as Error);
+    return redirects.seu.demoParticipants.error(req, res, (err as Error).message, back);
+  }
+}
+
+router.post("/demo/participants/:participantId/seus/:seuId/obligations", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
+  const { deliverableId, category, title, description, severity, completionCriteria } = req.body ?? {};
+  if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
+    throw new Error("Deliverable, category and title are required.");
+  }
+  const result = await raiseMyObligation({ userId: participant.id, seuId: String(req.params.seuId), deliverableId, category, title, description, severity, completionCriteria });
+  if (!result.ok) throw new Error(result.detail);
+  return `Obligation "${result.obligation.title}" created (${result.obligation.category}, ${result.obligation.severity}).`;
+}));
+
+router.post("/demo/participants/:participantId/work-items/:workItemId/complete", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
+  const { outcome, reference } = req.body ?? {};
+  if (typeof outcome !== "string" || !["done", "failed", "blocked"].includes(outcome)) throw new Error("Outcome must be done, failed or blocked.");
+  const result = await completeMyWorkItem({
+    userId: participant.id,
+    workItemId: String(req.params.workItemId),
+    outcome: outcome as WorkItemOutcome,
+    reference: typeof reference === "string" && reference.trim() !== "" ? reference : null,
+  });
+  if (!result.ok) throw new Error(`Could not record result: ${result.detail}`);
+  if (result.outcome === "done") return `Result recorded for Deliverable "${result.deliverable.name}".`;
+  return `Reported "${result.outcome}" - the transition was not applied and an Attention Item was raised.`;
+}));
+
+router.post("/demo/participants/:participantId/seus/:seuId/evidence", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
+  const { deliverableId, category, title, description, source, predecessorEvidenceId } = req.body ?? {};
+  if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
+    throw new Error("Deliverable, category and title are required.");
+  }
+  const evidence = await createEvidence({
+    seuId: String(req.params.seuId), relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, title, description, source,
+    supersedesEvidenceId: predecessorEvidenceId || null, actorId: participant.id, authorBadge: await resolveViewerAuthorBadge(req, participant.id),
+  });
+  return `Evidence "${evidence.title}" collected (${evidence.category}).`;
+}));
+
+router.post("/demo/participants/:participantId/seus/:seuId/evidence/:evidenceId/transition", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
+  const evidenceId = String(req.params.evidenceId);
+  const { data: evidence } = await evidenceDB.findById(evidenceId);
+  if (!evidence) throw new Error("Evidence not found.");
+  const targetState = String(req.body?.targetState ?? "");
+  const action = (await nextActionsFor("Evidence", evidence.status, participant.id)).find((a) => a.toState === targetState);
+  if (!action) throw new Error(`Evidence transition blocked: "${targetState}" is not available from ${evidence.status} for this participant.`);
+  const result = await transitionEvidence({ evidenceId, targetState: action.toState, actorId: participant.id });
+  if (!result.ok) throw new Error(`Evidence transition blocked: ${"detail" in result ? result.detail : result.reason}`);
+  return `Evidence moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`;
+}));
+
+router.post("/demo/participants/:participantId/seus/:seuId/knowledge", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
+  const { deliverableId, evidenceId, category, title, description, acquisitionScope } = req.body ?? {};
+  if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
+    throw new Error("Deliverable, category and title are required.");
+  }
+  if (typeof evidenceId !== "string" || !evidenceId.trim()) throw new Error("Select the supporting Evidence.");
+  const knowledgeItem = await createKnowledgeItem({
+    seuId: String(req.params.seuId), deliverableId, evidenceReferences: { supports: [evidenceId] }, category, title, description,
+    acquisitionScope: acquisitionScope as AcquisitionScope | undefined, actorId: participant.id,
+  });
+  return `Knowledge Item "${knowledgeItem.title}" observed (${knowledgeItem.category}, ${knowledgeItem.acquisition_scope} scope).`;
+}));
+
+router.post("/demo/participants/:participantId/seus/:seuId/knowledge/:knowledgeItemId/transition", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
+  const knowledgeItemId = String(req.params.knowledgeItemId);
+  const { data: knowledgeItem } = await knowledgeItemsDB.findById(knowledgeItemId);
+  if (!knowledgeItem) throw new Error("Knowledge Item not found.");
+  const targetState = String(req.body?.targetState ?? "");
+  const action = (await nextActionsFor("Knowledge", knowledgeItem.status, participant.id)).find((a) => a.toState === targetState);
+  if (!action) throw new Error(`Knowledge Item transition blocked: "${targetState}" is not available from ${knowledgeItem.status} for this participant.`);
+  const result = await transitionKnowledgeItem({ knowledgeItemId, targetState: action.toState, actorId: participant.id });
+  if (!result.ok) throw new Error(`Knowledge Item transition blocked: ${"detail" in result ? result.detail : result.reason}`);
+  return `Knowledge Item moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`;
+}));
+
+router.post("/demo/participants/:participantId/seus/:seuId/knowledge/:knowledgeItemId/promote-scope", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
+  const { targetScope } = req.body ?? {};
+  if (typeof targetScope !== "string" || !targetScope.trim()) throw new Error("Target scope is required.");
+  const result = await promoteKnowledgeItemScope({ knowledgeItemId: String(req.params.knowledgeItemId), targetScope: targetScope as AcquisitionScope, actorId: participant.id });
+  if (!result.ok) throw new Error(`Acquisition Scope promotion blocked: ${"detail" in result ? result.detail : result.reason}`);
+  return `Knowledge Item promoted from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}" scope.`;
+}));
 
 // Guide panel: the scenario the visitor is following is kept in the session, its progress in the Demo tenant.
 router.get("/demo/guide", async (req: Request, res: Response) => {

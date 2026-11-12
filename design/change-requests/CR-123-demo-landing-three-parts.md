@@ -460,6 +460,77 @@ Not run, not type-checked. This replaces the role grant described under "Built: 
 | 5 | The demo skill (`.claude/skills/demo/SKILL.md`) is not yet updated for the steps above. |
 | 6 | `redirects.seu.demoRootStepsEnabled` is unused. |
 
+## Participant viewer for the demo (2026-11-12)
+
+Raised by the owner. Built 2026-11-12. Not run, not type-checked.
+
+### Requirement
+
+| Item | Detail |
+|---|---|
+| Situation | In production a user logs in as a participant and lands on the participant home. In the demo, many visitors map to one Demo User, and the demo participants are fake identities. Asking a visitor to switch to a fake identity is not acceptable. |
+| Feature | A "Demo participants" link in the SEU Platform navbar opens a page. The sidebar lists the participants of the Demo tenant and has a search. Choosing a participant shows the participant home of that participant. |
+| Unchanged | The mapping of many visitors to one Demo User does not change. |
+
+### Existing participant home
+
+| Item | Detail |
+|---|---|
+| Page | The quickview page, `/aisworg/quickview`, titled "My Work". A user who is not a superuser and holds the `general` role sees it ([public.ts](src/routes/web/public.ts)). |
+| View | `getParticipantHomeView(userId)` in [participantHome.ts](src/routes/seu/core/participantHome.ts). It finds the `participants_master` row with that id, then its `participants` rows, one per SEU. |
+| Scope per SEU | `scopeToParticipant` keeps the Deliverables, Commands, obligations, evidence, knowledge items, external interactions, events and attention items that trace to the work items assigned to the participant. Decisions are kept when the decision badge is one the user holds. |
+| Forms | Report a work item outcome, raise an obligation, add and transition evidence, add, transition and promote knowledge. All of them act as the session user. `completeMyWorkItem` and `raiseMyObligation` refuse work that does not belong to the session user. |
+
+### Settled design
+
+| Decision | Detail |
+|---|---|
+| Actions | The forms post as the chosen participant. The participant is the actor, and each action records a badge that participant holds. The Demo User is not the actor. |
+| Badges | The demo seed grants each demo participant the badges the forms need, as the tests do for their participants. The demo gets its own helper. The test helper is not used. |
+| Data | The badges come from data in `participantBadges.json`, with no badge name in code. |
+
+### Built
+
+| Item | Change |
+|---|---|
+| `src/dblayer/seed/data/demo/participantBadges.json` | New. Names `obligation_create` and `knowledge_observe`, and the prefixes `evidence_` and `knowledge_`. A badge with a listed prefix is granted when a `transition_definitions` verb or a `route_authority` row declares it. |
+| `demoBadges.ts` | New `grantBadgesToMany`. It reads `transition_definitions` and `route_authority` once and writes each participant once. |
+| `demoParticipants.ts` | Calls `grantBadgesToMany` for the created and updated participants after the roster is written. |
+
+Badge needs found in the code:
+
+| Form | Badge |
+|---|---|
+| Raise an obligation | `obligation_create` ([participantHome.ts](src/routes/seu/core/participantHome.ts)) |
+| Add a knowledge item | `knowledge_observe` ([knowledge.ts](src/routes/seu/core/knowledge.ts)) |
+| Evidence and knowledge transitions | The verb badges of the transition and route rows, such as `evidence_validate` and `knowledge_publish` |
+| Report a work item outcome | None. The Command's own badge is recorded. |
+| Add evidence | None. The route declares no badge, so the record shows the author badge `system`. |
+
+### Built: page and routes
+
+| Item | Change |
+|---|---|
+| Page | `GET /aisworg/seu/demo/participants` in `demo.ts`. Sidebar of the Demo tenant's participants with search and sort (`parseListParams`, `paginateList`, `listControls`, `sortLink`). The chosen participant is the `participantId` query value. |
+| View | `views/seu/demo/participants.ejs` (CR-083 section cards). The body of the participant home moved to `views/quickview/_participantHome.ejs` and `participant.ejs` includes it. On the real home the form URLs are unchanged. |
+| Routes | Seven POST routes under `/demo/participants/:participantId/` for the obligation, work item result, evidence, evidence transition, knowledge, knowledge transition and scope promotion forms. Each runs `actAsParticipant`, which refuses a participant outside the Demo tenant, then calls the same core function as the real route with the participant as actor. |
+| Core | `routes/seu/core/demoParticipantViewer.ts`: the participant list, the Demo tenant check, the Obligation options, and the author badge of the chosen participant. It uses `resolveAuthorBadge` from `heldBadges.ts`, which is unchanged. |
+| Authority | Eight `route_authority` rows, role `demo`, no badge. The participant's badges are checked in the core functions. |
+| Wiring | `redirects.seu.demoParticipants`, the ViewModel `seu/demo/participants`, the `attachVM` active page, and the "Demo Participants" link in the SEU Platform menu. |
+| List helpers | `participantId` is a pass-through key in `listQuery.ts`, `helpers.ejs` and `listControls.ejs`, like `seuId` and `objectiveId`. |
+| Skill | `.claude/skills/demo/SKILL.md` describes the page. |
+
+### Still open
+
+| # | Point |
+|---|---|
+| 1 | No tests were written for the page or the viewer routes. |
+| 2 | The transition forms on the real participant home post to `.../evidence/:id/transition` and `.../knowledge/:id/transition`, and the routes are `.../transition/:verb`. The real page's transition buttons therefore have no matching route. The viewer routes match the form. The real page is unchanged. |
+| 3 | The `route_authority` rows are loaded with `pnpm tsx src/dblayer/seed/seedRouteAuthority.ts` or by clean-slate. |
+| 4 | Evidence created from the viewer records the author badge `system`, as on the real page, because the route declares no badge. |
+| 5 | The decisions list reads the badges of the chosen participant. Not verified in a run. |
+| 6 | No verification runs. |
+
 ## To be done
 
 Declare items are tested

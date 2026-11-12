@@ -27,6 +27,7 @@ export interface ListResult<T> {
   tenant?: string;
   seuId?: string;
   objectiveId?: string;
+  participantId?: string;
 }
 
 const DEFAULT_PAGE_SIZE = clampInt(process.env.LIST_PAGE_SIZE_DEFAULT, 20, 1, 500);

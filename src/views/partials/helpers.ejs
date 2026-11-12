@@ -41,6 +41,8 @@ listQueryString = function(list, overrides = {}) {
     seuId: overrides.seuId !== undefined ? overrides.seuId : (list ? list.seuId : ""),
     // The Commission SEU page's Objective - same no-op-elsewhere treatment as seuId above.
     objectiveId: overrides.objectiveId !== undefined ? overrides.objectiveId : (list ? list.objectiveId : ""),
+    // The Demo Participants page's selected participant - same no-op-elsewhere treatment as objectiveId above.
+    participantId: overrides.participantId !== undefined ? overrides.participantId : (list ? list.participantId : ""),
   };
   const p = new URLSearchParams();
   if (state.q) p.set("q", state.q);
@@ -54,6 +56,7 @@ listQueryString = function(list, overrides = {}) {
   if (state.tenant) p.set("tenant", state.tenant);
   if (state.seuId) p.set("seuId", state.seuId);
   if (state.objectiveId) p.set("objectiveId", state.objectiveId);
+  if (state.participantId) p.set("participantId", state.participantId);
   const s = p.toString();
   return s ? ("?" + s) : "";
 };
