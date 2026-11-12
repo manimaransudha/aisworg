@@ -801,8 +801,8 @@ export function reconstructProfileParameterOverrides(body: Record<string, unknow
       value: typeof r.value === "string" ? r.value.trim() : "",
       notRequired: r.sourceType === "service" && (r.notRequired === "true" || r.notRequired === true),
     }))
-    .map((r) => (r.notRequired ? { ...r, value: "" } : { sourceType: r.sourceType, sourceCode: r.sourceCode, parameterName: r.parameterName, value: r.value }))
-    .filter((r) => r.sourceCode && r.parameterName && (r.notRequired || r.value));
+    .filter((r) => r.sourceCode && r.parameterName && (r.notRequired || r.value))
+    .map((r) => (r.notRequired ? { ...r, value: "" } : { sourceType: r.sourceType, sourceCode: r.sourceCode, parameterName: r.parameterName, value: r.value }));
   console.log("[triage:notRequired] saved overrides:", overrides.length, "notRequired:", overrides.filter((o) => o.notRequired).length, JSON.stringify(overrides));
   body.exposedParameterOverrides = JSON.stringify(overrides);
 }

@@ -7,7 +7,7 @@ import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import {
-  activatePackSupersedingPrevious, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource, packCodeVersionSummaries,
+  activatePackSupersedingPrevious, materializeContributions, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource, packCodeVersionSummaries,
   type PackSeedInput,
 } from "./packs.js";
 import { activateTemplateSupersedingPrevious, validateTemplateOnSave, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, extractExposedParameters, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
@@ -692,8 +692,10 @@ async function stampServiceDefinitionIds(seed: PackSeedInput, tenantId: string):
 export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; actorId: string; authorBadge: string; tenantId?: string; parentTemplateId?: string; parentProfileId?: string; parentDeliverableDefinitionId?: string; parentServiceDefinitionId?: string; parentPolicyDefinitionId?: string; parentCapabilityDefinitionId?: string; content: Record<string, unknown>; schemaDefinitionId: string }): Promise<AuthoringResult> {
   const authoredBy = input.actorId;
   if (input.kind === "Pack") {
+    const tenantId = input.tenantId;
+    if (!tenantId) return { ok: false, errors: [`tenantId is required to create a Pack draft`] };
     const seed = toPackSeedInput(input.content);
-    await stampServiceDefinitionIds(seed, input.tenantId ?? (await getPlatformTenantId()));
+    await stampServiceDefinitionIds(seed, tenantId);
     const { data: packMaster } = await participantsMasterDB.findById(authoredBy);
     if (!packMaster) return { ok: false, errors: [`No superuser provisioned.`] };
     const birth = await transitionEngine.beginBirth({ entityType: "Pack", actorId: input.actorId });
@@ -710,15 +712,16 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       status: birth.initialState as PackRow["status"],
       authoredBy: packMaster.id,
       authorBadge: birth.authorityBadge,
-      tenantId: input.tenantId ?? (await getPlatformTenantId()),
+      tenantId,
       schemaDefinitionId: input.schemaDefinitionId,
     });
     if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create Pack draft")).message] };
+    await materializeContributions(pack, seed);
     const { data: packSchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
     if (packSchema) {
-      await proposeComposableOntologyValues(packSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Pack", originatingObjectId: pack.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: birth.authorityBadge, tenantId: input.tenantId });
+      await proposeComposableOntologyValues(packSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Pack", originatingObjectId: pack.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: birth.authorityBadge, tenantId });
     }
-    await emitConceptCreatedForCompetencies(pack.id, seed.code, seed.contributions.competencies, { actorId: input.actorId, badge: birth.authorityBadge, tenantId: input.tenantId });
+    await emitConceptCreatedForCompetencies(pack.id, seed.code, seed.contributions.competencies, { actorId: input.actorId, badge: birth.authorityBadge, tenantId });
     await eventBus.publish({
       eventType: birth.eventType,
       originatingObjectType: "Pack",

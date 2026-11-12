@@ -44,14 +44,14 @@ before(async () => {
     return undefined;
   };
   const templateRow = await firstActive("Template", (code) => templatesDB.findActiveByCode(code, platformTenantId));
-  template = templateRow && { id: templateRow.id, code: templateRow.code };
+  template = templateRow ? { id: templateRow.id, code: templateRow.code } : (undefined as never);
   const profileRow = await firstActive("Profile", (code) => profilesDB.findActiveByCode(code, platformTenantId));
   const baseTemplate = profileRow ? (await templatesDB.findById(profileRow.base_template_id)).data : null;
   profile = profileRow && baseTemplate ? { id: profileRow.id, name: profileRow.name, base_template_code: baseTemplate.code } : (undefined as never);
   const packRow = await firstActive("Pack", (code) => packsDB.findActiveByCode(code, platformTenantId));
-  pack = packRow && { id: packRow.id, code: packRow.code };
+  pack = packRow ? { id: packRow.id, code: packRow.code } : (undefined as never);
   const deliverableRow = await firstActive("DeliverableDefinition", (code) => deliverableDefinitionsDB.findActiveByCode(code, platformTenantId));
-  deliverable = deliverableRow && { id: deliverableRow.id, code: deliverableRow.code };
+  deliverable = deliverableRow ? { id: deliverableRow.id, code: deliverableRow.code } : (undefined as never);
   assert.ok(template && profile && pack && deliverable, "the seed holds an Active Platform Template, Profile, Pack and Deliverable Definition");
 
   server = app.listen(0);

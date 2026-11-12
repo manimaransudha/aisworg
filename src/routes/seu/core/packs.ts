@@ -23,6 +23,8 @@ import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import { governedTransitionsFor } from "../../../domain/engine/policyChecks.js";
 import type { PackCategory, PackClassification, PackContributions, PackRow, PolicyCondition, PolicyDefinitionRow, PolicyScope, ServiceDefinitionRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
+import { createAuthoringDraft } from "./sdkAuthoring.js";
 import { getPlatformTenantId, INITIAL_VERSION } from "../../../dblayer/constants.js";
 import { compareSemver, nextUnusedPatchVersion, semverError } from "../../../utils/version.js";
 
@@ -416,31 +418,51 @@ export interface PublishPackResult {
   errors?: string[];
 }
 
+// Validates the seed, then creates the Pack through createAuthoringDraft (sdkAuthoring.ts), which also calls materializeContributions.
 export async function createPackDraft(seed: PackSeedInput, authorId: string): Promise<{ ok: true; pack: PackRow } | { ok: false; errors: string[] }> {
   const validation = await validatePackSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
   const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
   if (!packSchema) return { ok: false, errors: [`no schema_definitions grammar for Pack`] };
-  const birth = await transitionEngine.beginBirth({ entityType: "Pack", actorId: authorId });
-  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed), schemaDefinitionId: packSchema.id, status: birth.initialState as PackRow["status"], authoredBy: authorId, authorBadge: birth.authorityBadge, tenantId: seed.tenantId });
-  if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create pack")).message] };
-
-  await materializeContributions(pack, seed);
-
-  await eventBus.publish({
-    eventType: birth.eventType,
-    originatingObjectType: "Pack",
-    originatingObjectId: pack.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    actorId: authorId,
-    authorityBadge: birth.authorityBadge,
-    payload: { code: pack.code, packVersion: pack.pack_version },
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(authorId, "pack_define");
+  const created = await createAuthoringDraft({
+    kind: "Pack", actorId: authorId, authorBadge, tenantId: seed.tenantId,
+    content: seed as unknown as Record<string, unknown>, schemaDefinitionId: packSchema.id,
   });
-
+  if (!created.ok) return { ok: false, errors: created.errors };
+  const { data: pack } = await packsDB.findById(created.draftId);
+  if (!pack) return { ok: false, errors: [`Pack draft ${created.draftId} not found after creation`] };
   return { ok: true, pack };
 }
+
+// Commented out (owner): the previous body, replaced by the wrapper above.
+
+// export async function createPackDraft(seed: PackSeedInput, authorId: string): Promise<{ ok: true; pack: PackRow } | { ok: false; errors: string[] }> {
+//   const validation = await validatePackSeed(seed);
+//   if (!validation.ok) return { ok: false, errors: validation.errors };
+// 
+//   const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
+//   if (!packSchema) return { ok: false, errors: [`no schema_definitions grammar for Pack`] };
+//   const birth = await transitionEngine.beginBirth({ entityType: "Pack", actorId: authorId });
+//   const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed), schemaDefinitionId: packSchema.id, status: birth.initialState as PackRow["status"], authoredBy: authorId, authorBadge: birth.authorityBadge, tenantId: seed.tenantId });
+//   if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create pack")).message] };
+// 
+//   await materializeContributions(pack, seed);
+// 
+//   await eventBus.publish({
+//     eventType: birth.eventType,
+//     originatingObjectType: "Pack",
+//     originatingObjectId: pack.id,
+//     seuId: null,
+//     correlationId: eventBus.newCorrelationId(),
+//     actorId: authorId,
+//     authorityBadge: birth.authorityBadge,
+//     payload: { code: pack.code, packVersion: pack.pack_version },
+//   });
+// 
+//   return { ok: true, pack };
+// }
 
 // Moves a Pack to Active and retires the Active version it replaces, both through the generic transition.
 export async function activatePackSupersedingPrevious(pack: PackRow, actorId: string): Promise<PublishPackResult> {
@@ -498,7 +520,7 @@ async function resolvePinnedServiceDefinition(svc: { code: string; serviceDefini
   return definition;
 }
 
-async function materializeContributions(pack: PackRow, seed: PackSeedInput): Promise<void> {
+export async function materializeContributions(pack: PackRow, seed: PackSeedInput): Promise<void> {
   const capabilityIdByCode = new Map<string, string>();
   for (const cap of seed.contributions.capabilities ?? []) {
     const { data: concept } = await ontologyDB.findConcept("capability-name", cap.code, { isRoot: false, tenantId: pack.tenant_id });

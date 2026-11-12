@@ -331,7 +331,7 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
   // Commissioned in the empty-pool tenant so the automatic Capability request ends unavailable and the first governance
   // evaluation waits for this test's own Obligation and fulfilment.
   try {
-    const { seuId, deliverableId } = await commissionIsolatedSeu(run, PLATFORM_TENANT_ID, async (packId) => {
+    const { seuId, deliverableId } = await commissionIsolatedSeu(run, await getEmptyPoolTenantId(), async (packId) => {
       const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
       if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("no participants_master row for user_id 1 — is db:clean-slate seeded?");
       const { data: standardPolicy } = await policiesDB.upsert({
@@ -361,7 +361,7 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
       assert.ok(head!.producing_capability_id, "expected the isolated Template's requirements-analysis Capability to be declared");
       const { participant } = await fulfilCapability({ seuId: activatedSeuId, capabilityId: head!.producing_capability_id!, capabilityCodes: ["requirements-analysis"] });
       fixtureParticipantMasterId = participant.participant_id;
-    }, await getEmptyPoolTenantId());
+    });
 
     // The hop is the engine's own governed transition. Its Command carries the governance outcome the producing
     // Command reuses.
