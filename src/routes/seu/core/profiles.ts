@@ -16,6 +16,7 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 import type { ProfileRow, ProfileDetailSource, TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { createAuthoringDraft } from "./sdkAuthoring.js";
 import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "../../../utils/version.js";
 
 const THROWAWAY_PROFILE_CODE = /^profile-\d+-[a-z0-9]+$/;
@@ -441,49 +442,69 @@ export async function validateOverrideValues(seed: ProfileSeedInput): Promise<st
 
 export type PublishProfileResult = { ok: true; profileId: string } | { ok: false; errors: string[] };
 
+// Validates the seed, then creates the Profile through createAuthoringDraft (sdkAuthoring.ts), the same create path as the form.
 export async function createProfileDraft(seed: ProfileSeedInput, actorId: string): Promise<{ ok: true; draft: ProfileRow } | { ok: false; errors: string[] }> {
   const validation = await validateProfileSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
-
-  const tenantId = seed.tenantId;
-
-  const { data: template } = await templatesDB.findActiveByCodeVisibleTo(seed.baseTemplateCode, tenantId);
-  if (!template) return { ok: false, errors: [`baseTemplateCode "${seed.baseTemplateCode}" not found`] };
+  if (!actorId) return { ok: false, errors: ["publishProfile requires a real actorId to author the Draft"] };
 
   const { data: profileSchema } = await schemaDefinitionsDB.findLatest("Profile");
   if (!profileSchema) return { ok: false, errors: [`no schema_definitions grammar for Profile`] };
-  if (!actorId) return { ok: false, errors: ["publishProfile requires a real actorId to author the Draft"] };
-  const { data: profileMaster } = await participantsMasterDB.findById(actorId);
-  if (!profileMaster) return { ok: false, errors: [`No superuser provisioned.`] };
-  const birth = await transitionEngine.beginBirth({ entityType: "Profile", actorId });
-  const { data: draft, error } = await profilesDB.createDraft({
-    code: seed.code,
-    name: seed.name,
-    baseTemplateId: template.id,
-    status: birth.initialState as ProfileRow["status"],
-    authoredBy: profileMaster.id,
-    authorBadge: birth.authorityBadge,
-    environment: seed.environment,
-    profileVersion: seed.profileVersion,
-    tenantId,
-    parentProfileId: seed.parentProfileId,
-    draftContent: toSchemaRows(profileSchema.schema as JsonSchemaDocument, { ...seed }),
-    schemaDefinitionId: profileSchema.id,
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(actorId, "profile_define");
+  const created = await createAuthoringDraft({
+    kind: "Profile", actorId, authorBadge, tenantId: seed.tenantId, parentProfileId: seed.parentProfileId ?? undefined,
+    content: toSchemaRows(profileSchema.schema as JsonSchemaDocument, { ...seed }), schemaDefinitionId: profileSchema.id,
   });
-  if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create profile draft")).message] };
-
-  await eventBus.publish({
-    eventType: birth.eventType,
-    originatingObjectType: "Profile",
-    originatingObjectId: draft.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    actorId: profileMaster.id,
-    authorityBadge: birth.authorityBadge,
-    payload: { code: draft.code, profileVersion: draft.profile_version },
-  });
+  if (!created.ok) return { ok: false, errors: created.errors };
+  const { data: draft } = await profilesDB.findById(created.draftId);
+  if (!draft) return { ok: false, errors: [`Profile draft ${created.draftId} not found after creation`] };
   return { ok: true, draft };
 }
+
+// Commented out (owner): the previous body, replaced by the wrapper above.
+// export async function createProfileDraft(seed: ProfileSeedInput, actorId: string): Promise<{ ok: true; draft: ProfileRow } | { ok: false; errors: string[] }> {
+//   const validation = await validateProfileSeed(seed);
+//   if (!validation.ok) return { ok: false, errors: validation.errors };
+// 
+//   const tenantId = seed.tenantId;
+// 
+//   const { data: template } = await templatesDB.findActiveByCodeVisibleTo(seed.baseTemplateCode, tenantId);
+//   if (!template) return { ok: false, errors: [`baseTemplateCode "${seed.baseTemplateCode}" not found`] };
+// 
+//   const { data: profileSchema } = await schemaDefinitionsDB.findLatest("Profile");
+//   if (!profileSchema) return { ok: false, errors: [`no schema_definitions grammar for Profile`] };
+//   if (!actorId) return { ok: false, errors: ["publishProfile requires a real actorId to author the Draft"] };
+//   const { data: profileMaster } = await participantsMasterDB.findById(actorId);
+//   if (!profileMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+//   const birth = await transitionEngine.beginBirth({ entityType: "Profile", actorId });
+//   const { data: draft, error } = await profilesDB.createDraft({
+//     code: seed.code,
+//     name: seed.name,
+//     baseTemplateId: template.id,
+//     status: birth.initialState as ProfileRow["status"],
+//     authoredBy: profileMaster.id,
+//     authorBadge: birth.authorityBadge,
+//     environment: seed.environment,
+//     profileVersion: seed.profileVersion,
+//     tenantId,
+//     parentProfileId: seed.parentProfileId,
+//     draftContent: toSchemaRows(profileSchema.schema as JsonSchemaDocument, { ...seed }),
+//     schemaDefinitionId: profileSchema.id,
+//   });
+//   if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create profile draft")).message] };
+// 
+//   await eventBus.publish({
+//     eventType: birth.eventType,
+//     originatingObjectType: "Profile",
+//     originatingObjectId: draft.id,
+//     seuId: null,
+//     correlationId: eventBus.newCorrelationId(),
+//     actorId: profileMaster.id,
+//     authorityBadge: birth.authorityBadge,
+//     payload: { code: draft.code, profileVersion: draft.profile_version },
+//   });
+//   return { ok: true, draft };
+// }
 
 // Moves a Profile to Active and deprecates the Active version it replaces, both through the generic transition.
 export async function activateProfileSupersedingPrevious(profile: ProfileRow, actorId: string): Promise<{ ok: true; profile: ProfileRow } | { ok: false; errors: string[] }> {

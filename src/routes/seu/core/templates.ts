@@ -22,6 +22,7 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 import { toSchemaRows, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import type { CapabilityRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { createAuthoringDraft } from "./sdkAuthoring.js";
 import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "../../../utils/version.js";
 
 export interface TemplateCandidate {
@@ -480,45 +481,65 @@ export async function validateExposedParameterValues(seed: TemplateSeedInput): P
 
 export type PublishTemplateResult = { ok: true; templateId: string } | { ok: false; errors: string[] };
 
+// Validates the seed, then creates the Template through createAuthoringDraft (sdkAuthoring.ts), the same create path as the form.
 export async function createTemplateDraft(seed: TemplateSeedInput, actorId: string): Promise<{ ok: true; draft: TemplateRow } | { ok: false; errors: string[] }> {
   const validation = await validateTemplateSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
-
-  const tenantId = seed.tenantId;
-
   if (!actorId) return { ok: false, errors: ["publishTemplate requires a real actorId to author the Draft"] };
-  const { data: templateMaster } = await participantsMasterDB.findById(actorId);
-  if (!templateMaster) return { ok: false, errors: [`No superuser provisioned.`] };
 
   const { data: templateSchema } = await schemaDefinitionsDB.findLatest("Template");
   if (!templateSchema) return { ok: false, errors: [`no schema_definitions grammar for Template`] };
-  const birth = await transitionEngine.beginBirth({ entityType: "Template", actorId });
-  const { data: draft, error } = await templatesDB.createDraft({
-    code: seed.code,
-    name: seed.name,
-    templateVersion: seed.templateVersion,
-    status: birth.initialState as TemplateRow["status"],
-    authoredBy: templateMaster.id,
-    authorBadge: birth.authorityBadge,
-    tenantId,
-    parentTemplateId: seed.parentTemplateId,
-    draftContent: toSchemaRows(templateSchema.schema as JsonSchemaDocument, { ...seed }),
-    schemaDefinitionId: templateSchema.id,
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(actorId, "template_define");
+  const created = await createAuthoringDraft({
+    kind: "Template", actorId, authorBadge, tenantId: seed.tenantId, parentTemplateId: seed.parentTemplateId ?? undefined,
+    content: toSchemaRows(templateSchema.schema as JsonSchemaDocument, { ...seed }), schemaDefinitionId: templateSchema.id,
   });
-  if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create template draft")).message] };
-
-  await eventBus.publish({
-    eventType: birth.eventType,
-    originatingObjectType: "Template",
-    originatingObjectId: draft.id,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    actorId: templateMaster.id,
-    authorityBadge: birth.authorityBadge,
-    payload: { code: draft.code, templateVersion: draft.template_version },
-  });
+  if (!created.ok) return { ok: false, errors: created.errors };
+  const { data: draft } = await templatesDB.findById(created.draftId);
+  if (!draft) return { ok: false, errors: [`Template draft ${created.draftId} not found after creation`] };
   return { ok: true, draft };
 }
+
+// Commented out (owner): the previous body, replaced by the wrapper above.
+// export async function createTemplateDraft(seed: TemplateSeedInput, actorId: string): Promise<{ ok: true; draft: TemplateRow } | { ok: false; errors: string[] }> {
+//   const validation = await validateTemplateSeed(seed);
+//   if (!validation.ok) return { ok: false, errors: validation.errors };
+// 
+//   const tenantId = seed.tenantId;
+// 
+//   if (!actorId) return { ok: false, errors: ["publishTemplate requires a real actorId to author the Draft"] };
+//   const { data: templateMaster } = await participantsMasterDB.findById(actorId);
+//   if (!templateMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+// 
+//   const { data: templateSchema } = await schemaDefinitionsDB.findLatest("Template");
+//   if (!templateSchema) return { ok: false, errors: [`no schema_definitions grammar for Template`] };
+//   const birth = await transitionEngine.beginBirth({ entityType: "Template", actorId });
+//   const { data: draft, error } = await templatesDB.createDraft({
+//     code: seed.code,
+//     name: seed.name,
+//     templateVersion: seed.templateVersion,
+//     status: birth.initialState as TemplateRow["status"],
+//     authoredBy: templateMaster.id,
+//     authorBadge: birth.authorityBadge,
+//     tenantId,
+//     parentTemplateId: seed.parentTemplateId,
+//     draftContent: toSchemaRows(templateSchema.schema as JsonSchemaDocument, { ...seed }),
+//     schemaDefinitionId: templateSchema.id,
+//   });
+//   if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create template draft")).message] };
+// 
+//   await eventBus.publish({
+//     eventType: birth.eventType,
+//     originatingObjectType: "Template",
+//     originatingObjectId: draft.id,
+//     seuId: null,
+//     correlationId: eventBus.newCorrelationId(),
+//     actorId: templateMaster.id,
+//     authorityBadge: birth.authorityBadge,
+//     payload: { code: draft.code, templateVersion: draft.template_version },
+//   });
+//   return { ok: true, draft };
+// }
 
 // Moves a Template to Active and deprecates the Active version it replaces, both through the generic transition.
 export async function activateTemplateSupersedingPrevious(template: TemplateRow, actorId: string): Promise<{ ok: true; template: TemplateRow } | { ok: false; errors: string[] }> {
