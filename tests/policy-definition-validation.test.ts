@@ -142,7 +142,7 @@ test("a governing condition is checked by its type", async () => {
     [{ type: "field_in", field: "x", values: [] }, [/\(field_in\) requires at least one value/]],
     [{ type: "comparison", operator: "between", value: "" }, [/\(comparison\) requires a field/, /\(comparison\) requires a value/, /operator "between" is not one of gt\/gte\/lt\/lte\/eq\/neq/]],
     [{ type: "threshold", field: "x", value: "1", operator: "lt" }, [/operator "lt" is not one of gte\/gt/]],
-    [{ type: "sometimes" }, [/governingCondition type "sometimes" is not one of always_true\/field_in\/comparison\/threshold/]],
+    [{ type: "sometimes" }, [/governingCondition type "sometimes" is not one of always_true\/always_false\/field_in\/comparison\/threshold/]],
   ];
   for (const [governingCondition, patterns] of cases) {
     const text = await errorsOf(withRow({ name: FIXTURE_CODES.output.code, transitions: [deliverableTransition], governingCondition }));

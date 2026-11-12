@@ -21,7 +21,9 @@ import { validateEbm, validateSeu, initiateSeu } from "../core/commissioning.js"
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
-import { EBM_ACTIVE_STATE, EBM_VALIDATED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_DECISION_ACTION_CODE } from "../../../dblayer/constants.js";
+import { CONFLICT_RESULT_COLUMNS, getPlatformTenantId, EBM_ACTIVE_STATE, EBM_VALIDATED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_DECISION_ACTION_CODE } from "../../../dblayer/constants.js";
+import { resolveResultLinks, type ResultLink } from "./conflictResultLinks.js";
+import { resultCells } from "../../../utils/resultCells.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { obligationsDB } from "../../../dblayer/obligationsDB.js";
 import { evidenceDB } from "../../../dblayer/evidenceDB.js";
@@ -206,6 +208,13 @@ router.get("/seus/:id/ebm", attachVM("seu/seus/ebm"), async (req: Request, res: 
     }
     req.vm.req.title = `EBM — SEU ${ebmView.seuId.slice(0, 8)}`;
     req.vm.req.ebmView = ebmView;
+    // The columns of each table in their fixed order, and the entities each row names, as links.
+    const viewerTenantId = req.session?.user?.tenant_id ?? (await getPlatformTenantId());
+    const resultLinks: Record<string, ResultLink[][]> = {};
+    for (const tab of ebmView.settledTabs) resultLinks[tab.table] = await resolveResultLinks(tab.table, tab.result as Array<Record<string, unknown>>, viewerTenantId);
+    req.vm.opt.resultLinks = resultLinks;
+    req.vm.opt.resultColumns = CONFLICT_RESULT_COLUMNS;
+    req.vm.opt.cells = resultCells;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/ebm", req.vm);
   } catch (err) {

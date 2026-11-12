@@ -29,13 +29,13 @@ test("the same definition from two Packs, word for word, is no conflict", () => 
 test("the table's example: the same code with priority High in one Pack and Low in the other is a conflict", () => {
   const conflicts = detect(["a", { obligationDefinitions: [obligation("o1")] }], ["b", { obligationDefinitions: [obligation("o1", { priority: "Low" })] }]);
   assert.equal(conflicts.length, 1);
-  assert.equal(conflicts[0].key, obligationStepKey("source-code", STEP));
+  assert.equal(conflicts[0].key, obligationStepKey("source-code", STEP, "o1"));
   assert.equal(conflicts[0].kind, "obligation-different");
   assert.equal(conflicts[0].options.length, 2);
 });
 
-test("a different code on the same Deliverable at the same step is a conflict", () => {
-  assert.equal(detect(["a", { obligationDefinitions: [obligation("o1")] }], ["b", { obligationDefinitions: [obligation("o2")] }]).length, 1);
+test("a different code on the same Deliverable at the same step is a different Obligation, so it is no conflict", () => {
+  assert.deepEqual(detect(["a", { obligationDefinitions: [obligation("o1")] }], ["b", { obligationDefinitions: [obligation("o2", { priority: "Low" })] }]), []);
 });
 
 test("a different field of any kind is a conflict", () => {
@@ -55,8 +55,8 @@ test("definitions for different Deliverables or different steps are not compared
 });
 
 test("a definition that applies to several steps is compared at each of them", () => {
-  const conflicts = detect(["a", { obligationDefinitions: [obligation("o1", {}, "source-code", [STEP, "Deliverable|Approved|Released"])] }], ["b", { obligationDefinitions: [obligation("o2", {}, "source-code", ["Deliverable|Approved|Released"])] }]);
-  assert.deepEqual(conflicts.map((c) => c.key), [obligationStepKey("source-code", "Deliverable|Approved|Released")]);
+  const conflicts = detect(["a", { obligationDefinitions: [obligation("o1", {}, "source-code", [STEP, "Deliverable|Approved|Released"])] }], ["b", { obligationDefinitions: [obligation("o1", { priority: "Low" }, "source-code", ["Deliverable|Approved|Released"])] }]);
+  assert.deepEqual(conflicts.map((c) => c.key), [obligationStepKey("source-code", "Deliverable|Approved|Released", "o1")]);
 });
 
 test("a definition that applies to no Deliverable is never compared", () => {
@@ -64,6 +64,6 @@ test("a definition that applies to no Deliverable is never compared", () => {
 });
 
 test("a picked conflict is returned with its pick", () => {
-  const facts = unravelObligationDefinitions({ composedPacks: packs(["a", { obligationDefinitions: [obligation("o1")] }], ["b", { obligationDefinitions: [obligation("o2")] }]) });
-  assert.deepEqual(detectObligationDefinitionConflictsFrom(facts, { [obligationStepKey("source-code", STEP)]: ["o1"] }).map((c) => c.resolution), [["o1"]]);
+  const facts = unravelObligationDefinitions({ composedPacks: packs(["a", { obligationDefinitions: [obligation("o1")] }], ["b", { obligationDefinitions: [obligation("o1", { priority: "Low" })] }]) });
+  assert.deepEqual(detectObligationDefinitionConflictsFrom(facts, { [obligationStepKey("source-code", STEP, "o1")]: ["o1"] }).map((c) => c.resolution), [["o1"]]);
 });

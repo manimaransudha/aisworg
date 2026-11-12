@@ -87,13 +87,14 @@ test("policies: a statement-only condition is always taken", () => {
 const authority = (pack: string | null, ...roles: string[]) => ({ packId: pack ? `id-${pack}` : null, packCode: pack, step: STEP, roles: [...roles].sort() });
 
 test("authority rules: sources that agree give that set of roles", () => {
-  assert.deepEqual(settleAuthorityRulesFrom({ rules: [authority("a", "lead"), authority(null, "lead")] }).result, [{ step: STEP, roles: ["lead"] }]);
+  assert.deepEqual(settleAuthorityRulesFrom({ rules: [authority("a", "lead"), authority(null, "lead")] }).result, [{ step: STEP, roles: ["lead"], packs: ["a"] }]);
 });
 
 test("authority rules: a conflict takes the roles of the sets the user picked, together", () => {
   const rules = [authority("a", "lead"), authority("b", "manager")];
   const key = authorityRuleKey(STEP);
   assert.deepEqual(settleAuthorityRulesFrom({ rules }, { [key]: [["manager"]] }).result[0].roles, ["manager"]);
+  assert.deepEqual(settleAuthorityRulesFrom({ rules }, { [key]: [["manager"]] }).result[0].packs, ["b"], "the Packs behind the picked roles");
   assert.deepEqual(settleAuthorityRulesFrom({ rules }, { [key]: [["lead"], ["manager"]] }).result[0].roles, ["lead", "manager"]);
   assert.deepEqual(settleAuthorityRulesFrom({ rules }).result, [], "until the conflict is resolved, the step has no result");
 });
@@ -116,10 +117,16 @@ test("quality gates: a conflict takes the gates the user picked", () => {
 // Review gates
 const rgate = (pack: string, fields: Record<string, unknown>, checklistIds: string[] = []) => ({ packId: `id-${pack}`, packCode: pack, step: STEP, fields, checklistIds, recommendedChecklistIds: [] });
 
-test("review gates: a conflict takes the gate the user picked, and the checklists are a union", () => {
+test("review gates: gates with different codes are all taken, and the checklists are a union", () => {
   const gates = [rgate("a", { code: "rg1" }, ["x"]), rgate("b", { code: "rg2" }, ["y"])];
-  const settled = settleReviewGatesFrom({ gates }, { [reviewGateKey(STEP)]: [{ code: "rg2" }] });
-  assert.deepEqual(settled.result, [{ step: STEP, gates: [{ code: "rg2" }], checklistIds: ["x", "y"], recommendedChecklistIds: [] }]);
+  assert.deepEqual(settleReviewGatesFrom({ gates }).result, [{ step: STEP, gates: [{ code: "rg1" }, { code: "rg2" }], checklistIds: ["x", "y"], recommendedChecklistIds: [], packs: ["a", "b"] }]);
+});
+
+test("review gates: a conflict between gates of one code takes the gate the user picked, and the other codes are still taken", () => {
+  const gates = [rgate("a", { code: "rg1", name: "One" }, ["x"]), rgate("b", { code: "rg1", name: "Two" }, ["y"]), rgate("c", { code: "rg2" })];
+  const key = reviewGateKey(STEP, "rg1");
+  assert.deepEqual(settleReviewGatesFrom({ gates }, { [key]: [{ code: "rg1", name: "Two" }] }).result, [{ step: STEP, gates: [{ code: "rg1", name: "Two" }, { code: "rg2" }], checklistIds: ["x", "y"], recommendedChecklistIds: [], packs: ["b", "c"] }]);
+  assert.deepEqual(settleReviewGatesFrom({ gates }).result, [{ step: STEP, gates: [{ code: "rg2" }], checklistIds: [], recommendedChecklistIds: [], packs: ["c"] }], "the gates of the open conflict are left out until it is resolved");
 });
 
 // Obligation definitions
@@ -128,8 +135,14 @@ const odef = (pack: string, fields: Record<string, unknown>) => ({ packId: `id-$
 test("obligation definitions: the same definition is one definition, and a conflict takes the definitions the user picked", () => {
   assert.equal(settleObligationDefinitionsFrom({ definitions: [odef("a", { code: "o1" }), odef("b", { code: "o1" })] }).result[0].definitions.length, 1);
   const definitions = [odef("a", { code: "o1", priority: "High" }), odef("b", { code: "o1", priority: "Low" })];
-  const settled = settleObligationDefinitionsFrom({ definitions }, { [obligationStepKey("source-code", STEP)]: [{ code: "o1", priority: "Low" }] });
+  const settled = settleObligationDefinitionsFrom({ definitions }, { [obligationStepKey("source-code", STEP, "o1")]: [{ code: "o1", priority: "Low" }] });
   assert.deepEqual(settled.result[0].definitions, [{ fields: { code: "o1", priority: "Low" }, packs: [{ id: "id-b", code: "b" }] }]);
+});
+
+test("obligation definitions: definitions with different codes are all taken, and an open conflict leaves out only its own code", () => {
+  assert.equal(settleObligationDefinitionsFrom({ definitions: [odef("a", { code: "o1" }), odef("b", { code: "o2" })] }).result[0].definitions.length, 2);
+  const definitions = [odef("a", { code: "o1", priority: "High" }), odef("b", { code: "o1", priority: "Low" }), odef("c", { code: "o2" })];
+  assert.deepEqual(settleObligationDefinitionsFrom({ definitions }).result[0].definitions.map((d) => d.fields), [{ code: "o2" }], "the definitions of the open conflict are left out until it is resolved");
 });
 
 // Engineering capital
@@ -211,7 +224,7 @@ test("an open conflict leaves out only its own item: other policy rules and othe
   const rules = [rule("a", "p1", "approvals", ">", 2), rule("b", "p1", "approvals", ">", 1), { ...rule("c", "p3", "coverage", ">=", 80), deliverable: "api-spec" }];
   assert.deepEqual(settlePoliciesFrom({ rules }).result.map((r) => r.policyCode), ["p3"]);
   const gates = [authority("a", "lead"), authority("b", "manager"), { ...authority("a", "lead"), step: "Deliverable|Approved|Released" }];
-  assert.deepEqual(settleAuthorityRulesFrom({ rules: gates }).result, [{ step: "Deliverable|Approved|Released", roles: ["lead"] }]);
+  assert.deepEqual(settleAuthorityRulesFrom({ rules: gates }).result, [{ step: "Deliverable|Approved|Released", roles: ["lead"], packs: ["a"] }]);
 });
 
 // What the EBM leaves out, and why

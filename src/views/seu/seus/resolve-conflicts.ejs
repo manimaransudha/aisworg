@@ -22,7 +22,53 @@
 
     <% var _base = locals.listBasePath || ''; %>
     <% var _openTotal = tabs.reduce(function(n, t) { return n + t.open; }, 0); %>
+    <% var _cells = locals.cells; var _esc = _cells.esc, _jsonHtml = _cells.jsonHtml, _cellHtml = _cells.cellHtml, _linksHtml = _cells.linksHtml; %>
     <% function _fmt(value) { return (value === null || value === undefined) ? '—' : (typeof value === 'object' ? JSON.stringify(value) : String(value)); } %>
+    <% var _capInfo = locals.capabilityInfo || {}; %>
+    <%# A value that names a Capability shows its name as a link that opens the Capability in a modal, with the code in muted text. %>
+    <% function _valueHtml(value, linked) {
+         var code = value && typeof value === 'object' && typeof value.capabilityCode === 'string' ? value.capabilityCode : null;
+         if (!code) return _jsonHtml(value);
+         var cap = _capInfo[code];
+         if (!cap) return '<code>' + _esc(code) + '</code>';
+         var name = linked
+           ? '<button type="button" class="btn btn-link btn-sm p-0 align-baseline text-start" data-bs-toggle="modal" data-bs-target="#capabilityModal" data-name="' + _esc(cap.name) + '" data-code="' + _esc(code) + '" data-category="' + _esc(cap.category) + '" data-version="' + _esc(cap.version) + '" data-description="' + _esc(cap.description) + '" data-href="/aisworg/seu/capability-definitions/' + _esc(cap.id) + '">' + _esc(cap.name) + '</button>'
+           : _esc(cap.name);
+         return name + ' <span class="text-muted small">' + _esc(code) + '</span>';
+       } %>
+    <% var _compared = locals.comparedKinds || []; %>
+    <% var _links = locals.resultLinks || []; %>
+    <%# The entity that holds the whole definition of an option: its source Pack, Template or Profile. %>
+    <% var _sourcePath = { pack: 'packs', template: 'templates', profile: 'profiles' }; %>
+    <% function _optionLinks(opt, capInfo) {
+         var links = [];
+         if (opt.sourceId && _sourcePath[opt.sourceKind]) links.push({ label: opt.sourceKind.charAt(0).toUpperCase() + opt.sourceKind.slice(1) + ' ' + opt.sourceLabel, href: '/aisworg/seu/' + _sourcePath[opt.sourceKind] + '/' + opt.sourceId });
+         var cap = opt.value && typeof opt.value === 'object' && typeof opt.value.capabilityCode === 'string' ? capInfo[opt.value.capabilityCode] : null;
+         if (cap) links.push({ label: 'Capability ' + opt.value.capabilityCode, href: '/aisworg/seu/capability-definitions/' + cap.id });
+         return links;
+       } %>
+    <%# The options of a conflict side by side: one column for each source, one row for each field (or, for a list of roles, for each role). A row where the sources differ is highlighted. %>
+    <% function _compareRows(options) {
+         var rows = [];
+         if (options.every(function(o) { return Array.isArray(o.value); })) {
+           var items = [];
+           options.forEach(function(o) { o.value.forEach(function(x) { if (items.indexOf(x) < 0) items.push(x); }); });
+           items.forEach(function(item) {
+             var cells = options.map(function(o) { return o.value.indexOf(item) >= 0 ? 'Yes' : '—'; });
+             rows.push({ name: String(item), cells: cells, differs: cells.some(function(x) { return x !== cells[0]; }) });
+           });
+           return rows;
+         }
+         var fields = [];
+         options.forEach(function(o) { Object.keys(o.value || {}).forEach(function(k) { if (fields.indexOf(k) < 0) fields.push(k); }); });
+         fields.forEach(function(f) {
+           var raw = options.map(function(o) { return (o.value && Object.prototype.hasOwnProperty.call(o.value, f)) ? o.value[f] : undefined; });
+           var cells = raw.map(function(x) { return x === undefined ? '—' : x; });
+           rows.push({ name: f, cells: cells, differs: raw.some(function(x) { return JSON.stringify(x) !== JSON.stringify(raw[0]); }) });
+         });
+         rows.sort(function(a, b) { return (b.differs ? 1 : 0) - (a.differs ? 1 : 0); });
+         return rows;
+       } %>
     <% function _same(a, b) { return JSON.stringify(a) === JSON.stringify(b); } %>
     <% function _status(c) { return c.notice ? 'notice' : (c.resolution !== null && c.resolution !== undefined ? 'resolved' : 'open'); } %>
 
@@ -58,34 +104,169 @@
       <div class="col-md-9">
         <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search conflicts' }) %>
 
-        <% if (!list.items.length) { %>
-          <div class="section-card"><div class="p-3 text-muted small">No conflict in this table.</div></div>
-        <% } %>
-
         <%# What the SEU takes for this table. It is shown whether or not the table has a conflict. %>
         <% var _taken = locals.settledResult || []; %>
-        <% var _cols = []; _taken.forEach(function(row) { Object.keys(row).forEach(function(k) { if (_cols.indexOf(k) < 0) _cols.push(k); }); }); %>
+        <% var _cols = _cells.orderedColumns(_taken, locals.resultColumns || []); %>
         <div class="section-card">
           <div class="section-header d-flex align-items-center justify-content-between gap-2">
             <span><i class="bi bi-check2-square me-1"></i>What the SEU takes</span>
-            <% if (locals.preview && !locals.preview.error) { %><span class="badge bg-warning-subtle text-warning-emphasis">Preview of your selection, not applied yet</span><% } %>
           </div>
-          <% if (locals.preview && locals.preview.error) { %><div class="px-3 pt-2 text-danger small"><%= locals.preview.error %></div><% } %>
           <% if (!_taken.length) { %>
             <div class="p-3 text-muted small">Nothing yet.</div>
           <% } else { %>
             <div class="table-responsive">
               <table class="table table-sm align-middle mb-0">
-                <thead><tr><% _cols.forEach(function(col) { %><th class="small text-muted"><%= col %></th><% }) %></tr></thead>
+                <thead><tr><% _cols.forEach(function(col) { %><th class="small text-muted"><%= col %></th><% }) %><th class="small text-muted">Open</th></tr></thead>
                 <tbody>
-                  <% _taken.forEach(function(row) { %>
-                    <tr><% _cols.forEach(function(col) { %><td class="small"><code><%= _fmt(row[col]) %></code></td><% }) %></tr>
+                  <% _taken.forEach(function(row, ri) { %>
+                    <tr><% _cols.forEach(function(col) { %><td class="small"><%- _cellHtml(row[col], col, _links[ri]) %></td><% }) %><td class="small text-nowrap"><%- _linksHtml(_links[ri]) %></td></tr>
                   <% }) %>
                 </tbody>
               </table>
             </div>
           <% } %>
         </div>
+
+        <% if (!list.items.length) { %>
+          <div class="section-card"><div class="p-3 text-muted small">No conflict in this table.</div></div>
+        <% } %>
+
+        <% if (locals.asTable && list.items.length) { %>
+          <%# The conflicts of this table are rows of one table, each with an Include or Exclude choice, and one Apply for all of them. %>
+          <form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm" id="rows-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="returnTo" value="resolve-conflicts">
+            <input type="hidden" name="category" value="<%= selectedTable %>">
+            <% selections.forEach(function(s) { %>
+              <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
+            <% }) %>
+            <div class="section-card">
+              <div class="d-flex align-items-center justify-content-end gap-2 p-2" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border);">
+                <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead><tr><th class="small text-muted">Pack</th><th class="small text-muted">Capability</th><th class="small text-muted">Include or exclude</th></tr></thead>
+                  <tbody>
+                    <% list.items.forEach(function(c, ci) { var opt = c.options[0]; var _code = opt && opt.value && typeof opt.value.capabilityCode === 'string' ? opt.value.capabilityCode : null; var _cap = _code ? _capInfo[_code] : null; %>
+                      <tr>
+                        <td class="small text-nowrap">
+                          <input type="hidden" name="ebmBulkKey" value="<%= c.key %>">
+                          <% if (opt && opt.sourceKind === 'pack' && opt.sourceId) { %>
+                            <a href="/aisworg/seu/packs/<%= opt.sourceId %>" target="_blank" rel="noopener">Pack <%= opt.sourceLabel %></a>
+                          <% } else if (opt) { %><%= opt.sourceLabel %><% } %>
+                        </td>
+                        <td class="small">
+                          <% if (_cap) { %>
+                            <%- _valueHtml(opt.value, true).replace(/ <span class="text-muted small">(.*)<\/span>$/, '<div class="text-muted small">$1</div>') %>
+                          <% } else { %><%= _code || _fmt(opt && opt.value) %><% } %>
+                        </td>
+                        <td class="small">
+                          <% if (!c.resolvable || c.action !== 'include-or-exclude') { %>
+                            <span class="text-muted">This cannot be resolved here.</span>
+                          <% } else { %>
+                            <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="ebmBulkDecision_<%= ci %>" id="row-<%= ci %>-include" value="include" <%= c.resolution === 'include' ? 'checked' : '' %>><label class="form-check-label small" for="row-<%= ci %>-include">Include</label></div>
+                            <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="ebmBulkDecision_<%= ci %>" id="row-<%= ci %>-exclude" value="exclude" <%= c.resolution === 'exclude' ? 'checked' : '' %>><label class="form-check-label small" for="row-<%= ci %>-exclude">Exclude</label></div>
+                          <% } %>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </form>
+        <% } else { %>
+        <% list.items.forEach(function(c, ci) { %>
+          <% var st = _status(c); %>
+          <div class="section-card">
+            <div class="section-header d-flex align-items-center justify-content-between gap-2">
+              <span class="small fw-semibold"><%= c.title || c.kind %></span>
+              <% if (st === 'open') { %><span class="badge bg-danger-subtle text-danger-emphasis">Open</span>
+              <% } else if (st === 'resolved') { %><span class="badge bg-success-subtle text-success-emphasis">Resolved</span>
+              <% } else { %><span class="badge bg-info-subtle text-info-emphasis">Notice</span><% } %>
+            </div>
+            <div class="p-3">
+              <p class="mb-2"><%= c.message %></p>
+              <% if (_compared.indexOf(c.kind) >= 0) { %>
+                <div class="table-responsive mb-2">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead><tr>
+                      <th class="small text-muted"></th>
+                      <% c.options.forEach(function(opt) { %>
+                        <th class="small text-nowrap">
+                          <% if (opt.sourceKind === 'pack' && opt.sourceId) { %>
+                            <a href="/aisworg/seu/packs/<%= opt.sourceId %>" target="_blank" rel="noopener">Pack <%= opt.sourceLabel %></a>
+                          <% } else { %><%= opt.sourceLabel %><% } %>
+                        </th>
+                      <% }) %>
+                    </tr></thead>
+                    <tbody>
+                      <% _compareRows(c.options).forEach(function(r) { %>
+                        <tr class="<%= r.differs ? 'table-warning' : '' %>">
+                          <td class="small <%= r.differs ? 'fw-semibold' : 'text-muted' %>"><%= r.name %></td>
+                          <% r.cells.forEach(function(cell) { %><td class="small <%= r.differs ? '' : 'text-muted' %>"><% if (cell !== null && typeof cell === 'object') { %><%- _jsonHtml(cell) %><% } else { %><%= cell %><% } %></td><% }) %>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="text-muted small mb-2">The highlighted rows differ between the sources.</div>
+              <% } else { %>
+              <div class="table-responsive mb-2">
+                <table class="table table-sm align-middle mb-0">
+                  <thead><tr><th class="small text-muted">Source</th><th class="small text-muted">Value</th><th class="small text-muted">Open</th></tr></thead>
+                  <tbody>
+                    <% c.options.forEach(function(opt) { %>
+                      <tr>
+                        <td class="small text-nowrap"><%= opt.sourceLabel %></td>
+                        <td class="small"><%- _valueHtml(opt.value, true) %></td>
+                        <td class="small text-nowrap"><%- _linksHtml(_optionLinks(opt, _capInfo)) %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+              <% } %>
+
+              <% if (st === 'resolved') { %>
+                <div class="small mb-2">Your pick: <span class="fw-semibold"><code><%= _fmt(c.resolution) %></code></span></div>
+              <% } %>
+
+              <% if (c.notice) { %>
+                <div class="text-muted small">A person verifies this. Nothing to pick.</div>
+              <% } else if (!c.resolvable || c.action === 'none') { %>
+                <div class="text-muted small">This cannot be resolved here.</div>
+              <% } else { %>
+                <form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm" class="d-flex flex-wrap align-items-center gap-3">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="returnTo" value="resolve-conflicts">
+                  <input type="hidden" name="category" value="<%= selectedTable %>">
+                  <input type="hidden" name="ebmPickKey" value="<%= c.key %>">
+                  <% selections.forEach(function(s) { %>
+                    <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
+                  <% }) %>
+                  <% if (c.action === 'include-or-exclude') { %>
+                    <% var _dec = c.resolution; %>
+                    <div class="form-check"><input class="form-check-input" type="radio" name="ebmPickDecision" id="dec-<%= ci %>-include" value="include" <%= _dec === 'include' ? 'checked' : '' %>><label class="form-check-label small" for="dec-<%= ci %>-include">Include</label></div>
+                    <div class="form-check"><input class="form-check-input" type="radio" name="ebmPickDecision" id="dec-<%= ci %>-exclude" value="exclude" <%= _dec === 'exclude' ? 'checked' : '' %>><label class="form-check-label small" for="dec-<%= ci %>-exclude">Exclude</label></div>
+                    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                  <% } else { %>
+                    <% c.options.forEach(function(opt, oi) { %>
+                      <% var picked = (c.action === 'pick-any' ? (Array.isArray(c.resolution) && c.resolution.some(function(r) { return _same(r, opt.value); })) : _same(c.resolution, opt.value)); %>
+                      <div class="form-check">
+                        <input class="form-check-input" type="<%= c.action === 'pick-any' ? 'checkbox' : 'radio' %>" name="ebmPickOption" id="pick-<%= ci %>-<%= oi %>" value="<%= oi %>" <%= picked ? 'checked' : '' %>>
+                        <label class="form-check-label small" for="pick-<%= ci %>-<%= oi %>"><%= opt.sourceLabel %><% if (_compared.indexOf(c.kind) < 0) { %>: <%- _valueHtml(opt.value, false) %><% } %></label>
+                      </div>
+                    <% }) %>
+                    <button type="submit" class="btn btn-primary btn-sm"><%= c.action === 'pick-any' ? 'Apply (one or both)' : 'Apply' %></button>
+                  <% } %>
+                </form>
+              <% } %>
+            </div>
+          </div>
+        <% }) %>
+        <% } %>
 
         <%# What the EBM leaves out of this table, and why. %>
         <% var _left = locals.leftOut || []; %>
@@ -106,93 +287,46 @@
             </div>
           <% } %>
         </div>
-
-        <% list.items.forEach(function(c, ci) { %>
-          <% var st = _status(c); %>
-          <div class="section-card">
-            <div class="section-header d-flex align-items-center justify-content-between gap-2">
-              <span><code class="small"><%= c.kind %></code></span>
-              <% if (st === 'open') { %><span class="badge bg-danger-subtle text-danger-emphasis">Open</span>
-              <% } else if (st === 'resolved') { %><span class="badge bg-success-subtle text-success-emphasis">Resolved</span>
-              <% } else { %><span class="badge bg-info-subtle text-info-emphasis">Notice</span><% } %>
-            </div>
-            <div class="p-3">
-              <p class="mb-2"><%= c.message %></p>
-              <div class="table-responsive mb-2">
-                <table class="table table-sm align-middle mb-0">
-                  <thead><tr><th class="small text-muted">Source</th><th class="small text-muted">Value</th></tr></thead>
-                  <tbody>
-                    <% c.options.forEach(function(opt) { %>
-                      <tr>
-                        <td class="small text-nowrap">
-                          <% if (opt.sourceKind === 'pack' && opt.sourceId) { %>
-                            <a href="/aisworg/seu/packs/<%= opt.sourceId %>" target="_blank" rel="noopener">Pack <%= opt.sourceLabel %></a>
-                          <% } else { %><%= opt.sourceLabel %><% } %>
-                        </td>
-                        <td class="small"><code><%= _fmt(opt.value) %></code></td>
-                      </tr>
-                    <% }) %>
-                  </tbody>
-                </table>
-              </div>
-
-              <% if (st === 'resolved') { %>
-                <div class="small mb-2">Your pick: <span class="fw-semibold"><code><%= _fmt(c.resolution) %></code></span></div>
-              <% } %>
-
-              <% if (c.notice) { %>
-                <div class="text-muted small">A person verifies this. Nothing to pick.</div>
-              <% } else if (!c.resolvable || c.action === 'none') { %>
-                <div class="text-muted small">This cannot be resolved here.</div>
-              <% } else { %>
-                <form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm" class="d-flex flex-wrap align-items-center gap-3" data-preview-key="<%= c.key %>">
-                  <% var _pv = (locals.preview && locals.preview.key === c.key) ? locals.preview : null; %>
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <input type="hidden" name="returnTo" value="resolve-conflicts">
-                  <input type="hidden" name="category" value="<%= selectedTable %>">
-                  <input type="hidden" name="ebmPickKey" value="<%= c.key %>">
-                  <% selections.forEach(function(s) { %>
-                    <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
-                  <% }) %>
-                  <% if (c.action === 'include-or-exclude') { %>
-                    <% var _dec = _pv ? _pv.decision : c.resolution; %>
-                    <div class="form-check"><input class="form-check-input" type="radio" name="ebmPickDecision" id="dec-<%= ci %>-include" value="include" <%= _dec === 'include' ? 'checked' : '' %>><label class="form-check-label small" for="dec-<%= ci %>-include">Include</label></div>
-                    <div class="form-check"><input class="form-check-input" type="radio" name="ebmPickDecision" id="dec-<%= ci %>-exclude" value="exclude" <%= _dec === 'exclude' ? 'checked' : '' %>><label class="form-check-label small" for="dec-<%= ci %>-exclude">Exclude</label></div>
-                    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-                  <% } else { %>
-                    <% c.options.forEach(function(opt, oi) { %>
-                      <% var picked = _pv ? (_pv.optionIndexes || []).indexOf(oi) >= 0 : (c.action === 'pick-any' ? (Array.isArray(c.resolution) && c.resolution.some(function(r) { return _same(r, opt.value); })) : _same(c.resolution, opt.value)); %>
-                      <div class="form-check">
-                        <input class="form-check-input" type="<%= c.action === 'pick-any' ? 'checkbox' : 'radio' %>" name="ebmPickOption" id="pick-<%= ci %>-<%= oi %>" value="<%= oi %>" <%= picked ? 'checked' : '' %>>
-                        <label class="form-check-label small" for="pick-<%= ci %>-<%= oi %>"><%= opt.sourceLabel %>: <code><%= _fmt(opt.value) %></code></label>
-                      </div>
-                    <% }) %>
-                    <button type="submit" class="btn btn-primary btn-sm"><%= c.action === 'pick-any' ? 'Apply (one or both)' : 'Apply' %></button>
-                  <% } %>
-                </form>
-              <% } %>
-            </div>
-          </div>
-        <% }) %>
       </div>
     </div>
   </main>
 
-  <%# A change in a pick form reloads the page with that selection as a preview. The preview is worked out on the server and nothing is saved until Apply. %>
+  <div class="modal fade" id="capabilityModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title mb-0" id="capabilityModalTitle"></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <table class="table table-sm mb-3">
+            <tbody>
+              <tr><th class="text-muted small">Code</th><td class="small"><code id="capabilityModalCode"></code></td></tr>
+              <tr><th class="text-muted small">Category</th><td class="small" id="capabilityModalCategory"></td></tr>
+              <tr><th class="text-muted small">Version</th><td class="small" id="capabilityModalVersion"></td></tr>
+            </tbody>
+          </table>
+          <p class="small mb-3" id="capabilityModalDescription"></p>
+          <a href="#" id="capabilityModalLink" class="small" target="_blank" rel="noopener">Open the Capability Definition</a>
+        </div>
+      </div>
+    </div>
+  </div>
   <script>
-    document.querySelectorAll('form[data-preview-key]').forEach(function (form) {
-      form.addEventListener('change', function () {
-        var params = new URLSearchParams(window.location.search);
-        ['previewKey', 'previewOption', 'previewDecision'].forEach(function (k) { params.delete(k); });
-        params.set('previewKey', form.getAttribute('data-preview-key'));
-        form.querySelectorAll('input[name=ebmPickOption]:checked').forEach(function (i) { params.append('previewOption', i.value); });
-        var decision = form.querySelector('input[name=ebmPickDecision]:checked');
-        if (decision) params.set('previewDecision', decision.value);
-        window.location.search = params.toString();
-      });
+    document.getElementById('capabilityModal').addEventListener('show.bs.modal', function (event) {
+      var link = event.relatedTarget;
+      if (!link) return;
+      var get = function (name) { return link.getAttribute('data-' + name) || ''; };
+      document.getElementById('capabilityModalTitle').textContent = get('name');
+      document.getElementById('capabilityModalCode').textContent = get('code');
+      document.getElementById('capabilityModalCategory').textContent = get('category') || '—';
+      document.getElementById('capabilityModalVersion').textContent = get('version') || '—';
+      document.getElementById('capabilityModalDescription').textContent = get('description') || 'No description.';
+      document.getElementById('capabilityModalLink').setAttribute('href', get('href'));
     });
   </script>
 
+  <%- include('../../partials/jsonMore') %>
   <%- include('../../partials/footer') %>
 </body>
 </html>

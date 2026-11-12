@@ -21,9 +21,15 @@ const conflict = (kind: string, over: Partial<EbmConflict> = {}): EbmConflict =>
   options: [{ sourceKind: "pack", sourceId: "1", sourceLabel: "a", value: "A" }, { sourceKind: "pack", sourceId: "2", sourceLabel: "b", value: "B" }], ...over,
 });
 
+test("the service level conflicts share one title, and another kind shows its own name", () => {
+  assert.equal(withAction(conflict("level-different")).title, "Service level conflicts");
+  assert.equal(withAction(conflict("level-added")).title, "Service level conflicts");
+  assert.equal(withAction(conflict("service-choice")).title, "service-choice");
+});
+
 test("every kind of conflict the detectors report has an action", () => {
   const kinds = [
-    "service-choice", "level-different", "level-added", "level-omitted", "capability-added", "policy-same-code", "policy-across-codes", "policy-human-verified",
+    "service-choice", "level-different", "level-added", "capability-added", "policy-same-code", "policy-across-codes", "policy-human-verified",
     "authority-different-roles", "quality-gate-different", "review-gate-different-rules", "obligation-different",
     "engineering-capital-different-links", "engineering-capital-missing-link", "dependency-required-missing", "dependency-incompatible-present",
   ];
@@ -31,7 +37,7 @@ test("every kind of conflict the detectors report has an action", () => {
 });
 
 test("the Service choice and the service levels are a pick one", () => {
-  for (const kind of ["service-choice", "level-different", "level-added", "level-omitted"]) assert.equal(CONFLICT_ACTION_BY_KIND[kind], CONFLICT_ACTION_PICK_ONE);
+  for (const kind of ["service-choice", "level-different", "level-added"]) assert.equal(CONFLICT_ACTION_BY_KIND[kind], CONFLICT_ACTION_PICK_ONE);
 });
 
 test("a kind with no action is read-only", () => {

@@ -1248,7 +1248,7 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
   // Same badgefail destination as above.
   const editRedirect = await getRedirect(request, `/seu/objectives/${ownTenantObjective.id}/edit`);
   assert.equal(editRedirect.status, 302);
-  assert.equal(editRedirect.location, "/aisworg");
+  assert.equal(editRedirect.location, "/aisworg/seu/objectives");
   const editAttempt = await getPage(request, `/seu/objectives/${ownTenantObjective.id}`);
   assertPageMatches(editAttempt.html, /You are not authorised for this action/);
 });

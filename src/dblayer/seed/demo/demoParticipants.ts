@@ -4,6 +4,8 @@ import path from "node:path";
 import { logger } from "../../../utils/logger.js";
 import { ontologyDB, type OntologyViewer } from "../../ontologyDB.js";
 import { participantsMasterDB } from "../../participantsMasterDB.js";
+import { capabilityDefinitionsDB } from "../../capabilityDefinitionsDB.js";
+import { COMPETENCY_DIMENSION_ROLE, COMPETENCY_DIMENSION_WORK_TYPE } from "../../constants.js";
 import type { ParticipantType } from "../../seuTypes.js";
 import type { DemoActor } from "./demoBadges.js";
 
@@ -14,6 +16,8 @@ interface DemoParticipantSeed {
   displayName: string;
   capabilities: string[];
   competency: Record<string, Array<{ code: string; proficiency: string }>>;
+  // The proficiency the participant holds in the Roles and Work types of its Capabilities.
+  capabilityProficiency: string;
   cost: number | null;
   behaviourContext: Array<{ policy: string; payload: Record<string, unknown> }>;
   authorisedRole: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
@@ -58,12 +62,34 @@ export async function seedDemoParticipants(actor: DemoActor): Promise<void> {
     for (const b of r.behaviourContext) note(assertCanonical("behaviour-context-policy", b.policy, policies, r.displayName));
     for (const a of r.authorisedRole) note(assertCanonical("authorised-role", a.role, roles, r.displayName));
   }
+  for (const r of roster) {
+    note(assertCanonical("proficiency-level", r.capabilityProficiency, proficiencies, r.displayName));
+    for (const dimension of [COMPETENCY_DIMENSION_ROLE, COMPETENCY_DIMENSION_WORK_TYPE]) note(assertCanonical("participant-eligibility-dimension", dimension, dimensions, r.displayName));
+  }
   if (errors.length > 0) throw new Error(`[seed:demo] participant roster invalid: ${errors.join("; ")}`);
 
+  // A participant holds the Roles of its Capabilities, and under them the Work types. Both come from the
+  // Capability Definitions, which are read once for the whole roster.
+  const capabilityCodes = [...new Set(roster.flatMap((r) => r.capabilities))];
+  const { data: definitions, error: definitionsError } = await capabilityDefinitionsDB.findActiveByCodesVisibleTo(capabilityCodes, actor.tenantId);
+  if (definitionsError) throw definitionsError;
+  const rolesByCapability = new Map((definitions ?? []).map((d) => [d.code, d.roles ?? []]));
+  const competencyOf = (r: DemoParticipantSeed): DemoParticipantSeed["competency"] => {
+    const roles = new Set<string>();
+    const worktypes = new Set<string>();
+    for (const capability of r.capabilities) {
+      for (const role of rolesByCapability.get(capability) ?? []) {
+        roles.add(role.name);
+        for (const worktype of role.worktypes) worktypes.add(worktype);
+      }
+    }
+    const entries = (codes: Set<string>) => [...codes].map((code) => ({ code, proficiency: r.capabilityProficiency }));
+    return { ...r.competency, [COMPETENCY_DIMENSION_ROLE]: entries(roles), [COMPETENCY_DIMENSION_WORK_TYPE]: entries(worktypes) };
+  };
   const { data: existing, error: findError } = await participantsMasterDB.findByTenantId(actor.tenantId);
   if (findError) throw findError;
   const idByName = new Map((existing ?? []).map((p) => [p.display_name, p.id]));
-  const withId = roster.map((r) => ({ ...r, id: idByName.get(r.displayName) }));
+  const withId = roster.map(({ capabilityProficiency: _p, ...r }, i) => ({ ...r, competency: competencyOf(roster[i]), id: idByName.get(r.displayName) }));
   const fresh = withId.filter((r) => !r.id);
   const changed = withId.filter((r): r is typeof r & { id: string } => Boolean(r.id));
   const created = await participantsMasterDB.createMany(

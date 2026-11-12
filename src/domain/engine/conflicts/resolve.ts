@@ -1,4 +1,4 @@
-import { CONFLICT_ACTION_BY_KIND, CONFLICT_ACTION_INCLUDE_OR_EXCLUDE, CONFLICT_ACTION_NONE, CONFLICT_ACTION_PICK_ANY, CONFLICT_ACTION_PICK_ONE } from "../../../dblayer/constants.js";
+import { CONFLICT_ACTION_BY_KIND, CONFLICT_TITLE_BY_KIND, CONFLICT_ACTION_INCLUDE_OR_EXCLUDE, CONFLICT_ACTION_NONE, CONFLICT_ACTION_PICK_ANY, CONFLICT_ACTION_PICK_ONE } from "../../../dblayer/constants.js";
 import type { ActionedConflict, EbmConflict } from "./types.js";
 
 export const DECISION_INCLUDE = "include";
@@ -6,7 +6,7 @@ export const DECISION_EXCLUDE = "exclude";
 
 // The action for a conflict, from the map of kinds to actions. A kind with no entry is read-only, so an unknown kind is never resolved by accident.
 export function withAction(conflict: EbmConflict): ActionedConflict {
-  return { ...conflict, action: CONFLICT_ACTION_BY_KIND[conflict.kind] ?? CONFLICT_ACTION_NONE };
+  return { ...conflict, action: CONFLICT_ACTION_BY_KIND[conflict.kind] ?? CONFLICT_ACTION_NONE, title: CONFLICT_TITLE_BY_KIND[conflict.kind] ?? conflict.kind };
 }
 
 // What the user submitted: the options picked (by position in the conflict's options) or an include or exclude decision.

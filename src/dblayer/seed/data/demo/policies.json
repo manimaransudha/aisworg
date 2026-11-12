@@ -1,0 +1,28 @@
+[
+  {
+    "code": "demo-false-trigger",
+    "name": "Demo False Trigger",
+    "description": "Demo Policy whose condition is never satisfied. It blocks a Deliverable from moving from Defined to In Progress, so the Policy gate can be shown refusing a transition.",
+    "category": "Engineering",
+    "constraintType": "Policy",
+    "applicabilityEnvironments": [],
+    "scope": "Transition",
+    "version": "1.0.0",
+    "conditions": [
+      {
+        "statement": "The Deliverable meets a condition that is never satisfied before it moves from Defined to In Progress.",
+        "severity": "High",
+        "applicabilityDeliverables": [
+          {
+            "name": "requirements-analysis-model",
+            "transitions": ["Deliverable|Defined|In Progress"],
+            "governingCondition": { "type": "always_false" }
+          }
+        ],
+        "requiredEvidence": { "title": "", "category": "", "description": "", "collectionMethod": "" },
+        "relatedObligations": [],
+        "exceptionRules": []
+      }
+    ]
+  }
+]

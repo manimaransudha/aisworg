@@ -34,15 +34,18 @@ import type { LivenessCheck } from "../core/commissioning.js";
 import type { ProfileDetail } from "../core/profiles.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
+import { resolveResultLinks } from "./conflictResultLinks.js";
+import { resultCells } from "../../../utils/resultCells.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { listConceptsForType } from "../core/ontology.js";
-import { applyConflictPick, blockingEbmConflicts, conflictStatus, settleEbm, summariseConflictTables, type ActionedConflict, type ConflictPick, type EbmConflictTable } from "../../../domain/engine/conflicts/index.js";
+import { applyConflictPick, blockingEbmConflicts, conflictStatus, summariseConflictTables, type ActionedConflict, type ConflictPick, type EbmConflictTable } from "../../../domain/engine/conflicts/index.js";
 import type { ObjectiveStatus, ObjectiveTier, EbmCompositionReport, EbmComposedPack } from "../../../dblayer/seuTypes.js";
 import type { UnraveledComposition, CompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { resolveHeldBadges, requireActorId, resolveActorAndBadge, resolveAuthorBadgeForRequest } from "../../../domain/identity/heldBadges.js";
-import { CONFLICT_TABLE_LABELS, getPlatformTenantId, PLATFORM_TENANT_NAME, OBJECTIVE_RETIRED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_OBJECTIVE_ACTION_CODE } from "../../../dblayer/constants.js";
+import { CONFLICT_RESULT_COLUMNS, CONFLICT_KINDS_SHOWN_AS_COMPARISON, CONFLICT_TABLES_SHOWN_AS_TABLE, CONFLICT_TABLE_LABELS, getPlatformTenantId, PLATFORM_TENANT_NAME, OBJECTIVE_RETIRED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_OBJECTIVE_ACTION_CODE } from "../../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
  
 const CHILD_TIERS: Record<ObjectiveTier, ObjectiveTier[]> = {
@@ -465,6 +468,16 @@ function parseEbmConflictPick(body: Record<string, unknown>): { key: string; pic
   return { key, pick: { optionIndexes: options, decision: typeof body.ebmPickDecision === "string" ? body.ebmPickDecision : undefined } };
 }
 
+// The picks of a table shown as rows: each row posts its conflict's key (ebmBulkKey) and its decision (ebmBulkDecision_<row position>). A row with no decision is left as it was.
+function parseEbmBulkPicks(body: Record<string, unknown>): Array<{ key: string; pick: ConflictPick }> {
+  const picks: Array<{ key: string; pick: ConflictPick }> = [];
+  ([] as unknown[]).concat(body.ebmBulkKey ?? []).forEach((key, i) => {
+    const decision = body[`ebmBulkDecision_${i}`];
+    if (typeof key === "string" && key && typeof decision === "string") picks.push({ key, pick: { decision } });
+  });
+  return picks;
+}
+
 // The page a pick on the Resolve Conflicts screen returns to, on the tab it was made on.
 function resolveConflictsUrl(objectiveId: string, body: Record<string, unknown>): string {
   const category = typeof body.category === "string" && body.category ? `?category=${encodeURIComponent(body.category)}` : "";
@@ -501,18 +514,18 @@ function parseCompositionSourceSelections(body: Record<string, unknown>): { chec
 
 router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  const selections = parseTemplateProfileSelections(req.body ?? {});
+  let selections = parseTemplateProfileSelections(req.body ?? {});
   const resolvedParameterOverrides = parseResolvedParameterOverrides(req.body ?? {});
-  if (selections.length === 0) return redirects.seu.objectivesComposeEbm.error(req, res, "Nothing to re-validate.");
 
   try {
     const viewerTenantId = req.session?.user?.tenant_id ?? (await getPlatformTenantId());
     const { data: existingSeu } = await seusDB.findByObjectiveId(objectiveId);
     if (!existingSeu) return redirects.seu.objectivesComposeEbm.error(req, res, "No SEU found for this Objective.");
+    // The Compose button on the All SEUs page posts no selection, so the SEU's own Template and Profile are composed.
+    if (selections.length === 0) selections = [{ templateId: existingSeu.template_id, profileId: existingSeu.profile_id }];
 
-    // A pick from the Resolve Conflicts screen carries no earlier picks in its form, so they are read from what the last Compose stored.
-    const fromResolveScreen = typeof req.body?.ebmPickKey === "string";
-    const storedPicks = fromResolveScreen ? ((existingSeu.composition_report as { resolvedCompositionConflicts?: Record<string, unknown> } | null)?.resolvedCompositionConflicts ?? {}) : {};
+    // A Compose or a pick carries no earlier picks in its form, so they are read from what the last Compose stored.
+    const storedPicks = (existingSeu.composition_report as { resolvedCompositionConflicts?: Record<string, unknown> } | null)?.resolvedCompositionConflicts ?? {};
     const previouslyResolved = { ...storedPicks, ...parsePreviouslyResolvedCompositionConflicts(req.body ?? {}) };
     // Commented out (owner): the old conflict strategies are replaced by the Resolve Conflicts screen.
     // const newStrategyChoices = parseCompositionStrategyChoices(req.body ?? {});
@@ -548,6 +561,18 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
       const applied = applyConflictPick(beforePick.ebmConflicts, newPick.key, newPick.pick);
       if (!applied.ok) return redirects.seu.objectivesComposeEbm.error(req, res, applied.error, resolveConflictsUrl(objectiveId, req.body ?? {}));
       resolvedCompositionConflicts = { ...resolvedCompositionConflicts, [applied.key]: applied.value };
+    }
+
+    // The picks of a table shown as rows are checked one by one against the conflicts they are for, then stored together.
+    if (req.body?.ebmBulkKey !== undefined) {
+      const bulkPicks = parseEbmBulkPicks(req.body ?? {});
+      if (bulkPicks.length === 0) return redirects.seu.objectivesComposeEbm.error(req, res, "Choose Include or Exclude for at least one row.", resolveConflictsUrl(objectiveId, req.body ?? {}));
+      const beforeBulk = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts, viewerTenantId });
+      for (const bulk of bulkPicks) {
+        const applied = applyConflictPick(beforeBulk.ebmConflicts, bulk.key, bulk.pick);
+        if (!applied.ok) return redirects.seu.objectivesComposeEbm.error(req, res, applied.error, resolveConflictsUrl(objectiveId, req.body ?? {}));
+        resolvedCompositionConflicts = { ...resolvedCompositionConflicts, [applied.key]: applied.value };
+      }
     }
 
     const { compositionReport, composedPacks, profileDetails, ebmConflicts, recordedConflicts, settled } = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts, viewerTenantId });
@@ -675,30 +700,23 @@ router.get("/objectives/:id/resolve-conflicts", attachVM("seu/seus/resolve-confl
   req.vm.req.settledResult = stashed.settled?.[selectedTable]?.result ?? [];
   req.vm.req.leftOut = stashed.settled?.[selectedTable]?.leftOut ?? [];
 
-  // A selection that is not applied yet: the result is worked out as if the pick were made, and nothing is saved.
-  const previewKey = typeof req.query.previewKey === "string" ? req.query.previewKey : "";
-  if (previewKey) {
-    const options = ([] as unknown[]).concat(req.query.previewOption ?? []).map((v) => Number(v)).filter((n) => Number.isInteger(n));
-    const decision = typeof req.query.previewDecision === "string" ? req.query.previewDecision : undefined;
-    const applied = applyConflictPick(stashed.ebmConflicts, previewKey, { optionIndexes: options, decision });
-    if (applied.ok) {
-      const selections = stashed.selections ?? [{ templateId: seu.template_id, profileId: seu.profile_id }];
-      const viewerTenantId = req.session?.user?.tenant_id ?? (await getPlatformTenantId());
-      const previewed = await settleEbm({
-        templateIds: [...new Set(selections.map((s) => s.templateId))],
-        profileIds: [...new Set(selections.map((s) => s.profileId).filter((id): id is string => !!id))],
-        viewerTenantId,
-        resolutions: { ...(stashed.resolvedCompositionConflicts ?? {}), [applied.key]: applied.value },
-      });
-      req.vm.req.settledResult = (previewed as unknown as Record<string, { result: unknown[] }>)[selectedTable]?.result ?? [];
-      req.vm.req.leftOut = (previewed as unknown as Record<string, { leftOut: unknown[] }>)[selectedTable]?.leftOut ?? [];
-      req.vm.opt.preview = { key: previewKey, optionIndexes: options, decision: decision ?? null };
-    } else {
-      req.vm.opt.preview = { key: previewKey, optionIndexes: options, decision: decision ?? null, error: applied.error };
-    }
-  }
   req.vm.req.selectedTable = selectedTable;
   req.vm.req.list = { ...paginated, category: selectedTable };
+  // The Capabilities named in the options of the listed conflicts, so the page shows each one's name and opens its definition.
+  const capabilityCodes = new Set<string>();
+  for (const c of paginated.items) for (const o of c.options) { const code = (o.value as { capabilityCode?: unknown } | null)?.capabilityCode; if (typeof code === "string") capabilityCodes.add(code); }
+  const capabilityViewerTenantId = req.session?.user?.tenant_id ?? (await getPlatformTenantId());
+  const capabilityInfo: Record<string, { id: string; name: string; description: string; category: string; version: string }> = {};
+  for (const code of capabilityCodes) {
+    const { data: definition } = await capabilityDefinitionsDB.findActiveByCodeVisibleTo(code, capabilityViewerTenantId);
+    if (definition) capabilityInfo[code] = { id: definition.id, name: definition.default_label, description: definition.description ?? "", category: definition.category, version: definition.version };
+  }
+  req.vm.opt.capabilityInfo = capabilityInfo;
+  req.vm.opt.resultLinks = await resolveResultLinks(selectedTable, (stashed.settled?.[selectedTable]?.result ?? []) as Array<Record<string, unknown>>, capabilityViewerTenantId);
+  req.vm.opt.cells = resultCells;
+  req.vm.opt.comparedKinds = CONFLICT_KINDS_SHOWN_AS_COMPARISON;
+  req.vm.opt.asTable = CONFLICT_TABLES_SHOWN_AS_TABLE.includes(selectedTable);
+  req.vm.opt.resultColumns = CONFLICT_RESULT_COLUMNS[selectedTable] ?? [];
   req.vm.opt.listBasePath = `/aisworg/seu/objectives/${objectiveId}/resolve-conflicts`;
   req.vm.opt.seuId = seu.id;
   req.vm.opt.allResolved = tabs.every((t) => t.open === 0);

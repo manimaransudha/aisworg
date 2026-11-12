@@ -72,16 +72,16 @@ function packLevels(packLists: PackServiceList[], serviceCode: string): Record<s
   return listed ? levels : null;
 }
 
-type LevelDifferenceKind = "level-different" | "level-added" | "level-omitted";
+type LevelDifferenceKind = "level-different" | "level-added";
 
-// The one comparison of the Services table: the Deliverable's levels against the Packs' levels. A different, added or omitted level differs.
+// The one comparison of the Services table: the Deliverable's levels (A) against the Packs' levels (B). A level in A and not in B is no conflict. A level in both with different values, or in B and not in A, is.
 function compareLevels(own: Record<string, OwnLevel>, theirs: Record<string, { value: number }>): Array<{ levelCode: string; kind: LevelDifferenceKind }> {
   const differences: Array<{ levelCode: string; kind: LevelDifferenceKind }> = [];
   for (const levelCode of new Set([...Object.keys(own), ...Object.keys(theirs)])) {
     const mine = own[levelCode];
     const other = theirs[levelCode];
-    if (mine && other && mine.value === other.value) continue;
-    differences.push({ levelCode, kind: !mine ? "level-added" : !other ? "level-omitted" : "level-different" });
+    if (mine && (!other || mine.value === other.value)) continue;
+    differences.push({ levelCode, kind: !mine ? "level-added" : "level-different" });
   }
   return differences;
 }
@@ -128,7 +128,7 @@ function serviceLevelConflicts(facts: ServicesUnraveled, packLists: PackServiceL
     const own = ownLevels(facts, serviceCode);
     for (const { levelCode, kind } of compareLevels(own, theirs)) {
       const key = serviceLevelKey(serviceCode, levelCode);
-      const message = kind === "level-added" ? `The Packs add the level "${levelCode}" to ${serviceCode}.` : kind === "level-omitted" ? `The Packs leave out the level "${levelCode}" of ${serviceCode}.` : `The Packs and the Deliverable's Service give different values for "${levelCode}" of ${serviceCode}.`;
+      const message = kind === "level-added" ? `The Packs add the level "${levelCode}" to ${serviceCode}.` : `The Packs and the Deliverable's Service give different values for "${levelCode}" of ${serviceCode}.`;
       // Every possible outcome is an option. When one side has no value for the level, "no value" is the other outcome.
       const ownOption: ConflictOption = own[levelCode]
         ? { sourceKind: own[levelCode].sourceKind, sourceId: own[levelCode].sourceId, sourceLabel: own[levelCode].sourceLabel, value: own[levelCode].value }

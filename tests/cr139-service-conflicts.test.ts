@@ -57,10 +57,8 @@ test("a level the Packs add is a conflict, and the user can take it or leave it 
   assert.deepEqual(conflicts[0].options.map((o) => o.value), [CONFLICT_NO_VALUE, 7]);
 });
 
-test("a level the Packs omit is a conflict, and the user can keep it or drop it", () => {
-  const conflicts = detectServiceConflictsFrom(facts({ "doc-1": [svcA] }), [packList("pack-1", "svc-a", [{ code: "uptime", target: 90 }])]);
-  assert.deepEqual(conflicts.map((c) => [c.key, c.kind]), [[serviceLevelKey("svc-a", "latency"), "level-omitted"]]);
-  assert.deepEqual(conflicts[0].options.map((o) => o.value), [4, CONFLICT_NO_VALUE]);
+test("a level the Deliverable's Service has and the Packs do not list is no conflict", () => {
+  assert.deepEqual(detectServiceConflictsFrom(facts({ "doc-1": [svcA] }), [packList("pack-1", "svc-a", [{ code: "uptime", target: 90 }])]), []);
 });
 
 test("a pick of \"no value\" is a pick, so the conflict is resolved", () => {

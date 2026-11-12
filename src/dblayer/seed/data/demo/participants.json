@@ -15,6 +15,12 @@
           "code": "ebook-library",
           "proficiency": "Expert"
         }
+      ],
+      "Technology": [
+        {
+          "code": "typescript",
+          "proficiency": "Intermediate"
+        }
       ]
     },
     "cost": 450,
@@ -37,7 +43,8 @@
         "effective_till": "9999-12-31",
         "seu_ids": []
       }
-    ]
+    ],
+    "capabilityProficiency": "Expert"
   },
   {
     "type": "Human",
@@ -46,7 +53,8 @@
       "architecture-design",
       "software-design",
       "governing-engineering-decisions",
-      "engineering-work-review"
+      "engineering-work-review",
+      "non-functional-requirements-engineering"
     ],
     "competency": {
       "Technology": [
@@ -86,7 +94,8 @@
         "effective_till": "9999-12-31",
         "seu_ids": []
       }
-    ]
+    ],
+    "capabilityProficiency": "Expert"
   },
   {
     "type": "Human",
@@ -95,7 +104,9 @@
       "software-construction",
       "software-design",
       "software-validation",
-      "engineering-work-review"
+      "engineering-work-review",
+      "mobile-application-engineering",
+      "user-experience-engineering"
     ],
     "competency": {
       "Technology": [
@@ -139,7 +150,8 @@
         "effective_till": "9999-12-31",
         "seu_ids": []
       }
-    ]
+    ],
+    "capabilityProficiency": "Expert"
   },
   {
     "type": "Human",
@@ -158,6 +170,10 @@
         {
           "code": "git",
           "proficiency": "Expert"
+        },
+        {
+          "code": "typescript",
+          "proficiency": "Intermediate"
         }
       ]
     },
@@ -181,7 +197,8 @@
         "effective_till": "9999-12-31",
         "seu_ids": []
       }
-    ]
+    ],
+    "capabilityProficiency": "Expert"
   },
   {
     "type": "AI",
@@ -200,6 +217,12 @@
           "code": "ebook-library",
           "proficiency": "Intermediate"
         }
+      ],
+      "Technology": [
+        {
+          "code": "typescript",
+          "proficiency": "Intermediate"
+        }
       ]
     },
     "cost": 30,
@@ -215,7 +238,8 @@
         "effective_till": "9999-12-31",
         "seu_ids": []
       }
-    ]
+    ],
+    "capabilityProficiency": "Intermediate"
   },
   {
     "type": "AI",
@@ -223,7 +247,9 @@
     "capabilities": [
       "software-construction",
       "software-design",
-      "engineering-work-review"
+      "engineering-work-review",
+      "mobile-application-engineering",
+      "user-experience-engineering"
     ],
     "competency": {
       "Technology": [
@@ -260,7 +286,8 @@
         "effective_till": "9999-12-31",
         "seu_ids": []
       }
-    ]
+    ],
+    "capabilityProficiency": "Intermediate"
   },
   {
     "type": "AI",
@@ -270,7 +297,9 @@
       "protect-organisational-assets",
       "engineering-work-review",
       "architecture-design",
-      "engineering-documentation"
+      "engineering-documentation",
+      "non-functional-requirements-engineering",
+      "test-strategy-and-design"
     ],
     "competency": {
       "Technology": [
@@ -303,7 +332,8 @@
         "effective_till": "9999-12-31",
         "seu_ids": []
       }
-    ]
+    ],
+    "capabilityProficiency": "Intermediate"
   },
   {
     "type": "Automated",
@@ -326,6 +356,10 @@
         {
           "code": "nodejs",
           "proficiency": "Intermediate"
+        },
+        {
+          "code": "typescript",
+          "proficiency": "Intermediate"
         }
       ]
     },
@@ -342,13 +376,15 @@
         "effective_till": "9999-12-31",
         "seu_ids": []
       }
-    ]
+    ],
+    "capabilityProficiency": "Intermediate"
   },
   {
     "type": "Automated",
     "displayName": "ArchVault Test Runner",
     "capabilities": [
-      "software-validation"
+      "software-validation",
+      "test-strategy-and-design"
     ],
     "competency": {
       "Technology": [
@@ -375,7 +411,8 @@
         "effective_till": "9999-12-31",
         "seu_ids": []
       }
-    ]
+    ],
+    "capabilityProficiency": "Intermediate"
   },
   {
     "type": "External",
@@ -384,7 +421,8 @@
       "protect-organisational-assets",
       "software-validation",
       "governing-engineering-decisions",
-      "engineering-documentation"
+      "engineering-documentation",
+      "test-strategy-and-design"
     ],
     "competency": {
       "Technology": [
@@ -413,7 +451,8 @@
         "effective_till": "9999-12-31",
         "seu_ids": []
       }
-    ]
+    ],
+    "capabilityProficiency": "Intermediate"
   },
   {
     "type": "External",
@@ -428,6 +467,10 @@
       "Technology": [
         {
           "code": "react-native",
+          "proficiency": "Intermediate"
+        },
+        {
+          "code": "typescript",
           "proficiency": "Intermediate"
         }
       ],
@@ -451,6 +494,7 @@
         "effective_till": "9999-12-31",
         "seu_ids": []
       }
-    ]
+    ],
+    "capabilityProficiency": "Intermediate"
   }
 ]

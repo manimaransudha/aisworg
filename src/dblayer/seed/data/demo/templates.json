@@ -20,6 +20,9 @@
       "decision-record",
       "app-store-submission-package",
       "incident-report-post-mortem"
+    ],
+    "engineeringPackCodes": [
+      "demo-false-trigger-pack"
     ]
   }
 ]

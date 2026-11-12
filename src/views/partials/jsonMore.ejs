@@ -1,0 +1,12 @@
+<%# The "…" of a long JSON value (see src/utils/resultCells.ts) opens the whole value in place and "less" closes it. %>
+<script>
+  document.addEventListener('click', function (event) {
+    var more = event.target.closest && event.target.closest('.json-more');
+    if (!more) return;
+    event.preventDefault();
+    var cell = more.closest('.json-cell');
+    var open = cell.querySelector('.json-full').classList.toggle('d-none') === false;
+    cell.querySelector('.json-short').classList.toggle('d-none', open);
+    more.textContent = open ? 'less' : '…';
+  });
+</script>

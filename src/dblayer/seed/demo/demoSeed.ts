@@ -45,6 +45,7 @@ interface DemoObjectiveSeed {
 const PACK_HOPS = [["Draft", "Validated"], ["Validated", "Published"], ["Published", "Active"]] as const;
 const PROFILE_HOPS = PACK_HOPS;
 const TEMPLATE_HOPS = PACK_HOPS;
+const POLICY_HOPS = PACK_HOPS;
 
 async function prepareActor(actor: DemoActor): Promise<string> {
   const { authorisedRoles } = loadJson<{ authorisedRoles: string[] }>("demoUser.json");
@@ -61,6 +62,8 @@ async function grantAuthoringBadges(actor: DemoActor): Promise<void> {
   await grantBadge(actor.participantId, "profile_define");
   await grantBadge(actor.participantId, "template_define");
   await grantBadge(actor.participantId, "capability_define");
+  await grantBadge(actor.participantId, "policy_define");
+  for (const [from, to] of POLICY_HOPS) await grantTransitionBadge(actor.participantId, "Policy", from, to);
   for (const [from, to] of PACK_HOPS) await grantTransitionBadge(actor.participantId, "Pack", from, to);
   for (const [from, to] of TEMPLATE_HOPS) await grantTransitionBadge(actor.participantId, "Template", from, to);
   for (const [from, to] of PROFILE_HOPS) await grantTransitionBadge(actor.participantId, "Profile", from, to);
@@ -72,6 +75,27 @@ async function grantAuthoringBadges(actor: DemoActor): Promise<void> {
   await grantBadgesWithPrefixes(actor.participantId, ["seu_", "ebm_"]);
   // tenant_manage makes the SEU list show every SEU of the Demo tenant, not only those the user is engaged in.
   await grantBadge(actor.participantId, "tenant_manage");
+}
+
+// Authors each Policy Definition through the SDK authoring path and takes it to Active, so the Packs can adopt it.
+async function seedPolicies(actor: DemoActor): Promise<void> {
+  const policies = loadJson<Array<Record<string, unknown> & { code: string }>>("policies.json");
+  const { data: policySchema, error: schemaError } = await schemaDefinitionsDB.findLatest("Policy");
+  if (schemaError || !policySchema) throw schemaError ?? new Error("no schema_definitions grammar for Policy");
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(actor.participantId, "policy_define");
+  for (const policy of policies) {
+    const created = await createAuthoringDraft({
+      kind: "Policy", actorId: actor.participantId, authorBadge, tenantId: actor.tenantId,
+      content: policy, schemaDefinitionId: policySchema.id,
+    });
+    if (!created.ok) throw new Error(`[seed:demo] Policy "${policy.code}" draft failed: ${created.errors.join("; ")}`);
+    let status = "Draft";
+    while (status !== "Active") {
+      const advanced = await publishAuthoringDraft({ kind: "Policy", id: created.draftId, actorId: actor.participantId });
+      if (!advanced.ok) throw new Error(`[seed:demo] Policy "${policy.code}" failed at ${status}: ${advanced.errors.join("; ")}`);
+      status = advanced.status;
+    }
+  }
 }
 
 // Authors each Pack through the SDK authoring path. A Pack whose code is not yet a
@@ -116,6 +140,7 @@ async function seedPacks(actor: DemoActor): Promise<{ authored: Set<string>; act
 interface DemoTemplateSeed {
   baseTemplateCode: string;
   name?: string;
+  engineeringPackCodes?: string[];
   omitDeliverableCodes?: string[];
 }
 
@@ -146,7 +171,7 @@ async function seedTemplates(actor: DemoActor): Promise<void> {
   if (missing.length > 0) throw new Error(`[seed:demo] templates.json has no entry for the base Template(s) the Profiles use: ${missing.join(", ")}`);
   const platformTenantId = await getPlatformTenantId();
 
-  for (const { baseTemplateCode: code, name, omitDeliverableCodes } of templates) {
+  for (const { baseTemplateCode: code, name, omitDeliverableCodes, engineeringPackCodes } of templates) {
     const { data: parent, error } = await templatesDB.findActiveByCode(code, platformTenantId);
     if (error || !parent) throw error ?? new Error(`[seed:demo] Platform Template "${code}" not found`);
     const inherited = await inheritedTemplateContent(parent.id, actor.tenantId);
@@ -157,6 +182,7 @@ async function seedTemplates(actor: DemoActor): Promise<void> {
       seed: {
         ...seed,
         ...(name ? { name } : {}),
+        engineeringPackCodes: [...new Set([...(seed.engineeringPackCodes ?? []), ...(engineeringPackCodes ?? [])])],
         deliverableCatalogue: seed.deliverableCatalogue.filter((d) => !omitted.has(d.code)),
         // dependencyGraph: (seed.dependencyGraph ?? []).filter((e) => !omitted.has(e.toCode) && !(e.fromType === "Deliverable" && omitted.has(e.fromCode ?? ""))),
         // An edge whose gated Deliverable is omitted but whose prerequisite is kept leaves the prerequisite as a standalone node (no toCode).
@@ -294,6 +320,8 @@ export async function seedDemo(): Promise<void> {
   // Each lookup list is read once for the run; writes made during the run drop the lists they affect.
   await withLookupMemo(async () => {
     await grantAuthoringBadges(actor);
+    await seedPolicies(actor);
+    phaseDone("Policies");
     const packs = await seedPacks(actor);
     phaseDone("Packs");
     await seedTemplates(actor);

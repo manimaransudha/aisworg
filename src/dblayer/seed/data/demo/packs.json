@@ -586,5 +586,27 @@
         }
       ]
     }
+  },
+  {
+    "code": "demo-false-trigger-pack",
+    "name": "Demo False Trigger Pack",
+    "category": "Engineering",
+    "packVersion": "1.0.0",
+    "installationClassification": "Mandatory",
+    "description": "Mandatory demo Pack. It brings the demo-false-trigger Policy into every composition, so a Deliverable cannot move from Defined to In Progress.",
+    "owner": "ArchVault IT",
+    "publisher": "ArchVault Public Library",
+    "dependencies": [],
+    "contributions": {
+      "capabilities": [
+        {
+          "code": "requirements-analysis"
+        }
+      ],
+      "services": [],
+      "policies": [
+        "demo-false-trigger"
+      ]
+    }
   }
 ]

@@ -2,20 +2,25 @@ import { unravelReviewGates, type ReviewGatesUnraveled } from "./unravelReviewGa
 import { groupBy } from "./shared.js";
 import type { ConflictResolutions, DetectionContext, EbmConflict } from "./types.js";
 
-export function reviewGateKey(step: string): string {
-  return `reviewGate::${step}`;
+// The code of a review gate. Gates with different codes are different gates.
+export function reviewGateCode(fields: Record<string, unknown>): string {
+  return typeof fields.code === "string" ? fields.code : "";
 }
 
-// Review gates at the same step conflict when any field differs. The checklists are a union and are not compared.
+export function reviewGateKey(step: string, code: string): string {
+  return `reviewGate::${step}::${code}`;
+}
+
+// Review gates at the same step with the same code conflict when any other field differs. Gates with different codes are different gates, so they do not conflict. The checklists are a union and are not compared.
 export function detectReviewGateConflictsFrom(facts: ReviewGatesUnraveled, resolutions: ConflictResolutions = {}): EbmConflict[] {
   const conflicts: EbmConflict[] = [];
-  for (const [key, group] of groupBy(facts.gates, (g) => reviewGateKey(g.step))) {
+  for (const [key, group] of groupBy(facts.gates, (g) => reviewGateKey(g.step, reviewGateCode(g.fields)))) {
     if (new Set(group.map((g) => JSON.stringify(g.fields))).size < 2) continue;
     conflicts.push({
       table: "reviewGates",
       key,
       kind: "review-gate-different-rules",
-      message: `Review gates differ at ${group[0].step}.`,
+      message: `Review gates with the code "${reviewGateCode(group[0].fields)}" differ at ${group[0].step}.`,
       options: group.map((g) => ({ sourceKind: "pack" as const, sourceId: g.packId, sourceLabel: g.packCode, value: g.fields })),
       resolution: resolutions[key] ?? null,
       resolvable: true,

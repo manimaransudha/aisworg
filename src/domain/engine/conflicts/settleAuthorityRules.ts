@@ -1,6 +1,6 @@
 import { unravelAuthorityRules, type AuthorityRulesUnraveled } from "./unravelAuthorityRules.js";
 import { authorityRuleKey, detectAuthorityRuleConflictsFrom } from "./authorityRules.js";
-import { openKeys, pickedValues, recordConflicts, leftOutOf, type LeftOut, sortedUnion } from "./settleShared.js";
+import { openKeys, pickedValues, recordConflicts, leftOutOf, type LeftOut, sameValue, sortedUnion } from "./settleShared.js";
 import type { RecordedConflict } from "../../../dblayer/seuTypes.js";
 import type { ConflictResolutions, DetectionContext } from "./types.js";
 
@@ -8,6 +8,8 @@ import type { ConflictResolutions, DetectionContext } from "./types.js";
 export interface SettledAuthorityRule {
   step: string;
   roles: string[];
+  // The Packs that name these roles. The platform's own definition of the step is not a Pack.
+  packs: string[];
 }
 
 export interface AuthorityRulesSettled {
@@ -25,8 +27,10 @@ export function settleAuthorityRulesFrom(facts: AuthorityRulesUnraveled, resolut
   const steps = [...new Set(facts.rules.map((r) => r.step))].filter((step) => !open.has(authorityRuleKey(step)));
   const result = steps.map((step) => {
     const picked = pickedValues(resolutions[authorityRuleKey(step)]);
-    const roleSets = picked ? (picked as string[][]) : facts.rules.filter((r) => r.step === step).map((r) => r.roles);
-    return { step, roles: sortedUnion(roleSets) };
+    const taken = facts.rules.filter((r) => r.step === step && (!picked || picked.some((p) => sameValue(p, r.roles))));
+    const roleSets = picked ? (picked as string[][]) : taken.map((r) => r.roles);
+    const packs = [...new Set(taken.map((r) => r.packCode).filter((code): code is string => code !== null))].sort();
+    return { step, roles: sortedUnion(roleSets), packs };
   });
   return { conflicts, result, leftOut: leftOutOf(detected) };
 }

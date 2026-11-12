@@ -71,22 +71,34 @@
                     <% }) %>
                   </div>
                 <% } %>
-                <% if (p.competency && Object.keys(p.competency).length > 0) { %>
-                  <p class="small text-muted mb-1">
-                    <% Object.keys(p.competency).forEach(function(dim, i) { %>
-                      <% if (i > 0) { %> &middot; <% } %>
-                      <strong><%= dim %>:</strong> <%= p.competency[dim].map(function(e) { return e.code + ' (' + e.proficiency + ')'; }).join(', ') %>
-                    <% }) %>
-                  </p>
-                <% } %>
-                <% if (p.behaviour_context && p.behaviour_context.length > 0) { %>
-                  <p class="small text-muted mb-0">
-                    Behaviour Context:
-                    <% p.behaviour_context.forEach(function(bc, i) { %>
-                      <% if (i > 0) { %>, <% } %><span class="badge bg-light text-dark border"><%= bc.policy %></span>
-                    <% }) %>
-                  </p>
-                <% } %>
+                <div class="row g-3 mt-1">
+                  <div class="col-md-6">
+                    <div class="small fw-semibold text-dark mb-1">Competencies</div>
+                    <% if (p.competency && Object.keys(p.competency).length > 0) { %>
+                      <ul class="small text-muted mb-0 ps-3">
+                        <% Object.keys(p.competency).forEach(function(dim) { %>
+                          <% p.competency[dim].forEach(function(e) { %>
+                            <li><strong><%= dim %>:</strong> <%= e.code %> (<%= e.proficiency %>)</li>
+                          <% }) %>
+                        <% }) %>
+                      </ul>
+                    <% } else { %>
+                      <span class="small text-muted">None</span>
+                    <% } %>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="small fw-semibold text-dark mb-1">Behaviour Context</div>
+                    <% if (p.behaviour_context && p.behaviour_context.length > 0) { %>
+                      <ul class="small text-muted mb-0 ps-3">
+                        <% p.behaviour_context.forEach(function(bc) { %>
+                          <li><%= bc.policy %></li>
+                        <% }) %>
+                      </ul>
+                    <% } else { %>
+                      <span class="small text-muted">None</span>
+                    <% } %>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

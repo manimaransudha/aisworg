@@ -23,6 +23,7 @@ export type ConditionEvaluator = (condition: Record<string, unknown>, context: R
 
 export const CONDITION_EVALUATORS: Record<string, ConditionEvaluator> = {
   always_true: () => true,
+  always_false: () => false,
   field_in: (condition, context) => {
     const c = condition as { field: string; values: unknown[] };
     const value = getField(context, c.field);

@@ -35,6 +35,8 @@ export type ConflictResolutions = Record<string, unknown>;
 // A conflict with the action that applies to its kind.
 export interface ActionedConflict extends EbmConflict {
   action: ConflictAction;
+  // The title of the conflict card.
+  title: string;
 }
 
 // What every detector receives. A detector reads the Templates, Profiles and Packs itself through its own unravel function.

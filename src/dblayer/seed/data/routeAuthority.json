@@ -10,7 +10,10 @@
     "method": "GET",
     "path": "/aisworg",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "superuser",
+      "tenant_admin"
+    ],
     "match_mode": "any"
   },
   {

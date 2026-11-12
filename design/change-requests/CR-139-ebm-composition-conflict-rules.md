@@ -18,7 +18,7 @@ The plain-language table in [EBM Composition Contributions Table.md](../EBM%20Co
 |---|---|
 | 1 | Step 1 of composition: each Deliverable ends with exactly one Service. Several candidate Services show a message that several work streams may be in one bucket, and the user picks one. |
 | 2 | The EBM does not take a Pack's other Services. It takes what else the Pack brings, and the user sees and approves what is taken and what is left out. |
-| 3 | Services: the Deliverable's Service A is compared with the Packs' definition of A. A different, added or omitted service level is a conflict. If A is not in the Packs' list, there is no conflict. Packs are not compared with each other. |
+| 3 | Services: the Deliverable's Service A is compared with the Packs' definition of A. The service levels are compared as set out under Service level conflicts below. If A is not in the Packs' list, there is no conflict. Packs are not compared with each other. |
 | 4 | Capabilities: the Capabilities the Deliverables need are compared with the Capabilities the Packs name. A missing one is accepted. An addition sends the naming Pack through the Services rule. |
 | 5 | Policies (a Policy with only a statement is verified by a person, is never compared, and is shown to the user as a notice): every Policy enters through a Pack. Policies with the same code are compared by content. Conditions are matched by the field they test, so approvals > 2 against approvals > 1 is a conflict. Different Policies that apply different rules to the same Deliverable and step are a conflict. |
 | 6 | Authority rules, quality gates, review gates and Obligation definitions: two that apply different rules or roles to the same Deliverable and step are a conflict, whatever their source. |
@@ -27,6 +27,19 @@ The plain-language table in [EBM Composition Contributions Table.md](../EBM%20Co
 | 9 | Competencies are the union of the composed Capabilities' role types and work types, the Profile's programming language and domain, and the Packs' competencies. |
 | 10 | Dependencies: each dependency Pack is checked like any other Pack. A missing needed Pack or a present incompatible Pack is still reported, and the user sees a message that it has to be resolved at the definition of the Template or Profile. The user cannot resolve it in composition. |
 | 11 | The Profile adds no list of Capabilities. |
+
+### Service level conflicts
+
+A is the levels of the Deliverable's Service (the Service Definition's defaults, the Template's values and the Profile's overrides). B is the levels the composed Packs give the same Service.
+
+| Level in A | Level in B | Result |
+|---|---|---|
+| yes | no | No conflict. |
+| yes | yes, same value | No conflict. |
+| yes | yes, different value | Conflict (`level-different`). The user picks one value. |
+| no | yes | Conflict (`level-added`). The user can include the level or leave it out. |
+
+The conflict card is titled "Service level conflicts". The kind `level-omitted` no longer exists.
 
 ## Built (2026-11-06), part 1 of the build
 
@@ -54,7 +67,7 @@ Each contribution table gets its own detector, and `detectEbmConflicts` calls th
 
 | Item | Files |
 |---|---|
-| Conflict types, the Services detector (Step 1 Service choice, service level different, added, omitted), the `detectEbmConflicts` entry point | src/domain/engine/conflicts/types.ts, services.ts, index.ts |
+| Conflict types, the Services detector (Step 1 Service choice, service level different, added), the `detectEbmConflicts` entry point | src/domain/engine/conflicts/types.ts, services.ts, index.ts |
 | `UnraveledComposition.serviceCandidates`: the Services that output each catalogue Deliverable, with default levels | src/domain/engine/profileCompositionUnravel.ts |
 | `findActiveByOutputsVisibleTo` | src/dblayer/serviceDefinitionsDB.ts |
 | Capabilities detector, and `UnraveledComposition.packContributions` (what each Pack names: Capabilities and Services) | src/domain/engine/conflicts/capabilities.ts, profileCompositionUnravel.ts |
@@ -130,7 +143,7 @@ Every detector now receives a `DetectionContext` (Templates, Profiles, tenant, t
 
 ## Built (2026-11-06), part 12: the review gates table has its own unravel
 
-`unravelReviewGates` (src/domain/engine/conflicts/unravelReviewGates.ts) reads the review gates of the composed Packs from the Step 0 Pack list. `detectReviewGateConflicts` (src/domain/engine/conflicts/reviewGates.ts) reports two review gates at the same step as a conflict when any field differs (code, name, statement, classification, external evidence flag, prompt, participant, output contract, assurance). A review gate carries no Deliverable, so a gate at a step applies to every Deliverable at that step. The checklists and recommended checklists are a union and are kept apart from the comparison. The platform review gates table is not compared. Giving a review gate a Deliverable is CR-140. Tests: tests/cr139-review-gate-conflicts.test.ts.
+`unravelReviewGates` (src/domain/engine/conflicts/unravelReviewGates.ts) reads the review gates of the composed Packs from the Step 0 Pack list. `detectReviewGateConflicts` (src/domain/engine/conflicts/reviewGates.ts) reports two review gates at the same step with the same code as a conflict when any other field differs (name, statement, classification, external evidence flag, prompt, participant, output contract, assurance). Review gates with different codes are different gates, so they are never a conflict, and the SEU takes all of them. The conflict key is `reviewGate::<step>::<code>`, and a conflict on one code leaves out only the gates of that code. A review gate carries no Deliverable, so a gate at a step applies to every Deliverable at that step. The checklists and recommended checklists are a union and are kept apart from the comparison. The platform review gates table is not compared. Giving a review gate a Deliverable is CR-140. Tests: tests/cr139-review-gate-conflicts.test.ts.
 
 ## Built (2026-11-06), part 13: the authority rules table has its own unravel
 
@@ -138,7 +151,7 @@ Every detector now receives a `DetectionContext` (Templates, Profiles, tenant, t
 
 ## Built (2026-11-06), part 14: the Obligation definitions table has its own unravel
 
-`unravelObligationDefinitions` (src/domain/engine/conflicts/unravelObligationDefinitions.ts) reads the Obligation definitions of the composed Packs from the Step 0 Pack list, one row for each Deliverable and step a definition applies to, with every field of the definition and its governing condition for that Deliverable. `detectObligationDefinitionConflicts` (src/domain/engine/conflicts/obligationDefinitions.ts) reports two definitions for the same Deliverable at the same step as a conflict when any field differs, including the code. The conflict kind is now `obligation-different`, which replaces `obligation-same-code` and `obligation-across-codes`. The step an Obligation creates in the platform's definition is not compared. Tests: tests/cr139-obligation-definition-conflicts.test.ts.
+`unravelObligationDefinitions` (src/domain/engine/conflicts/unravelObligationDefinitions.ts) reads the Obligation definitions of the composed Packs from the Step 0 Pack list, one row for each Deliverable and step a definition applies to, with every field of the definition and its governing condition for that Deliverable. `detectObligationDefinitionConflicts` (src/domain/engine/conflicts/obligationDefinitions.ts) reports two definitions with the same code for the same Deliverable at the same step as a conflict when any other field differs. Definitions with different codes are different Obligations, so they are never a conflict, and the SEU takes all of them. The conflict key is `obligationStep::<Deliverable>::<step>::<code>`, and a conflict on one code leaves out only the definitions of that code. The conflict kind is now `obligation-different`, which replaces `obligation-same-code` and `obligation-across-codes`. The step an Obligation creates in the platform's definition is not compared. Tests: tests/cr139-obligation-definition-conflicts.test.ts.
 
 ## Built (2026-11-06), part 15: the engineering capital table has its own unravel
 
@@ -201,9 +214,34 @@ Checklists and competencies have no conflicts, but the EBM saves them the same w
 
 Every tab of the Resolve Conflicts screen now shows a "What the SEU takes" table with the saved result, whether or not the table has a conflict. The tab labels and the Technology and Domain dimension names are in src/dblayer/constants.ts.
 
-## Built (2026-11-06), part 20: a preview of the result as choices are made
+## Built (2026-11-06), part 20: a preview of the result as choices are made (removed 2026-11-11, see part 21)
 
 On the Resolve Conflicts screen, selecting an option reloads the page with that selection as a preview (`previewKey`, `previewOption`, `previewDecision` in the address). The server checks the selection with `applyConflictPick`, works out `settleEbm` as if the pick were made, and shows that result in the "What the SEU takes" table of the selected tab, marked "Preview of your selection, not applied yet". The option stays selected. Nothing is saved until Apply. An include or exclude conflict now uses two radio buttons and an Apply button, so it can be previewed too. A selection that is not valid shows its reason in the table. The preview shows the result of the selected tab only. Files: src/routes/seu/web/objectives.ts, src/views/seu/seus/resolve-conflicts.ejs, src/viewModels/seu_seus_resolveConflicts.ts.
+
+## Built (2026-11-11), part 21: the Resolve Conflicts screen and the View EBM page
+
+**Service level conflicts.** A level in A and not in B is no conflict. The kind `level-omitted` is removed. The remaining kinds are `level-different` and `level-added`, and their cards are titled "Service level conflicts" (`CONFLICT_TITLE_BY_KIND`, set by `withAction`). The table is under "Service level conflicts" above and in EBM Composition Contributions Table.md.
+
+**Different codes are different items.** Review gates and Obligation definitions with different codes are different items, so they never conflict and the SEU takes all of them. A conflict needs the same code at the same step (and, for Obligations, the same Deliverable) with some other field different. The keys are `reviewGate::<step>::<code>` and `obligationStep::<Deliverable>::<step>::<code>`. A conflict on one code leaves out only the items of that code. Quality gates, which have no code, and authority rules keep their rules.
+
+**Screen layout.**
+
+| Change | Files |
+|---|---|
+| The order is "What the SEU takes", then the conflicts, then "What the EBM leaves out, and why" | src/views/seu/seus/resolve-conflicts.ejs |
+| The preview of part 20 is removed. Selecting an option changes nothing, and Apply is the only action that saves | src/views/seu/seus/resolve-conflicts.ejs, src/routes/seu/web/objectives.ts |
+| The columns of "What the SEU takes" follow `CONFLICT_RESULT_COLUMNS`, because the saved result comes back from JSONB with its keys reordered | src/dblayer/constants.ts |
+| Capabilities (`CONFLICT_TABLES_SHOWN_AS_TABLE`) show one row for each conflict (Pack, Capability with its code below, Include or Exclude) and one Apply in a bar that stays at the top. The picks are posted together (`ebmBulkKey`, `ebmBulkDecision_<row>`) and each is checked against its own conflict | src/views/seu/seus/resolve-conflicts.ejs, src/routes/seu/web/objectives.ts |
+| A Capability shows its name as a link that opens its definition in a modal, with the code in muted text | src/views/seu/seus/resolve-conflicts.ejs |
+| Quality gates, review gates, Obligation definitions and authority rules (`CONFLICT_KINDS_SHOWN_AS_COMPARISON`) show the options side by side, one column for each source and one row for each field or role, with the rows that differ highlighted | src/views/seu/seus/resolve-conflicts.ejs |
+| A value that is an object or a list shows its first 24 characters and a "…" that opens the whole value in place | src/utils/resultCells.ts, src/views/partials/jsonMore.ejs |
+| Each entity a cell names is a link in its cell, and the Open column lists every link of the row. The columns that name entities are in `CONFLICT_RESULT_LINK_COLUMNS` and the pages in `CONFLICT_ENTITY_PAGES` | src/routes/seu/web/conflictResultLinks.ts, src/dblayer/constants.ts |
+| Review gates and authority rules record the Packs they take (`packs`), so their rows link to the Packs | src/domain/engine/conflicts/settleReviewGates.ts, settleAuthorityRules.ts |
+| The View EBM page uses the same column order, "…" and links. The helpers are written once in `resultCells` | src/views/seu/seus/ebm.ejs, src/routes/seu/web/seus.ts, src/utils/resultCells.ts |
+
+**Compose.** The Compose button on the All SEUs page posts to `compose-ebm`, and composes the SEU's own Template and Profile when the form names none. Every Compose and every pick starts from the picks the last Compose stored, so a Compose no longer erases them. Files: src/views/seu/seus/index.ejs, src/routes/seu/web/objectives.ts.
+
+**Tests.** tests/cr139-service-conflicts.test.ts, cr139-conflict-resolve.test.ts, cr139-conflict-screen.test.ts, cr139-review-gate-conflicts.test.ts, cr139-obligation-definition-conflicts.test.ts, cr139-settle-tables.test.ts, and the new cr139-result-cells.test.ts. The parsing of the picks of a table shown as rows and the pages are not tested.
 
 ## Review of the build (2026-11-06)
 
@@ -257,7 +295,7 @@ On the Resolve Conflicts screen, selecting an option reloads the page with that 
 4. (Done: the screen shows what is left out and why.)
 5. **Template and Profile settings for a Policy** are not compared, because the table does not say how.
 6. **The demo simulator** does not answer the conflicts of the nine tables.
-7. **The preview** shows the effect on the selected tab only.
+7. **The preview** was removed in part 21.
 8. **The review gate Deliverable** is CR-140.
 
 ### Verification

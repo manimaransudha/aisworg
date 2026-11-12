@@ -256,6 +256,7 @@ function toPolicyGoverningCondition(value: unknown): Record<string, unknown> | n
   const type = typeof v.type === "string" ? v.type.trim() : "";
   if (!type) return null;
   if (type === "always_true") return { type: "always_true" };
+  if (type === "always_false") return { type: "always_false" };
   const field = typeof v.field === "string" ? v.field.trim() : "";
   if (type === "field_in") {
     const values = Array.isArray(v.values)

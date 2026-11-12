@@ -23,13 +23,17 @@ test("one review gate, or two identical gates from two Packs, is no conflict", (
   assert.deepEqual(detect(["a", { reviewGates: [gate()] }], ["b", { reviewGates: [gate()] }]), []);
 });
 
-test("a different field of any kind at the same step is a conflict", () => {
-  for (const over of [{ code: "rg2" }, { name: "Other" }, { statement: "s" }, { classification: "judgment" }, { externalEvidence: true }, { prompt: "p" }, { participant: "AI" }, { outputContract: "assessment-acceptance" }, { assurance: "a" }]) {
+test("a different field of any kind, with the same code at the same step, is a conflict", () => {
+  for (const over of [{ name: "Other" }, { statement: "s" }, { classification: "judgment" }, { externalEvidence: true }, { prompt: "p" }, { participant: "AI" }, { outputContract: "assessment-acceptance" }, { assurance: "a" }]) {
     const conflicts = detect(["a", { reviewGates: [gate()] }], ["b", { reviewGates: [gate(over)] }]);
     assert.equal(conflicts.length, 1, JSON.stringify(over));
-    assert.equal(conflicts[0].key, reviewGateKey(STEP));
+    assert.equal(conflicts[0].key, reviewGateKey(STEP, "rg1"));
     assert.equal(conflicts[0].options.length, 2);
   }
+});
+
+test("gates with different codes are different gates, so they are no conflict", () => {
+  assert.deepEqual(detect(["a", { reviewGates: [gate()] }], ["b", { reviewGates: [gate({ code: "rg2", name: "Other", statement: "s" })] }]), []);
 });
 
 test("checklists are a union: gates that differ only in their checklists or recommended checklists are no conflict", () => {
@@ -42,5 +46,5 @@ test("gates at different steps are not compared", () => {
 
 test("a picked conflict is returned with its pick", () => {
   const facts = unravelReviewGates({ composedPacks: packs(["a", { reviewGates: [gate()] }], ["b", { reviewGates: [gate({ name: "Other" })] }]) });
-  assert.deepEqual(detectReviewGateConflictsFrom(facts, { [reviewGateKey(STEP)]: ["a", "b"] }).map((c) => c.resolution), [["a", "b"]]);
+  assert.deepEqual(detectReviewGateConflictsFrom(facts, { [reviewGateKey(STEP, "rg1")]: ["a", "b"] }).map((c) => c.resolution), [["a", "b"]]);
 });

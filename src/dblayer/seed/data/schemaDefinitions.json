@@ -880,6 +880,7 @@
                         "type": {
                           "enum": [
                             "always_true",
+                            "always_false",
                             "field_in",
                             "comparison",
                             "threshold"
@@ -1361,6 +1362,7 @@
                         "type": {
                           "enum": [
                             "always_true",
+                            "always_false",
                             "field_in",
                             "comparison",
                             "threshold"

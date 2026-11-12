@@ -25,8 +25,19 @@ How a conflict is found today: everything that feeds the EBM goes into one list,
 | Where else the same thing can come from | The Service Definition (default levels). The Template (a level it sets). The Profile (a level it overrides). |
 | Compared today | Two Packs giving different levels for the same Service. |
 | Not compared today | A Pack's levels against the Deliverable's Service levels. Several Services making the same Deliverable. |
-| Agreed | Every level conflict lists every possible outcome as an option. For a level the Packs add, the options are the Pack's value and "no value". For a level the Packs leave out, the options are the Service's value and "no value". For a different level, the options are the two values. The user picks one, and the pick decides which levels the SEU takes. |
-| Agreed | The Deliverable's Service is A. A's levels are the Profile's value, else the Template's, else the Service Definition default. This order is already in place. The Services from all composed Packs are put in one list, for example [A, B, C, D]. A is compared with the Packs' definition of A. A different value is a conflict. A level the Packs add is a conflict. A level the Packs leave out is a conflict. The user picks. Packs are not compared with each other.(this has to be at definition compliance and EBMLiveness, not for this scope) If A is not in the Packs' list, this check finds no conflict. B, C and D are not taken into the EBM. |
+| Agreed | Every level conflict lists every possible outcome as an option. For a level the Packs add, the options are the Pack's value and "no value". For a different level, the options are the two values. The user picks one, and the pick decides which levels the SEU takes. |
+| Agreed | The Deliverable's Service is A. A's levels are the Profile's value, else the Template's, else the Service Definition default. This order is already in place. The Services from all composed Packs are put in one list, for example [A, B, C, D]. A is compared with the Packs' definition of A. A different value is a conflict. The service level conflicts are set out in the table below. The user picks. Packs are not compared with each other.(this has to be at definition compliance and EBMLiveness, not for this scope) If A is not in the Packs' list, this check finds no conflict. B, C and D are not taken into the EBM. |
+
+### Service level conflicts
+
+A is the levels of the Deliverable's Service. B is the levels the composed Packs give the same Service.
+
+| Level in A | Level in B | Result |
+|---|---|---|
+| yes | no | No conflict. |
+| yes | yes, same value | No conflict. |
+| yes | yes, different value | Conflict. The options are the two values. The user picks one. |
+| no | yes | Conflict. The options are the Pack's value and "no value". The user can include the level or leave it out. |
 
 ## 2. Capabilities
 
@@ -96,7 +107,7 @@ How a conflict is found today: everything that feeds the EBM goes into one list,
 | Not compared today | A Pack's gate against the table. |
 | Agreed | Review gates come from the composed Packs. They are put in one list. |
 | Agreed | A review gate has the step it governs, written as `Deliverable|from|to`. The step names the kind of thing and its states, not a specific Deliverable. A review gate at a step applies to every Deliverable at that step. (A later change request gives a review gate a Deliverable, as a quality gate has.) |
-| Agreed | Two review gates at the same step are compared. If any field differs, that is a conflict. The fields are the code, the name, the statement, the classification, the external evidence flag, the prompt, the participant, the output contract and the assurance. The user can pick either one or both. |
+| Agreed | Review gates with different codes are different gates, so they are never a conflict, and the SEU takes all of them. Two review gates at the same step with the same code are compared. If any other field differs, that is a conflict. The fields are the name, the statement, the classification, the external evidence flag, the prompt, the participant, the output contract and the assurance. The user can pick either one or both. |
 | Agreed | The checklists and recommended checklists of a review gate are a union, so a difference in them is never a conflict. |
 
 ## 7. Checklists
@@ -120,7 +131,7 @@ How a conflict is found today: everything that feeds the EBM goes into one list,
 | Agreed | Obligation definitions come from the composed Packs. They are put in one list. |
 | Agreed | An Obligation definition applies to one or more Deliverables, each at one or more steps. Two Obligation definitions are about the same thing when they apply to the same Deliverable at the same step. |
 | Agreed | If any field of the two definitions differs, that is a conflict. The fields are the code, the category, the title, the description, the origin, the priority, the severity, the completion criteria, the required evidence, the classification, the external evidence flag, the prompt, the participant, the output contract and the assurance. The user can pick either one or both. |
-| Agreed | Two definitions with every field the same are no conflict, even when two Packs both define them. Example: two Packs each define the Obligation `ebook-license-copy-limit-compliance` for `source-code` at In Progress to Approved, word for word. That is no conflict. If one Pack gives the priority High and the other gives Low, that is a conflict. Two definitions with different codes also differ, so they conflict when they apply to the same Deliverable at the same step. |
+| Agreed | Two definitions with every field the same are no conflict, even when two Packs both define them. Example: two Packs each define the Obligation `ebook-license-copy-limit-compliance` for `source-code` at In Progress to Approved, word for word. That is no conflict. If one Pack gives the priority High and the other gives Low, that is a conflict. Two definitions with different codes are different Obligations, so they are never a conflict, and the SEU takes all of them. |
 
 ## 9. Engineering capital
 

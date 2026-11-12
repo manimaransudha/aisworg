@@ -117,7 +117,10 @@
                     <% if (s.activeEbmId) { %>
                       <a href="/aisworg/seu/seus/<%= s.id %>/ebm" class="btn btn-sm btn-outline-secondary">View EBM</a>
                     <% } else { %>
-                      <a href="/aisworg/seu/objectives/<%= s.objectiveId %>/compose-ebm" class="btn btn-sm btn-outline-secondary">Compose</a>
+                      <form method="POST" action="/aisworg/seu/objectives/<%= s.objectiveId %>/compose-ebm" class="d-inline mb-0">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Compose</button>
+                      </form>
                     <% } %>
                   </td>
                 </tr>

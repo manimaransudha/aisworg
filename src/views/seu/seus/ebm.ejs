@@ -239,7 +239,7 @@
         <%# ---------------------------------------------------------------- One tab for each table of the settled result %>
         <% function _fmtv(value) { return (value === null || value === undefined) ? '—' : (typeof value === 'object' ? JSON.stringify(value) : String(value)); } %>
         <% (ebmView.settledTabs || []).forEach(function(s) { %>
-          <% var _cols = []; (s.result || []).forEach(function(row) { Object.keys(row).forEach(function(k) { if (_cols.indexOf(k) < 0) _cols.push(k); }); }); %>
+          <% var _cols = locals.cells.orderedColumns(s.result || [], (locals.resultColumns || {})[s.table] || []); var _rowLinks = (locals.resultLinks || {})[s.table] || []; %>
           <div class="tab-pane fade" id="seu-ebm-<%= s.table %>" role="tabpanel">
             <div class="section-card">
               <div class="section-header"><i class="bi bi-check2-square me-1"></i><%= s.label %> — what the SEU takes</div>
@@ -248,8 +248,8 @@
               <% } else { %>
                 <div class="table-responsive">
                   <table class="table table-sm align-middle mb-0">
-                    <thead><tr><% _cols.forEach(function(col) { %><th class="small text-muted"><%= col %></th><% }) %></tr></thead>
-                    <tbody><% s.result.forEach(function(row) { %><tr><% _cols.forEach(function(col) { %><td class="small"><code><%= _fmtv(row[col]) %></code></td><% }) %></tr><% }) %></tbody>
+                    <thead><tr><% _cols.forEach(function(col) { %><th class="small text-muted"><%= col %></th><% }) %><th class="small text-muted">Open</th></tr></thead>
+                    <tbody><% s.result.forEach(function(row, ri) { %><tr><% _cols.forEach(function(col) { %><td class="small"><%- locals.cells.cellHtml(row[col], col, _rowLinks[ri]) %></td><% }) %><td class="small text-nowrap"><%- locals.cells.linksHtml(_rowLinks[ri]) %></td></tr><% }) %></tbody>
                   </table>
                 </div>
               <% } %>
@@ -264,7 +264,7 @@
                       <% s.conflicts.forEach(function(c) { %>
                         <tr>
                           <td class="small"><%= c.message %></td>
-                          <td class="small"><% (c.options || []).forEach(function(o) { %><div><%= o.sourceLabel %>: <code><%= _fmtv(o.value) %></code></div><% }) %></td>
+                          <td class="small"><% (c.options || []).forEach(function(o) { %><div><%= o.sourceLabel %>: <%- locals.cells.jsonHtml(o.value) %></div><% }) %></td>
                           <td class="small"><% if (c.notice) { %><span class="text-muted">Notice</span><% } else if (c.resolution === null || c.resolution === undefined) { %><span class="text-muted">None</span><% } else { %><code><%= _fmtv(c.resolution) %></code><% } %></td>
                         </tr>
                       <% }) %>
@@ -530,6 +530,8 @@
       </div>
     </div>
   </main>
+
+  <%- include('../../partials/jsonMore') %>
 
   <%- include('../../partials/footer') %>
 </body>

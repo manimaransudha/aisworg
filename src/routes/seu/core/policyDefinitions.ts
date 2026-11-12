@@ -61,8 +61,8 @@ function validateGoverningCondition(governingCondition: Record<string, unknown> 
     if (typeof gc.operator !== "string" || !allowedOperators.has(gc.operator)) {
       errors.push(`${label}: governingCondition (${gc.type}) operator "${gc.operator}" is not one of ${[...allowedOperators].join("/")}`);
     }
-  } else if (gc.type !== "always_true") {
-    errors.push(`${label}: governingCondition type "${gc.type}" is not one of always_true/field_in/comparison/threshold`);
+  } else if (gc.type !== "always_true" && gc.type !== "always_false") {
+    errors.push(`${label}: governingCondition type "${gc.type}" is not one of always_true/always_false/field_in/comparison/threshold`);
   }
   return errors;
 }

@@ -40,12 +40,16 @@ export const CONFLICT_ACTION_PICK_ANY = "pick-any";
 export const CONFLICT_ACTION_INCLUDE_OR_EXCLUDE = "include-or-exclude";
 export const CONFLICT_ACTION_NONE = "none";
 export type ConflictAction = typeof CONFLICT_ACTION_PICK_ONE | typeof CONFLICT_ACTION_PICK_ANY | typeof CONFLICT_ACTION_INCLUDE_OR_EXCLUDE | typeof CONFLICT_ACTION_NONE;
+// The title of the card of a conflict, for the kinds that share one. A kind with no entry shows its own name.
+export const CONFLICT_TITLE_BY_KIND: Record<string, string> = {
+  "level-different": "Service level conflicts",
+  "level-added": "Service level conflicts",
+};
 // The action for each kind of conflict that the detectors in src/domain/engine/conflicts report.
 export const CONFLICT_ACTION_BY_KIND: Record<string, ConflictAction> = {
   "service-choice": CONFLICT_ACTION_PICK_ONE,
   "level-different": CONFLICT_ACTION_PICK_ONE,
   "level-added": CONFLICT_ACTION_PICK_ONE,
-  "level-omitted": CONFLICT_ACTION_PICK_ONE,
   "capability-added": CONFLICT_ACTION_INCLUDE_OR_EXCLUDE,
   "policy-same-code": CONFLICT_ACTION_PICK_ONE,
   "policy-across-codes": CONFLICT_ACTION_PICK_ANY,
@@ -74,6 +78,54 @@ export const CONFLICT_TABLE_LABELS: Record<string, string> = {
   competencies: "Competencies",
   profileConfiguration: "Profile configuration",
 };
+// The conflict tables whose conflicts the Resolve Conflicts screen shows as one table of rows with one Apply, not one panel for each conflict.
+export const CONFLICT_TABLES_SHOWN_AS_TABLE: string[] = ["capabilities"];
+// The kinds of conflict whose options are compared field by field, one column for each source, with the fields that differ highlighted.
+export const CONFLICT_KINDS_SHOWN_AS_COMPARISON: string[] = ["quality-gate-different", "review-gate-different-rules", "obligation-different", "authority-different-roles"];
+// The columns of the "What the SEU takes" table of each conflict table, in the order they are shown. The saved result comes back from the database
+// with its keys reordered, so the screen takes the order from here and not from the rows.
+export const CONFLICT_RESULT_COLUMNS: Record<string, string[]> = {
+  services: ["deliverable", "name", "service", "levels"],
+  capabilities: ["capability", "deliverables", "source", "definitionId"],
+  policies: ["policyCode", "deliverable", "step", "field", "rule", "statement", "scope", "governingCondition", "packs"],
+  authorityRules: ["step", "roles", "packs"],
+  qualityGates: ["deliverable", "step", "gates", "checklistIds", "recommendedChecklistIds"],
+  reviewGates: ["step", "gates", "checklistIds", "recommendedChecklistIds", "packs"],
+  obligationDefinitions: ["deliverable", "step", "definitions"],
+  engineeringCapital: ["type", "url", "packs"],
+  dependencies: ["id", "code", "version", "direct"],
+  checklists: ["pack", "checklist", "description", "items"],
+  competencies: ["dimension", "value", "sources"],
+  profileConfiguration: ["parameter", "value", "profile"],
+};
+// The pages that show the whole definition of an entity named in a conflict result, for the link column of "What the SEU takes".
+export const CONFLICT_ENTITY_PAGES: Record<string, { label: string; path: string }> = {
+  pack: { label: "Pack", path: "/aisworg/seu/packs" },
+  template: { label: "Template", path: "/aisworg/seu/templates" },
+  profile: { label: "Profile", path: "/aisworg/seu/profiles" },
+  deliverable: { label: "Deliverable", path: "/aisworg/seu/deliverable-definitions" },
+  service: { label: "Service", path: "/aisworg/seu/service-definitions" },
+  capability: { label: "Capability", path: "/aisworg/seu/capability-definitions" },
+  policy: { label: "Policy", path: "/aisworg/seu/policy-definitions" },
+};
+// For each conflict table, the columns of "What the SEU takes" that name an entity, and the kind of entity. "packId" is a column that holds a Pack's id,
+// and "definitionPacks" is a list of definitions that each name their Packs. A column that names several entities gets one link for each.
+export const CONFLICT_RESULT_LINK_COLUMNS: Record<string, Record<string, string>> = {
+  services: { deliverable: "deliverable", service: "service" },
+  capabilities: { capability: "capability", deliverables: "deliverable" },
+  policies: { policyCode: "policy", deliverable: "deliverable", packs: "pack" },
+  authorityRules: { packs: "pack" },
+  qualityGates: { deliverable: "deliverable" },
+  reviewGates: { packs: "pack" },
+  obligationDefinitions: { deliverable: "deliverable", definitions: "definitionPacks" },
+  engineeringCapital: { packs: "pack" },
+  dependencies: { id: "packId" },
+  checklists: { pack: "pack" },
+  competencies: { sources: "sourceLabels" },
+  profileConfiguration: { profile: "profile" },
+};
+// The entity named by the first word of a competency source such as "Pack development", "Capability architecture-design" or "Profile web-app".
+export const CONFLICT_SOURCE_LABEL_ENTITIES: Record<string, string> = { Pack: "pack", Capability: "capability", Profile: "profile" };
 // The value of a conflict option that stands for "no value", such as a service level the SEU does not take. A pick of it is a pick, not an open conflict.
 export const CONFLICT_NO_VALUE = "none";
 // The Profile fields that are configuration parameters, in the order they are shown. The Profile's Pack codes and exposed parameter overrides are not among them.

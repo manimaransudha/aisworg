@@ -6,7 +6,7 @@ import { conflictStatus, summariseConflictTables, type ActionedConflict } from "
 import { CONFLICT_ACTION_NONE, CONFLICT_ACTION_PICK_ONE, CONFLICT_TABLE_LABELS } from "../src/dblayer/constants.js";
 
 const conflict = (over: Partial<ActionedConflict> = {}): ActionedConflict => ({
-  table: "services", key: "k", kind: "service-choice", message: "m", options: [], resolvable: true, resolution: null, action: CONFLICT_ACTION_PICK_ONE, ...over,
+  table: "services", key: "k", kind: "service-choice", message: "m", options: [], resolvable: true, resolution: null, action: CONFLICT_ACTION_PICK_ONE, title: "service-choice", ...over,
 });
 
 test("a conflict is open without a pick, resolved with one, and a notice when it needs none", () => {
