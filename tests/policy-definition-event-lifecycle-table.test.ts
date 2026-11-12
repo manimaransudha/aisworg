@@ -224,7 +224,7 @@ test("NESTED: validateAgainstSchema reports a missing nested required field and 
   };
   const errors = validateAgainstSchema(await policySchema(), { code: "x", name: "x", category: "Engineering", constraintType: "Policy", conditions: [bad] }).join(" | ");
   assert.match(errors, /"applicabilityDeliverables" row 1: "name" is required/);
-  assert.match(errors, /"governingCondition": "type" must be one of always_true, field_in, comparison, threshold, got: "sometimes"/);
+  assert.match(errors, /"governingCondition": "type" must be one of always_true, always_false, field_in, comparison, threshold, got: "sometimes"/);
   assert.match(errors, /"governingCondition": "operator" must be one of/);
   assert.match(errors, /"relatedObligations" row 1: "category" is required/);
   assert.match(errors, /"exceptionRules" row 1: "exceptionStatement" is required/);

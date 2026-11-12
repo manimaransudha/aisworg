@@ -292,7 +292,7 @@ test("the commissioning routes of an Objective with no SEU lead to the form that
 
   const none = await postForm(root, `/seu/objectives/${objective.id}/compose-ebm`, csrf, {});
   assert.equal(none.location, `/aisworg/seu/objectives/${objective.id}/compose-ebm`);
-  hasAlert(await reason(), /Nothing to re-validate\./);
+  hasAlert(await reason(), /No SEU found for this Objective\./);
   const noSeu = await postForm(root, `/seu/objectives/${objective.id}/compose-ebm`, csrf, { templateProfile: `${randomUUID()}|${randomUUID()}` });
   assert.equal(noSeu.status, 302);
   hasAlert(await reason(), /No SEU found for this Objective\./);

@@ -77,6 +77,6 @@ test("an operator that is not one of the six is evaluated as lte, for comparison
   assert.equal(evaluateCondition({ type: "threshold", field: "score", operator: "unknown", value: 10 }, context), false);
 });
 
-test("the evaluator table holds the four condition types", () => {
-  assert.deepEqual(Object.keys(CONDITION_EVALUATORS).sort(), ["always_true", "comparison", "field_in", "threshold"]);
+test("the evaluator table holds the five condition types", () => {
+  assert.deepEqual(Object.keys(CONDITION_EVALUATORS).sort(), ["always_false", "always_true", "comparison", "field_in", "threshold"]);
 });

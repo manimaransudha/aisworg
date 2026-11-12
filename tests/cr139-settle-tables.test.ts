@@ -213,7 +213,7 @@ test("competencies: with nothing to add there are no competencies", () => {
 });
 
 test("a conflict that is still open gives no result for the other tables either", () => {
-  const rg = [rgate("a", { code: "rg1" }), rgate("b", { code: "rg2" })];
+  const rg = [rgate("a", { code: "rg1", name: "One" }), rgate("b", { code: "rg1", name: "Two" })];
   assert.deepEqual(settleReviewGatesFrom({ gates: rg }).result, []);
   assert.deepEqual(settleObligationDefinitionsFrom({ definitions: [odef("a", { code: "o1", priority: "High" }), odef("b", { code: "o1", priority: "Low" })] }).result, []);
   const entries = [entry("a", "Standard", "A"), entry("b", "Standard", "B"), entry("a", "Guide", "G")];
