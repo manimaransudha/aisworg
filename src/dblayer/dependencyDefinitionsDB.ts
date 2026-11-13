@@ -36,6 +36,16 @@ export const dependencyDefinitionsDB = {
     }
   },
 
+  async findByIds(ids: string[]): Promise<DbResult<DependencyDefinitionRow[]>> {
+    try {
+      const { rows } = await query<DependencyDefinitionRow>("SELECT * FROM dependency_definitions WHERE id = ANY($1::uuid[])", [ids]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[dependencyDefinitionsDB] findByIds error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findByOwner(owningEntityType: DependencyDefinitionOwnerType, owningEntityId: string): Promise<DbResult<DependencyDefinitionRow[]>> {
     try {
       const { rows } = await query<DependencyDefinitionRow>(

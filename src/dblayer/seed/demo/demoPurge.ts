@@ -18,6 +18,7 @@ function predicateFor(step: DemoPurgeStep): string {
     case "tenant": return `${t}.tenant_id::text = $1::text`;
     case "sponsoring": return `${t}.sponsoring_authority->>'tenant' = $1::text`;
     case "seu": return `${t}.seu_id::text = ANY($2::text[])`;
+    case "tenant_seu": return `(${t}.tenant_id::text = $1::text OR ${t}.seu_id::text = ANY($2::text[]))`;
     case "seus": return `${t}.id::text = ANY($2::text[])`;
     case "via":
       return (step.via ?? [])

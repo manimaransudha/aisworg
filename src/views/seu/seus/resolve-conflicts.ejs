@@ -77,7 +77,7 @@
     </div>
 
     <% if (locals.allResolved) { %>
-      <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>No conflict is open. Composition continues.</div>
+      <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>No conflict is open. Continue with the composition transitions.</div>
     <% } else { %>
       <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i><%= _openTotal %> conflict<%= _openTotal === 1 ? ' is' : 's are' %> open.</div>
     <% } %>
@@ -102,15 +102,15 @@
       </div>
 
       <div class="col-md-9">
-        <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search conflicts' }) %>
-
         <%# What the SEU takes for this table. It is shown whether or not the table has a conflict. %>
         <% var _taken = locals.settledResult || []; %>
         <% var _cols = _cells.orderedColumns(_taken, locals.resultColumns || []); %>
         <div class="section-card">
-          <div class="section-header d-flex align-items-center justify-content-between gap-2">
+          <div class="section-header collapsed d-flex align-items-center justify-content-between gap-2" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#seuTakes" aria-expanded="false" aria-controls="seuTakes">
             <span><i class="bi bi-check2-square me-1"></i>What the SEU takes</span>
+            <i class="bi bi-chevron-down"></i>
           </div>
+          <div id="seuTakes" class="collapse">
           <% if (!_taken.length) { %>
             <div class="p-3 text-muted small">Nothing yet.</div>
           <% } else { %>
@@ -125,7 +125,10 @@
               </table>
             </div>
           <% } %>
+          </div>
         </div>
+
+        <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search conflicts' }) %>
 
         <% if (!list.items.length) { %>
           <div class="section-card"><div class="p-3 text-muted small">No conflict in this table.</div></div>
@@ -141,22 +144,33 @@
               <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
             <% }) %>
             <div class="section-card">
-              <div class="d-flex align-items-center justify-content-end gap-2 p-2" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border);">
-                <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+              <div class="p-2" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border);">
+                <div class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i>The conflicts show Packs included that do not correspond to the Profile deliverable. They are paginated. Apply saves the choices made on this page.</div>
+                <div class="d-flex align-items-center justify-content-end gap-2">
+                  <button type="button" class="btn btn-outline-secondary btn-sm" data-bulk-decision="include">Include all remaining</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" data-bulk-decision="exclude">Exclude all remaining</button>
+                  <button type="reset" class="btn btn-outline-secondary btn-sm">Reset</button>
+                  <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                </div>
               </div>
               <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
-                  <thead><tr><th class="small text-muted">Pack</th><th class="small text-muted">Capability</th><th class="small text-muted">Include or exclude</th></tr></thead>
+                  <thead><tr><th class="small text-muted">Capability</th><th class="small text-muted">Include or exclude</th></tr></thead>
                   <tbody>
-                    <% list.items.forEach(function(c, ci) { var opt = c.options[0]; var _code = opt && opt.value && typeof opt.value.capabilityCode === 'string' ? opt.value.capabilityCode : null; var _cap = _code ? _capInfo[_code] : null; %>
+                    <% var _packVersions = locals.packVersions || {}; var _lastPack = null; %>
+                    <% list.items.forEach(function(c, ci) { var opt = c.options[0]; var _packKey = opt ? (opt.sourceId || opt.sourceLabel) : ''; var _code = opt && opt.value && typeof opt.value.capabilityCode === 'string' ? opt.value.capabilityCode : null; var _cap = _code ? _capInfo[_code] : null; %>
+                      <% if (_packKey !== _lastPack) { _lastPack = _packKey; %>
+                        <tr class="table-light">
+                          <td class="small fw-semibold" colspan="2">
+                            <% if (opt && opt.sourceKind === 'pack' && opt.sourceId) { %>
+                              <a href="/aisworg/seu/packs/<%= opt.sourceId %>" target="_blank" rel="noopener">Pack <%= opt.sourceLabel %></a><% if (_packVersions[opt.sourceId]) { %> <span class="text-muted fw-normal">v<%= _packVersions[opt.sourceId] %></span><% } %>
+                            <% } else if (opt) { %><%= opt.sourceLabel %><% } %>
+                          </td>
+                        </tr>
+                      <% } %>
                       <tr>
-                        <td class="small text-nowrap">
-                          <input type="hidden" name="ebmBulkKey" value="<%= c.key %>">
-                          <% if (opt && opt.sourceKind === 'pack' && opt.sourceId) { %>
-                            <a href="/aisworg/seu/packs/<%= opt.sourceId %>" target="_blank" rel="noopener">Pack <%= opt.sourceLabel %></a>
-                          <% } else if (opt) { %><%= opt.sourceLabel %><% } %>
-                        </td>
                         <td class="small">
+                          <input type="hidden" name="ebmBulkKey" value="<%= c.key %>">
                           <% if (_cap) { %>
                             <%- _valueHtml(opt.value, true).replace(/ <span class="text-muted small">(.*)<\/span>$/, '<div class="text-muted small">$1</div>') %>
                           <% } else { %><%= _code || _fmt(opt && opt.value) %><% } %>
@@ -271,7 +285,11 @@
         <%# What the EBM leaves out of this table, and why. %>
         <% var _left = locals.leftOut || []; %>
         <div class="section-card">
-          <div class="section-header"><i class="bi bi-dash-circle me-1"></i>What the EBM leaves out, and why</div>
+          <div class="section-header collapsed d-flex align-items-center justify-content-between gap-2" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#ebmLeavesOut" aria-expanded="false" aria-controls="ebmLeavesOut">
+            <span><i class="bi bi-dash-circle me-1"></i>What the EBM leaves out, and why</span>
+            <i class="bi bi-chevron-down"></i>
+          </div>
+          <div id="ebmLeavesOut" class="collapse">
           <% if (!_left.length) { %>
             <div class="p-3 text-muted small">Nothing is left out.</div>
           <% } else { %>
@@ -286,6 +304,7 @@
               </table>
             </div>
           <% } %>
+          </div>
         </div>
       </div>
     </div>
@@ -323,6 +342,20 @@
       document.getElementById('capabilityModalVersion').textContent = get('version') || '—';
       document.getElementById('capabilityModalDescription').textContent = get('description') || 'No description.';
       document.getElementById('capabilityModalLink').setAttribute('href', get('href'));
+    });
+
+    // Include all remaining / Exclude all remaining: ticks the chosen radio on every row of this page that has no choice yet. A row already decided is left alone. Apply saves the ticks.
+    document.querySelectorAll('[data-bulk-decision]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var form = document.getElementById('rows-form');
+        if (!form) return;
+        var decision = btn.getAttribute('data-bulk-decision');
+        form.querySelectorAll('input[type="radio"][value="' + decision + '"]').forEach(function (radio) {
+          var group = form.querySelectorAll('input[type="radio"][name="' + radio.name + '"]');
+          var decided = Array.prototype.some.call(group, function (r) { return r.checked; });
+          if (!decided) radio.checked = true;
+        });
+      });
     });
   </script>
 

@@ -20,7 +20,23 @@
           }
         ],
         "requiredEvidence": { "title": "", "category": "", "description": "", "collectionMethod": "" },
-        "relatedObligations": [],
+        "relatedObligations": [
+          {
+            "category": "Compliance",
+            "title": "Resolve the Demo False Trigger Policy",
+            "description": "The requirements analysis model may not start until the Demo False Trigger Policy is resolved. Its condition is never satisfied, so the Policy gate refuses the Defined to In Progress transition until this Obligation is closed.",
+            "origin": "Policies",
+            "priority": "Medium",
+            "severity": "High",
+            "completionCriteria": "The Policy gate has been shown refusing the transition and a manager has closed this Obligation.",
+            "requiredEvidence": {
+              "title": "Policy gate refusal shown",
+              "category": "Validation Evidence",
+              "description": "A record that the Policy gate refused the Defined to In Progress transition.",
+              "collectionMethod": "Manual attestation recorded by the responsible Authority holder."
+            }
+          }
+        ],
         "exceptionRules": []
       }
     ]

@@ -81,29 +81,37 @@
 
         <%# ---------------------------------------------------------------- Deliverables %>
         <div class="<%= paneClass('deliverables') %>" id="seu-detail-deliverables" role="tabpanel">
+          <div class="section-card mb-3">
+            <div class="section-header">Deliverable dependencies</div>
+            <div class="p-3"><%- include('../sdk/_dependencyGraphSvg', { graph: detail.dependencyGraph }) %></div>
+          </div>
           <div class="section-card">
             <div class="section-header">Deliverables</div>
             <div class="table-responsive">
               <table class="table mb-0 align-middle">
-                <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Dependencies</th><th>Transition</th></tr></thead>
+                <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Blocked by</th><th>Participants</th><th>Transition</th></tr></thead>
                 <tbody>
                   <% if (detail.deliverables.length === 0) { %>
-                    <tr><td colspan="4" class="text-muted small">No Deliverable instances yet — created once commissioning reaches Create Engineering Assets.</td></tr>
+                    <tr><td colspan="5" class="text-muted small">No Deliverable instances yet — created once commissioning reaches Create Engineering Assets.</td></tr>
                   <% } %>
                   <% detail.deliverables.forEach(function(d) { %>
                     <tr>
                       <td class="small"><%= d.name %><br><span class="text-muted" style="font-size:0.72rem;"><% if (d.category) { %><%= d.category %> &middot; <% } %>Acquisition Scope: <%= d.acquisitionScope %></span></td>
                       <td><span class="state-badge state-<%= d.lifecycleState.replace(/\s+/g, '-') %>"><%= d.lifecycleState %></span></td>
-                      <td>
-                        <% if (d.dependencyEdges.length === 0) { %>
-                          <span class="text-muted small">none</span>
+                      <td class="small">
+                        <% if (d.blockedBy.length === 0) { %>
+                          <span class="text-muted">nothing</span>
                         <% } else { %>
-                          <% d.dependencyEdges.forEach(function(e) { %>
-                            <div class="edge-note">
-                              <%= e.targetLabel %><% if (e.requiredState) { %> &rarr; <%= e.requiredState %><% } %>:
-                              <span class="state-badge state-<%= e.readinessState %>"><%= e.readinessState %></span>
-                            </div>
+                          <% d.blockedBy.forEach(function(b) { %>
+                            <div class="edge-note"><%= b.kind %> <strong><%= b.label %></strong> &rarr; <%= b.toState %></div>
                           <% }) %>
+                        <% } %>
+                      </td>
+                      <td class="small">
+                        <% if (d.participants.length === 0) { %>
+                          <span class="text-muted">none</span>
+                        <% } else { %>
+                          <% d.participants.forEach(function(p) { %><div><%= p %></div><% }) %>
                         <% } %>
                       </td>
                       <td>
@@ -982,6 +990,27 @@
       });
     })();
   </script>
+
+  <%# The page reloads itself so it follows the work. It waits while the tab is hidden, a dialog is open or a field is being edited, and returns to the same tab and scroll position. %>
+  <% if (locals.refreshSeconds) { %>
+  <script>
+    (function () {
+      var scrollKey = 'seuDetailScroll:' + location.pathname;
+      var saved = sessionStorage.getItem(scrollKey);
+      if (saved !== null) { sessionStorage.removeItem(scrollKey); window.scrollTo(0, Number(saved)); }
+      setInterval(function () {
+        if (document.hidden || document.querySelector('.modal.show')) return;
+        var field = document.activeElement;
+        if (field && /^(INPUT|TEXTAREA|SELECT)$/.test(field.tagName)) return;
+        var pane = document.querySelector('.tab-pane.active');
+        var params = new URLSearchParams(window.location.search);
+        if (pane && pane.id.indexOf('seu-detail-') === 0) params.set('tab', pane.id.replace('seu-detail-', ''));
+        sessionStorage.setItem(scrollKey, String(window.scrollY));
+        window.location.search = params.toString();
+      }, <%= Number(locals.refreshSeconds) * 1000 %>);
+    })();
+  </script>
+  <% } %>
 
   <%- include('../../partials/footer') %>
 </body>

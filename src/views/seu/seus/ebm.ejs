@@ -239,7 +239,7 @@
         <%# ---------------------------------------------------------------- One tab for each table of the settled result %>
         <% function _fmtv(value) { return (value === null || value === undefined) ? '—' : (typeof value === 'object' ? JSON.stringify(value) : String(value)); } %>
         <% (ebmView.settledTabs || []).forEach(function(s) { %>
-          <% var _cols = locals.cells.orderedColumns(s.result || [], (locals.resultColumns || {})[s.table] || []); var _rowLinks = (locals.resultLinks || {})[s.table] || []; %>
+          <% var _cols = locals.cells.orderedColumns(s.result || [], (locals.resultColumns || {})[s.table] || []); var _rowLinks = (locals.resultLinks || {})[s.table] || []; var _groupCol = (locals.resultGroupBy || {})[s.table] || null; if (_groupCol) _cols = _cols.filter(function(col) { return col !== _groupCol; }); var _order = (s.result || []).map(function(_r, i) { return i; }); if (_groupCol) _order.sort(function(a, b) { var x = String(s.result[a][_groupCol] == null ? '' : s.result[a][_groupCol]), y = String(s.result[b][_groupCol] == null ? '' : s.result[b][_groupCol]); return x < y ? -1 : x > y ? 1 : a - b; }); var _lastGroup = null; %>
           <div class="tab-pane fade" id="seu-ebm-<%= s.table %>" role="tabpanel">
             <div class="section-card">
               <div class="section-header"><i class="bi bi-check2-square me-1"></i><%= s.label %> — what the SEU takes</div>
@@ -249,14 +249,16 @@
                 <div class="table-responsive">
                   <table class="table table-sm align-middle mb-0">
                     <thead><tr><% _cols.forEach(function(col) { %><th class="small text-muted"><%= col %></th><% }) %><th class="small text-muted">Open</th></tr></thead>
-                    <tbody><% s.result.forEach(function(row, ri) { %><tr><% _cols.forEach(function(col) { %><td class="small"><%- locals.cells.cellHtml(row[col], col, _rowLinks[ri]) %></td><% }) %><td class="small text-nowrap"><%- locals.cells.linksHtml(_rowLinks[ri]) %></td></tr><% }) %></tbody>
+                    <tbody><% _order.forEach(function(ri) { var row = s.result[ri]; %><% if (_groupCol) { var _g = row[_groupCol] == null ? '' : String(row[_groupCol]); if (_g !== _lastGroup) { _lastGroup = _g; %><tr class="table-light"><td class="small fw-semibold" colspan="<%= _cols.length + 1 %>"><%= _g || 'No Deliverable' %></td></tr><% } } %><tr><% _cols.forEach(function(col) { %><td class="small"><%- locals.cells.cellHtml(row[col], col, _rowLinks[ri]) %></td><% }) %><td class="small text-nowrap"><%- locals.cells.linksHtml(_rowLinks[ri]) %></td></tr><% }) %></tbody>
                   </table>
                 </div>
               <% } %>
             </div>
-            <% if ((s.conflicts || []).length) { %>
               <div class="section-card">
                 <div class="section-header"><i class="bi bi-exclamation-diamond me-1"></i><%= s.label %> — conflicts and the picks</div>
+                <% if (!(s.conflicts || []).length) { %>
+                  <div class="p-3 text-muted small">None.</div>
+                <% } else { %>
                 <div class="table-responsive">
                   <table class="table table-sm align-middle mb-0">
                     <thead><tr><th class="small text-muted">Conflict</th><th class="small text-muted">Options</th><th class="small text-muted">Pick</th></tr></thead>
@@ -271,19 +273,21 @@
                     </tbody>
                   </table>
                 </div>
+                <% } %>
               </div>
-            <% } %>
-            <% if ((s.leftOut || []).length) { %>
               <div class="section-card">
                 <div class="section-header"><i class="bi bi-dash-circle me-1"></i><%= s.label %> — what the EBM leaves out, and why</div>
+                <% if (!(s.leftOut || []).length) { %>
+                  <div class="p-3 text-muted small">Nothing is left out.</div>
+                <% } else { %>
                 <div class="table-responsive">
                   <table class="table table-sm align-middle mb-0">
                     <thead><tr><th class="small text-muted">Left out</th><th class="small text-muted">Why</th></tr></thead>
                     <tbody><% s.leftOut.forEach(function(row) { %><tr><td class="small"><code><%= row.item %></code></td><td class="small"><%= row.reason %></td></tr><% }) %></tbody>
                   </table>
                 </div>
+                <% } %>
               </div>
-            <% } %>
           </div>
         <% }) %>
 
@@ -530,6 +534,20 @@
       </div>
     </div>
   </main>
+
+  <%# After a composition, the EBM is created a moment later. While it is missing, the page reloads itself until it appears. %>
+  <% if (!ebmView.ebm) { %>
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('composing') !== '1') return;
+      var tries = Number(params.get('tries') || 0);
+      if (tries >= 15) return;
+      params.set('tries', String(tries + 1));
+      setTimeout(function () { window.location.search = params.toString(); }, 2000);
+    })();
+  </script>
+  <% } %>
 
   <%- include('../../partials/jsonMore') %>
 

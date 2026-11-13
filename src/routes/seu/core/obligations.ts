@@ -183,6 +183,20 @@ export async function raiseObligationForBlockedTransition(input: {
     attentionItems.push(attentionItem);
   }
 
+  // A condition that declares no Obligation still leaves a visible item on the SEU.
+  if (declaredObligations.length === 0) {
+    const { attentionItem } = await raiseAttentionItem({
+      seuId: input.seuId,
+      category: "Action Required",
+      title: `${input.relatedObjectType} is blocked by Policy "${policy.name}"`,
+      description: condition?.statement ?? `The ${input.relatedObjectType} cannot move ${input.fromState} -> ${input.toState} until the Policy is satisfied.`,
+      relatedObjectType: input.relatedObjectType,
+      relatedObjectId: input.relatedObjectId,
+      ...systemActor,
+    });
+    attentionItems.push(attentionItem);
+  }
+
   return { obligations, attentionItems };
 }
 

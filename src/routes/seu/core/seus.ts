@@ -23,6 +23,9 @@ import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsD
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { findEligibleParticipants, resolveEligibilityPolicies } from "./participantEligibility.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
+import { layoutDependencyGraph, type DependencyGraphLayout } from "./templateView.js";
+import { policiesDB } from "../../../dblayer/policiesDB.js";
+import { evaluateCondition, type GoverningCondition } from "../../../domain/engine/governingCondition.js";
 import { RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGateEngine.js";
 import type { PoolEntry } from "../../../domain/engine/profileCompositionUnravel.js";
 import { getSeuEvents } from "./events.js";
@@ -189,6 +192,10 @@ export interface SeuDetailDeliverable {
   acquisitionScope: string;
   possibleNextStates: string[];
   dependencyEdges: SeuDetailDependencyEdge[];
+  // What stops a next transition of the Deliverable today. Read only: nothing is evaluated through an engine that publishes.
+  blockedBy: Array<{ kind: "Policy" | "Standard" | "Obligation"; label: string; toState: string }>;
+  // The Participants on the work items of the Deliverable's Commands.
+  participants: string[];
 }
 
 export interface SeuDetailWorkItem {
@@ -262,6 +269,8 @@ export interface SeuDetailView {
   requiredTechnologyPacks: string[];
   requiredDomainPacks: string[];
   deliverables: SeuDetailDeliverable[];
+  // The dependency graph of the SEU's Deliverable Catalogue, drawn as the Template and Profile pages draw it, or null when there is none.
+  dependencyGraph: DependencyGraphLayout | null;
   commands: SeuDetailCommand[];
   obligations: SeuDetailObligation[];
   attentionItems: SeuDetailAttentionItem[];
@@ -356,8 +365,21 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         acquisitionScope: d.acquisition_scope,
         possibleNextStates: nextStates ?? [],
         dependencyEdges: enrichedEdges,
+        blockedBy: [],
+        participants: [],
       };
     })
+  );
+
+  // The dependency rows of the SEU's Deliverable source, as graph entries. A Deliverable row names the Deliverable by name, the graph by code.
+  const { data: graphRows } = await dependencyDefinitionsDB.findByIds(scope.dependencyDefinitionIds);
+  const codeByName = new Map((deliverables ?? []).filter((d) => d.code !== null).map((d) => [d.name, d.code as string]));
+  const nameByCode = new Map((deliverables ?? []).filter((d) => d.code !== null).map((d) => [d.code as string, d.name]));
+  const codeOf = (type: string, name: string | null): string => (type === "Capability" ? name ?? "" : codeByName.get(name ?? "") ?? name ?? "");
+  const dependencyGraph = layoutDependencyGraph(
+    (graphRows ?? []).map((row) => ({ fromType: row.from_entity_type, fromCode: codeOf(row.from_entity_type, row.from_name), fromCapabilityCode: codeOf(row.from_entity_type, row.from_name), toCode: codeOf("Deliverable", row.to_name) })),
+    [...nameByCode.keys()],
+    (kind, code) => ({ label: kind === "Capability" ? `Service: ${serviceNameByCode.get(code) ?? code}` : nameByCode.get(code) ?? code, href: null })
   );
 
   const { data: commands } = await commandsDB.findBySeuId(seuId);
@@ -401,6 +423,29 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     obligation,
     deliverableName: relatedObjectLabel(obligation.related_object_type, obligation.related_object_id),
   }));
+
+  // The Policies of the EBM that govern a next transition of a Deliverable, read as the policy engine reads them and tested with the context the execution engine gives them.
+  const { data: ebmPolicies } = await policiesDB.findByIds(ebm?.applicable_policy_ids ?? []);
+  for (const view of deliverableViews) {
+    const deliverable = (deliverables ?? []).find((row) => row.id === view.id)!;
+    const producingCapabilityStatus = deliverable.producing_capability_id ? (await seuCapabilitiesDB.findBySeuIdAndCapabilityId(seuId, deliverable.producing_capability_id)).data?.status ?? null : null;
+    for (const toState of view.possibleNextStates) {
+      const hop = `Deliverable|${view.lifecycleState}|${toState}`;
+      for (const policy of (ebmPolicies ?? []).filter((p) => p.governed_transition === hop && (p.applicability_deliverable_names.length === 0 || (deliverable.code !== null && p.applicability_deliverable_names.includes(deliverable.code))))) {
+        if (!evaluateCondition(policy.condition as GoverningCondition, { deliverable, producingCapabilityStatus })) {
+          view.blockedBy.push({ kind: policy.constraint_type === "Policy" ? "Policy" : "Standard", label: policy.code, toState });
+        }
+      }
+    }
+    for (const v of obligationViews) {
+      if (v.obligation.related_object_type === "Deliverable" && v.obligation.related_object_id === view.id && v.obligation.blocked_to_state && !RESOLVED_OBLIGATION_STATUSES.has(v.obligation.status)) {
+        view.blockedBy.push({ kind: "Obligation", label: v.obligation.title, toState: v.obligation.blocked_to_state });
+      }
+    }
+    const commandIds = new Set((commands ?? []).filter((c) => c.entity_type === "Deliverable" && c.entity_id === view.id).map((c) => c.id));
+    const labels = (workItems ?? []).filter((w) => commandIds.has(w.command_id) && w.participant_id).map((w) => participantLabelById.get(w.participant_id!) ?? "(unknown Participant)");
+    view.participants = [...new Set(labels)];
+  }
 
   const blockingObligation = obligationViews.find(
     (v) =>
@@ -466,6 +511,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     requiredTechnologyPacks,
     requiredDomainPacks,
     deliverables: deliverableViews,
+    dependencyGraph,
     commands: commandViews,
     obligations: obligationViews,
     attentionItems: attentionItemViews,

@@ -4,6 +4,8 @@
 
 - ASK INSTEAD OF ASSUMING IF YOU SEE ANY DEVIATIONS FROM WHAT IS STATED HERE. 
 
+- NEVER GUESS. Do not state a cause, a fact or a fix that has not been verified by reading the code or data. If the code cannot settle it, say so plainly and ask the user for the missing evidence (for example a query result). Do not offer unverified explanations, and do not leave an unverified change in place as a "harmless guess".
+
 - design/tbi.md and notes.md are the user's personal scratchpad. Do not read or load them into the context. 
 
 - don't dispatch Agent/subagents for any work.

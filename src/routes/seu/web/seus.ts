@@ -21,7 +21,7 @@ import { validateEbm, validateSeu, initiateSeu } from "../core/commissioning.js"
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
-import { CONFLICT_RESULT_COLUMNS, getPlatformTenantId, EBM_ACTIVE_STATE, EBM_VALIDATED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_DECISION_ACTION_CODE } from "../../../dblayer/constants.js";
+import { CONFLICT_RESULT_COLUMNS, CONFLICT_RESULT_GROUP_BY, getPlatformTenantId, EBM_ACTIVE_STATE, EBM_VALIDATED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_DECISION_ACTION_CODE, SEU_DETAIL_REFRESH_SECONDS } from "../../../dblayer/constants.js";
 import { resolveResultLinks, type ResultLink } from "./conflictResultLinks.js";
 import { resultCells } from "../../../utils/resultCells.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
@@ -192,6 +192,7 @@ router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: R
     for (const k of detail.knowledgeItems) knowledgeActions[k.knowledgeItem.id] = await nextActionsFor("Knowledge", k.knowledgeItem.status, requireActorId(req));
     req.vm.req.knowledgeActions = knowledgeActions;
     req.vm.req.activeTab = typeof req.query.tab === "string" ? req.query.tab : undefined;
+    req.vm.opt.refreshSeconds = SEU_DETAIL_REFRESH_SECONDS;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/detail", req.vm);
   } catch (err) {
@@ -214,6 +215,7 @@ router.get("/seus/:id/ebm", attachVM("seu/seus/ebm"), async (req: Request, res: 
     for (const tab of ebmView.settledTabs) resultLinks[tab.table] = await resolveResultLinks(tab.table, tab.result as Array<Record<string, unknown>>, viewerTenantId);
     req.vm.opt.resultLinks = resultLinks;
     req.vm.opt.resultColumns = CONFLICT_RESULT_COLUMNS;
+    req.vm.opt.resultGroupBy = CONFLICT_RESULT_GROUP_BY;
     req.vm.opt.cells = resultCells;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/ebm", req.vm);

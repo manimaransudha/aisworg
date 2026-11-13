@@ -33,6 +33,7 @@ import { previewCommissioningValidation } from "../core/commissioning.js";
 import type { LivenessCheck } from "../core/commissioning.js";
 import type { ProfileDetail } from "../core/profiles.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
+import { packsDB } from "../../../dblayer/packsDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { resolveResultLinks } from "./conflictResultLinks.js";
@@ -594,6 +595,8 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
     // Commented out (owner): the old conflict strategies are replaced by the Resolve Conflicts screen.
     // if (strategyError) return redirects.seu.objectivesComposeEbm.error(req, res, strategyError);
     // if (strategyNotes.length) return redirects.seu.objectivesComposeEbm.success(req, res, strategyNotes.join(" · "));
+    // A composition with no open conflict is complete. The EBM page carries the next transitions of the EBM.
+    if (blockingEbmConflicts(ebmConflicts).length === 0) return redirects.seu.objectivesComposeEbm.success(req, res, "No conflict is open. The EBM is being composed. Wait for the page to refresh.", `/aisworg/seu/seus/${existingSeu.id}/ebm?composing=1`);
     if (req.body?.returnTo === "resolve-conflicts") return res.redirect(resolveConflictsUrl(objectiveId, req.body ?? {}));
     return res.redirect(`/aisworg/seu/objectives/${objectiveId}/compose-ebm`);
   } catch (err) {
@@ -686,11 +689,12 @@ router.get("/objectives/:id/resolve-conflicts", attachVM("seu/seus/resolve-confl
   const tabs = summariseConflictTables(stashed.ebmConflicts).map((t) => ({ ...t, label: CONFLICT_TABLE_LABELS[t.table] ?? t.table }));
   const requested = typeof req.query.category === "string" ? req.query.category : "";
   const selectedTable = (tabs.find((t) => t.table === requested) ?? tabs.find((t) => t.open > 0) ?? tabs[0]).table;
-  const params = parseListParams(req.query, { sortable: ["status", "key", "kind"], defaultSort: "status", defaultDir: "asc" });
+  // A table of rows is sorted by key so a row keeps its place after it is decided. The cards are sorted by status, open first.
+  const params = parseListParams(req.query, { sortable: ["status", "key", "kind", "pack"], defaultSort: CONFLICT_TABLES_SHOWN_AS_TABLE.includes(selectedTable) ? "pack" : "status", defaultDir: "asc" });
   const statusOrder: Record<string, number> = { open: 0, notice: 1, resolved: 2 };
   const paginated = paginateList(stashed.ebmConflicts[selectedTable as EbmConflictTable] ?? [], params, {
     searchFields: [(c) => c.message, (c) => c.key, (c) => c.kind],
-    sortFields: { status: (c) => statusOrder[conflictStatus(c)], key: (c) => c.key, kind: (c) => c.kind },
+    sortFields: { status: (c) => statusOrder[conflictStatus(c)], key: (c) => c.key, kind: (c) => c.kind, pack: (c) => `${c.options[0]?.sourceLabel ?? ""}\u0000${c.key}` },
   });
 
   req.vm.req.title = "Resolve Conflicts";
@@ -712,6 +716,16 @@ router.get("/objectives/:id/resolve-conflicts", attachVM("seu/seus/resolve-confl
     if (definition) capabilityInfo[code] = { id: definition.id, name: definition.default_label, description: definition.description ?? "", category: definition.category, version: definition.version };
   }
   req.vm.opt.capabilityInfo = capabilityInfo;
+  // The version of each Pack named in the listed conflicts, so the rows can be grouped under their Pack and its version.
+  const packVersions: Record<string, string> = {};
+  for (const c of paginated.items) {
+    for (const o of c.options) {
+      if (o.sourceKind !== "pack" || !o.sourceId || packVersions[o.sourceId]) continue;
+      const { data: pack } = await packsDB.findById(o.sourceId);
+      if (pack) packVersions[o.sourceId] = pack.pack_version;
+    }
+  }
+  req.vm.opt.packVersions = packVersions;
   req.vm.opt.resultLinks = await resolveResultLinks(selectedTable, (stashed.settled?.[selectedTable]?.result ?? []) as Array<Record<string, unknown>>, capabilityViewerTenantId);
   req.vm.opt.cells = resultCells;
   req.vm.opt.comparedKinds = CONFLICT_KINDS_SHOWN_AS_COMPARISON;

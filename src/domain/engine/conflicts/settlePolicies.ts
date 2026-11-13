@@ -55,5 +55,5 @@ export function settlePoliciesFrom(facts: PoliciesUnraveled, resolutions: Confli
 }
 
 export async function settlePolicies(context: DetectionContext, resolutions: ConflictResolutions = {}): Promise<PoliciesSettled> {
-  return settlePoliciesFrom(await unravelPolicies({ composedPacks: context.composedPacks }, context.viewerTenantId), resolutions);
+  return settlePoliciesFrom(await unravelPolicies({ templates: context.templates, profiles: context.profiles, composedPacks: context.composedPacks }, context.viewerTenantId), resolutions);
 }

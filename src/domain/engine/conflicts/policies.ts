@@ -71,6 +71,6 @@ export function detectPolicyConflictsFrom(facts: PoliciesUnraveled, resolutions:
 }
 
 export async function detectPolicyConflicts(context: DetectionContext, resolutions: ConflictResolutions = {}): Promise<EbmConflict[]> {
-  const facts = await unravelPolicies({ composedPacks: context.composedPacks }, context.viewerTenantId);
+  const facts = await unravelPolicies({ templates: context.templates, profiles: context.profiles, composedPacks: context.composedPacks }, context.viewerTenantId);
   return detectPolicyConflictsFrom(facts, resolutions);
 }

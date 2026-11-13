@@ -80,6 +80,10 @@ export const CONFLICT_TABLE_LABELS: Record<string, string> = {
 };
 // The conflict tables whose conflicts the Resolve Conflicts screen shows as one table of rows with one Apply, not one panel for each conflict.
 export const CONFLICT_TABLES_SHOWN_AS_TABLE: string[] = ["capabilities"];
+// The scope of a Policy that governs the eligibility of a Participant. It names no Deliverable, so the Policies conflict detection keeps it whatever the Deliverable Catalogue holds.
+export const POLICY_SCOPE_ELIGIBILITY = "Eligibility";
+// How often the SEU page reloads itself, in seconds, so the project manager sees the work as it happens.
+export const SEU_DETAIL_REFRESH_SECONDS = 60;
 // The kinds of conflict whose options are compared field by field, one column for each source, with the fields that differ highlighted.
 export const CONFLICT_KINDS_SHOWN_AS_COMPARISON: string[] = ["quality-gate-different", "review-gate-different-rules", "obligation-different", "authority-different-roles"];
 // The columns of the "What the SEU takes" table of each conflict table, in the order they are shown. The saved result comes back from the database
@@ -97,6 +101,10 @@ export const CONFLICT_RESULT_COLUMNS: Record<string, string[]> = {
   checklists: ["pack", "checklist", "description", "items"],
   competencies: ["dimension", "value", "sources"],
   profileConfiguration: ["parameter", "value", "profile"],
+};
+// The column of each conflict table that "What the SEU takes" groups its rows under, on the EBM page.
+export const CONFLICT_RESULT_GROUP_BY: Record<string, string> = {
+  policies: "deliverable",
 };
 // The pages that show the whole definition of an entity named in a conflict result, for the link column of "What the SEU takes".
 export const CONFLICT_ENTITY_PAGES: Record<string, { label: string; path: string }> = {
@@ -326,11 +334,12 @@ export async function getSystemActor(seuId: string): Promise<{ actorId: string; 
 //   tenant      rows whose tenant_id is the Demo tenant
 //   sponsoring  rows whose sponsoring_authority names the Demo tenant
 //   seu         rows whose seu_id is a Demo SEU
+//   tenant_seu  rows whose tenant_id is the Demo tenant, or whose seu_id is a Demo SEU
 //   seus        the Demo SEUs (Demo tenant, or commissioned against a Demo Objective)
 //   via         rows that reference a row already selected for deletion in the parent table
 export interface DemoPurgeStep {
   table: string;
-  scope: "tenant" | "sponsoring" | "seu" | "seus" | "via";
+  scope: "tenant" | "sponsoring" | "seu" | "tenant_seu" | "seus" | "via";
   via?: Array<{ column: string; parent: string; parentColumn: string }>;
 }
 export const DEMO_PURGE_PLAN: readonly DemoPurgeStep[] = [
@@ -368,7 +377,7 @@ export const DEMO_PURGE_PLAN: readonly DemoPurgeStep[] = [
   { table: "deliverable_definitions", scope: "tenant" },
   { table: "ebms", scope: "seu" },
   { table: "version_events", scope: "tenant" },
-  { table: "events", scope: "tenant" },
+  { table: "events", scope: "tenant_seu" },
   { table: "findings", scope: "seu" },
   { table: "metric_definitions", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
   { table: "objective_capabilities", scope: "via", via: [{ column: "objective_id", parent: "objectives", parentColumn: "id" }] },
