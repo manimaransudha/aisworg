@@ -106,6 +106,13 @@ export const CONFLICT_RESULT_COLUMNS: Record<string, string[]> = {
 export const CONFLICT_RESULT_GROUP_BY: Record<string, string[]> = {
   policies: ["deliverable", "scope"],
 };
+// The columns of "What the SEU takes" that hold long text: they get a wider column and a "show more" toggle past this many characters.
+export const CONFLICT_RESULT_LONG_TEXT_COLUMNS: string[] = ["statement"];
+export const CONFLICT_RESULT_LONG_TEXT_SHORT_LENGTH = 120;
+
+// The Obligation raised for a blocked transition when the blocking Policy condition declares none (CR-106).
+export const BLOCKED_TRANSITION_OBLIGATION_CATEGORY = "Compliance";
+export const BLOCKED_TRANSITION_OBLIGATION_ORIGIN = "Policies";
 // The pages that show the whole definition of an entity named in a conflict result, for the link column of "What the SEU takes".
 export const CONFLICT_ENTITY_PAGES: Record<string, { label: string; path: string }> = {
   pack: { label: "Pack", path: "/aisworg/seu/packs" },

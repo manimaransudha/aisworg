@@ -116,11 +116,11 @@
           <% } else { %>
             <div class="table-responsive">
               <table class="table table-sm align-middle mb-0">
-                <thead><tr><% _cols.forEach(function(col) { %><th class="small text-muted"><%= col %></th><% }) %></tr></thead>
+                <thead><tr><% _cols.forEach(function(col) { %><th class="small text-muted"<%- (locals.resultLongTextColumns || []).indexOf(col) >= 0 ? ' style="min-width: 28rem"' : '' %>><%= col %></th><% }) %></tr></thead>
                 <tbody>
                   <% _order.forEach(function(ri) { var row = _taken[ri]; %>
                     <% for (var _k = 0; _k < _groupCols.length; _k++) { var _g = _gv(row, _groupCols[_k]); if (_g !== _lastGroup[_k] || (_k > 0 && _lastGroup.length > _k && _lastGroup.slice(0, _k).some(function(v, i) { return v !== _gv(row, _groupCols[i]); }))) { _lastGroup = _lastGroup.slice(0, _k); _lastGroup[_k] = _g; %><tr class="table-light"><td class="small fw-semibold<%= _k > 0 ? ' ps-4' : '' %>" colspan="<%= _cols.length %>"><%= _g || (_k === 0 ? 'No Deliverable' : 'No value') %></td></tr><% } } %>
-                    <tr><% _cols.forEach(function(col) { %><td class="small"><%- _cellHtml(row[col], col, _links[ri]) %></td><% }) %></tr>
+                    <tr><% _cols.forEach(function(col) { %><% var _long = (locals.resultLongTextColumns || []).indexOf(col) >= 0; %><td class="small"<%- _long ? ' style="min-width: 28rem"' : '' %>><%- _long ? _cells.longTextHtml(row[col]) : _cellHtml(row[col], col, _links[ri]) %></td><% }) %></tr>
                   <% }) %>
                 </tbody>
               </table>

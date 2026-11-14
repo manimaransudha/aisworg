@@ -17,6 +17,16 @@
             "name": "requirements-analysis-model",
             "transitions": ["Deliverable|Defined|In Progress"],
             "governingCondition": { "type": "always_false" }
+          },
+          {
+            "name": "source-code",
+            "transitions": ["Deliverable|Defined|In Progress"],
+            "governingCondition": { "type": "always_false" }
+          },
+          {
+            "name": "deployment-manifest",
+            "transitions": ["Deliverable|Defined|In Progress"],
+            "governingCondition": { "type": "always_false" }
           }
         ],
         "requiredEvidence": { "title": "", "category": "", "description": "", "collectionMethod": "" },

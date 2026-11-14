@@ -1,4 +1,5 @@
 import type { ResultLink } from "../routes/seu/web/conflictResultLinks.js";
+import { CONFLICT_RESULT_LONG_TEXT_SHORT_LENGTH } from "../dblayer/constants.js";
 
 // Helpers for a table of "what the SEU takes": a value that is an object or a list shows its first characters and a "…" that opens the whole value in place,
 // and a cell that names entities shows each code as a link to its entity.
@@ -14,6 +15,12 @@ export function jsonHtml(value: unknown): string {
   const full = JSON.stringify(value);
   if (full.length <= SHORT_LENGTH) return `<code>${esc(full)}</code>`;
   return `<span class="json-cell"><code class="json-short">${esc(full.slice(0, SHORT_LENGTH))}</code><a href="#" class="json-more ms-1 small" title="Show the whole value">…</a><code class="json-full d-none text-break">${esc(full)}</code></span>`;
+}
+
+// A long text shows its first characters and a "show more" that opens the whole text in place; "show less" closes it (the toggle is partials/jsonMore).
+export function longTextHtml(value: unknown): string {
+  if (typeof value !== "string" || value.length <= CONFLICT_RESULT_LONG_TEXT_SHORT_LENGTH) return value === null || value === undefined ? "—" : esc(value);
+  return `<span class="json-cell"><span class="json-short">${esc(value.slice(0, CONFLICT_RESULT_LONG_TEXT_SHORT_LENGTH))}…</span><span class="json-full d-none">${esc(value)}</span> <a href="#" class="json-more small" data-more="show more" data-less="show less">show more</a></span>`;
 }
 
 export function cellHtml(value: unknown, column: string, links: ResultLink[] | undefined): string {
@@ -38,4 +45,4 @@ export function orderedColumns(rows: Array<Record<string, unknown>>, order: stri
 }
 
 // The helpers as one object, for a route to hand to a view.
-export const resultCells = { esc, jsonHtml, cellHtml, linksHtml, orderedColumns };
+export const resultCells = { esc, jsonHtml, longTextHtml, cellHtml, linksHtml, orderedColumns };

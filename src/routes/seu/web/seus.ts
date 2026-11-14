@@ -21,7 +21,7 @@ import { validateEbm, validateSeu, initiateSeu } from "../core/commissioning.js"
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
-import { CONFLICT_RESULT_COLUMNS, CONFLICT_RESULT_GROUP_BY, getPlatformTenantId, EBM_ACTIVE_STATE, EBM_VALIDATED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_DECISION_ACTION_CODE, SEU_DETAIL_REFRESH_SECONDS } from "../../../dblayer/constants.js";
+import { CONFLICT_RESULT_COLUMNS, CONFLICT_RESULT_GROUP_BY, CONFLICT_RESULT_LONG_TEXT_COLUMNS, getPlatformTenantId, EBM_ACTIVE_STATE, EBM_VALIDATED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_DECISION_ACTION_CODE, SEU_DETAIL_REFRESH_SECONDS } from "../../../dblayer/constants.js";
 import { resolveResultLinks, type ResultLink } from "./conflictResultLinks.js";
 import { resultCells } from "../../../utils/resultCells.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
@@ -216,6 +216,7 @@ router.get("/seus/:id/ebm", attachVM("seu/seus/ebm"), async (req: Request, res: 
     req.vm.opt.resultLinks = resultLinks;
     req.vm.opt.resultColumns = CONFLICT_RESULT_COLUMNS;
     req.vm.opt.resultGroupBy = CONFLICT_RESULT_GROUP_BY;
+    req.vm.opt.resultLongTextColumns = CONFLICT_RESULT_LONG_TEXT_COLUMNS;
     req.vm.opt.cells = resultCells;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/ebm", req.vm);
@@ -355,7 +356,8 @@ router.post("/seus/:id/ebm/transition/:verb", async (req: Request, res: Response
       result.appliedTransition.toState === EBM_ACTIVE_STATE
         ? `Engineering Behavior Model activated — commissioning is proceeding in the background. Refresh this page shortly to see the SEU's lifecycle state.`
         : `Engineering Behavior Model moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`;
-    return redirects.seu.seusEbmTransition.success(req, res, message);
+    // A validated EBM stays on the EBM page, which then offers the next step (Activate).
+    return redirects.seu.seusEbmTransition.success(req, res, message, result.appliedTransition.toState === EBM_VALIDATED_STATE ? `/aisworg/seu/seus/${seuId}/ebm` : undefined);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/ebm/transition/:verb error", err as Error);
     return redirects.seu.seusEbmTransition.error(req, res, (err as Error).message);

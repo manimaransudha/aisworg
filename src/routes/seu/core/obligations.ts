@@ -15,7 +15,7 @@ import { assertCanonicalCategory } from "./ontology.js";
 import { raiseAttentionItem, resolveAuthor } from "./attentionItems.js";
 import type { AttentionItemRow, ObligationDefinition, ObligationRow, PolicyApplicabilityDeliverable, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { getSystemActor } from "../../../dblayer/constants.js";
+import { BLOCKED_TRANSITION_OBLIGATION_CATEGORY, BLOCKED_TRANSITION_OBLIGATION_ORIGIN, getSystemActor } from "../../../dblayer/constants.js";
  
 export async function resolveSeuIdFromRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<string> {
   if (relatedObjectType === "SEU") return relatedObjectId;
@@ -183,8 +183,28 @@ export async function raiseObligationForBlockedTransition(input: {
     attentionItems.push(attentionItem);
   }
 
-  // A condition that declares no Obligation still leaves a visible item on the SEU.
+  // A condition that declares no Obligation still raises one generic Obligation, and a visible item on the SEU.
   if (declaredObligations.length === 0) {
+    const genericTitle = `Resolve Policy "${policy.name}"`;
+    const genericDescription = condition?.statement ?? `The ${input.relatedObjectType} cannot move ${input.fromState} -> ${input.toState} until the Policy is satisfied.`;
+    const existingGeneric = stillOpenForThisTransition.find((o) => o.title === genericTitle);
+    obligations.push(
+      existingGeneric ??
+      (await createObligation({
+        relatedObjectType: input.relatedObjectType,
+        relatedObjectId: input.relatedObjectId,
+        category: BLOCKED_TRANSITION_OBLIGATION_CATEGORY,
+        title: genericTitle,
+        description: genericDescription,
+        origin: BLOCKED_TRANSITION_OBLIGATION_ORIGIN,
+        blockedFromState: input.fromState,
+        blockedToState: input.toState,
+        originatingEntityType: "Policy",
+        originatingEntityId: policy.id,
+        actorId: systemActor.actorId,
+        authorBadge: systemActor.authorBadge,
+      }))
+    );
     const { attentionItem } = await raiseAttentionItem({
       seuId: input.seuId,
       category: "Action Required",

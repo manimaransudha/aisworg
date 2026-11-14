@@ -7,6 +7,6 @@
     var cell = more.closest('.json-cell');
     var open = cell.querySelector('.json-full').classList.toggle('d-none') === false;
     cell.querySelector('.json-short').classList.toggle('d-none', open);
-    more.textContent = open ? 'less' : '…';
+    more.textContent = open ? (more.getAttribute('data-less') || 'less') : (more.getAttribute('data-more') || '…');
   });
 </script>
