@@ -13,6 +13,7 @@ import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
+import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { governedTransitionsFor } from "../src/domain/engine/policyChecks.js";
 import { loadPolicyChecks } from "../src/domain/engine/policyChecks.js";
 import { policyEngine } from "../src/domain/engine/policyEngine.js";
@@ -107,11 +108,9 @@ test("the Policy Engine blocks on a failed Policy, records a failed Standard as 
   assert.deepEqual([blocked.outcome, blocked.outcome === "Blocked" && blocked.policyCode], ["Blocked", reviewPolicy.code]);
   assert.equal((await evaluate(hopOf(reviewPolicy), outputDeliverable.id, { reviewState: "waived" })).outcome, "Passed", "the other accepted value");
 
-  // The hop is also governed by the platform's Policy that the producing Capability is Fulfilled before work starts, so the context satisfies it and only the coverage Policy decides.
-  const fulfilled = { producingCapabilityStatus: "Fulfilled" };
-  const below = await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { ...fulfilled, coveragePercent: 10 });
+  const below = await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 10 });
   assert.deepEqual([below.outcome, below.outcome === "Blocked" && below.policyCode], ["Blocked", coveragePolicy.code], "below the threshold");
-  const above = await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { ...fulfilled, coveragePercent: 90 });
+  const above = await evaluate(hopOf(coveragePolicy), outputDeliverable.id, { coveragePercent: 90 });
   assert.equal(above.outcome, "Passed", `above the threshold: ${JSON.stringify(above)}`);
 
   const deviated = await evaluate(hopOf(standard), outputDeliverable.id, { producingCapabilityStatus: "Unfulfilled" });
@@ -129,6 +128,22 @@ test("the Policy Engine applies nothing outside an SEU, and evaluates a Policy w
   const noContext = await policyEngine.evaluate({ ...base, seuId: f.seu.id, entityId: outputDeliverable.id });
   const emptyContext = await policyEngine.evaluate({ ...base, seuId: f.seu.id, entityId: outputDeliverable.id, context: {} });
   assert.deepEqual(noContext, emptyContext);
+});
+
+test("the Deliverable Defined -> In Progress Transition Definition requires the Capability-fulfilled Policy, and the Policy Engine decides it from the row's own policies", async () => {
+  const hop = "Deliverable|Defined|In Progress";
+  const { data: definition } = await transitionDefinitionsDB.find("Deliverable", "Defined", "In Progress");
+  assert.ok(definition, "the Deliverable Defined -> In Progress Transition Definition is seeded");
+  const checks = await loadPolicyChecks(definition.required_policy_ids, hop);
+  const capabilityCheck = checks.find((c) => c.code === "policy-capability-fulfilled-before-start");
+  assert.ok(capabilityCheck, "the hop's required policies carry policy-capability-fulfilled-before-start");
+
+  const input = { entityType: "Deliverable" as const, seuId: f.seu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE };
+  const unfulfilled = await policyEngine.evaluateChecks(checks, { ...input, context: { producingCapabilityStatus: "Unfulfilled" } });
+  assert.deepEqual([unfulfilled.outcome, unfulfilled.outcome === "Blocked" && unfulfilled.policyCode], ["Blocked", "policy-capability-fulfilled-before-start"], "an unfulfilled producing Capability blocks the hop");
+  assert.equal((await policyEngine.evaluateChecks(checks, { ...input, context: { producingCapabilityStatus: "Fulfilled" } })).outcome, "Passed", "a fulfilled producing Capability passes");
+  assert.equal((await policyEngine.evaluateChecks(checks, { ...input, context: { producingCapabilityStatus: null } })).outcome, "Passed", "a Deliverable with no producing Capability is not held");
+  assert.equal((await policyEngine.evaluateChecks([], input)).outcome, "NotApplicable", "no policies, nothing to decide");
 });
 
 // ── deliverableSource ─────────────────────────────────────────────────────────────────────────────────────────────
