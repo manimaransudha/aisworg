@@ -260,7 +260,8 @@
     "toState": "In Progress",
     "verb": "create",
     "requiredPolicyCodes": [
-      "policy-deliverable-transition-baseline"
+      "policy-deliverable-transition-baseline",
+      "policy-capability-fulfilled-before-start"
     ],
     "trigger": "governed",
     "eventType": "DeliverableUpdated"

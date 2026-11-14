@@ -7,7 +7,8 @@ import { seusDB } from "../../dblayer/seusDB.js";
 import { eventBus } from "./eventBus.js";
 import { dependencyDefinitionEngine } from "./dependencyDefinitionEngine.js";
 import { qualityGateEngine, RESOLVED_OBLIGATION_STATUSES } from "./qualityGateEngine.js";
-import { policyEngine } from "./policyEngine.js";
+import { policyEngine, type PolicyEvaluationResult } from "./policyEngine.js";
+import { loadPolicyChecks } from "./policyChecks.js";
 import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
 import { triggerEngine } from "./triggerEngine.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
@@ -139,23 +140,40 @@ export const executionEngine = {
       ? await seuCapabilitiesDB.findBySeuIdAndCapabilityId(deliverable.seu_id, deliverable.producing_capability_id)
       : { data: null };
 
-    const policyResult = await policyEngine.evaluate({
+    // The Policies of the SEU's EBM, then the Policies the Transition Definition requires. Either can block the hop.
+    const policyContext = { deliverable, producingCapabilityStatus: producingSeuCapability?.status ?? null };
+    const ebmPolicyResult = await policyEngine.evaluate({
       entityType: "Deliverable",
       seuId: deliverable.seu_id,
       entityId: deliverable.id,
       fromState,
       toState: targetState,
-      context: { deliverable, producingCapabilityStatus: producingSeuCapability?.status ?? null },
+      context: policyContext,
       authorId: input.actorId,
       authorBadge: actingBadgeType,
     });
-    if (policyResult.outcome === "Blocked") {
+    const hopPolicyResult = ebmPolicyResult.outcome === "Blocked"
+      ? ebmPolicyResult
+      : await policyEngine.evaluateChecks(await loadPolicyChecks(definition.required_policy_ids, `Deliverable|${fromState}|${targetState}`), {
+        entityType: "Deliverable",
+        seuId: deliverable.seu_id,
+        fromState,
+        toState: targetState,
+        context: policyContext,
+        authorId: input.actorId,
+        authorBadge: actingBadgeType,
+      });
+    const blockedResult = [ebmPolicyResult, hopPolicyResult].find((r) => r.outcome === "Blocked");
+    if (blockedResult && blockedResult.outcome === "Blocked") {
       await raiseObligationForBlockedTransition({
         seuId: deliverable.seu_id, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id,
-        fromState, toState: targetState, policyCode: policyResult.policyCode,
+        fromState, toState: targetState, policyCode: blockedResult.policyCode,
       });
-      return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${policyResult.policyCode}` };
+      return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${blockedResult.policyCode}` };
     }
+    const policyResult: PolicyEvaluationResult = ebmPolicyResult.outcome === "NotApplicable" && hopPolicyResult.outcome === "NotApplicable"
+      ? ebmPolicyResult
+      : { outcome: "Passed", satisfiedPolicyIds: [...ebmPolicyResult.satisfiedPolicyIds, ...hopPolicyResult.satisfiedPolicyIds], deviatedPolicyIds: [...ebmPolicyResult.deviatedPolicyIds, ...hopPolicyResult.deviatedPolicyIds] };
 
     if (definition.submit_verb) {
       const hasBeenSubmitted = await triggerEngine.hasBeenSubmitted("Deliverable", deliverable.id, fromState);

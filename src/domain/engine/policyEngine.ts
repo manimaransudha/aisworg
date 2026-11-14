@@ -5,6 +5,7 @@ import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
 import { evaluateCondition, type GoverningCondition } from "./governingCondition.js";
 import { eventBus } from "./eventBus.js";
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
+import type { PolicyCheck } from "./policyChecks.js";
 
 export type PolicyEvaluationResult =
   | { outcome: "NotApplicable"; satisfiedPolicyIds: []; deviatedPolicyIds: [] }
@@ -43,9 +44,18 @@ export const policyEngine = {
     }
     if (policies.length === 0) return { outcome: "NotApplicable", satisfiedPolicyIds: [], deviatedPolicyIds: [] };
 
+    return this.evaluateChecks(policies, { ...input, seuId: input.seuId });
+  },
+
+  // Evaluates Policies already resolved for one hop: from the EBM (evaluate) or from the Transition Definition's required policies.
+  async evaluateChecks(
+    checks: Array<Pick<PolicyCheck, "id" | "code" | "constraint_type" | "condition">>,
+    input: { entityType: TransitionEntityType; seuId: string; fromState: string; toState: string; context?: Record<string, unknown>; authorId: string; authorBadge: string },
+  ): Promise<PolicyEvaluationResult> {
+    if (checks.length === 0) return { outcome: "NotApplicable", satisfiedPolicyIds: [], deviatedPolicyIds: [] };
     const satisfiedPolicyIds: string[] = [];
     const deviatedPolicyIds: string[] = [];
-    for (const policy of policies) {
+    for (const policy of checks) {
       const satisfied = evaluateCondition(policy.condition as GoverningCondition, input.context ?? {});
       const payload = { policyCode: policy.code, entityType: input.entityType, fromState: input.fromState, toState: input.toState };
       if (satisfied) {

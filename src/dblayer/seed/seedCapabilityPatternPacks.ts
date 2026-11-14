@@ -21,7 +21,6 @@ export interface SeedActor {
 }
 
 const CAPABILITY_PATTERN_PACK_FILES = [
-  "platform-governance-baseline.pack.json",
   "openup-requirements.pack.json",
   "openup-architecture.pack.json",
   "openup-development.pack.json",
