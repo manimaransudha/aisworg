@@ -19,8 +19,7 @@
     "redispatchAttentionThreshold": 2,
     "optionalPackCodes": [
       "technology-react-native",
-      "domain-ebook-library",
-      "product-discovery"
+      "domain-ebook-library"
     ]
   },
   {
@@ -43,9 +42,7 @@
     "redispatchAttentionThreshold": 2,
     "optionalPackCodes": [
       "technology-react-native",
-      "domain-ebook-library",
-      "product-discovery",
-      "beta-early-access-management"
+      "domain-ebook-library"
     ]
   },
   {
@@ -68,10 +65,7 @@
     "redispatchAttentionThreshold": 2,
     "optionalPackCodes": [
       "technology-react-native",
-      "domain-ebook-library",
-      "product-discovery",
-      "beta-early-access-management",
-      "integration-slack"
+      "domain-ebook-library"
     ]
   },
   {
@@ -94,9 +88,7 @@
     "redispatchAttentionThreshold": 2,
     "optionalPackCodes": [
       "technology-react-native",
-      "domain-ebook-library",
-      "backlog-release-planning",
-      "beta-early-access-management"
+      "domain-ebook-library"
     ]
   }
 ]
