@@ -7,7 +7,7 @@ import { logger } from "../../../utils/logger.js";
 import { loadServiceDefinitionIdByCode, stampServiceDefinitionIds } from "../serviceDefinitionIds.js";
 import type { PackSeedInput } from "../../../routes/seu/core/packs.js";
 import { createAuthoringDraft, publishAuthoringDraft, inheritedTemplateContent, toTemplateSeedInput } from "../../../routes/seu/core/sdkAuthoring.js";
-import { publishTemplate } from "../../../routes/seu/core/templates.js";
+import { publishTemplate, PACK_SELECTION_SLOTS } from "../../../routes/seu/core/templates.js";
 import { validateComposableFieldsAgainstSchema } from "../../../routes/seu/core/ontology.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { schemaDefinitionsDB } from "../../schemaDefinitionsDB.js";
@@ -142,11 +142,12 @@ interface DemoTemplateSeed {
   name?: string;
   engineeringPackCodes?: string[];
   omitDeliverableCodes?: string[];
+  omitPackCodes?: string[];
 }
 
 // The Demo tenant cannot see Platform Templates, so each base Template named in templates.json
 // is inherited into the Demo tenant and taken to Active, as the standard Templates are seeded.
-// The copy leaves out the Deliverables listed in omitDeliverableCodes, with the dependency edges that touch them.
+// The copy leaves out the Packs listed in omitPackCodes and the Deliverables listed in omitDeliverableCodes, with the dependency edges that touch them.
 // Keeps the edges between kept Deliverables. A kept prerequisite whose gated Deliverable is omitted stays as a standalone entry.
 function standaloneKeptSources(graph: TemplateDependencyGraphEntry[], omitted: Set<string>): TemplateDependencyGraphEntry[] {
   const kept: TemplateDependencyGraphEntry[] = [];
@@ -171,18 +172,20 @@ async function seedTemplates(actor: DemoActor): Promise<void> {
   if (missing.length > 0) throw new Error(`[seed:demo] templates.json has no entry for the base Template(s) the Profiles use: ${missing.join(", ")}`);
   const platformTenantId = await getPlatformTenantId();
 
-  for (const { baseTemplateCode: code, name, omitDeliverableCodes, engineeringPackCodes } of templates) {
+  for (const { baseTemplateCode: code, name, omitDeliverableCodes, omitPackCodes, engineeringPackCodes } of templates) {
     const { data: parent, error } = await templatesDB.findActiveByCode(code, platformTenantId);
     if (error || !parent) throw error ?? new Error(`[seed:demo] Platform Template "${code}" not found`);
     const inherited = await inheritedTemplateContent(parent.id, actor.tenantId);
     if (!inherited.ok) throw new Error(`[seed:demo] Template "${code}": ${inherited.error}`);
     const omitted = new Set(omitDeliverableCodes ?? []);
+    const omittedPacks = new Set(omitPackCodes ?? []);
     const seed = toTemplateSeedInput(inherited.content);
     const result = await publishTemplate({
       seed: {
         ...seed,
         ...(name ? { name } : {}),
-        engineeringPackCodes: [...new Set([...(seed.engineeringPackCodes ?? []), ...(engineeringPackCodes ?? [])])],
+        ...Object.fromEntries(PACK_SELECTION_SLOTS.map((slot) => [slot.field, ((seed[slot.field] as string[] | undefined) ?? []).filter((c) => !omittedPacks.has(c))])),
+        engineeringPackCodes: [...new Set([...(seed.engineeringPackCodes ?? []), ...(engineeringPackCodes ?? [])])].filter((c) => !omittedPacks.has(c)),
         deliverableCatalogue: seed.deliverableCatalogue.filter((d) => !omitted.has(d.code)),
         // dependencyGraph: (seed.dependencyGraph ?? []).filter((e) => !omitted.has(e.toCode) && !(e.fromType === "Deliverable" && omitted.has(e.fromCode ?? ""))),
         // An edge whose gated Deliverable is omitted but whose prerequisite is kept leaves the prerequisite as a standalone node (no toCode).

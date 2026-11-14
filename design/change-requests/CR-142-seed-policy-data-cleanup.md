@@ -8,6 +8,7 @@
 - The seed data for Packs and their Policies is to be reviewed and cleaned up.
 - Policy rows now exist for every Pack that is created through `createAuthoringDraft`, so the policies the seed Packs contribute now reach the EBM of every SEU that composes them.
 - Each seeded Pack policy is to be checked for what it governs, and whether it can block the Deliverables of a commissioned SEU.
+- These Policies for source-code at DeliverableDefinition|Validated|Published are verified by a person and have no machine rule.
 
 ## Findings
 

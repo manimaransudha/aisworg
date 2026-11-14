@@ -46,7 +46,7 @@ import type { ObjectiveStatus, ObjectiveTier, EbmCompositionReport, EbmComposedP
 import type { UnraveledComposition, CompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { resolveHeldBadges, requireActorId, resolveActorAndBadge, resolveAuthorBadgeForRequest } from "../../../domain/identity/heldBadges.js";
-import { CONFLICT_RESULT_COLUMNS, CONFLICT_KINDS_SHOWN_AS_COMPARISON, CONFLICT_TABLES_SHOWN_AS_TABLE, CONFLICT_TABLE_LABELS, getPlatformTenantId, PLATFORM_TENANT_NAME, OBJECTIVE_RETIRED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_OBJECTIVE_ACTION_CODE } from "../../../dblayer/constants.js";
+import { CONFLICT_RESULT_COLUMNS, CONFLICT_RESULT_GROUP_BY, CONFLICT_KINDS_SHOWN_AS_COMPARISON, CONFLICT_TABLES_SHOWN_AS_TABLE, CONFLICT_TABLE_LABELS, getPlatformTenantId, PLATFORM_TENANT_NAME, OBJECTIVE_RETIRED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_OBJECTIVE_ACTION_CODE } from "../../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
  
 const CHILD_TIERS: Record<ObjectiveTier, ObjectiveTier[]> = {
@@ -731,6 +731,7 @@ router.get("/objectives/:id/resolve-conflicts", attachVM("seu/seus/resolve-confl
   req.vm.opt.comparedKinds = CONFLICT_KINDS_SHOWN_AS_COMPARISON;
   req.vm.opt.asTable = CONFLICT_TABLES_SHOWN_AS_TABLE.includes(selectedTable);
   req.vm.opt.resultColumns = CONFLICT_RESULT_COLUMNS[selectedTable] ?? [];
+  req.vm.opt.resultGroupBy = CONFLICT_RESULT_GROUP_BY[selectedTable] ?? [];
   req.vm.opt.listBasePath = `/aisworg/seu/objectives/${objectiveId}/resolve-conflicts`;
   req.vm.opt.seuId = seu.id;
   req.vm.opt.allResolved = tabs.every((t) => t.open === 0);

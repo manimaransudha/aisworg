@@ -21,7 +21,8 @@
       "app-store-submission-package",
       "incident-report-post-mortem"
     ],
-    "engineeringPackCodes": [
+    "omitPackCodes": ["beta-early-access-management","implementation-engineering","internationalization-localization","launch-management","ongoing-operations-governance","platform-developer-experience","product-discovery","quality-engineering-hardening","scale-performance-optimization","technical-architecture-discovery","vision-opportunity-framing"],
+  "engineeringPackCodes": [
       "demo-false-trigger-pack"
     ]
   }

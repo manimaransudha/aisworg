@@ -91,7 +91,7 @@ export const CONFLICT_KINDS_SHOWN_AS_COMPARISON: string[] = ["quality-gate-diffe
 export const CONFLICT_RESULT_COLUMNS: Record<string, string[]> = {
   services: ["deliverable", "name", "service", "levels"],
   capabilities: ["capability", "deliverables", "source", "definitionId"],
-  policies: ["policyCode", "deliverable", "step", "field", "rule", "statement", "scope", "governingCondition", "packs"],
+  policies: ["policyCode", "statement", "deliverable", "scope", "step", "field", "rule", "governingCondition", "packs"],
   authorityRules: ["step", "roles", "packs"],
   qualityGates: ["deliverable", "step", "gates", "checklistIds", "recommendedChecklistIds"],
   reviewGates: ["step", "gates", "checklistIds", "recommendedChecklistIds", "packs"],
@@ -102,9 +102,9 @@ export const CONFLICT_RESULT_COLUMNS: Record<string, string[]> = {
   competencies: ["dimension", "value", "sources"],
   profileConfiguration: ["parameter", "value", "profile"],
 };
-// The column of each conflict table that "What the SEU takes" groups its rows under, on the EBM page.
-export const CONFLICT_RESULT_GROUP_BY: Record<string, string> = {
-  policies: "deliverable",
+// The columns of each conflict table that "What the SEU takes" groups its rows under, outermost first, on the EBM page and the Resolve Conflicts page.
+export const CONFLICT_RESULT_GROUP_BY: Record<string, string[]> = {
+  policies: ["deliverable", "scope"],
 };
 // The pages that show the whole definition of an entity named in a conflict result, for the link column of "What the SEU takes".
 export const CONFLICT_ENTITY_PAGES: Record<string, { label: string; path: string }> = {

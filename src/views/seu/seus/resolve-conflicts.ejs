@@ -104,7 +104,7 @@
       <div class="col-md-9">
         <%# What the SEU takes for this table. It is shown whether or not the table has a conflict. %>
         <% var _taken = locals.settledResult || []; %>
-        <% var _cols = _cells.orderedColumns(_taken, locals.resultColumns || []); %>
+        <% var _cols = _cells.orderedColumns(_taken, locals.resultColumns || []); var _groupCols = locals.resultGroupBy || []; _cols = _cols.filter(function(col) { return _groupCols.indexOf(col) < 0; }); var _gv = function(r, c) { return r[c] == null ? '' : String(r[c]); }; var _order = _taken.map(function(_r, i) { return i; }); if (_groupCols.length) _order.sort(function(a, b) { for (var k = 0; k < _groupCols.length; k++) { var x = _gv(_taken[a], _groupCols[k]), y = _gv(_taken[b], _groupCols[k]); if (x !== y) return x < y ? -1 : 1; } return a - b; }); var _lastGroup = []; %>
         <div class="section-card">
           <div class="section-header collapsed d-flex align-items-center justify-content-between gap-2" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#seuTakes" aria-expanded="false" aria-controls="seuTakes">
             <span><i class="bi bi-check2-square me-1"></i>What the SEU takes</span>
@@ -116,10 +116,11 @@
           <% } else { %>
             <div class="table-responsive">
               <table class="table table-sm align-middle mb-0">
-                <thead><tr><% _cols.forEach(function(col) { %><th class="small text-muted"><%= col %></th><% }) %><th class="small text-muted">Open</th></tr></thead>
+                <thead><tr><% _cols.forEach(function(col) { %><th class="small text-muted"><%= col %></th><% }) %></tr></thead>
                 <tbody>
-                  <% _taken.forEach(function(row, ri) { %>
-                    <tr><% _cols.forEach(function(col) { %><td class="small"><%- _cellHtml(row[col], col, _links[ri]) %></td><% }) %><td class="small text-nowrap"><%- _linksHtml(_links[ri]) %></td></tr>
+                  <% _order.forEach(function(ri) { var row = _taken[ri]; %>
+                    <% for (var _k = 0; _k < _groupCols.length; _k++) { var _g = _gv(row, _groupCols[_k]); if (_g !== _lastGroup[_k] || (_k > 0 && _lastGroup.length > _k && _lastGroup.slice(0, _k).some(function(v, i) { return v !== _gv(row, _groupCols[i]); }))) { _lastGroup = _lastGroup.slice(0, _k); _lastGroup[_k] = _g; %><tr class="table-light"><td class="small fw-semibold<%= _k > 0 ? ' ps-4' : '' %>" colspan="<%= _cols.length %>"><%= _g || (_k === 0 ? 'No Deliverable' : 'No value') %></td></tr><% } } %>
+                    <tr><% _cols.forEach(function(col) { %><td class="small"><%- _cellHtml(row[col], col, _links[ri]) %></td><% }) %></tr>
                   <% }) %>
                 </tbody>
               </table>
