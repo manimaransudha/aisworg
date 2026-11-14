@@ -6,23 +6,22 @@ import pool, { withLookupMemo } from "../../../utils/db.js";
 import { logger } from "../../../utils/logger.js";
 import { loadServiceDefinitionIdByCode, stampServiceDefinitionIds } from "../serviceDefinitionIds.js";
 import type { PackSeedInput } from "../../../routes/seu/core/packs.js";
-import { createAuthoringDraft, publishAuthoringDraft, inheritedTemplateContent, toTemplateSeedInput } from "../../../routes/seu/core/sdkAuthoring.js";
-import { publishTemplate, PACK_SELECTION_SLOTS } from "../../../routes/seu/core/templates.js";
+import { createAuthoringDraft, publishAuthoringDraft } from "../../../routes/seu/core/sdkAuthoring.js";
+import { publishTemplate, type TemplateSeedInput } from "../../../routes/seu/core/templates.js";
 import { validateComposableFieldsAgainstSchema } from "../../../routes/seu/core/ontology.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { schemaDefinitionsDB } from "../../schemaDefinitionsDB.js";
 import { demoStepsDB } from "../../demoStepsDB.js";
 import { demoScenariosDB } from "../../demoScenariosDB.js";
 import { demoAreasDB } from "../../demoAreasDB.js";
-import { templatesDB } from "../../templatesDB.js";
-import { getPlatformTenantId, NO_EXPIRY_DATE, INITIAL_VERSION, DEMO_AREAS } from "../../constants.js";
+import { NO_EXPIRY_DATE, INITIAL_VERSION, DEMO_AREAS } from "../../constants.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { publishProfile, type ProfileSeedInput } from "../../../routes/seu/core/profiles.js";
 import { createObjective, objectiveInitialState } from "../../../routes/seu/core/objectives.js";
 import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { participantsMasterDB } from "../../participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../../transitionDefinitionsDB.js";
-import type { ObjectiveTier, TemplateDependencyGraphEntry } from "../../seuTypes.js";
+import type { ObjectiveTier } from "../../seuTypes.js";
 import { seedDemoParticipants } from "./demoParticipants.js";
 import { purgeDemoTenant } from "./demoPurge.js";
 import { getDemoActor, grantBadge, grantBadgesWithPrefixes, grantTransitionBadge, type DemoActor } from "./demoBadges.js";
@@ -137,66 +136,21 @@ async function seedPacks(actor: DemoActor): Promise<{ authored: Set<string>; act
   return { authored, active };
 }
 
-interface DemoTemplateSeed {
-  baseTemplateCode: string;
-  name?: string;
-  engineeringPackCodes?: string[];
-  omitDeliverableCodes?: string[];
-  omitPackCodes?: string[];
-}
-
-// The Demo tenant cannot see Platform Templates, so each base Template named in templates.json
-// is inherited into the Demo tenant and taken to Active, as the standard Templates are seeded.
-// The copy leaves out the Packs listed in omitPackCodes and the Deliverables listed in omitDeliverableCodes, with the dependency edges that touch them.
-// Keeps the edges between kept Deliverables. A kept prerequisite whose gated Deliverable is omitted stays as a standalone entry.
-function standaloneKeptSources(graph: TemplateDependencyGraphEntry[], omitted: Set<string>): TemplateDependencyGraphEntry[] {
-  const kept: TemplateDependencyGraphEntry[] = [];
-  const standaloneFrom = new Set<string>();
-  const connected = new Set<string>();
-  for (const e of graph) {
-    if (e.fromType !== "Deliverable" || !e.fromCode || omitted.has(e.fromCode)) continue;
-    if (e.toCode && !omitted.has(e.toCode)) { kept.push(e); connected.add(e.fromCode); connected.add(e.toCode); continue; }
-    standaloneFrom.add(e.fromCode);
-  }
-  for (const fromCode of standaloneFrom) {
-    if (!connected.has(fromCode)) kept.push({ fromType: "Deliverable", fromCode });
-  }
-  return kept;
-}
-
+// The Demo tenant cannot see Platform Templates and a Template inherited from one expects every Pack it names.
+// Each Template in templates.json is therefore a complete Template seed, published directly into the Demo tenant.
 async function seedTemplates(actor: DemoActor): Promise<void> {
-  const templates = loadJson<DemoTemplateSeed[]>("templates.json");
+  const templates = loadJson<TemplateSeedInput[]>("templates.json");
   const profiles = loadJson<ProfileSeedInput[]>("profiles.json");
-  const seeded = new Set(templates.map((t) => t.baseTemplateCode));
+  const seeded = new Set(templates.map((t) => t.code));
   const missing = [...new Set(profiles.map((p) => p.baseTemplateCode))].filter((code) => !seeded.has(code));
   if (missing.length > 0) throw new Error(`[seed:demo] templates.json has no entry for the base Template(s) the Profiles use: ${missing.join(", ")}`);
-  const platformTenantId = await getPlatformTenantId();
 
-  for (const { baseTemplateCode: code, name, omitDeliverableCodes, omitPackCodes, engineeringPackCodes } of templates) {
-    const { data: parent, error } = await templatesDB.findActiveByCode(code, platformTenantId);
-    if (error || !parent) throw error ?? new Error(`[seed:demo] Platform Template "${code}" not found`);
-    const inherited = await inheritedTemplateContent(parent.id, actor.tenantId);
-    if (!inherited.ok) throw new Error(`[seed:demo] Template "${code}": ${inherited.error}`);
-    const omitted = new Set(omitDeliverableCodes ?? []);
-    const omittedPacks = new Set(omitPackCodes ?? []);
-    const seed = toTemplateSeedInput(inherited.content);
+  for (const template of templates) {
     const result = await publishTemplate({
-      seed: {
-        ...seed,
-        ...(name ? { name } : {}),
-        ...Object.fromEntries(PACK_SELECTION_SLOTS.map((slot) => [slot.field, ((seed[slot.field] as string[] | undefined) ?? []).filter((c) => !omittedPacks.has(c))])),
-        engineeringPackCodes: [...new Set([...(seed.engineeringPackCodes ?? []), ...(engineeringPackCodes ?? [])])].filter((c) => !omittedPacks.has(c)),
-        deliverableCatalogue: seed.deliverableCatalogue.filter((d) => !omitted.has(d.code)),
-        // dependencyGraph: (seed.dependencyGraph ?? []).filter((e) => !omitted.has(e.toCode) && !(e.fromType === "Deliverable" && omitted.has(e.fromCode ?? ""))),
-        // An edge whose gated Deliverable is omitted but whose prerequisite is kept leaves the prerequisite as a standalone node (no toCode).
-        dependencyGraph: standaloneKeptSources(seed.dependencyGraph ?? [], omitted),
-        templateVersion: INITIAL_VERSION,
-        tenantId: actor.tenantId,
-        parentTemplateId: parent.id,
-      },
+      seed: { ...template, templateVersion: INITIAL_VERSION, tenantId: actor.tenantId },
       actorId: actor.participantId,
     });
-    if (!result.ok) throw new Error(`[seed:demo] Template "${code}" failed: ${result.errors.join("; ")}`);
+    if (!result.ok) throw new Error(`[seed:demo] Template "${template.code}" failed: ${result.errors.join("; ")}`);
   }
 }
 

@@ -1,29 +1,45 @@
 [
   {
-    "baseTemplateCode": "mobile-application",
-    "omitDeliverableCodes": [
-      "domain-model",
-      "requirements-backlog",
-      "requirements-specification",
-      "requirements-prioritisation-record",
-      "architecture-decision-record",
-      "detailed-design-specification",
-      "test-report-results",
-      "security-assessment-report",
-      "decision-record",
-      "app-store-submission-package",
-      "incident-report-post-mortem"
+    "code": "mobile-application",
+    "name": "Mobile Application",
+    "purpose": "Template for building a native or cross-platform mobile application. Use this when the primary user interface is a phone or tablet app, and the work requires offline support, push notifications, or device capabilities such as camera, location, or biometrics.",
+    "compliancePackCodes": [
+      "security-privacy-compliance"
     ],
-    "_comment": "3-Deliverable version: keeps requirements-analysis-model, source-code and deployment-manifest. The 10-Deliverable version is the list in _omitDeliverableCodes_10Version; move it back to omitDeliverableCodes to switch.",
-    "_omitDeliverableCodes_10Version": [
-      "requirements-prioritisation-record",
-      "decision-record",
-      "app-store-submission-package",
-      "incident-report-post-mortem"
+    "organisationPackCodes": [
+      "backlog-release-planning"
     ],
-    "omitPackCodes": ["beta-early-access-management","implementation-engineering","internationalization-localization","launch-management","ongoing-operations-governance","platform-developer-experience","product-discovery","quality-engineering-hardening","scale-performance-optimization","technical-architecture-discovery","vision-opportunity-framing"],
-  "engineeringPackCodes": [
+    "engineeringPackCodes": [
+      "development",
+      "requirements-analysis",
+      "architecture-solution-design",
+      "experience-design",
       "demo-false-trigger-pack"
+    ],
+    "deliverableCatalogue": [
+      {
+        "code": "requirements-analysis-model"
+      },
+      {
+        "code": "source-code"
+      },
+      {
+        "code": "deployment-manifest"
+      }
+    ],
+    "dependencyGraph": [
+      {
+        "fromType": "Deliverable",
+        "fromCode": "source-code"
+      },
+      {
+        "fromType": "Deliverable",
+        "fromCode": "deployment-manifest"
+      },
+      {
+        "fromType": "Deliverable",
+        "fromCode": "requirements-analysis-model"
+      }
     ]
   }
 ]
