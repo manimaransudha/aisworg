@@ -99,7 +99,7 @@ test("DRIVEN: every hop publishes the row's event and then AttentionItemTransiti
   const resolved = (events ?? []).find((e) => e.event_type === "AttentionResolved")!;
   const genericForResolve = (events ?? []).find((e) => e.event_type === "AttentionItemTransitioned" && (e.payload as { toState?: string }).toState === "Resolved")!;
   assert.equal(resolved.correlation_id, genericForResolve.correlation_id);
-  assert.deepEqual(resolved.payload, genericForResolve.payload);
+  for (const [key, value] of Object.entries(resolved.payload)) assert.deepEqual((genericForResolve.payload as Record<string, unknown>)[key], value, `the generic event carries the named event's ${key}`);
 });
 
 test("DRIVEN: a hop with no Transition Definition is refused and writes and publishes nothing", async () => {

@@ -328,7 +328,7 @@ export const executionEngine = {
     // The hop's own domain event (a Transition Definition names one), then DeliverableTransitioned, which every Deliverable transition publishes.
     const domainEventType = evaluated.definition.event_type;
     if (!domainEventType) throw new Error(`Deliverable ${fromState} -> ${toState} names no event`);
-    await eventBus.publish({
+    await eventBus.publishOnce({
       eventType: domainEventType,
       originatingObjectType: "Deliverable",
       originatingObjectId: deliverable.id,
@@ -339,7 +339,7 @@ export const executionEngine = {
       authorityBadge: evaluated.authorityBadge,
       payload: { fromState, toState, commandId: command.id },
     });
-    await eventBus.publish({
+    await eventBus.publishOnce({
       eventType: "DeliverableTransitioned",
       originatingObjectType: "Deliverable",
       originatingObjectId: deliverable.id,

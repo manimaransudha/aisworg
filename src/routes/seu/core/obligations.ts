@@ -333,14 +333,24 @@ export async function transitionObligation(input: { obligationId: string; target
   const result = await transitionEntity({ entityType: "Obligation", entityId: input.obligationId, targetState: input.targetState, actorId: input.actorId });
   if (!result.ok) return result;
 
-  const published = await publishTransition(result);
-  await eventBus.publish({
+  // The version counts the Obligation's hops, so two hops into the same state differ in their payload. Each event of the pair is published once.
+  const obligation = result.row as ObligationRow;
+  const published = await publishTransition(result, { payload: { ...result.event.payload, version: obligation.version }, once: true });
+  // The payload names the object the Obligation is raised against and the hop it blocks, so a subscriber acts on that object alone.
+  await eventBus.publishOnce({
     eventType: "ObligationTransitioned",
     originatingObjectType: "Obligation",
     originatingObjectId: input.obligationId,
     seuId: result.event.seuId,
     correlationId: published.correlation_id,
-    payload: result.event.payload,
+    payload: {
+      ...result.event.payload,
+      version: obligation.version,
+      relatedObjectType: obligation.related_object_type,
+      relatedObjectId: obligation.related_object_id,
+      blockedFromState: obligation.blocked_from_state,
+      blockedToState: obligation.blocked_to_state,
+    },
     actorId: input.actorId,
     authorityBadge: result.event.authorityBadge,
   });

@@ -51,6 +51,23 @@ export const eventsDB = {
     }
   },
 
+  // An event already raised with the same type, originating object and payload. A causing event narrows the match when one is given.
+  async findExisting(input: { eventType: string; originatingObjectType: string; originatingObjectId: string; causationId?: string | null; payload?: Record<string, unknown> }): Promise<DbResult<EventRow | null>> {
+    try {
+      const { rows } = await query<EventRow>(
+        `SELECT * FROM events
+          WHERE event_type = $1 AND originating_object_type = $2 AND originating_object_id = $3 AND payload = $4::jsonb
+            AND ($5::uuid IS NULL OR causation_id = $5::uuid)
+          ORDER BY sequence LIMIT 1`,
+        [input.eventType, input.originatingObjectType, input.originatingObjectId, JSON.stringify(input.payload ?? {}), input.causationId ?? null]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[eventsDB] findExisting error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async updateConsumptionState(eventId: string, handlerName: string, status: "consumed" | "failed", error?: string): Promise<DbResult<void>> {
     try {
       const entry: EventConsumptionEntry =

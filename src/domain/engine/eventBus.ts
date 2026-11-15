@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eventsDB } from "../../dblayer/eventsDB.js";
 import { versionEventsDB } from "../../dblayer/versionEventsDB.js";
 import { logger } from "../../utils/logger.js";
+import { withAdvisoryLock } from "../../utils/db.js";
 import { HANDLER_REGISTRY } from "./eventHandlerRegistry.js";
 import type { EventConsumptionEntry, EventRow } from "../../dblayer/seuTypes.js";
 
@@ -101,5 +102,15 @@ export const eventBus = {
     }
 
     return event;
+  },
+
+  // Publishes the event unless one with the same type, originating object and payload (and the same causing event, when one is given) was
+  // already raised, and returns that earlier event in that case. The check and the publish run under one lock, so two callers cannot both publish.
+  async publishOnce(input: PublishInput): Promise<EventRow> {
+    return withAdvisoryLock(`publish-once:${input.eventType}:${input.originatingObjectType}:${input.originatingObjectId}`, async () => {
+      const { data: existing, error } = await eventsDB.findExisting(input);
+      if (error) throw error;
+      return existing ?? eventBus.publish(input);
+    });
   },
 };

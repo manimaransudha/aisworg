@@ -128,11 +128,12 @@ test("DRIVEN: every main-chain hop publishes its own named event AND the generic
   }
   assert.equal(types.filter((t) => t === "ObligationTransitioned").length, MAIN_CHAIN.length, "ObligationTransitioned must fire once per hop");
 
-  // Named event and generic event share one correlation id and carry the same payload/actor/badge.
+  // Named event and generic event share one correlation id and carry the same actor/badge; the generic payload holds the named event's payload and the related object.
   const closed = (events ?? []).find((e) => e.event_type === "ObligationClosed")!;
   const genericForClose = (events ?? []).find((e) => e.event_type === "ObligationTransitioned" && (e.payload as { toState?: string }).toState === "Closed")!;
   assert.equal(closed.correlation_id, genericForClose.correlation_id);
-  assert.deepEqual(closed.payload, genericForClose.payload);
+  for (const [key, value] of Object.entries(closed.payload)) assert.deepEqual((genericForClose.payload as Record<string, unknown>)[key], value, `the generic event carries the named event's ${key}`);
+  assert.equal((genericForClose.payload as { relatedObjectType?: string }).relatedObjectType, "SEU");
   assert.equal(closed.actor_id, TESTER_ALL_ID);
 });
 

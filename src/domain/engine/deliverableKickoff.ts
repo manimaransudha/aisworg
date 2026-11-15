@@ -45,7 +45,7 @@ export const deliverableKickoffHandler: EventHandler = async (event: EventRow) =
   if (event.event_type === "CapabilityUnavailable") return processCapabilityUnavailable(event, seu, systemActor);
   if (event.event_type === "DispatchRejected") return processDispatchRejected(event, seu, systemActor);
   if (event.event_type === "ObligationTransitioned") return processObligationTransitioned(event, seu, systemActor);
-  if (event.event_type === "AttentionItemTransitioned") return processAttentionItemTransitioned(seu, systemActor);
+  if (event.event_type === "AttentionItemTransitioned") return processAttentionItemTransitioned(event, seu, systemActor);
   throw new Error(`deliverableKickoffHandler does not handle event type ${event.event_type} (event ${event.id})`);
 };
 
@@ -66,14 +66,6 @@ async function attemptGovernedTransitions(deliverables: DeliverableRow[], system
   }
 }
 
-// Loads every Deliverable of the SEU, tries their governed next transitions and returns the Deliverables it loaded.
-async function attemptAllDeliverables(seu: SeuRow, systemActor: SystemActor): Promise<DeliverableRow[]> {
-  const { data } = await deliverablesDB.findBySeuId(seu.id);
-  const deliverables = data ?? [];
-  await attemptGovernedTransitions(deliverables, systemActor);
-  return deliverables;
-}
-
 // The SEU has just become Operational. Only the start nodes are attempted; every other Deliverable waits for the
 // Deliverables it depends on.
 async function processSeuOperational(seu: SeuRow, systemActor: SystemActor): Promise<void> {
@@ -86,30 +78,41 @@ async function processSeuOperational(seu: SeuRow, systemActor: SystemActor): Pro
   await attemptGovernedTransitions(startNodes, systemActor);
 }
 
-async function processAttentionItemTransitioned(seu: SeuRow, systemActor: SystemActor): Promise<void> {
-  await attemptAllDeliverables(seu, systemActor);
+async function processAttentionItemTransitioned(event: EventRow, seu: SeuRow, systemActor: SystemActor): Promise<void> {
+  const resolved = event.payload as { relatedObjectType?: string | null; relatedObjectId?: string | null } | null;
+  if (!resolved || resolved.relatedObjectType === undefined || resolved.relatedObjectId === undefined) throw new Error(`AttentionItemTransitioned event ${event.id} carries no relatedObjectType or relatedObjectId`);
+  // Only an Attention Item raised for a Deliverable concerns that Deliverable.
+  if (resolved.relatedObjectType !== "Deliverable" || !resolved.relatedObjectId) return;
+  const { data: deliverable } = await deliverablesDB.findById(resolved.relatedObjectId);
+  if (!deliverable || deliverable.seu_id !== seu.id) throw new Error(`AttentionItemTransitioned event ${event.id}: Deliverable ${resolved.relatedObjectId} not found in SEU ${seu.id}`);
+  await attemptGovernedTransitions([deliverable], systemActor);
 }
 
 async function processObligationTransitioned(event: EventRow, seu: SeuRow, systemActor: SystemActor): Promise<void> {
-  const deliverables = await attemptAllDeliverables(seu, systemActor);
+  const resolved = event.payload as { relatedObjectType?: string; relatedObjectId?: string } | null;
+  if (!resolved?.relatedObjectType || !resolved.relatedObjectId) throw new Error(`ObligationTransitioned event ${event.id} carries no relatedObjectType or relatedObjectId`);
+  // Only an Obligation raised against a Deliverable holds that Deliverable.
+  if (resolved.relatedObjectType !== "Deliverable") return;
+  const { data: deliverable } = await deliverablesDB.findById(resolved.relatedObjectId);
+  if (!deliverable || deliverable.seu_id !== seu.id) throw new Error(`ObligationTransitioned event ${event.id}: Deliverable ${resolved.relatedObjectId} not found in SEU ${seu.id}`);
+  await attemptGovernedTransitions([deliverable], systemActor);
   // A resolved blocking Obligation lifts the block on a producing Command that was held back while it was open.
-  for (const deliverable of deliverables) {
-    if (deliverable.producing_capability_id) await reissueProducingCommand(seu.id, deliverable, event, systemActor);
-  }
+  if (deliverable.producing_capability_id) await reissueProducingCommand(seu.id, deliverable, event, systemActor);
 }
 
 async function processCapabilityUnavailable(event: EventRow, seu: SeuRow, systemActor: SystemActor): Promise<void> {
-  const deliverables = await attemptAllDeliverables(seu, systemActor);
   // The producing Capability of an In Progress Deliverable has no eligible Participant. The Deliverable is held by a
   // blocking Obligation, with an AttentionItem for the UI, until the Capability is fulfilled and the Obligation resolves.
+  // Only the Deliverables this Capability produces are considered. No Deliverable is attempted: nothing moves forward.
   const unavailable = event.payload as { capabilityId?: string } | null;
   if (!unavailable?.capabilityId) throw new Error(`CapabilityUnavailable event ${event.id} carries no capabilityId`);
   const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(seu.id, unavailable.capabilityId);
   if (!seuCapability) throw new Error(`CapabilityUnavailable event ${event.id}: SEU ${seu.id} does not require Capability ${unavailable.capabilityId}`);
   const { data: capabilities } = await seuCapabilitiesDB.findBySeuId(seu.id);
   const capabilityCode = (capabilities ?? []).find((c) => c.id === seuCapability.id)?.capability_code ?? unavailable.capabilityId;
-  for (const deliverable of deliverables) {
-    if (deliverable.producing_capability_id !== unavailable.capabilityId || deliverable.lifecycle_state !== DELIVERABLE_PRODUCING_STATE) continue;
+  const { data: deliverables } = await deliverablesDB.findBySeuId(seu.id);
+  for (const deliverable of (deliverables ?? []).filter((d) => d.producing_capability_id === unavailable.capabilityId)) {
+    if (deliverable.lifecycle_state !== DELIVERABLE_PRODUCING_STATE) continue;
     await blockDeliverableForUnavailableCapability(seu.id, deliverable, capabilityCode, event, systemActor);
   }
 }
@@ -134,17 +137,19 @@ async function processCapabilityFulfilled(event: EventRow, seu: SeuRow, systemAc
 }
 
 async function processDispatchRejected(event: EventRow, seu: SeuRow, systemActor: SystemActor): Promise<void> {
-  const deliverables = await attemptAllDeliverables(seu, systemActor);
+  const rejected = event.payload as { commandId?: string | null; relatedObjectType?: string | null; relatedObjectId?: string | null } | null;
+  if (!rejected || rejected.relatedObjectType === undefined || rejected.relatedObjectId === undefined) throw new Error(`DispatchRejected event ${event.id} carries no relatedObjectType or relatedObjectId`);
+  // A dispatch is made for the Command of one entity. Only a Command of a Deliverable concerns a Deliverable.
+  if (rejected.relatedObjectType !== "Deliverable" || !rejected.relatedObjectId) return;
+  const { data: deliverable } = await deliverablesDB.findById(rejected.relatedObjectId);
+  if (!deliverable || deliverable.seu_id !== seu.id) throw new Error(`DispatchRejected event ${event.id}: Deliverable ${rejected.relatedObjectId} not found in SEU ${seu.id}`);
+  await attemptGovernedTransitions([deliverable], systemActor);
   // Dispatch reads the pool snapshot persisted with the Command. A fulfilment that landed after that snapshot was
   // taken but before the rejection was consumed as CapabilityFulfilled while this Command was still in flight, so
   // it re-issued nothing. The rejection is the trigger that closes that window: the Command is now Failed, and the
-  // Deliverable gets a new one whose pool is taken from the fulfilments that exist now.
-  const rejected = event.payload as { commandId?: string | null; reason?: string } | null;
-  if (!rejected?.commandId) return;
-  const { data: rejectedCommand } = await commandsDB.findById(rejected.commandId);
-  if (!rejectedCommand || rejectedCommand.entity_type !== "Deliverable") return;
-  const deliverable = deliverables.find((d) => d.id === rejectedCommand.entity_id);
-  if (!deliverable?.producing_capability_id) return;
+  // Deliverable gets a new one whose pool is taken from the fulfilments that exist now. A rejection that names no
+  // Command (redispatch exhausted) re-issues nothing.
+  if (!rejected.commandId || !deliverable.producing_capability_id) return;
   await reissueProducingCommand(seu.id, deliverable, event, systemActor);
 }
 

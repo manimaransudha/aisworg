@@ -91,14 +91,17 @@ export async function transitionAttentionItem(input: { attentionItemId: string; 
   const result = await transitionEntity({ entityType: "AttentionItem", entityId: input.attentionItemId, targetState: input.targetState, actorId: input.actorId });
   if (!result.ok) return result;
 
-  const published = await publishTransition(result);
-  await eventBus.publish({
+  // An Attention Item has no version, so the time of the hop tells two hops into the same state apart. Each event of the pair is published once.
+  const attentionItem = result.row as AttentionItemRow;
+  const published = await publishTransition(result, { payload: { ...result.event.payload, transitionedAt: attentionItem.updated_at }, once: true });
+  // The payload names the object the Attention Item is raised for, so a subscriber acts on that object alone. Both are null when it names none.
+  await eventBus.publishOnce({
     eventType: "AttentionItemTransitioned",
     originatingObjectType: "AttentionItem",
     originatingObjectId: input.attentionItemId,
     seuId: result.event.seuId,
     correlationId: published.correlation_id,
-    payload: result.event.payload,
+    payload: { ...result.event.payload, transitionedAt: attentionItem.updated_at, relatedObjectType: attentionItem.related_object_type, relatedObjectId: attentionItem.related_object_id },
     actorId: input.actorId,
     authorityBadge: result.event.authorityBadge,
   });

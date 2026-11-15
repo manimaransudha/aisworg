@@ -79,16 +79,18 @@ export async function transitionEntity(input: {
 
 // Publishes the event of a successful hop. A row that names no event publishes UNDEFINED_EVENT and then SDK_ATTENTION_EVENT.
 // A caller that needs two events, another payload or an id chain publishes from result.event itself.
-// The options replace the default payload and chain the event to the id of a commissioning. It returns the first event published.
+// The options replace the default payload and chain the event to the id of a commissioning. With `once`, an event already raised with the same
+// type, object and payload is not published again. It returns the first event published.
 export async function publishTransition(
   result: Extract<TransitionEntityResult, { ok: true }>,
-  options?: { payload?: Record<string, unknown>; correlationId?: string; causationId?: string | null }
+  options?: { payload?: Record<string, unknown>; correlationId?: string; causationId?: string | null; once?: boolean }
 ): Promise<EventRow> {
+  const publish = options?.once ? eventBus.publishOnce : eventBus.publish;
   const { eventType, ...event } = result.event;
   const common = { ...event, payload: options?.payload ?? event.payload, correlationId: options?.correlationId ?? eventBus.newCorrelationId(), causationId: options?.causationId };
-  if (eventType) return eventBus.publish({ ...common, eventType });
-  const first = await eventBus.publish({ ...common, eventType: UNDEFINED_EVENT });
-  await eventBus.publish({ ...common, eventType: SDK_ATTENTION_EVENT, versionEvent: undefined });
+  if (eventType) return publish({ ...common, eventType });
+  const first = await publish({ ...common, eventType: UNDEFINED_EVENT });
+  await publish({ ...common, eventType: SDK_ATTENTION_EVENT, versionEvent: undefined });
   return first;
 }
 

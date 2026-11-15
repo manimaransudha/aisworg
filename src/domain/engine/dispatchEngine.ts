@@ -46,7 +46,7 @@ async function rejectDispatch(input: { workItem: WorkItemRow; command: CommandRo
       ...systemActor,
     });
   }
-  await eventBus.publish({
+  await eventBus.publishOnce({
     eventType,
     originatingObjectType: "WorkItem",
     originatingObjectId: input.workItem.id,
@@ -55,7 +55,7 @@ async function rejectDispatch(input: { workItem: WorkItemRow; command: CommandRo
     actorId: systemActor.actorId,
     tenantId: systemActor.tenantId,
     authorityBadge: systemActor.authorBadge,
-    payload: { reason, commandId: input.command?.id ?? null },
+    payload: { reason, commandId: input.command?.id ?? null, relatedObjectType: input.command?.entity_type ?? null, relatedObjectId: input.command?.entity_id ?? null },
   });
 }
 

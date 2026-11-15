@@ -124,7 +124,7 @@ test("a resolved Obligation, a fulfilled Capability and a rejected dispatch re-i
 
   await assert.rejects(() => send("CapabilityFulfilled", {}), /carries no capabilityId/);
   await send("CapabilityFulfilled", { capabilityId: capability });
-  await send("ObligationTransitioned", { toState: "Verified" });
+  await send("ObligationTransitioned", { toState: "Verified", relatedObjectType: "Deliverable", relatedObjectId: held.id });
   assert.deepEqual(await producing(), [], "the held Deliverable is held, the waiting one is not In Progress, and nobody fulfils the Capability");
 
   const { data: root } = await participantsDB.findBySeuIdAndParticipantMasterId(t.seu.id, ROOT_ACTOR_ID);
@@ -150,12 +150,13 @@ test("a resolved Obligation, a fulfilled Capability and a rejected dispatch re-i
       requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, correlationId: randomUUID(),
     });
     assert.ok(command);
-    await send("DispatchRejected", { commandId: command.id, reason: "empty_eligible_pool" });
+    await send("DispatchRejected", { commandId: command.id, reason: "empty_eligible_pool", relatedObjectType: entityType, relatedObjectId: entityId });
   };
-  await send("DispatchRejected", {});
-  await send("DispatchRejected", { commandId: randomUUID() });
+  await assert.rejects(send("DispatchRejected", {}), /carries no relatedObjectType or relatedObjectId/);
+  await assert.rejects(send("DispatchRejected", { commandId: randomUUID() }), /carries no relatedObjectType or relatedObjectId/);
+  await send("DispatchRejected", { commandId: null, relatedObjectType: null, relatedObjectId: null });
   await rejectedFor("SEU", t.seu.id);
-  await rejectedFor("Deliverable", randomUUID());
+  await assert.rejects(rejectedFor("Deliverable", randomUUID()), /not found in SEU/);
   await rejectedFor("Deliverable", unrelated.id);
   await rejectedFor("Deliverable", waiting.id);
   assert.equal((await producing()).length, 1, "none of these issues a Command");

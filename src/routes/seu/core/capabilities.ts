@@ -132,7 +132,7 @@ export async function fulfilRequestedCapability(event: EventRow): Promise<void> 
     : (await loadEligiblePool(seu, seuCapability, excludeParticipantMasterIds ?? [])).map((p) => ({ type: p.type, displayName: p.display_name, participantMasterId: p.id }));
 
   if (participants.length === 0) {
-    await eventBus.publish({
+    await eventBus.publishOnce({
       eventType: "CapabilityUnavailable",
       originatingObjectType: "SEU",
       originatingObjectId: seu.id,
@@ -169,7 +169,7 @@ export async function fulfilRequestedCapability(event: EventRow): Promise<void> 
   //       payload: { participantType: resolved.type, participantMasterId: resolved.participantMasterId },
   //     });
   //   }
-  await eventBus.publish({
+  await eventBus.publishOnce({
     eventType: "CapabilityFulfilled",
     originatingObjectType: "SEU",
     originatingObjectId: seu.id,

@@ -85,6 +85,25 @@ test("an unavailable producing Capability holds the Deliverable that is In Progr
   assert.deepEqual(await obligationsOf(approved.id), [], "a Deliverable that is not In Progress is not held");
 });
 
+test("a resolved Obligation is refused when the event names no related object, ignored when it is not raised against a Deliverable, and refused for a Deliverable outside the SEU", async () => {
+  await assert.rejects(async () => deliverableKickoffHandler(await event("ObligationTransitioned", { toState: "Verified" })), /carries no relatedObjectType or relatedObjectId/);
+  await deliverableKickoffHandler(await event("ObligationTransitioned", { toState: "Verified", relatedObjectType: "SEU", relatedObjectId: t.seu.id }));
+  await assert.rejects(
+    async () => deliverableKickoffHandler(await event("ObligationTransitioned", { toState: "Verified", relatedObjectType: "Deliverable", relatedObjectId: randomUUID() })),
+    /not found in SEU/
+  );
+});
+
+test("a resolved Attention Item is refused when the event names no related object, ignored when it names none or a non-Deliverable, and refused for a Deliverable outside the SEU", async () => {
+  await assert.rejects(async () => deliverableKickoffHandler(await event("AttentionItemTransitioned", { toState: "Resolved" })), /carries no relatedObjectType or relatedObjectId/);
+  await deliverableKickoffHandler(await event("AttentionItemTransitioned", { toState: "Resolved", relatedObjectType: null, relatedObjectId: null }));
+  await deliverableKickoffHandler(await event("AttentionItemTransitioned", { toState: "Resolved", relatedObjectType: "SEU", relatedObjectId: t.seu.id }));
+  await assert.rejects(
+    async () => deliverableKickoffHandler(await event("AttentionItemTransitioned", { toState: "Resolved", relatedObjectType: "Deliverable", relatedObjectId: randomUUID() })),
+    /not found in SEU/
+  );
+});
+
 test("a Deliverable transition into In Progress is refused without its Command, and ignored when the Command exists but the Deliverable does not", async () => {
   await assert.rejects(async () => deliverableKickoffHandler(await event("DeliverableTransitioned", { toState: "In Progress" }, producing.id)), /carries no deliverableName or toState/);
   await assert.rejects(async () => deliverableKickoffHandler(await event("DeliverableTransitioned", { deliverableName: producing.name, toState: "In Progress" }, producing.id)), /carries no commandId/);

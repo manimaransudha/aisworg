@@ -142,7 +142,7 @@ test("overlapping kickoff runs make a governed hop once: one start Command and o
 
   const overlapping = (): EventRow => ({
     id: randomUUID(), event_type: "ObligationTransitioned", seu_id: seuId, correlation_id: randomUUID(),
-    originating_object_id: randomUUID(), originating_object_type: "Obligation", payload: { toState: "Verified" },
+    originating_object_id: randomUUID(), originating_object_type: "Obligation", payload: { toState: "Verified", relatedObjectType: "Deliverable", relatedObjectId: architecture.id },
   } as unknown as EventRow);
   await Promise.all([deliverableKickoffHandler(overlapping()), deliverableKickoffHandler(overlapping())]);
   await new Promise((resolve) => setTimeout(resolve, 2000));

@@ -75,7 +75,7 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
       relatedObjectId: command.entity_id,
       ...systemActor,
     });
-    await eventBus.publish({
+    await eventBus.publishOnce({
       eventType: "DispatchRejected",
       originatingObjectType: "WorkItem",
       originatingObjectId: workItem.id,
@@ -84,7 +84,7 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
       actorId: systemActor.actorId,
       tenantId: systemActor.tenantId,
       authorityBadge: systemActor.authorBadge,
-      payload: { reason: "redispatch_exhausted", attempts },
+      payload: { reason: "redispatch_exhausted", attempts, relatedObjectType: command.entity_type, relatedObjectId: command.entity_id },
     });
     return;
   }
