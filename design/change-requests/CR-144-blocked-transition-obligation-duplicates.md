@@ -1,7 +1,7 @@
 # CR-144 — A blocked transition raises one Obligation per entity and hop, also when attempts run at the same time
 
 **Raised:** 2026-11-14 · **Origin:** the Demo SEU 6afb9ed8-f60c-4418-a0c8-5f34addbb1c0. The Demo False Trigger Policy blocked three Deliverables from Defined to In Progress. The SEU page showed 1, 2 and 3 open copies of the Obligation "Resolve the Demo False Trigger Policy" on the three Deliverables, where one each is expected.
-**Status:** 🟡 Built pending testing
+**Status:** ✅ Closed 2026-11-15
 
 ## Fix the following
 
@@ -41,9 +41,14 @@
 
 - None.
 
+## Closed (2026-11-15)
+
+The owner closed this CR after the Demo SEU page showed one open Obligation per blocked Deliverable.
+
 ## Still open
 
-- Verification runs: `tsc`, the tests and the Demo reset have not been run.
+**Marked fixed by the owner on 2026-11-15.** The items below are kept as the record of what was open.
+
 - A test that blocks one Deliverable from several attempts at the same time and expects one Obligation has not been written.
 - Each attempt still raises its own Attention Item for the block. The `events` table shows several `AttentionCreated` events per Deliverable. Whether the Attention Item is to be raised once as well is undecided.
 - The Obligation text of the Demo False Trigger Policy names the requirements analysis model and is shown on all three Deliverables.
