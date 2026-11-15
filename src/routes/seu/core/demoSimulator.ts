@@ -8,7 +8,7 @@ import { demoStepsDB, type DemoStepRow } from "../../../dblayer/demoStepsDB.js";
 import { demoScenariosDB, type DemoScenarioRow } from "../../../dblayer/demoScenariosDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
-import { participantsDB } from "../../../dblayer/participantsDB.js";
+import { ensureEngagement } from "./demoEngagement.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
@@ -128,17 +128,6 @@ async function waitFor<T>(label: string, probe: () => Promise<T | null | undefin
   throw new Error(`timed out waiting for ${label}`);
 }
 
-// The SEU's authoring steps (Compose EBM, finalize) record the acting user's engagement Participant in the SEU.
-async function ensureEngagement(ctx: SimulatorContext, seuId: string): Promise<void> {
-  const { data: existing, error } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, ctx.participantId);
-  if (error) throw error;
-  if (existing) return;
-  const { data: master, error: masterError } = await participantsMasterDB.findById(ctx.participantId);
-  if (masterError || !master) throw masterError ?? new Error("Demo User participant not found");
-  const { error: createError } = await participantsDB.create({ seuId, type: master.type, displayName: master.display_name, participantId: master.id });
-  if (createError) throw createError;
-}
-
 const handlers: Record<string, Handler> = {
   async "commission-objective"(ctx, st) {
     const objective = await objectiveFor(ctx, st.target);
@@ -154,7 +143,7 @@ const handlers: Record<string, Handler> = {
     const validated = await validateSeu({ seuId: initiated.seu.id, actorId: ctx.participantId });
     if (!validated.ok) throw new Error(`commissioning stopped at validate_request: ${"detail" in validated ? validated.detail : validated.reason}`);
     const seuId = initiated.seu.id;
-    await ensureEngagement(ctx, seuId);
+    await ensureEngagement(seuId, ctx.participantId);
 
     const selections = [{ templateId: template.id, profileId: profile.id }];
     const composition = await previewCommissioningValidation({ selections, viewerTenantId: ctx.tenantId });

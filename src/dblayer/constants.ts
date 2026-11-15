@@ -112,6 +112,8 @@ export const CONFLICT_RESULT_LONG_TEXT_SHORT_LENGTH = 120;
 
 // The lock key prefix that serialises the Obligation a blocked transition raises, one lock for each blocked entity (CR-144).
 export const BLOCKED_TRANSITION_LOCK_NAMESPACE = "blocked-transition-obligation";
+// The lock key prefix that serialises the Demo User's engagement Participant in an SEU, one lock for each SEU and user.
+export const DEMO_ENGAGEMENT_LOCK_NAMESPACE = "demo-engagement";
 // The pages that show the whole definition of an entity named in a conflict result, for the link column of "What the SEU takes".
 export const CONFLICT_ENTITY_PAGES: Record<string, { label: string; path: string }> = {
   pack: { label: "Pack", path: "/aisworg/seu/packs" },

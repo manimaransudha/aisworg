@@ -48,6 +48,7 @@
     { "eventType": "WorkItemDispatched", "handlerName": "assignmentDelivery" },
     { "eventType": "CompositionCompleted", "handlerName": "compositionCompleted" },
     { "eventType": "EBMActivated", "handlerName": "ebmActivated" },
+    { "eventType": "CommissionInitiated", "handlerName": "demoEngagement" },
     { "eventType": "SEUActivated", "handlerName": "executionEngineKickoff" },
     { "eventType": "ObligationTransitioned", "handlerName": "executionEngineKickoff" },
     { "eventType": "CommandGenerated", "handlerName": "commandGenerated" },
