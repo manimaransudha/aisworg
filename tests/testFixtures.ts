@@ -370,9 +370,10 @@ export async function clickTransitionAfterLag(input: { deliverableId: string; ta
 }
 
 export async function produceDeliverable(deliverableId: string, actorId: string, reference: string | null = "vcs://test/produced@1"): Promise<string> {
-  await new Promise((resolve) => setTimeout(resolve, 1500)); // the person's click lands after the engine's own kickoff
-  const moved = await transitionDeliverableSync({ deliverableId, targetState: "In Progress", actorId });
-  if (!moved.ok) throw new Error(`produceDeliverable: could not move ${deliverableId} to In Progress: ${JSON.stringify(moved)}`);
+  // The Execution Engine makes the hop to In Progress when the Capability is fulfilled.
+  // await new Promise((resolve) => setTimeout(resolve, 1500)); // the person's click lands after the engine's own kickoff
+  // const moved = await transitionDeliverableSync({ deliverableId, targetState: "In Progress", actorId });
+  // if (!moved.ok) throw new Error(`produceDeliverable: could not move ${deliverableId} to In Progress: ${JSON.stringify(moved)}`);
   const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
   const completed = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference });
   if (!completed.ok) throw new Error(`produceDeliverable: completing Work Item ${workItem.id} failed: ${JSON.stringify(completed)}`);

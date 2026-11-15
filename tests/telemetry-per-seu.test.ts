@@ -12,7 +12,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverableSync as transitionDeliverable, produceDeliverable } from "./testFixtures.js";
+import { transitionDeliverableSync as transitionDeliverable, produceDeliverable, waitForDispatchedWorkItem } from "./testFixtures.js";
 import { getFlowMetrics, getGovernanceMetrics } from "../src/routes/seu/core/telemetry.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
@@ -47,10 +47,13 @@ test("Flow Telemetry scoped to one SEU returns strictly that SEU's own Deliverab
   const a = await commissionAndFulfilRequirementsSpec("telemetry-per-seu-a");
   const b = await commissionAndFulfilRequirementsSpec("telemetry-per-seu-b");
 
-  const toInProgressA = await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assert.equal(toInProgressA.ok, true);
-  const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assert.equal(toInProgressB.ok, true);
+  // The Execution Engine moves each Deliverable to In Progress when its Capability is fulfilled.
+  // const toInProgressA = await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
+  // assert.equal(toInProgressA.ok, true);
+  // const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
+  // assert.equal(toInProgressB.ok, true);
+  await waitForDispatchedWorkItem(a.deliverableId, "In Progress", "In Progress");
+  await waitForDispatchedWorkItem(b.deliverableId, "In Progress", "In Progress");
 
   const scopedToA = await getFlowMetrics(a.seuId, PLATFORM_TENANT_ID);
   assert.ok(scopedToA.deliverableCycleTimes.some((d) => d.id === a.deliverableId));

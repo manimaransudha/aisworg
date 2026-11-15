@@ -90,12 +90,10 @@ test("the producing Command leaves a traceable Command and a Completed/Disposed 
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
-  // Defined -> In Progress is a governed hop: the Execution Engine makes it off the kickoff, so a manual request that
-  // lands after it finds the Deliverable already In Progress (no_transition_definition). The producing Command
-  // (In Progress -> In Progress) is what the test then waits for.
-  const result = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : "assertion failed");
-
+  // Defined -> In Progress is a governed hop: the Execution Engine makes it when the Capability is fulfilled. The producing Command
+  // (In Progress -> In Progress) is what the test waits for.
+  // const result = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
+  // assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : "assertion failed");
   // Outstanding first: the producing Command and its Work Item are Dispatched, waiting for the Participant.
   const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
   const outstanding = await getSeuDetailView(seuId);
@@ -203,8 +201,9 @@ test("a Participant reporting 'blocked' fails the Work Item, and raises an Atten
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
-  const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
+  // The Execution Engine makes the Defined -> In Progress hop when the Capability is fulfilled.
+  // const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
+  // assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
 
   const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
   const completed = await completeWorkItem({ workItemId: dispatchedWorkItem.id, outcome: "blocked", reference: "vcs://phase3-blocked/partial@wip" });
@@ -234,8 +233,9 @@ test("completeWorkItem is idempotent-safe: a second result on an already-complet
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
-  const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
+  // The Execution Engine makes the Defined -> In Progress hop when the Capability is fulfilled.
+  // const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
+  // assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
 
   const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
   const first = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference: "vcs://phase3-double/req-spec@1" });

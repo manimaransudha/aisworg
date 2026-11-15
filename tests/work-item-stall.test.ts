@@ -17,8 +17,8 @@ import { sweepStalledWorkItems } from "../src/routes/seu/core/workItemHeartbeat.
 import { servicesDB } from "../src/dblayer/servicesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, transitionDeliverableSync } from "./testFixtures.js";
-import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
+import { TESTER_ALL_ID } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
 
 // Must outlast the wait for the dispatched Work Item (the post-commissioning Participant creation load can take over a minute) yet stay below the one-hour offset of the late sweep.
@@ -69,12 +69,8 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
 
   await fulfilCapability({ seuId, capabilityId: capability.capabilityId, capabilityCodes: ["requirements-analysis"] });
 
-  // Dispatch and DO NOT complete — the Work Item is now genuinely outstanding.
-  // The target is the SLA-derived default.
-  const dispatched = await transitionDeliverableSync({ deliverableId: deliverable.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
-  if (!dispatched.ok) throw new Error("unreachable");
-
+  // Fulfilling the Capability is all the test does. The Deliverable Kickoff handler moves the Deliverable to In Progress, and dispatch follows.
+  // The Work Item is not completed, so it stays outstanding.
   const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "In Progress", "In Progress");
   return { seuId, deliverableId: deliverable.id, workItemId: workItem.id };
 }

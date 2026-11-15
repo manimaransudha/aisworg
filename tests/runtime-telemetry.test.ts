@@ -12,7 +12,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
+import { waitForDispatchedWorkItem } from "./testFixtures.js";
 import { getRuntimeMetrics } from "../src/routes/seu/core/telemetry.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant } from "./testFixtures.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
@@ -48,10 +48,13 @@ test("Runtime Telemetry: a real dispatched transition produces a non-negative di
   const a = await commissionAndFulfilRequirementsSpec("runtime-telemetry-a");
   const b = await commissionAndFulfilRequirementsSpec("runtime-telemetry-b");
 
-  const toInProgressA = await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assert.equal(toInProgressA.ok, true);
-  const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assert.equal(toInProgressB.ok, true);
+  // The Execution Engine moves each Deliverable to In Progress when its Capability is fulfilled.
+  // const toInProgressA = await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
+  // assert.equal(toInProgressA.ok, true);
+  // const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
+  // assert.equal(toInProgressB.ok, true);
+  await waitForDispatchedWorkItem(a.deliverableId, "In Progress", "In Progress");
+  await waitForDispatchedWorkItem(b.deliverableId, "In Progress", "In Progress");
 
   const after = await getRuntimeMetrics(undefined, PLATFORM_TENANT_ID);
   assert.ok(after.commandsGenerated >= before.commandsGenerated + 2, "expected at least 2 more Commands generated (2 commissionings x automatic steps + 2 explicit transitions)");

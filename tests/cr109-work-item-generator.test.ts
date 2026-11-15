@@ -147,8 +147,9 @@ async function commissionCr104MinimalSeu(statementPrefix: string, tenantId: stri
 // Item completed "done" (records the reference), then the Command to approve, which the engine governs and applies.
 // Returns the producing Work Item id.
 async function driveDeliverableToApproved(deliverableId: string, tag: string): Promise<{ productionWorkItemId: string }> {
-  const toInProgress = await transitionDeliverableSync({ deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : "assertion failed");
+  // The Execution Engine makes the hop to In Progress when the Capability is fulfilled.
+  // const toInProgress = await transitionDeliverableSync({ deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
+  // assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : "assertion failed");
   const { workItem: productionWorkItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
   const produced = await completeWorkItem({ workItemId: productionWorkItem.id, outcome: "done", reference: `vcs://${tag}/produced@1` });
   assert.equal(produced.ok, true, !produced.ok ? JSON.stringify(produced) : "assertion failed");

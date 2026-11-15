@@ -14,7 +14,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
-import { transitionDeliverableSync as transitionDeliverable, produceDeliverable } from "./testFixtures.js";
+import { transitionDeliverableSync as transitionDeliverable, produceDeliverable, waitForDispatchedWorkItem } from "./testFixtures.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { getFlowMetrics, getGovernanceMetrics } from "../src/routes/seu/core/telemetry.js";
@@ -68,8 +68,10 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
 
 test("Flow Telemetry: Deliverable cycle time is a real, non-negative number derived from real transitions", async () => {
   const { deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-flow");
-  const toInProgress = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
-  assert.equal(toInProgress.ok, true);
+  // The Execution Engine moves the Deliverable to In Progress when its Capability is fulfilled.
+  // const toInProgress = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
+  // assert.equal(toInProgress.ok, true);
+  await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
 
   const flow = await getFlowMetrics(undefined, PLATFORM_TENANT_ID);
   const entry = flow.deliverableCycleTimes.find((d) => d.id === deliverableId);
