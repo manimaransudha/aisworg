@@ -1507,6 +1507,26 @@
     "match_mode": "any"
   },
   {
+    "method": "GET",
+    "path": "/aisworg/seu/seus/:id/graph",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/seus/:id/graph",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
     "method": "POST",
     "path": "/aisworg/seu/seus",
     "badges": [

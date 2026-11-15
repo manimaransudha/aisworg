@@ -2,6 +2,7 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
 const router = express.Router();
+router.param("id", seuTenantScope);
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
@@ -9,6 +10,7 @@ import { renderView } from "../../../utils/viewModel.js";
 import { resolveHeldRoles } from "../../../domain/identity/heldRoles.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
+import { seuTenantScope } from "../../../middleware/seuTenantScope.js";
 import { logger } from "../../../utils/logger.js";
 import { listSeusPaginated, listSeuLifecycleStates, getSeuDetailView, getSeuEbmView } from "../core/seus.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
@@ -192,11 +194,31 @@ router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: R
     for (const k of detail.knowledgeItems) knowledgeActions[k.knowledgeItem.id] = await nextActionsFor("Knowledge", k.knowledgeItem.status, requireActorId(req));
     req.vm.req.knowledgeActions = knowledgeActions;
     req.vm.req.activeTab = typeof req.query.tab === "string" ? req.query.tab : undefined;
-    req.vm.opt.refreshSeconds = SEU_DETAIL_REFRESH_SECONDS;
+    // Commented out (owner): the automatic refresh interfered with user interactions.
+    // req.vm.opt.refreshSeconds = SEU_DETAIL_REFRESH_SECONDS;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/detail", req.vm);
   } catch (err) {
     logger.error("[web/seu/seus] GET /seus/:id error", err as Error);
+    next(err);
+  }
+});
+
+// CR-143 — The Engineering Execution Graph page. The page loads and refreshes its data from the API route of the same SEU.
+router.get("/seus/:id/graph", attachVM("seu/seus/graph"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { data: seu } = await seusDB.findById(String(req.params.id));
+    if (!seu) {
+      return redirects.seu.seus.error(req, res, "SEU not found.");
+    }
+    req.vm.req.title = `Execution Graph — SEU ${seu.id.slice(0, 8)}`;
+    req.vm.req.seuId = seu.id;
+    req.vm.req.dataUrl = `/aisworg/api/seu/seus/${seu.id}/graph`;
+    req.vm.req.seuPageUrl = `/aisworg/seu/seus/${seu.id}`;
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/seus/graph", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/seus] GET /seus/:id/graph error", err as Error);
     next(err);
   }
 });

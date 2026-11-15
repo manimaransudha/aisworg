@@ -286,6 +286,9 @@ export const TESTER_OBJECTIVE_ACHIEVE_ONLY = await getTesterIdentity("tester-obj
 export const TESTER_ACCEPTANCE_JOURNEY = await getTesterIdentity("tester-acceptance-journey@test.local");
 // Babylon has no Participant holding an engineering Capability, so a journey that fulfils one by hand starts from an empty pool.
 export const TESTER_ACCEPTANCE_JOURNEY_BABYLON = await getTesterIdentity("tester-acceptance-journey-babylon@test.local");
+// The same journey actor in the test-platform tenant, where the fixture Template, Profile and Packs are published and the SEU of
+// the acceptance journey lives. An SEU route is tenant scoped, so the viewer has to belong to the tenant of the SEU.
+export const TESTER_ACCEPTANCE_JOURNEY_PLATFORM = await getTesterIdentity("tester-acceptance-journey-platform@test.local");
 
 // Polls for the producing Command and its Work Item that the Execution Engine generates once a Deliverable is In
 // Progress (CommandGenerated -> WorkItemGenerated -> Dispatch, all asynchronous consumers). It does not complete the

@@ -138,8 +138,9 @@ export async function raiseObligationForBlockedTransition(input: {
   const { data: seu } = await seusDB.findById(input.seuId);
   if (!seu) throw new Error(`SEU "${input.seuId}" not found while raising a blocked-transition Obligation`);
   const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(plainCode, seu.tenant_id);
-  const policyEntityId = policy?.id ?? definition?.id;
-  if (!policyEntityId) throw new Error(`policy "${input.policyCode}" not found while raising a blocked-transition Obligation`);
+  const governing = policy ?? definition;
+  if (!governing) throw new Error(`policy "${input.policyCode}" not found while raising a blocked-transition Obligation`);
+  const policyEntityId = governing.id;
   const condition = definition?.conditions?.[conditionIndex];
   const declaredObligations = condition?.relatedObligations ?? [];
 
@@ -179,7 +180,7 @@ export async function raiseObligationForBlockedTransition(input: {
       const { attentionItem } = await raiseAttentionItem({
         seuId: input.seuId,
         category: "Action Required",
-        title: `${input.relatedObjectType} is blocked by Policy "${policy.name}" — ${declared.title}`,
+        title: `${input.relatedObjectType} is blocked by Policy "${governing.name}" — ${declared.title}`,
         description: declared.description,
         relatedObjectType: input.relatedObjectType,
         relatedObjectId: input.relatedObjectId,

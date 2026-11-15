@@ -415,3 +415,21 @@ export const DEMO_PURGE_PLAN: readonly DemoPurgeStep[] = [
 export const DEMO_PURGE_NULLED_REFERENCES: ReadonlyArray<{ table: string; column: string; parent: string; parentColumn: string }> = [
   { table: "seus", column: "active_ebm_id", parent: "ebms", parentColumn: "id" },
 ];
+
+// CR-143 — The Engineering Execution Graph. The Ontology concept types that hold the shape of each node kind and the colour of each node state.
+export const EEG_SHAPE_CONCEPT_TYPE = "eeg-node-shape";
+export const EEG_COLOUR_CONCEPT_TYPE = "eeg-state-colour";
+// The state of a Deliverable that has at least one blocker. It is a derived status and is coloured by the concept "Deliverable|Blocked".
+export const EEG_BLOCKED_STATE = "Blocked";
+// The grid of the graph, in SVG units: the width of a layer, the height of a row, and the node size.
+export const EEG_LAYOUT = { layerWidth: 220, rowHeight: 90, margin: 50, nodeWidth: 150, nodeHeight: 56 };
+// The tab of the SEU page that holds each kind of node.
+export const EEG_NODE_TAB: Record<string, string> = {
+  Deliverable: "deliverables",
+  Capability: "capabilities",
+  Obligation: "obligations",
+  Decision: "decisions",
+  Evidence: "evidence",
+  Knowledge: "knowledge",
+  Command: "commands",
+};

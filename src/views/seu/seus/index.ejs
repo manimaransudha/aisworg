@@ -2,12 +2,7 @@
 <html lang="en">
 <head>
   <%- include('../../partials/head') %>
-  <style>
-    .state-badge { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0.22rem 0.6rem; border-radius: 999px; }
-    .state-Operational { background: #dcfce7; color: #166534; }
-    .state-Pending, .state-Initiated, .state-Commissioned, .state-Configured, .state-Activated { background: #fef9c3; color: #854d0e; }
-    .state-Suspended, .state-Retired, .state-Archived { background: #f1f5f9; color: #64748b; }
-  </style>
+  <%# CR-083 — .state-badge and every .state-X colour come from the canonical stylesheet. %>
 </head>
 <body>
   <%- include('../../partials/helpers') %>
@@ -49,7 +44,8 @@
         <% if (!list.q && !_activeStatus) { %><a href="/aisworg/seu/seus/new" class="btn btn-primary btn-sm">Commission the first one</a><% } %>
       </div>
     <% } else { %>
-      <div class="card border-0 shadow-sm">
+      <div class="section-card">
+        <div class="section-header">SEUs</div>
         <div class="table-responsive">
           <table class="table table-hover mb-0 align-middle">
             <thead class="table-light">
@@ -68,6 +64,7 @@
                   <td class="small text-muted"><%= new Date(s.createdAt).toLocaleString() %></td>
                   <td class="text-end">
                     <a href="/aisworg/seu/seus/<%= s.id %>" class="btn btn-sm btn-outline-primary">View</a>
+                    <a href="/aisworg/seu/seus/<%= s.id %>/graph" class="btn btn-sm btn-outline-primary">EEG</a>
                     <%# design/mvp-build-plan/SEU Composition.md —
                          owner: "You dont add a Validate button. Depending on
                          the badge of the user, it shows the correct buttons

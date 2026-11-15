@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .eeg-canvas { overflow: auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 0.5rem; min-height: 420px; }
+    .eeg-node { cursor: pointer; }
+    .eeg-node:hover .eeg-shape { stroke: #4f46e5; stroke-width: 3; }
+    .eeg-node.selected .eeg-shape { stroke: #4f46e5; stroke-width: 3; }
+    .eeg-shape { stroke: #334155; stroke-width: 1.5; fill-opacity: 0.85; }
+    .eeg-node-label { font-size: 11px; font-weight: 600; fill: #0f172a; pointer-events: none; }
+    .eeg-node-state { font-size: 10px; fill: #0f172a; pointer-events: none; }
+    .eeg-edge { fill: none; stroke: #b91c1c; stroke-width: 1.6; }
+    .eeg-edge.satisfied { stroke: #94a3b8; stroke-dasharray: 5 4; }
+    .eeg-edge-label { font-size: 9px; fill: #475569; }
+    .eeg-legend-item { display: inline-flex; align-items: center; gap: 0.35rem; margin-right: 1rem; font-size: 0.75rem; }
+    .eeg-legend-swatch { width: 0.9rem; height: 0.9rem; border: 1px solid #334155; border-radius: 3px; display: inline-block; }
+    .eeg-details-value { word-break: break-word; overflow-wrap: anywhere; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container-fluid py-5 px-4">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div>
+        <p class="text-muted small mb-1">
+          <a href="/aisworg/seu/seus">&larr; All SEUs</a> &middot; <a href="<%= seuPageUrl %>">SEU page</a>
+        </p>
+        <h2 class="h4 text-dark fw-bold mb-1">Engineering Execution Graph</h2>
+        <p class="text-muted small mb-0 font-monospace"><%= seuId %></p>
+      </div>
+      <div class="text-end">
+        <button type="button" id="eeg-refresh" class="btn btn-primary btn-sm"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+        <div class="text-muted small mt-1">As of <span id="eeg-as-of">loading</span></div>
+      </div>
+    </div>
+
+    <div id="eeg-error" class="alert alert-danger d-none" role="alert"></div>
+
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="section-card">
+          <div class="section-header">Execution Graph</div>
+          <div class="p-3">
+            <div id="eeg-legend" class="mb-2"></div>
+            <div class="eeg-canvas"><svg id="eeg-svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="420"></svg></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="section-card">
+          <div class="section-header">Details</div>
+          <div class="p-3" id="eeg-details">
+            <p class="text-muted small mb-0">Click a node to see its details.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+
+  <script>
+    (function () {
+      var dataUrl = <%- JSON.stringify(dataUrl) %>;
+      var seuPageUrl = <%- JSON.stringify(seuPageUrl) %>;
+      var SVG_NS = 'http://www.w3.org/2000/svg';
+      var svg = document.getElementById('eeg-svg');
+      var detailsEl = document.getElementById('eeg-details');
+      var errorEl = document.getElementById('eeg-error');
+      var asOfEl = document.getElementById('eeg-as-of');
+      var refreshBtn = document.getElementById('eeg-refresh');
+      var graph = null;
+      var selectedId = null;
+
+      function el(name, attrs, text) {
+        var node = document.createElementNS(SVG_NS, name);
+        Object.keys(attrs || {}).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+        if (text !== undefined) node.textContent = text;
+        return node;
+      }
+      function html(name, attrs, text) {
+        var node = document.createElement(name);
+        Object.keys(attrs || {}).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+        if (text !== undefined) node.textContent = text;
+        return node;
+      }
+      function clip(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+      // One drawing function for each shape token held in the Ontology. A token without a drawing is reported, never replaced.
+      var shapes = {
+        box: function (cx, cy, w, h) { return el('rect', { x: cx - w / 2, y: cy - h / 2, width: w, height: h, rx: 4 }); },
+        ellipse: function (cx, cy, w, h) { return el('ellipse', { cx: cx, cy: cy, rx: w / 2, ry: h / 2 }); },
+        hexagon: function (cx, cy, w, h) { var a = w / 2, b = h / 2, k = w / 5; return poly([[cx - a, cy], [cx - a + k, cy - b], [cx + a - k, cy - b], [cx + a, cy], [cx + a - k, cy + b], [cx - a + k, cy + b]]); },
+        diamond: function (cx, cy, w, h) { return poly([[cx, cy - h / 2 - 8], [cx + w / 2, cy], [cx, cy + h / 2 + 8], [cx - w / 2, cy]]); },
+        triangle: function (cx, cy, w, h) { return poly([[cx, cy - h / 2 - 6], [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2]]); },
+        parallelogram: function (cx, cy, w, h) { var k = w / 6; return poly([[cx - w / 2 + k, cy - h / 2], [cx + w / 2, cy - h / 2], [cx + w / 2 - k, cy + h / 2], [cx - w / 2, cy + h / 2]]); },
+        octagon: function (cx, cy, w, h) { var a = w / 2, b = h / 2, k = h / 3; return poly([[cx - a + k, cy - b], [cx + a - k, cy - b], [cx + a, cy - b + k], [cx + a, cy + b - k], [cx + a - k, cy + b], [cx - a + k, cy + b], [cx - a, cy + b - k], [cx - a, cy - b + k]]); }
+      };
+      function poly(points) { return el('polygon', { points: points.map(function (p) { return p.join(','); }).join(' ') }); }
+
+      function showError(message) {
+        errorEl.textContent = message;
+        errorEl.classList.remove('d-none');
+      }
+
+      function drawLegend() {
+        var legend = document.getElementById('eeg-legend');
+        legend.textContent = '';
+        var kinds = {};
+        graph.nodes.forEach(function (n) { kinds[n.kind] = n.shape; });
+        Object.keys(kinds).forEach(function (kind) {
+          var item = html('span', { 'class': 'eeg-legend-item' });
+          item.appendChild(html('span', {}, kind + ': ' + kinds[kind]));
+          legend.appendChild(item);
+        });
+        var colours = {};
+        graph.nodes.forEach(function (n) { colours[n.colour] = true; });
+        Object.keys(colours).forEach(function (colour) {
+          var item = html('span', { 'class': 'eeg-legend-item' });
+          var swatch = html('span', { 'class': 'eeg-legend-swatch' });
+          swatch.style.background = colour;
+          item.appendChild(swatch);
+          item.appendChild(html('span', {}, colour));
+          legend.appendChild(item);
+        });
+      }
+
+      function draw() {
+        svg.textContent = '';
+        var defs = el('defs');
+        var marker = el('marker', { id: 'eeg-arrow', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' });
+        marker.appendChild(el('path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: '#64748b' }));
+        defs.appendChild(marker);
+        svg.appendChild(defs);
+
+        var byId = {};
+        graph.nodes.forEach(function (n) { byId[n.id] = n; });
+        var maxX = 0, maxY = 0;
+        graph.nodes.forEach(function (n) { maxX = Math.max(maxX, n.x + n.width); maxY = Math.max(maxY, n.y + n.height); });
+        svg.setAttribute('width', Math.max(maxX + 60, 600));
+        svg.setAttribute('height', Math.max(maxY + 60, 420));
+
+        graph.edges.forEach(function (e) {
+          var from = byId[e.from], to = byId[e.to];
+          if (!from || !to) return;
+          var x1 = from.x + from.width, y1 = from.y;
+          var x2 = to.x - 4, y2 = to.y;
+          var mx = (x1 + x2) / 2;
+          var path = el('path', { d: 'M ' + x1 + ' ' + y1 + ' C ' + mx + ' ' + y1 + ', ' + mx + ' ' + y2 + ', ' + x2 + ' ' + y2, 'class': 'eeg-edge' + (e.satisfied ? ' satisfied' : ''), 'marker-end': 'url(#eeg-arrow)' });
+          path.appendChild(el('title', {}, e.label));
+          svg.appendChild(path);
+          svg.appendChild(el('text', { x: mx, y: (y1 + y2) / 2 - 4, 'text-anchor': 'middle', 'class': 'eeg-edge-label' }, clip(e.label, 34)));
+        });
+
+        graph.nodes.forEach(function (n) {
+          var drawShape = shapes[n.shape];
+          if (!drawShape) { showError('No drawing exists for the shape "' + n.shape + '" of ' + n.kind + '.'); return; }
+          var group = el('g', { 'class': 'eeg-node' + (n.id === selectedId ? ' selected' : ''), tabindex: 0 });
+          var shape = drawShape(n.x + n.width / 2, n.y, n.width, n.height);
+          shape.setAttribute('class', 'eeg-shape');
+          shape.setAttribute('fill', n.colour);
+          group.appendChild(shape);
+          group.appendChild(el('text', { x: n.x + n.width / 2, y: n.y - 2, 'text-anchor': 'middle', 'class': 'eeg-node-label' }, clip(n.label, 20)));
+          group.appendChild(el('text', { x: n.x + n.width / 2, y: n.y + 12, 'text-anchor': 'middle', 'class': 'eeg-node-state' }, n.state));
+          group.appendChild(el('title', {}, n.kind + ': ' + n.label + ' (' + n.state + ')'));
+          group.addEventListener('click', function () { selectedId = n.id; draw(); showDetails(n); });
+          group.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { selectedId = n.id; draw(); showDetails(n); } });
+          svg.appendChild(group);
+        });
+      }
+
+      function showDetails(n) {
+        detailsEl.textContent = '';
+        var head = html('div', { 'class': 'mb-3' });
+        head.appendChild(html('div', { 'class': 'text-muted small' }, n.kind));
+        head.appendChild(html('h3', { 'class': 'h6 fw-bold mb-1' }, n.label));
+        var badge = html('span', { 'class': 'badge text-dark border' }, n.state);
+        badge.style.background = n.colour;
+        head.appendChild(badge);
+        detailsEl.appendChild(head);
+
+        var link = html('a', { href: seuPageUrl + '?tab=' + encodeURIComponent(n.tab), 'class': 'btn btn-outline-primary btn-sm mb-3' }, 'Open in the SEU page');
+        detailsEl.appendChild(link);
+
+        var byId = {};
+        graph.nodes.forEach(function (x) { byId[x.id] = x; });
+        var blockers = graph.edges.filter(function (e) { return e.to === n.id; });
+        var blocks = graph.edges.filter(function (e) { return e.from === n.id; });
+        if (blockers.length) {
+          detailsEl.appendChild(html('h4', { 'class': 'h6 mt-2' }, 'Blocked by'));
+          var ul = html('ul', { 'class': 'small ps-3' });
+          blockers.forEach(function (e) { var f = byId[e.from]; ul.appendChild(html('li', {}, (f ? f.kind + ' ' + f.label : e.from) + ' — ' + e.label + (e.satisfied ? ' (satisfied)' : ' (open)'))); });
+          detailsEl.appendChild(ul);
+        }
+        if (blocks.length) {
+          detailsEl.appendChild(html('h4', { 'class': 'h6 mt-2' }, 'Blocks'));
+          var ul2 = html('ul', { 'class': 'small ps-3' });
+          blocks.forEach(function (e) { var t = byId[e.to]; ul2.appendChild(html('li', {}, (t ? t.kind + ' ' + t.label : e.to) + ' — ' + e.label + (e.satisfied ? ' (satisfied)' : ' (open)'))); });
+          detailsEl.appendChild(ul2);
+        }
+
+        detailsEl.appendChild(html('h4', { 'class': 'h6 mt-2' }, 'Quality Gate results'));
+        if (n.qualityGateResults.length === 0) {
+          detailsEl.appendChild(html('p', { 'class': 'text-muted small' }, 'No Quality Gate check has been recorded for this entity.'));
+        } else {
+          var qt = html('table', { 'class': 'table table-sm small' });
+          var qh = html('thead');
+          var qr = html('tr');
+          ['Gate', 'Outcome', 'Evaluated', 'Detail'].forEach(function (h) { qr.appendChild(html('th', {}, h)); });
+          qh.appendChild(qr);
+          qt.appendChild(qh);
+          var qb = html('tbody');
+          n.qualityGateResults.forEach(function (r) {
+            var tr = html('tr');
+            tr.appendChild(html('td', {}, r.gate));
+            tr.appendChild(html('td', {}, r.outcome));
+            tr.appendChild(html('td', {}, new Date(r.evaluatedAt).toLocaleString()));
+            tr.appendChild(html('td', { 'class': 'eeg-details-value' }, r.detail));
+            qb.appendChild(tr);
+          });
+          qt.appendChild(qb);
+          detailsEl.appendChild(qt);
+        }
+
+        detailsEl.appendChild(html('h4', { 'class': 'h6 mt-2' }, 'All details'));
+        var table = html('table', { 'class': 'table table-sm small mb-0' });
+        var body = html('tbody');
+        n.details.forEach(function (d) {
+          var tr = html('tr');
+          tr.appendChild(html('th', { 'class': 'text-nowrap fw-semibold' }, d.label));
+          tr.appendChild(html('td', { 'class': 'eeg-details-value' }, d.value));
+          body.appendChild(tr);
+        });
+        table.appendChild(body);
+        detailsEl.appendChild(table);
+      }
+
+      function load() {
+        refreshBtn.disabled = true;
+        errorEl.classList.add('d-none');
+        return fetch(dataUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+          .then(function (res) {
+            return res.json().then(function (body) {
+              if (!res.ok) throw new Error(body.error || body.message || ('The graph could not be loaded (' + res.status + ').'));
+              return body;
+            });
+          })
+          .then(function (body) {
+            graph = body;
+            asOfEl.textContent = new Date(graph.asOf).toLocaleString();
+            drawLegend();
+            draw();
+            var selected = graph.nodes.filter(function (n) { return n.id === selectedId; })[0];
+            if (selected) showDetails(selected);
+          })
+          .catch(function (err) { showError(err.message); })
+          .then(function () { refreshBtn.disabled = false; });
+      }
+
+      refreshBtn.addEventListener('click', load);
+      load();
+    })();
+  </script>
+</body>
+</html>

@@ -9,6 +9,7 @@ import {seu_seus_composeVM} from "./seu_seus_compose.js";
 import {seu_seus_resolveConflictsVM} from "./seu_seus_resolveConflicts.js";
 import {seu_seus_detailVM} from "./seu_seus_detail.js";
 import {seu_seus_ebmVM} from "./seu_seus_ebm.js";
+import {seu_seus_graphVM} from "./seu_seus_graph.js";
 import {seu_packs_indexVM} from "./seu_packs_index.js";
 import {seu_packs_viewVM} from "./seu_packs_view.js";
 import {seu_templates_indexVM} from "./seu_templates_index.js";
@@ -73,6 +74,7 @@ export const viewModels = {
   "seu/seus/resolve-conflicts": seu_seus_resolveConflictsVM,
   "seu/seus/detail": seu_seus_detailVM,
   "seu/seus/ebm": seu_seus_ebmVM,
+  "seu/seus/graph": seu_seus_graphVM,
   "seu/packs/index": seu_packs_indexVM,
   "seu/packs/view": seu_packs_viewVM,
   "seu/templates/index": seu_templates_indexVM,

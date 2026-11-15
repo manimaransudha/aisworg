@@ -21823,5 +21823,464 @@
     "is_mandatory": null,
     "text_type": "markdown",
     "ui_grouping": "Services"
+  },
+  {
+    "concept_type": "eeg-node-shape",
+    "code": "Deliverable",
+    "default_label": "box",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-node-shape",
+    "code": "Capability",
+    "default_label": "hexagon",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-node-shape",
+    "code": "Obligation",
+    "default_label": "diamond",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-node-shape",
+    "code": "Decision",
+    "default_label": "triangle",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-node-shape",
+    "code": "Evidence",
+    "default_label": "ellipse",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-node-shape",
+    "code": "Knowledge",
+    "default_label": "parallelogram",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-node-shape",
+    "code": "Command",
+    "default_label": "octagon",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Deliverable|Defined",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Deliverable|In Progress",
+    "default_label": "orange",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Deliverable|Approved",
+    "default_label": "green",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Deliverable|Baselined",
+    "default_label": "teal",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Deliverable|Blocked",
+    "default_label": "red",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Capability|Unfulfilled",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Capability|Fulfilled",
+    "default_label": "green",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Obligation|Identified",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Obligation|Analysed",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Obligation|Assigned",
+    "default_label": "blue",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Obligation|In Progress",
+    "default_label": "orange",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Obligation|Reopened",
+    "default_label": "orange",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Obligation|Resolved",
+    "default_label": "green",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Obligation|Verified",
+    "default_label": "green",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Obligation|Closed",
+    "default_label": "teal",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Obligation|Archived",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Obligation|Escalated",
+    "default_label": "red",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Decision|Identified",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Decision|Analysed",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Decision|Proposed",
+    "default_label": "blue",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Decision|Reviewed",
+    "default_label": "blue",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Decision|Approved",
+    "default_label": "green",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Decision|Applied",
+    "default_label": "teal",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Decision|Superseded",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Decision|Archived",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Evidence|Collected",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Evidence|Validated",
+    "default_label": "blue",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Evidence|Accepted",
+    "default_label": "green",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Evidence|Referenced",
+    "default_label": "teal",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Evidence|Archived",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Evidence|Rejected",
+    "default_label": "red",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Knowledge|Observed",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Knowledge|Proposed",
+    "default_label": "blue",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Knowledge|Validated",
+    "default_label": "blue",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Knowledge|Accepted",
+    "default_label": "green",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Knowledge|Published",
+    "default_label": "teal",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Knowledge|Deprecated",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Knowledge|Archived",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Command|Generated",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Command|Dispatched",
+    "default_label": "orange",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Command|Deferred",
+    "default_label": "blue",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Command|Completed",
+    "default_label": "green",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Command|Cancelled",
+    "default_label": "grey",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "Command|Failed",
+    "default_label": "red",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
   }
 ]

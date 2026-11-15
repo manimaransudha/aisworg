@@ -38,6 +38,7 @@
         <p class="text-muted small mb-1">
           <a href="/aisworg/seu/seus">&larr; All SEUs</a>
           <% if (detail.seu.active_ebm_id) { %> &middot; <a href="/aisworg/seu/seus/<%= detail.seu.id %>/ebm">View EBM</a><% } %>
+          &middot; <a href="/aisworg/seu/seus/<%= detail.seu.id %>/graph">Execution Graph</a>
         </p>
         <h2 class="h4 text-dark fw-bold mb-1"><%= detail.objectiveStatement %></h2>
         <p class="text-muted small mb-0 font-monospace"><%= detail.seu.id %></p>
