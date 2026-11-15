@@ -106,7 +106,7 @@ test("the Kickoff handler ignores a Deliverable transition that is not into the 
   await send("ObligationTransitioned", { toState: "Open" });
   await send("AttentionItemTransitioned", {});
   await send("AttentionItemTransitioned", { toState: "Open" });
-  await send("SomethingElse", {});
+  await assert.rejects(send("SomethingElse", {}), /does not handle event type SomethingElse/);
 });
 
 test("a resolved Obligation, a fulfilled Capability and a rejected dispatch re-issue the producing Command only for a Deliverable that is In Progress, not held, with nobody producing it yet and a Participant fulfilling its Capability", async () => {

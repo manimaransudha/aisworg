@@ -877,6 +877,14 @@ export async function settleCapabilityRequests(seuId: string, capabilityId: stri
   for (let attempt = 0; attempt < 900; attempt++) {
     const { data: events, error } = await eventsDB.findByOriginatingObject("SEU", seuId);
     if (error) throw error;
+    // The Deliverable Kickoff handler makes the request when it consumes SEUOperational, so that consumption comes first.
+    const operational = (events ?? []).filter((e) => e.event_type === "SEUOperational");
+    const kickoffFailed = operational.find((e) => e.consumption_state?.deliverableKickoff?.status === "failed");
+    if (kickoffFailed) throw new Error(`settleCapabilityRequests: SEUOperational ${kickoffFailed.id} failed in the Deliverable Kickoff handler: ${(kickoffFailed.consumption_state.deliverableKickoff as { error?: string }).error}`);
+    if (!operational.every((e) => e.consumption_state?.deliverableKickoff?.status === "consumed")) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      continue;
+    }
     const requests = (events ?? []).filter((e) => e.event_type === "CapabilityRequested" && (e.payload as { capabilityId?: string }).capabilityId === capabilityId);
     const failed = requests.find((e) => e.consumption_state?.capabilityRequested?.status === "failed");
     if (failed) throw new Error(`settleCapabilityRequests: CapabilityRequested ${failed.id} failed: ${(failed.consumption_state.capabilityRequested as { error?: string }).error}`);

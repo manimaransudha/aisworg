@@ -71,10 +71,10 @@ export async function seedEventSubscriptions(actor: SeedActor): Promise<void> {
   );
   if (eventTypesError) throw new Error(`[seed:event-subscriptions] event type upsert failed: ${eventTypesError.message}`);
 
-  const { error: subscriptionsError } = await eventsDB.bulkUpsertSubscriptions(
+  const { error: subscriptionsError } = await eventsDB.replaceSubscriptions(
     seed.subscriptions.map((sub) => ({ eventType: sub.eventType, handlerName: sub.handlerName, authorId: actor.authoredBy, authorBadge: actor.authorBadge }))
   );
-  if (subscriptionsError) throw new Error(`[seed:event-subscriptions] subscription upsert failed: ${subscriptionsError.message}`);
+  if (subscriptionsError) throw new Error(`[seed:event-subscriptions] subscription replace failed: ${subscriptionsError.message}`);
 
   logger.info(`[seed:event-subscriptions] ${seed.eventTypes.length} event types, ${seed.subscriptions.length} subscriptions.`);
 }

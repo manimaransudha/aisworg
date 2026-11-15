@@ -113,6 +113,22 @@ export const eventsDB = {
     }
   },
 
+  // The seed is the whole set of subscriptions: every existing row is deleted and the given rows are inserted.
+  async replaceSubscriptions(inputs: Array<{ eventType: string; handlerName: string; authorId: string; authorBadge: string }>): Promise<DbResult<void>> {
+    try {
+      await query("DELETE FROM event_subscriptions");
+      await bulkInsert(
+        "event_subscriptions",
+        ["event_type", "handler_name", "author_id", "author_badge"],
+        inputs.map((i) => [i.eventType, i.handlerName, i.authorId, i.authorBadge])
+      );
+      return { data: undefined };
+    } catch (err) {
+      logger.error("[eventsDB] replaceSubscriptions error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findByOriginatingObject(objectType: string, objectId: string): Promise<DbResult<EventRow[]>> {
     try {
       const { rows } = await query<EventRow>(
