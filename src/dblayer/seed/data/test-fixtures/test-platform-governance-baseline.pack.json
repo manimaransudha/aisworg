@@ -1,0 +1,18 @@
+{
+  "code": "test-platform-governance-baseline",
+  "name": "Test Platform Governance Baseline",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Test copy of the platform governance baseline. It materialises the platform Policies so tests can read their rows.",
+  "contributions": {
+    "policies": [
+      "policy-capability-fulfilled-before-start",
+      "policy-ontology-values-present",
+      "policy-validate-schema",
+      "policy-comment-required",
+      "policy-materialise-template",
+      "policy-materialise-profile"
+    ]
+  }
+}

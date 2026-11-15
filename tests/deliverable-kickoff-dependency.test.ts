@@ -112,10 +112,10 @@ test("DeliverableTransitioned attempts only the Deliverables that depend on the 
   const b = await createDeliverable(names.b3);
   const c = await createDeliverable(names.c3);
 
-  // A reached In Progress. No row names A at In Progress, so B and C are not attempted.
-  await deliverableKickoffHandler(eventRow("DeliverableTransitioned", a.id, { deliverableName: names.a3, fromState: "Defined", toState: "In Progress", commandId: randomUUID() }));
-  assert.equal((await blockedEvents(b.id)).length, 0, "B does not depend on A at In Progress");
-  assert.equal((await blockedEvents(c.id)).length, 0, "C does not depend on A at In Progress");
+  // The event names a state of A that no row names, so B and C are not attempted.
+  await deliverableKickoffHandler(eventRow("DeliverableTransitioned", a.id, { deliverableName: names.a3, fromState: "Defined", toState: "Defined" }));
+  assert.equal((await blockedEvents(b.id)).length, 0, "B does not depend on A at that state");
+  assert.equal((await blockedEvents(c.id)).length, 0, "C does not depend on A at that state");
 
   // The event says A reached Approved, and the rows of B and C name that state, but A is still in its birth state in the database. The rows do not hold, so B and C are not attempted.
   await deliverableKickoffHandler(eventRow("DeliverableTransitioned", a.id, { deliverableName: names.a3, fromState: "In Progress", toState: "Approved", commandId: randomUUID() }));

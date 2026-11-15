@@ -24,6 +24,7 @@ function loadJson<T>(fileName: string): T {
 // composes these three as its mandatory Packs.
 const FOUNDATION_TEST_FIXTURE_PACK_FILES = ["test-openup-development.pack.json", "test-openup-requirements.pack.json", "test-openup-architecture.pack.json"];
 const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
+  "test-platform-governance-baseline.pack.json",
   "test-openup-configuration-and-change-management.pack.json",
   "test-openup-project-management.pack.json",
   "test-openup-test.pack.json",

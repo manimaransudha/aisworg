@@ -101,7 +101,7 @@ test("the Kickoff handler ignores a Deliverable transition that is not into the 
   const { t } = await operationalSeu("kickoff-ignored");
   const send = async (eventType: string, payload: Record<string, unknown>) =>
     deliverableKickoffHandler(await publishTestEvent({ eventType, originatingObjectType: "SEU", originatingObjectId: t.seu.id, seuId: t.seu.id, payload }));
-  await send("DeliverableTransitioned", { toState: "Approved" });
+  await send("DeliverableTransitioned", { deliverableName: "any", toState: "Approved" });
   await send("ObligationTransitioned", {});
   await send("ObligationTransitioned", { toState: "Open" });
   await send("AttentionItemTransitioned", {});

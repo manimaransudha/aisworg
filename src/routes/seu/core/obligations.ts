@@ -132,12 +132,14 @@ export async function raiseObligationForBlockedTransition(input: {
 }): Promise<{ obligations: ObligationRow[]; attentionItems: AttentionItemRow[] }> {
   const systemActor = await getSystemActor(input.seuId);
   const { data: policy } = await policiesDB.findByCode(input.policyCode);
-  if (!policy) throw new Error(`policy "${input.policyCode}" not found while raising a blocked-transition Obligation`);
 
-  const { plainCode, conditionIndex } = parseMaterializedPolicyCode(policy.code);
+  // A Policy a hop requires is a Policy Definition and has no row in policies; an EBM Policy is a row there.
+  const { plainCode, conditionIndex } = parseMaterializedPolicyCode(policy?.code ?? input.policyCode);
   const { data: seu } = await seusDB.findById(input.seuId);
   if (!seu) throw new Error(`SEU "${input.seuId}" not found while raising a blocked-transition Obligation`);
   const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(plainCode, seu.tenant_id);
+  const policyEntityId = policy?.id ?? definition?.id;
+  if (!policyEntityId) throw new Error(`policy "${input.policyCode}" not found while raising a blocked-transition Obligation`);
   const condition = definition?.conditions?.[conditionIndex];
   const declaredObligations = condition?.relatedObligations ?? [];
 
@@ -168,7 +170,7 @@ export async function raiseObligationForBlockedTransition(input: {
           blockedFromState: input.fromState,
           blockedToState: input.toState,
           originatingEntityType: "Policy",
-          originatingEntityId: policy.id,
+          originatingEntityId: policyEntityId,
           actorId: systemActor.actorId,
           authorBadge: systemActor.authorBadge,
         }));
