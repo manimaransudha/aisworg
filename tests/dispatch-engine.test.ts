@@ -167,7 +167,7 @@ test("dispatch rejects a Work Item whose Command declares no producing Capabilit
   assert.equal((await commandOf(work.command.id)).status, "Failed");
   assert.deepEqual(await eventTypesOf(work.workItem.id), ["DispatchRejected"]);
   const rejected = (await eventsOf(work.workItem.id))[0];
-  assert.deepEqual(rejected.payload, { reason: "no_producing_capability_declared", commandId: work.command.id });
+  assert.deepEqual(rejected.payload, { reason: "no_producing_capability_declared", commandId: work.command.id, relatedObjectType: "Deliverable", relatedObjectId: work.deliverableId });
   const { data: obligations } = await obligationsDB.findByRelatedObject("Deliverable", work.deliverableId);
   assert.ok((obligations ?? []).some((o) => o.title.includes(work.workItem.id) && o.title.includes("no_producing_capability_declared")));
   const { data: items } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", work.deliverableId);
@@ -272,7 +272,7 @@ test("the redispatch handler counts attempts, raises an escalation at the thresh
   assert.equal((await workItemOf(work.workItem.id)).status, "Disposed");
   assert.equal((await commandOf(work.command.id)).status, "Failed");
   const exhausted = (await eventsOf(work.workItem.id)).find((e) => e.event_type === "DispatchRejected");
-  assert.deepEqual(exhausted?.payload, { reason: "redispatch_exhausted", attempts: 3 });
+  assert.deepEqual(exhausted?.payload, { reason: "redispatch_exhausted", attempts: 3, relatedObjectType: "Deliverable", relatedObjectId: work.deliverableId });
   const { data: obligations } = await obligationsDB.findByRelatedObject("Deliverable", work.deliverableId);
   assert.ok((obligations ?? []).some((o) => o.title.includes("gave up") && o.title.includes("after 3 attempts")));
   const { data: items } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", work.deliverableId);
