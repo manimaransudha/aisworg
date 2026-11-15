@@ -348,7 +348,7 @@ export async function transitionDeliverableSync(input: {
   }
 
   const { data: moved } = await deliverablesDB.findById(input.deliverableId);
-  // DeliverableTransitioned is handled asynchronously (the governed-hop rescan and the production Command).
+  // DeliverableTransitioned is handled asynchronously (the attempt on the Deliverables that depend on it, and the production Command).
   await new Promise((resolve) => setTimeout(resolve, 250));
   await resolveDispatchRejectionObligations(moved!.seu_id);
   return { ok: true, deliverable: moved!, appliedTransition: { fromState, toState: input.targetState } };
@@ -834,13 +834,13 @@ export async function fulfilCapabilityAsRoot(input: {
   seuId: string;
   capabilityId: string;
   // Either an existing Participant, or the codes a fixture Participant is created with. The codes form creates it
-  // only when the Capability is still Unfulfilled after the on-Ready request has settled, so it never joins that pool.
+  // only when the Capability is still Unfulfilled after any request has settled, so it never joins that pool.
   participantMasterId?: string;
   capabilityCodes?: string[];
 }): Promise<{ participant: ParticipantRow; fulfilment: CapabilityFulfilmentRow; seuCapabilityId: string }> {
   await ensureEventSubscriptionsLoaded();
   await ensureRootActorParticipant(input.seuId);
-  // Commissioning requests fulfilment itself. Fulfilling by hand is needed only when that request ended unfulfilled.
+  // The Deliverable Kickoff handler requests fulfilment for the start nodes when the SEU becomes Operational. Fulfilling by hand is needed only when no request was made or it ended unfulfilled.
   await settleCapabilityRequests(input.seuId, input.capabilityId);
   const { data: seuCapabilities, error: seuCapabilitiesError } = await seuCapabilitiesDB.findBySeuId(input.seuId);
   if (seuCapabilitiesError) throw seuCapabilitiesError;
@@ -1012,14 +1012,12 @@ async function resolveDispatchRejectionObligationsForDeliverable(deliverableId: 
   }
 }
 
-// Owner: "Why raise an obligation when a policy has none?" — settled:
-// raiseObligationForBlockedTransition (core/obligations.ts) now raises
-// nothing at all when the blocking Policy's own Definition declared no
-// relatedObligations[]. Every test Policy created via a bare policiesDB.upsert
-// call has no matching policy_definitions row at all (raiseObligationForBlockedTransition
-// reads relatedObligations off policyDefinitionsDB.findActiveByCodeVisibleTo,
-// a separate table from the materialized `policies` row), so it needs a real,
-// Active Policy Definition alongside it to get a real Obligation raised.
+// raiseObligationForBlockedTransition (core/obligations.ts) raises the Obligations the blocking Policy's own
+// Definition declares in relatedObligations[], and none when it declares none. Every test
+// Policy created via a bare policiesDB.upsert call has no matching policy_definitions row at all (the function
+// reads relatedObligations off policyDefinitionsDB.findActiveByCodeVisibleTo, a separate table from the
+// materialized `policies` row). This helper adds a real, Active Policy Definition alongside it, so a test gets
+// the declared Obligation, with a title it controls.
 // `code` must match the plain code of the materialized `policies` row a test
 // separately creates via policiesDB.upsert (same code, no "::" suffix — an
 // unfanned Policy resolves conditionIndex 0, so exactly one condition here).
@@ -1078,8 +1076,8 @@ export async function ensurePolicyDefinitionWithObligation(input: {
 // "succession mechanism" — see eventSubscriptions.json's own description).
 // So it isn't only the SEU's head-of-chain Deliverable that can race an
 // unfulfilled Capability into a stray empty_eligible_pool Obligation before
-// a test's own explicit call — any Deliverable the automatic rescan reaches
-// right after a completed hop can too. Sweeps every Deliverable on the SEU,
+// a test's own explicit call — any Deliverable that depends on the one that just
+// moved can too. Sweeps every Deliverable on the SEU,
 // not just one — call this right before a test's own scenario-specific
 // assertions (Obligation/Attention-Item counts, Quality Gate messages), and
 // again after driving any hop whose own completion could unblock the next

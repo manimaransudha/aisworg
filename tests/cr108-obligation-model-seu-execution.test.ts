@@ -193,9 +193,9 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
     authorBadge: packRow!.author_badge,
   });
   assert.ok(seuPolicy);
-  // raiseObligationForBlockedTransition now raises nothing (no Obligation,
-  // no Attention Item) unless the blocking Policy's own Definition declares
-  // a relatedObligations[] entry.
+  // raiseObligationForBlockedTransition raises the Obligations the blocking Policy's own
+  // Definition declares in relatedObligations[], and none when it declares none.
+  // This test declares its own.
   await ensurePolicyDefinitionWithObligation({ code: policyCode, name: `CR-108 commence-work policy ${run}`, category: "Compliance", title: `CR-108 attention blocker ${run}` });
 
   const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,

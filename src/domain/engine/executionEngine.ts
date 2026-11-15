@@ -348,7 +348,7 @@ export const executionEngine = {
       actorId: systemActor.actorId,
       tenantId: systemActor.tenantId,
       authorityBadge: evaluated.authorityBadge,
-      payload: { fromState, toState, commandId: command.id },
+      payload: { deliverableName: deliverable.name, fromState, toState, commandId: command.id },
     });
     return { ok: true };
   },

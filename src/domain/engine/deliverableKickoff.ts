@@ -3,12 +3,15 @@ import { seusDB } from "../../dblayer/seusDB.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { executionEngine } from "./executionEngine.js";
+import { dependencyDefinitionEngine } from "./dependencyDefinitionEngine.js";
+import { resolveSeuOwningScope } from "./deliverableSource.js";
+import { requestProducingCapabilities } from "./capabilityOnReady.js";
 import { transitionDeliverable } from "../../routes/seu/core/deliverables.js";
 import { RESOLVED_OBLIGATION_STATUSES, RESOLVED_ATTENTION_STATUSES } from "./qualityGateEngine.js";
 import { getSystemActor, commandTypeFor, DELIVERABLE_PRODUCING_STATE, PRODUCE_COMMAND_VERB } from "../../dblayer/constants.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
-import type { EventRow, DeliverableRow } from "../../dblayer/seuTypes.js";
+import type { EventRow, DeliverableRow, SeuRow } from "../../dblayer/seuTypes.js";
 import { seuCapabilitiesDB } from "../../dblayer/seuCapabilitiesDB.js";
 import { obligationsDB } from "../../dblayer/obligationsDB.js";
 import { createObligation } from "../../routes/seu/core/obligations.js";
@@ -16,7 +19,14 @@ import { raiseAttentionItem } from "../../routes/seu/core/attentionItems.js";
 import { capabilityFulfilmentsDB } from "../../dblayer/capabilityFulfilmentsDB.js";
 
 export const deliverableKickoffHandler: EventHandler = async (event: EventRow) => {
-  if (!event.seu_id) return;
+  if (!event.seu_id) throw new Error(`${event.event_type} event ${event.id} carries no seuId`);
+
+  const { data: seu } = await seusDB.findById(event.seu_id);
+  if (!seu) {
+    logger.error(`[deliverableKickoffHandler] SEU not found: ${event.seu_id}`);
+    return;
+  }
+  if (seu.lifecycle_state !== "Operational") return;
 
   if (event.event_type === "ObligationTransitioned") {
     const payload = event.payload as { toState?: string } | null;
@@ -27,16 +37,23 @@ export const deliverableKickoffHandler: EventHandler = async (event: EventRow) =
     if (!payload?.toState || !RESOLVED_ATTENTION_STATUSES.has(payload.toState)) return;
   }
 
-  const { data: seu } = await seusDB.findById(event.seu_id);
-  if (!seu) {
-    logger.error(`[deliverableKickoffHandler] SEU not found: ${event.seu_id}`);
-    return;
-  }
-  if (seu.lifecycle_state !== "Operational") return;
-
   const systemActor = await getSystemActor(seu.id);
-  const { data: deliverables } = await deliverablesDB.findBySeuId(seu.id);
-  for (const deliverable of deliverables ?? []) {
+
+  if (event.event_type === "SEUOperational") return processSeuOperational(seu, systemActor);
+  if (event.event_type === "DeliverableTransitioned") return processDeliverableTransitioned(event, seu, systemActor);
+  if (event.event_type === "CapabilityFulfilled") return processCapabilityFulfilled(event, seu, systemActor);
+  if (event.event_type === "CapabilityUnavailable") return processCapabilityUnavailable(event, seu, systemActor);
+  if (event.event_type === "DispatchRejected") return processDispatchRejected(event, seu, systemActor);
+  if (event.event_type === "ObligationTransitioned") return processObligationTransitioned(event, seu, systemActor);
+  if (event.event_type === "AttentionItemTransitioned") return processAttentionItemTransitioned(seu, systemActor);
+  throw new Error(`deliverableKickoffHandler does not handle event type ${event.event_type} (event ${event.id})`);
+};
+
+type SystemActor = Awaited<ReturnType<typeof getSystemActor>>;
+
+// Tries each governed next transition of each of the given Deliverables.
+async function attemptGovernedTransitions(deliverables: DeliverableRow[], systemActor: SystemActor): Promise<void> {
+  for (const deliverable of deliverables) {
     const { data: nextTransitions } = await transitionDefinitionsDB.findPossibleNextTransitions("Deliverable", deliverable.lifecycle_state);
     for (const next of (nextTransitions ?? []).filter((t) => t.trigger === "governed")) {
       await transitionDeliverable({
@@ -47,60 +64,105 @@ export const deliverableKickoffHandler: EventHandler = async (event: EventRow) =
       });
     }
   }
+}
 
-  if (event.event_type === "ObligationTransitioned") {
-    // A resolved blocking Obligation lifts the block on a producing Command that was held back while it was open.
-    for (const deliverable of deliverables ?? []) {
-      if (deliverable.producing_capability_id) await reissueProducingCommand(seu.id, deliverable, event, systemActor);
-    }
+// Loads every Deliverable of the SEU, tries their governed next transitions and returns the Deliverables it loaded.
+async function attemptAllDeliverables(seu: SeuRow, systemActor: SystemActor): Promise<DeliverableRow[]> {
+  const { data } = await deliverablesDB.findBySeuId(seu.id);
+  const deliverables = data ?? [];
+  await attemptGovernedTransitions(deliverables, systemActor);
+  return deliverables;
+}
+
+// The SEU has just become Operational. Only the start nodes are attempted; every other Deliverable waits for the
+// Deliverables it depends on.
+async function processSeuOperational(seu: SeuRow, systemActor: SystemActor): Promise<void> {
+  const { data: deliverables } = await deliverablesDB.findBySeuId(seu.id);
+  const startNodes: DeliverableRow[] = [];
+  for (const deliverable of deliverables ?? []) {
+    if (await dependencyDefinitionEngine.isStartNode(seu.id, "Deliverable", deliverable.name)) startNodes.push(deliverable);
   }
+  await requestProducingCapabilities(seu.id, startNodes);
+  await attemptGovernedTransitions(startNodes, systemActor);
+}
 
-  if (event.event_type === "CapabilityUnavailable") {
-    // The producing Capability of an In Progress Deliverable has no eligible Participant. The Deliverable is held by a
-    // blocking Obligation, with an AttentionItem for the UI, until the Capability is fulfilled and the Obligation resolves.
-    const unavailable = event.payload as { capabilityId?: string } | null;
-    if (!unavailable?.capabilityId) throw new Error(`CapabilityUnavailable event ${event.id} carries no capabilityId`);
-    const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(seu.id, unavailable.capabilityId);
-    if (!seuCapability) throw new Error(`CapabilityUnavailable event ${event.id}: SEU ${seu.id} does not require Capability ${unavailable.capabilityId}`);
-    const { data: capabilities } = await seuCapabilitiesDB.findBySeuId(seu.id);
-    const capabilityCode = (capabilities ?? []).find((c) => c.id === seuCapability.id)?.capability_code ?? unavailable.capabilityId;
-    for (const deliverable of deliverables ?? []) {
-      if (deliverable.producing_capability_id !== unavailable.capabilityId || deliverable.lifecycle_state !== DELIVERABLE_PRODUCING_STATE) continue;
-      await blockDeliverableForUnavailableCapability(seu.id, deliverable, capabilityCode, event, systemActor);
-    }
-    return;
+async function processAttentionItemTransitioned(seu: SeuRow, systemActor: SystemActor): Promise<void> {
+  await attemptAllDeliverables(seu, systemActor);
+}
+
+async function processObligationTransitioned(event: EventRow, seu: SeuRow, systemActor: SystemActor): Promise<void> {
+  const deliverables = await attemptAllDeliverables(seu, systemActor);
+  // A resolved blocking Obligation lifts the block on a producing Command that was held back while it was open.
+  for (const deliverable of deliverables) {
+    if (deliverable.producing_capability_id) await reissueProducingCommand(seu.id, deliverable, event, systemActor);
   }
+}
 
-  if (event.event_type === "CapabilityFulfilled") {
-    // A Deliverable already In Progress whose producing Capability has just been fulfilled gets its producing
-    // Command, unless one is still in flight or already produced. A Failed one (empty pool) does not count.
-    const fulfilled = event.payload as { capabilityId?: string } | null;
-    if (!fulfilled?.capabilityId) throw new Error(`CapabilityFulfilled event ${event.id} carries no capabilityId`);
-    for (const deliverable of deliverables ?? []) {
-      if (deliverable.producing_capability_id !== fulfilled.capabilityId) continue;
-      await reissueProducingCommand(seu.id, deliverable, event, systemActor);
-    }
-    return;
+async function processCapabilityUnavailable(event: EventRow, seu: SeuRow, systemActor: SystemActor): Promise<void> {
+  const deliverables = await attemptAllDeliverables(seu, systemActor);
+  // The producing Capability of an In Progress Deliverable has no eligible Participant. The Deliverable is held by a
+  // blocking Obligation, with an AttentionItem for the UI, until the Capability is fulfilled and the Obligation resolves.
+  const unavailable = event.payload as { capabilityId?: string } | null;
+  if (!unavailable?.capabilityId) throw new Error(`CapabilityUnavailable event ${event.id} carries no capabilityId`);
+  const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(seu.id, unavailable.capabilityId);
+  if (!seuCapability) throw new Error(`CapabilityUnavailable event ${event.id}: SEU ${seu.id} does not require Capability ${unavailable.capabilityId}`);
+  const { data: capabilities } = await seuCapabilitiesDB.findBySeuId(seu.id);
+  const capabilityCode = (capabilities ?? []).find((c) => c.id === seuCapability.id)?.capability_code ?? unavailable.capabilityId;
+  for (const deliverable of deliverables) {
+    if (deliverable.producing_capability_id !== unavailable.capabilityId || deliverable.lifecycle_state !== DELIVERABLE_PRODUCING_STATE) continue;
+    await blockDeliverableForUnavailableCapability(seu.id, deliverable, capabilityCode, event, systemActor);
   }
+}
 
-  if (event.event_type === "DispatchRejected") {
-    // Dispatch reads the pool snapshot persisted with the Command. A fulfilment that landed after that snapshot was
-    // taken but before the rejection was consumed as CapabilityFulfilled while this Command was still in flight, so
-    // it re-issued nothing. The rejection is the trigger that closes that window: the Command is now Failed, and the
-    // Deliverable gets a new one whose pool is taken from the fulfilments that exist now.
-    const rejected = event.payload as { commandId?: string | null; reason?: string } | null;
-    if (!rejected?.commandId) return;
-    const { data: rejectedCommand } = await commandsDB.findById(rejected.commandId);
-    if (!rejectedCommand || rejectedCommand.entity_type !== "Deliverable") return;
-    const deliverable = (deliverables ?? []).find((d) => d.id === rejectedCommand.entity_id);
-    if (!deliverable?.producing_capability_id) return;
+// A Capability has been fulfilled. Only the Deliverables it produces are attempted, and only those that are ready. A
+// Deliverable already In Progress whose producing Capability has just been fulfilled gets its producing Command,
+// unless one is still in flight or already produced. A Failed one (empty pool) does not count.
+async function processCapabilityFulfilled(event: EventRow, seu: SeuRow, systemActor: SystemActor): Promise<void> {
+  const fulfilled = event.payload as { capabilityId?: string } | null;
+  if (!fulfilled?.capabilityId) throw new Error(`CapabilityFulfilled event ${event.id} carries no capabilityId`);
+  const { data } = await deliverablesDB.findBySeuId(seu.id);
+  const producedByCapability = (data ?? []).filter((d) => d.producing_capability_id === fulfilled.capabilityId);
+  const ready: DeliverableRow[] = [];
+  for (const deliverable of producedByCapability) {
+    const { ready: isReady } = await dependencyDefinitionEngine.isTargetReady(seu.id, "Deliverable", deliverable.name, DELIVERABLE_PRODUCING_STATE);
+    if (isReady) ready.push(deliverable);
+  }
+  await attemptGovernedTransitions(ready, systemActor);
+  for (const deliverable of producedByCapability) {
     await reissueProducingCommand(seu.id, deliverable, event, systemActor);
-    return;
   }
+}
 
-  if (event.event_type !== "DeliverableTransitioned") return;
-  const payload = event.payload as { toState?: string; commandId?: string } | null;
-  if (payload?.toState !== DELIVERABLE_PRODUCING_STATE) return;
+async function processDispatchRejected(event: EventRow, seu: SeuRow, systemActor: SystemActor): Promise<void> {
+  const deliverables = await attemptAllDeliverables(seu, systemActor);
+  // Dispatch reads the pool snapshot persisted with the Command. A fulfilment that landed after that snapshot was
+  // taken but before the rejection was consumed as CapabilityFulfilled while this Command was still in flight, so
+  // it re-issued nothing. The rejection is the trigger that closes that window: the Command is now Failed, and the
+  // Deliverable gets a new one whose pool is taken from the fulfilments that exist now.
+  const rejected = event.payload as { commandId?: string | null; reason?: string } | null;
+  if (!rejected?.commandId) return;
+  const { data: rejectedCommand } = await commandsDB.findById(rejected.commandId);
+  if (!rejectedCommand || rejectedCommand.entity_type !== "Deliverable") return;
+  const deliverable = deliverables.find((d) => d.id === rejectedCommand.entity_id);
+  if (!deliverable?.producing_capability_id) return;
+  await reissueProducingCommand(seu.id, deliverable, event, systemActor);
+}
+
+// A Deliverable has moved. Only the Deliverables that depend on it at its new state are attempted. When it moved to
+// the producing state, its producing Command is issued.
+async function processDeliverableTransitioned(event: EventRow, seu: SeuRow, systemActor: SystemActor): Promise<void> {
+  const payload = event.payload as { deliverableName?: string; toState?: string; commandId?: string } | null;
+  if (!payload?.deliverableName || !payload.toState) throw new Error(`DeliverableTransitioned event ${event.id} carries no deliverableName or toState`);
+  const scope = await resolveSeuOwningScope(seu);
+  const { data: successors } = await deliverablesDB.findSuccessors(seu.id, scope.dependencyDefinitionIds, "Deliverable", payload.deliverableName, payload.toState);
+  const ready: DeliverableRow[] = [];
+  for (const successor of successors ?? []) {
+    const { ready: isReady } = await dependencyDefinitionEngine.isTargetReady(seu.id, "Deliverable", successor.name, DELIVERABLE_PRODUCING_STATE);
+    if (isReady) ready.push(successor);
+  }
+  await requestProducingCapabilities(seu.id, ready);
+  await attemptGovernedTransitions(ready, systemActor);
+  if (payload.toState !== DELIVERABLE_PRODUCING_STATE) return;
   if (!payload.commandId) throw new Error(`DeliverableTransitioned event ${event.id} carries no commandId`);
   const { data: transitionCommand } = await commandsDB.findById(payload.commandId);
   if (!transitionCommand) throw new Error(`Command ${payload.commandId} not found for DeliverableTransitioned event ${event.id}`);
@@ -127,7 +189,7 @@ export const deliverableKickoffHandler: EventHandler = async (event: EventRow) =
       governanceOutcomeId: transitionCommand.governance_outcome_id,
     });
   });
-};
+}
 
 // Issues a new producing Command for an In Progress Deliverable that has none in flight or Completed and whose
 // producing Capability has an active fulfilment now. The new Command carries a pool taken from those fulfilments.

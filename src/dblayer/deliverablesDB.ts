@@ -48,6 +48,25 @@ export const deliverablesDB = {
     }
   },
 
+  // The Deliverables of the SEU that depend on the named Deliverable at the given state: the targets of every dependency row, among the given rows, whose source it is.
+  async findSuccessors(seuId: string, dependencyDefinitionIds: string[], entityType: string, fromName: string, fromState: string): Promise<DbResult<DeliverableRow[]>> {
+    try {
+      const { rows } = await query<DeliverableRow>(
+        `SELECT DISTINCT d.* FROM dependency_definitions dd
+         JOIN deliverables d ON d.seu_id = $1 AND d.name = dd.to_name
+         WHERE dd.id = ANY($2::uuid[])
+           AND dd.from_entity_type = $3 AND dd.to_entity_type = $3
+           AND dd.from_name = $4 AND dd.from_state = $5
+         ORDER BY d.created_at`,
+        [seuId, dependencyDefinitionIds, entityType, fromName, fromState]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[deliverablesDB] findSuccessors error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findByCategory(category: string): Promise<DbResult<DeliverableRow[]>> {
     try {
       const { rows } = await query<DeliverableRow>("SELECT * FROM deliverables WHERE category = $1 ORDER BY created_at DESC", [category]);

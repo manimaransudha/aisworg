@@ -110,9 +110,8 @@ export const CONFLICT_RESULT_GROUP_BY: Record<string, string[]> = {
 export const CONFLICT_RESULT_LONG_TEXT_COLUMNS: string[] = ["statement"];
 export const CONFLICT_RESULT_LONG_TEXT_SHORT_LENGTH = 120;
 
-// The Obligation raised for a blocked transition when the blocking Policy condition declares none (CR-106).
-export const BLOCKED_TRANSITION_OBLIGATION_CATEGORY = "Compliance";
-export const BLOCKED_TRANSITION_OBLIGATION_ORIGIN = "Policies";
+// The lock key prefix that serialises the Obligation a blocked transition raises, one lock for each blocked entity (CR-144).
+export const BLOCKED_TRANSITION_LOCK_NAMESPACE = "blocked-transition-obligation";
 // The pages that show the whole definition of an entity named in a conflict result, for the link column of "What the SEU takes".
 export const CONFLICT_ENTITY_PAGES: Record<string, { label: string; path: string }> = {
   pack: { label: "Pack", path: "/aisworg/seu/packs" },

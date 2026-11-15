@@ -29,9 +29,15 @@ export const capabilityOnReadyHandler: EventHandler = async (event) => {
     }
   }
 
+  await requestProducingCapabilities(event.seu_id, deliverables);
+};
+
+// Requests fulfilment of the producing Capability of each given Deliverable, once for each Capability, unless it is
+// already Fulfilled or a request for it is still in flight. The request names no Participant.
+export async function requestProducingCapabilities(seuId: string, deliverables: DeliverableRow[]): Promise<void> {
   const capabilityIds = [...new Set(deliverables.map((d) => d.producing_capability_id).filter((id): id is string => !!id))];
-  const { data: seuCapabilities } = await seuCapabilitiesDB.findBySeuId(event.seu_id);
-  const { data: events } = await eventsDB.findByOriginatingObject("SEU", event.seu_id);
+  const { data: seuCapabilities } = await seuCapabilitiesDB.findBySeuId(seuId);
+  const { data: events } = await eventsDB.findByOriginatingObject("SEU", seuId);
   const toRequest = capabilityIds.filter((capabilityId) => {
     if ((seuCapabilities ?? []).find((c) => c.capability_id === capabilityId)?.status !== "Unfulfilled") return false;
     const latest = (events ?? [])
@@ -42,8 +48,8 @@ export const capabilityOnReadyHandler: EventHandler = async (event) => {
   });
   if (toRequest.length === 0) return;
 
-  const systemActor = await getSystemActor(event.seu_id);
+  const systemActor = await getSystemActor(seuId);
   for (const capabilityId of toRequest) {
-    await requestCapabilityFulfilment({ seuId: event.seu_id, capabilityId, actorId: systemActor.actorId, authorBadge: systemActor.authorBadge });
+    await requestCapabilityFulfilment({ seuId, capabilityId, actorId: systemActor.actorId, authorBadge: systemActor.authorBadge });
   }
-};
+}

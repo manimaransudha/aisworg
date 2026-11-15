@@ -58,6 +58,7 @@ async function scopeToParticipant(detail: SeuDetailView, participantId: string, 
     externalInteractions,
     events,
     blockedTransition: detail.blockedTransition,
+    dependencyGraph: detail.dependencyGraph,
     attentionItems: detail.attentionItems.filter((a) => a.attentionItem.related_object_id != null && relevantObjectIds.has(a.attentionItem.related_object_id)),
   };
 }

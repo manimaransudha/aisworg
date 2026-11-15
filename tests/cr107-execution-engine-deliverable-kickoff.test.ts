@@ -53,10 +53,9 @@ async function commissionBlockedSeu(run: string) {
     authorBadge: packRow!.author_badge,
   });
   assert.ok(seuPolicy);
-  // raiseObligationForBlockedTransition now raises nothing at all unless the
-  // blocking Policy's own Definition declares a relatedObligations[] entry —
-  // a bare policiesDB.upsert row (no policy_definitions counterpart) used to
-  // rely on a since-removed generic fallback.
+  // raiseObligationForBlockedTransition raises the Obligations the blocking Policy's own
+  // Definition declares in relatedObligations[]. A bare policiesDB.upsert row (no
+  // policy_definitions counterpart) raises no Obligation. This test declares its own.
   await ensurePolicyDefinitionWithObligation({ code: policyCode, name: `CR-107 commence-work policy ${run}`, category: "Compliance", title: `CR-107 commence-work blocker ${run}` });
 
   const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,

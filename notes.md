@@ -301,3 +301,13 @@ Save draft and you should see the dependency graph updated
 draft editing is in sdk authoring
 
 Choose Configuration parameters
+
+
+-------
+
+
+
+SELECT o.related_object_id, o.title, o.created_at
+FROM obligations o
+WHERE o.seu_id = '6afb9ed8-f60c-4418-a0c8-5f34addbb1c0'
+ORDER BY o.created_at;

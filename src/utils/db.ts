@@ -168,6 +168,43 @@ export async function withTransaction<T>(work: () => Promise<T>): Promise<T> {
     }
 }
 
+// Serialises `work` for one key (CR-144). An attempt that asks for a key another attempt holds waits until that attempt finishes.
+// The key is not tied to a row or a table. Two steps:
+//   1. A promise chain in this process, so only one attempt for a key holds a pooled connection while the others wait.
+//   2. A session advisory lock on a connection of its own, so a second process is held back too.
+// The work runs on the pool as usual and commits before the lock is released. It must not run inside `withTransaction`,
+// where its writes are not visible to the next holder until the transaction commits.
+const inProcessLocks = new Map<string, Promise<void>>();
+export async function withAdvisoryLock<T>(key: string, work: () => Promise<T>): Promise<T> {
+    if (transactionClient.getStore()) throw new Error(`withAdvisoryLock("${key}") was called inside a transaction`);
+    const previous = inProcessLocks.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const mine = new Promise<void>((resolve) => { release = resolve; });
+    const tail = previous.then(() => mine);
+    inProcessLocks.set(key, tail);
+    await previous;
+    try {
+        const client = await pool.connect();
+        let unlocked = true;
+        try {
+            await client.query("SELECT pg_advisory_lock(hashtextextended($1, 0))", [key]);
+            unlocked = false;
+            try {
+                return await work();
+            } finally {
+                await client.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [key]);
+                unlocked = true;
+            }
+        } finally {
+            // A connection that still holds the lock is destroyed, which ends its session and drops the lock.
+            client.release(!unlocked);
+        }
+    } finally {
+        release();
+        if (inProcessLocks.get(key) === tail) inProcessLocks.delete(key);
+    }
+}
+
 export const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> => runStatement<T>(text, params);
 
 export function bulkInsert<T extends QueryResultRow = QueryResultRow>(table: string, columns: string[], rows: unknown[][], options: { onConflict?: string } = {}): Promise<QueryResult<T>> {

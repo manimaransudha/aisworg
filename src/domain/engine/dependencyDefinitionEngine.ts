@@ -112,6 +112,14 @@ export const dependencyDefinitionEngine = {
 
   isRowSatisfied,
 
+  // A start node is a named node that no dependency row of the SEU's owning scope points at.
+  async isStartNode(seuId: string, toEntityType: DependencyDefinitionEntityType, toName: string): Promise<boolean> {
+    const scope = await resolveOwningScope(seuId);
+    if (!scope) return true;
+    const { data: rows } = await dependencyDefinitionsDB.findByTargetName(scope, toEntityType, toName);
+    return !rows || rows.length === 0;
+  },
+
   async evaluateAndPublishFromTransition(input: {
     seuId: string;
     entityType: DependencyDefinitionEntityType;

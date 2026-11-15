@@ -179,7 +179,7 @@ test("a Deliverable moving into the producing state gets no producing Command wh
   };
   const transitioned = async (deliverable: DeliverableRow, commandId: string) =>
     deliverableKickoffHandler(await publishTestEvent({
-      eventType: "DeliverableTransitioned", originatingObjectType: "Deliverable", originatingObjectId: deliverable.id, seuId: t.seu.id, payload: { toState: "In Progress", commandId },
+      eventType: "DeliverableTransitioned", originatingObjectType: "Deliverable", originatingObjectId: deliverable.id, seuId: t.seu.id, payload: { deliverableName: deliverable.name, toState: "In Progress", commandId },
     }));
 
   const liveTransition = await command(live.id, "Defined");

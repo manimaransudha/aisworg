@@ -65,7 +65,7 @@ async function seuEventTypes(seuId: string): Promise<string[]> {
 }
 
 test("DRIVEN: a request naming no Participant is fulfilled from the eligible pool and publishes one CapabilityFulfilled", async () => {
-  // Commissioned where the pool is empty, so the commissioning's own request ends Unavailable and the request under
+  // Commissioned where the pool is empty, so a request made while the SEU becomes Operational ends Unavailable and the request under
   // test is the only one that finds the Participant added afterwards.
   const { seuId, capabilityId } = await commissionSeuWithCapability("cr126-pool-fulfil", { withEligibleParticipant: false, tenantId: await getEmptyPoolTenantId() });
   await settleCapabilityRequests(seuId, capabilityId);
@@ -114,7 +114,7 @@ test("DRIVEN: a request for a Capability no Participant holds publishes Capabili
 
 test("DRIVEN: the retry sweep re-requests an unavailable Capability after the delay and skips one already in flight", async () => {
   // Commissioned for a Capability no Participant holds, so the pool is empty by data and no other file's Participants matter. It is settled
-  // first, so the commissioning's own request is finished and the
+  // first, so a request made while the SEU became Operational is finished and the
   // only request in flight is the sweep's. The Participant is added afterwards, so the re-request can be fulfilled.
   const { seuId, capabilityId } = await commissionSeuWithCapability("cr126-retry-sweep", { capabilityCode: UNHELD_CAPABILITY_CODE, withEligibleParticipant: false, tenantId: await getEmptyPoolTenantId() });
   await settleCapabilityRequests(seuId, capabilityId);

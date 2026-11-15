@@ -19,6 +19,8 @@ import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
 import { deliverableKickoffHandler } from "../src/domain/engine/deliverableKickoff.js";
+import { requestProducingCapabilities } from "../src/domain/engine/capabilityOnReady.js";
+import { eventsDB } from "../src/dblayer/eventsDB.js";
 import type { DeliverableRow } from "../src/dblayer/seuTypes.js";
 import { publishTestEvent } from "./engineFixtures.js";
 import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
@@ -58,8 +60,8 @@ const event = (eventType: string, payload: Record<string, unknown>, originatingO
 
 const obligationsOf = async (deliverableId: string) => (await obligationsDB.findByRelatedObject("Deliverable", deliverableId)).data ?? [];
 
-test("the handler ignores an event with no SEU and an event for an SEU that does not exist", async () => {
-  await deliverableKickoffHandler({ ...(await event("CapabilityFulfilled", {})), seu_id: null });
+test("the handler refuses an event with no SEU and ignores an event for an SEU that does not exist", async () => {
+  await assert.rejects(async () => deliverableKickoffHandler({ ...(await event("CapabilityFulfilled", {})), seu_id: null }), /carries no seuId/);
   await deliverableKickoffHandler({ ...(await event("CapabilityUnavailable", { capabilityId })), seu_id: randomUUID() });
   assert.equal((await obligationsOf(producing.id)).length, 0);
 });
@@ -84,8 +86,9 @@ test("an unavailable producing Capability holds the Deliverable that is In Progr
 });
 
 test("a Deliverable transition into In Progress is refused without its Command, and ignored when the Command exists but the Deliverable does not", async () => {
-  await assert.rejects(async () => deliverableKickoffHandler(await event("DeliverableTransitioned", { toState: "In Progress" }, producing.id)), /carries no commandId/);
-  await assert.rejects(async () => deliverableKickoffHandler(await event("DeliverableTransitioned", { toState: "In Progress", commandId: randomUUID() }, producing.id)), /not found for DeliverableTransitioned/);
+  await assert.rejects(async () => deliverableKickoffHandler(await event("DeliverableTransitioned", { toState: "In Progress" }, producing.id)), /carries no deliverableName or toState/);
+  await assert.rejects(async () => deliverableKickoffHandler(await event("DeliverableTransitioned", { deliverableName: producing.name, toState: "In Progress" }, producing.id)), /carries no commandId/);
+  await assert.rejects(async () => deliverableKickoffHandler(await event("DeliverableTransitioned", { deliverableName: producing.name, toState: "In Progress", commandId: randomUUID() }, producing.id)), /not found for DeliverableTransitioned/);
 
   const { data: command, error } = await commandsDB.create({
     seuId: t.seu.id, entityType: "Deliverable", entityId: producing.id, commandType: `zz-kickoff-${run}`, fromState: "Defined", toState: "In Progress",
@@ -94,6 +97,21 @@ test("a Deliverable transition into In Progress is refused without its Command, 
   assert.ok(command && !error, error);
   const producingCommands = async () => ((await commandsDB.findBySeuId(t.seu.id)).data ?? []).filter((c) => c.from_state === "In Progress" && c.to_state === "In Progress").length;
   const before = await producingCommands();
-  await deliverableKickoffHandler(await event("DeliverableTransitioned", { toState: "In Progress", commandId: command.id }, randomUUID()));
+  await deliverableKickoffHandler(await event("DeliverableTransitioned", { deliverableName: producing.name, toState: "In Progress", commandId: command.id }, randomUUID()));
   assert.equal(await producingCommands(), before, "no producing Command is issued");
+});
+
+test("requestProducingCapabilities requests each Capability once, and again only when the last request ended Unavailable", async () => {
+  const requests = async () => ((await eventsDB.findByOriginatingObject("SEU", t.seu.id)).data ?? []).filter((e) => e.event_type === "CapabilityRequested" && (e.payload as { capabilityId?: string }).capabilityId === capabilityId).length;
+  const before = await requests();
+
+  await requestProducingCapabilities(t.seu.id, [producing, approved]);
+  assert.equal(await requests(), before + 1, "the two Deliverables share one Capability, so there is one request");
+
+  await requestProducingCapabilities(t.seu.id, [producing]);
+  assert.equal(await requests(), before + 1, "the request is still in flight, so there is no second one");
+
+  await event("CapabilityUnavailable", { capabilityId });
+  await requestProducingCapabilities(t.seu.id, [producing]);
+  assert.equal(await requests(), before + 2, "the last request ended Unavailable, so it is requested again");
 });

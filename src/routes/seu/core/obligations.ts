@@ -15,7 +15,8 @@ import { assertCanonicalCategory } from "./ontology.js";
 import { raiseAttentionItem, resolveAuthor } from "./attentionItems.js";
 import type { AttentionItemRow, ObligationDefinition, ObligationRow, PolicyApplicabilityDeliverable, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { BLOCKED_TRANSITION_OBLIGATION_CATEGORY, BLOCKED_TRANSITION_OBLIGATION_ORIGIN, getSystemActor } from "../../../dblayer/constants.js";
+import { withAdvisoryLock } from "../../../utils/db.js";
+import { BLOCKED_TRANSITION_LOCK_NAMESPACE, getSystemActor } from "../../../dblayer/constants.js";
  
 export async function resolveSeuIdFromRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<string> {
   if (relatedObjectType === "SEU") return relatedObjectId;
@@ -140,84 +141,53 @@ export async function raiseObligationForBlockedTransition(input: {
   const condition = definition?.conditions?.[conditionIndex];
   const declaredObligations = condition?.relatedObligations ?? [];
 
-  const { data: existingForEntity } = await obligationsDB.findByRelatedObject(input.relatedObjectType, input.relatedObjectId);
-  const stillOpenForThisTransition = (existingForEntity ?? []).filter(
-    (o) => o.blocked_to_state === input.toState && o.blocked_from_state === input.fromState && !RESOLVED_OBLIGATION_STATUSES.has(o.status)
-  );
-
-  const obligations: ObligationRow[] = [];
-  const attentionItems: AttentionItemRow[] = [];
-  for (const declared of declaredObligations) {
-    const existing = stillOpenForThisTransition.find((o) => o.title === declared.title);
-
-    const obligation =
-      existing ??
-      (await createObligation({
-        relatedObjectType: input.relatedObjectType,
-        relatedObjectId: input.relatedObjectId,
-        category: declared.category,
-        title: declared.title,
-        description: declared.description,
-        severity: declared.severity,
-        origin: declared.origin,
-        priority: declared.priority,
-        completionCriteria: declared.completionCriteria,
-        blockedFromState: input.fromState,
-        blockedToState: input.toState,
-        originatingEntityType: "Policy",
-        originatingEntityId: policy.id,
-        actorId: systemActor.actorId,
-        authorBadge: systemActor.authorBadge,
-      }));
-    obligations.push(obligation);
-
-    const { attentionItem } = await raiseAttentionItem({
-      seuId: input.seuId,
-      category: "Action Required",
-      title: `${input.relatedObjectType} is blocked by Policy "${policy.name}" — ${declared.title}`,
-      description: declared.description,
-      relatedObjectType: input.relatedObjectType,
-      relatedObjectId: input.relatedObjectId,
-      ...systemActor,
-    });
-    attentionItems.push(attentionItem);
-  }
-
-  // A condition that declares no Obligation still raises one generic Obligation, and a visible item on the SEU.
-  if (declaredObligations.length === 0) {
-    const genericTitle = `Resolve Policy "${policy.name}"`;
-    const genericDescription = condition?.statement ?? `The ${input.relatedObjectType} cannot move ${input.fromState} -> ${input.toState} until the Policy is satisfied.`;
-    const existingGeneric = stillOpenForThisTransition.find((o) => o.title === genericTitle);
-    obligations.push(
-      existingGeneric ??
-      (await createObligation({
-        relatedObjectType: input.relatedObjectType,
-        relatedObjectId: input.relatedObjectId,
-        category: BLOCKED_TRANSITION_OBLIGATION_CATEGORY,
-        title: genericTitle,
-        description: genericDescription,
-        origin: BLOCKED_TRANSITION_OBLIGATION_ORIGIN,
-        blockedFromState: input.fromState,
-        blockedToState: input.toState,
-        originatingEntityType: "Policy",
-        originatingEntityId: policy.id,
-        actorId: systemActor.actorId,
-        authorBadge: systemActor.authorBadge,
-      }))
+  // Attempts on the same entity run one after another, so the open-Obligation check and the create cannot both pass for two attempts (CR-144).
+  return withAdvisoryLock(`${BLOCKED_TRANSITION_LOCK_NAMESPACE}:${input.relatedObjectType}:${input.relatedObjectId}`, async () => {
+    const { data: existingForEntity } = await obligationsDB.findByRelatedObject(input.relatedObjectType, input.relatedObjectId);
+    const stillOpenForThisTransition = (existingForEntity ?? []).filter(
+      (o) => o.blocked_to_state === input.toState && o.blocked_from_state === input.fromState && !RESOLVED_OBLIGATION_STATUSES.has(o.status)
     );
-    const { attentionItem } = await raiseAttentionItem({
-      seuId: input.seuId,
-      category: "Action Required",
-      title: `${input.relatedObjectType} is blocked by Policy "${policy.name}"`,
-      description: condition?.statement ?? `The ${input.relatedObjectType} cannot move ${input.fromState} -> ${input.toState} until the Policy is satisfied.`,
-      relatedObjectType: input.relatedObjectType,
-      relatedObjectId: input.relatedObjectId,
-      ...systemActor,
-    });
-    attentionItems.push(attentionItem);
-  }
 
-  return { obligations, attentionItems };
+    const obligations: ObligationRow[] = [];
+    const attentionItems: AttentionItemRow[] = [];
+    for (const declared of declaredObligations) {
+      const existing = stillOpenForThisTransition.find((o) => o.title === declared.title);
+
+      const obligation =
+        existing ??
+        (await createObligation({
+          relatedObjectType: input.relatedObjectType,
+          relatedObjectId: input.relatedObjectId,
+          category: declared.category,
+          title: declared.title,
+          description: declared.description,
+          severity: declared.severity,
+          origin: declared.origin,
+          priority: declared.priority,
+          completionCriteria: declared.completionCriteria,
+          blockedFromState: input.fromState,
+          blockedToState: input.toState,
+          originatingEntityType: "Policy",
+          originatingEntityId: policy.id,
+          actorId: systemActor.actorId,
+          authorBadge: systemActor.authorBadge,
+        }));
+      obligations.push(obligation);
+
+      const { attentionItem } = await raiseAttentionItem({
+        seuId: input.seuId,
+        category: "Action Required",
+        title: `${input.relatedObjectType} is blocked by Policy "${policy.name}" — ${declared.title}`,
+        description: declared.description,
+        relatedObjectType: input.relatedObjectType,
+        relatedObjectId: input.relatedObjectId,
+        ...systemActor,
+      });
+      attentionItems.push(attentionItem);
+    }
+
+    return { obligations, attentionItems };
+  });
 }
 
 export async function raiseObligationsForPackDefinitions(input: {
