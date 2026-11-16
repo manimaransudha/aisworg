@@ -355,6 +355,7 @@ Verification: `tsc` ran with no errors. The tests, `db:clean-slate` and SQL were
   - tests/quality-gate-engine.test.ts: `createGate` uses `createGateRowWithDefinition`, and the waiver is granted by `quality_gate_definition_id`.
   - tests/execution-engine.test.ts: the first test (a Work Item records the gate of its governance outcome) uses `createGateRowWithDefinition` and the Definition id. The gate test expects `originating_pack_id` null for a waived outcome.
   - tests/cr104-composition-scoped-governance.test.ts: the EBM check compares `applicable_quality_gate_ids` with `quality_gate_definition_id`.
+  - tests/cr139-authority-rule-conflicts.test.ts, "unravelAuthorityRules: a Pack's roles for a step are one row...": the platform's row is no longer read, so the test expects no row with `packId` null. The read of `authority_rules` is kept as comments (item 29).
   - Not run. A search of tests/telemetry.test.ts, tests/telemetry-per-seu.test.ts and tests/web-flow.e2e.test.ts for gate ids found no use of a gate row id.
 
 - tests/pack-sdk.test.ts ("publishPack without activate: true ..."): a Published Pack has no Capability rows, and activating it writes them.

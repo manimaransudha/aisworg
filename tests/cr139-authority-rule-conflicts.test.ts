@@ -63,16 +63,18 @@ async function packNaming(...rules: Array<{ governedTransition: string; authoris
   return { packs: [pack!], directPackCodes: [pack!.code], warnings: [], dependencyConflicts: [] };
 }
 
-test("unravelAuthorityRules: a Pack's roles for a step are one row, and the platform's rule for that step is another", async () => {
+test("unravelAuthorityRules: a Pack's roles for a step are one row, and composition reads no platform rule for the step", async () => {
   const composedPacks = await packNaming({ governedTransition: STEP, authorisedRole: "lead" }, { governedTransition: STEP, authorisedRole: "manager" });
   const { rules } = await unravelAuthorityRules({ composedPacks });
   const fromPack = rules.filter((r) => r.packId !== null);
   assert.deepEqual(fromPack.map((r) => [r.step, r.roles]), [[STEP, ["lead", "manager"]]]);
 
-  const { data: definition } = await transitionDefinitionsDB.find("Deliverable", "In Progress", "Approved");
-  const { data: platformRule } = definition?.required_authority_rule_id ? await authorityRulesDB.findById(definition.required_authority_rule_id) : { data: null };
-  const fromPlatform = rules.filter((r) => r.packId === null);
-  assert.deepEqual(fromPlatform.map((r) => r.roles), platformRule ? [[platformRule.authorised_role]] : []);
+  // Commented out (owner): composition does not read the authority_rules row a Transition Definition names.
+  // const { data: definition } = await transitionDefinitionsDB.find("Deliverable", "In Progress", "Approved");
+  // const { data: platformRule } = definition?.required_authority_rule_id ? await authorityRulesDB.findById(definition.required_authority_rule_id) : { data: null };
+  // const fromPlatform = rules.filter((r) => r.packId === null);
+  // assert.deepEqual(fromPlatform.map((r) => r.roles), platformRule ? [[platformRule.authorised_role]] : []);
+  assert.deepEqual(rules.filter((r) => r.packId === null), []);
 });
 
 test("unravelAuthorityRules: a step with no definition has no platform row", async () => {
