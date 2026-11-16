@@ -223,25 +223,53 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
     }
   }
 
-  // A Pack lists the codes of the Quality Gate Definitions it takes. Each code resolves to an Active definition of the Platform or of the Pack's tenant (CR-145).
-  const gateCodes = seed.contributions.qualityGates ?? [];
+  // A Pack lists the Quality Gate Definitions it takes by code, and says where each applies and which of its own Checklists and Policies it uses (CR-145).
+  const gateEntries = seed.contributions.qualityGates ?? [];
   const seenGateCodes = new Set<string>();
-  for (const code of gateCodes) {
-    if (seenGateCodes.has(code)) errors.push(`duplicate quality gate within Pack: "${code}" is listed more than once`);
-    seenGateCodes.add(code);
+  for (const entry of gateEntries) {
+    if (!entry.qualityCode?.trim()) {
+      errors.push("quality gate is missing a qualityCode");
+      continue;
+    }
+    if (seenGateCodes.has(entry.qualityCode)) errors.push(`duplicate quality gate within Pack: "${entry.qualityCode}" is listed more than once`);
+    seenGateCodes.add(entry.qualityCode);
   }
   if (seenGateCodes.size > 0) {
     const gateTenantId = seed.tenantId ?? (await getPlatformTenantId());
     const { data: gateDefinitions } = await qualityGateDefinitionsDB.findActiveByCodesVisibleTo([...seenGateCodes], gateTenantId);
     const gateDefinitionByCode = new Map((gateDefinitions ?? []).map((d) => [d.code, d]));
-    for (const code of seenGateCodes) {
-      const definition = gateDefinitionByCode.get(code);
-      if (!definition) {
-        errors.push(`quality gate "${code}" is not an Active Quality Gate Definition of the Platform or of this tenant`);
-        continue;
+    const declaredChecklistNames = (seed.contributions.checklists ?? []).map((cl) => cl.name);
+    const { data: visibleReviewGates } = await reviewGatesDB.findActiveVisibleTo(gateTenantId);
+    const reviewGateCodes = new Set([...(seed.contributions.reviewGates ?? []).map((rg) => rg.code), ...(visibleReviewGates ?? []).map((g) => g.code)]);
+    for (const entry of gateEntries) {
+      if (!entry.qualityCode?.trim()) continue;
+      const context = `quality gate "${entry.qualityCode}"`;
+      const definition = gateDefinitionByCode.get(entry.qualityCode);
+      if (!definition) errors.push(`${context} is not an Active Quality Gate Definition of the Platform or of this tenant`);
+      const scope = parseGovernedTransition(entry.governedTransition);
+      if (!scope) {
+        errors.push(`${context} has an invalid governedTransition — expected "EntityType|fromState|toState"`);
+      } else {
+        const { data: transition } = await transitionDefinitionsDB.find(scope.entityType, scope.fromState, scope.toState);
+        if (!transition) errors.push(`${context} references a transition that doesn't exist: ${scope.entityType} ${scope.fromState} -> ${scope.toState}`);
       }
-      for (const policyCode of definition.required_policy_codes) {
-        if (!(seed.contributions.policies ?? []).includes(policyCode)) errors.push(`quality gate "${code}" requires Policy "${policyCode}", which this Pack does not adopt`);
+      if (entry.deliverableName?.trim()) {
+        try {
+          await assertCanonicalCategory("deliverable-name", entry.deliverableName, ontologyViewer);
+        } catch (err) {
+          errors.push(`${context} deliverableName: ${(err as Error).message}`);
+        }
+      }
+      for (const err of await validateChecklistIds((entry.checklists ?? []).map((c) => c.checklistId), declaredChecklistNames, seed.code, context)) errors.push(err);
+      for (const policyCode of entry.requiredPolicyCodes ?? []) {
+        if (!(seed.contributions.policies ?? []).includes(policyCode)) errors.push(`${context} requires Policy "${policyCode}", which this Pack does not adopt`);
+      }
+      if (definition?.criteria_type === QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY && !(entry.requiredPolicyCodes ?? []).length) {
+        errors.push(`${context} has criteriaType ${QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY} and needs requiredPolicyCodes`);
+      }
+      if (definition?.criteria_type === QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW) {
+        if (!entry.deliverableName?.trim()) errors.push(`${context} has criteriaType ${QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW} and needs a deliverableName (its review gate)`);
+        else if (!reviewGateCodes.has(entry.deliverableName)) errors.push(`${context} deliverableName "${entry.deliverableName}" is not a review gate of this Pack or an active review gate of an Active Pack of the Platform or of this tenant`);
       }
     }
   }
@@ -626,30 +654,33 @@ export async function materializeContributions(pack: PackRow, seed: Pick<PackSee
     reviewGateIdByCode.set(rg.code, reviewGate.id);
   }
 
-  // Each listed code resolves to its Active Quality Gate Definition, and the row the engine reads is written from it.
-  const gateCodes = seed.contributions.qualityGates ?? [];
-  if (gateCodes.length > 0) {
-    const { data: gateDefinitions } = await qualityGateDefinitionsDB.findActiveByCodesVisibleTo(gateCodes, pack.tenant_id);
+  // Each entry resolves its quality code to the Active Quality Gate Definition, and the row the engine reads is written from the definition and the entry.
+  const gateEntries = seed.contributions.qualityGates ?? [];
+  if (gateEntries.length > 0) {
+    const { data: gateDefinitions } = await qualityGateDefinitionsDB.findActiveByCodesVisibleTo(gateEntries.map((e) => e.qualityCode), pack.tenant_id);
     const gateDefinitionByCode = new Map((gateDefinitions ?? []).map((d) => [d.code, d]));
     const { data: visibleReviewGates } = await reviewGatesDB.findActiveVisibleTo(pack.tenant_id);
-    for (const code of gateCodes) {
+    for (const entry of gateEntries) {
+      const code = entry.qualityCode;
       const definition = gateDefinitionByCode.get(code);
       if (!definition) throw new Error(`quality gate "${code}" is not an Active Quality Gate Definition of the Platform or of this tenant`);
-      const scope = parseGovernedTransition(definition.governed_transition);
-      if (!scope) throw new Error(`quality gate "${code}" has an invalid governed transition "${definition.governed_transition}"`);
+      const scope = parseGovernedTransition(entry.governedTransition);
+      if (!scope) throw new Error(`quality gate "${code}" has an invalid governed transition "${entry.governedTransition}"`);
       let criteria: Record<string, unknown> = { type: definition.criteria_type };
       if (definition.criteria_type === QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY) {
-        const policyIds = definition.required_policy_codes.flatMap((policyCode) => policyIdByCode.get(policyCode) ?? []);
-        if (policyIds.length === 0 || definition.required_policy_codes.some((policyCode) => !policyIdByCode.has(policyCode))) {
+        const requiredPolicyCodes = entry.requiredPolicyCodes ?? [];
+        const policyIds = requiredPolicyCodes.flatMap((policyCode) => policyIdByCode.get(policyCode) ?? []);
+        if (policyIds.length === 0 || requiredPolicyCodes.some((policyCode) => !policyIdByCode.has(policyCode))) {
           throw new Error(`quality gate "${code}" requires a Policy that this Pack does not adopt`);
         }
         criteria = { type: definition.criteria_type, policyIds };
       } else if (definition.criteria_type === QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW) {
-        const reviewGateId = definition.review_gate_code ? (reviewGateIdByCode.get(definition.review_gate_code) ?? (visibleReviewGates ?? []).find((g) => g.code === definition.review_gate_code)?.id) : undefined;
+        const reviewGateId = entry.deliverableName ? (reviewGateIdByCode.get(entry.deliverableName) ?? (visibleReviewGates ?? []).find((g) => g.code === entry.deliverableName)?.id) : undefined;
         criteria = { type: definition.criteria_type, reviewGateId };
       } else if (definition.criteria_type === QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION) {
         criteria = { type: definition.criteria_type, evidenceCategory: definition.evidence_category };
       }
+      const checklists = entry.checklists ?? [];
       const { error } = await qualityGatesDB.upsert({
         code: definition.code,
         name: definition.name,
@@ -659,9 +690,9 @@ export async function materializeContributions(pack: PackRow, seed: Pick<PackSee
         toState: scope.toState,
         criteria,
         originatingPackId: pack.id,
-        checklistIds: definition.checklist_ids,
-        recommendedChecklistIds: definition.recommended_checklist_ids,
-        applicabilityDeliverableNames: definition.applicability_deliverable_names,
+        checklistIds: resolveChecklistIds(checklists.filter((c) => c.mandatory === true).map((c) => c.checklistId)),
+        recommendedChecklistIds: resolveChecklistIds(checklists.filter((c) => c.mandatory !== true).map((c) => c.checklistId)),
+        applicabilityDeliverableNames: entry.deliverableName?.trim() ? [entry.deliverableName] : [],
         authorId: pack.authored_by,
         authorBadge: pack.author_badge,
       });

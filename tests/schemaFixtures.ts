@@ -390,21 +390,17 @@ export async function maximalPolicy(tenantId: string, input: { code: string; del
 
 // The Quality Gate Definition: every property of the schema filled except the ones that name a Checklist or a review gate, which belong to a Pack that is
 // Active only after the Pack lists this gate. The gate requires the Policy, so a Pack that lists it adopts that Policy.
-export async function maximalQualityGate(tenantId: string, input: { code: string; policyCode: string; outputDeliverableCode: string }): Promise<FixtureRow> {
+export async function maximalQualityGate(tenantId: string, input: { code: string }): Promise<FixtureRow> {
   const [category] = await platformConceptCodes("category:quality-gate", 1);
   const [evidenceCategory] = await platformConceptCodes("category:evidence", 1);
-  const [transition] = await deliverableTransitions(1);
   const content: Record<string, unknown> = {
     code: input.code,
     version: FIXTURE_VERSION,
     name: `Fixture Quality Gate`,
     description: `Fixture Quality Gate, every property of the Quality Gate schema filled.`,
     category,
-    governedTransition: transition,
     criteriaType: "requires_active_policy",
     evidenceCategory,
-    requiredPolicyCodes: [input.policyCode],
-    applicabilityDeliverableNames: [input.outputDeliverableCode],
     participant: "AI+human",
     classification: "machine-verifiable",
     outputContract: "passed-failed-notes",
@@ -507,7 +503,15 @@ export async function maximalPack(
         recommendedChecklistIds: [checklistName],
       },
     ],
-    contributionQualityGates: [input.qualityGate.code],
+    contributionQualityGates: [
+      {
+        qualityCode: input.qualityGate.code,
+        governedTransition: transitions[0],
+        deliverableName: input.outputDeliverableCode,
+        checklists: [{ checklistId: checklistName, mandatory: true }],
+        requiredPolicyCodes: [input.policy.code],
+      },
+    ],
     contributionObligationDefinitions: [
       {
         code: `fixture-obligation`,
@@ -689,7 +693,7 @@ async function stage1(tenantId: string): Promise<Stage1Fixtures> {
   });
   const policy = await maximalPolicy(tenantId, { code: `fixture-policy`, deliverableCode: FIXTURE_CODES.output.code });
   const standardPolicy = await maximalPolicy(tenantId, { code: `fixture-standard`, deliverableCode: FIXTURE_CODES.output.code, standard: true });
-  const qualityGate = await maximalQualityGate(tenantId, { code: FIXTURE_CODES.qualityGate.code, policyCode: policy.code, outputDeliverableCode: FIXTURE_CODES.output.code });
+  const qualityGate = await maximalQualityGate(tenantId, { code: FIXTURE_CODES.qualityGate.code });
   return { tenantId, capability, capabilityB, inputDeliverable, outputDeliverable, service, policy, standardPolicy, qualityGate };
 }
 

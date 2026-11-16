@@ -3,7 +3,6 @@
   "name": "No Unresolved Obligations",
   "description": "A Deliverable leaves In Progress only when none of its Obligations is still open.",
   "category": "Exit",
-  "governedTransition": "Deliverable|In Progress|Approved",
   "criteriaType": "no_unresolved_obligations",
   "classification": "machine-verifiable",
   "participant": "AI",

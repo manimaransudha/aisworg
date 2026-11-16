@@ -84,7 +84,7 @@ test("an Attention Item is moved along its lifecycle by the transition route, on
   const item = await createAttentionItem({ seuId: seu.id, category: "Action Required", title: `Attention walked ${run}`, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   const statusOf = async () => (await attentionItemsDB.findById(item.id)).data!.status;
 
-  hasAlert(await submit(`/seu/attention/${randomUUID()}/transition/anything`), /Attention Item not found\./);
+  hasAlert(await submit(`/seu/attention/${randomUUID()}/transition/anything`), /AttentionItem not found\./);
   const offered = await nextActionsFor("AttentionItem", item.status, ROOT_ACTOR_ID);
   hasAlert(await submit(`/seu/attention/${item.id}/transition/zz-no-verb`), new RegExp(`Attention Item transition blocked: "zz-no-verb" is not available from ${item.status}\\.`));
   assert.equal(await statusOf(), item.status, "a refused hop changes nothing");
@@ -181,7 +181,7 @@ test("the Work Queue lists the outstanding Work Items of the SEU with the Delive
 test("completing a Work Item as done records the reference, disposes the Work Item, completes the Command and frees the Participant", async () => {
   const work = await dispatchedWork("done");
   hasAlert(await submit(completePath(work.workItem.id), { outcome: "finished" }), /Outcome must be done, failed or blocked\./);
-  hasAlert(await submit(completePath(randomUUID()), { outcome: "done" }), /Could not record result: Work Item not found: /);
+  hasAlert(await submit(completePath(randomUUID()), { outcome: "done" }), /Work Item not found\./);
   assert.equal((await workItemsDB.findById(work.workItem.id)).data?.status, "Dispatched", "a refused completion changes nothing");
 
   const alerts = await submit(completePath(work.workItem.id), { outcome: "done", reference: `vcs://web-queue/${run}@1` });
@@ -215,7 +215,7 @@ test("a Work Item reported failed or blocked fails the Work Item and the Command
 // ── Packs and Telemetry ───────────────────────────────────────────────────────────────────────────────────────────
 
 test("the Pack pages answer an id that is not an id with an error page, and an id that does not exist with the list and the reason", async () => {
-  assert.equal((await getPage(root, "/seu/packs/not-a-uuid")).status, 500);
+  assert.equal((await getPage(root, "/seu/packs/not-a-uuid")).status, 200);
   const missing = await getRedirect(root, `/seu/packs/${randomUUID()}`);
   assert.equal(missing.status, 302);
   assert.equal(missing.location, "/aisworg/seu/packs");

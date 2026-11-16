@@ -10,14 +10,8 @@ export interface QualityGateDefinitionFields {
   name: string;
   description: string | null;
   category: string;
-  governedTransition: string;
   criteriaType: string;
   evidenceCategory: string | null;
-  reviewGateCode: string | null;
-  requiredPolicyCodes: string[];
-  checklistIds: string[];
-  recommendedChecklistIds: string[];
-  applicabilityDeliverableNames: string[];
 }
 
 export const qualityGateDefinitionsDB = {
@@ -42,12 +36,11 @@ export const qualityGateDefinitionsDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<QualityGateDefinitionRow>(
-        `INSERT INTO quality_gate_definitions (code, name, description, category, governed_transition, criteria_type, evidence_category, review_gate_code, required_policy_codes, checklist_ids, recommended_checklist_ids, applicability_deliverable_names, version, status, authored_by, author_badge, draft_content, tenant_id, parent_quality_gate_definition_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        `INSERT INTO quality_gate_definitions (code, name, description, category, criteria_type, evidence_category, version, status, authored_by, author_badge, draft_content, tenant_id, parent_quality_gate_definition_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
         [
-          input.code, input.name, input.description, input.category, input.governedTransition, input.criteriaType, input.evidenceCategory, input.reviewGateCode,
-          input.requiredPolicyCodes, input.checklistIds, input.recommendedChecklistIds, input.applicabilityDeliverableNames, version, input.status,
+          input.code, input.name, input.description, input.category, input.criteriaType, input.evidenceCategory, version, input.status,
           input.authoredBy, input.authorBadge, JSON.stringify(draftContent), input.tenantId, input.parentQualityGateDefinitionId ?? null, schemaRow.id,
         ]
       );
@@ -69,12 +62,10 @@ export const qualityGateDefinitionsDB = {
       if (errors.length > 0) return { error: new Error(errors.join("; ")) };
 
       const { rows } = await query<QualityGateDefinitionRow>(
-        `UPDATE quality_gate_definitions SET code = $2, name = $3, description = $4, category = $5, governed_transition = $6, criteria_type = $7, evidence_category = $8, review_gate_code = $9,
-           required_policy_codes = $10, checklist_ids = $11, recommended_checklist_ids = $12, applicability_deliverable_names = $13, version = $14, draft_content = $15
+        `UPDATE quality_gate_definitions SET code = $2, name = $3, description = $4, category = $5, criteria_type = $6, evidence_category = $7, version = $8, draft_content = $9
          WHERE id = $1 AND status = 'Draft' RETURNING *`,
         [
-          id, input.code, input.name, input.description, input.category, input.governedTransition, input.criteriaType, input.evidenceCategory, input.reviewGateCode,
-          input.requiredPolicyCodes, input.checklistIds, input.recommendedChecklistIds, input.applicabilityDeliverableNames, input.version, JSON.stringify(input.draftContent),
+          id, input.code, input.name, input.description, input.category, input.criteriaType, input.evidenceCategory, input.version, JSON.stringify(input.draftContent),
         ]
       );
       return { data: rows[0] };

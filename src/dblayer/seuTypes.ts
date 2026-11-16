@@ -81,13 +81,22 @@ export interface ChecklistItem {
   configurableValue?: string;
 }
 
+export interface PackQualityGate {
+  qualityCode: string;
+  // "EntityType|fromState|toState".
+  governedTransition: string;
+  deliverableName?: string;
+  checklists?: Array<{ checklistId: string; mandatory?: boolean }>;
+  requiredPolicyCodes?: string[];
+}
+
 export interface PackContributions {
   capabilities?: Array<{ code: string }>;
   services?: Array<{ code: string; serviceDefinitionId: string; serviceLevel?: Array<{ code: string; target: number }> }>;
   authorityRules?: Array<{ code: string; governedTransition: string; authorisedRole: string }>;
   policies?: string[];
-  // The codes of the Quality Gate Definitions this Pack takes (CR-145).
-  qualityGates?: string[];
+  // The Quality Gate Definitions this Pack takes, by code, with where each applies and the Checklists and Policies the Pack supplies (CR-145).
+  qualityGates?: PackQualityGate[];
   checklists?: Array<{ name: string; description?: string; items: ChecklistItem[] }>;
   reviewGates?: Array<{ code: string; name: string; governedTransition: string; checklistIds?: string[]; recommendedChecklistIds?: string[] } & VerifiableItemFields>;
   obligationDefinitions?: Array<{ code: string; applicabilityDeliverables?: PolicyApplicabilityDeliverable[] } & ObligationDefinition & Omit<VerifiableItemFields, "statement">>;
@@ -299,14 +308,8 @@ export interface QualityGateDefinitionRow {
   name: string;
   description: string | null;
   category: string;
-  governed_transition: string;
   criteria_type: string;
   evidence_category: string | null;
-  review_gate_code: string | null;
-  required_policy_codes: string[];
-  checklist_ids: string[];
-  recommended_checklist_ids: string[];
-  applicability_deliverable_names: string[];
   version: string;
   status: PolicyDefinitionStatus;
   draft_content: Record<string, unknown>;

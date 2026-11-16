@@ -2,7 +2,7 @@ import { qualityGateDefinitionsDB } from "../../../dblayer/qualityGateDefinition
 import type { QualityGateDefinitionRow } from "../../../dblayer/seuTypes.js";
 import type { ComposedPacks } from "./composedPacks.js";
 
-// A quality gate of a composed Pack for one Deliverable at one step. The fields of the gate are all that its Quality Gate Definition gives it, except where it applies.
+// A quality gate of a composed Pack for one Deliverable at one step. The fields of the gate come from its Quality Gate Definition. Where it applies, its Checklists and its Policies come from the Pack's entry.
 export interface QualityGateRow {
   packId: string;
   packCode: string;
@@ -31,8 +31,8 @@ export function unravelQualityGates(input: { composedPacks: ComposedPacks; defin
   const definitionByCode = new Map(input.definitions.map((d) => [d.code, d]));
   const gates: QualityGateRow[] = [];
   for (const pack of input.composedPacks.packs) {
-    for (const code of pack.contributions?.qualityGates ?? []) {
-      const definition = definitionByCode.get(code);
+    for (const entry of pack.contributions?.qualityGates ?? []) {
+      const definition = definitionByCode.get(entry.qualityCode);
       if (!definition) continue;
       const content = (definition.draft_content ?? {}) as Record<string, unknown>;
       const fields: Record<string, unknown> = {
@@ -41,16 +41,15 @@ export function unravelQualityGates(input: { composedPacks: ComposedPacks; defin
         category: definition.category,
         criteriaType: definition.criteria_type,
         evidenceCategory: definition.evidence_category ?? undefined,
-        requiredPolicyCodes: sorted(definition.required_policy_codes),
+        requiredPolicyCodes: sorted(entry.requiredPolicyCodes),
       };
       for (const field of CONTENT_FIELDS) if (content[field] !== undefined) fields[field] = content[field];
-      const deliverables = [...new Set([...(definition.review_gate_code ? [definition.review_gate_code] : []), ...(definition.applicability_deliverable_names ?? [])])];
-      for (const deliverable of deliverables.length > 0 ? deliverables : [""]) {
-        gates.push({
-          packId: pack.id, packCode: pack.code, deliverable, step: definition.governed_transition, fields,
-          checklistIds: sorted(definition.checklist_ids), recommendedChecklistIds: sorted(definition.recommended_checklist_ids),
-        });
-      }
+      const checklists = entry.checklists ?? [];
+      gates.push({
+        packId: pack.id, packCode: pack.code, deliverable: entry.deliverableName ?? "", step: entry.governedTransition, fields,
+        checklistIds: sorted(checklists.filter((c) => c.mandatory === true).map((c) => c.checklistId)),
+        recommendedChecklistIds: sorted(checklists.filter((c) => c.mandatory !== true).map((c) => c.checklistId)),
+      });
     }
   }
   return { gates };
@@ -58,7 +57,7 @@ export function unravelQualityGates(input: { composedPacks: ComposedPacks; defin
 
 // The same, reading the Active definitions of the Platform and of the viewer's tenant.
 export async function unravelQualityGatesFor(input: { composedPacks: ComposedPacks }, viewerTenantId: string): Promise<QualityGatesUnraveled> {
-  const codes = [...new Set(input.composedPacks.packs.flatMap((pack) => pack.contributions?.qualityGates ?? []))];
+  const codes = [...new Set(input.composedPacks.packs.flatMap((pack) => (pack.contributions?.qualityGates ?? []).map((entry) => entry.qualityCode)))];
   const { data: definitions } = codes.length > 0 ? await qualityGateDefinitionsDB.findActiveByCodesVisibleTo(codes, viewerTenantId) : { data: [] };
   return unravelQualityGates({ composedPacks: input.composedPacks, definitions: definitions ?? [] });
 }

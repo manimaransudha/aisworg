@@ -183,7 +183,7 @@ test("a user is activated or deactivated and given exactly the roles posted, and
   assert.deepEqual(standing((await master(created.id))?.authorised_role).map((e) => e.role).filter((r) => r !== "general"), [], "no role posted revokes the roles that can be revoked");
 
   hasAlert(await submit(`/seu/identity/users/${ROOT_USER_ID}/update`, { isActive: "true", roles: [] }), /Could not update user: you can't edit your own account from here/);
-  hasAlert(await submit(`/seu/identity/users/${randomUUID()}/update`, { isActive: "true" }), /Could not update user: user not found/);
+  hasAlert(await submit(`/seu/identity/users/${randomUUID()}/update`, { isActive: "true" }), /User not found\./);
 });
 
 test("badges are granted to a user exactly as posted, and refused for a badge that does not exist, for root's own account and for a user that does not exist", async () => {
@@ -198,7 +198,7 @@ test("badges are granted to a user exactly as posted, and refused for a badge th
   hasAlert(await submit(`/seu/identity/badges/${created.id}/update`, { badges: `zz-no-badge-${run}` }), new RegExp(`Could not update authorised badges: "zz-no-badge-${run}" is not a real badge\\. Allowed: `));
   assert.deepEqual(standing((await master(created.id))?.authorised_badges).map((e) => e.badge), [badgeA], "a refused update changes nothing");
   hasAlert(await submit(`/seu/identity/badges/${ROOT_USER_ID}/update`, { badges: [badgeA] }), /Could not update authorised badges: you can't edit your own account from here/);
-  hasAlert(await submit(`/seu/identity/badges/${randomUUID()}/update`, { badges: [] }), /Could not update authorised badges: user not found/);
+  hasAlert(await submit(`/seu/identity/badges/${randomUUID()}/update`, { badges: [] }), /User not found\./);
 });
 
 test("the Identity hub shows its cards, including Route Authority for a holder of the route authority badge", async () => {

@@ -302,6 +302,7 @@ export async function reviseObligation(input: {
     if (!(field in input)) continue;
     const column = REVISABLE_FIELD_TO_COLUMN[field];
     const newValue = (input as Record<string, unknown>)[field];
+    if (newValue === undefined) continue;
     const oldValue = obligation[column];
     if (newValue === oldValue) continue;
     changes[field] = { from: oldValue, to: newValue };

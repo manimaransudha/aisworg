@@ -21,14 +21,8 @@
       var _list = function (values) { return (values || []).length ? values.join(', ') : '—'; };
       var _rows = [
         ['Category', _label('category:quality-gate', g.category)],
-        ['Governed transition', g.governed_transition.split('|').join(' · ')],
         ['Criteria', _label('quality-gate-criteria-type', g.criteria_type)],
-        ['Evidence category', g.evidence_category ? _label('category:evidence', g.evidence_category) : '—'],
-        ['Review gate', g.review_gate_code || '—'],
-        ['Required Policies', _list(g.required_policy_codes)],
-        ['Checklists', _list(g.checklist_ids)],
-        ['Recommended Checklists', _list(g.recommended_checklist_ids)],
-        ['Applies to Deliverables', (g.applicability_deliverable_names || []).length ? g.applicability_deliverable_names.map(function (n) { return _label('deliverable-name', n); }).join(', ') : 'Every Deliverable at this transition']
+        ['Evidence category', g.evidence_category ? _label('category:evidence', g.evidence_category) : '—']
       ];
     %>
 

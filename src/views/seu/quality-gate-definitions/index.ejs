@@ -74,7 +74,6 @@
               <% } %>
             </p>
             <% if (g.description) { %><p class="small mb-2"><%= g.description %></p><% } %>
-            <p class="small text-muted mb-1">Governs: <%= g.governed_transition.split('|').join(' &middot; ') %></p>
             <p class="small text-muted mb-2">Criteria: <%= g.criteria_type %></p>
             <div class="d-flex gap-2">
               <a href="/aisworg/seu/quality-gate-definitions/<%= g.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>

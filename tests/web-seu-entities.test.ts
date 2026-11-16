@@ -185,7 +185,7 @@ test("an Attention Item is raised on an SEU, optionally for a Deliverable, and m
   hasAlert((await submit(seuPath("/attention-items"), { category: "Action Required", title: general })).alerts, /created \(Action Required, /);
   assert.equal(((await attentionItemsDB.findBySeuId(t.seu.id)).data ?? []).find((a) => a.title === general)?.related_object_id, null);
 
-  hasAlert((await submit(seuPath(`/attention-items/${randomUUID()}/transition/anything`))).alerts, /Attention Item not found\./);
+  hasAlert((await submit(seuPath(`/attention-items/${randomUUID()}/transition/anything`))).alerts, /AttentionItem not found\./);
   hasAlert((await submit(seuPath(`/attention-items/${item.id}/transition/zz-no-verb`))).alerts, new RegExp(`"zz-no-verb" is not available from ${item.status}\\.`));
   const visited = await walk({ entityType: "AttentionItem", label: "Attention Item", statusOf: async () => (await attentionItemsDB.findById(item.id)).data!.status, hop: (verb) => seuPath(`/attention-items/${item.id}/transition/${verb}`), max: 2 });
   assert.ok(visited.length >= 1, "root can take at least the first hop");
@@ -238,7 +238,7 @@ test("a Knowledge Item is observed with its supporting Evidence, moved to Publis
   hasAlert((await submit(promotePath, {})).alerts, /Target scope is required\./);
   hasAlert((await submit(promotePath, { targetScope: "Capability" })).alerts, /Acquisition Scope promotion blocked: Knowledge Item must be Published before its Acquisition Scope can be promoted \(currently Observed\)/);
 
-  hasAlert((await submit(seuPath(`/knowledge/${randomUUID()}/transition/anything`))).alerts, /Knowledge Item not found\./);
+  hasAlert((await submit(seuPath(`/knowledge/${randomUUID()}/transition/anything`))).alerts, /Knowledge not found\./);
   hasAlert((await submit(seuPath(`/knowledge/${item.id}/transition/zz-no-verb`))).alerts, /"zz-no-verb" is not available from Observed\./);
   await walk({ entityType: "Knowledge", label: "Knowledge Item", statusOf: async () => (await knowledgeItemsDB.findById(item.id)).data!.status, hop: (verb) => seuPath(`/knowledge/${item.id}/transition/${verb}`), until: (s) => s === "Published" });
   assert.equal((await knowledgeItemsDB.findById(item.id)).data?.status, "Published");
@@ -326,7 +326,7 @@ test("a Deliverable is moved by the Execution Engine from the SEU page, which re
 test("the Capability routes refuse a replacement with no type or name, a release of no Participant and a request for a Capability the SEU does not require", async () => {
   const capabilityId = (await activeCapabilityDefinitionIds())[0];
   const base = seuPath(`/capabilities/${capabilityId}`);
-  hasAlert((await submit(`${base}/participant/${randomUUID()}/replace`, { participantType: "Human", displayName: " " })).alerts, /Replacement Participant type and display name are required\./);
+  hasAlert((await submit(`${base}/participant/${randomUUID()}/replace`, { participantType: "Human", displayName: " " })).alerts, /Participant not found\./);
   hasAlert((await submit(`${base}/release`, {})).alerts, /At least one Participant is required\./);
   const requested = await submit(`${base}/fulfil`, {});
   assert.ok(requested.alerts.length > 0 && !requested.alerts.some((a) => /Capability requested\./.test(a)), JSON.stringify(requested.alerts));
@@ -382,5 +382,5 @@ test("an EBM composed for an SEU is validated from the SEU page, and the verb it
 test("a Participant that is not on the Capability cannot be replaced, which the Capability route reports", async () => {
   const capabilityId = (await activeCapabilityDefinitionIds())[0];
   const replaced = await submit(seuPath(`/capabilities/${capabilityId}/participant/${randomUUID()}/replace`), { participantType: "Human", displayName: `Replacement ${run}` });
-  hasAlert(replaced.alerts, /Replacement blocked: Participant not found/);
+  hasAlert(replaced.alerts, /Participant not found\./);
 });

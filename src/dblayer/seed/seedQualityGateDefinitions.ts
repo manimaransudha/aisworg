@@ -15,14 +15,8 @@ interface QualityGateDefinitionSeedFile {
   name: string;
   description?: string;
   category: string;
-  governedTransition: string;
   criteriaType: string;
   evidenceCategory?: string;
-  deliverableName?: string;
-  requiredPolicyCodes?: string[];
-  checklistIds?: string[];
-  recommendedChecklistIds?: string[];
-  applicabilityDeliverableNames?: string[];
   version: string;
 }
 
@@ -43,24 +37,20 @@ export async function seedQualityGateDefinitions(actor: SeedActor): Promise<void
   const platformTenantId = await getPlatformTenantId();
   const seeds = QUALITY_GATE_DEFINITION_FILES.map((file) => JSON.parse(readFileSync(path.join(dataDir, file), "utf8")) as QualityGateDefinitionSeedFile);
   const rows = seeds.map((s) => [
-    s.code, s.name, s.description ?? null, s.category, s.governedTransition, s.criteriaType, s.evidenceCategory ?? null, s.deliverableName ?? null,
-    s.requiredPolicyCodes ?? [], s.checklistIds ?? [], s.recommendedChecklistIds ?? [], s.applicabilityDeliverableNames ?? [],
+    s.code, s.name, s.description ?? null, s.category, s.criteriaType, s.evidenceCategory ?? null,
     s.version, "Active", JSON.stringify(s), platformTenantId, actor.authoredBy, actor.authorBadge,
   ]);
   await bulkInsert(
     "quality_gate_definitions",
     [
-      "code", "name", "description", "category", "governed_transition", "criteria_type", "evidence_category", "review_gate_code",
-      "required_policy_codes", "checklist_ids", "recommended_checklist_ids", "applicability_deliverable_names",
+      "code", "name", "description", "category", "criteria_type", "evidence_category",
       "version", "status", "draft_content", "tenant_id", "authored_by", "author_badge",
     ],
     rows,
     {
       onConflict: `ON CONFLICT (code, version, tenant_id) DO UPDATE SET
-        name = EXCLUDED.name, description = EXCLUDED.description, category = EXCLUDED.category, governed_transition = EXCLUDED.governed_transition,
-        criteria_type = EXCLUDED.criteria_type, evidence_category = EXCLUDED.evidence_category, review_gate_code = EXCLUDED.review_gate_code,
-        required_policy_codes = EXCLUDED.required_policy_codes, checklist_ids = EXCLUDED.checklist_ids, recommended_checklist_ids = EXCLUDED.recommended_checklist_ids,
-        applicability_deliverable_names = EXCLUDED.applicability_deliverable_names, draft_content = EXCLUDED.draft_content`,
+        name = EXCLUDED.name, description = EXCLUDED.description, category = EXCLUDED.category,
+        criteria_type = EXCLUDED.criteria_type, evidence_category = EXCLUDED.evidence_category, draft_content = EXCLUDED.draft_content`,
     }
   );
   logger.info(`[seed:quality-gate-definitions] ${rows.length} Quality Gate Definitions seeded (Active, Platform-owned).`);

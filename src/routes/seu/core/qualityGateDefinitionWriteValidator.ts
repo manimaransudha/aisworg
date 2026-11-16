@@ -9,14 +9,8 @@ export interface QualityGateDefinitionWriteInput {
   name: string;
   description?: string | null;
   category: string;
-  governedTransition: string;
   criteriaType: string;
   evidenceCategory?: string | null;
-  reviewGateCode?: string | null;
-  requiredPolicyCodes?: string[];
-  checklistIds?: string[];
-  recommendedChecklistIds?: string[];
-  applicabilityDeliverableNames?: string[];
   version: string;
   draftContent: Record<string, unknown>;
   tenantId?: string;
@@ -39,14 +33,8 @@ export async function validateQualityGateDefinitionWriteAgainstSchema(input: Qua
     name: input.name,
     description: input.description ?? "",
     category: input.category,
-    governedTransition: input.governedTransition,
     criteriaType: input.criteriaType,
     evidenceCategory: input.evidenceCategory ?? "",
-    deliverableName: input.reviewGateCode ?? "",
-    requiredPolicyCodes: input.requiredPolicyCodes ?? [],
-    checklistIds: input.checklistIds ?? [],
-    recommendedChecklistIds: input.recommendedChecklistIds ?? [],
-    applicabilityDeliverableNames: input.applicabilityDeliverableNames ?? [],
   };
 
   const errors: string[] = [];

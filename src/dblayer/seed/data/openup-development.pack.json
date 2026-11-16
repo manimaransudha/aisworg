@@ -60,8 +60,14 @@
       }
     ],
     "qualityGates": [
-      "no-unresolved-obligations",
-      "accepted-evidence-or-approved-decision"
+      {
+        "qualityCode": "no-unresolved-obligations",
+        "governedTransition": "Deliverable|In Progress|Approved"
+      },
+      {
+        "qualityCode": "accepted-evidence-or-approved-decision",
+        "governedTransition": "Deliverable|Approved|Baselined"
+      }
     ],
     "obligationDefinitions": [
       {

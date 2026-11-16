@@ -32,7 +32,7 @@ import { seusDB } from "../src/dblayer/seusDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { transitionRequiresAttestation } from "../src/domain/engine/transitionEngine.js";
-import type { ObjectiveRow, TransitionEntityType } from "../src/dblayer/seuTypes.js";
+import type { ObjectiveRow, PackQualityGate, TransitionEntityType } from "../src/dblayer/seuTypes.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { lookupRouteAuthority } from "../src/domain/identity/routeAuthorityCache.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
@@ -1077,7 +1077,7 @@ export async function ensurePolicyDefinitionWithObligation(input: {
   await policyDefinitionsDB.updateStatus(draft.id, "Active");
 }
 
-// A Quality Gate Definition for a test, Active in the test Platform tenant, so that a Pack the test publishes can list its code (CR-145). The row is found by code and
+// A Quality Gate Definition for a test, Active in the test Platform tenant. It returns the entry a Pack the test publishes lists in `qualityGates` (CR-145). The row is found by code and
 // version when an earlier run left it, and is created otherwise. A test gives each definition a code of its own.
 export async function ensureQualityGateDefinition(input: {
   code: string;
@@ -1086,23 +1086,23 @@ export async function ensureQualityGateDefinition(input: {
   governedTransition: string;
   criteriaType: string;
   evidenceCategory?: string;
-  applicabilityDeliverableNames?: string[];
-}): Promise<string> {
+  deliverableName?: string;
+}): Promise<PackQualityGate> {
   const version = "1.0.0";
   const { data: existing } = await qualityGateDefinitionsDB.findByCodeAndVersion(input.code, version, PLATFORM_TENANT_ID);
-  if (existing) return existing.code;
+  const entry: PackQualityGate = { qualityCode: input.code, governedTransition: input.governedTransition, ...(input.deliverableName ? { deliverableName: input.deliverableName } : {}) };
+  if (existing) return entry;
   const { data: gateSchema } = await schemaDefinitionsDB.findLatest("QualityGate");
   if (!gateSchema) throw new Error("no schema_definitions grammar for QualityGate");
   const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
   if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("ensureQualityGateDefinition(): no participants_master row for the superuser — is db:clean-slate seeded?");
   const { data, error } = await qualityGateDefinitionsDB.createDraft({
-    code: input.code, name: input.name, description: null, category: input.category, governedTransition: input.governedTransition, criteriaType: input.criteriaType,
-    evidenceCategory: input.evidenceCategory ?? null, reviewGateCode: null, requiredPolicyCodes: [], checklistIds: [], recommendedChecklistIds: [],
-    applicabilityDeliverableNames: input.applicabilityDeliverableNames ?? [], version,
+    code: input.code, name: input.name, description: null, category: input.category, criteriaType: input.criteriaType,
+    evidenceCategory: input.evidenceCategory ?? null, version,
     status: "Active", authoredBy: rootMaster.id, authorBadge: "root", draftContent: {}, tenantId: PLATFORM_TENANT_ID, schemaDefinitionId: gateSchema.id,
   });
   if (error || !data) throw error ?? new Error("ensureQualityGateDefinition(): the definition was not created");
-  return data.code;
+  return entry;
 }
 
 // This is a real, event-driven platform: deliverableKickoffHandler re-fires

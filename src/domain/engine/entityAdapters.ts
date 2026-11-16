@@ -237,10 +237,8 @@ const qualityGateAdapter = adapter<QualityGateDefinitionRow>({
   schemaDefinitionId: (row) => row.schema_definition_id,
   content: (row) => ({
     ...(row.draft_content ?? {}),
-    code: row.code, name: row.name, description: row.description ?? "", category: row.category, governedTransition: row.governed_transition,
-    criteriaType: row.criteria_type, evidenceCategory: row.evidence_category ?? "", deliverableName: row.review_gate_code ?? "",
-    requiredPolicyCodes: row.required_policy_codes, checklistIds: row.checklist_ids, recommendedChecklistIds: row.recommended_checklist_ids,
-    applicabilityDeliverableNames: row.applicability_deliverable_names, version: row.version,
+    code: row.code, name: row.name, description: row.description ?? "", category: row.category,
+    criteriaType: row.criteria_type, evidenceCategory: row.evidence_category ?? "", version: row.version,
   }),
   composableFields: (row) => ({ code: row.code, category: row.category, evidenceCategory: row.evidence_category ?? "" }),
 });

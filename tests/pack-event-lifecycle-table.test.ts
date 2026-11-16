@@ -239,7 +239,7 @@ test("POLICY: an unknown checklist reference in a quality gate is reported, one 
   const { data: schemaRow } = await schemaDefinitionsDB.findLatest("Pack");
   const schema = schemaRow!.schema as JsonSchemaDocument;
   const viewer = { isRoot: false, tenantId: PLATFORM_TENANT_ID };
-  const gate = (checklistIds: string[]) => ({ name: "gate", prompt: "p", category: "", checklistIds });
+  const gate = (checklistIds: string[]) => ({ qualityCode: "gate", governedTransition: "Deliverable|In Progress|Approved", checklists: checklistIds.map((checklistId) => ({ checklistId })) });
   const unknown = await validateReferentialFields(schema, { code: "x", contributionQualityGates: [gate([randomUUID()])] }, viewer);
   assert.ok(unknown.some((e) => /checklist/i.test(e)), `expected a Checklist error, got: ${unknown.join("; ")}`);
   const declared = await validateReferentialFields(schema, { code: "x", contributionChecklists: [{ name: "own-list", items: [] }], contributionQualityGates: [gate(["own-list"])] }, viewer);

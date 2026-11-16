@@ -217,7 +217,7 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
     packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: {
       qualityGates: [
-        await ensureQualityGateDefinition({ code: `cr104-named-gate-${run}`, name: `CR-104 named gate ${run}`, category: "Exit", governedTransition: "Deliverable|Defined|In Progress", criteriaType: "no_unresolved_obligations", applicabilityDeliverableNames: [targetedName] }),
+        await ensureQualityGateDefinition({ code: `cr104-named-gate-${run}`, name: `CR-104 named gate ${run}`, category: "Exit", governedTransition: "Deliverable|Defined|In Progress", criteriaType: "no_unresolved_obligations", deliverableName: targetedName }),
       ],
     },
   };

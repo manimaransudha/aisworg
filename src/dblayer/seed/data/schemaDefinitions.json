@@ -541,11 +541,69 @@
         "contributionQualityGates": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "object",
+            "required": [
+              "qualityCode",
+              "governedTransition"
+            ],
+            "properties": {
+              "qualityCode": {
+                "type": "string",
+                "x-help": "The Quality Gate Definition this entry takes, by code, from the Quality Gate Registry of the Platform and of your tenant.",
+                "x-referential": "quality-gate-code"
+              },
+              "governedTransition": {
+                "type": "string",
+                "x-help": "The exact transition this gate applies to — picked from existing Transition Definitions only.",
+                "x-referential": "transition-definition"
+              },
+              "deliverableName": {
+                "type": "string",
+                "x-help": "The Deliverable this gate applies to. Empty = every Deliverable reaching this transition. For the Accepted Review criterion it also names which of this Pack's own Review Gates (by deliverable type) must have an Accepted, passing Review.",
+                "x-referential": "deliverable-name"
+              },
+              "checklists": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "checklistId"
+                  ],
+                  "properties": {
+                    "checklistId": {
+                      "type": "string",
+                      "x-help": "One of this Pack's own Checklists (any version/tenant sharing this Pack's code) that this gate runs.",
+                      "x-referential": "checklist"
+                    },
+                    "mandatory": {
+                      "type": "boolean",
+                      "x-help": "Check this if the Checklist must complete for this gate. Unchecked, the Checklist is advisory and does not block the gate."
+                    }
+                  },
+                  "x-property-order": [
+                    "checklistId",
+                    "mandatory"
+                  ]
+                },
+                "x-help": "The Checklists this gate runs. A Checklist shared by more than one gate only runs once."
+              },
+              "requiredPolicyCodes": {
+                "type": "array",
+                "x-help": "Only used when the Quality Gate's Criteria Type is requires_active_policy — which of this Pack's own Policies must be satisfied.",
+                "x-multi": true,
+                "x-referential": "policy"
+              }
+            },
+            "x-property-order": [
+              "qualityCode",
+              "governedTransition",
+              "deliverableName",
+              "checklists",
+              "requiredPolicyCodes"
+            ]
           },
-          "x-help": "The Quality Gates this Pack takes, by code, from the Quality Gate Registry of the Platform and of your tenant.",
-          "x-widget": "referential-multi-select",
-          "x-referential-source": "quality-gate-code"
+          "x-help": "Quality Gates",
+          "x-widget": "referential-list"
         },
         "incompatiblePackVersions": {
           "type": "string",
@@ -2417,7 +2475,6 @@
         "code",
         "name",
         "category",
-        "governedTransition",
         "criteriaType"
       ],
       "properties": {
@@ -2447,12 +2504,6 @@
           "x-referential-source": "category:quality-gate",
           "x-widget": "referential-select"
         },
-        "governedTransition": {
-          "type": "string",
-          "x-help": "The exact transition this gate applies to — picked from existing Transition Definitions only.",
-          "x-referential-source": "transition-definition",
-          "x-widget": "referential-select"
-        },
         "criteriaType": {
           "type": "string",
           "x-ontology": true,
@@ -2467,48 +2518,6 @@
           "x-ontology-composable": true,
           "x-referential-source": "category:evidence",
           "x-widget": "referential-select"
-        },
-        "deliverableName": {
-          "type": "string",
-          "x-help": "Only used when Criteria Type is requires_accepted_review — which Review Gate (by deliverable type) of an Active Pack of the Platform or of your tenant must have an Accepted, passing Review.",
-          "x-referential-source": "review-gate-code",
-          "x-widget": "referential-select"
-        },
-        "requiredPolicyCodes": {
-          "type": "array",
-          "x-help": "Only used when Criteria Type is requires_active_policy — which Policy Definitions of the Platform or of your tenant must be satisfied.",
-          "x-referential-source": "policy-definition-code",
-          "x-widget": "referential-multi-select",
-          "items": {
-            "type": "string"
-          }
-        },
-        "checklistIds": {
-          "type": "array",
-          "x-help": "Which Checklists of Active Packs of the Platform or of your tenant must complete for this gate. All listed Checklists are required (AND); a Checklist shared by more than one gate only runs once.",
-          "x-referential-source": "visible-checklist-id",
-          "x-widget": "referential-multi-select",
-          "items": {
-            "type": "string"
-          }
-        },
-        "recommendedChecklistIds": {
-          "type": "array",
-          "x-help": "Advisory Checklists (Platform or your tenant) — completing them does not block this gate, unlike checklistIds.",
-          "x-referential-source": "visible-checklist-id",
-          "x-widget": "referential-multi-select",
-          "items": {
-            "type": "string"
-          }
-        },
-        "applicabilityDeliverableNames": {
-          "type": "array",
-          "x-help": "Which Deliverable(s) (by name) this gate applies to. Empty = every Deliverable reaching this transition.",
-          "x-referential-source": "deliverable-name",
-          "x-widget": "referential-multi-select",
-          "items": {
-            "type": "string"
-          }
         },
         "participant": {
           "enum": [
@@ -2560,14 +2569,8 @@
         "name",
         "description",
         "category",
-        "governedTransition",
         "criteriaType",
         "evidenceCategory",
-        "deliverableName",
-        "requiredPolicyCodes",
-        "checklistIds",
-        "recommendedChecklistIds",
-        "applicabilityDeliverableNames",
         "participant",
         "classification",
         "outputContract",

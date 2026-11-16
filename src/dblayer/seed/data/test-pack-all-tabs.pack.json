@@ -65,7 +65,12 @@
         ]
       }
     ],
-    "qualityGates": ["fixture-quality-gate"],
+    "qualityGates": [
+      {
+        "qualityCode": "fixture-quality-gate",
+        "governedTransition": "Pack|Draft|Validated"
+      }
+    ],
     "policies": [],
     "obligationDefinitions": [
       {

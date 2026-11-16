@@ -411,20 +411,20 @@ test("Flow 4 — Deliverable transition, invalid: rejected with an explicit erro
   assertPageMatches(after1.html, /no Transition Definition for Deliverable In Progress -&gt; In Progress|a Command for this exact hop is already/);
 });
 
-test("Flow 4b — Work Queue result form, invalid outcome: redirects to the Work Queue with an explicit error and records nothing", async () => {
+test("Flow 4b — Work Queue result form, unknown Work Item: redirects to the Work Queue with an explicit error and records nothing", async () => {
   const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-invalid-work-item-outcome");
 
-  // The outcome is validated before the Work Item is looked up, so a made-up Work Item id is enough to reach the check.
+  // The Work Item named by the route is looked up by the tenant scope gate before the outcome is read, so a made-up Work Item id is refused as not found.
   const result = await postForm(request, `/seu/seus/${seuId}/work-items/00000000-0000-0000-0000-000000000000/complete`, csrf, {
     outcome: "totally-not-valid",
   });
-  assert.equal(result.status, 302, "an invalid outcome must still be a graceful redirect, not a 500");
+  assert.equal(result.status, 302, "an unknown Work Item must still be a graceful redirect, not a 500");
   assert.ok(result.location?.endsWith(`/aisworg/seu/seus/${seuId}/work-queue`), `expected a redirect to the Work Queue, got ${result.location}`);
 
   const queue = await getPage(request, `/seu/seus/${seuId}/work-queue`);
   assertPageMatches(queue.html, /alert-danger/);
-  assertPageMatches(queue.html, /Outcome must be done, failed or blocked\./);
+  assertPageMatches(queue.html, /Work Item not found\./);
 });
 
 test("Flow 5 — Deliverable transition, dependency gating (regression: must never go green by accident)", async () => {
@@ -805,7 +805,7 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
     contributions: {
       // The gate is identified by its code within this Pack (CR-145), so listing the Platform's "no-unresolved-obligations" definition gives this Pack a gate
       // row of its own, composed into this SEU's EBM, next to the row that core-engineering's Pack holds.
-      qualityGates: ["no-unresolved-obligations"],
+      qualityGates: [{ qualityCode: "no-unresolved-obligations", governedTransition: "Deliverable|In Progress|Approved" }],
     },
   };
   const published = await publishPack({ seed: packSeed as any, actorId: TESTER_ALL_ID, activate: true });
