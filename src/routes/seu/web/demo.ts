@@ -2,6 +2,7 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
 const router = express.Router();
+router.param("workItemId", workItemTenantScope);
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
@@ -13,6 +14,7 @@ import { emailService } from "../../../domain/auth/emailService.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
+import { workItemTenantScope, evidenceDeliverableScope, evidencePredecessorScope } from "../../../middleware/seuTenantScope.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { DEMO_TENANT_NAME, DEMO_AREAS, DEMO_VISITOR_STEP_KIND, DEMO_NOTE_STEP_KIND, DEMO_STEPS_TAB } from "../../../dblayer/constants.js";
 import type { TenantRow } from "../../../dblayer/seuTypes.js";
@@ -228,7 +230,7 @@ router.post("/demo/participants/:participantId/work-items/:workItemId/complete",
   return `Reported "${result.outcome}" - the transition was not applied and an Attention Item was raised.`;
 }));
 
-router.post("/demo/participants/:participantId/seus/:seuId/evidence", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
+router.post("/demo/participants/:participantId/seus/:seuId/evidence", evidenceDeliverableScope, evidencePredecessorScope, (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
   const { deliverableId, category, title, description, source, predecessorEvidenceId } = req.body ?? {};
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
     throw new Error("Deliverable, category and title are required.");

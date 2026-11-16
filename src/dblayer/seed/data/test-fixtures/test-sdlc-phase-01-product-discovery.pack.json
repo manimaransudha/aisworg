@@ -45,19 +45,29 @@
         "description": "Validation checklist for user research, requirements definition, and hypothesis testing.",
         "items": [
           {
-            "statement": "The persona, journey, and JTBD artifacts are grounded in actual user research rather than internal assumption."
+            "statement": "The persona, journey, and JTBD artifacts are grounded in actual user research rather than internal assumption.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "At least 5 qualitative user interviews or quantitative research responses have been conducted and documented."
+            "statement": "At least 5 qualitative user interviews or quantitative research responses have been conducted and documented.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Product Requirements Document includes clear functional specifications, non-functional targets, and measurable acceptance criteria."
+            "statement": "Product Requirements Document includes clear functional specifications, non-functional targets, and measurable acceptance criteria.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "All core product hypotheses have been logged in the validation tracker with explicit pass/fail criteria."
+            "statement": "All core product hypotheses have been logged in the validation tracker with explicit pass/fail criteria.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Service blueprint maps key customer touchpoints to backend support systems and operational dependencies."
+            "statement": "Service blueprint maps key customer touchpoints to backend support systems and operational dependencies.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

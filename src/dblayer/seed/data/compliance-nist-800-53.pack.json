@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Access Control policies enforce Principle of Least Privilege (AC-6) and separation of duties (AC-5).",
-            "group": "Access Control (AC)"
+            "group": "Access Control (AC)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Audit events are logged centrally into a SIEM with timestamp synchronization (NTP) and integrity protection (AU-2, AU-8, AU-9).",
-            "group": "Audit & Accountability (AU)"
+            "group": "Audit & Accountability (AU)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Configuration baselines are enforced and unauthorized software installation is blocked (CM-2, CM-7).",
-            "group": "Configuration Management (CM)"
+            "group": "Configuration Management (CM)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Flaw remediation (SI-2) deploys critical security patches within 30 days of vendor release.",
-            "group": "System & Information Integrity (SI)"
+            "group": "System & Information Integrity (SI)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "System boundary protection devices (firewalls, WAFs) isolate internal subnetworks from external networks (SC-7).",
-            "group": "System & Communications Protection (SC)"
+            "group": "System & Communications Protection (SC)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

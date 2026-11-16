@@ -32,27 +32,39 @@
         "items": [
           {
             "statement": "Ownership, borrowing, and lifetime annotations compile cleanly without bypassing rules via unnecessary clone() or unsafe blocks.",
-            "group": "Memory Safety & Ownership"
+            "group": "Memory Safety & Ownership",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "All unsafe blocks are isolated, documented with explicit safety invariant comments, and audited via cargo-geiger.",
-            "group": "Unsafe Code & Audit"
+            "group": "Unsafe Code & Audit",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Errors use Result<T, E> and custom error enums (via main/thiserror or anyhow) with zero unhandled unwrap() or expect() calls in production.",
-            "group": "Error Handling"
+            "group": "Error Handling",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Code satisfies clippy linter checks (cargo clippy -- -D warnings) and formatted via cargo fmt.",
-            "group": "Code Style & Linting"
+            "group": "Code Style & Linting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Dependencies in Cargo.toml specify exact semver bounds and cargo-audit confirms zero vulnerable crates.",
-            "group": "Dependency & Security"
+            "group": "Dependency & Security",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Async tasks use Tokio / async-std context cancellation and avoid blocking the async executor loop.",
-            "group": "Async & Concurrency"
+            "group": "Async & Concurrency",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

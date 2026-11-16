@@ -2,6 +2,7 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
 const router = express.Router();
+router.param("id", definitionTenantScope(packsDB.findById, (row) => row.tenant_id, "Pack not found."));
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
@@ -12,6 +13,8 @@ import { listPacksWithNextStates } from "../core/packs.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
 import { getPackView } from "../core/packView.js";
 import { redirects } from "../../../middleware/redirects.js";
+import { definitionTenantScope } from "../../../middleware/seuTenantScope.js";
+import { packsDB } from "../../../dblayer/packsDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";

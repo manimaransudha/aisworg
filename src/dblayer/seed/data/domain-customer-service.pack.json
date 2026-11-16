@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Support tickets are assigned severity levels (P1-P4) based on impacted user count and business operational effect.",
-            "group": "Ticket Intake & Triage"
+            "group": "Ticket Intake & Triage",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Response time SLAs (e.g. 15 mins for P1, 2 hours for P2) are tracked continuously.",
-            "group": "SLA Response Tracking"
+            "group": "SLA Response Tracking",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "P1 critical incidents initiate war-room incident bridges and notify Duty Operations Managers.",
-            "group": "Escalation Matrix"
+            "group": "Escalation Matrix",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Ticket resolution notes document root cause and steps taken before requesting customer closure confirmation.",
-            "group": "Resolution Verification"
+            "group": "Resolution Verification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "CSAT (Customer Satisfaction) feedback survey is triggered automatically upon case closure.",
-            "group": "CSAT Feedback"
+            "group": "CSAT Feedback",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

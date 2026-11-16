@@ -31,19 +31,27 @@
         "items": [
           {
             "statement": "Nonpublic Personal Information (NPI) is encrypted at rest (AES-256) and in transit (TLS 1.3) per §314.4(c)(3).",
-            "group": "NPI Cryptography"
+            "group": "NPI Cryptography",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Multi-Factor Authentication (MFA) is enforced for any individual accessing NPI per §314.4(c)(5).",
-            "group": "Access Control & MFA"
+            "group": "Access Control & MFA",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Service provider risk assessment and contractual security mandates are enforced for external vendors (§314.4(f)).",
-            "group": "Service Provider Monitoring"
+            "group": "Service Provider Monitoring",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Annual CISO written report is presented to the Board detailing security posture and risk assessments (§314.4(i)).",
-            "group": "Board Reporting & Governance"
+            "group": "Board Reporting & Governance",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

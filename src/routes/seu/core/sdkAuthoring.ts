@@ -4,6 +4,8 @@ import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
+import { qualityGateDefinitionsDB } from "../../../dblayer/qualityGateDefinitionsDB.js";
+import { validateQualityGateDefinitionSeed, type QualityGateDefinitionSeedInput } from "./qualityGateDefinitions.js";
 import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import {
@@ -39,7 +41,7 @@ import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine, type CompositionSource } from "../../../domain/engine/compositionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
-import type { CapabilityDefinitionRow, CapabilityRole, DeliverableDefinitionRow, PolicyDefinitionRow, ServiceDefinitionRow, EvidenceDefinition, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
+import type { CapabilityDefinitionRow, CapabilityRole, DeliverableDefinitionRow, PolicyDefinitionRow, QualityGateDefinitionRow, ServiceDefinitionRow, EvidenceDefinition, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { packContent } from "../../../domain/engine/entityAdapters.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
@@ -303,6 +305,28 @@ export function toPolicyDefinitionSeedInput(content: Record<string, unknown>): P
   };
 }
 
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && v.trim() !== "") : [];
+}
+
+export function toQualityGateDefinitionSeedInput(content: Record<string, unknown>): QualityGateDefinitionSeedInput {
+  return {
+    code: typeof content.code === "string" ? content.code : "",
+    name: typeof content.name === "string" ? content.name : "",
+    description: typeof content.description === "string" ? content.description : undefined,
+    category: typeof content.category === "string" ? content.category : "",
+    governedTransition: typeof content.governedTransition === "string" ? content.governedTransition : "",
+    criteriaType: typeof content.criteriaType === "string" ? content.criteriaType : "",
+    evidenceCategory: typeof content.evidenceCategory === "string" && content.evidenceCategory.trim() ? content.evidenceCategory : null,
+    reviewGateCode: typeof content.deliverableName === "string" && content.deliverableName.trim() ? content.deliverableName : null,
+    requiredPolicyCodes: stringList(content.requiredPolicyCodes),
+    checklistIds: stringList(content.checklistIds),
+    recommendedChecklistIds: stringList(content.recommendedChecklistIds),
+    applicabilityDeliverableNames: stringList(content.applicabilityDeliverableNames),
+    version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : INITIAL_VERSION,
+  };
+}
+
 function safeJsonParse(raw: string): unknown {
   try {
     return JSON.parse(raw);
@@ -340,6 +364,7 @@ export async function validateAuthoredContent(kind: SchemaDefinitionEntityKind, 
   if (kind === "Deliverable") return validateDeliverableDefinitionSeed(toDeliverableDefinitionSeedInput(content));
   if (kind === "Service") return validateServiceDefinitionSeed(toServiceDefinitionSeedInput(content));
   if (kind === "Policy") return validatePolicyDefinitionSeed(toPolicyDefinitionSeedInput(content));
+  if (kind === "QualityGate") return validateQualityGateDefinitionSeed(toQualityGateDefinitionSeedInput(content));
   if (kind === "Capability") return validateCapabilityDefinitionSeed(toCapabilityDefinitionSeedInput(content));
   return { ok: false, errors: [`no validator wired for kind "${kind}"`] };
 }
@@ -416,6 +441,10 @@ export async function listTenantAuthoringRows(kind: SchemaDefinitionEntityKind, 
     const { data } = visible ? await policyDefinitionsDB.findAll() : await policyDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
     return (data ?? []).map((p) => toSummary({ id: p.id, code: p.code, name: p.name, status: p.status, created_at: p.created_at }));
   }
+  if (kind === "QualityGate") {
+    const { data } = visible ? await qualityGateDefinitionsDB.findAll() : await qualityGateDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
+    return (data ?? []).map((g) => toSummary({ id: g.id, code: g.code, name: g.name, status: g.status, created_at: g.created_at }));
+  }
   if (kind === "Capability") {
     const { data } = visible ? await capabilityDefinitionsDB.findAll() : await capabilityDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
     return (data ?? []).map((c) => toSummary({ id: c.id, code: c.code, name: c.default_label, status: c.status, created_at: c.created_at }));
@@ -470,7 +499,7 @@ async function possibleRowActions(kind: SchemaDefinitionEntityKind, status: stri
 }
 
 export async function computeRowActions(kind: SchemaDefinitionEntityKind, status: string, actorId: string): Promise<AuthoringRowAction[]> {
-  if (kind === "Capability" || kind === "Service" || kind === "Pack" || kind === "Template" || kind === "Profile" || kind === "Policy" || kind === "Deliverable") {
+  if (kind === "Capability" || kind === "Service" || kind === "Pack" || kind === "Template" || kind === "Profile" || kind === "Policy" || kind === "QualityGate" || kind === "Deliverable") {
     const next = await nextActionsFor(entityTypeForKind(kind), status, actorId);
     return next.map((n) => ({ verb: n.verb, toState: n.toState, endpoint: "transition" as const, requiresComment: n.requiresComment }));
   }
@@ -547,6 +576,20 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
         conditions: p.conditions, version: p.version,
         scope: p.scope,
         tenantId: p.tenant_id, parentPolicyDefinitionId: p.parent_policy_definition_id, schemaVersion: p.schema_definition_id,
+      },
+    };
+  }
+  if (kind === "QualityGate") {
+    const { data: g } = await qualityGateDefinitionsDB.findById(id);
+    if (!g) return null;
+    return {
+      id: g.id, code: g.code, name: g.name, status: g.status,
+      content: {
+        ...(g.draft_content ?? {}), code: g.code, name: g.name, description: g.description ?? "", category: g.category, governedTransition: g.governed_transition,
+        criteriaType: g.criteria_type, evidenceCategory: g.evidence_category ?? "", deliverableName: g.review_gate_code ?? "",
+        requiredPolicyCodes: g.required_policy_codes, checklistIds: g.checklist_ids, recommendedChecklistIds: g.recommended_checklist_ids,
+        applicabilityDeliverableNames: g.applicability_deliverable_names, version: g.version,
+        tenantId: g.tenant_id, parentQualityGateDefinitionId: g.parent_quality_gate_definition_id, schemaVersion: g.schema_definition_id,
       },
     };
   }
@@ -716,7 +759,8 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       schemaDefinitionId: input.schemaDefinitionId,
     });
     if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create Pack draft")).message] };
-    await materializeContributions(pack, seed);
+    // Commented out (owner): the rows the contributions name are written when the Pack becomes Active (action materialise-pack on Pack Published -> Active).
+    // await materializeContributions(pack, seed);
     const { data: packSchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
     if (packSchema) {
       await proposeComposableOntologyValues(packSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Pack", originatingObjectId: pack.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: birth.authorityBadge, tenantId });
@@ -971,6 +1015,46 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     });
     return { ok: true, draftId: p.id };
   }
+  if (input.kind === "QualityGate") {
+    const seed = toQualityGateDefinitionSeedInput(input.content);
+    const tenantId = input.tenantId ?? (await getPlatformTenantId());
+    const validation = await validateQualityGateDefinitionSeed({ ...seed, tenantId }, true);
+    if (!validation.ok) return { ok: false, errors: validation.errors };
+    const { data: gateMaster } = await participantsMasterDB.findById(authoredBy);
+    if (!gateMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+    const birth = await transitionEngine.beginBirth({ entityType: "QualityGate", actorId: input.actorId });
+    const { data: g, error } = await qualityGateDefinitionsDB.createDraft({
+      code: seed.code, name: seed.name, description: seed.description ?? null, category: seed.category, governedTransition: seed.governedTransition,
+      criteriaType: seed.criteriaType, evidenceCategory: seed.evidenceCategory ?? null, reviewGateCode: seed.reviewGateCode ?? null,
+      requiredPolicyCodes: seed.requiredPolicyCodes ?? [], checklistIds: seed.checklistIds ?? [], recommendedChecklistIds: seed.recommendedChecklistIds ?? [],
+      applicabilityDeliverableNames: seed.applicabilityDeliverableNames ?? [], version: seed.version,
+      status: birth.initialState as QualityGateDefinitionRow["status"],
+      authoredBy: gateMaster.id,
+      authorBadge: birth.authorityBadge,
+      draftContent: input.content,
+      tenantId,
+      parentQualityGateDefinitionId: null,
+      schemaDefinitionId: input.schemaDefinitionId,
+    });
+    if (error || !g) return { ok: false, errors: [(error ?? new Error("failed to create Quality Gate Definition draft")).message] };
+    const { data: gateSchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
+    if (gateSchema) {
+      await proposeComposableOntologyValues(gateSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "QualityGate", originatingObjectId: g.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: birth.authorityBadge, tenantId });
+    }
+    await eventBus.publish({
+      eventType: birth.eventType,
+      originatingObjectType: "QualityGate",
+      originatingObjectId: g.id,
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      actorId: gateMaster.id,
+      authorityBadge: birth.authorityBadge,
+      versionEvent: birth.versionEvent,
+      payload: { code: g.code, version: g.version },
+      tenantId,
+    });
+    return { ok: true, draftId: g.id };
+  }
   if (input.kind === "Capability") {
     const seed = toCapabilityDefinitionSeedInput(input.content);
     const tenantId = input.tenantId ?? (await getPlatformTenantId());;
@@ -1149,6 +1233,28 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     }
     return { ok: true };
   }
+  if (input.kind === "QualityGate") {
+    const { data: existing } = await qualityGateDefinitionsDB.findById(input.id);
+    if (!existing) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
+    const seed = toQualityGateDefinitionSeedInput({ ...input.content });
+    const validation = await validateQualityGateDefinitionSeed({ ...seed, tenantId: existing.tenant_id }, true);
+    if (!validation.ok) return { ok: false, errors: validation.errors };
+    const { data, error } = await qualityGateDefinitionsDB.updateDraftContent(input.id, {
+      code: seed.code, name: seed.name, description: seed.description ?? null, category: seed.category, governedTransition: seed.governedTransition,
+      criteriaType: seed.criteriaType, evidenceCategory: seed.evidenceCategory ?? null, reviewGateCode: seed.reviewGateCode ?? null,
+      requiredPolicyCodes: seed.requiredPolicyCodes ?? [], checklistIds: seed.checklistIds ?? [], recommendedChecklistIds: seed.recommendedChecklistIds ?? [],
+      applicabilityDeliverableNames: seed.applicabilityDeliverableNames ?? [], version: seed.version, draftContent: input.content,
+    });
+    if (error) return { ok: false, errors: [error.message] };
+    if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
+    const { data: gateSchema } = existing.schema_definition_id ? await schemaDefinitionsDB.findById(existing.schema_definition_id) : await schemaDefinitionsDB.findLatest("QualityGate");
+    const { data: birthDefinition } = await transitionDefinitionsDB.findBirth("QualityGate");
+    if (!birthDefinition?.verb) throw new Error("no birth Transition Definition with a verb for QualityGate");
+    if (gateSchema) {
+      await proposeComposableOntologyValues(gateSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "QualityGate", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: `${entityTypeForKind("QualityGate").toLowerCase()}_${birthDefinition.verb}`, tenantId: existing.tenant_id });
+    }
+    return { ok: true };
+  }
   if (input.kind === "Capability") {
     const { data: existing } = await capabilityDefinitionsDB.findById(input.id);
     if (!existing) return { ok: false, errors: ["draft not found or no longer editable (only Defined rows can be saved)"] };
@@ -1248,6 +1354,16 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     const next = await nextActionsFor("Policy", p.status, input.actorId);
     if (next.length !== 1) return { ok: false, errors: [`Policy Definition is ${p.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
     const advanced = await transitionEntity({ entityType: "Policy", entityId: p.id, targetState: next[0].toState, actorId: input.actorId });
+    if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
+    await publishTransition(advanced);
+    return { ok: true, status: advanced.appliedTransition.toState };
+  }
+  if (input.kind === "QualityGate") {
+    const { data: g } = await qualityGateDefinitionsDB.findById(input.id);
+    if (!g) return { ok: false, errors: ["Quality Gate Definition draft not found"] };
+    const next = await nextActionsFor("QualityGate", g.status, input.actorId);
+    if (next.length !== 1) return { ok: false, errors: [`Quality Gate Definition is ${g.status} — ${next.length === 0 ? "no further authoring step" : "more than one next step, choose one"}`] };
+    const advanced = await transitionEntity({ entityType: "QualityGate", entityId: g.id, targetState: next[0].toState, actorId: input.actorId });
     if (!advanced.ok) return { ok: false, errors: ["detail" in advanced ? advanced.detail : advanced.reason] };
     await publishTransition(advanced);
     return { ok: true, status: advanced.appliedTransition.toState };

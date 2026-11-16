@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <%
+      var g = qualityGate;
+      var _label = function (type, code) { return ((labels || {})[type] || {})[code] || code; };
+      var _list = function (values) { return (values || []).length ? values.join(', ') : '—'; };
+      var _rows = [
+        ['Category', _label('category:quality-gate', g.category)],
+        ['Governed transition', g.governed_transition.split('|').join(' · ')],
+        ['Criteria', _label('quality-gate-criteria-type', g.criteria_type)],
+        ['Evidence category', g.evidence_category ? _label('category:evidence', g.evidence_category) : '—'],
+        ['Review gate', g.review_gate_code || '—'],
+        ['Required Policies', _list(g.required_policy_codes)],
+        ['Checklists', _list(g.checklist_ids)],
+        ['Recommended Checklists', _list(g.recommended_checklist_ids)],
+        ['Applies to Deliverables', (g.applicability_deliverable_names || []).length ? g.applicability_deliverable_names.map(function (n) { return _label('deliverable-name', n); }).join(', ') : 'Every Deliverable at this transition']
+      ];
+    %>
+
+    <div class="mb-2">
+      <a href="/aisworg/seu/quality-gate-definitions" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>All Quality Gates</a>
+    </div>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-2 text-dark fw-bold">Quality Gate Definition: <%= g.name %></h2>
+      <div class="d-flex align-items-center gap-2">
+        <span class="state-badge state-<%= g.status %>"><%= g.status %></span>
+        <span class="small text-muted">v<%= g.version %></span>
+        <code class="text-muted"><%= g.code %></code>
+      </div>
+    </div>
+
+    <div class="section-card mb-3">
+      <div class="section-header">Definition</div>
+      <% if (g.description) { %><div class="p-3 border-bottom"><%= g.description %></div><% } %>
+      <table class="table mb-0">
+        <tbody>
+          <% _rows.forEach(function (row) { %>
+            <tr><th class="w-25 small"><%= row[0] %></th><td class="small"><%= row[1] %></td></tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

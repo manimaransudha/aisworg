@@ -29,13 +29,19 @@
         "name": "Project Management (OpenUP Capability Pattern) Checklist",
         "items": [
           {
-            "statement": "A Project Plan exists covering scope, phases, and milestones."
+            "statement": "A Project Plan exists covering scope, phases, and milestones.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "An Iteration Plan exists with committed scope the team has agreed to."
+            "statement": "An Iteration Plan exists with committed scope the team has agreed to.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Risks are identified, assessed, and have an owner and mitigation."
+            "statement": "Risks are identified, assessed, and have an owner and mitigation.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

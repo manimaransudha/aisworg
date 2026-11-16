@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "New hires complete background verification and Form I-9 / national identity verification prior to day 1.",
-            "group": "Recruitment & Onboarding"
+            "group": "Recruitment & Onboarding",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Time and attendance inputs are approved by department managers before locking payroll cycles.",
-            "group": "Attendance & Inputs"
+            "group": "Attendance & Inputs",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Gross-to-net calculations match tax withholding tables and statutory deduction limits.",
-            "group": "Payroll Processing"
+            "group": "Payroll Processing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Direct deposit payment files (NACHA/Bank Transfer) undergo dual executive sign-off prior to transmission.",
-            "group": "Payment Disbursement"
+            "group": "Payment Disbursement",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Terminated employee system accounts (email, VPN, SSO, building badge) are revoked on the effective departure date.",
-            "group": "Exit Offboarding & Access Revocation"
+            "group": "Exit Offboarding & Access Revocation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

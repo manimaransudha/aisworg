@@ -57,19 +57,29 @@
         "description": "Validation checklist for operational SRE playbooks, change management, and technical debt governance.",
         "items": [
           {
-            "statement": "The tech debt register is reviewed and updated on a recurring cadence rather than left stale after creation."
+            "statement": "The tech debt register is reviewed and updated on a recurring cadence rather than left stale after creation.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Disaster recovery failover simulation drill is conducted annually with documented recovery times."
+            "statement": "Disaster recovery failover simulation drill is conducted annually with documented recovery times.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Compliance audit evidence catalog is refreshed continuously to satisfy external auditor requests."
+            "statement": "Compliance audit evidence catalog is refreshed continuously to satisfy external auditor requests.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "SRE error budget policies determine release freeze thresholds whenever SLI targets are breached."
+            "statement": "SRE error budget policies determine release freeze thresholds whenever SLI targets are breached.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Quarterly architecture reviews record approved refactoring allocations for the upcoming engineering sprint."
+            "statement": "Quarterly architecture reviews record approved refactoring allocations for the upcoming engineering sprint.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -32,23 +32,33 @@
         "items": [
           {
             "statement": "PL/SQL procedures and packages enforce strict exception handling and avoid silent WHEN OTHERS THEN NULL clauses.",
-            "group": "PL/SQL Architecture"
+            "group": "PL/SQL Architecture",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "SQL queries use bind variables exclusively to prevent SQL injection and maximize SGA library cache cursor sharing.",
-            "group": "Security & Cursor Sharing"
+            "group": "Security & Cursor Sharing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Query execution plans are analyzed via EXPLAIN PLAN / AUTOTRACE to verify index usage and avoid unexpected full table scans.",
-            "group": "Performance Tuning"
+            "group": "Performance Tuning",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Tables and indexes specify appropriate tablespaces, partitioning strategies, and storage parameters.",
-            "group": "Storage & Schema Design"
+            "group": "Storage & Schema Design",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Data Guard failover compatibility and RAC node connection load balancing are validated for mission-critical schemas.",
-            "group": "High Availability & Resilience"
+            "group": "High Availability & Resilience",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

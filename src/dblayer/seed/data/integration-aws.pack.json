@@ -42,15 +42,21 @@
         "items": [
           {
             "statement": "AWS IAM Role authentication utilizes Web Identity Federation / STS assume-role without hardcoded access keys.",
-            "group": "IAM STS Auth"
+            "group": "IAM STS Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "AWS CloudWatch Alarm notifications route to SNS topics and monitoring webhooks.",
-            "group": "CloudWatch Alarms"
+            "group": "CloudWatch Alarms",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "AWS EKS cluster kubeconfig authenticates via AWS IAM Authenticator.",
-            "group": "EKS Connectivity"
+            "group": "EKS Connectivity",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

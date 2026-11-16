@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Portfolio proposals undergo business case evaluation (NPV, ROI, strategic alignment) prior to funding allocation.",
-            "group": "Portfolio Prioritization"
+            "group": "Portfolio Prioritization",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Project Charter defines clear scope boundaries, key deliverables, milestones, and executive sponsor sign-off.",
-            "group": "Project Initiation"
+            "group": "Project Initiation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Work Breakdown Structure (WBS) identifies task dependencies and critical path milestones.",
-            "group": "Scheduling & Planning"
+            "group": "Scheduling & Planning",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "RAID log (Risks, Assumptions, Issues, Dependencies) is updated weekly with mitigation strategies.",
-            "group": "Risk & Issue Management"
+            "group": "Risk & Issue Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Scope or budget variances exceeding 5% require formal Change Request (CR) PMO approval.",
-            "group": "Change Control"
+            "group": "Change Control",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

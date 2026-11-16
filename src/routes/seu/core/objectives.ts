@@ -232,7 +232,7 @@ export interface ObjectiveCommissioningRow {
   templateId: string;
   templateCode: string;
   templateName: string;
-  profile: { id: string; code: string; name: string; environment: string; tenantName: string } | null;
+  profile: { id: string; code: string; name: string; environment: string; tenantName: string; tenantRank: number } | null;
   capabilities: ObjectiveCommissioningCapabilityRef[];
 }
 
@@ -295,7 +295,7 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
     const visibleTenantIds = new Set([platformTenantId, tenantId ?? platformTenantId]);
     const { data: tenants } = await tenantsDB.findAll();
     const tenantNameById = new Map((tenants ?? []).map((t) => [t.id, t.name]));
-    const profilesByTemplateId = new Map<string, Array<{ id: string; code: string; name: string; environment: string; tenantName: string }>>();
+    const profilesByTemplateId = new Map<string, Array<{ id: string; code: string; name: string; environment: string; tenantName: string; tenantRank: number }>>();
     await Promise.all(
       relevant.map(async (c) => {
         const realProfiles = await listRealProfilesForTemplate(c.id);
@@ -303,7 +303,7 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
           c.id,
           realProfiles
             .filter((p) => p.status === "Active" && visibleTenantIds.has(p.tenant_id))
-            .map((p) => ({ id: p.id, code: p.code, name: p.name, environment: p.environment, tenantName: tenantNameById.get(p.tenant_id) ?? p.tenant_id }))
+            .map((p) => ({ id: p.id, code: p.code, name: p.name, environment: p.environment, tenantName: tenantNameById.get(p.tenant_id) ?? p.tenant_id, tenantRank: p.tenant_id === tenantId ? 0 : 1 }))
         );
       })
     );

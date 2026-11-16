@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Central Reservation System (CRS) synchronizes room/seat inventory across distribution channels without overbooking.",
-            "group": "Inventory Synchronization"
+            "group": "Inventory Synchronization",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Passenger Name Records (PNR) capture mandatory passenger contact info and passport details.",
-            "group": "GDS PNR Booking"
+            "group": "GDS PNR Booking",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Hotel guest check-in pre-authorizes credit cards for room charges and incidental deposits.",
-            "group": "PMS Check-In & Folio"
+            "group": "PMS Check-In & Folio",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Baggage handling system scans IATA barcode tags at airport checkpoints to prevent lost luggage.",
-            "group": "Baggage Tracking"
+            "group": "Baggage Tracking",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Irregular Operations (IROP) flight cancellations automatically trigger passenger rebooking and hotel/meal voucher generation.",
-            "group": "Disruption Management"
+            "group": "Disruption Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -16,6 +16,7 @@ import { transitionDeliverable, type TransitionDeliverableResult } from "../src/
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
+import { qualityGateDefinitionsDB } from "../src/dblayer/qualityGateDefinitionsDB.js";
 import { installTestOntologyCache } from "./ontologyTestCache.js";
 import { loadEntityTenantCache } from "./entityTenantCache.js";
 import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
@@ -1083,6 +1084,34 @@ export async function ensurePolicyDefinitionWithObligation(input: {
   await policyDefinitionsDB.updateStatus(draft.id, "Active");
 }
 
+// A Quality Gate Definition for a test, Active in the test Platform tenant, so that a Pack the test publishes can list its code (CR-145). The row is found by code and
+// version when an earlier run left it, and is created otherwise. A test gives each definition a code of its own.
+export async function ensureQualityGateDefinition(input: {
+  code: string;
+  name: string;
+  category: string;
+  governedTransition: string;
+  criteriaType: string;
+  evidenceCategory?: string;
+  applicabilityDeliverableNames?: string[];
+}): Promise<string> {
+  const version = "1.0.0";
+  const { data: existing } = await qualityGateDefinitionsDB.findByCodeAndVersion(input.code, version, PLATFORM_TENANT_ID);
+  if (existing) return existing.code;
+  const { data: gateSchema } = await schemaDefinitionsDB.findLatest("QualityGate");
+  if (!gateSchema) throw new Error("no schema_definitions grammar for QualityGate");
+  const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+  if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("ensureQualityGateDefinition(): no participants_master row for the superuser — is db:clean-slate seeded?");
+  const { data, error } = await qualityGateDefinitionsDB.createDraft({
+    code: input.code, name: input.name, description: null, category: input.category, governedTransition: input.governedTransition, criteriaType: input.criteriaType,
+    evidenceCategory: input.evidenceCategory ?? null, reviewGateCode: null, requiredPolicyCodes: [], checklistIds: [], recommendedChecklistIds: [],
+    applicabilityDeliverableNames: input.applicabilityDeliverableNames ?? [], version,
+    status: "Active", authoredBy: rootMaster.id, authorBadge: "root", draftContent: {}, tenantId: PLATFORM_TENANT_ID, schemaDefinitionId: gateSchema.id,
+  });
+  if (error || !data) throw error ?? new Error("ensureQualityGateDefinition(): the definition was not created");
+  return data.code;
+}
+
 // This is a real, event-driven platform: deliverableKickoffHandler re-fires
 // on EVERY DeliverableTransitioned, not just SEUOperational (Ch.32/33's own
 // "succession mechanism" — see eventSubscriptions.json's own description).
@@ -1345,8 +1374,9 @@ async function seedCoreGates(): Promise<void> {
   const corePack = await getTestDevelopmentPack();
 
   await qualityGatesDB.upsert({
+    code: "no-unresolved-obligations",
     name: "No Unresolved Obligations",
-    category: "Review Evidence",
+    category: "Exit",
     entityType: "Deliverable",
     fromState: "In Progress",
     toState: "Approved",
@@ -1357,12 +1387,13 @@ async function seedCoreGates(): Promise<void> {
   });
 
   await qualityGatesDB.upsert({
+    code: "accepted-evidence-or-approved-decision",
     name: "Requires Accepted Evidence or Approved Decision",
-    category: "Validation Evidence",
+    category: "Exit",
     entityType: "Deliverable",
     fromState: "Approved",
     toState: "Baselined",
-    criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+    criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
     originatingPackId: corePack.id,
     authorId: corePack.authored_by,
     authorBadge: corePack.author_badge,

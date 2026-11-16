@@ -8,13 +8,15 @@ function bumpVersion(version: string): string {
 }
 
 export const qualityGatesDB = {
+  // A gate is identified by its code within its originating Pack (CR-145). A change to any other field replaces the active row with the next version.
   async upsert(input: {
+    code: string;
     name: string;
-    category?: string;
+    category: string;
     entityType: TransitionEntityType;
     fromState: string;
     toState: string;
-    criteria?: Record<string, unknown>;
+    criteria: Record<string, unknown>;
     originatingPackId: string;
     checklistIds?: string[];
     recommendedChecklistIds?: string[];
@@ -25,20 +27,22 @@ export const qualityGatesDB = {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
-      const category = input.category ?? "Exit";
-      const code = category;
-      const criteria = input.criteria ?? { type: "no_unresolved_obligations" };
+      const { code, category, criteria } = input;
       const checklistIds = input.checklistIds ?? [];
       const recommendedChecklistIds = input.recommendedChecklistIds ?? [];
       const applicabilityDeliverableNames = input.applicabilityDeliverableNames ?? [];
       const { rows: currentRows } = await client.query<QualityGateRow>(
-        "SELECT * FROM quality_gates WHERE entity_type = $1 AND from_state = $2 AND to_state = $3 AND category = $4 AND originating_pack_id = $5 AND is_active = true",
-        [input.entityType, input.fromState, input.toState, category, input.originatingPackId]
+        "SELECT * FROM quality_gates WHERE code = $1 AND originating_pack_id = $2 AND is_active = true",
+        [code, input.originatingPackId]
       );
       const current = currentRows[0];
       const unchanged =
         current &&
         current.name === input.name &&
+        current.category === category &&
+        current.entity_type === input.entityType &&
+        current.from_state === input.fromState &&
+        current.to_state === input.toState &&
         JSON.stringify(current.criteria) === JSON.stringify(criteria) &&
         JSON.stringify([...current.checklist_ids].sort()) === JSON.stringify([...checklistIds].sort()) &&
         JSON.stringify([...current.recommended_checklist_ids].sort()) === JSON.stringify([...recommendedChecklistIds].sort()) &&

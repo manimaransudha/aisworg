@@ -52,6 +52,20 @@ export const workItemsDB = {
     }
   },
 
+  // The Work Item with the tenant of the SEU of its Command. A Work Item has no tenant column, so the tenant guard reads it through its Command's SEU.
+  async findByIdWithTenant(id: string): Promise<DbResult<(WorkItemRow & { tenant_id: string }) | null>> {
+    try {
+      const { rows } = await query<WorkItemRow & { tenant_id: string }>(
+        "SELECT w.*, s.tenant_id FROM work_items w JOIN commands c ON c.id = w.command_id JOIN seus s ON s.id = c.seu_id WHERE w.id = $1",
+        [id]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[workItemsDB] findByIdWithTenant error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async setOutputReference(id: string, outputReference: string | null): Promise<DbResult<WorkItemRow>> {
     try {
       const { rows } = await query<WorkItemRow>(

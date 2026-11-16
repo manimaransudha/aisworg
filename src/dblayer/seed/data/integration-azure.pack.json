@@ -42,15 +42,21 @@
         "items": [
           {
             "statement": "Azure Entra ID Service Principal / Workload Identity authenticates with Azure RBAC permissions.",
-            "group": "Entra ID Auth"
+            "group": "Entra ID Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Azure Key Vault secrets fetch securely using Managed Identity tokens without hardcoded credentials.",
-            "group": "Key Vault Access"
+            "group": "Key Vault Access",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Azure Monitor Alert rules trigger Action Group webhooks on resource metric thresholds.",
-            "group": "Azure Monitor Alerts"
+            "group": "Azure Monitor Alerts",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

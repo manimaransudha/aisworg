@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Underwriting risk scoring evaluates applicant risk factors against approved actuarial rate filings.",
-            "group": "Underwriting & Rating"
+            "group": "Underwriting & Rating",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "First Notice of Loss (FNOL) logs loss date, incident location, involved parties, and police reports.",
-            "group": "FNOL Intake"
+            "group": "FNOL Intake",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Coverage verification confirms policy was active on loss date and applicable deductibles apply.",
-            "group": "Coverage Verification"
+            "group": "Coverage Verification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Special Investigation Unit (SIU) evaluates red-flagged claims for potential insurance fraud before approval.",
-            "group": "SIU Fraud Investigation"
+            "group": "SIU Fraud Investigation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Claim settlement payouts require claims manager authorization for amounts exceeding adjuster limit.",
-            "group": "Claim Settlement"
+            "group": "Claim Settlement",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

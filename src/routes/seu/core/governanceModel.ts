@@ -2,6 +2,7 @@ import { seusDB } from "../../../dblayer/seusDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
+import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { getSystemActor } from "../../../dblayer/constants.js";
 
@@ -42,11 +43,14 @@ export async function getEffectiveGovernanceModel(seuId: string): Promise<Effect
       seenPolicy.add(p.code);
       policies.push({ code: p.code, name: p.name, governedTransition: p.governed_transition, fromPack: pack.code });
     }
-    for (const g of pack.contributions?.qualityGates ?? []) {
-      const slotKey = `${g.governedTransition}::${g.category}`;
+    // The gates a Pack takes are the rows written from the Quality Gate Definitions it lists, when it became Active.
+    const { data: packGates } = await qualityGatesDB.findByPackIds([pack.id]);
+    for (const g of packGates ?? []) {
+      const governedTransition = `${g.entity_type}|${g.from_state}|${g.to_state}`;
+      const slotKey = `${governedTransition}::${g.code}`;
       if (seenGate.has(slotKey)) continue;
       seenGate.add(slotKey);
-      qualityGates.push({ name: g.name, category: g.category, governedTransition: g.governedTransition, criteriaType: g.criteriaType, fromPack: pack.code });
+      qualityGates.push({ name: g.name, category: g.category, governedTransition, criteriaType: String((g.criteria as { type?: string }).type ?? ""), fromPack: pack.code });
     }
   }
 

@@ -45,16 +45,24 @@
         "description": "Validation checklist for change requests, impact analysis, and asset baselining.",
         "items": [
           {
-            "statement": "A proposed change is recorded with its rationale and impact."
+            "statement": "A proposed change is recorded with its rationale and impact.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Version control and baselining are established for the project's assets."
+            "statement": "Version control and baselining are established for the project's assets.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Change requests undergo formal impact assessment covering scope, schedule, and cost."
+            "statement": "Change requests undergo formal impact assessment covering scope, schedule, and cost.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Approved changes are linked to corresponding backlog tasks and verification tests."
+            "statement": "Approved changes are linked to corresponding backlog tasks and verification tests.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

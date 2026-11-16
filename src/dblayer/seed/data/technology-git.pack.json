@@ -32,127 +32,189 @@
         "items": [
           {
             "statement": "Write clear, descriptive PR titles and descriptions.",
-            "group": "Pull Request Standards"
+            "group": "Pull Request Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Include relevant ticket/issue numbers in the title (e.g. feat: add rate limits (AX-123)).",
-            "group": "Pull Request Standards"
+            "group": "Pull Request Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Description should include:\n\n- Summary of the changes\n-  Document any breaking changes\n- Add screenshots for UI changes (if applicable)\n- List testing steps and expected outcomes (if applicable)\n- Include notes on any required deployment steps or infrastructure changes (if applicable)",
-            "group": "Pull Request Standards"
+            "group": "Pull Request Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Create branches from the latest main.",
-            "group": "Branch Management"
+            "group": "Branch Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use consistent branch naming: type/short-description or type/ticket-number-short-description\n\n- Types: feat, fix, docs, style, refactor, test, chore",
-            "group": "Branch Management"
+            "group": "Branch Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Keep branches up-to-date with main.",
-            "group": "Branch Management"
+            "group": "Branch Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Delete branches after merging (configured on GitHub in the repository settings).",
-            "group": "Branch Management"
+            "group": "Branch Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Write clear, descriptive commit messages.",
-            "group": "Commit Standards"
+            "group": "Commit Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use conventional commit format: type(scope): description\n\n- Scope is optional\n- Types: feat, fix, docs, style, refactor, test, chore\n- Examples:\n\t- feat: add rate limits on API endpoints\n\t- feat(auth): add login functionality\n\t- fix: handle null values in API response\n\t- docs: update installation instructions\n\t- style: improve button styling\n\t- refactor: extract helper functions\n\t- test: add test for login component\n\t- chore(deps): update dependencies",
-            "group": "Commit Standards"
+            "group": "Commit Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Keep commits atomic and focused.",
-            "group": "Commit Standards"
+            "group": "Commit Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Include ticket/request numbers in commit messages.",
-            "group": "Commit Standards"
+            "group": "Commit Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Squash commits when appropriate (e.g. if there are multiple commits that don’t need to be in the history)",
-            "group": "Commit Standards"
+            "group": "Commit Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Follow project coding standards.",
-            "group": "Code Quality"
+            "group": "Code Quality",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use Prettier/ESLint for consistent formatting.",
-            "group": "Code Quality"
+            "group": "Code Quality",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Remove all console.logs and debug code.",
-            "group": "Code Quality"
+            "group": "Code Quality",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "No commented-out code (use TODO: comments if needed).",
-            "group": "Code Quality"
+            "group": "Code Quality",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Write meaningful comments for complex logic.",
-            "group": "Code Quality"
+            "group": "Code Quality",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Maintain proper .gitignore configuration.",
-            "group": "File Management"
+            "group": "File Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Don’t commit Build artifacts (dist, build).",
-            "group": "File Management"
+            "group": "File Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Don’t commit Dependencies (node_modules).",
-            "group": "File Management"
+            "group": "File Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Don’t commit Environment files, secret credentials or key files (e.g. .env, .key, .pem, etc.).",
-            "group": "File Management"
+            "group": "File Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Don’t commit IDE/editor files (.vscode, .idea).",
-            "group": "File Management"
+            "group": "File Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Don’t commit log files.",
-            "group": "File Management"
+            "group": "File Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Don’t commit cache directories.",
-            "group": "File Management"
+            "group": "File Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Keep PRs small and focused (e.g. don’t mix refactoring with new features).",
-            "group": "Review Process"
+            "group": "Review Process",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Break large features into smaller PRs.",
-            "group": "Review Process"
+            "group": "Review Process",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Ensure CI/CD checks pass (e.g. linting, tests).",
-            "group": "Review Process"
+            "group": "Review Process",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Test changes locally before requesting review.",
-            "group": "Review Process"
+            "group": "Review Process",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Update documentation if needed.",
-            "group": "Review Process"
+            "group": "Review Process",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Don’t commit sensitive data.",
-            "group": "Security"
+            "group": "Security",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Handle errors appropriately.",
-            "group": "Security"
+            "group": "Security",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

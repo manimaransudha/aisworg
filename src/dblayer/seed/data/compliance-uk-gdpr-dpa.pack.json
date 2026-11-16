@@ -31,19 +31,27 @@
         "items": [
           {
             "statement": "UK International Data Transfer Agreement (IDTA) or UK Addendum is executed for non-adequate destination countries.",
-            "group": "UK IDTA Data Transfers"
+            "group": "UK IDTA Data Transfers",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Cookie consent mechanism satisfies PECR regulations requiring prior explicit consent before setting non-essential cookies.",
-            "group": "PECR Cookie Consent"
+            "group": "PECR Cookie Consent",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Online Safety Act (OSA) illegal content risk assessment identifies mitigations against priority illegal content.",
-            "group": "Online Safety Act (OSA)"
+            "group": "Online Safety Act (OSA)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "ICO personal data breach notification procedures guarantee reporting to the ICO within 72 hours.",
-            "group": "ICO Breach Reporting"
+            "group": "ICO Breach Reporting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

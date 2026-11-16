@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Total purchase price (including all taxes, mandatory fees, and shipping costs) is displayed prior to final payment checkout.",
-            "group": "Price Transparency"
+            "group": "Price Transparency",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Online subscription cancellation is as easy to execute online as the initial sign-up ('Click to Cancel').",
-            "group": "Subscription Auto-Renewal"
+            "group": "Subscription Auto-Renewal",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "EU consumers are provided 14-day right of withdrawal (cooling-off period) with model cancellation forms.",
-            "group": "EU 14-Day Right of Withdrawal"
+            "group": "EU 14-Day Right of Withdrawal",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Name, contact email, phone number, and physical address of the Grievance Officer are published on the website/app.",
-            "group": "Grievance Officer (India E-Commerce)"
+            "group": "Grievance Officer (India E-Commerce)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Product reviews are verified to originate from genuine purchasers and fake/incentivized reviews are suppressed.",
-            "group": "Review Integrity (FTC / EU)"
+            "group": "Review Integrity (FTC / EU)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

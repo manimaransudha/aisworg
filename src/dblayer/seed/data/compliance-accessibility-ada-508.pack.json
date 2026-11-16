@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "All interactive elements, buttons, and form inputs are navigable using keyboard key events (Tab, Shift+Tab, Enter, Space) without keyboard traps (WCAG 2.1.1).",
-            "group": "Keyboard Accessibility (2.1.1)"
+            "group": "Keyboard Accessibility (2.1.1)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Non-text content (images, icons) has descriptive alt text or aria-hidden='true' for decorative elements (WCAG 1.1.1).",
-            "group": "Text Alternatives (1.1.1)"
+            "group": "Text Alternatives (1.1.1)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Text and interactive controls meet 4.5:1 minimum color contrast ratio (3:1 for large text) against background colors (WCAG 1.4.3).",
-            "group": "Color Contrast (1.4.3)"
+            "group": "Color Contrast (1.4.3)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Screen readers (NVDA, JAWS, VoiceOver) accurately announce page titles, headings (H1-H6 hierarchy), landmark roles, and live region updates (WCAG 1.3.1).",
-            "group": "Screen Reader Support (1.3.1)"
+            "group": "Screen Reader Support (1.3.1)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Accessibility Conformance Report (VPAT 2.4) is completed, signed, and published for public procurement.",
-            "group": "VPAT & Section 508 ACR"
+            "group": "VPAT & Section 508 ACR",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

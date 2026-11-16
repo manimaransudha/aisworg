@@ -37,15 +37,21 @@
         "items": [
           {
             "statement": "Jenkins User API Token authenticates successfully against Jenkins Controller REST endpoint.",
-            "group": "Jenkins API Auth"
+            "group": "Jenkins API Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Generic Webhook Trigger plugin receives SCM commit payload and launches target pipeline job.",
-            "group": "Pipeline Webhook Trigger"
+            "group": "Pipeline Webhook Trigger",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Jenkins Agent nodes report healthy status and required build toolchains (Node, JDK, Docker).",
-            "group": "Agent Health"
+            "group": "Agent Health",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

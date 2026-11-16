@@ -2,12 +2,15 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
 const router = express.Router();
+router.param("id", definitionTenantScope(templatesDB.findById, (row) => row.tenant_id, "Template not found."));
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
+import { templatesDB } from "../../../dblayer/templatesDB.js";
+import { definitionTenantScope } from "../../../middleware/seuTenantScope.js";
 import { logger } from "../../../utils/logger.js";
 import { listTemplatesWithNextStates, copyTemplateAsNewDraft } from "../core/templates.js";
 import { getTemplateView } from "../core/templateView.js";

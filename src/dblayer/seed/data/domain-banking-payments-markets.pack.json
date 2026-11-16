@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Customer KYC verification confirms identity documents against sanctions and PEP databases.",
-            "group": "KYC Onboarding"
+            "group": "KYC Onboarding",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Payment messages follow ISO 20022 XML formats (pacs.008, camt.053) for domestic and international wire transfers.",
-            "group": "Payment Messaging"
+            "group": "Payment Messaging",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Chargeback dispute workflows capture representment evidence within card scheme deadlines (Visa/Mastercard).",
-            "group": "Payment Disputes"
+            "group": "Payment Disputes",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Pre-trade risk engine validates buying power and position limits in sub-millisecond execution windows.",
-            "group": "Pre-Trade Risk"
+            "group": "Pre-Trade Risk",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Trade confirmation and allocation messages match counterparty instructions for T+1 settlement.",
-            "group": "Trade Clearing & Settlement"
+            "group": "Trade Clearing & Settlement",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

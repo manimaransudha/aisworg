@@ -47,15 +47,21 @@
         "items": [
           {
             "statement": "ServiceNow Service Account authenticates with rest_service role for Table API endpoint access.",
-            "group": "ServiceNow REST Auth"
+            "group": "ServiceNow REST Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Incident creation auto-populates Mandatory fields (Caller, Short Description, Impact, Urgency, Assignment Group).",
-            "group": "Incident Creation"
+            "group": "Incident Creation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Change Requests transition through State gates (Draft -> Assess -> Authorize -> Scheduled -> Implement) per CAB rules.",
-            "group": "Change Request State Machine"
+            "group": "Change Request State Machine",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

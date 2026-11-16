@@ -45,19 +45,29 @@
         "description": "Validation checklist for beta program execution, feedback triage, and general availability readiness.",
         "items": [
           {
-            "statement": "Feedback from beta users is being captured, triaged, and reflected in the known issues log on an ongoing basis."
+            "statement": "Feedback from beta users is being captured, triaged, and reflected in the known issues log on an ongoing basis.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Beta entry and exit criteria are explicitly approved by product management and engineering leads."
+            "statement": "Beta entry and exit criteria are explicitly approved by product management and engineering leads.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Beta user crash-free session rate meets or exceeds the 99.5% target."
+            "statement": "Beta user crash-free session rate meets or exceeds the 99.5% target.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Dedicated support channel and escalation playbook are operational with defined response SLAs."
+            "statement": "Dedicated support channel and escalation playbook are operational with defined response SLAs.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Customer feedback analysis demonstrates positive CSAT trend and validates key value assumptions."
+            "statement": "Customer feedback analysis demonstrates positive CSAT trend and validates key value assumptions.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -32,23 +32,33 @@
         "items": [
           {
             "statement": "Modern Java language constructs (records, sealed classes, pattern matching, switch expressions) are used over verbose boilerplate.",
-            "group": "Language Standards & Style"
+            "group": "Language Standards & Style",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Spring dependency injection uses constructor injection rather than field injection (@Autowired on fields is avoided).",
-            "group": "Dependency Injection & Spring"
+            "group": "Dependency Injection & Spring",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "JPA/Hibernate queries avoid N+1 issues via JOIN FETCH or Entity Graphs, and transactions specify proper read-only flags.",
-            "group": "Data Access & Persistence"
+            "group": "Data Access & Persistence",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Static analysis via Checkstyle, SpotBugs, and SonarQube returns zero high-severity code smells or security flaws.",
-            "group": "Static Analysis & Quality"
+            "group": "Static Analysis & Quality",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Unit tests use JUnit 5 and AssertJ / Mockito with high branch coverage and isolated test slices.",
-            "group": "Testing & Verification"
+            "group": "Testing & Verification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

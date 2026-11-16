@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Statement of Applicability (SoA) covers all 93 controls across Organizational (A.5), People (A.6), Physical (A.7), and Technological (A.8).",
-            "group": "ISMS Scope & SoA (Clause 6.1.3)"
+            "group": "ISMS Scope & SoA (Clause 6.1.3)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Information Security Risk Register identifies asset owners, threat scenarios, residual risks, and approved Risk Treatment Plans.",
-            "group": "Risk Assessment (Clause 6.1.2)"
+            "group": "Risk Assessment (Clause 6.1.2)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Internal audit program executes according to schedule, with independent auditors evaluating control effectiveness.",
-            "group": "Internal Audit (Clause 9.2)"
+            "group": "Internal Audit (Clause 9.2)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Top Management conducts formal ISMS Management Reviews annually with recorded minutes and decisions.",
-            "group": "Management Review (Clause 9.3)"
+            "group": "Management Review (Clause 9.3)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Incident Management procedures specify incident classification, root-cause analysis, and CAPA tracking.",
-            "group": "Incident Management (Annex A.5.24-A.5.28)"
+            "group": "Incident Management (Annex A.5.24-A.5.28)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

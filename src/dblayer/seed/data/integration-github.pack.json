@@ -47,19 +47,27 @@
         "items": [
           {
             "statement": "GitHub Webhook secret is configured with HMAC-SHA256 signature verification.",
-            "group": "Webhook Connectivity"
+            "group": "Webhook Connectivity",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "OAuth App / Personal Access Token permissions satisfy least-privilege repository access scope.",
-            "group": "Authentication & Scope"
+            "group": "Authentication & Scope",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Branch protection rules enforce mandatory Pull Request approvals before merging to main.",
-            "group": "Branch Protection"
+            "group": "Branch Protection",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "GitHub Actions workflow status checks report build pass/fail status back to commits.",
-            "group": "CI/CD Actions Execution"
+            "group": "CI/CD Actions Execution",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

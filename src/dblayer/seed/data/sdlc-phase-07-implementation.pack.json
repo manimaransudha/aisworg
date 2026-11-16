@@ -60,19 +60,29 @@
         "description": "Validation checklist for feature implementation, code review, and automated unit testing.",
         "items": [
           {
-            "statement": "The implemented code conforms to the documented API contracts and architecture decision records."
+            "statement": "The implemented code conforms to the documented API contracts and architecture decision records.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Every pull request requires at least 1 peer approval and passing CI build before merging."
+            "statement": "Every pull request requires at least 1 peer approval and passing CI build before merging.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Unit and integration test suites meet minimum code coverage target (>= 80%)."
+            "statement": "Unit and integration test suites meet minimum code coverage target (>= 80%).",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Database migration scripts are tested for both upgrade and rollback paths."
+            "statement": "Database migration scripts are tested for both upgrade and rollback paths.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "No hardcoded secrets, credentials, or unhandled exceptions exist in merged feature branches."
+            "statement": "No hardcoded secrets, credentials, or unhandled exceptions exist in merged feature branches.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

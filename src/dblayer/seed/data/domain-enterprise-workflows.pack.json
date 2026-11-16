@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Lead-to-Cash (L2C) workflow maintains unique transaction correlation IDs from CRM opportunity to GL revenue posting.",
-            "group": "Lead-to-Cash (L2C)"
+            "group": "Lead-to-Cash (L2C)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Procure-to-Pay (P2P) workflow enforces budget checks, PO approval thresholds, and 3-way matching before payment release.",
-            "group": "Procure-to-Pay (P2P)"
+            "group": "Procure-to-Pay (P2P)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Record-to-Report (R2R) workflow reconciles sub-ledgers and automates journal adjustments prior to general ledger close.",
-            "group": "Record-to-Report (R2R)"
+            "group": "Record-to-Report (R2R)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Hire-to-Retire (H2R) workflow coordinates HR onboarding, payroll setup, IT provisioning, and offboarding deactivation.",
-            "group": "Hire-to-Retire (H2R)"
+            "group": "Hire-to-Retire (H2R)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Idea-to-Product (I2P) workflow maps product discovery concepts to PRD requirements, WBS schedules, and release builds.",
-            "group": "Idea-to-Product (I2P)"
+            "group": "Idea-to-Product (I2P)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

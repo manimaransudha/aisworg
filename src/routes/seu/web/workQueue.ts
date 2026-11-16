@@ -3,13 +3,14 @@ const require = createRequire(import.meta.url);
 const express = require("express");
 const router = express.Router();
 router.param("id", seuTenantScope);
+router.param("workItemId", workItemTenantScope);
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
-import { seuTenantScope } from "../../../middleware/seuTenantScope.js";
+import { seuTenantScope, workItemTenantScope } from "../../../middleware/seuTenantScope.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
 import { workItemsDB } from "../../../dblayer/workItemsDB.js";

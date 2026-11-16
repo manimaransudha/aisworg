@@ -10,7 +10,7 @@ import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsD
 import { resolveSeuOwningScope } from "../../../domain/engine/deliverableSource.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGateEngine.js";
-import { EEG_BLOCKED_STATE, EEG_COLOUR_CONCEPT_TYPE, EEG_LAYOUT, EEG_NODE_TAB, EEG_SHAPE_CONCEPT_TYPE } from "../../../dblayer/constants.js";
+import { EEG_ATTENTION_CLOSED_STATUSES, EEG_ATTENTION_RESOLVED_STATUSES, EEG_BLOCKED_STATE, EEG_COLOUR_CONCEPT_TYPE, EEG_LAYOUT, EEG_NODE_TAB, EEG_SHAPE_CONCEPT_TYPE } from "../../../dblayer/constants.js";
 import type { DependencyDefinitionRow, QualityGateEvaluationRow } from "../../../dblayer/seuTypes.js";
 
 export interface GraphDetail {
@@ -205,6 +205,16 @@ export async function getSeuGraph(seuId: string): Promise<SeuGraph | null> {
       blockedDeliverableIds.add(d.id);
       rawNodes.set(command.id, { id: command.id, kind: "Command", label: command.command_type, state: command.status, details: detailsOf(command) });
       edges.push({ id: `${command.id}>${d.id}`, from: command.id, to: d.id, label: await hopLabel(command.from_state, command.to_state), satisfied: false });
+    }
+  }
+
+  // Attention Items need manual intervention. Each is a node, joined to the entity it concerns when that entity is on the graph.
+  for (const a of detail.attentionItems) {
+    const row = a.attentionItem;
+    if (EEG_ATTENTION_CLOSED_STATUSES.has(row.status)) continue;
+    rawNodes.set(row.id, { id: row.id, kind: "AttentionItem", label: row.title, state: row.status, details: detailsOf({ ...row, relatedName: a.relatedName }) });
+    if (row.related_object_id && rawNodes.has(row.related_object_id)) {
+      edges.push({ id: `${row.id}>${row.related_object_id}`, from: row.id, to: row.related_object_id, label: `needs action · ${row.category} · ${row.priority}`, satisfied: EEG_ATTENTION_RESOLVED_STATUSES.has(row.status) });
     }
   }
 

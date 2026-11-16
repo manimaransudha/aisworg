@@ -86,7 +86,7 @@ export async function getPackView(id: string, viewer: { isRoot: boolean; tenantI
     if (capability) refs["capability-name"][code] = { name: capability.default_label, note: capability.description, id: capability.id };
   }
   const policyRows = new Map<string, PolicyDefinitionRow>();
-  const policyRefs = new Set([...strings(content.contributionPolicies), ...(Array.isArray(content.contributionQualityGates) ? content.contributionQualityGates.flatMap((g) => strings((g as Record<string, unknown>).requiredPolicyCodes)) : [])]);
+  const policyRefs = new Set(strings(content.contributionPolicies));
   for (const ref of policyRefs) {
     const { data: policy } = UUID.test(ref) ? await policyDefinitionsDB.findById(ref) : await policyDefinitionsDB.findActiveByCodeVisibleTo(ref, tenantId);
     if (policy) {

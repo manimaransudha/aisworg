@@ -32,27 +32,39 @@
         "items": [
           {
             "statement": "COBOL source code adheres strictly to four DIVISION structures (IDENTIFICATION, ENVIRONMENT, DATA, PROCEDURE).",
-            "group": "COBOL Structure & Layout"
+            "group": "COBOL Structure & Layout",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Data items use standardized COPYBOOK structures with explicit level numbers (01, 05, 10) and picture clauses (PIC X, PIC 9).",
-            "group": "Data Definitions & Copybooks"
+            "group": "Data Definitions & Copybooks",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Packed decimal (COMP-3) arithmetic fields include sign clauses and overflow/truncation guards.",
-            "group": "Arithmetic & Numeric Safety"
+            "group": "Arithmetic & Numeric Safety",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "IBM CICS commands (EXEC CICS LINK/XCTL/READ) handle RESP and RESP2 return codes without unhandled ABENDs.",
-            "group": "CICS & Online Transactions"
+            "group": "CICS & Online Transactions",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "JCL batch job steps specify valid COND parameters, DISP status settings, and dataset name (DSN) governance rules.",
-            "group": "JCL Batch Execution"
+            "group": "JCL Batch Execution",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "EBCDIC to ASCII character code conversions are validated when interfacing mainframe feeds with distributed systems.",
-            "group": "Data Encoding & Interop"
+            "group": "Data Encoding & Interop",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

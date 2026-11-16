@@ -24,9 +24,13 @@ router.get("/events", attachVM("seu/events/index"), async (req: Request, res: Re
       defaultSort: "sequence",
       defaultDir: "desc",
     });
+    const isRoot = (req.session?.user?.platformBadges ?? []).includes("root");
+    const sessionTenantId = req.session?.user?.tenant_id ?? null;
+    if (!isRoot && !sessionTenantId) throw new Error("the session user has no tenant");
     const { items, total } = await getEventsPage({
       limit: params.limit,
       offset: params.offset,
+      tenantId: isRoot ? undefined : (sessionTenantId ?? undefined),
       seuId: seuId || undefined,
       eventType: eventType || undefined,
       entityType: entityType || undefined,

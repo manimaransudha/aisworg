@@ -29,7 +29,7 @@ export const CATEGORY_CONCEPT_TYPE: Record<string, string> = {
   Knowledge: "category:knowledge",
   Obligation: "category:obligation",
   EventType: "category:event-types",
-  QualityGate: "category:evidence",
+  QualityGate: "category:quality-gate",
 };
 
 export async function assertCanonicalCategory(conceptType: string, value: string, viewer: OntologyViewer = { isRoot: false, tenantId: null }): Promise<void> {
@@ -39,6 +39,11 @@ export async function assertCanonicalCategory(conceptType: string, value: string
     const list = (allowed ?? []).map((c) => c.code).join(", ");
     throw new Error(`"${value}" is not a canonical ${conceptType} concept. Allowed: ${list || "(none registered)"}`);
   }
+}
+
+export async function listCanonicalCategories(conceptType: string, viewer: OntologyViewer = { isRoot: false, tenantId: null }): Promise<string[]> {
+  const { data } = await ontologyDB.findConceptsByType(conceptType, viewer);
+  return (data ?? []).map((c) => c.code);
 }
 
 function resolveConceptType(def: JsonSchemaProperty, source: Record<string, unknown>): string {

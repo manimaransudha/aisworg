@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "FIPS 199 security categorization report defines system impact levels for Confidentiality, Integrity, and Availability.",
-            "group": "FIPS 199 Categorization"
+            "group": "FIPS 199 Categorization",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Software Bill of Materials (SBOM) in SPDX or CycloneDX format is generated automatically for every software build.",
-            "group": "EO 14028 Supply Chain (SBOM)"
+            "group": "EO 14028 Supply Chain (SBOM)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Secure Software Development Framework (NIST SP 800-218 SSDF) attestation form is signed by the software vendor.",
-            "group": "SSDF Attestation (SP 800-218)"
+            "group": "SSDF Attestation (SP 800-218)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Zero Trust Architecture deployment enforces microsegmentation and continuous identity verification.",
-            "group": "Zero Trust Architecture"
+            "group": "Zero Trust Architecture",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "CISA cyber incident reporting procedures guarantee notification within 8 hours for federal civilian agency systems.",
-            "group": "CISA Incident Escalation"
+            "group": "CISA Incident Escalation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

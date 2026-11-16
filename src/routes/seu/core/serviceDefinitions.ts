@@ -129,7 +129,7 @@ export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: strin
     governance: source.governance,
     success: source.success,
     consumers: source.consumers,
-    version: await nextAvailablePatchVersion(source.version, async (candidate) => !!(await serviceDefinitionsDB.findByCodeAndVersion(source.code, candidate, source.tenant_id)).data),
+    version: await nextAvailablePatchVersion(source.version, async (candidate) => !!(await serviceDefinitionsDB.findByCodeAndVersion(source.code, candidate, copyMaster.tenant_id)).data),
     status: birth.initialState as ServiceDefinitionRow["status"],
     authoredBy: copyMaster.id,
     authorBadge: birth.authorityBadge,
@@ -137,7 +137,7 @@ export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: strin
       code: source.code, name: source.name, capabilityCode: source.capability_code, purpose: source.purpose ?? "", inputs: source.inputs,
       outputs: source.outputs, serviceLevel: source.service_level, governance: source.governance ?? "", success: source.success ?? "", consumers: source.consumers,
     },
-    tenantId: source.tenant_id,
+    tenantId: copyMaster.tenant_id,
     parentServiceDefinitionId: source.parent_service_definition_id,
     schemaDefinitionId: copySchema.id,
   });

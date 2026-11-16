@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Purchase Requisitions are approved per Delegation of Authority (DoA) thresholds prior to PO creation.",
-            "group": "Requisition Approval"
+            "group": "Requisition Approval",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Competitive RFQ/RFP bidding includes at least 3 qualified supplier quotations for spend above threshold.",
-            "group": "Strategic Sourcing"
+            "group": "Strategic Sourcing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "New suppliers undergo compliance screening, tax ID verification, and bank account validation.",
-            "group": "Supplier Onboarding"
+            "group": "Supplier Onboarding",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Goods Receipt Notes (GRN) record physical inspection, accepted quantity, and damaged items.",
-            "group": "Goods Receipt"
+            "group": "Goods Receipt",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Vendor invoice price and quantity match PO and GRN within approved tolerance limits (3-Way Match).",
-            "group": "3-Way Invoice Matching"
+            "group": "3-Way Invoice Matching",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Cybersecurity policy is reviewed annually and approved by a Senior Officer or Board of Directors (§500.03).",
-            "group": "Cybersecurity Policy (§500.03)"
+            "group": "Cybersecurity Policy (§500.03)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Multi-Factor Authentication (MFA) is enforced for all individuals accessing nonpublic information (§500.12).",
-            "group": "MFA Mandatory (§500.12)"
+            "group": "MFA Mandatory (§500.12)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Cybersecurity events are reported to the NYDFS Superintendent within 72 hours of determination (§500.17(a)).",
-            "group": "72-Hour Reporting (§500.17)"
+            "group": "72-Hour Reporting (§500.17)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Ransomware extortion payments are reported to NYDFS within 24 hours of payment (§500.17(c)).",
-            "group": "24-Hour Ransomware Reporting"
+            "group": "24-Hour Ransomware Reporting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Vulnerability assessments are performed at least bi-annually and penetration testing conducted annually (§500.05).",
-            "group": "Penetration Testing (§500.05)"
+            "group": "Penetration Testing (§500.05)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

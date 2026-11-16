@@ -3751,5 +3751,14 @@
     "is_mandatory": null,
     "text_type": "text",
     "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "quality-gate-name",
+    "code": "schema-fixture-quality-gate",
+    "default_label": "Schema fixture quality gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
   }
 ]

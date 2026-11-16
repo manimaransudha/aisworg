@@ -4,11 +4,13 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
 const router = express.Router();
+router.param("workItemId", workItemTenantScope);
 
 import { attachVM } from "../../middleware/attachVM.js";
 import { renderView } from "../../utils/viewModel.js";
 import { getFlash } from "../../utils/flash.js";
 import { redirects } from "../../middleware/redirects.js";
+import { workItemTenantScope } from "../../middleware/seuTenantScope.js";
 import { logger } from "../../utils/logger.js";
 import {parseListParams, paginateList} from "../../utils/listQuery.js";
 import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";

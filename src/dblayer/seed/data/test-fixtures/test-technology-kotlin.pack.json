@@ -32,23 +32,33 @@
         "items": [
           {
             "statement": "Coroutines manage lifecycle cancellation via viewModelScope / lifecycleScope and avoid GlobalScope usages.",
-            "group": "Coroutines & Concurrency"
+            "group": "Coroutines & Concurrency",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Jetpack Compose UI components minimize recompositions via Stable / Immutable data models.",
-            "group": "UI & Jetpack Compose"
+            "group": "UI & Jetpack Compose",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "ktlint and detekt static analysis tools enforce Kotlin coding conventions and prevent code smells.",
-            "group": "Code Quality & Formatting"
+            "group": "Code Quality & Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Room database migrations include explicit test cases for version upgrades.",
-            "group": "Data Persistence & Room"
+            "group": "Data Persistence & Room",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "ProGuard / R8 rules are verified to ensure release builds obfuscate code without stripping necessary reflection targets.",
-            "group": "Build Security & Obfuscation"
+            "group": "Build Security & Obfuscation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

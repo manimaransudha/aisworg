@@ -77,11 +77,11 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
 export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await deliverableDefinitionsDB.findById(deliverableDefinitionId);
   if (!source) return { ok: false, errors: ["Deliverable Definition not found"] };
-  const nextVersion = await nextAvailablePatchVersion(source.code, source.version, source.tenant_id);
-  const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Deliverable");
-  if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Deliverable`] };
   const { data: copyMaster } = await participantsMasterDB.findById(actorId);
   if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const nextVersion = await nextAvailablePatchVersion(source.code, source.version, copyMaster.tenant_id);
+  const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Deliverable");
+  if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Deliverable`] };
   const birth = await transitionEngine.beginBirth({ entityType: "DeliverableDefinition", actorId });
   const { data: newDraft, error } = await deliverableDefinitionsDB.createDraft({
     code: source.code,
@@ -93,7 +93,7 @@ export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionI
     authoredBy: copyMaster.id,
     authorBadge: birth.authorityBadge,
     draftContent: { code: source.code, name: source.name, description: source.description, guideLocation: source.guide_location ?? "", definitionVersion: nextVersion },
-    tenantId: source.tenant_id,
+    tenantId: copyMaster.tenant_id,
     parentDeliverableDefinitionId: source.parent_deliverable_definition_id,
     schemaDefinitionId: copySchema.id,
   });

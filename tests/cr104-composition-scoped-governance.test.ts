@@ -29,7 +29,7 @@ import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { policyEngine } from "../src/domain/engine/policyEngine.js";
 import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
-import { PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { PLATFORM_TENANT_ID, ensureQualityGateDefinition } from "./testFixtures.js";
 
 // Two Templates: one mandates the scoped Pack (and therefore its Quality
 // Gate + Policy), one mandates nothing at all. Same shape as
@@ -70,7 +70,7 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
 
   // A Pack declaring one Quality Gate and one Policy, both on a governed
   // transition no other seeded fixture uses ("Deliverable|Defined|In
-  // Progress" + category "Review Evidence" is free there — the shared
+  // Progress" + category "Exit" is free there — the shared
   // "development" fixture only uses that category on "In Progress|Approved").
   const scopedPack = {
     tenantId: PLATFORM_TENANT_ID,
@@ -81,7 +81,7 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
     installationClassification: "Optional",
     contributions: {
       qualityGates: [
-        { name: `CR-104 gate ${run}`, category: "Review Evidence", governedTransition: "Deliverable|Defined|In Progress", criteriaType: "no_unresolved_obligations" },
+        await ensureQualityGateDefinition({ code: `cr104-gate-${run}`, name: `CR-104 gate ${run}`, category: "Exit", governedTransition: "Deliverable|Defined|In Progress", criteriaType: "no_unresolved_obligations" }),
       ],
     },
   };
@@ -217,7 +217,7 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
     packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: {
       qualityGates: [
-        { name: `CR-104 named gate ${run}`, category: "Review Evidence", governedTransition: "Deliverable|Defined|In Progress", criteriaType: "no_unresolved_obligations", applicabilityDeliverableNames: [targetedName] },
+        await ensureQualityGateDefinition({ code: `cr104-named-gate-${run}`, name: `CR-104 named gate ${run}`, category: "Exit", governedTransition: "Deliverable|Defined|In Progress", criteriaType: "no_unresolved_obligations", applicabilityDeliverableNames: [targetedName] }),
       ],
     },
   };

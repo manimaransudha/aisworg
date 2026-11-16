@@ -11,6 +11,7 @@ import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
+import { qualityGateDefinitionsDB } from "../../../dblayer/qualityGateDefinitionsDB.js";
 import { reviewGatesDB } from "../../../dblayer/reviewGatesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
@@ -25,7 +26,10 @@ import type { PackCategory, PackClassification, PackContributions, PackRow, Poli
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { createAuthoringDraft } from "./sdkAuthoring.js";
-import { getPlatformTenantId, INITIAL_VERSION } from "../../../dblayer/constants.js";
+import {
+  getPlatformTenantId, INITIAL_VERSION, QUALITY_GATE_CRITERIA_TYPE_CONCEPT, QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION,
+  QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW, QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY,
+} from "../../../dblayer/constants.js";
 import { compareSemver, nextUnusedPatchVersion, semverError } from "../../../utils/version.js";
 
  
@@ -219,39 +223,27 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
     }
   }
 
-  const seenGateSlots = new Set<string>();
-  for (const gate of seed.contributions.qualityGates ?? []) {
-    const slotKey = `${gate.governedTransition ?? ""}::${gate.category ?? ""}`;
-    if (seenGateSlots.has(slotKey)) errors.push(`duplicate quality gate within Pack: "${gate.governedTransition}" [${gate.category}] is targeted by more than one contribution`);
-    seenGateSlots.add(slotKey);
+  // A Pack lists the codes of the Quality Gate Definitions it takes. Each code resolves to an Active definition of the Platform or of the Pack's tenant (CR-145).
+  const gateCodes = seed.contributions.qualityGates ?? [];
+  const seenGateCodes = new Set<string>();
+  for (const code of gateCodes) {
+    if (seenGateCodes.has(code)) errors.push(`duplicate quality gate within Pack: "${code}" is listed more than once`);
+    seenGateCodes.add(code);
   }
-
-  for (const gate of seed.contributions.qualityGates ?? []) {
-    const scope = parseGovernedTransition(gate.governedTransition);
-    if (!scope) {
-      errors.push(`quality gate "${gate.name}" has an invalid governedTransition — expected "EntityType|fromState|toState"`);
-    } else {
-      const { data: definition } = await transitionDefinitionsDB.find(scope.entityType, scope.fromState, scope.toState);
+  if (seenGateCodes.size > 0) {
+    const gateTenantId = seed.tenantId ?? (await getPlatformTenantId());
+    const { data: gateDefinitions } = await qualityGateDefinitionsDB.findActiveByCodesVisibleTo([...seenGateCodes], gateTenantId);
+    const gateDefinitionByCode = new Map((gateDefinitions ?? []).map((d) => [d.code, d]));
+    for (const code of seenGateCodes) {
+      const definition = gateDefinitionByCode.get(code);
       if (!definition) {
-        errors.push(`quality gate "${gate.name}" references a transition that doesn't exist: ${scope.entityType} ${scope.fromState} -> ${scope.toState}`);
+        errors.push(`quality gate "${code}" is not an Active Quality Gate Definition of the Platform or of this tenant`);
+        continue;
+      }
+      for (const policyCode of definition.required_policy_codes) {
+        if (!(seed.contributions.policies ?? []).includes(policyCode)) errors.push(`quality gate "${code}" requires Policy "${policyCode}", which this Pack does not adopt`);
       }
     }
-    if (gate.criteriaType === "requires_active_policy") {
-      if (!gate.requiredPolicyCodes?.length) {
-        errors.push(`quality gate "${gate.name}" has criteriaType requires_active_policy but no requiredPolicyCodes`);
-      } else {
-        for (const err of await validatePolicyCodes(gate.requiredPolicyCodes, seed.contributions.policies ?? [], seed.code, `quality gate "${gate.name}"`)) errors.push(err);
-      }
-    }
-    if (gate.criteriaType === "requires_accepted_review") {
-      if (!gate.deliverableName?.trim()) {
-        errors.push(`quality gate "${gate.name}" has criteriaType requires_accepted_review but no deliverableName`);
-      } else if (!(seed.contributions.reviewGates ?? []).some((rg) => rg.code === gate.deliverableName)) {
-        errors.push(`quality gate "${gate.name}" references unknown Review Gate "${gate.deliverableName}" — the Review Gate must be declared in this same Pack's contributions`);
-      }
-    }
-    for (const err of await validateChecklistIds(gate.checklistIds, (seed.contributions.checklists ?? []).map((cl) => cl.name), seed.code, `quality gate "${gate.name}"`)) errors.push(err);
-    for (const err of await validateChecklistIds(gate.recommendedChecklistIds, (seed.contributions.checklists ?? []).map((cl) => cl.name), seed.code, `quality gate "${gate.name}"`)) errors.push(err);
   }
 
   const seenReviewGateSlots = new Set<string>();
@@ -282,9 +274,8 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
     } else {
       cl.items.forEach((item, i) => {
         if (!item.statement?.trim()) errors.push(`checklist "${cl.name}" item ${i + 1} is missing a statement`);
-        if (!!item.configurableKey?.trim() !== !!item.configurableValue?.trim()) {
-          errors.push(`checklist "${cl.name}" item ${i + 1} has ${item.configurableKey?.trim() ? "a Configurable Dimension but no Configurable Value" : "a Configurable Value but no Configurable Dimension"}`);
-        }
+        if (!item.configurableKey?.trim()) errors.push(`checklist "${cl.name}" item ${i + 1} is missing a Configurable Dimension`);
+        if (!item.configurableValue?.trim()) errors.push(`checklist "${cl.name}" item ${i + 1} is missing a Configurable Value`);
       });
     }
   }
@@ -313,16 +304,6 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
           );
     if (definitionDeliverableNames.size > 0 && ![...definitionDeliverableNames].some((d) => packDeliverableNames.has(d))) {
       errors.push(`policy "${policyCode}" does not govern any deliverable-name produced by this Pack's own declared Capabilities`);
-    }
-  }
-
-  for (const gate of seed.contributions.qualityGates ?? []) {
-    for (const name of gate.applicabilityDeliverableNames ?? []) {
-      try {
-        await assertCanonicalCategory("deliverable-name", name, ontologyViewer);
-      } catch (err) {
-        errors.push(`quality gate "${gate.name}"'s applicabilityDeliverableNames: ${(err as Error).message}`);
-      }
     }
   }
 
@@ -418,7 +399,7 @@ export interface PublishPackResult {
   errors?: string[];
 }
 
-// Validates the seed, then creates the Pack through createAuthoringDraft (sdkAuthoring.ts), which also calls materializeContributions.
+// Validates the seed, then creates the Pack through createAuthoringDraft (sdkAuthoring.ts). The rows the contributions name are written when the Pack becomes Active (materialise-pack).
 export async function createPackDraft(seed: PackSeedInput, authorId: string): Promise<{ ok: true; pack: PackRow } | { ok: false; errors: string[] }> {
   const validation = await validatePackSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
@@ -520,7 +501,8 @@ async function resolvePinnedServiceDefinition(svc: { code: string; serviceDefini
   return definition;
 }
 
-export async function materializeContributions(pack: PackRow, seed: PackSeedInput): Promise<void> {
+// Runs from the action on the Pack Published -> Active Transition Definition (materialise-pack), so the rows follow the Pack as it is when it becomes Active. It reads the contributions only.
+export async function materializeContributions(pack: PackRow, seed: Pick<PackSeedInput, "contributions">): Promise<void> {
   const capabilityIdByCode = new Map<string, string>();
   for (const cap of seed.contributions.capabilities ?? []) {
     const { data: concept } = await ontologyDB.findConcept("capability-name", cap.code, { isRoot: false, tenantId: pack.tenant_id });
@@ -644,30 +626,47 @@ export async function materializeContributions(pack: PackRow, seed: PackSeedInpu
     reviewGateIdByCode.set(rg.code, reviewGate.id);
   }
 
-  for (const gate of seed.contributions.qualityGates ?? []) {
-    const scope = parseGovernedTransition(gate.governedTransition);
-    if (!scope) throw new Error(`quality gate "${gate.name}" has an invalid governedTransition (validatePackSeed should have caught this)`);
-    const criteria: Record<string, unknown> =
-      gate.criteriaType === "requires_active_policy"
-        ? { type: gate.criteriaType, policyIds: resolvePolicyCodes(gate.requiredPolicyCodes) }
-        : gate.criteriaType === "requires_accepted_review"
-          ? { type: gate.criteriaType, reviewGateId: gate.deliverableName ? reviewGateIdByCode.get(gate.deliverableName) : undefined }
-          : { type: gate.criteriaType ?? "no_unresolved_obligations" };
-    const { error } = await qualityGatesDB.upsert({
-      name: gate.name,
-      category: gate.category,
-      entityType: scope.entityType,
-      fromState: scope.fromState,
-      toState: scope.toState,
-      criteria,
-      originatingPackId: pack.id,
-      checklistIds: resolveChecklistIds(gate.checklistIds),
-      recommendedChecklistIds: resolveChecklistIds(gate.recommendedChecklistIds),
-      applicabilityDeliverableNames: gate.applicabilityDeliverableNames ?? [],
-      authorId: pack.authored_by,
-      authorBadge: pack.author_badge,
-    });
-    if (error) throw error;
+  // Each listed code resolves to its Active Quality Gate Definition, and the row the engine reads is written from it.
+  const gateCodes = seed.contributions.qualityGates ?? [];
+  if (gateCodes.length > 0) {
+    const { data: gateDefinitions } = await qualityGateDefinitionsDB.findActiveByCodesVisibleTo(gateCodes, pack.tenant_id);
+    const gateDefinitionByCode = new Map((gateDefinitions ?? []).map((d) => [d.code, d]));
+    const { data: visibleReviewGates } = await reviewGatesDB.findActiveVisibleTo(pack.tenant_id);
+    for (const code of gateCodes) {
+      const definition = gateDefinitionByCode.get(code);
+      if (!definition) throw new Error(`quality gate "${code}" is not an Active Quality Gate Definition of the Platform or of this tenant`);
+      const scope = parseGovernedTransition(definition.governed_transition);
+      if (!scope) throw new Error(`quality gate "${code}" has an invalid governed transition "${definition.governed_transition}"`);
+      let criteria: Record<string, unknown> = { type: definition.criteria_type };
+      if (definition.criteria_type === QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY) {
+        const policyIds = definition.required_policy_codes.flatMap((policyCode) => policyIdByCode.get(policyCode) ?? []);
+        if (policyIds.length === 0 || definition.required_policy_codes.some((policyCode) => !policyIdByCode.has(policyCode))) {
+          throw new Error(`quality gate "${code}" requires a Policy that this Pack does not adopt`);
+        }
+        criteria = { type: definition.criteria_type, policyIds };
+      } else if (definition.criteria_type === QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW) {
+        const reviewGateId = definition.review_gate_code ? (reviewGateIdByCode.get(definition.review_gate_code) ?? (visibleReviewGates ?? []).find((g) => g.code === definition.review_gate_code)?.id) : undefined;
+        criteria = { type: definition.criteria_type, reviewGateId };
+      } else if (definition.criteria_type === QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION) {
+        criteria = { type: definition.criteria_type, evidenceCategory: definition.evidence_category };
+      }
+      const { error } = await qualityGatesDB.upsert({
+        code: definition.code,
+        name: definition.name,
+        category: definition.category,
+        entityType: scope.entityType,
+        fromState: scope.fromState,
+        toState: scope.toState,
+        criteria,
+        originatingPackId: pack.id,
+        checklistIds: definition.checklist_ids,
+        recommendedChecklistIds: definition.recommended_checklist_ids,
+        applicabilityDeliverableNames: definition.applicability_deliverable_names,
+        authorId: pack.authored_by,
+        authorBadge: pack.author_badge,
+      });
+      if (error) throw error;
+    }
   }
 
 }

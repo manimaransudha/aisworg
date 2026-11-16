@@ -550,7 +550,9 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
 export async function copyProfileAsNewDraft(profileId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await profilesDB.findById(profileId);
   if (!source) return { ok: false, errors: ["Profile not found"] };
-  const nextVersion = await nextAvailablePatchVersion(source.code, source.profile_version, source.tenant_id);
+  const { data: copyMaster } = await participantsMasterDB.findById(actorId);
+  if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const nextVersion = await nextAvailablePatchVersion(source.code, source.profile_version, copyMaster.tenant_id);
   const { data: template } = await templatesDB.findById(source.base_template_id);
   if (!template) return { ok: false, errors: [`base Template ${source.base_template_id} no longer exists`] };
 
@@ -591,8 +593,6 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
   draftContent.dependencyGraph = Array.isArray(priorContent.dependencyGraph) ? priorContent.dependencyGraph : [];
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Profile");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Profile`] };
-  const { data: copyMaster } = await participantsMasterDB.findById(actorId);
-  if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const birth = await transitionEngine.beginBirth({ entityType: "Profile", actorId });
   const { data: newDraft, error } = await profilesDB.createDraft({
     code: source.code,
@@ -604,7 +604,7 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
     authorBadge: birth.authorityBadge,
     draftContent,
     profileVersion: nextVersion,
-    tenantId: source.tenant_id,
+    tenantId: copyMaster.tenant_id,
     parentProfileId: source.parent_profile_id,
     schemaDefinitionId: copySchema.id,
   });

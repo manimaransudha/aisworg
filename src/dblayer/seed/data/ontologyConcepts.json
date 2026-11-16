@@ -5616,6 +5616,69 @@
     "ui_grouping": "Governance"
   },
   {
+    "concept_type": "quality-gate-criteria-type",
+    "code": "no_unresolved_obligations",
+    "default_label": "No unresolved Obligations",
+    "description": "The entity has no Obligation that is still open.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-criteria-type",
+    "code": "requires_accepted_evidence_or_approved_decision",
+    "default_label": "Accepted Evidence or approved Decision",
+    "description": "The entity has Accepted Evidence of the gate's Evidence Category, or an Approved Decision of any category.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-criteria-type",
+    "code": "requires_accepted_review",
+    "default_label": "Accepted Review",
+    "description": "The entity has an Accepted, passing Review against the Review Gate the gate names.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-criteria-type",
+    "code": "requires_active_policy",
+    "default_label": "Satisfied Policy",
+    "description": "Every Policy the gate names is satisfied for the entity.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-name",
+    "code": "no-unresolved-obligations",
+    "default_label": "No Unresolved Obligations",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-name",
+    "code": "accepted-evidence-or-approved-decision",
+    "default_label": "Accepted Evidence or Approved Decision",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-name",
+    "code": "fixture-quality-gate",
+    "default_label": "Fixture Quality Gate",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
     "concept_type": "quality-gate-outcome",
     "code": "Passed",
     "default_label": "Passed",
@@ -22278,6 +22341,69 @@
     "concept_type": "eeg-state-colour",
     "code": "Command|Failed",
     "default_label": "red",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-node-shape",
+    "code": "AttentionItem",
+    "default_label": "pentagon",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "AttentionItem|Created",
+    "default_label": "red",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "AttentionItem|Delivered",
+    "default_label": "red",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "AttentionItem|Acknowledged",
+    "default_label": "blue",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "AttentionItem|In Progress",
+    "default_label": "orange",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "AttentionItem|Resolved",
+    "default_label": "green",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "eeg-state-colour",
+    "code": "AttentionItem|Closed",
+    "default_label": "teal",
     "description": null,
     "is_mandatory": null,
     "text_type": "text",

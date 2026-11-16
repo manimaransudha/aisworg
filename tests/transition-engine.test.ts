@@ -82,7 +82,7 @@ test("a Quality Gate on an edge with no verb is refused with an error, because t
   const pack = await getTestDevelopmentPack();
   assert.ok(pack, "the development Pack is seeded");
   const { data: gate, error } = await qualityGatesDB.upsert({
-    name: `transition-engine gate ${run}`, entityType: "AttentionItem", fromState: state("open-c"), toState: state("done-c"),
+    category: "Exit", code: `qg-test-${randomUUID()}`, name: `transition-engine gate ${run}`, entityType: "AttentionItem", fromState: state("open-c"), toState: state("done-c"),
     criteria: { type: "no_unresolved_obligations" }, originatingPackId: pack.id, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
   assert.ok(gate && !error, error);

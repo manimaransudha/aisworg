@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Electronic Lab Notebook (ELN) entries are timestamped and signed off by a witnessing researcher.",
-            "group": "ELN Lab Notebook"
+            "group": "ELN Lab Notebook",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "LIMS sample tracking maintains chain-of-custody barcode logs for all biological and chemical specimens.",
-            "group": "Sample Chain of Custody"
+            "group": "Sample Chain of Custody",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Laboratory instruments (mass spectrometers, PCR machines) undergo periodic calibration verification.",
-            "group": "Instrument Calibration"
+            "group": "Instrument Calibration",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Invention disclosures are submitted to IP Legal Counsel prior to public publication or conference presentations.",
-            "group": "IP Patent Disclosures"
+            "group": "IP Patent Disclosures",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Technology transfer agreements specify royalty terms and commercialization milestone schedules.",
-            "group": "Technology Transfer"
+            "group": "Technology Transfer",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

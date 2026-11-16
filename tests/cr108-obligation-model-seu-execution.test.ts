@@ -391,7 +391,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
         {
           name: "CR-108 Execution Context Checklist",
           description: "Checklist exercised by the Execution Context widening test.",
-          items: [{ statement: "CR-108 checklist item statement" }],
+          items: [{ statement: "CR-108 checklist item statement", configurableKey: "type", configurableValue: "required" }],
         },
       ],
       engineeringCapital: [{ type: "Reusable Components", url: "https://example.test/cr108-ec" }],

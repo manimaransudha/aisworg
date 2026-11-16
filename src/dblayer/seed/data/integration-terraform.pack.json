@@ -42,15 +42,21 @@
         "items": [
           {
             "statement": "Terraform Cloud User / Team API Token authenticates REST API calls to workspace endpoints.",
-            "group": "TFC Token Auth"
+            "group": "TFC Token Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Remote State storage uses encrypted backend (S3/GCS/TFC) with state locking enabled.",
-            "group": "State Storage & Locking"
+            "group": "State Storage & Locking",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Speculative terraform plan runs trigger automatically on Pull Requests to validate IaC changes.",
-            "group": "Speculative Plan Checks"
+            "group": "Speculative Plan Checks",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

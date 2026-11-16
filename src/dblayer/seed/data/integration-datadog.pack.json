@@ -37,15 +37,21 @@
         "items": [
           {
             "statement": "Datadog API Key and Application Key authenticate REST API calls and Agent data ingest.",
-            "group": "Datadog Keys Auth"
+            "group": "Datadog Keys Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Datadog APM tracing libraries inject trace IDs across microservice HTTP/gRPC boundaries.",
-            "group": "APM Distributed Tracing"
+            "group": "APM Distributed Tracing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Datadog Monitors trigger automated webhook notifications on threshold breaches.",
-            "group": "Monitor Webhook Alerts"
+            "group": "Monitor Webhook Alerts",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

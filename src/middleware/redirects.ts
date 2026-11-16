@@ -158,6 +158,8 @@ export const redirects = {
     objectivesValidateCommission: page({ prefix: "/aisworg/seu/objectives/:id/validate-commission", error: "/aisworg/seu/seus/new?objectiveId=:id", tenantfail: "/aisworg/seu/objectives" }),
     policyDefinitionsView: page({ prefix: "/aisworg/seu/policy-definitions/:id", error: "/aisworg/seu/policy-definitions" }),
     policyDefinitionsCopy: page({ prefix: "/aisworg/seu/policy-definitions/:id/copy", error: "/aisworg/seu/policy-definitions" }),
+    qualityGateDefinitionsView: page({ prefix: "/aisworg/seu/quality-gate-definitions/:id", error: "/aisworg/seu/quality-gate-definitions" }),
+    qualityGateDefinitionsCopy: page({ prefix: "/aisworg/seu/quality-gate-definitions/:id/copy", error: "/aisworg/seu/quality-gate-definitions" }),
     profilesView: page({ prefix: "/aisworg/seu/profiles/:id", error: "/aisworg/seu/profiles" }),
     profilesCopy: page({ prefix: "/aisworg/seu/profiles/:id/copy", error: "/aisworg/seu/profiles" }),
     routeAuthority: page({ prefix: "/aisworg/seu/route-authority", error: "/aisworg/seu/route-authority/new", success: "/aisworg/seu/route-authority" }),

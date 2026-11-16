@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Safety stock and reorder points (ROP) dynamically adjust based on seasonal demand trends and lead times.",
-            "group": "Demand Planning"
+            "group": "Demand Planning",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Dock receiving inspects incoming shipments against PO delivery notes before generating GRNs.",
-            "group": "Dock Receiving"
+            "group": "Dock Receiving",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Directed put-away assigns items to designated warehouse bin locations based on SKU velocity and dimensions.",
-            "group": "WMS Bin Management"
+            "group": "WMS Bin Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Wave picking and packing processes scan barcodes at item level to prevent shipping errors.",
-            "group": "Picking & Packing"
+            "group": "Picking & Packing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Periodic cycle counting verifies physical stock against system balance with manager sign-off for variances.",
-            "group": "Cycle Counting & Reconciliation"
+            "group": "Cycle Counting & Reconciliation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

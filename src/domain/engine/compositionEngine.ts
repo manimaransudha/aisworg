@@ -302,20 +302,7 @@ function detectGovernanceConflicts(packs: PackRow[]): string[] {
     }
   }
 
-  const packsByTripleAndCategory = new Map<string, Set<string>>();
-  for (const pack of packs) {
-    for (const gate of pack.contributions?.qualityGates ?? []) {
-      const key = `${gate.governedTransition} [${gate.category}]`;
-      const set = packsByTripleAndCategory.get(key) ?? new Set<string>();
-      set.add(pack.code);
-      packsByTripleAndCategory.set(key, set);
-    }
-  }
-  for (const [key, packCodes] of packsByTripleAndCategory) {
-    if (packCodes.size > 1) {
-      conflicts.push(`Quality Gate conflict on ${key}: contributed by ${[...packCodes].join(", ")}. Only one Quality Gate can occupy the same transition + category — resolve before commissioning.`);
-    }
-  }
+  // A Quality Gate is a code in the Pack and its transition is in the Quality Gate Definition (CR-145); the conflicts of gates are detected by conflicts/qualityGates.ts.
 
   return conflicts;
 }

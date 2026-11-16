@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Every production release affecting financial reporting applications is backed by an approved ticket and documented peer code review.",
-            "group": "Change Control (ITGC-CC)"
+            "group": "Change Control (ITGC-CC)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Segregation of Duties (SoD) matrix verifies zero conflicting permissions between software developers and production release engineers.",
-            "group": "Segregation of Duties (ITGC-AC)"
+            "group": "Segregation of Duties (ITGC-AC)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Quarterly privileged access reviews are conducted and signed off by application business owners.",
-            "group": "Access Control & Recertification"
+            "group": "Access Control & Recertification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Database schema migrations on financial ledgers preserve complete audit history and prohibit direct manual updates.",
-            "group": "Data Integrity (ITGC-OP)"
+            "group": "Data Integrity (ITGC-OP)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Disaster recovery failover and backup restoration tests are executed and documented annually.",
-            "group": "Computer Operations & DR"
+            "group": "Computer Operations & DR",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

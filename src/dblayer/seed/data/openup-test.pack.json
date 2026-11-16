@@ -26,10 +26,14 @@
         "name": "Test (OpenUP Capability Pattern) Checklist",
         "items": [
           {
-            "statement": "Test ideas covering the requirement's normal, boundary, and failure behaviour have been identified."
+            "statement": "Test ideas covering the requirement's normal, boundary, and failure behaviour have been identified.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Test cases have been implemented and are repeatable."
+            "statement": "Test cases have been implemented and are repeatable.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

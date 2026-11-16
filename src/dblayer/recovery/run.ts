@@ -71,6 +71,7 @@ const ORDER = [
   "policies_schema_recovery.sql",
   "policy_definitions_schema_recovery.sql",
   "profile_packs_schema_recovery.sql",
+  "quality_gate_definitions_schema_recovery.sql",
   "quality_gate_evaluations_schema_recovery.sql",
   "quality_gate_waivers_schema_recovery.sql",
   "route_authority_schema_recovery.sql",

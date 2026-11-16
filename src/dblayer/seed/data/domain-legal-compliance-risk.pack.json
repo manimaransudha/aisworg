@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Conflict-of-interest checks evaluate potential adverse parties prior to legal matter intake.",
-            "group": "Legal Matter Intake"
+            "group": "Legal Matter Intake",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Contract negotiations track redline changes and non-standard clause approvals (limitation of liability, indemnities).",
-            "group": "Contract Lifecycle (CLM)"
+            "group": "Contract Lifecycle (CLM)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Legal hold notices issue to custodians automatically upon notice of pending litigation.",
-            "group": "Litigation Legal Hold"
+            "group": "Litigation Legal Hold",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Enterprise Risk Register evaluates risk impact and likelihood scores with defined risk owners.",
-            "group": "Risk Assessment (ERM)"
+            "group": "Risk Assessment (ERM)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Internal audit workpapers document sample selection, control testing evidence, and finding severities.",
-            "group": "Internal Audit Testing"
+            "group": "Internal Audit Testing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

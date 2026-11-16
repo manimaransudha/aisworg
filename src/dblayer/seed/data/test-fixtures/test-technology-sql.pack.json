@@ -32,23 +32,33 @@
         "items": [
           {
             "statement": "All DDL and DML operations execute via parameter markers or prepared statements to prevent SQL injection.",
-            "group": "SQL Security & Injection Prevention"
+            "group": "SQL Security & Injection Prevention",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Database schema migrations are version-controlled, idempotent, and reversible with explicit rollback logic.",
-            "group": "Schema Migration Governance"
+            "group": "Schema Migration Governance",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Foreign keys, unique constraints, and check constraints enforce relational data integrity at the database layer.",
-            "group": "Relational Integrity & Schema Design"
+            "group": "Relational Integrity & Schema Design",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Indexes are created for high-cardinality join and filter columns, and execution plans (EXPLAIN ANALYZE) confirm index usage.",
-            "group": "Query Performance & Indexing"
+            "group": "Query Performance & Indexing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Connection pools are configured with appropriate max connection limits, idle timeouts, and health checks.",
-            "group": "Connection Management"
+            "group": "Connection Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

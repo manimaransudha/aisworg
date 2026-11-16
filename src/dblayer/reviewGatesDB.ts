@@ -1,6 +1,7 @@
 import pool, { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, ReviewGateRow, TransitionEntityType } from "./seuTypes.js";
+import { getPlatformTenantId } from "./constants.js";
 
 function bumpVersion(version: string): string {
   const [major, minor] = version.split(".").map((n) => parseInt(n, 10) || 0);
@@ -66,6 +67,23 @@ export const reviewGatesDB = {
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[reviewGatesDB] findById error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // The active review gates of Active Packs owned by the Platform or by the viewer's tenant. A null viewer tenant sees every Pack.
+  async findActiveVisibleTo(viewerTenantId: string | null): Promise<DbResult<ReviewGateRow[]>> {
+    try {
+      const platformTenantId = await getPlatformTenantId();
+      const { rows } = await query<ReviewGateRow>(
+        `SELECT g.* FROM review_gates g JOIN packs p ON p.id = g.originating_pack_id
+         WHERE g.is_active = true AND p.status = 'Active' AND ($1::uuid IS NULL OR p.tenant_id = $1 OR p.tenant_id = $2)
+         ORDER BY g.code, (p.tenant_id = $1) DESC, g.created_at DESC`,
+        [viewerTenantId, platformTenantId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[reviewGatesDB] findActiveVisibleTo error", err as Error);
       return { error: err as Error };
     }
   },

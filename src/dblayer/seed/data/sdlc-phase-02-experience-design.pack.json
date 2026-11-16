@@ -48,19 +48,29 @@
         "description": "Validation checklist for UX/UI design assets, design tokens, and accessibility standards.",
         "items": [
           {
-            "statement": "Design decisions in the wireframes and prototypes are traceable back to discovery research and usability findings."
+            "statement": "Design decisions in the wireframes and prototypes are traceable back to discovery research and usability findings.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Color contrast ratios across all text and interactive UI elements satisfy WCAG 2.1 AA standard (minimum 4.5:1 ratio)."
+            "statement": "Color contrast ratios across all text and interactive UI elements satisfy WCAG 2.1 AA standard (minimum 4.5:1 ratio).",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Interactive prototype has been tested with at least 3 representative users with documented task completion rates."
+            "statement": "Interactive prototype has been tested with at least 3 representative users with documented task completion rates.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Design tokens (color, typography, spacing, border radii) are extracted and ready for frontend implementation."
+            "statement": "Design tokens (color, typography, spacing, border radii) are extracted and ready for frontend implementation.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Responsive breakpoint behavior (mobile, tablet, desktop) is explicitly defined for all key views."
+            "statement": "Responsive breakpoint behavior (mobile, tablet, desktop) is explicitly defined for all key views.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

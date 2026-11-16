@@ -839,6 +839,35 @@
   },
   {
     "method": "GET",
+    "path": "/aisworg/seu/quality-gate-definitions",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/quality-gate-definitions/:id",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/quality-gate-definitions/:id/copy",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
     "path": "/aisworg/seu/profiles",
     "badges": [],
     "roles": [

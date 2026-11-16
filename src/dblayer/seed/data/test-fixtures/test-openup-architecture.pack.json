@@ -45,16 +45,24 @@
         "description": "Validation checklist for OpenUP architectural decomposition and trade-off analysis.",
         "items": [
           {
-            "statement": "The solution has been decomposed into design elements consistent with the requirements and constraints."
+            "statement": "The solution has been decomposed into design elements consistent with the requirements and constraints.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Feedback from Development and Test on the architecture's feasibility has been incorporated."
+            "statement": "Feedback from Development and Test on the architecture's feasibility has been incorporated.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Architectural mechanisms (security, persistence, messaging, error handling) are clearly defined."
+            "statement": "Architectural mechanisms (security, persistence, messaging, error handling) are clearly defined.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Key technical risks are mitigated by validated architectural spikes or proof-of-concept prototypes."
+            "statement": "Key technical risks are mitigated by validated architectural spikes or proof-of-concept prototypes.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

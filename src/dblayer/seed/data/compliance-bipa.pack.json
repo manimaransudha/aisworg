@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Written consent release is executed by the user prior to capturing facial geometry, fingerprints, or voiceprints (Sec 15(b)).",
-            "group": "Written Notice & Release"
+            "group": "Written Notice & Release",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Publicly available written policy documents the retention schedule and guidelines for permanently destroying biometric data (Sec 15(a)).",
-            "group": "Retention & Deletion Policy"
+            "group": "Retention & Deletion Policy",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Biometric data is destroyed upon satisfaction of initial purpose or within 3 years of last interaction, whichever occurs first.",
-            "group": "Purge Schedule"
+            "group": "Purge Schedule",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Selling, leasing, trading, or profiting from biometric identifiers is strictly prohibited by software architecture (Sec 15(c)).",
-            "group": "Zero Sale Prohibition"
+            "group": "Zero Sale Prohibition",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Biometric data is stored and transmitted using security controls at least as protective as other confidential financial data (Sec 15(e)).",
-            "group": "Storage & Encryption"
+            "group": "Storage & Encryption",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

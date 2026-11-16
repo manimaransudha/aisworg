@@ -1,4 +1,8 @@
 import { packsDB, type PackOptionRow } from "../../../dblayer/packsDB.js";
+import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
+import { qualityGateDefinitionsDB } from "../../../dblayer/qualityGateDefinitionsDB.js";
+import { reviewGatesDB } from "../../../dblayer/reviewGatesDB.js";
+import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import type { JsonSchemaDocument, JsonSchemaProperty } from "../../../domain/sdk/formGenerator.js";
@@ -31,6 +35,8 @@ const SOURCE_LOADERS: Record<string, (viewer: Viewer) => Promise<string[]>> = {
   "deliverable-name": conceptCodes("deliverable-name"),
   "feature-flag": conceptCodes("feature-flag"),
   "category:evidence": conceptCodes("category:evidence"),
+  "category:quality-gate": conceptCodes("category:quality-gate"),
+  "quality-gate-criteria-type": conceptCodes("quality-gate-criteria-type"),
   "category:policy": conceptCodes("category:policy"),
   "category:obligation": conceptCodes("category:obligation"),
   "category:obligation-origin": conceptCodes("category:obligation-origin"),
@@ -42,6 +48,23 @@ const SOURCE_LOADERS: Record<string, (viewer: Viewer) => Promise<string[]>> = {
   "worktype-name": conceptCodes("worktype-name"),
   "dispatch-strategy-preference": conceptCodes("dispatch-strategy-preference"),
   "transition-definition": async () => (await transitionDefinitionsDB.listActiveEdges()).data ?? [],
+  // The Quality Gate form (CR-145): its references resolve against the Platform and the viewer's tenant, and are not limited to a Pack.
+  "policy-definition-code": async (viewer) => {
+    const { data } = viewer.isRoot || !viewer.tenantId ? await policyDefinitionsDB.findAll() : await policyDefinitionsDB.findAllVisibleTo(viewer.tenantId);
+    return [...new Set((data ?? []).filter((p) => p.status === "Active").map((p) => p.code))].sort();
+  },
+  "quality-gate-code": async (viewer) => {
+    const { data } = viewer.isRoot || !viewer.tenantId ? await qualityGateDefinitionsDB.findAll() : await qualityGateDefinitionsDB.findAllVisibleTo(viewer.tenantId);
+    return [...new Set((data ?? []).filter((g) => g.status === "Active").map((g) => g.code))].sort();
+  },
+  "review-gate-code": async (viewer) => {
+    const { data } = await reviewGatesDB.findActiveVisibleTo(viewer.isRoot || !viewer.tenantId ? null : viewer.tenantId);
+    return [...new Set((data ?? []).map((g) => g.code))].sort();
+  },
+  "visible-checklist-id": async (viewer) => {
+    const { data } = await checklistsDB.findActiveVisibleTo(viewer.isRoot || !viewer.tenantId ? null : viewer.tenantId);
+    return (data ?? []).map((c) => c.id).sort();
+  },
   "noun": async () => (await listActiveNouns()).map((n) => n.code).sort(),
   "authority-badge": async () => Object.entries(await activeMappingByNoun()).flatMap(([noun, verbs]) => verbs.map((verb) => `${noun}_${verb}`)).sort(),
 };

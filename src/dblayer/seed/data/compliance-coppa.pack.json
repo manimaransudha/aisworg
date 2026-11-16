@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Neutral age-gating mechanism prevents users under 13 from circumventing age entry.",
-            "group": "Age Gating (§312.5)"
+            "group": "Age Gating (§312.5)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Verifiable Parental Consent (VPC) is obtained prior to collecting any child PII (name, email, geolocation, voice/photo).",
-            "group": "Parental Consent (§312.5)"
+            "group": "Parental Consent (§312.5)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Direct notice to parents clearly explains data collection practices, retention, and deletion rights (§312.4).",
-            "group": "Parental Notice"
+            "group": "Parental Notice",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Behavioral advertising, re-targeting pixels, and persistent identifier tracking are disabled for child accounts (§312.8).",
-            "group": "Ad Tracking Suppression"
+            "group": "Ad Tracking Suppression",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Parents are provided continuous access to review and request deletion of their child's PII (§312.6).",
-            "group": "Parental Access & Deletion"
+            "group": "Parental Access & Deletion",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

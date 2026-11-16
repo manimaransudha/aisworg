@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Plan for Software Aspects of Certification (PSAC) is approved by the FAA / EASA Designated Engineering Representative (DER).",
-            "group": "Certification Planning (PSAC)"
+            "group": "Certification Planning (PSAC)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "High-level software requirements (HLR) and low-level software requirements (LLR) maintain bi-directional traceability (Table A-3).",
-            "group": "Requirements Traceability"
+            "group": "Requirements Traceability",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Source code complies with Software Coding Standards and eliminates unexecutable or dead code (Table A-5).",
-            "group": "Coding Standards"
+            "group": "Coding Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Modified Condition / Decision Coverage (MC/DC) achieves 100% coverage for Level A flight control software (Table A-7).",
-            "group": "Structural Coverage (MC/DC)"
+            "group": "Structural Coverage (MC/DC)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Software Accomplishment Summary (SAS) and Software Configuration Index (SCI) are submitted for final DER sign-off.",
-            "group": "Software Accomplishment Summary"
+            "group": "Software Accomplishment Summary",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

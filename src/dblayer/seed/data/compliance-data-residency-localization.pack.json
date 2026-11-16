@@ -31,19 +31,27 @@
         "items": [
           {
             "statement": "Personal information collected within the Russian Federation is initially recorded and stored in databases physically located in Russia (Law 242-FZ).",
-            "group": "Russia 242-FZ Primary Storage"
+            "group": "Russia 242-FZ Primary Storage",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Outbound transfers of Important Data or PII exceeding 100k individuals from China undergo formal CAC Security Assessment (PIPL Art. 38/40).",
-            "group": "China PIPL / CAC Assessment"
+            "group": "China PIPL / CAC Assessment",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Financial, payment, and healthcare customer data subject to national localization laws is pinned to local cloud data centers.",
-            "group": "Local Cloud Data Center Pinning"
+            "group": "Local Cloud Data Center Pinning",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Encryption keys for sovereign data enclaves are held locally by domestic entities and excluded from foreign cloud provider access.",
-            "group": "Sovereign Key Management"
+            "group": "Sovereign Key Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

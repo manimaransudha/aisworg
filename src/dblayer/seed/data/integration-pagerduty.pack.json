@@ -37,15 +37,21 @@
         "items": [
           {
             "statement": "PagerDuty Events API v2 Integration Key triggers incidents with payload routing severity.",
-            "group": "Events API Key Auth"
+            "group": "Events API Key Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "On-Call Escalation Policies specify primary, secondary, and manager escalation tiers.",
-            "group": "Escalation Policies"
+            "group": "Escalation Policies",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "PagerDuty Webhooks notify external ChatOps channels on incident state change (triggered, acknowledged, resolved).",
-            "group": "Webhook State Sync"
+            "group": "Webhook State Sync",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

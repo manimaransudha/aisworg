@@ -45,19 +45,29 @@
         "description": "Validation checklist for system architecture, API specifications, data models, and non-functional requirements.",
         "items": [
           {
-            "statement": "Architecture decisions are documented with clear rationale and trade-offs rather than left implicit."
+            "statement": "Architecture decisions are documented with clear rationale and trade-offs rather than left implicit.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "C4 diagrams (Context, Container, Component) clearly illustrate system boundaries and third-party dependencies."
+            "statement": "C4 diagrams (Context, Container, Component) clearly illustrate system boundaries and third-party dependencies.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "API contracts specify strict payload schemas, HTTP status codes, error models, and rate limits."
+            "statement": "API contracts specify strict payload schemas, HTTP status codes, error models, and rate limits.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Database entity-relationship diagram specifies primary keys, foreign keys, index strategies, and cascade rules."
+            "statement": "Database entity-relationship diagram specifies primary keys, foreign keys, index strategies, and cascade rules.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Non-functional requirements specify explicit metrics for p95/p99 latency, target QPS, availability SLA, and RPO/RTO."
+            "statement": "Non-functional requirements specify explicit metrics for p95/p99 latency, target QPS, availability SLA, and RPO/RTO.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

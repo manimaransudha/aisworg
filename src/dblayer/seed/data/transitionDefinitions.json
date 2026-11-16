@@ -969,6 +969,7 @@
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
     ],
+    "actionCode": "materialise-pack",
     "eventType": "PackActivated",
     "versionEvent": "VersionActivated"
   },
@@ -1663,6 +1664,76 @@
     "trigger": "manual",
     "requiredPolicyCodes": [],
     "eventType": "PolicyDefinitionArchived",
+    "versionEvent": "VersionArchived"
+  },
+  {
+    "entityType": "QualityGate",
+    "fromState": "None",
+    "toState": "Draft",
+    "verb": "define",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "QualityGateDefinitionDefined",
+    "versionEvent": null
+  },
+  {
+    "entityType": "QualityGate",
+    "fromState": "Draft",
+    "toState": "Validated",
+    "verb": "validate",
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema"],
+    "eventType": "QualityGateDefinitionValidated",
+    "versionEvent": "VersionValidated"
+  },
+  {
+    "entityType": "QualityGate",
+    "fromState": "Validated",
+    "toState": "Published",
+    "verb": "publish",
+    "trigger": "manual",
+    "requiredPolicyCodes": ["policy-validate-schema", "policy-ontology-values-present"],
+    "eventType": "QualityGateDefinitionPublished",
+    "versionEvent": "VersionPublished"
+  },
+  {
+    "entityType": "QualityGate",
+    "fromState": "Published",
+    "toState": "Active",
+    "verb": "activate",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "QualityGateDefinitionActivated",
+    "versionEvent": "VersionActivated"
+  },
+  {
+    "entityType": "QualityGate",
+    "fromState": "Active",
+    "toState": "Deprecated",
+    "verb": "deprecate",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "QualityGateDefinitionDeprecated",
+    "versionEvent": "VersionDeprecated"
+  },
+  {
+    "entityType": "QualityGate",
+    "fromState": "Deprecated",
+    "toState": "Retired",
+    "verb": "retire",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "QualityGateDefinitionRetired",
+    "versionEvent": "VersionSuperseded"
+  },
+  {
+    "entityType": "QualityGate",
+    "fromState": "Retired",
+    "toState": "Archived",
+    "verb": "archive",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "QualityGateDefinitionArchived",
     "versionEvent": "VersionArchived"
   },
   {

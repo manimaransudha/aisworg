@@ -45,19 +45,29 @@
         "description": "Validation checklist for internationalization, string extraction, RTL support, and regional compliance.",
         "items": [
           {
-            "statement": "The product has been pseudolocalized and tested to catch layout, truncation, and encoding issues before real translations are applied."
+            "statement": "The product has been pseudolocalized and tested to catch layout, truncation, and encoding issues before real translations are applied.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "All UI strings are extracted into translatable resource files with zero hardcoded text in components."
+            "statement": "All UI strings are extracted into translatable resource files with zero hardcoded text in components.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Dates, times, currencies, and numbers adapt dynamically to the user's active browser/system locale."
+            "statement": "Dates, times, currencies, and numbers adapt dynamically to the user's active browser/system locale.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Right-to-Left (RTL) layout mirroring functions correctly without broken alignment or obscured icons."
+            "statement": "Right-to-Left (RTL) layout mirroring functions correctly without broken alignment or obscured icons.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Regional legal terms and tax requirements are verified for all target launch territories."
+            "statement": "Regional legal terms and tax requirements are verified for all target launch territories.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

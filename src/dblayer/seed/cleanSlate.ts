@@ -8,6 +8,7 @@ import { seedParticipantsMaster } from "./seedParticipantsMaster.js";
 import { seedCapabilityPatternPacks, type SeedActor as PackSeedActor } from "./seedCapabilityPatternPacks.js";
 import { seedSdlcStandardTemplates } from "./seedSdlcStandardTemplates.js";
 import { seedPolicyDefinitions } from "./seedPolicyDefinitions.js";
+import { seedQualityGateDefinitions } from "./seedQualityGateDefinitions.js";
 import { seedRouteAuthority } from "./seedRouteAuthority.js";
 import { seedOntologyConcepts } from "./seedOntologyConcepts.js";
 import { userDB } from "../userDB.js";
@@ -79,6 +80,7 @@ const USAGE_DATA_TABLES = [
   "capability_definitions",
   "service_definitions",
   "policy_definitions",
+  "quality_gate_definitions",
   "deliverable_definitions",
   "ontology_concepts",
 ];
@@ -137,6 +139,7 @@ async function run(): Promise<void> {
   await seedPolicyDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedTransitionDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedSchemaDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
+  await seedQualityGateDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedCapabilityDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedDeliverableDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedServiceDefinitions({ authoredBy: actorId, authorBadge: actorBadge });

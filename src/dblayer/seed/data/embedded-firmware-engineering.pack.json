@@ -49,13 +49,19 @@
         "description": "Validation checklist before firmware is accepted for integration.",
         "items": [
           {
-            "statement": "Firmware has been verified against the real target hardware, or a simulator faithful enough to substitute for it — not just compiled successfully."
+            "statement": "Firmware has been verified against the real target hardware, or a simulator faithful enough to substitute for it — not just compiled successfully.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Timing, memory, and power budgets declared in the Hardware Interface Specification are met, not just planned for."
+            "statement": "Timing, memory, and power budgets declared in the Hardware Interface Specification are met, not just planned for.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "The Hardware Compatibility Report identifies every target hardware revision the firmware was actually verified against."
+            "statement": "The Hardware Compatibility Report identifies every target hardware revision the firmware was actually verified against.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

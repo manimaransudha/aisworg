@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "System validation (IQ/OQ/PQ) establishes that the computerized system fulfills its intended purpose (§11.10(a)).",
-            "group": "System Validation (§11.10(a))"
+            "group": "System Validation (§11.10(a))",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Computer-generated audit trails record the date, time, user ID, and previous values for all electronic record modifications (§11.10(e)).",
-            "group": "Audit Trails (§11.10(e))"
+            "group": "Audit Trails (§11.10(e))",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Electronic signatures bind two distinct components (e.g. password + token) and display printed name, timestamp, and intent (§11.50).",
-            "group": "Electronic Signatures (§11.50)"
+            "group": "Electronic Signatures (§11.50)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Access is restricted to authorized individuals using unique user IDs and strong authentication (§11.10(d)).",
-            "group": "System Access (§11.10(d))"
+            "group": "System Access (§11.10(d))",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Software as a Medical Device (SaMD) hazard analysis and IEC 62304 software lifecycle documentation are completed.",
-            "group": "SaMD Software Lifecycle (IEC 62304)"
+            "group": "SaMD Software Lifecycle (IEC 62304)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

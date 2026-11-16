@@ -89,6 +89,7 @@ const DELETES: Array<[string, string]> = [
   ["template_packs", "template_id IN (SELECT id FROM tpl)"],
   ["templates", "id IN (SELECT id FROM tpl)"],
   ["policy_definitions", "tenant_id IN (SELECT id FROM tt)"],
+  ["quality_gate_definitions", "tenant_id IN (SELECT id FROM tt)"],
   ["badge_types", "tenant_id IN (SELECT id FROM tt)"],
   ["tenant_concept_aliases", "tenant_id IN (SELECT id FROM tt)"],
   ["tenant_contracts", "tenant_id IN (SELECT id FROM tt)"],

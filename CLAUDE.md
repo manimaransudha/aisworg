@@ -6,6 +6,8 @@
 
 - NEVER GUESS. Do not state a cause, a fact or a fix that has not been verified by reading the code or data. If the code cannot settle it, say so plainly and ask the user for the missing evidence (for example a query result). Do not offer unverified explanations, and do not leave an unverified change in place as a "harmless guess".
 
+- A claim that something is absent or a gap ("no X exists", "X is not handled", "no merge rule") must name the search that supports it: the terms grepped across all of `src/` and the files read. Without that search, the claim is not written. Reading only the files already cited, or only the files where X is expected, does not support an absence claim. This applies to audit and traceability documents (src/docs/implementation) in every row, and to answers in chat.
+
 - design/tbi.md and notes.md are the user's personal scratchpad. Do not read or load them into the context. 
 
 - don't dispatch Agent/subagents for any work.
@@ -18,11 +20,11 @@
 
 - There should be no hard-coded constants used in the code, except in src/dblayer/constants.ts. Everything else should be Ontology driven. And Ontology changes are data changes and should not warrant a code change unless approved by user explicitly.
 
-- Data seed scripts should load Ontology once and not do a live-query. Data seed scripts should do a batch dbwrite. If you are using assertCanoncicalCategory, you are deviating. If you are not using utils/db/bulkInsert, you are deviating.
+- Data seed scripts should load Ontology once and not do a live-query. Data seed scripts should do a batch dbwrite. If you are using assertCanoncicalCategory in the seed scripts, you are deviating. If you are not using utils/db/bulkInsert, you are deviating.
 
-- never run db:clean-slate/tsc/tests or sql migrations even when the user's own words describe wanting to see results — only on an explicit direct instruction you can run these.
+- never run db:clean-slate/tests or sql migrations even when the user's own words describe wanting to see results — only on an explicit direct instruction you can run these. You can run tsc. 
   
-- don't add new pnpm seed:X package.json entries; all seed data population goes through db:clean-slate only. Exception: the Demo-tenant seeding (src/dblayer/seed, run by the demo landing page reset button and the src/dry-run-suite command) is independent of db:clean-slate and writes through the governed path (real services/transitions, Demo User as actor), not bulkInsert. Its Demo-tenant purge is limited to Demo-tenant rows. See src/dry-run-suite/DECISIONS.md.
+- don't add new pnpm seed:X package.json entries; all seed data population goes through db:clean-slate only.  
 
 - don't announce routine/expected tool-call steps; it burns tokens. Speak only for real findings/decisions.
 - new pages get full CR-083 (not just card class); existing pages get checked/fixed for CR-083 on every edit, unprompted.
@@ -37,7 +39,7 @@
 
 - when design/foundations chapters exist for the area, read them thoroughly first; the code lags/diverges from spec. But don't relitigate settled/out-of-scope decisions just because a chapter audit mentions them.
 
-- for open-ended architecture questions, ask in plain text; Do not use a multi-choice AskUserQuestion bundle. And ask one question at a time. 
+- for open-ended architecture questions, ask in plain text; Do not use a multi-choice AskUserQuestion bundle. 
 
 - Flag and wait for approval before any change beyond the literal ask, even a correct adjacent fix — user can't follow fast tool-call scrolling.
 

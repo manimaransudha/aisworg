@@ -37,15 +37,21 @@
         "items": [
           {
             "statement": "Sentry DSN (Data Source Name) is configured in application SDK initialization.",
-            "group": "SDK DSN Setup"
+            "group": "SDK DSN Setup",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "JavaScript source maps / symbol files upload automatically during CI build releases.",
-            "group": "Source Maps & Symbols"
+            "group": "Source Maps & Symbols",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Sentry Alert rules route high-frequency new issues to team Slack/PagerDuty channels.",
-            "group": "Alert Routing"
+            "group": "Alert Routing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

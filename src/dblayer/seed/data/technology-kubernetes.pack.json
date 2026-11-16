@@ -32,23 +32,33 @@
         "items": [
           {
             "statement": "Deployment manifests specify explicit CPU and memory requests and limits for every container.",
-            "group": "Resource Management"
+            "group": "Resource Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Liveness, readiness, and startup probes are configured with realistic delay and timeout thresholds.",
-            "group": "Health Checks & Probes"
+            "group": "Health Checks & Probes",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Pods comply with Restricted Pod Security Admission (PSA) standards (allowPrivilegeEscalation: false, readOnlyRootFilesystem: true).",
-            "group": "Pod Security Standards"
+            "group": "Pod Security Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Kube-linter or Datree static analysis verifies YAML syntax, deprecated API versions, and manifest best practices.",
-            "group": "Manifest Linting & Analysis"
+            "group": "Manifest Linting & Analysis",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Helm charts or Kustomize overlays parameterize environment differences without inline hardcoded configs.",
-            "group": "Templating & Environment Parity"
+            "group": "Templating & Environment Parity",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

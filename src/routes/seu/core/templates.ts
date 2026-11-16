@@ -585,7 +585,9 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
 export async function copyTemplateAsNewDraft(templateId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await templatesDB.findById(templateId);
   if (!source) return { ok: false, errors: ["Template not found"] };
-  const nextVersion = await nextAvailablePatchVersion(source.code, source.template_version, source.tenant_id);
+  const { data: copyMaster } = await participantsMasterDB.findById(actorId);
+  if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const nextVersion = await nextAvailablePatchVersion(source.code, source.template_version, copyMaster.tenant_id);
   const packSelections = await getPackSelectionsByCategory(source.id);
   const purpose = typeof (source.draft_content as Record<string, unknown> | null)?.purpose === "string" ? (source.draft_content as Record<string, unknown>).purpose : undefined;
   const draftContent = {
@@ -598,8 +600,6 @@ export async function copyTemplateAsNewDraft(templateId: string, actorId: string
   };
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Template");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Template`] };
-  const { data: copyMaster } = await participantsMasterDB.findById(actorId);
-  if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const birth = await transitionEngine.beginBirth({ entityType: "Template", actorId });
   const { data: newDraft, error } = await templatesDB.createDraft({
     code: source.code,
@@ -609,7 +609,7 @@ export async function copyTemplateAsNewDraft(templateId: string, actorId: string
     authoredBy: copyMaster.id,
     authorBadge: birth.authorityBadge,
     draftContent,
-    tenantId: source.tenant_id,
+    tenantId: copyMaster.tenant_id,
     parentTemplateId: source.parent_template_id,
     schemaDefinitionId: copySchema.id,
   });

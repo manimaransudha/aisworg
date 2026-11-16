@@ -28,7 +28,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { compositionEngine } from "../src/domain/engine/compositionEngine.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { createAuthoringDraft, saveAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
-import { validatePackSeed, publishPack, createPackDraft, listPacksWithNextStates, packCodeVersionSummaries, type PackSeedInput } from "../src/routes/seu/core/packs.js";
+import { validatePackSeed, publishPack, advancePackLifecycle, createPackDraft, listPacksWithNextStates, packCodeVersionSummaries, type PackSeedInput } from "../src/routes/seu/core/packs.js";
 import { ensureTestFixturePacks, uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, serviceDefinitionIdFor } from "./testFixtures.js";
 
 // CR-026 — the seeded Athens test tenant, used only to prove Pack's tenant-scoped versioning against a genuine second tenant, not a made-up UUID.
@@ -199,13 +199,15 @@ test("publishPack without activate: true walks the Pack to Published but not Act
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : "assertion failed");
   assert.equal(result.pack!.status, "Published");
 
-  // CR-079 bug fix — findByCodes is unscoped by Pack, and every test Pack in
-  // this file now contributes the same shared "software-construction" capability code
-  // (real, curated term, no longer a per-call-unique throwaway) — [0] would
-  // pick an arbitrary matching row, not necessarily this one. findByOriginatingPackIds
-  // is the actually Pack-scoped query for "this Pack's own contributed Capability."
+  // CR-145: the rows a Pack's contributions name are written when the Pack becomes Active (action materialise-pack), so a Published Pack has none.
   const { data: capabilities } = await capabilitiesDB.findByOriginatingPackIds([result.pack!.id]);
-  assert.equal(capabilities?.[0]?.originating_pack_id, result.pack!.id, "contributed Capability must be traceable to the Pack that declared it (PM-005)");
+  assert.equal(capabilities?.length ?? 0, 0, "a Published Pack has written no Capability rows yet");
+
+  // Activating the Pack writes them. CR-079: findByOriginatingPackIds is the Pack-scoped query for "this Pack's own contributed Capability".
+  const activated = await advancePackLifecycle(result.pack!, TESTER_ALL_ID, { activate: true });
+  assert.equal(activated.ok, true, !activated.ok ? JSON.stringify(activated.errors) : "assertion failed");
+  const { data: activeCapabilities } = await capabilitiesDB.findByOriginatingPackIds([result.pack!.id]);
+  assert.equal(activeCapabilities?.[0]?.originating_pack_id, result.pack!.id, "contributed Capability must be traceable to the Pack that declared it (PM-005)");
 });
 
 // CR-006: the "requires role 'power' to activate" gate is retired — Pack

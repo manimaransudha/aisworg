@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "All electronic Protected Health Information (ePHI) is encrypted at rest (AES-256) and in transit (TLS 1.3).",
-            "group": "Technical Safeguards (§164.312(a))"
+            "group": "Technical Safeguards (§164.312(a))",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Unique user identification and automatic logoff mechanisms are enforced across all ePHI application interfaces.",
-            "group": "Access Control (§164.312(a)(2))"
+            "group": "Access Control (§164.312(a)(2))",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Audit logs record all access attempts to ePHI (user ID, timestamp, patient ID, action type) with WORM storage guarantees.",
-            "group": "Audit Controls (§164.312(b))"
+            "group": "Audit Controls (§164.312(b))",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Valid Business Associate Agreements (BAAs) are executed and filed for all third-party vendors handling ePHI.",
-            "group": "Business Associate Management (§164.502(e))"
+            "group": "Business Associate Management (§164.502(e))",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Breach notification procedures specify 60-day maximum reporting timelines to HHS and affected individuals.",
-            "group": "Breach Notification (§164.404)"
+            "group": "Breach Notification (§164.404)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

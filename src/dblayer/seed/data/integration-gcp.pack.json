@@ -42,15 +42,21 @@
         "items": [
           {
             "statement": "GCP Workload Identity Federation authenticates service accounts without long-lived service account key files.",
-            "group": "Workload Identity Auth"
+            "group": "Workload Identity Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "GKE cluster credentials obtain via gcloud container clusters get-credentials.",
-            "group": "GKE Auth"
+            "group": "GKE Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Google Cloud Monitoring Alert Policies dispatch webhook notifications on log metric thresholds.",
-            "group": "Cloud Monitoring Alerts"
+            "group": "Cloud Monitoring Alerts",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

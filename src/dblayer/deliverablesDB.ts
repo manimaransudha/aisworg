@@ -38,6 +38,20 @@ export const deliverablesDB = {
     }
   },
 
+  // The Deliverable with the tenant of its owning SEU. A Deliverable has no tenant column, so the tenant guard reads it through the SEU.
+  async findByIdWithTenant(id: string): Promise<DbResult<(DeliverableRow & { tenant_id: string }) | null>> {
+    try {
+      const { rows } = await query<DeliverableRow & { tenant_id: string }>(
+        "SELECT d.*, s.tenant_id FROM deliverables d JOIN seus s ON s.id = d.seu_id WHERE d.id = $1",
+        [id]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[deliverablesDB] findByIdWithTenant error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findBySeuId(seuId: string): Promise<DbResult<DeliverableRow[]>> {
     try {
       const { rows } = await query<DeliverableRow>("SELECT * FROM deliverables WHERE seu_id = $1 ORDER BY created_at", [seuId]);

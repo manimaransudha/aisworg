@@ -803,26 +803,9 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
     packVersion: uniqueTestPackVersion(),
     installationClassification: "Optional",
     contributions: {
-      // qualityGatesDB.upsert's own identity key is (entity_type, from_state,
-      // to_state, category) — NOT scoped by originating_pack_id at all. The
-      // real, platform-wide "No Unresolved Obligations" gate (core-engineering/
-      // openup-development.pack.json) already occupies category "Review
-      // Evidence" on this exact (Deliverable, In Progress, Approved) hop —
-      // declaring the same category here doesn't create a second, this-Pack-
-      // owned row, it silently no-ops the upsert against THAT row, still
-      // owned by ITS originating Pack. Since that Pack is never part of this
-      // isolated SEU's own composition, qualityGateEngine's SEU-scoped match
-      // (ebm.applicable_quality_gate_ids, compositionCompleted.ts) never
-      // finds it — the gate silently never fires, no matter how many times
-      // "Approved" is attempted. A distinct category is a genuinely separate
-      // gate identity, owned by this Pack, composed into this SEU's own EBM.
-      // category must be one of the canonical category:evidence Ontology
-      // concepts (validatePackSeed's assertCanonicalCategory) — "Operational
-      // Evidence" isn't used by any other seeded gate on this exact
-      // (Deliverable, In Progress, Approved) hop, so it's free.
-      qualityGates: [
-        { name: "No Unresolved Obligations", category: "Operational Evidence", governedTransition: "Deliverable|In Progress|Approved", criteriaType: "no_unresolved_obligations" },
-      ],
+      // The gate is identified by its code within this Pack (CR-145), so listing the Platform's "no-unresolved-obligations" definition gives this Pack a gate
+      // row of its own, composed into this SEU's EBM, next to the row that core-engineering's Pack holds.
+      qualityGates: ["no-unresolved-obligations"],
     },
   };
   const published = await publishPack({ seed: packSeed as any, actorId: TESTER_ALL_ID, activate: true });

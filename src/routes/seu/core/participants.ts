@@ -1,5 +1,6 @@
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
+import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
@@ -89,6 +90,8 @@ export type ReplaceParticipantResult =
   | Exclude<TransitionParticipantResult, { ok: true }>;
 
 export async function replaceParticipant(input: {
+  seuId: string;
+  capabilityId: string;
   oldParticipantId: string;
   newParticipantType: ParticipantType;
   newDisplayName: string;
@@ -97,11 +100,16 @@ export async function replaceParticipant(input: {
   authorBadge: string;
 }): Promise<ReplaceParticipantResult> {
   const { data: oldParticipant } = await participantsDB.findById(input.oldParticipantId);
-  if (!oldParticipant) return { ok: false, reason: "not_found", detail: `Participant not found: ${input.oldParticipantId}` };
+  if (!oldParticipant || oldParticipant.seu_id !== input.seuId) return { ok: false, reason: "not_found", detail: `Participant not found in SEU ${input.seuId}: ${input.oldParticipantId}` };
   if (!input.actorId) throw new Error("actorId is required to replace a Participant");
 
   const { data: fulfilment } = await capabilityFulfilmentsDB.findActiveByParticipantId(oldParticipant.id);
   if (!fulfilment) return { ok: false, reason: "no_active_fulfilment", detail: `Participant ${oldParticipant.id} has no active Capability Fulfilment to hand off` };
+  // The Capability of the request is the one this Participant fulfils in the SEU.
+  const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(input.seuId, input.capabilityId);
+  if (!seuCapability || fulfilment.seu_capability_id !== seuCapability.id) {
+    return { ok: false, reason: "no_active_fulfilment", detail: `Participant ${oldParticipant.id} has no active Capability Fulfilment for Capability ${input.capabilityId} in SEU ${input.seuId}` };
+  }
 
   if (oldParticipant.state !== "Released") {
     const toReleased = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Released", actorId: input.actorId });

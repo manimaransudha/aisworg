@@ -1,7 +1,7 @@
 # CR-143 — Engineering Execution Graph on the SEU page
 
 **Raised:** 2026-11-13 · **Origin:** the SEU page is the dashboard of the project manager. The state of the work is spread across tabs (Deliverables, Capability Fulfilment, Obligations, Evidence, Events), and the user moves between them to understand what is happening. The specification chapters have no Engineering Execution Graph.
-**Status:** 🟡 Built pending testing
+**Status:** 🟡 Partially built — to be refined
 
 ## Fix the following
 
@@ -17,7 +17,9 @@
   - Neither column evaluates through an engine that publishes events.
 - The SEU page reloads itself every `SEU_DETAIL_REFRESH_SECONDS` (15), to the same tab and scroll position. It waits while the browser tab is hidden, a dialog is open or a field is being edited. Built on 2026-11-13, before this CR.
 - The graph concerns execution. The nodes are the entities that carry an `seu_id` and can block a Deliverable. `deliverable_references` links Deliverables and is not a node.
-- The nodes are the blockers in the table below. Policies and Quality Gates appear through the Obligations and Attention Items they raise.
+- The nodes are the blockers in the table below, and the Attention Items of the SEU. Policies and Quality Gates appear through the Obligations they raise.
+- An Attention Item is a node because it needs manual intervention. The audience of the graph is project and program managers, and the graph is a snapshot of the work. An Attention Item never refuses a hop, so it does not turn a Deliverable red.
+- The graph page is elastic: it pans and zooms, offers a Fit button, and offers a Layered layout and a Force layout.
 - The edge is one kind, "blocks". An edge is labelled with the hop it blocks (from-state to to-state) and the verb of that hop in `transition_definitions`. Decisions are excepted and remain open (see Still open).
 - The Engineering Execution Graph is a new page of its own. It is not a tab of the SEU page.
   - The SEU page carries a link to the graph page.
@@ -93,18 +95,20 @@ Sources: `executionEngine.ts` (lines 55-190), `transitionEngine.ts`, `dependency
 ## Built (2026-11-15)
 
 - `src/dblayer/seed/data/ontologyConcepts.json`: 51 rows. Seven `eeg-node-shape` concepts and 44 `eeg-state-colour` concepts, as in "Initial shapes and colours".
-- `src/dblayer/constants.ts`: the two Ontology concept type names, the derived Blocked state, the grid of the graph and the SEU page tab of each node kind.
+- `src/dblayer/constants.ts`: the two Ontology concept type names, the derived Blocked state, the grid of the graph and the SEU page tab of each node kind (now including Attention Items), and the Attention Item states that are closed (left off the graph) and resolved (the edge is drawn as satisfied).
 - `src/routes/seu/core/seuGraph.ts`: builds the nodes, edges and layout from `getSeuDetailView`, the dependency rows, the Command in flight and the stored `quality_gate_evaluations` rows. Shape and colour are read from Ontology. A missing concept raises an error.
 - `src/routes/seu/web/seus.ts`: `GET /seus/:id/graph`, guarded by `requireTenantScope.forParam`.
 - `src/routes/seu/api/seus.ts`: `GET /seus/:id/graph`, the JSON data route, guarded by `requireTenantScope.forParam` in api mode.
 - `src/dblayer/seed/data/routeAuthority.json`: a row for each of the two routes, with the roles `participant` and `demo` and no badge, as the SEU detail page has.
 - `src/viewModels/seu_seus_graph.ts`, `viewRegistry.ts`, `src/middleware/redirects.ts` (`seusGraph`): the page wiring.
-- `src/views/seu/seus/graph.ejs`: the graph as SVG, one shape for each kind, colour for each state, a details pane with the Quality Gate results, a link to the SEU page tab, a Refresh button and the as-of date and time.
+- `src/views/seu/seus/graph.ejs`: the graph as SVG, one shape for each kind, colour for each state, a details pane with the Quality Gate results, a link to the SEU page tab, a Refresh button and the as-of date and time. Pan (drag the background), zoom (scroll, plus, minus), Fit, a Layered or Force layout toggle, and dragging a node. Edges are straight lines. Edge labels are hidden below 60% zoom. A Refresh keeps the positions of the nodes and lays out again only when a new node appears.
 - `src/views/seu/seus/index.ejs`: the EEG button. `src/views/seu/seus/detail.ejs`: the Execution Graph link.
 
 Decisions made in the build:
 - A Deliverable is Blocked when it has an entry in the "Blocked by" column, an open Obligation or Decision, a Command in flight for a next hop, or a stored Quality Gate result of Blocked. An unsatisfied dependency row is drawn as an open edge and does not turn the Deliverable red, so that a Deliverable waiting for its predecessors stays in its state colour.
 - A Command is a node while it is in flight. A Decision edge is labelled "any hop".
+- An Attention Item that is not Closed is a node (pentagon). It has an edge to the entity it concerns (`related_object_id`) when that entity is a node of the graph, labelled "needs action" with its category and priority, drawn open until the item is Resolved or Closed. An Attention Item with no such entity is a standalone node. An Attention Item raised for an Obligation that is not a node has no edge.
+- Ontology gains the shape `pentagon` for `AttentionItem` and the colours of `AttentionItem|Created`, `Delivered` (red), `Acknowledged` (blue), `In Progress` (orange), `Resolved` (green) and `Closed` (teal), 7 rows in `ontologyConcepts.json` (2483 rows in all). The graph raises an error until `db:clean-slate` loads them.
 - The graph draws an Obligation as a node when it blocks a hop (`blocked_to_state` is set) or when a dependency row names Obligations.
 
 ## Test fixtures updated in the same pass
@@ -124,4 +128,4 @@ Decisions made in the build:
 ## Still open
 
 - Decision edges. In the code read so far a Decision blocks every hop of the Deliverable until it is Approved (`executionEngine.ts` line 87). The Decisions schema has not been read to see whether a Decision records a hop, so the verb of its edge is undecided.
-- Verification runs for this CR: `tsc` was run on 2026-11-15 and reported one error, in `src/routes/seu/core/obligations.ts` line 182 (`policy` possibly null). It was fixed, and `tsc` then reported no errors. `tests/acceptance.e2e.test.ts` was run on 2026-11-15 and passed. No other test and no `db:clean-slate` was run. The graph page has not been opened in a browser.
+- Verification runs for this CR: `tsc` was run on 2026-11-15 and reported one error, in `src/routes/seu/core/obligations.ts` line 182 (`policy` possibly null). It was fixed, and `tsc` then reported no errors. The full test suite was run by the owner on 2026-11-15 and passed. No `db:clean-slate` was run by Claude. The graph page has not been opened in a browser. The Attention Item nodes, the Ontology rows and the pan, zoom and Force layout were added after those runs, and `tsc`, the tests and `db:clean-slate` have not been run on them.

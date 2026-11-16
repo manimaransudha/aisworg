@@ -47,15 +47,21 @@
         "items": [
           {
             "statement": "Azure DevOps Personal Access Token (PAT) includes Code (Read & write) and Work Items (Read & write) scopes.",
-            "group": "PAT Authentication"
+            "group": "PAT Authentication",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Azure Service Connections are authorized for ARM deployment targets.",
-            "group": "Service Connections"
+            "group": "Service Connections",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Service Hooks notify external endpoints on build completed and work item updated events.",
-            "group": "Service Hooks"
+            "group": "Service Hooks",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

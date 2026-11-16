@@ -32,63 +32,93 @@
         "items": [
           {
             "statement": "There should be default / global folder for variables, mixins etc.",
-            "group": "SASS Project Structure"
+            "group": "SASS Project Structure",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "There should be modules folder for section wise partial files if sections are used in multiple pages",
-            "group": "SASS Project Structure"
+            "group": "SASS Project Structure",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "There should be pages folder for page wise partial files if page styling is unique.",
-            "group": "SASS Project Structure"
+            "group": "SASS Project Structure",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Strictly use Variables for Colors, Breakpoints, Font Family, Font Size, Font Weight. Use Object variables if possible",
-            "group": "SASS Variables"
+            "group": "SASS Variables",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Create mixins to reuse it in all partial files. Use mixins wherever possible and do not create unnecessary mixins, if not used, remove it.",
-            "group": "SASS Mixins"
+            "group": "SASS Mixins",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use meaningful class and IDs",
-            "group": "Naming Conventions"
+            "group": "Naming Conventions",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use extends / placeholders for repeated styling",
-            "group": "SASS Extends & Placeholders"
+            "group": "SASS Extends & Placeholders",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Nesting must be upto 6 levels.",
-            "group": "SASS Nesting"
+            "group": "SASS Nesting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "& operator should be used for selecting parent and pseudo selectors.",
-            "group": "SASS Syntax"
+            "group": "SASS Syntax",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Operators( +,-,*,/,%) : This mathematical operators should be used for calculating % values",
-            "group": "SASS Operators"
+            "group": "SASS Operators",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Comment your code if necessary, because partial files names are already self explanatory.",
-            "group": "Code Documentation"
+            "group": "Code Documentation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Omit unit specification after “0” values. Do not use units (px) after 0 values unless they are required.",
-            "group": "CSS Formatting"
+            "group": "CSS Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Omit leading “0”s in values.",
-            "group": "CSS Formatting"
+            "group": "CSS Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use 3 character hexadecimal notation where possible.",
-            "group": "CSS Formatting"
+            "group": "CSS Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Follow Codecop : Declarations are to be consistently ordered; box-model, display, positioning and etc.",
-            "group": "CSS Property Ordering"
+            "group": "CSS Property Ordering",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

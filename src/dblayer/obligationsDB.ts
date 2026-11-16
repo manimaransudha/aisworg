@@ -53,6 +53,20 @@ export const obligationsDB = {
     }
   },
 
+  // The Obligation with the tenant of its owning SEU. An Obligation has no tenant column, so the tenant guard reads it through the SEU.
+  async findByIdWithTenant(id: string): Promise<DbResult<(ObligationRow & { tenant_id: string }) | null>> {
+    try {
+      const { rows } = await query<ObligationRow & { tenant_id: string }>(
+        "SELECT o.*, s.tenant_id FROM obligations o JOIN seus s ON s.id = o.seu_id WHERE o.id = $1",
+        [id]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[obligationsDB] findByIdWithTenant error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findByRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<DbResult<ObligationRow[]>> {
     try {
       const { rows } = await query<ObligationRow>(

@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Lawful basis for processing (Consent, Legitimate Interest, Contract Performance) is documented for every PII data category.",
-            "group": "Principles & Lawful Basis (Art. 5 & 6)"
+            "group": "Principles & Lawful Basis (Art. 5 & 6)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Automated mechanisms support Data Subject Access Requests (DSAR), Export (JSON/CSV), and Right to be Forgotten within 30 days.",
-            "group": "Data Subject Rights (Art. 15-21)"
+            "group": "Data Subject Rights (Art. 15-21)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Data Protection Impact Assessment (DPIA) is completed and signed off by the DPO for high-risk processing operations.",
-            "group": "DPIA & Privacy by Design (Art. 25 & 35)"
+            "group": "DPIA & Privacy by Design (Art. 25 & 35)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Standard Contractual Clauses (SCCs) and Transfer Impact Assessments (TIAs) are in place for non-EU data transfers.",
-            "group": "International Transfers (Art. 44-49)"
+            "group": "International Transfers (Art. 44-49)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Incident response plan guarantees notification to Supervisory Authorities within 72 hours of discovering a personal data breach.",
-            "group": "Breach Notification (Art. 33)"
+            "group": "Breach Notification (Art. 33)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

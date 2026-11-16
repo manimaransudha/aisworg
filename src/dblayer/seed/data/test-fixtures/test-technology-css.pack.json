@@ -32,118 +32,176 @@
         "items": [
           {
             "statement": "The website is using responsive web design",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "If IDs are used, they are unique to a page.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "A CSS reset (reset, normalize or reboot) is used and up to date.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Avoid embedding CSS in <style> tags or using inline CSS.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "CSS files are concatenated in a single file.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "CSS files are minified.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "CSS files need to be non-blocking to prevent the DOM from taking time to load.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "All pages were tested with the correct breakpoints.",
-            "group": "Naming conventions"
+            "group": "Naming conventions",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use a CSS validator.",
-            "group": "Naming conventions"
+            "group": "Naming conventions",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "All pages were tested on all current desktop browsers (Safari, Firefox, Chrome, Internet Explorer, EDGE…).",
-            "group": "Naming conventions"
+            "group": "Naming conventions",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "All pages were tested on all current mobile browsers (Native browser, Chrome, Safari…).",
-            "group": "Conditionals"
+            "group": "Conditionals",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "All pages were tested on all current OS (Windows, Android, iOS, Mac…).",
-            "group": "Conditionals"
+            "group": "Conditionals",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use Hex color codes #000 unless using rgba().",
-            "group": "Conditionals"
+            "group": "Conditionals",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Avoid absolute positioning.",
-            "group": "Functions"
+            "group": "Functions",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Do not animate width, height, top, left and others. Use transform instead.",
-            "group": "Functions"
+            "group": "Functions",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Avoid !important.",
-            "group": "Functions"
+            "group": "Functions",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Only standard media queries should be used.",
-            "group": "Comments"
+            "group": "Comments",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Use 2 spaces for indentation, not tabs:\n\n```js\nfunction foo() {\n  return 1;\n}\n```"
+            "statement": "Use 2 spaces for indentation, not tabs:\n\n```js\nfunction foo() {\n  return 1;\n}\n```",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Give proper spaces between brace brackets, colon etc.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use three value hex code wherever possible for eg. #000000 -> #000.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Avoid ID usage for css styling purpose if possible.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use shorthand wherever applicable.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Try reusing css code whenever applicable.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Avoid unwanted decimal points usage for matching font-sizes.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use vendor prefixes.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Add box commenting for difference between main sections(Header, main, footer, and media queries) and normal commenting between sections.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Avoid unnecessary increase in specificity. Do not use important to override. (Avoid more than 4 nesting elements).",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Avoid units for 0 such as 0px or 0% etc. Also avoid using trailing zero example 0.4, 0.9 etc.",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Single line styling should be on the same line and should be merged i.e. there should be no spaces between them. Eg: .heading { color: red; }",
-            "group": "Formatting"
+            "group": "Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -148,7 +148,7 @@ test("governance refuses an edge with a submit verb until the Deliverable has be
 
 test("a Work Item records the Quality Gate of the governance outcome of its Command, and none when the Deliverable does not exist", async () => {
   const { data: gate, error: gateError } = await qualityGatesDB.upsert({
-    name: `execution-engine gate ${run}`, entityType: "AttentionItem", fromState: state("gate-from"), toState: state("gate-to"),
+    category: "Exit", code: `qg-test-${randomUUID()}`, name: `execution-engine gate ${run}`, entityType: "AttentionItem", fromState: state("gate-from"), toState: state("gate-to"),
     criteria: { type: "no_unresolved_obligations" }, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
   assert.ok(gate && !gateError, gateError);
@@ -220,7 +220,7 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
   const gateSeu = await commissionedSeu("execution-engine-gates", "unsettled", { conflictSet: "execution" });
   const createGate = async (label: string, from: string, to: string, criteria: Record<string, unknown>) => {
     const { data, error } = await qualityGatesDB.upsert({
-      name: `execution-engine ${label} ${run}`, entityType: "Deliverable", fromState: from, toState: to, criteria, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
+      category: "Exit", code: `qg-test-${randomUUID()}`, name: `execution-engine ${label} ${run}`, entityType: "Deliverable", fromState: from, toState: to, criteria, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
     });
     assert.ok(data && !error, error);
     return data;

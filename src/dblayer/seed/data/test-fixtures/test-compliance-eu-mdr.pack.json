@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Medical Device Software classification under Rule 11 (Class I, IIa, IIb, III) is documented with clinical justification.",
-            "group": "Software Classification (Rule 11)"
+            "group": "Software Classification (Rule 11)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "ISO 14971 risk management file assesses all software hazards and verifies risk reduction to acceptable levels.",
-            "group": "Risk Management (ISO 14971)"
+            "group": "Risk Management (ISO 14971)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "EN 62304 software development lifecycle evidence demonstrates architectural verification and unit testing.",
-            "group": "Software Lifecycle (EN 62304)"
+            "group": "Software Lifecycle (EN 62304)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Basic UDI-DI and UDI-PI are assigned and integrated into software release metadata.",
-            "group": "UDI & EUDAMED"
+            "group": "UDI & EUDAMED",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Post-Market Clinical Follow-up (PMCF) plan establishes systematic data collection on real-world software performance.",
-            "group": "Post-Market Surveillance (PMCF)"
+            "group": "Post-Market Surveillance (PMCF)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -334,7 +334,9 @@
                 "items": {
                   "type": "object",
                   "required": [
-                    "statement"
+                    "statement",
+                    "configurableKey",
+                    "configurableValue"
                   ],
                   "properties": {
                     "group": {
@@ -348,13 +350,13 @@
                     },
                     "configurableKey": {
                       "type": "string",
-                      "x-help": "Optional: which named dimension this item is tagged against (e.g. \"type\") — Template exposes this dimension as a configurable parameter; a Profile filters by its value. Leave blank if this item should always be included, unconditionally.",
+                      "x-help": "Which named dimension this item is tagged against (e.g. \"type\") — Template exposes this dimension as a configurable parameter; a Profile filters by its value.",
                       "x-ontology": true,
                       "x-referential": "checklist-configurable-dimension"
                     },
                     "configurableValue": {
                       "type": "string",
-                      "x-help": "Optional: this item own value for the dimension named above (e.g. \"required\") — only meaningful when Configurable Dimension is also set.",
+                      "x-help": "This item's own value for the dimension named above (e.g. \"required\").",
                       "x-ontology": true,
                       "x-referential": "checklist-configurable-value"
                     }
@@ -539,136 +541,11 @@
         "contributionQualityGates": {
           "type": "array",
           "items": {
-            "type": "object",
-            "required": [
-              "category",
-              "name",
-              "governedTransition",
-              "criteriaType"
-            ],
-            "properties": {
-              "name": {
-                "type": "string",
-                "x-help": "A short, human-readable name for this gate."
-              },
-              "prompt": {
-                "type": "string",
-                "x-help": "The instruction given to the AI participant executing this check (machine-verifiable or judgment classifications).",
-                "x-format": "markdown"
-              },
-              "category": {
-                "type": "string",
-                "x-help": "The Evidence category this gate checks for — also becomes the gate’s own identifier (one gate per category, per transition).",
-                "x-ontology": true,
-                "x-referential": "category:evidence",
-                "x-ontology-composable": true
-              },
-              "assurance": {
-                "type": "string",
-                "x-help": "Optional confidence/severity threshold at which an AI result escalates to a human."
-              },
-              "statement": {
-                "type": "string",
-                "x-help": "The human-readable standard this gate enforces, in plain language (e.g. \"No hardcoded passwords\").",
-                "x-label": "Description",
-                "x-format": "markdown"
-              },
-              "participant": {
-                "enum": [
-                  "AI",
-                  "AI+human",
-                  "human"
-                ],
-                "type": "string",
-                "x-help": "Who executes this check: an AI participant, an AI participant paired with a human, or a human authority."
-              },
-              "checklistIds": {
-                "type": "array",
-                "x-help": "Which of this Pack's own Checklists (any version/tenant sharing this Pack's code) must complete for this gate. All listed Checklists are required (AND); a Checklist shared by more than one gate only runs once.",
-                "x-multi": true,
-                "x-referential": "checklist"
-              },
-              "criteriaType": {
-                "enum": [
-                  "no_unresolved_obligations",
-                  "requires_accepted_evidence_or_approved_decision",
-                  "requires_accepted_review",
-                  "requires_active_policy"
-                ],
-                "type": "string",
-                "x-help": "What this gate checks: no unresolved Obligations · Accepted Evidence of this gate’s Category (or an Approved Decision, any category) · an Accepted, passing Review · a satisfied Policy."
-              },
-              "classification": {
-                "enum": [
-                  "machine-verifiable",
-                  "judgment",
-                  "human-attested"
-                ],
-                "type": "string",
-                "x-help": "machine-verifiable = an AI/tool determines the result directly · judgment = an AI assessment a human must accept · human-attested = an authoritative human act an AI can’t perform."
-              },
-              "outputContract": {
-                "enum": [
-                  "passed-failed-notes",
-                  "assessment-acceptance"
-                ],
-                "type": "string",
-                "x-help": "The shape of the result: a plain Passed/Failed plus notes, or an assessment a human must separately accept."
-              },
-              "deliverableName": {
-                "type": "string",
-                "x-help": "Only used when Criteria Type is requires_accepted_review — which of this Pack’s own Review Gates (by deliverable type) must have an Accepted, passing Review.",
-                "x-referential": "self:contributionReviewGates"
-              },
-              "externalEvidence": {
-                "type": "boolean",
-                "x-help": "Check this if a machine-verifiable item is verified by an external Integration connector (e.g. a CI result) rather than direct artifact analysis."
-              },
-              "governedTransition": {
-                "type": "string",
-                "x-help": "The exact transition this gate applies to — picked from existing Transition Definitions only.",
-                "x-referential": "transition-definition"
-              },
-              "requiredPolicyCodes": {
-                "type": "array",
-                "x-help": "Only used when Criteria Type is requires_active_policy — which of this Pack's own code's Policies (any version/tenant sharing this Pack's code) must be satisfied.",
-                "x-multi": true,
-                "x-referential": "policy"
-              },
-              "recommendedChecklistIds": {
-                "type": "array",
-                "x-help": "Advisory Checklists (this Pack's own code only) — completing them does not block this gate, unlike checklistIds.",
-                "x-multi": true,
-                "x-referential": "checklist"
-              },
-              "applicabilityDeliverableNames": {
-                "type": "array",
-                "x-help": "Which Deliverable(s) (by name) this gate applies to. Empty = every Deliverable reaching this transition.",
-                "x-multi": true,
-                "x-referential": "deliverable-name"
-              }
-            },
-            "x-property-order": [
-              "category",
-              "name",
-              "governedTransition",
-              "criteriaType",
-              "deliverableName",
-              "requiredPolicyCodes",
-              "checklistIds",
-              "recommendedChecklistIds",
-              "participant",
-              "assurance",
-              "classification",
-              "outputContract",
-              "externalEvidence",
-              "statement",
-              "prompt",
-              "applicabilityDeliverableNames"
-            ]
+            "type": "string"
           },
-          "x-help": "Quality Gates",
-          "x-widget": "referential-list"
+          "x-help": "The Quality Gates this Pack takes, by code, from the Quality Gate Registry of the Platform and of your tenant.",
+          "x-widget": "referential-multi-select",
+          "x-referential-source": "quality-gate-code"
         },
         "incompatiblePackVersions": {
           "type": "string",
@@ -752,7 +629,8 @@
             "type": "object",
             "required": [
               "code",
-              "category"
+              "category",
+              "severity"
             ],
             "properties": {
               "code": {
@@ -1139,7 +1017,8 @@
           "items": {
             "type": "object",
             "required": [
-              "statement"
+              "statement",
+              "severity"
             ],
             "properties": {
               "severity": {
@@ -1246,7 +1125,8 @@
                 "items": {
                   "type": "object",
                   "required": [
-                    "category"
+                    "category",
+                    "severity"
                   ],
                   "properties": {
                     "title": {
@@ -2526,6 +2406,176 @@
           "x-help": "Authority rules codes"
         }
       }
+    }
+  },
+  {
+    "entity_kind": "QualityGate",
+    "version": 1,
+    "schema": {
+      "type": "object",
+      "required": [
+        "code",
+        "name",
+        "category",
+        "governedTransition",
+        "criteriaType"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "x-help": "The Quality Gate's Ontology identity. Choose from existing or add a new one. Publishing is blocked until the new Ontology is approved.",
+          "minLength": 1,
+          "x-ontology": true,
+          "x-ontology-composable": true,
+          "x-referential-source": "quality-gate-name"
+        },
+        "name": {
+          "type": "string",
+          "x-help": "A short, human-readable name for this gate.",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "x-help": "What this gate is for, in plain language.",
+          "x-widget": "textarea"
+        },
+        "category": {
+          "type": "string",
+          "x-help": "The category of this gate (Entry, Exit, Release, Compliance or Operational).",
+          "x-ontology": true,
+          "x-ontology-composable": true,
+          "x-referential-source": "category:quality-gate",
+          "x-widget": "referential-select"
+        },
+        "governedTransition": {
+          "type": "string",
+          "x-help": "The exact transition this gate applies to — picked from existing Transition Definitions only.",
+          "x-referential-source": "transition-definition",
+          "x-widget": "referential-select"
+        },
+        "criteriaType": {
+          "type": "string",
+          "x-ontology": true,
+          "x-help": "What this gate checks: no unresolved Obligations · Accepted Evidence of the gate’s Evidence Category (or an Approved Decision, any category) · an Accepted, passing Review · a satisfied Policy.",
+          "x-referential-source": "quality-gate-criteria-type",
+          "x-widget": "referential-select"
+        },
+        "evidenceCategory": {
+          "type": "string",
+          "x-help": "Only used when Criteria Type is requires_accepted_evidence_or_approved_decision — the Evidence category that must be Accepted (an Approved Decision of any category also satisfies the gate).",
+          "x-ontology": true,
+          "x-ontology-composable": true,
+          "x-referential-source": "category:evidence",
+          "x-widget": "referential-select"
+        },
+        "deliverableName": {
+          "type": "string",
+          "x-help": "Only used when Criteria Type is requires_accepted_review — which Review Gate (by deliverable type) of an Active Pack of the Platform or of your tenant must have an Accepted, passing Review.",
+          "x-referential-source": "review-gate-code",
+          "x-widget": "referential-select"
+        },
+        "requiredPolicyCodes": {
+          "type": "array",
+          "x-help": "Only used when Criteria Type is requires_active_policy — which Policy Definitions of the Platform or of your tenant must be satisfied.",
+          "x-referential-source": "policy-definition-code",
+          "x-widget": "referential-multi-select",
+          "items": {
+            "type": "string"
+          }
+        },
+        "checklistIds": {
+          "type": "array",
+          "x-help": "Which Checklists of Active Packs of the Platform or of your tenant must complete for this gate. All listed Checklists are required (AND); a Checklist shared by more than one gate only runs once.",
+          "x-referential-source": "visible-checklist-id",
+          "x-widget": "referential-multi-select",
+          "items": {
+            "type": "string"
+          }
+        },
+        "recommendedChecklistIds": {
+          "type": "array",
+          "x-help": "Advisory Checklists (Platform or your tenant) — completing them does not block this gate, unlike checklistIds.",
+          "x-referential-source": "visible-checklist-id",
+          "x-widget": "referential-multi-select",
+          "items": {
+            "type": "string"
+          }
+        },
+        "applicabilityDeliverableNames": {
+          "type": "array",
+          "x-help": "Which Deliverable(s) (by name) this gate applies to. Empty = every Deliverable reaching this transition.",
+          "x-referential-source": "deliverable-name",
+          "x-widget": "referential-multi-select",
+          "items": {
+            "type": "string"
+          }
+        },
+        "participant": {
+          "enum": [
+            "AI",
+            "AI+human",
+            "human"
+          ],
+          "type": "string",
+          "x-help": "Who executes this check: an AI participant, an AI participant paired with a human, or a human authority."
+        },
+        "classification": {
+          "enum": [
+            "machine-verifiable",
+            "judgment",
+            "human-attested"
+          ],
+          "type": "string",
+          "x-help": "machine-verifiable = an AI/tool determines the result directly · judgment = an AI assessment a human must accept · human-attested = an authoritative human act an AI can’t perform."
+        },
+        "outputContract": {
+          "enum": [
+            "passed-failed-notes",
+            "assessment-acceptance"
+          ],
+          "type": "string",
+          "x-help": "The shape of the result: a plain Passed/Failed plus notes, or an assessment a human must separately accept."
+        },
+        "assurance": {
+          "type": "string",
+          "x-help": "Optional confidence/severity threshold at which an AI result escalates to a human."
+        },
+        "externalEvidence": {
+          "type": "boolean",
+          "x-help": "Check this if a machine-verifiable item is verified by an external Integration connector (e.g. a CI result) rather than direct artifact analysis."
+        },
+        "statement": {
+          "type": "string",
+          "x-help": "The human-readable standard this gate enforces, in plain language (e.g. \"No hardcoded passwords\").",
+          "x-widget": "textarea"
+        },
+        "prompt": {
+          "type": "string",
+          "x-help": "The instruction given to the AI participant executing this check (machine-verifiable or judgment classifications).",
+          "x-widget": "textarea"
+        }
+      },
+      "x-property-order": [
+        "code",
+        "name",
+        "description",
+        "category",
+        "governedTransition",
+        "criteriaType",
+        "evidenceCategory",
+        "deliverableName",
+        "requiredPolicyCodes",
+        "checklistIds",
+        "recommendedChecklistIds",
+        "applicabilityDeliverableNames",
+        "participant",
+        "classification",
+        "outputContract",
+        "assurance",
+        "externalEvidence",
+        "statement",
+        "prompt"
+      ]
     }
   }
 ]

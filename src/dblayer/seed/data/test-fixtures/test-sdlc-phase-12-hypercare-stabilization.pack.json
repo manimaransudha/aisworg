@@ -45,19 +45,29 @@
         "description": "Validation checklist for post-launch monitoring, defect resolution, and retrospective learning.",
         "items": [
           {
-            "statement": "Issues logged during hypercare are triaged and assigned an owner within the agreed response window."
+            "statement": "Issues logged during hypercare are triaged and assigned an owner within the agreed response window.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "All Sev-1 and Sev-2 post-launch incidents have completed blameless post-mortem reports with assigned action items."
+            "statement": "All Sev-1 and Sev-2 post-launch incidents have completed blameless post-mortem reports with assigned action items.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Hotfix deployment pipeline is operational with automated smoke test verification."
+            "statement": "Hotfix deployment pipeline is operational with automated smoke test verification.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Operational KPIs (uptime, latency, error rate) satisfy production SLA targets over 14 consecutive days."
+            "statement": "Operational KPIs (uptime, latency, error rate) satisfy production SLA targets over 14 consecutive days.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Handover to ongoing operations team is formally completed with updated runbooks."
+            "statement": "Handover to ongoing operations team is formally completed with updated runbooks.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

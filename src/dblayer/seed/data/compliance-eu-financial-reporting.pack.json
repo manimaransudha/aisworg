@@ -31,19 +31,27 @@
         "items": [
           {
             "statement": "Insider lists comply with MAR Article 18 layout and update immediately upon new inside information discovery.",
-            "group": "Market Abuse Regulation (MAR)"
+            "group": "Market Abuse Regulation (MAR)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "MiFID II transaction reports record trade execution details within T+1 to national competent authorities (NCAs).",
-            "group": "MiFID II / MiFIR Reporting"
+            "group": "MiFID II / MiFIR Reporting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "CSRD double materiality evaluation assesses both financial impacts and environmental/social impacts.",
-            "group": "CSRD Sustainability (ESRS)"
+            "group": "CSRD Sustainability (ESRS)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "SFDR disclosures for Article 8/9 funds publish PAI (Principal Adverse Impact) indicators on public web portals.",
-            "group": "SFDR ESG Disclosures"
+            "group": "SFDR ESG Disclosures",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

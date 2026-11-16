@@ -46,13 +46,19 @@
         "description": "Validation checklist before a trained model is accepted as fit to serve.",
         "items": [
           {
-            "statement": "The training data's provenance, scope, and known gaps are documented in the Training Data Specification."
+            "statement": "The training data's provenance, scope, and known gaps are documented in the Training Data Specification.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "The model has been evaluated against every quality, bias, and performance criterion the requirement baseline calls for, not a convenience subset."
+            "statement": "The model has been evaluated against every quality, bias, and performance criterion the requirement baseline calls for, not a convenience subset.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Known limitations and failure modes are disclosed in the Model Card, not just the metrics that passed."
+            "statement": "Known limitations and failure modes are disclosed in the Model Card, not just the metrics that passed.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -109,18 +109,8 @@
     ],
     "policies": [],
     "qualityGates": [
-      {
-        "name": "No Unresolved Obligations",
-        "category": "Review Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "no_unresolved_obligations"
-      },
-      {
-        "name": "Requires Accepted Evidence or Approved Decision",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|Approved|Baselined",
-        "criteriaType": "requires_accepted_evidence_or_approved_decision"
-      }
+      "no-unresolved-obligations",
+      "accepted-evidence-or-approved-decision"
     ]
   }
 }

@@ -37,11 +37,15 @@
         "items": [
           {
             "statement": "Every generated-form tab renders its own saved content correctly.",
-            "group": "Fixture"
+            "group": "Fixture",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Nested checklist items round-trip as a real array, not a stringified blob.",
-            "group": "Fixture"
+            "group": "Fixture",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }
@@ -61,18 +65,7 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Fixture Quality Gate",
-        "category": "Analytical Evidence",
-        "governedTransition": "Pack|Draft|Validated",
-        "criteriaType": "no_unresolved_obligations",
-        "classification": "machine-verifiable",
-        "statement": "No unresolved Obligations block this transition.",
-        "participant": "AI",
-        "outputContract": "passed-failed-notes"
-      }
-    ],
+    "qualityGates": ["fixture-quality-gate"],
     "policies": [],
     "obligationDefinitions": [
       {
@@ -97,7 +90,13 @@
         "assurance": "Test-fixture maintainer sign-off.",
         "externalEvidence": false,
         "applicabilityDeliverables": [
-          { "name": "SEU", "transitions": ["SEU|Activated|Operational"], "governingCondition": null }
+          {
+            "name": "SEU",
+            "transitions": [
+              "SEU|Activated|Operational"
+            ],
+            "governingCondition": null
+          }
         ]
       }
     ],

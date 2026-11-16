@@ -9,7 +9,7 @@ CREATE TABLE quality_gates (
   from_state            TEXT NOT NULL,
   to_state              TEXT NOT NULL,
   criteria              JSONB NOT NULL DEFAULT '{"type":"no_unresolved_obligations"}',
-  originating_pack_id   UUID REFERENCES packs(id),
+  originating_pack_id   UUID NOT NULL REFERENCES packs(id),
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_entity_type_check;
@@ -28,11 +28,12 @@ CREATE INDEX IF NOT EXISTS idx_quality_gates_originating_pack_id ON quality_gate
 ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_code_version_key;
 ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_scope_category_version_key;
 ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_scope_category_version_pack_key;
-ALTER TABLE quality_gates ADD CONSTRAINT quality_gates_scope_category_version_pack_key
-  UNIQUE (entity_type, from_state, to_state, category, version, originating_pack_id);
+ALTER TABLE quality_gates ADD CONSTRAINT quality_gates_code_version_pack_key
+  UNIQUE (code, version, originating_pack_id);
 DROP INDEX IF EXISTS quality_gates_active_scope_category_key;
-CREATE UNIQUE INDEX IF NOT EXISTS quality_gates_active_scope_category_pack_key
-  ON quality_gates (entity_type, from_state, to_state, category, originating_pack_id)
+DROP INDEX IF EXISTS quality_gates_active_scope_category_pack_key;
+CREATE UNIQUE INDEX IF NOT EXISTS quality_gates_active_code_pack_key
+  ON quality_gates (code, originating_pack_id)
   WHERE is_active;
 ALTER TABLE quality_gates
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants_master(id),

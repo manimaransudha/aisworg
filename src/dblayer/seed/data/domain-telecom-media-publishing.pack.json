@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Subscriber SIM card activation provisions voice/data services across HLR/HSS/5G Core network nodes.",
-            "group": "Subscriber Provisioning"
+            "group": "Subscriber Provisioning",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Call Detail Records (CDR) rate voice minutes, SMS counts, and data megabytes accurately without double-charging.",
-            "group": "CDR Usage Rating"
+            "group": "CDR Usage Rating",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Prepaid balance recharges update account balances instantaneously with electronic receipt delivery.",
-            "group": "Prepaid Recharge"
+            "group": "Prepaid Recharge",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Editorial workflow requires editorial review and copy-editing approval prior to digital publication.",
-            "group": "Editorial Workflow"
+            "group": "Editorial Workflow",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Digital Rights Management (DRM) servers verify user entitlements before issuing playback decryption keys.",
-            "group": "DRM Rights Management"
+            "group": "DRM Rights Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

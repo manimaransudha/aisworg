@@ -43,13 +43,19 @@
         "description": "Validation checklist before a data pipeline is trusted by downstream consumers.",
         "items": [
           {
-            "statement": "The Data Pipeline Specification documents every source, transformation, and destination the pipeline touches."
+            "statement": "The Data Pipeline Specification documents every source, transformation, and destination the pipeline touches.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "The Data Quality Report covers completeness, accuracy, and freshness checks, not just that the pipeline ran without erroring."
+            "statement": "The Data Quality Report covers completeness, accuracy, and freshness checks, not just that the pipeline ran without erroring.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Failure and retry behaviour is defined for every stage, so a partial failure doesn't silently produce incomplete data."
+            "statement": "Failure and retry behaviour is defined for every stage, so a partial failure doesn't silently produce incomplete data.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

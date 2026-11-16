@@ -1,15 +1,16 @@
-import { unravelQualityGates, type QualityGatesUnraveled } from "./unravelQualityGates.js";
+import { unravelQualityGatesFor, type QualityGatesUnraveled } from "./unravelQualityGates.js";
 import { groupBy } from "./shared.js";
 import type { ConflictResolutions, DetectionContext, EbmConflict } from "./types.js";
 
-export function qualityGateKey(step: string, deliverable: string): string {
-  return `qualityGate::${step}::${deliverable}`;
+// Gates with different codes are different items, so a conflict needs the same code at the same step and Deliverable.
+export function qualityGateKey(step: string, deliverable: string, code: string): string {
+  return `qualityGate::${step}::${deliverable}::${code}`;
 }
 
-// Gates for the same Deliverable at the same step conflict when any field differs. A gate that names no Deliverable is compared with the other such gates at the step.
+// Gates with the same code for the same Deliverable at the same step conflict when any field differs. A gate that names no Deliverable is compared with the other such gates at the step.
 export function detectQualityGateConflictsFrom(facts: QualityGatesUnraveled, resolutions: ConflictResolutions = {}): EbmConflict[] {
   const conflicts: EbmConflict[] = [];
-  for (const [key, group] of groupBy(facts.gates, (g) => qualityGateKey(g.step, g.deliverable))) {
+  for (const [key, group] of groupBy(facts.gates, (g) => qualityGateKey(g.step, g.deliverable, String(g.fields.code ?? "")))) {
     if (new Set(group.map((g) => JSON.stringify(g.fields))).size < 2) continue;
     conflicts.push({
       table: "qualityGates",
@@ -25,5 +26,5 @@ export function detectQualityGateConflictsFrom(facts: QualityGatesUnraveled, res
 }
 
 export async function detectQualityGateConflicts(context: DetectionContext, resolutions: ConflictResolutions = {}): Promise<EbmConflict[]> {
-  return detectQualityGateConflictsFrom(unravelQualityGates({ composedPacks: context.composedPacks }), resolutions);
+  return detectQualityGateConflictsFrom(await unravelQualityGatesFor({ composedPacks: context.composedPacks }, context.viewerTenantId), resolutions);
 }

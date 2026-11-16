@@ -109,7 +109,7 @@ test("quality gates: the same gate from two Packs is one gate, and the checklist
 
 test("quality gates: a conflict takes the gates the user picked", () => {
   const gates = [qgate("a", { name: "Code review" }), qgate("b", { name: "Review gate" })];
-  const key = qualityGateKey(STEP, "source-code");
+  const key = qualityGateKey(STEP, "source-code", "");
   assert.deepEqual(settleQualityGatesFrom({ gates }, { [key]: [{ name: "Review gate" }] }).result[0].gates, [{ name: "Review gate" }]);
   assert.deepEqual(settleQualityGatesFrom({ gates }).result, [], "until the conflict is resolved, no result is generated for it");
 });
@@ -248,7 +248,7 @@ test("left out: a resolved conflict leaves out the options the user did not take
 
 test("left out: a pick of one or both says which was not picked, and an excluded Capability says it was excluded", () => {
   const gates = [qgate("a", { name: "Code review" }), qgate("b", { name: "Review gate" })];
-  const picked = settleQualityGatesFrom({ gates }, { [qualityGateKey(STEP, "source-code")]: [{ name: "Review gate" }] });
+  const picked = settleQualityGatesFrom({ gates }, { [qualityGateKey(STEP, "source-code", "")]: [{ name: "Review gate" }] });
   assert.deepEqual(picked.leftOut.map((l) => l.reason), ["You did not pick it."]);
   const listB = [{ capabilityCode: "cx", packId: "id-p", packCode: "pack-1" }];
   const excluded = settleCapabilitiesFrom({ listA, listB }, { [serviceChoiceKey("d1")]: "s1", [capabilityAdditionKey("cx", "pack-1")]: "exclude" });

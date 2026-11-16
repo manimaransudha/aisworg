@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Product catalog displays accurate SKU pricing, tax category codes, and real-time inventory availability.",
-            "group": "Catalog Management"
+            "group": "Catalog Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Checkout cart calculates sales tax based on customer delivery address and applies valid promo codes.",
-            "group": "Cart & Checkout"
+            "group": "Cart & Checkout",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Fraud screening flags high-risk orders and triggers 3D-Secure 2.0 challenge authentication.",
-            "group": "Fraud Prevention"
+            "group": "Fraud Prevention",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Order orchestration routes orders to nearest fulfillment center or store location (BOPIS).",
-            "group": "Fulfillment & Dispatch"
+            "group": "Fulfillment & Dispatch",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Customer loyalty rewards points calculate and update accurately upon order completion.",
-            "group": "Loyalty & Rewards"
+            "group": "Loyalty & Rewards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

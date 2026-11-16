@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Clinical EHR notes follow SOAP structure and incorporate ICD-10 / SNOMED CT diagnostic codes.",
-            "group": "Clinical Documentation"
+            "group": "Clinical Documentation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Computerized Provider Order Entry (CPOE) checks for drug-drug interactions and patient allergy alerts.",
-            "group": "CPOE & Medication Safety"
+            "group": "CPOE & Medication Safety",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Clinical trial subjects execute Informed Consent Forms (ICF) prior to protocol enrollment.",
-            "group": "Clinical Trial Enrollment"
+            "group": "Clinical Trial Enrollment",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Serious Adverse Events (SAE) are reported to the Medical Monitor and Institutional Review Board (IRB) within 24 hours.",
-            "group": "Pharmacovigilance (SAE)"
+            "group": "Pharmacovigilance (SAE)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Pharmaceutical manufacturing batch records undergo Qualified Person (QP) release sign-off prior to distribution.",
-            "group": "Pharma Batch Release"
+            "group": "Pharma Batch Release",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

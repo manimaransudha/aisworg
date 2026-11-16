@@ -4,6 +4,7 @@ import { templatesDB } from "../../dblayer/templatesDB.js";
 import { profilesDB } from "../../dblayer/profilesDB.js";
 import { serviceDefinitionsDB } from "../../dblayer/serviceDefinitionsDB.js";
 import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
+import { qualityGateDefinitionsDB } from "../../dblayer/qualityGateDefinitionsDB.js";
 import { deliverableDefinitionsDB } from "../../dblayer/deliverableDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../../dblayer/schemaDefinitionsDB.js";
 import { objectivesDB } from "../../dblayer/objectivesDB.js";
@@ -18,7 +19,7 @@ import { knowledgeItemsDB } from "../../dblayer/knowledgeItemsDB.js";
 import { reviewsDB } from "../../dblayer/reviewsDB.js";
 import { findingsDB } from "../../dblayer/findingsDB.js";
 import { participantsDB } from "../../dblayer/participantsDB.js";
-import type { AttentionItemRow, FindingRow, ReviewRow, DecisionRow, KnowledgeItemRow, ParticipantRow, CapabilityDefinitionRow, EbmRow, EvidenceRow, ObligationRow, SeuRow, OntologyConceptRow, DeliverableDefinitionRow, ObjectiveRow, PackContributions, PackRow, PolicyDefinitionRow, ProfileRow, SchemaDefinitionRow, TemplateRow, ServiceDefinitionRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
+import type { AttentionItemRow, FindingRow, ReviewRow, DecisionRow, KnowledgeItemRow, ParticipantRow, CapabilityDefinitionRow, EbmRow, EvidenceRow, ObligationRow, SeuRow, OntologyConceptRow, DeliverableDefinitionRow, ObjectiveRow, PackContributions, PackRow, PolicyDefinitionRow, QualityGateDefinitionRow, ProfileRow, SchemaDefinitionRow, TemplateRow, ServiceDefinitionRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 // How the generic transition function (entityTransition.ts) reaches one entity's table (CR-128). An adapter holds no rules.
 export interface EntityAdapter<Row extends object = object> {
@@ -217,6 +218,31 @@ const policyAdapter = adapter<PolicyDefinitionRow>({
     applicabilityEnvironments: row.applicability_environments, conditions: row.conditions, scope: row.scope, version: row.version,
   }),
   composableFields: (row) => ({ category: row.category, applicabilityEnvironments: row.applicability_environments }),
+});
+
+// Quality Gate is the entity type of a Quality Gate Definition (CR-145). The `quality_gates` row the engine reads is written from it when the Pack that lists its code becomes Active.
+const qualityGateAdapter = adapter<QualityGateDefinitionRow>({
+  async findById(id) {
+    const { data, error } = await qualityGateDefinitionsDB.findById(id);
+    if (error) throw error;
+    return data ?? null;
+  },
+  getState: (row) => row.status,
+  async setState(id, toState) {
+    const { data, error } = await qualityGateDefinitionsDB.updateStatus(id, toState as QualityGateDefinitionRow["status"]);
+    if (error || !data) throw error ?? new Error(`failed to set the state of QualityGate ${id}`);
+    return data;
+  },
+  tenantId: (row) => row.tenant_id,
+  schemaDefinitionId: (row) => row.schema_definition_id,
+  content: (row) => ({
+    ...(row.draft_content ?? {}),
+    code: row.code, name: row.name, description: row.description ?? "", category: row.category, governedTransition: row.governed_transition,
+    criteriaType: row.criteria_type, evidenceCategory: row.evidence_category ?? "", deliverableName: row.review_gate_code ?? "",
+    requiredPolicyCodes: row.required_policy_codes, checklistIds: row.checklist_ids, recommendedChecklistIds: row.recommended_checklist_ids,
+    applicabilityDeliverableNames: row.applicability_deliverable_names, version: row.version,
+  }),
+  composableFields: (row) => ({ code: row.code, category: row.category, evidenceCategory: row.evidence_category ?? "" }),
 });
 
 // The Deliverable Definition is the authored catalogue entry. The runtime Deliverable is a different entity and moves through the Execution Engine.
@@ -508,6 +534,7 @@ const entityAdapters: Partial<Record<TransitionEntityType, EntityAdapter>> = {
   Template: templateAdapter,
   Profile: profileAdapter,
   Policy: policyAdapter,
+  QualityGate: qualityGateAdapter,
   DeliverableDefinition: deliverableDefinitionAdapter,
   Objective: objectiveAdapter,
   EBM: ebmAdapter,

@@ -47,15 +47,21 @@
         "items": [
           {
             "statement": "Confluence API Service Account Token grants read/write permissions for target Confluence space keys.",
-            "group": "Confluence API Auth"
+            "group": "Confluence API Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Automated documentation builds convert markdown specs into Confluence Storage Format XHTML.",
-            "group": "Doc Publishing Format"
+            "group": "Doc Publishing Format",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Architecture Decision Records (ADRs) post under designated Confluence parent pages.",
-            "group": "ADR Publishing"
+            "group": "ADR Publishing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -1,4 +1,4 @@
-import { unravelQualityGates, type QualityGatesUnraveled } from "./unravelQualityGates.js";
+import { unravelQualityGatesFor, type QualityGatesUnraveled } from "./unravelQualityGates.js";
 import { detectQualityGateConflictsFrom, qualityGateKey } from "./qualityGates.js";
 import { openKeys, pickedValues, recordConflicts, leftOutOf, type LeftOut, sameValue, sortedUnion } from "./settleShared.js";
 import type { RecordedConflict } from "../../../dblayer/seuTypes.js";
@@ -27,7 +27,7 @@ export function settleQualityGatesFrom(facts: QualityGatesUnraveled, resolutions
   const open = openKeys(detected);
   const conflicts = recordConflicts(detected);
   const groups = new Map<string, QualityGatesUnraveled["gates"]>();
-  for (const gate of facts.gates) groups.set(qualityGateKey(gate.step, gate.deliverable), [...(groups.get(qualityGateKey(gate.step, gate.deliverable)) ?? []), gate]);
+  for (const gate of facts.gates) groups.set(qualityGateKey(gate.step, gate.deliverable, String(gate.fields.code ?? "")), [...(groups.get(qualityGateKey(gate.step, gate.deliverable, String(gate.fields.code ?? ""))) ?? []), gate]);
 
   const result: SettledQualityGates[] = [];
   for (const [key, group] of groups) {
@@ -46,5 +46,5 @@ export function settleQualityGatesFrom(facts: QualityGatesUnraveled, resolutions
 }
 
 export async function settleQualityGates(context: DetectionContext, resolutions: ConflictResolutions = {}): Promise<QualityGatesSettled> {
-  return settleQualityGatesFrom(unravelQualityGates({ composedPacks: context.composedPacks }), resolutions);
+  return settleQualityGatesFrom(await unravelQualityGatesFor({ composedPacks: context.composedPacks }, context.viewerTenantId), resolutions);
 }

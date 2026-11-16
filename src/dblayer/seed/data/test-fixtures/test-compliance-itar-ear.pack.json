@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Access to ITAR controlled technical data is restricted exclusively to authenticated US Persons (Citizens or Green Card holders).",
-            "group": "ITAR US Person Access (§120.62)"
+            "group": "ITAR US Person Access (§120.62)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Technical data in transit and at rest uses end-to-end FIPS 140-2/3 cryptography with keys unaccessible to foreign entities (§120.54).",
-            "group": "ITAR E2E Encryption (§120.54)"
+            "group": "ITAR E2E Encryption (§120.54)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "EAR Export Control Classification Numbers (ECCN) are assigned for all dual-use software modules.",
-            "group": "EAR ECCN Classification"
+            "group": "EAR ECCN Classification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "CMMC 2.0 Level 2 / NIST SP 800-171 110 security controls are verified for CUI storage enclaves.",
-            "group": "CMMC 2.0 CUI Enclave"
+            "group": "CMMC 2.0 CUI Enclave",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "DFARS 252.204-7012 cyber incident reporting mechanism reports breaches to DoD Cyber Crime Center (DC3) within 72 hours.",
-            "group": "DFARS Cyber Incident Reporting"
+            "group": "DFARS Cyber Incident Reporting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

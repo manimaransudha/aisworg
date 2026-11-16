@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Cybersecurity Management System (CSMS) processes are audited and certified by an accredited Technical Service (UNECE R155).",
-            "group": "CSMS Audit (UNECE R155)"
+            "group": "CSMS Audit (UNECE R155)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Threat Analysis and Risk Assessment (TARA) is conducted according to ISO/SAE 21434 for all vehicle software components.",
-            "group": "TARA Threat Modeling"
+            "group": "TARA Threat Modeling",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Software Update Management System (SUMS) tracks RXSWIN (Regulatory Software Identification Number) per vehicle variant (R156).",
-            "group": "SUMS RXSWIN Tracking (UNECE R156)"
+            "group": "SUMS RXSWIN Tracking (UNECE R156)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Over-The-Air (OTA) updates are cryptographically signed using HSM keys and verified by target ECUs prior to flashing.",
-            "group": "OTA Cryptographic Integrity"
+            "group": "OTA Cryptographic Integrity",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Functional safety hazard analysis (HARA) verifies ASIL A-D safety goals per ISO 26262.",
-            "group": "ISO 26262 Functional Safety"
+            "group": "ISO 26262 Functional Safety",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

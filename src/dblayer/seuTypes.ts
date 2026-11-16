@@ -86,17 +86,8 @@ export interface PackContributions {
   services?: Array<{ code: string; serviceDefinitionId: string; serviceLevel?: Array<{ code: string; target: number }> }>;
   authorityRules?: Array<{ code: string; governedTransition: string; authorisedRole: string }>;
   policies?: string[];
-  qualityGates?: Array<{
-    name: string;
-    category: string;
-    governedTransition: string;
-    criteriaType: "no_unresolved_obligations" | "requires_accepted_evidence_or_approved_decision" | "requires_accepted_review" | "requires_active_policy";
-    deliverableName?: string;
-    requiredPolicyCodes?: string[];
-    checklistIds?: string[];
-    recommendedChecklistIds?: string[];
-    applicabilityDeliverableNames?: string[];
-  } & VerifiableItemFields>;
+  // The codes of the Quality Gate Definitions this Pack takes (CR-145).
+  qualityGates?: string[];
   checklists?: Array<{ name: string; description?: string; items: ChecklistItem[] }>;
   reviewGates?: Array<{ code: string; name: string; governedTransition: string; checklistIds?: string[]; recommendedChecklistIds?: string[] } & VerifiableItemFields>;
   obligationDefinitions?: Array<{ code: string; applicabilityDeliverables?: PolicyApplicabilityDeliverable[] } & ObligationDefinition & Omit<VerifiableItemFields, "statement">>;
@@ -297,6 +288,32 @@ export interface PolicyDefinitionRow {
   author_badge: string;
   tenant_id: string;
   parent_policy_definition_id: string | null;
+  created_at: string;
+  schema_definition_id: string | null;
+}
+
+// A Quality Gate Definition: the authored gate (CR-145). The Pack lists its code, and the `quality_gates` row the engine reads is written from it when the Pack becomes Active.
+export interface QualityGateDefinitionRow {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  category: string;
+  governed_transition: string;
+  criteria_type: string;
+  evidence_category: string | null;
+  review_gate_code: string | null;
+  required_policy_codes: string[];
+  checklist_ids: string[];
+  recommended_checklist_ids: string[];
+  applicability_deliverable_names: string[];
+  version: string;
+  status: PolicyDefinitionStatus;
+  draft_content: Record<string, unknown>;
+  authored_by: string;
+  author_badge: string;
+  tenant_id: string;
+  parent_quality_gate_definition_id: string | null;
   created_at: string;
   schema_definition_id: string | null;
 }
@@ -569,6 +586,7 @@ export type TransitionEntityType =
   | "Profile"
   | "Service"
   | "Policy"
+  | "QualityGate"
   | "Capability"
   | "EBM"
   | "Ontology"
@@ -969,7 +987,7 @@ export interface QualityGateRow {
   from_state: string;
   to_state: string;
   criteria: Record<string, unknown>;
-  originating_pack_id: string | null;
+  originating_pack_id: string;
   version: string;
   is_active: boolean;
   created_at: string;
@@ -1237,7 +1255,7 @@ export interface BadgeTierRow {
   created_at: string;
 }
 
-export type SchemaDefinitionEntityKind = "Pack" | "Template" | "Profile" | "TransitionDefinition" | "Deliverable" | "Service" | "Policy" | "Capability";
+export type SchemaDefinitionEntityKind = "Pack" | "Template" | "Profile" | "TransitionDefinition" | "Deliverable" | "Service" | "Policy" | "QualityGate" | "Capability";
 
 export interface SchemaDefinitionRow {
   id: string;

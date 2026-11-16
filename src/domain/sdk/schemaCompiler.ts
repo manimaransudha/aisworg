@@ -1,6 +1,6 @@
 import type { JsonSchemaDocument, JsonSchemaProperty } from "./formGenerator.js";
 
-export const SCHEMA_KINDS = ["Pack", "Template", "Profile", "Deliverable", "Service", "Policy", "Capability"] as const;
+export const SCHEMA_KINDS = ["Pack", "Template", "Profile", "Deliverable", "Service", "Policy", "QualityGate", "Capability"] as const;
 
 export const TOP_LEVEL_WIDGET_KINDS = ["text", "textarea", "version", "select", "referential", "referential-multi", "json", "list"] as const;
 export const ITEM_WIDGET_KINDS = ["text", "textarea", "select", "boolean", "referential", "referential-multi", "referential-dynamic", "referential-by-scope", "generated", "json", "list", "object"] as const;

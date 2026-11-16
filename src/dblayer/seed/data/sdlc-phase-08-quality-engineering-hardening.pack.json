@@ -60,19 +60,29 @@
         "description": "Validation checklist for test coverage, performance load testing, security audits, and UAT sign-off.",
         "items": [
           {
-            "statement": "The test cases and traceability matrix demonstrate coverage against every requirement in scope for this release."
+            "statement": "The test cases and traceability matrix demonstrate coverage against every requirement in scope for this release.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Automated regression suite passes 100% clean with zero flaky test failures in the deployment candidate build."
+            "statement": "Automated regression suite passes 100% clean with zero flaky test failures in the deployment candidate build.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Performance load testing verifies p95 latency targets under 1.5x peak anticipated load."
+            "statement": "Performance load testing verifies p95 latency targets under 1.5x peak anticipated load.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Security penetration testing and DAST scans report zero unresolved High or Critical vulnerabilities."
+            "statement": "Security penetration testing and DAST scans report zero unresolved High or Critical vulnerabilities.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "UAT sign-off report is formally approved by business stakeholders with zero blocking open defects."
+            "statement": "UAT sign-off report is formally approved by business stakeholders with zero blocking open defects.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

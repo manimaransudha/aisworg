@@ -2,12 +2,14 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
 const router = express.Router();
+router.param("id", userTenantScope);
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
+import { userTenantScope } from "../../../middleware/seuTenantScope.js";
 import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";

@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Sales quotes are validated for pricing, discount approvals, and tax calculation prior to order conversion.",
-            "group": "Order Capture"
+            "group": "Order Capture",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Customer credit balance check prevents order release if exposure exceeds credit limit.",
-            "group": "Credit Validation"
+            "group": "Credit Validation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Inventory hard reservation assigns available stock to order lines without double allocation.",
-            "group": "Inventory Allocation"
+            "group": "Inventory Allocation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Backordered items trigger automated customer notifications and estimated restock fulfillment dates.",
-            "group": "Backorder Management"
+            "group": "Backorder Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Returned items under RMA undergo quality inspection before issuing customer credit memos.",
-            "group": "RMA Returns & Refunds"
+            "group": "RMA Returns & Refunds",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

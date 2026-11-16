@@ -32,11 +32,15 @@
         "items": [
           {
             "statement": "The Doctype is HTML5 and is at the top of all your HTML pages.",
-            "group": "HTML Document Structure"
+            "group": "HTML Document Structure",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Semantic tags are used appropriately across all markup.",
-            "group": "HTML Structure & Semantics"
+            "group": "HTML Structure & Semantics",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

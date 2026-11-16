@@ -205,8 +205,9 @@ async function policySchema(): Promise<JsonSchemaDocument> {
 
 const VALID_CONDITION = {
   statement: "A condition",
+  severity: "High",
   applicabilityDeliverables: [{ name: "Deliverable", transitions: ["Deliverable|In Progress|Approved"], governingCondition: { type: "always_true" } }],
-  relatedObligations: [{ category: "Compliance" }],
+  relatedObligations: [{ category: "Compliance", severity: "High" }],
   exceptionRules: [{ exceptionStatement: "An exception", exceptionComposition: "all" }],
 };
 

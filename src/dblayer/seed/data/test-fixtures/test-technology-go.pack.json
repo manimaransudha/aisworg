@@ -32,23 +32,33 @@
         "items": [
           {
             "statement": "Go source code passes gofmt, govet, and golangci-lint without unaddressed warnings.",
-            "group": "Code Style & Linting"
+            "group": "Code Style & Linting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Error handling is explicit (if err != nil) and error strings are formatted without capitalized leading letters or punctuation.",
-            "group": "Error Handling"
+            "group": "Error Handling",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Goroutines manage lifecycle, use context.Context for cancellation propagation, and avoid goroutine leaks.",
-            "group": "Concurrency & Goroutines"
+            "group": "Concurrency & Goroutines",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Tests run clean with the race detector enabled (go test -race ./...) without data races.",
-            "group": "Testing & Race Detection"
+            "group": "Testing & Race Detection",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Interfaces are defined by the consumer, kept small and focused, and unexported unless public export is explicitly required.",
-            "group": "Interface & API Design"
+            "group": "Interface & API Design",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

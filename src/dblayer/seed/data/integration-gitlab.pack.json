@@ -47,15 +47,21 @@
         "items": [
           {
             "statement": "GitLab Personal / Project Access Token grants api scope for repository and pipeline access.",
-            "group": "Authentication & Access"
+            "group": "Authentication & Access",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "GitLab Webhook triggers on Merge Request events and Push events with secret token verification.",
-            "group": "Webhook Integration"
+            "group": "Webhook Integration",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "GitLab CI runner tags match deployment environment requirements (docker, shell, kubernetes).",
-            "group": "CI/CD Pipeline Runners"
+            "group": "CI/CD Pipeline Runners",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

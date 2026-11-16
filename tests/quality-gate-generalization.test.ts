@@ -87,7 +87,7 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
   const fromState = `qg-test-from-${randomUUID()}`;
   const toState = `qg-test-to-${randomUUID()}`;
   const { data: gate, error: gateError } = await qualityGatesDB.upsert({
-    name: "QG generalization test gate",
+    category: "Exit", code: `qg-test-${randomUUID()}`, name: "QG generalization test gate",
     entityType: "AttentionItem",
     fromState,
     toState,
@@ -156,7 +156,7 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
   assert.ok(existingDefinition, "expected the real seeded AttentionItem In Progress -> Resolved transition to already exist");
 
   const { error: gateError } = await qualityGatesDB.upsert({
-    name: "QG wiring test gate",
+    category: "Exit", code: `qg-test-${randomUUID()}`, name: "QG wiring test gate",
     entityType: "AttentionItem",
     fromState,
     toState,
@@ -208,7 +208,7 @@ test("transitionObligation is genuinely wired to qualityGateEngine through trans
   assert.equal(definitionError, undefined);
   try {
     const { error: gateError } = await qualityGatesDB.upsert({
-      name: "QG obligation wiring test gate",
+      category: "Exit", code: `qg-test-${randomUUID()}`, name: "QG obligation wiring test gate",
       entityType: "Obligation",
       fromState,
       toState,
@@ -248,12 +248,12 @@ test("transitionDecision is genuinely wired to qualityGateEngine through transit
   assert.equal(definitionError, undefined);
   try {
     const { error: gateError } = await qualityGatesDB.upsert({
-      name: "QG decision wiring test gate",
+      code: `qg-test-${randomUUID()}`, name: "QG decision wiring test gate",
       entityType: "Decision",
       fromState,
       toState,
-      category: "Validation Evidence",
-      criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+      category: "Exit",
+      criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
       originatingPackId: await anyRealPackId(),
       authorId: ROOT_ACTOR_ID,
       authorBadge: "root",
@@ -295,12 +295,12 @@ test("transitionParticipant is genuinely wired to qualityGateEngine through tran
   assert.equal(definitionError, undefined);
   try {
     const { error: gateError } = await qualityGatesDB.upsert({
-      name: "QG participant wiring test gate",
+      code: `qg-test-${randomUUID()}`, name: "QG participant wiring test gate",
       entityType: "Participant",
       fromState,
       toState,
-      category: "Validation Evidence",
-      criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+      category: "Exit",
+      criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
       originatingPackId: await anyRealPackId(),
       authorId: ROOT_ACTOR_ID,
       authorBadge: "root",
@@ -333,12 +333,12 @@ test("transitionKnowledgeItem is genuinely wired to qualityGateEngine through tr
   assert.equal(definitionError, undefined);
   try {
     const { error: gateError } = await qualityGatesDB.upsert({
-      name: "QG knowledge wiring test gate",
+      code: `qg-test-${randomUUID()}`, name: "QG knowledge wiring test gate",
       entityType: "Knowledge",
       fromState,
       toState,
-      category: "Validation Evidence",
-      criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+      category: "Exit",
+      criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
       originatingPackId: await anyRealPackId(),
       authorId: ROOT_ACTOR_ID,
       authorBadge: "root",
@@ -374,12 +374,12 @@ test("transitionReview is genuinely wired to qualityGateEngine through transitio
   assert.equal(definitionError, undefined);
   try {
     const { error: gateError } = await qualityGatesDB.upsert({
-      name: "QG review wiring test gate",
+      code: `qg-test-${randomUUID()}`, name: "QG review wiring test gate",
       entityType: "Review",
       fromState,
       toState,
-      category: "Validation Evidence",
-      criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+      category: "Exit",
+      criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
       originatingPackId: await anyRealPackId(),
       authorId: ROOT_ACTOR_ID,
       authorBadge: "root",
@@ -412,12 +412,12 @@ test("transitionFinding is genuinely wired to qualityGateEngine through transiti
   assert.equal(definitionError, undefined);
   try {
     const { error: gateError } = await qualityGatesDB.upsert({
-      name: "QG finding wiring test gate",
+      code: `qg-test-${randomUUID()}`, name: "QG finding wiring test gate",
       entityType: "Finding",
       fromState,
       toState,
-      category: "Validation Evidence",
-      criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+      category: "Exit",
+      criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
       originatingPackId: await anyRealPackId(),
       authorId: ROOT_ACTOR_ID,
       authorBadge: "root",

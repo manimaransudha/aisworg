@@ -73,7 +73,7 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
   const fromState = `td-engine-from-${randomUUID()}`;
   const toState = `td-engine-to-${randomUUID()}`;
   const { data: gate, error: gateError } = await qualityGatesDB.upsert({
-    name: "Transition Definition engine-generalization test gate",
+    category: "Exit", code: `qg-test-${randomUUID()}`, name: "Transition Definition engine-generalization test gate",
     entityType: "AttentionItem",
     fromState,
     toState,

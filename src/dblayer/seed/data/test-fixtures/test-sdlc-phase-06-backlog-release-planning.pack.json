@@ -45,19 +45,29 @@
         "description": "Validation checklist for backlog refinement, release sequencing, and dependency mapping.",
         "items": [
           {
-            "statement": "Every backlog item in the feature/epic backlog carries clear, testable acceptance criteria."
+            "statement": "Every backlog item in the feature/epic backlog carries clear, testable acceptance criteria.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Critical path dependencies between backend services and frontend components are mapped with clear ownership."
+            "statement": "Critical path dependencies between backend services and frontend components are mapped with clear ownership.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Release plan defines target dates, freeze windows, and rollback criteria."
+            "statement": "Release plan defines target dates, freeze windows, and rollback criteria.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Feature flag rollout strategy details target user cohorts and telemetry kill-switch triggers."
+            "statement": "Feature flag rollout strategy details target user cohorts and telemetry kill-switch triggers.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "RACI matrix assigns explicit single-point accountability for release sign-off."
+            "statement": "RACI matrix assigns explicit single-point accountability for release sign-off.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

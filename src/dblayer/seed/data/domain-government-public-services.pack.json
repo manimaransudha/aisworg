@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Citizen identity is verified against official national/state identity registries prior to permit issuance.",
-            "group": "Citizen Identity Verification"
+            "group": "Citizen Identity Verification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Permit applications undergo field inspector review and code compliance verification.",
-            "group": "Permits & Inspections"
+            "group": "Permits & Inspections",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Social welfare benefit applications evaluate household income documentation against statutory threshold tables.",
-            "group": "Benefits Eligibility"
+            "group": "Benefits Eligibility",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Case management records log all caseworker interactions and benefit disbursement events.",
-            "group": "Case Management"
+            "group": "Case Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Public records requests (FOIA/RTI) fulfill information disclosures within statutory response windows.",
-            "group": "Public Records (FOIA)"
+            "group": "Public Records (FOIA)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

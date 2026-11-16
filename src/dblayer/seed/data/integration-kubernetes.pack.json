@@ -42,15 +42,21 @@
         "items": [
           {
             "statement": "Kubernetes ServiceAccount RBAC Role / ClusterRole binds least-privilege permissions for target namespaces.",
-            "group": "RBAC ServiceAccount Auth"
+            "group": "RBAC ServiceAccount Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Helm release deployments pass helm lint and validate custom values.yaml schemas.",
-            "group": "Helm Deployment"
+            "group": "Helm Deployment",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Deployment rollout status (kubectl rollout status) confirms all pod readiness probes pass within timeout limits.",
-            "group": "Pod Rollout Status"
+            "group": "Pod Rollout Status",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

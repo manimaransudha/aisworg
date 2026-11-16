@@ -32,107 +32,159 @@
         "items": [
           {
             "statement": "All the components, globals, images, redux etc.. Should be written inside the src folder",
-            "group": "Folder Structure"
+            "group": "Folder Structure",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Images should be there in the images folder under the src folder.",
-            "group": "Folder Structure"
+            "group": "Folder Structure",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Redux files should be written inside the store folder under the src folder",
-            "group": "Folder Structure"
+            "group": "Folder Structure",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "You can create stack navigator file inside navigation folder under src",
-            "group": "Folder Structure"
+            "group": "Folder Structure",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "A folder and sub folder name should always start with small letters and the files belongs the folders is always in pascal case.",
-            "group": "Naming Conventions"
+            "group": "Naming Conventions",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Object and variable declaration should always in camel case statement.",
-            "group": "Naming Conventions"
+            "group": "Naming Conventions",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Divide The Components (split the React Native components into two individual directories: container and plain components)",
-            "group": "Component Structure"
+            "group": "Component Structure",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Declare The Types: It can either be Flow or Typescript",
-            "group": "Type Safety"
+            "group": "Type Safety",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Separate the styles from the components.",
-            "group": "Styling"
+            "group": "Styling",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Remove console.log() after debugging, It will make app slower.",
-            "group": "Code Quality & Performance"
+            "group": "Code Quality & Performance",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Create aliases using babel-plugin-module-resolver to avoid nested imports",
-            "group": "Project Configuration"
+            "group": "Project Configuration",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use Hooks (avoid class based component)",
-            "group": "Component Design"
+            "group": "Component Design",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use Redux for for the store state (Avoid unnecessary use of redux)",
-            "group": "State Management"
+            "group": "State Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Add fastlane set up for automate development and build release process",
-            "group": "Build & Release"
+            "group": "Build & Release",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use Platform specific styles.",
-            "group": "Platform-Specific Development"
+            "group": "Platform-Specific Development",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Alway assign unique key to each element.",
-            "group": "Component Rendering"
+            "group": "Component Rendering",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "create class component when we have to use state otherwise we should use functional component",
-            "group": "Component Design"
+            "group": "Component Design",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use spread operator. It can make your React code much more beautiful and clean",
-            "group": "JavaScript Coding Standards"
+            "group": "JavaScript Coding Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "write your api calls within the useEffect for hooks / write your api calls withing the componentDidMount for class component.",
-            "group": "API & Lifecycle Management"
+            "group": "API & Lifecycle Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Always implement as much client validation as possible at front end level",
-            "group": "Input Validation"
+            "group": "Input Validation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "make sure that the app you are building is responsive",
-            "group": "Responsive Design"
+            "group": "Responsive Design",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "DO use Safe Area View to look good on every iOS device",
-            "group": "Platform-Specific Development"
+            "group": "Platform-Specific Development",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Use a linter to make your code easier to review.",
-            "group": "Code Quality & Standards"
+            "group": "Code Quality & Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Lock Dependencies(remove the ^ character in order to lock the dependency on that specific version)",
-            "group": "Dependency Management"
+            "group": "Dependency Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Review your code at least once before creating a pull or merge request",
-            "group": "Code Review"
+            "group": "Code Review",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Check internet connectivity for a better user experience",
-            "group": "Network & Connectivity"
+            "group": "Network & Connectivity",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

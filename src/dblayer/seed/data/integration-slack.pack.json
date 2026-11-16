@@ -42,15 +42,21 @@
         "items": [
           {
             "statement": "Slack Bot User OAuth Token grants chat:write and channels:read scopes.",
-            "group": "Bot Token Auth"
+            "group": "Bot Token Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Incoming Webhooks post rich Block Kit formatted messages to target Slack channels.",
-            "group": "Block Kit Webhooks"
+            "group": "Block Kit Webhooks",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Slack Slash Commands process user interactions and return instant ephemerally formatted responses.",
-            "group": "Slash Commands"
+            "group": "Slash Commands",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

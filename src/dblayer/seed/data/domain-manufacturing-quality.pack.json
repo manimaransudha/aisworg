@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Bill of Materials (BOM) revisions are controlled and material availability verified prior to work order release.",
-            "group": "MRP & Work Orders"
+            "group": "MRP & Work Orders",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Shop-floor execution logs machine runtime, operator ID, produced quantity, and scrapped material.",
-            "group": "Shop-Floor Execution"
+            "group": "Shop-Floor Execution",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Quality inspection plans execute at defined control points (incoming, in-process, final release).",
-            "group": "Quality Inspection"
+            "group": "Quality Inspection",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Defective components trigger Non-Conformance Reports (NCR) and material quarantine.",
-            "group": "Non-Conformance Control"
+            "group": "Non-Conformance Control",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Corrective Action Preventive Action (CAPA) plans perform 5-Why / 8D root-cause analysis with verification of effectiveness.",
-            "group": "CAPA & RCA"
+            "group": "CAPA & RCA",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

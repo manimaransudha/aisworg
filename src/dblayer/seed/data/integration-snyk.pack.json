@@ -37,15 +37,21 @@
         "items": [
           {
             "statement": "Snyk Service Account API Token authenticates REST API calls and CLI scanner jobs.",
-            "group": "Snyk API Auth"
+            "group": "Snyk API Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Snyk monitors open source dependencies and alerts on newly disclosed CVEs.",
-            "group": "Dependency Monitoring"
+            "group": "Dependency Monitoring",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Snyk CLI in CI build pipeline fails builds when high/critical vulnerabilities are detected.",
-            "group": "CI Vulnerability Thresholds"
+            "group": "CI Vulnerability Thresholds",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

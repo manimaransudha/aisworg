@@ -26,6 +26,7 @@ import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { transitionParticipant, replaceParticipant } from "../src/routes/seu/core/participants.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
+import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
 import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, waitUntilAsync, getEmptyPoolTenantId, emptyParticipantPool, deactivateParticipants } from "./testFixtures.js";
@@ -213,6 +214,8 @@ test("Build order step 4: replaceParticipant hands a Capability Fulfilment from 
   // The engine dispatches as soon as the Capability is fulfilled, so the Participant being replaced is already Assigned.
 
   const result = await replaceParticipant({
+    seuId: oldParticipant.seu_id,
+    capabilityId: (await seuCapabilitiesDB.findById(seuCapabilityId)).data!.capability_id,
     oldParticipantId: oldParticipant.id,
     newParticipantType: "Human",
     newDisplayName: "Participant lifecycle replacement analyst",
@@ -248,6 +251,8 @@ test("Build order step 4: replaceParticipant works from Executing, not just Idle
   assert.equal(midWork?.state, "Executing");
 
   const result = await replaceParticipant({
+    seuId: oldParticipant.seu_id,
+    capabilityId: (await seuCapabilitiesDB.findById(seuCapabilityId)).data!.capability_id,
     oldParticipantId: oldParticipant.id,
     newParticipantType: "AI",
     newDisplayName: "Participant lifecycle replacement (mid-work)",

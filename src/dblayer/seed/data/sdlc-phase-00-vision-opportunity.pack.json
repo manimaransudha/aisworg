@@ -45,28 +45,44 @@
         "description": "Comprehensive validation checklist for product vision, market opportunity framing, and strategic alignment.",
         "items": [
           {
-            "statement": "The stated vision and opportunity sizing are grounded in real market/user evidence, not assertion alone."
+            "statement": "The stated vision and opportunity sizing are grounded in real market/user evidence, not assertion alone.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Target user persona, core pain points, and Jobs-to-be-Done (JTBD) are explicitly identified with documented user quotes or research data."
+            "statement": "Target user persona, core pain points, and Jobs-to-be-Done (JTBD) are explicitly identified with documented user quotes or research data.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "TAM (Total Addressable Market), SAM (Serviceable Addressable Market), and SOM (Serviceable Obtainable Market) have documented calculation models."
+            "statement": "TAM (Total Addressable Market), SAM (Serviceable Addressable Market), and SOM (Serviceable Obtainable Market) have documented calculation models.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Competitive teardown identifies at least 3 direct or indirect alternatives and defines proposed moat/differentiator."
+            "statement": "Competitive teardown identifies at least 3 direct or indirect alternatives and defines proposed moat/differentiator.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Lean Business Model Canvas addresses value proposition, customer channels, revenue model, cost structure, and unfair advantage."
+            "statement": "Lean Business Model Canvas addresses value proposition, customer channels, revenue model, cost structure, and unfair advantage.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Initial key assumptions and top critical risks (value, usability, feasibility, business viability) are logged with validation hypotheses."
+            "statement": "Initial key assumptions and top critical risks (value, usability, feasibility, business viability) are logged with validation hypotheses.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Success metrics and draft OKRs define clear leading indicators and measurable business outcomes."
+            "statement": "Success metrics and draft OKRs define clear leading indicators and measurable business outcomes.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Executive and key stakeholder alignment has been achieved on project scope, strategic intent, and seed funding boundary."
+            "statement": "Executive and key stakeholder alignment has been achieved on project scope, strategic intent, and seed funding boundary.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

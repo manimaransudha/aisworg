@@ -3,7 +3,9 @@
 <head>
   <%- include('../../partials/head') %>
   <style>
-    .eeg-canvas { overflow: auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 0.5rem; min-height: 420px; }
+    .eeg-canvas { overflow: hidden; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 0.5rem; height: 560px; }
+    #eeg-svg { width: 100%; height: 100%; cursor: grab; user-select: none; }
+    #eeg-svg.eeg-zoomed-out .eeg-edge-label { display: none; }
     .eeg-node { cursor: pointer; }
     .eeg-node:hover .eeg-shape { stroke: #4f46e5; stroke-width: 3; }
     .eeg-node.selected .eeg-shape { stroke: #4f46e5; stroke-width: 3; }
@@ -51,7 +53,19 @@
           <div class="section-header">Execution Graph</div>
           <div class="p-3">
             <div id="eeg-legend" class="mb-2"></div>
-            <div class="eeg-canvas"><svg id="eeg-svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="420"></svg></div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <div class="btn-group btn-group-sm" role="group" aria-label="Layout">
+                <button type="button" id="eeg-layout-layered" class="btn btn-outline-primary active">Layered</button>
+                <button type="button" id="eeg-layout-force" class="btn btn-outline-primary">Force</button>
+              </div>
+              <div class="btn-group btn-group-sm" role="group" aria-label="Zoom">
+                <button type="button" id="eeg-zoom-out" class="btn btn-outline-secondary" title="Zoom out"><i class="bi bi-dash-lg"></i></button>
+                <button type="button" id="eeg-zoom-in" class="btn btn-outline-secondary" title="Zoom in"><i class="bi bi-plus-lg"></i></button>
+                <button type="button" id="eeg-fit" class="btn btn-outline-secondary" title="Fit the whole graph"><i class="bi bi-arrows-fullscreen me-1"></i>Fit</button>
+              </div>
+              <span class="text-muted small">Drag the background to pan, scroll to zoom, drag a node to move it.</span>
+            </div>
+            <div class="eeg-canvas"><svg id="eeg-svg" xmlns="http://www.w3.org/2000/svg"></svg></div>
           </div>
         </div>
       </div>
@@ -103,6 +117,7 @@
         diamond: function (cx, cy, w, h) { return poly([[cx, cy - h / 2 - 8], [cx + w / 2, cy], [cx, cy + h / 2 + 8], [cx - w / 2, cy]]); },
         triangle: function (cx, cy, w, h) { return poly([[cx, cy - h / 2 - 6], [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2]]); },
         parallelogram: function (cx, cy, w, h) { var k = w / 6; return poly([[cx - w / 2 + k, cy - h / 2], [cx + w / 2, cy - h / 2], [cx + w / 2 - k, cy + h / 2], [cx - w / 2, cy + h / 2]]); },
+        pentagon: function (cx, cy, w, h) { var a = w / 2, b = h / 2; return poly([[cx, cy - b - 4], [cx + a, cy - b / 3], [cx + a * 0.62, cy + b], [cx - a * 0.62, cy + b], [cx - a, cy - b / 3]]); },
         octagon: function (cx, cy, w, h) { var a = w / 2, b = h / 2, k = h / 3; return poly([[cx - a + k, cy - b], [cx + a - k, cy - b], [cx + a, cy - b + k], [cx + a, cy + b - k], [cx + a - k, cy + b], [cx - a + k, cy + b], [cx - a, cy + b - k], [cx - a, cy - b + k]]); }
       };
       function poly(points) { return el('polygon', { points: points.map(function (p) { return p.join(','); }).join(' ') }); }
@@ -134,6 +149,111 @@
         });
       }
 
+      var view = { k: 1, tx: 0, ty: 0 };
+      var pos = {};
+      var layout = 'layered';
+      var laidOut = false;
+      var viewport = null;
+      var drag = null;
+
+      function applyView() {
+        if (!viewport) return;
+        viewport.setAttribute('transform', 'translate(' + view.tx + ' ' + view.ty + ') scale(' + view.k + ')');
+        svg.classList.toggle('eeg-zoomed-out', view.k < 0.6);
+      }
+      function zoomAt(px, py, factor) {
+        var k = Math.min(4, Math.max(0.1, view.k * factor));
+        var f = k / view.k;
+        view.tx = px - (px - view.tx) * f;
+        view.ty = py - (py - view.ty) * f;
+        view.k = k;
+        applyView();
+      }
+      function zoomCentre(factor) { var r = svg.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, factor); }
+      function fit() {
+        if (!graph || graph.nodes.length === 0) return;
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        graph.nodes.forEach(function (n) {
+          var p = pos[n.id];
+          minX = Math.min(minX, p.x - n.width / 2); maxX = Math.max(maxX, p.x + n.width / 2);
+          minY = Math.min(minY, p.y - n.height / 2 - 8); maxY = Math.max(maxY, p.y + n.height / 2 + 8);
+        });
+        var r = svg.getBoundingClientRect();
+        var pad = 30;
+        var bw = Math.max(maxX - minX, 1), bh = Math.max(maxY - minY, 1);
+        var k = Math.min((r.width - 2 * pad) / bw, (r.height - 2 * pad) / bh, 1.5);
+        view.k = k;
+        view.tx = (r.width - bw * k) / 2 - minX * k;
+        view.ty = (r.height - bh * k) / 2 - minY * k;
+        applyView();
+      }
+
+      // Layered: the positions the server computed. Force: nodes repel, edges pull their ends together, starting from the layered positions.
+      function layeredPositions() {
+        pos = {};
+        graph.nodes.forEach(function (n) { pos[n.id] = { x: n.x + n.width / 2, y: n.y }; });
+      }
+      function forcePositions() {
+        layeredPositions();
+        var ns = graph.nodes, index = {};
+        ns.forEach(function (n, i) { index[n.id] = i; });
+        var p = ns.map(function (n, i) { return { x: pos[n.id].x + (i % 7 - 3), y: pos[n.id].y + (i % 5 - 2), vx: 0, vy: 0 }; });
+        var cx = 0, cy = 0;
+        p.forEach(function (q) { cx += q.x; cy += q.y; });
+        cx /= Math.max(p.length, 1); cy /= Math.max(p.length, 1);
+        var rounds = 300;
+        for (var it = 0; it < rounds; it++) {
+          var cool = 1 - it / rounds;
+          for (var i = 0; i < p.length; i++) {
+            for (var j = i + 1; j < p.length; j++) {
+              var dx = p[i].x - p[j].x, dy = p[i].y - p[j].y;
+              var d2 = Math.max(dx * dx + dy * dy, 25), d = Math.sqrt(d2);
+              var f = 16000 / d2;
+              p[i].vx += f * dx / d; p[i].vy += f * dy / d;
+              p[j].vx -= f * dx / d; p[j].vy -= f * dy / d;
+            }
+          }
+          graph.edges.forEach(function (e) {
+            var a = p[index[e.from]], b = p[index[e.to]];
+            if (!a || !b) return;
+            var dx = b.x - a.x, dy = b.y - a.y, d = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+            var f = (d - 210) * 0.03;
+            a.vx += f * dx / d; a.vy += f * dy / d;
+            b.vx -= f * dx / d; b.vy -= f * dy / d;
+          });
+          p.forEach(function (q) {
+            q.vx += (cx - q.x) * 0.004; q.vy += (cy - q.y) * 0.004;
+            q.x += Math.max(-40, Math.min(40, q.vx)) * cool;
+            q.y += Math.max(-40, Math.min(40, q.vy)) * cool;
+            q.vx *= 0.7; q.vy *= 0.7;
+          });
+        }
+        ns.forEach(function (n, i) { pos[n.id] = { x: p[i].x, y: p[i].y }; });
+      }
+      function applyLayout() {
+        if (!graph) return;
+        if (layout === 'force') forcePositions(); else layeredPositions();
+        document.getElementById('eeg-layout-layered').classList.toggle('active', layout === 'layered');
+        document.getElementById('eeg-layout-force').classList.toggle('active', layout === 'force');
+        draw();
+        fit();
+      }
+
+      // The point where the line between two node centres leaves the first node.
+      function edgePoint(a, pa, pb) {
+        var dx = pb.x - pa.x, dy = pb.y - pa.y;
+        if (dx === 0 && dy === 0) return pa;
+        var t = Math.min(dx ? (a.width / 2 + 4) / Math.abs(dx) : Infinity, dy ? (a.height / 2 + 6) / Math.abs(dy) : Infinity);
+        return { x: pa.x + dx * Math.min(t, 1), y: pa.y + dy * Math.min(t, 1) };
+      }
+
+      function selectNode(id) {
+        selectedId = id;
+        draw();
+        var n = graph.nodes.filter(function (x) { return x.id === id; })[0];
+        if (n) showDetails(n);
+      }
+
       function draw() {
         svg.textContent = '';
         var defs = el('defs');
@@ -141,42 +261,74 @@
         marker.appendChild(el('path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: '#64748b' }));
         defs.appendChild(marker);
         svg.appendChild(defs);
+        viewport = el('g');
+        svg.appendChild(viewport);
 
         var byId = {};
         graph.nodes.forEach(function (n) { byId[n.id] = n; });
-        var maxX = 0, maxY = 0;
-        graph.nodes.forEach(function (n) { maxX = Math.max(maxX, n.x + n.width); maxY = Math.max(maxY, n.y + n.height); });
-        svg.setAttribute('width', Math.max(maxX + 60, 600));
-        svg.setAttribute('height', Math.max(maxY + 60, 420));
 
         graph.edges.forEach(function (e) {
           var from = byId[e.from], to = byId[e.to];
           if (!from || !to) return;
-          var x1 = from.x + from.width, y1 = from.y;
-          var x2 = to.x - 4, y2 = to.y;
-          var mx = (x1 + x2) / 2;
-          var path = el('path', { d: 'M ' + x1 + ' ' + y1 + ' C ' + mx + ' ' + y1 + ', ' + mx + ' ' + y2 + ', ' + x2 + ' ' + y2, 'class': 'eeg-edge' + (e.satisfied ? ' satisfied' : ''), 'marker-end': 'url(#eeg-arrow)' });
+          var pf = pos[from.id], pt = pos[to.id];
+          var a = edgePoint(from, pf, pt), b = edgePoint(to, pt, pf);
+          var path = el('path', { d: 'M ' + a.x + ' ' + a.y + ' L ' + b.x + ' ' + b.y, 'class': 'eeg-edge' + (e.satisfied ? ' satisfied' : ''), 'marker-end': 'url(#eeg-arrow)' });
           path.appendChild(el('title', {}, e.label));
-          svg.appendChild(path);
-          svg.appendChild(el('text', { x: mx, y: (y1 + y2) / 2 - 4, 'text-anchor': 'middle', 'class': 'eeg-edge-label' }, clip(e.label, 34)));
+          viewport.appendChild(path);
+          viewport.appendChild(el('text', { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - 4, 'text-anchor': 'middle', 'class': 'eeg-edge-label' }, clip(e.label, 34)));
         });
 
         graph.nodes.forEach(function (n) {
           var drawShape = shapes[n.shape];
           if (!drawShape) { showError('No drawing exists for the shape "' + n.shape + '" of ' + n.kind + '.'); return; }
-          var group = el('g', { 'class': 'eeg-node' + (n.id === selectedId ? ' selected' : ''), tabindex: 0 });
-          var shape = drawShape(n.x + n.width / 2, n.y, n.width, n.height);
+          var p = pos[n.id];
+          var group = el('g', { 'class': 'eeg-node' + (n.id === selectedId ? ' selected' : ''), 'data-id': n.id, tabindex: 0 });
+          var shape = drawShape(p.x, p.y, n.width, n.height);
           shape.setAttribute('class', 'eeg-shape');
           shape.setAttribute('fill', n.colour);
           group.appendChild(shape);
-          group.appendChild(el('text', { x: n.x + n.width / 2, y: n.y - 2, 'text-anchor': 'middle', 'class': 'eeg-node-label' }, clip(n.label, 20)));
-          group.appendChild(el('text', { x: n.x + n.width / 2, y: n.y + 12, 'text-anchor': 'middle', 'class': 'eeg-node-state' }, n.state));
+          group.appendChild(el('text', { x: p.x, y: p.y - 2, 'text-anchor': 'middle', 'class': 'eeg-node-label' }, clip(n.label, 20)));
+          group.appendChild(el('text', { x: p.x, y: p.y + 12, 'text-anchor': 'middle', 'class': 'eeg-node-state' }, n.state));
           group.appendChild(el('title', {}, n.kind + ': ' + n.label + ' (' + n.state + ')'));
-          group.addEventListener('click', function () { selectedId = n.id; draw(); showDetails(n); });
-          group.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { selectedId = n.id; draw(); showDetails(n); } });
-          svg.appendChild(group);
+          group.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') selectNode(n.id); });
+          viewport.appendChild(group);
         });
+        applyView();
       }
+
+      svg.addEventListener('mousedown', function (ev) {
+        if (ev.button !== 0 || !graph) return;
+        var g = ev.target.closest ? ev.target.closest('.eeg-node') : null;
+        var id = g ? g.getAttribute('data-id') : null;
+        drag = id
+          ? { type: 'node', id: id, sx: ev.clientX, sy: ev.clientY, ox: pos[id].x, oy: pos[id].y, moved: false }
+          : { type: 'pan', sx: ev.clientX, sy: ev.clientY, ox: view.tx, oy: view.ty, moved: false };
+        ev.preventDefault();
+      });
+      window.addEventListener('mousemove', function (ev) {
+        if (!drag) return;
+        var dx = ev.clientX - drag.sx, dy = ev.clientY - drag.sy;
+        if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+        drag.moved = true;
+        if (drag.type === 'pan') { view.tx = drag.ox + dx; view.ty = drag.oy + dy; applyView(); }
+        else { pos[drag.id] = { x: drag.ox + dx / view.k, y: drag.oy + dy / view.k }; draw(); }
+      });
+      window.addEventListener('mouseup', function () {
+        if (!drag) return;
+        var d = drag;
+        drag = null;
+        if (d.type === 'node' && !d.moved) selectNode(d.id);
+      });
+      svg.addEventListener('wheel', function (ev) {
+        ev.preventDefault();
+        var r = svg.getBoundingClientRect();
+        zoomAt(ev.clientX - r.left, ev.clientY - r.top, ev.deltaY < 0 ? 1.15 : 1 / 1.15);
+      }, { passive: false });
+      document.getElementById('eeg-zoom-in').addEventListener('click', function () { zoomCentre(1.25); });
+      document.getElementById('eeg-zoom-out').addEventListener('click', function () { zoomCentre(1 / 1.25); });
+      document.getElementById('eeg-fit').addEventListener('click', fit);
+      document.getElementById('eeg-layout-layered').addEventListener('click', function () { layout = 'layered'; applyLayout(); });
+      document.getElementById('eeg-layout-force').addEventListener('click', function () { layout = 'force'; applyLayout(); });
 
       function showDetails(n) {
         detailsEl.textContent = '';
@@ -258,7 +410,8 @@
             graph = body;
             asOfEl.textContent = new Date(graph.asOf).toLocaleString();
             drawLegend();
-            draw();
+            var needLayout = !laidOut || graph.nodes.some(function (n) { return !pos[n.id]; });
+            if (needLayout) { laidOut = true; applyLayout(); } else { draw(); }
             var selected = graph.nodes.filter(function (n) { return n.id === selectedId; })[0];
             if (selected) showDetails(selected);
           })

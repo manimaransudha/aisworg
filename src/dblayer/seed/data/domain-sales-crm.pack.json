@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Leads are qualified against BANT criteria (Budget, Authority, Need, Timeline) before converting to opportunities.",
-            "group": "Lead Qualification"
+            "group": "Lead Qualification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Opportunity pipeline stages specify mandatory exit criteria and expected close dates.",
-            "group": "Opportunity Management"
+            "group": "Opportunity Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Non-standard pricing and margin discounts receive Vice President or RevOps approval.",
-            "group": "CPQ & Pricing Approval"
+            "group": "CPQ & Pricing Approval",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Customer contracts are executed via verifiable electronic signatures prior to deal closure.",
-            "group": "Contract Closure"
+            "group": "Contract Closure",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Post-sale customer onboarding kickoff is completed within 5 business days of contract execution.",
-            "group": "Customer Onboarding"
+            "group": "Customer Onboarding",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -32,23 +32,33 @@
         "items": [
           {
             "statement": "Automatic Reference Counting (ARC) memory cycles are prevented using [weak self] or [unowned self] in closures.",
-            "group": "Memory Management & ARC"
+            "group": "Memory Management & ARC",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "SwiftUI / Combine state wrappers (@State, @StateObject, @ObservedObject) follow strict unidirectional data flow.",
-            "group": "UI Architecture & State"
+            "group": "UI Architecture & State",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "SwiftLint style rules are enforced with zero unhandled compiler or linter warnings.",
-            "group": "Code Formatting & Linting"
+            "group": "Code Formatting & Linting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Sensitive tokens and credentials use iOS Keychain storage with biometric (LocalAuthentication) protection.",
-            "group": "Security & Keychain"
+            "group": "Security & Keychain",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "App Store privacy manifests (PrivacyInfo.xcprivacy) accurately declare data collection categories.",
-            "group": "App Store Compliance"
+            "group": "App Store Compliance",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

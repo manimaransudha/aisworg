@@ -45,19 +45,29 @@
         "description": "Validation checklist for product analytics, A/B experiment execution, and retention optimization.",
         "items": [
           {
-            "statement": "Each entry in the growth experiments backlog states a clear hypothesis and a measurable success metric before it is run."
+            "statement": "Each entry in the growth experiments backlog states a clear hypothesis and a measurable success metric before it is run.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Event tracking plan validation confirms zero missing properties across primary conversion funnels."
+            "statement": "Event tracking plan validation confirms zero missing properties across primary conversion funnels.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "A/B test results meet minimum 95% statistical significance threshold before rollout to 100% of users."
+            "statement": "A/B test results meet minimum 95% statistical significance threshold before rollout to 100% of users.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Retention curves demonstrate a flattened tail indicating long-term product-market fit stability."
+            "statement": "Retention curves demonstrate a flattened tail indicating long-term product-market fit stability.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Pricing and packaging changes are vetted against customer churn impact and ARR projections."
+            "statement": "Pricing and packaging changes are vetted against customer churn impact and ARR projections.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

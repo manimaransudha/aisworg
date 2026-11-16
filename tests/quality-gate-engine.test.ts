@@ -33,7 +33,7 @@ before(async () => {
 
 async function createGate(label: string, criteria: Record<string, unknown>): Promise<QualityGateRow> {
   const { data, error } = await qualityGatesDB.upsert({
-    name: `quality-gate-engine ${label} ${run}`, entityType: "AttentionItem", fromState: `zz-from-${label}-${run}`, toState: `zz-to-${label}-${run}`,
+    category: "Exit", code: `qg-test-${randomUUID()}`, name: `quality-gate-engine ${label} ${run}`, entityType: "AttentionItem", fromState: `zz-from-${label}-${run}`, toState: `zz-to-${label}-${run}`,
     criteria, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
   assert.ok(data && !error, error);
@@ -117,7 +117,7 @@ test("evaluating no gates is not applicable, and a review or evidence gate with 
   assert.equal(missing.outcome, "Blocked");
   assert.equal("reason" in missing && missing.reason, "no Accepted, passing Review found for this entity against the required Review Gate");
 
-  const evidence = await createGate("evidence-none", { type: "requires_accepted_evidence_or_approved_decision" });
+  const evidence = await createGate("evidence-none", { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
   const noEvidence = await qualityGateEngine.evaluateByIds([evidence.id], input());
   assert.equal(noEvidence.outcome, "Blocked");
   assert.ok("reason" in noEvidence && /no accepted Evidence of category ".*" or approved Decision/.test(noEvidence.reason), JSON.stringify(noEvidence));

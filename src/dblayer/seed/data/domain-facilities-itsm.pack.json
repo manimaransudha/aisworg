@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Facilities work requests log building location, asset ID, priority, and vendor maintenance SLA.",
-            "group": "Facilities Work Orders"
+            "group": "Facilities Work Orders",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Fleet vehicles undergo scheduled preventive maintenance and fuel card usage audits.",
-            "group": "Fleet Management"
+            "group": "Fleet Management",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "ITIL Incident Management logs impact/urgency and drives root-cause Problem Management investigations.",
-            "group": "ITIL Incident & Problem"
+            "group": "ITIL Incident & Problem",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Change Advisory Board (CAB) evaluates production change risk, implementation plan, and rollback procedures.",
-            "group": "ITSM Change Control"
+            "group": "ITSM Change Control",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Configuration Management Database (CMDB) maps relationship dependencies across hardware, software, and services.",
-            "group": "CMDB Configuration"
+            "group": "CMDB Configuration",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

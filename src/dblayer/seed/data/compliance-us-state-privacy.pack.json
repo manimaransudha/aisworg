@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Global Privacy Control (GPC) signals sent by browser user agents automatically opt-out users from sale/sharing of personal data.",
-            "group": "GPC & Opt-Out Signals (CCPA/CPRA)"
+            "group": "GPC & Opt-Out Signals (CCPA/CPRA)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Clear web notice 'Do Not Sell or Share My Personal Information' and 'Limit the Use of My Sensitive Personal Information' are rendered.",
-            "group": "Consumer Opt-Out Links"
+            "group": "Consumer Opt-Out Links",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Explicit opt-in consent is obtained prior to collecting Sensitive Personal Data (geolocation, biometrics, health, ethnicity) in VCDPA/CPA states.",
-            "group": "Sensitive Data Opt-In (VCDPA/CPA)"
+            "group": "Sensitive Data Opt-In (VCDPA/CPA)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Consumer privacy request workflow processes Access, Deletion, and Correction requests within 45 calendar days.",
-            "group": "DSAR Request Fulfillment"
+            "group": "DSAR Request Fulfillment",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "State breach notification mechanisms guarantee reporting to state Attorneys General within statutory timelines (e.g. 15-45 days).",
-            "group": "State Breach Notification"
+            "group": "State Breach Notification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

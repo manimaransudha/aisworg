@@ -47,15 +47,21 @@
         "items": [
           {
             "statement": "Jira API Service Account / OAuth 2.0 token validates read/write access to target Jira project keys.",
-            "group": "API Authentication"
+            "group": "API Authentication",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Jira Custom Fields (Story Points, Sprint ID, Acceptance Criteria) are mapped correctly.",
-            "group": "Field Mapping"
+            "group": "Field Mapping",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Jira Webhooks trigger automated updates on issue created, updated, or deleted events.",
-            "group": "Webhook Sync"
+            "group": "Webhook Sync",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

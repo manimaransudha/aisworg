@@ -3,6 +3,13 @@ const require = createRequire(import.meta.url);
 const express = require("express");
 const router = express.Router();
 router.param("id", seuTenantScope);
+router.param("obligationId", obligationTenantScope);
+router.param("deliverableId", deliverableTenantScope);
+router.param("evidenceId", checkTenant("evidenceId", "Evidence"));
+router.param("knowledgeItemId", checkTenant("knowledgeItemId", "Knowledge"));
+router.param("decisionId", checkTenant("decisionId", "Decision"));
+router.param("attentionItemId", checkTenant("attentionItemId", "AttentionItem"));
+router.param("participantId", checkTenant("participantId", "Participant"));
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
@@ -10,7 +17,7 @@ import { renderView } from "../../../utils/viewModel.js";
 import { resolveHeldRoles } from "../../../domain/identity/heldRoles.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
-import { seuTenantScope } from "../../../middleware/seuTenantScope.js";
+import { seuTenantScope, obligationTenantScope, deliverableTenantScope, checkTenant, commissionObjectiveScope, commissionObjectiveQueryScope, commissionProfileScope, evidenceDeliverableScope, evidencePredecessorScope } from "../../../middleware/seuTenantScope.js";
 import { logger } from "../../../utils/logger.js";
 import { listSeusPaginated, listSeuLifecycleStates, getSeuDetailView, getSeuEbmView } from "../core/seus.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
@@ -35,6 +42,7 @@ import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
 import { transitionObligation, reviseObligation } from "../core/obligations.js";
 import { createAttentionItem, transitionAttentionItem } from "../core/attentionItems.js";
 import { createEvidence, transitionEvidence, linkEvidenceToObject, recordValidationAssessment } from "../core/evidence.js";
+import { listCanonicalCategories, CATEGORY_CONCEPT_TYPE } from "../core/ontology.js";
 import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
 import { createDecision, transitionDecision } from "../core/decisions.js";
 import { createExternalInteraction, transitionExternalInteraction } from "../core/externalInteractions.js";
@@ -75,7 +83,7 @@ router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Respon
   }
 });
 
-router.get("/seus/new", attachVM("seu/seus/new"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/seus/new", commissionObjectiveQueryScope, attachVM("seu/seus/new"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const objectiveId = typeof req.query.objectiveId === "string" && req.query.objectiveId.trim() ? req.query.objectiveId.trim() : null;
     if (objectiveId) {
@@ -88,7 +96,7 @@ router.get("/seus/new", attachVM("seu/seus/new"), async (req: Request, res: Resp
       const params = parseListParams(req.query, { sortable: ["profile", "template", "code"], defaultSort: "profile", defaultDir: "asc" });
       req.vm.req.list = { ...paginateList(fromObjective.commissioningOptions ?? [], params, {
         searchFields: [(r) => r.profile?.name, (r) => r.profile?.code, (r) => r.templateName, (r) => r.templateCode, (r) => r.capabilities.map((c) => c.label).join(" ")],
-        sortFields: { profile: (r) => r.profile?.name, template: (r) => r.templateName, code: (r) => r.profile?.code },
+        sortFields: { profile: (r) => `${r.profile?.tenantRank ?? 1}|${(r.profile?.name ?? "").toLowerCase()}`, template: (r) => r.templateName, code: (r) => r.profile?.code },
       }), objectiveId };
       req.vm.opt.listBasePath = "/aisworg/seu/seus/new";
       // The Save button is the birth row's action (CR-128): shown to a holder of its badge. A saved SEU shows its next actions.
@@ -116,7 +124,7 @@ router.get("/seus/new", attachVM("seu/seus/new"), async (req: Request, res: Resp
   }
 });
 
-router.post("/seus", async (req: Request, res: Response) => {
+router.post("/seus", commissionObjectiveScope, commissionProfileScope, async (req: Request, res: Response) => {
   const objectiveId = typeof req.body?.objectiveId === "string" && req.body.objectiveId ? req.body.objectiveId : null;
   const profileId = String(req.body?.templateProfile ?? "").split("|")[1] || null;
   const back = `/aisworg/seu/seus/new${objectiveId ? `?objectiveId=${objectiveId}` : ""}`;
@@ -171,6 +179,7 @@ router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: R
     }
     req.vm.req.title = `SEU ${detail.seu.id.slice(0, 8)}`;
     req.vm.req.detail = detail;
+    req.vm.req.knowledgeCategories = await listCanonicalCategories(CATEGORY_CONCEPT_TYPE.Knowledge);
     const sessionUser = req.session.user;
     if (!sessionUser) throw new Error("[web/seu/seus] GET /seus/:id reached without a session user");
     req.vm.req.isSuperuser = (await resolveHeldRoles(sessionUser.id)).isSuperuser;
@@ -282,6 +291,8 @@ router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/rep
 
   try {
     const result = await replaceParticipant({
+      seuId,
+      capabilityId: String(req.params.capabilityId),
       oldParticipantId: String(req.params.participantId),
       newParticipantType: participantType as ParticipantType,
       newDisplayName: displayName,
@@ -478,7 +489,7 @@ router.post("/seus/:id/attention-items/:attentionItemId/transition/:verb", async
   }
 });
 
-router.post("/seus/:id/evidence", async (req: Request, res: Response) => {
+router.post("/seus/:id/evidence", evidenceDeliverableScope, evidencePredecessorScope, async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const { deliverableId, category, title, description, source, predecessorEvidenceId } = req.body ?? {};
 
@@ -538,7 +549,7 @@ router.post("/seus/:id/evidence/:evidenceId/transition/:verb", async (req: Reque
   }
 });
 
-router.post("/seus/:id/evidence/:evidenceId/link", async (req: Request, res: Response) => {
+router.post("/seus/:id/evidence/:evidenceId/link", evidenceDeliverableScope, async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const { deliverableId } = req.body ?? {};
 

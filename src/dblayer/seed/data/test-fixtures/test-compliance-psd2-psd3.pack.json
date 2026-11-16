@@ -31,19 +31,27 @@
         "items": [
           {
             "statement": "Strong Customer Authentication (SCA) combines at least 2 independent elements from Knowledge, Possession, and Inherence.",
-            "group": "SCA 2-Factor Authentication"
+            "group": "SCA 2-Factor Authentication",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Electronic payment transactions dynamically link the authentication code to the specific payee and transaction amount.",
-            "group": "Dynamic Linking (RTS Art. 4)"
+            "group": "Dynamic Linking (RTS Art. 4)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Dedicated Open Banking APIs (AISP/PISP) achieve identical uptime and response performance as customer-facing channels.",
-            "group": "Open Banking APIs"
+            "group": "Open Banking APIs",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "EBA fraud rate reporting statistics are submitted quarterly to national competent authorities.",
-            "group": "EBA Fraud Reporting"
+            "group": "EBA Fraud Reporting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

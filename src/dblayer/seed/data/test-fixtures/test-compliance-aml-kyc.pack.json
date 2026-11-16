@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Real-time sanctions screening checks all senders, beneficiaries, and intermediaries against OFAC SDN and global lists.",
-            "group": "OFAC Sanctions Screening"
+            "group": "OFAC Sanctions Screening",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Customer Identification Program (CIP) verifies government photo IDs and national tax IDs prior to account activation.",
-            "group": "KYC & CIP Verification"
+            "group": "KYC & CIP Verification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "FinCEN CDD rule identifies and verifies all 25%+ beneficial owners for legal entity customers.",
-            "group": "Beneficial Ownership (FinCEN CDD)"
+            "group": "Beneficial Ownership (FinCEN CDD)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Suspicious Activity Reporting (SAR) workflow automatically files SAR reports with FinCEN within 30 days of detection.",
-            "group": "SAR & CTR Filings"
+            "group": "SAR & CTR Filings",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Politically Exposed Persons (PEP) and adverse media screening is re-evaluated daily against updated databases.",
-            "group": "PEP & Adverse Media"
+            "group": "PEP & Adverse Media",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

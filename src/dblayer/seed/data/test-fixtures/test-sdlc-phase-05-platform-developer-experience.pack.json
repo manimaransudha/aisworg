@@ -45,19 +45,29 @@
         "description": "Validation checklist for platform readiness, CI/CD automation, and observability infrastructure.",
         "items": [
           {
-            "statement": "The CI/CD pipeline specification and environments matrix consistently cover every environment from development through production."
+            "statement": "The CI/CD pipeline specification and environments matrix consistently cover every environment from development through production.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Infrastructure as Code (IaC) modules are version-controlled, linted, and automated with no manual environment state edits."
+            "statement": "Infrastructure as Code (IaC) modules are version-controlled, linted, and automated with no manual environment state edits.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Secrets management solution enforces automated rotation and eliminates hardcoded credentials in repositories."
+            "statement": "Secrets management solution enforces automated rotation and eliminates hardcoded credentials in repositories.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Centralized logging and distributed tracing (OpenTelemetry) are configured for all microservices."
+            "statement": "Centralized logging and distributed tracing (OpenTelemetry) are configured for all microservices.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "SLI/SLO metrics and error budget burn rate alerts are wired to team incident notification channels."
+            "statement": "SLI/SLO metrics and error budget burn rate alerts are wired to team incident notification channels.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -1,0 +1,13 @@
+{
+  "code": "fixture-quality-gate",
+  "name": "Fixture Quality Gate",
+  "description": "The gate of the test Pack that fills every tab.",
+  "category": "Exit",
+  "governedTransition": "Pack|Draft|Validated",
+  "criteriaType": "no_unresolved_obligations",
+  "classification": "machine-verifiable",
+  "participant": "AI",
+  "outputContract": "passed-failed-notes",
+  "statement": "No unresolved Obligations block this transition.",
+  "version": "1.0.0"
+}

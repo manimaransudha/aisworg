@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Consent notices present itemized data processing details in English and Schedule 8 Indian languages (DPDP Sec 5).",
-            "group": "Multilingual Consent Notice"
+            "group": "Multilingual Consent Notice",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Data Principal consent withdrawal mechanisms are as easy as giving consent (DPDP Sec 6).",
-            "group": "Consent Withdrawal"
+            "group": "Consent Withdrawal",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Cybersecurity incidents (ransomware, data breaches, unauthorized access) are reported to CERT-In within 6 hours.",
-            "group": "CERT-In 6-Hour Reporting"
+            "group": "CERT-In 6-Hour Reporting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "System clocks across all ICT infrastructure are synchronized with National Physical Laboratory (NPL) NTP time servers.",
-            "group": "CERT-In NTP Time Sync"
+            "group": "CERT-In NTP Time Sync",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "System logs are maintained immutably for a rolling period of 180 days within Indian jurisdiction.",
-            "group": "CERT-In 180-Day Log Retention"
+            "group": "CERT-In 180-Day Log Retention",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

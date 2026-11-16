@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .version-badge { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #f1f5f9; color: #334155; }
+    .category-badge { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #ede9fe; color: #5b21b6; }
+  </style>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Quality Gate Definitions</h2>
+      <p class="text-muted small mb-0">
+        A Quality Gate evaluates engineering readiness before a governed lifecycle transition. It states the conditions that must be satisfied, and it performs no engineering work. A Pack lists the codes of the gates it takes.
+      </p>
+    </div>
+
+    <% const _base = locals.listBasePath || '/aisworg/seu/quality-gate-definitions'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search code or name' }) %>
+    <div class="small text-muted mb-3">Sort:
+      <%- sortLink('Code', 'code', list, _base) %> &middot;
+      <%- sortLink('Version', 'version', list, _base) %> &middot;
+      <%- sortLink('Status', 'status', list, _base) %>
+    </div>
+
+    <%
+      var _states = locals.states || [];
+      var _activeStatus = locals.activeStatus || '';
+    %>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <a href="<%= _base + listQueryString(list, { status: '' }) %>" class="btn btn-sm <%= _activeStatus ? 'btn-outline-secondary' : 'btn-secondary' %>">All states</a>
+      <% _states.forEach(function(s) { %>
+        <a href="<%= _base + listQueryString(list, { status: s }) %>" class="btn btn-sm <%= _activeStatus === s ? 'btn-secondary' : 'btn-outline-secondary' %>"><%= s %></a>
+      <% }) %>
+    </div>
+
+    <% if (list.total === 0) { %>
+      <% if (list.q) { %>
+        <div class="alert alert-warning">No Quality Gate Definitions match your search.</div>
+      <% } else if (_activeStatus) { %>
+        <div class="alert alert-warning">No Quality Gate Definitions in state "<%= _activeStatus %>".</div>
+      <% } else { %>
+        <div class="alert alert-warning">No Quality Gate Definitions published yet &mdash; author one via SDK / Authoring &rarr; Quality Gate Authoring.</div>
+      <% } %>
+    <% } else { %>
+      <% list.items.forEach(function(r) { var g = r.qualityGateDefinition; %>
+        <div class="section-card mb-3">
+          <div class="section-header d-flex justify-content-between align-items-center">
+            <span><%= g.name %> <span class="version-badge ms-1">v<%= g.version %></span></span>
+            <span class="state-badge state-<%= g.status %>"><%= g.status %></span>
+          </div>
+          <div class="p-3">
+            <p class="text-muted small mb-2">
+              <code class="text-muted small"><%= g.code %></code>
+              <span class="category-badge"><%= g.category %></span>
+              <% if (g.tenant_id === locals.platformTenantId) { %>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span>
+              <% } else { %>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><%= (locals.tenantNameById || {})[g.tenant_id] %></span>
+              <% } %>
+              <% if (g.parent_quality_gate_definition_id) { %>
+                <span class="badge bg-secondary-subtle text-secondary border">Derived</span>
+              <% } %>
+            </p>
+            <% if (g.description) { %><p class="small mb-2"><%= g.description %></p><% } %>
+            <p class="small text-muted mb-1">Governs: <%= g.governed_transition.split('|').join(' &middot; ') %></p>
+            <p class="small text-muted mb-2">Criteria: <%= g.criteria_type %></p>
+            <div class="d-flex gap-2">
+              <a href="/aisworg/seu/quality-gate-definitions/<%= g.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
+              <% if (locals.canCopy) { %>
+                <form method="POST" action="/aisworg/seu/quality-gate-definitions/<%= g.id %>/copy">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-copy me-1"></i>Copy</button>
+                </form>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    <% } %>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

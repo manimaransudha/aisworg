@@ -26,6 +26,7 @@ import { capabilityDefinitionsDB } from "../src/dblayer/capabilityDefinitionsDB.
 import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../src/dblayer/serviceDefinitionsDB.js";
 import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
+import { qualityGateDefinitionsDB } from "../src/dblayer/qualityGateDefinitionsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
@@ -48,7 +49,7 @@ import { advanceAuthoringDraftToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFOR
 const PLATFORM_VIEWER = { isRoot: false, tenantId: PLATFORM_TENANT_ID };
 
 // The version every fixture row carries. A change to what a builder authors needs a new value here.
-export const FIXTURE_VERSION = "1.0.5";
+export const FIXTURE_VERSION = "1.0.6";
 
 // An arbitrary number that names the advisory lock the builders take.
 const FIXTURE_LOCK_KEY = 726450917;
@@ -60,6 +61,7 @@ export const FIXTURE_CODES = {
   consumerA: { type: "capability-name", code: "schema-fixture-consumer-a" },
   consumerB: { type: "capability-name", code: "schema-fixture-consumer-b" },
   service: { type: "service-name", code: "schema-fixture-service" },
+  qualityGate: { type: "quality-gate-name", code: "schema-fixture-quality-gate" },
   input: { type: "deliverable-name", code: "schema-fixture-input" },
   output: { type: "deliverable-name", code: "schema-fixture-output" },
   review: { type: "deliverable-name", code: "schema-fixture-review" },
@@ -188,7 +190,7 @@ async function nounWithTransition(): Promise<{ noun: string; transition: string 
 
 // The property of each kind's content that holds its version.
 const VERSION_PROPERTY: Partial<Record<SchemaDefinitionEntityKind, string>> = {
-  Capability: "version", Deliverable: "definitionVersion", Service: "version", Policy: "version", Pack: "packVersion", Template: "templateVersion", Profile: "profileVersion",
+  QualityGate: "version", Capability: "version", Deliverable: "definitionVersion", Service: "version", Policy: "version", Pack: "packVersion", Template: "templateVersion", Profile: "profileVersion",
 };
 
 // The row of this code and version in the tenant, if there is one.
@@ -198,6 +200,7 @@ async function findExisting(kind: SchemaDefinitionEntityKind, tenantId: string, 
     : kind === "Deliverable" ? await deliverableDefinitionsDB.findByCodeAndVersion(code, version, tenantId)
     : kind === "Service" ? await serviceDefinitionsDB.findByCodeAndVersion(code, version, tenantId)
     : kind === "Policy" ? await policyDefinitionsDB.findByCodeAndVersion(code, version, tenantId)
+    : kind === "QualityGate" ? await qualityGateDefinitionsDB.findByCodeAndVersion(code, version, tenantId)
     : kind === "Pack" ? await packsDB.findByCodeAndVersion(code, version, tenantId)
     : kind === "Template" ? await templatesDB.findByCodeAndVersion(code, version, tenantId)
     : kind === "Profile" ? await profilesDB.findByCodeAndVersion(code, version, tenantId)
@@ -233,9 +236,9 @@ async function hopFailure(kind: SchemaDefinitionEntityKind, id: string, errors: 
   return /policy-validate-schema/.test(joined) ? `${joined}${await explainSchemaFailure(kind, id)}` : joined;
 }
 
-// Creates the Draft and returns its id. A Pack is created with createPackDraft, as the seeded Packs are, because that also writes the rows its
-// contributions name: the capabilities, services, policies, checklists and gates. The authoring path stores the contributions only, and a
-// Template's Capability prerequisites and exposed parameters read those rows.
+// Creates the Draft and returns its id. A Pack is created with createPackDraft, as the seeded Packs are. The rows its contributions name (the
+// capabilities, services, policies, checklists and gates) are written when the Pack becomes Active (action materialise-pack, CR-145), which
+// authorActive does below. A Template's Capability prerequisites and exposed parameters read those rows.
 async function createDraft(kind: SchemaDefinitionEntityKind, tenantId: string, content: Record<string, unknown>): Promise<string> {
   if (kind === "Pack") {
     const created = await createPackDraft({ ...toPackSeedInput(content), tenantId }, ROOT_ACTOR_ID);
@@ -393,6 +396,34 @@ export async function maximalPolicy(tenantId: string, input: { code: string; del
   return { id: await authorActive("Policy", tenantId, content), code: input.code, shownName: content.name as string, content };
 }
 
+// The Quality Gate Definition: every property of the schema filled except the ones that name a Checklist or a review gate, which belong to a Pack that is
+// Active only after the Pack lists this gate. The gate requires the Policy, so a Pack that lists it adopts that Policy.
+export async function maximalQualityGate(tenantId: string, input: { code: string; policyCode: string; outputDeliverableCode: string }): Promise<FixtureRow> {
+  const [category] = await platformConceptCodes("category:quality-gate", 1);
+  const [evidenceCategory] = await platformConceptCodes("category:evidence", 1);
+  const [transition] = await deliverableTransitions(1);
+  const content: Record<string, unknown> = {
+    code: input.code,
+    version: FIXTURE_VERSION,
+    name: `Fixture Quality Gate`,
+    description: `Fixture Quality Gate, every property of the Quality Gate schema filled.`,
+    category,
+    governedTransition: transition,
+    criteriaType: "requires_active_policy",
+    evidenceCategory,
+    requiredPolicyCodes: [input.policyCode],
+    applicabilityDeliverableNames: [input.outputDeliverableCode],
+    participant: "AI+human",
+    classification: "machine-verifiable",
+    outputContract: "passed-failed-notes",
+    assurance: "high",
+    externalEvidence: false,
+    statement: "The output meets the fixture standard.",
+    prompt: "Check the output against the standard.",
+  };
+  return { id: await authorActive("QualityGate", tenantId, content), code: input.code, shownName: content.name as string, content };
+}
+
 // ---- Pack -------------------------------------------------------------------------------------------------------------
 
 // The Pack category with competencies: a Technology Pack must declare one, and its code comes from the technology-name concepts.
@@ -423,7 +454,7 @@ export async function basePack(tenantId: string): Promise<FixtureRow> {
 
 export async function maximalPack(
   tenantId: string,
-  input: { base: FixtureRow; service: FixtureRow; policy: FixtureRow; standardPolicy: FixtureRow; capabilityCodes: string[]; outputDeliverableCode: string; reviewDeliverableCode: string }
+  input: { base: FixtureRow; service: FixtureRow; policy: FixtureRow; standardPolicy: FixtureRow; qualityGate: FixtureRow; capabilityCodes: string[]; outputDeliverableCode: string; reviewDeliverableCode: string }
 ): Promise<FixtureRow> {
   const [role] = await platformConceptCodes("role-name", 1);
   const evidenceCategories = await platformConceptCodes("category:evidence", 3);
@@ -484,38 +515,7 @@ export async function maximalPack(
         recommendedChecklistIds: [checklistName],
       },
     ],
-    contributionQualityGates: [
-      {
-        name: `Fixture Policy Gate`,
-        category: evidenceCategories[0],
-        ...gateText,
-        participant: "AI+human",
-        checklistIds: [checklistName],
-        criteriaType: "requires_active_policy",
-        classification: "machine-verifiable",
-        outputContract: "passed-failed-notes",
-        externalEvidence: false,
-        governedTransition: transitions[0],
-        requiredPolicyCodes: [input.policy.code],
-        recommendedChecklistIds: [checklistName],
-        applicabilityDeliverableNames: [input.outputDeliverableCode],
-      },
-      {
-        name: `Fixture Review Quality Gate`,
-        category: evidenceCategories[1],
-        ...gateText,
-        participant: "human",
-        checklistIds: [checklistName],
-        criteriaType: "requires_accepted_review",
-        classification: "human-attested",
-        outputContract: "assessment-acceptance",
-        deliverableName: input.reviewDeliverableCode,
-        externalEvidence: true,
-        governedTransition: transitions[1],
-        recommendedChecklistIds: [checklistName],
-        applicabilityDeliverableNames: [input.outputDeliverableCode],
-      },
-    ],
+    contributionQualityGates: [input.qualityGate.code],
     contributionObligationDefinitions: [
       {
         code: `fixture-obligation`,
@@ -676,6 +676,7 @@ export interface Stage1Fixtures {
   service: FixtureRow;
   policy: FixtureRow;
   standardPolicy: FixtureRow;
+  qualityGate: FixtureRow;
 }
 
 // The Service is aligned to the Capability and reads the two Deliverables, so the Registry pages find each of them Active. The Policy
@@ -696,7 +697,8 @@ async function stage1(tenantId: string): Promise<Stage1Fixtures> {
   });
   const policy = await maximalPolicy(tenantId, { code: `fixture-policy`, deliverableCode: FIXTURE_CODES.output.code });
   const standardPolicy = await maximalPolicy(tenantId, { code: `fixture-standard`, deliverableCode: FIXTURE_CODES.output.code, standard: true });
-  return { tenantId, capability, capabilityB, inputDeliverable, outputDeliverable, service, policy, standardPolicy };
+  const qualityGate = await maximalQualityGate(tenantId, { code: FIXTURE_CODES.qualityGate.code, policyCode: policy.code, outputDeliverableCode: FIXTURE_CODES.output.code });
+  return { tenantId, capability, capabilityB, inputDeliverable, outputDeliverable, service, policy, standardPolicy, qualityGate };
 }
 
 export interface Stage2Fixtures extends Stage1Fixtures {
@@ -713,6 +715,7 @@ async function stage2(tenantId: string): Promise<Stage2Fixtures> {
     service: stage1Rows.service,
     policy: stage1Rows.policy,
     standardPolicy: stage1Rows.standardPolicy,
+    qualityGate: stage1Rows.qualityGate,
     capabilityCodes: [FIXTURE_CODES.capability.code, FIXTURE_CODES.capabilityB.code],
     outputDeliverableCode: FIXTURE_CODES.output.code,
     reviewDeliverableCode: FIXTURE_CODES.review.code,

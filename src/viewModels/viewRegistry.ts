@@ -22,6 +22,8 @@ import {seu_service_definitions_indexVM} from "./seu_service_definitions_index.j
 import {seu_service_definitions_viewVM} from "./seu_service_definitions_view.js";
 import {seu_policy_definitions_indexVM} from "./seu_policy_definitions_index.js";
 import {seu_policy_definitions_viewVM} from "./seu_policy_definitions_view.js";
+import {seu_quality_gate_definitions_indexVM} from "./seu_quality_gate_definitions_index.js";
+import {seu_quality_gate_definitions_viewVM} from "./seu_quality_gate_definitions_view.js";
 import {seu_capability_definitions_indexVM} from "./seu_capability_definitions_index.js";
 import {seu_capability_definitions_viewVM} from "./seu_capability_definitions_view.js";
 import {seu_participants_indexVM} from "./seu_participants_index.js";
@@ -87,6 +89,8 @@ export const viewModels = {
   "seu/service-definitions/view": seu_service_definitions_viewVM,
   "seu/policy-definitions/index": seu_policy_definitions_indexVM,
   "seu/policy-definitions/view": seu_policy_definitions_viewVM,
+  "seu/quality-gate-definitions/index": seu_quality_gate_definitions_indexVM,
+  "seu/quality-gate-definitions/view": seu_quality_gate_definitions_viewVM,
   "seu/capability-definitions/index": seu_capability_definitions_indexVM,
   "seu/capability-definitions/view": seu_capability_definitions_viewVM,
   "seu/participants/index": seu_participants_indexVM,

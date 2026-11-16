@@ -15,7 +15,7 @@ async function resolveAuthorParticipantId(actorId: string): Promise<string> {
   return master.id;
 }
 
-export const SCHEMA_ENTITY_KINDS: SchemaDefinitionEntityKind[] = ["Pack", "Template", "Profile", "Deliverable", "Service", "Policy", "Capability"];
+export const SCHEMA_ENTITY_KINDS: SchemaDefinitionEntityKind[] = ["Pack", "Template", "Profile", "Deliverable", "Service", "Policy", "QualityGate", "Capability"];
 
 export async function listSchemaDefinitions(): Promise<SchemaDefinitionRow[]> {
   const { data } = await schemaDefinitionsDB.findAll();

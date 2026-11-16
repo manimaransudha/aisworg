@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "AI system is evaluated to verify it does NOT deploy cognitive behavioral manipulation, social scoring, or real-time remote biometric identification in public spaces (Art. 5).",
-            "group": "Prohibited Practices (Art. 5)"
+            "group": "Prohibited Practices (Art. 5)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Risk Management System (Art. 9) is established, implemented, documented, and updated throughout the high-risk AI system lifecycle.",
-            "group": "Risk Management (Art. 9)"
+            "group": "Risk Management (Art. 9)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Training, validation, and testing datasets meet quality criteria regarding data governance, bias prevention, and relevance (Art. 10).",
-            "group": "Data Governance (Art. 10)"
+            "group": "Data Governance (Art. 10)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Human Oversight mechanisms enable human-in-the-loop operators to override or stop AI system outputs (Art. 14).",
-            "group": "Human Oversight (Art. 14)"
+            "group": "Human Oversight (Art. 14)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Independent bias audit measures disparate impact ratios across protected groups prior to deployment (NYC LL144 / Art. 10).",
-            "group": "Algorithmic Bias Audit"
+            "group": "Algorithmic Bias Audit",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

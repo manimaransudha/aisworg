@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Sensitive Authentication Data (CVV2/CVC2, full track data, PINs) is never stored after transaction authorization.",
-            "group": "Data Protection (Requirement 3)"
+            "group": "Data Protection (Requirement 3)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Primary Account Numbers (PAN) are tokenized or encrypted using strong cryptography (AES-256) across all storage locations.",
-            "group": "Data Encryption (Requirement 3.4)"
+            "group": "Data Encryption (Requirement 3.4)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Multi-Factor Authentication (MFA) is enforced for all administrative and user access into the Cardholder Data Environment.",
-            "group": "Access Control (Requirement 8.3)"
+            "group": "Access Control (Requirement 8.3)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Quarterly Approved Scanning Vendor (ASV) vulnerability scans pass with zero high or critical CVSS vulnerabilities.",
-            "group": "Vulnerability Management (Requirement 11.3)"
+            "group": "Vulnerability Management (Requirement 11.3)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "FIM (File Integrity Monitoring) alerts trigger automatically upon unauthorized changes to critical CDE system files.",
-            "group": "Monitoring & Audit (Requirement 11.5)"
+            "group": "Monitoring & Audit (Requirement 11.5)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

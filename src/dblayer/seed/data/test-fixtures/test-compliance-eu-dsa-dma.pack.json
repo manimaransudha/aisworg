@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Notice-and-action mechanism allows users to report illegal content and receive electronic receipt confirmation (DSA Art. 16).",
-            "group": "Notice & Action (Art. 16)"
+            "group": "Notice & Action (Art. 16)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Statement of Reasons is issued automatically whenever content is removed, demoted, or accounts suspended (DSA Art. 17).",
-            "group": "Statement of Reasons (Art. 17)"
+            "group": "Statement of Reasons (Art. 17)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Recommender systems explain main ranking criteria and offer a non-profiling feed option in terms and conditions (DSA Art. 27).",
-            "group": "Recommender Systems (Art. 27)"
+            "group": "Recommender Systems (Art. 27)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "User interface design avoids dark patterns that deceive, manipulate, or impair user autonomy (DSA Art. 25).",
-            "group": "Dark Pattern Prohibition (Art. 25)"
+            "group": "Dark Pattern Prohibition (Art. 25)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "EU Data Act data portability interfaces enable users to transfer generated IoT/cloud data to competing services seamlessly.",
-            "group": "EU Data Act Portability"
+            "group": "EU Data Act Portability",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

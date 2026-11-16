@@ -53,32 +53,26 @@ async function createTemplate(label: string, packCodes: string[]) {
 }
 
 const rule = (code: string, governedTransition: string, authorisedRole: string) => ({ code, governedTransition, authorisedRole });
-const gate = (name: string, governedTransition: string, category: string) => ({ name, governedTransition, category, criteriaType: "no_unresolved_obligations" });
 
-test("compose reports Packs that assign different roles to one transition, and Packs that contribute a Quality Gate to one transition and category", async () => {
+test("compose reports Packs that assign different roles to one transition", async () => {
   const contested = "Deliverable|zz-a|zz-b";
   const agreed = "Deliverable|zz-c|zz-d";
   const solo = "Deliverable|zz-e|zz-f";
   const first = await createActivePack("one", {
     authorityRules: [rule("r1", contested, "lead"), rule("r2", agreed, "lead"), rule("r3", solo, "lead"), rule("r4", solo, "manager")],
-    qualityGates: [gate("Gate one", contested, "Exit")],
   });
   const second = await createActivePack("two", {
     authorityRules: [rule("r5", contested, "manager"), rule("r6", agreed, "lead")],
-    qualityGates: [gate("Gate two", contested, "Exit")],
   });
   const template = await createTemplate("conflicts", [first.code, second.code]);
 
   const { composedPacks, compositionReport } = await compositionEngine.compose({ templateIds: [template.id], profileIds: [], viewerTenantId: PLATFORM_TENANT_ID });
   assert.deepEqual(composedPacks.map((p) => p.packCode).sort(), [first.code, second.code].sort());
-  assert.equal(compositionReport.conflicts.length, 2, JSON.stringify(compositionReport.conflicts));
+  assert.equal(compositionReport.conflicts.length, 1, JSON.stringify(compositionReport.conflicts));
   const authority = compositionReport.conflicts.find((c) => c.startsWith("Authority conflict"));
   assert.ok(authority, "the composition report has an Authority conflict");
   assert.ok(authority?.includes(`on "${contested}"`));
   assert.ok(authority?.includes(`${first.code} requires "lead"`) && authority?.includes(`${second.code} requires "manager"`), authority);
-  const qualityGate = compositionReport.conflicts.find((c) => c.startsWith("Quality Gate conflict"));
-  assert.ok(qualityGate, "the composition report has a Quality Gate conflict");
-  assert.ok(qualityGate?.includes(`${contested} [Exit]`) && qualityGate?.includes(first.code) && qualityGate?.includes(second.code), qualityGate);
 });
 
 test("compose reports a parameter that two Profiles override differently, and not one the user has resolved or the Profiles set alike", async () => {

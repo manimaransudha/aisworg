@@ -45,19 +45,29 @@
         "description": "Validation checklist for launch readiness, deployment rollout, monitoring, and incident commander alignment.",
         "items": [
           {
-            "statement": "The launch checklist, rollout plan, and incident response plan are complete and all owners have confirmed readiness."
+            "statement": "The launch checklist, rollout plan, and incident response plan are complete and all owners have confirmed readiness.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Deployment rollout script has been executed successfully in staging environment with automated verification."
+            "statement": "Deployment rollout script has been executed successfully in staging environment with automated verification.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "On-call incident commander and response team are actively monitoring war-room channels during rollout."
+            "statement": "On-call incident commander and response team are actively monitoring war-room channels during rollout.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Real-time monitoring dashboards and alerting thresholds are verified live before traffic shift."
+            "statement": "Real-time monitoring dashboards and alerting thresholds are verified live before traffic shift.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Customer communications, release notes, and status page updates are scheduled and pre-approved."
+            "statement": "Customer communications, release notes, and status page updates are scheduled and pre-approved.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

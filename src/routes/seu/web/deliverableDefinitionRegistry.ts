@@ -2,12 +2,15 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const express = require("express");
 const router = express.Router();
+router.param("id", definitionTenantScope(deliverableDefinitionsDB.findById, (row) => row.tenant_id, "Deliverable Definition not found."));
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
+import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
+import { definitionTenantScope } from "../../../middleware/seuTenantScope.js";
 import { logger } from "../../../utils/logger.js";
 import { listDeliverableDefinitionsWithNextStates, copyDeliverableDefinitionAsNewDraft, getDeliverableDefinitionView } from "../core/deliverableDefinitions.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";

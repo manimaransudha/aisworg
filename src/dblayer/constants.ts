@@ -174,6 +174,12 @@ export const MATERIALISE_TEMPLATE_POLICY_CODE = "policy-materialise-template";
 export const MATERIALISE_PROFILE_POLICY_CODE = "policy-materialise-profile";
 export const UNRAVEL_TEMPLATE_ACTION_CODE = "unravel-template";
 export const UNRAVEL_PROFILE_ACTION_CODE = "unravel-profile";
+export const MATERIALISE_PACK_ACTION_CODE = "materialise-pack";
+export const QUALITY_GATE_CRITERIA_TYPE_CONCEPT = "quality-gate-criteria-type";
+export const QUALITY_GATE_CRITERIA_NO_UNRESOLVED_OBLIGATIONS = "no_unresolved_obligations";
+export const QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION = "requires_accepted_evidence_or_approved_decision";
+export const QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW = "requires_accepted_review";
+export const QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY = "requires_active_policy";
 export const SUPERSEDE_OBJECTIVE_ACTION_CODE = "supersede-objective";
 export const SUPERSEDE_DECISION_ACTION_CODE = "supersede-decision";
 export const COMPLETE_REVIEW_ACTION_CODE = "complete-review";
@@ -404,6 +410,7 @@ export const DEMO_PURGE_PLAN: readonly DemoPurgeStep[] = [
   { table: "policies", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
   { table: "packs", scope: "tenant" },
   { table: "policy_definitions", scope: "tenant" },
+  { table: "quality_gate_definitions", scope: "tenant" },
   { table: "profile_packs", scope: "via", via: [{ column: "profile_id", parent: "profiles", parentColumn: "id" }] },
   { table: "profiles", scope: "tenant" },
   { table: "service_definitions", scope: "tenant" },
@@ -432,4 +439,9 @@ export const EEG_NODE_TAB: Record<string, string> = {
   Evidence: "evidence",
   Knowledge: "knowledge",
   Command: "commands",
+  AttentionItem: "attentionItems",
 };
+// Attention Items in these states no longer need intervention and are left off the graph.
+export const EEG_ATTENTION_CLOSED_STATUSES = new Set(["Closed"]);
+// Attention Items in these states are resolved, so the edge to the entity they concern is drawn as satisfied.
+export const EEG_ATTENTION_RESOLVED_STATUSES = new Set(["Resolved", "Closed"]);

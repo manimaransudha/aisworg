@@ -37,15 +37,21 @@
         "items": [
           {
             "statement": "Prometheus Server HTTP API (/api/v1/query) executes PromQL queries and returns metric series.",
-            "group": "PromQL API Auth"
+            "group": "PromQL API Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Prometheus Alertmanager rules route firing alerts to PagerDuty/Slack webhook receivers.",
-            "group": "Alertmanager Routing"
+            "group": "Alertmanager Routing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Grafana Service Account API Key provisions dashboards via Grafana REST API.",
-            "group": "Grafana Dashboard API"
+            "group": "Grafana Dashboard API",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -3,13 +3,15 @@ const require = createRequire(import.meta.url);
 const express = require("express");
 const router = express.Router();
 router.param("id", seuTenantScope);
+router.param("reviewId", checkTenant("reviewId", "Review"));
+router.param("findingId", checkTenant("findingId", "Finding"));
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { redirects } from "../../../middleware/redirects.js";
-import { seuTenantScope } from "../../../middleware/seuTenantScope.js";
+import { seuTenantScope, checkTenant } from "../../../middleware/seuTenantScope.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";

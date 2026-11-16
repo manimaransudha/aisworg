@@ -54,19 +54,29 @@
         "description": "Validation checklist for threat modeling, privacy impact assessments, and secure coding practices.",
         "items": [
           {
-            "statement": "Every identified STRIDE threat has a corresponding documented security control or explicit accepted risk."
+            "statement": "Every identified STRIDE threat has a corresponding documented security control or explicit accepted risk.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Data flow diagrams identify all PII ingest, processing, storage, and egress paths with encryption requirements."
+            "statement": "Data flow diagrams identify all PII ingest, processing, storage, and egress paths with encryption requirements.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Third-party vendor risk assessment is completed for all external APIs and SaaS sub-processors."
+            "statement": "Third-party vendor risk assessment is completed for all external APIs and SaaS sub-processors.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Automated secret scanning and SAST vulnerability scanning are enforced in the CI/CD pipeline."
+            "statement": "Automated secret scanning and SAST vulnerability scanning are enforced in the CI/CD pipeline.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Role-Based Access Control (RBAC) and Principle of Least Privilege are explicitly documented."
+            "statement": "Role-Based Access Control (RBAC) and Principle of Least Privilege are explicitly documented.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

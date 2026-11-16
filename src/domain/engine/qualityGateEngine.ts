@@ -12,6 +12,10 @@ import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
 import { evaluateCondition, type GoverningCondition } from "./governingCondition.js";
 import { eventBus } from "./eventBus.js";
 import type { QualityGateRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
+import {
+  QUALITY_GATE_CRITERIA_NO_UNRESOLVED_OBLIGATIONS, QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION,
+  QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW, QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY,
+} from "../../dblayer/constants.js";
 
 export const RESOLVED_OBLIGATION_STATUSES = new Set(["Verified", "Closed", "Archived"]);
 
@@ -98,7 +102,7 @@ export const qualityGateEngine = {
   ): Promise<QualityGateEvaluationResult> {
     const criteriaType = (gate.criteria as { type?: string }).type;
 
-    if (criteriaType === "no_unresolved_obligations") {
+    if (criteriaType === QUALITY_GATE_CRITERIA_NO_UNRESOLVED_OBLIGATIONS) {
       const { data: obligations } = await obligationsDB.findByRelatedObject(input.entityType, input.entityId);
       const unresolved = (obligations ?? []).filter((o) => !RESOLVED_OBLIGATION_STATUSES.has(o.status));
       if (unresolved.length > 0) {
@@ -109,8 +113,9 @@ export const qualityGateEngine = {
       return this.recordAndPass(gate, input);
     }
 
-    if (criteriaType === "requires_accepted_evidence_or_approved_decision") {
-      const requiredCategory = gate.category;
+    if (criteriaType === QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION) {
+      const requiredCategory = (gate.criteria as { evidenceCategory?: string }).evidenceCategory;
+      if (!requiredCategory) return this.blockOrWaive(gate, input, `${QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION} criteria has no evidenceCategory configured`, {});
       const [{ data: evidence }, { data: decisions }] = await Promise.all([
         evidenceDB.findByRelatedObject(input.entityType, input.entityId),
         decisionsDB.findByRelatedObject(input.entityType, input.entityId),
@@ -124,9 +129,9 @@ export const qualityGateEngine = {
       return this.recordAndPass(gate, input);
     }
 
-    if (criteriaType === "requires_accepted_review") {
+    if (criteriaType === QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW) {
       const reviewGateId = (gate.criteria as { reviewGateId?: string }).reviewGateId;
-      if (!reviewGateId) return this.blockOrWaive(gate, input, "requires_accepted_review criteria has no reviewGateId configured", {});
+      if (!reviewGateId) return this.blockOrWaive(gate, input, `${QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW} criteria has no reviewGateId configured`, {});
       const { data: reviews } = await reviewsDB.findByRelatedObject(input.entityType, input.entityId);
       const qualifying = (reviews ?? []).filter(
         (r) => r.status === "Accepted" && r.outcome != null && QUALIFYING_REVIEW_OUTCOMES.has(r.outcome) && r.review_gate_id === reviewGateId
@@ -137,9 +142,9 @@ export const qualityGateEngine = {
       return this.recordAndPass(gate, input);
     }
 
-    if (criteriaType === "requires_active_policy") {
+    if (criteriaType === QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY) {
       const policyIds = (gate.criteria as { policyIds?: string[] }).policyIds ?? [];
-      if (policyIds.length === 0) return this.blockOrWaive(gate, input, "requires_active_policy criteria has no policyIds configured", {});
+      if (policyIds.length === 0) return this.blockOrWaive(gate, input, `${QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY} criteria has no policyIds configured`, {});
       const { data: policies } = await policiesDB.findByIds(policyIds);
       if (!policies || policies.length !== policyIds.length) {
         return this.blockOrWaive(gate, input, "one or more referenced Policies do not exist", { policyIds });

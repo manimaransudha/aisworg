@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "System Security Plan (SSP) narrative explicitly documents control implementation details for all NIST SP 800-53 controls in the baseline.",
-            "group": "SSP Documentation (FedRAMP-SSP)"
+            "group": "SSP Documentation (FedRAMP-SSP)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "All encryption endpoints use NIST CMVP FIPS 140-2/3 validated modules for data in transit and data at rest.",
-            "group": "Cryptographic Protection (SC-13)"
+            "group": "Cryptographic Protection (SC-13)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Monthly Continuous Monitoring (ConMon) package (OS, container, and DB scan reports) is submitted to FedRAMP PMO.",
-            "group": "Continuous Monitoring (CA-7)"
+            "group": "Continuous Monitoring (CA-7)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "POA&M entries for High vulnerabilities are resolved and closed within 30 days of discovery.",
-            "group": "POA&M Remediation (CA-5)"
+            "group": "POA&M Remediation (CA-5)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Third-Party Assessment Organization (3PAO) Security Assessment Plan (SAP) and Security Assessment Report (SAR) are completed.",
-            "group": "3PAO Independent Audit (CA-2)"
+            "group": "3PAO Independent Audit (CA-2)",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

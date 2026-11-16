@@ -4,8 +4,9 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-145](design/change-requests/CR-145-quality-gate-alignment.md) | Quality Gate: alignment with Chapter 26 (criteria, outcomes, evaluation record, composition, waivers, events, registry) | 🟡 Raised — design in progress |
 | [CR-144](design/change-requests/CR-144-blocked-transition-obligation-duplicates.md) | A blocked transition raises one Obligation per entity and hop, also when attempts run at the same time | ✅ Closed 2026-11-15 |
-| [CR-143](design/change-requests/CR-143-engineering-execution-graph.md) | Engineering Execution Graph on the SEU page | 🟡 Built pending testing |
+| [CR-143](design/change-requests/CR-143-engineering-execution-graph.md) | Engineering Execution Graph on the SEU page | 🟡 Partially built — to be refined |
 | [CR-142](design/change-requests/CR-142-seed-policy-data-cleanup.md) | Seed data: cleanup of the Pack policy data now that Pack policies are materialised | 🟡 Raised — design in progress |
 | [CR-141](design/change-requests/CR-141-sdk-authoring-route-authority.md) | SDK authoring: route authority for the `:slug` routes, and removal of `requireBadge` from sdkAuthoring.ts | 🟡 Raised — design in progress |
 | [CR-140](design/change-requests/CR-140-review-gate-deliverable.md) | Review gate: the governed step names the Deliverable, as a quality gate does | 🟡 Raised — design in progress |

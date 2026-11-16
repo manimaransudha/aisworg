@@ -45,19 +45,29 @@
         "description": "Validation checklist for system autoscaling, caching efficiency, chaos resilience, and FinOps targets.",
         "items": [
           {
-            "statement": "The capacity and scaling model's assumptions have been validated against actual load and chaos testing results, not projected in isolation."
+            "statement": "The capacity and scaling model's assumptions have been validated against actual load and chaos testing results, not projected in isolation.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Autoscaling triggers (CPU/Memory/Queue Depth) scale out seamlessly under 2x peak traffic without dropping requests."
+            "statement": "Autoscaling triggers (CPU/Memory/Queue Depth) scale out seamlessly under 2x peak traffic without dropping requests.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Cache hit ratio exceeds target threshold (>= 90%) for high-frequency database read paths."
+            "statement": "Cache hit ratio exceeds target threshold (>= 90%) for high-frequency database read paths.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "Chaos engineering fault injection experiments demonstrate zero unhandled cascading failures."
+            "statement": "Chaos engineering fault injection experiments demonstrate zero unhandled cascading failures.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
-            "statement": "FinOps cost optimization plan identifies resource right-sizing opportunities with clear target ROI."
+            "statement": "FinOps cost optimization plan identifies resource right-sizing opportunities with clear target ROI.",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

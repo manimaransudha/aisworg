@@ -196,6 +196,8 @@ export const eventsDB = {
   async findPage(opts: {
     limit: number;
     offset: number;
+    // Restricts the page to the events of one tenant: events recorded under the tenant, and events of an SEU of the tenant.
+    tenantId?: string;
     seuId?: string;
     eventType?: string;
     entityType?: string;
@@ -206,6 +208,10 @@ export const eventsDB = {
     try {
       const conditions: string[] = [];
       const params: unknown[] = [];
+      if (opts.tenantId) {
+        params.push(opts.tenantId);
+        conditions.push(`(tenant_id = $${params.length} OR seu_id IN (SELECT id FROM seus WHERE tenant_id = $${params.length}))`);
+      }
       if (opts.seuId) {
         params.push(opts.seuId);
         conditions.push(`seu_id = $${params.length}`);

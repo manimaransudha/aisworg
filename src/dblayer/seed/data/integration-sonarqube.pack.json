@@ -47,15 +47,21 @@
         "items": [
           {
             "statement": "SonarQube User Token authenticates scanner CLI and REST API calls.",
-            "group": "Sonar Token Auth"
+            "group": "Sonar Token Auth",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "SonarQube Quality Gate conditions enforce zero new critical bugs and minimum 80% code coverage on new code.",
-            "group": "Quality Gate Rules"
+            "group": "Quality Gate Rules",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "SonarQube Webhook reports Quality Gate pass/fail status back to CI build pipelines.",
-            "group": "Webhook Quality Gate"
+            "group": "Webhook Quality Gate",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

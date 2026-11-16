@@ -1,6 +1,7 @@
 import pool, { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { ChecklistItem, ChecklistRow, DbResult } from "./seuTypes.js";
+import { getPlatformTenantId } from "./constants.js";
 
 export const checklistsDB = {
   async upsert(input: {
@@ -30,6 +31,23 @@ export const checklistsDB = {
       return { error: err as Error };
     } finally {
       client.release();
+    }
+  },
+
+  // The Checklists of Active Packs owned by the Platform or by the viewer's tenant. A null viewer tenant sees every Pack.
+  async findActiveVisibleTo(viewerTenantId: string | null): Promise<DbResult<ChecklistRow[]>> {
+    try {
+      const platformTenantId = await getPlatformTenantId();
+      const { rows } = await query<ChecklistRow>(
+        `SELECT c.* FROM checklists c JOIN packs p ON p.id = c.originating_pack_id
+         WHERE p.status = 'Active' AND ($1::uuid IS NULL OR p.tenant_id = $1 OR p.tenant_id = $2)
+         ORDER BY c.name, c.created_at DESC`,
+        [viewerTenantId, platformTenantId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[checklistsDB] findActiveVisibleTo error", err as Error);
+      return { error: err as Error };
     }
   },
 

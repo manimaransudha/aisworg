@@ -32,23 +32,33 @@
         "items": [
           {
             "statement": "Active Record queries use includes(), joins(), or preload() to eliminate N+1 database queries.",
-            "group": "Active Record & Performance"
+            "group": "Active Record & Performance",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Controllers enforce Strong Parameters (params.require().permit()) to prevent mass assignment vulnerabilities.",
-            "group": "Security & Controllers"
+            "group": "Security & Controllers",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Code passes RuboCop style analysis and Brakeman static security scanner without unaddressed high-severity alerts.",
-            "group": "Code Quality & Security"
+            "group": "Code Quality & Security",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Background jobs executed via Sidekiq/ActiveJob are idempotent and handle retries gracefully without data duplication.",
-            "group": "Background Processing"
+            "group": "Background Processing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Database migrations are reversible (change method or explicit up/down) and indexed appropriately for query filters.",
-            "group": "Database Migrations"
+            "group": "Database Migrations",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

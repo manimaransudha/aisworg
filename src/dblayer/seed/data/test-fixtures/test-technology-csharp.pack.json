@@ -32,23 +32,33 @@
         "items": [
           {
             "statement": "Modern C# features (nullable reference types, records, pattern matching, async/await Task) are enabled and enforced.",
-            "group": "Language Standards"
+            "group": "Language Standards",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "ASP.NET Core dependency injection lifetimes (Transient, Scoped, Singleton) avoid captive dependencies.",
-            "group": "Dependency Injection"
+            "group": "Dependency Injection",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Entity Framework Core queries use AsNoTracking() for read-only queries and avoid client-side evaluation warnings.",
-            "group": "Data Access & EF Core"
+            "group": "Data Access & EF Core",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Roslyn analyzers and StyleCop rule sets enforce consistent naming conventions and code quality.",
-            "group": "Static Analysis & Formatting"
+            "group": "Static Analysis & Formatting",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "xUnit / NUnit test suites execute against in-memory or Testcontainers databases with high code coverage.",
-            "group": "Testing & Verification"
+            "group": "Testing & Verification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

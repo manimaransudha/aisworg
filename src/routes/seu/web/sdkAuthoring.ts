@@ -20,6 +20,7 @@ import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
+import { qualityGateDefinitionsDB } from "../../../dblayer/qualityGateDefinitionsDB.js";
 import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import {
@@ -63,6 +64,7 @@ const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "deliverable-authoring": "Deliverable",
   "service-authoring": "Service",
   "policy-authoring": "Policy",
+  "quality-gate-authoring": "QualityGate",
   "capability-authoring": "Capability",
 };
 
@@ -74,6 +76,7 @@ const VIEW_BASE_BY_KIND: Partial<Record<SchemaDefinitionEntityKind, string>> = {
   Deliverable: "/aisworg/seu/deliverable-definitions",
   Service: "/aisworg/seu/service-definitions",
   Policy: "/aisworg/seu/policy-definitions",
+  QualityGate: "/aisworg/seu/quality-gate-definitions",
   Capability: "/aisworg/seu/capability-definitions",
 };
 
@@ -148,6 +151,7 @@ function requireDraftTenantScope() {
       kind === "Deliverable" ? requireTenantScope.forParam("draftId", deliverableDefinitionsDB.findById, (d) => d.tenant_id, opts) :
       kind === "Service" ? requireTenantScope.forParam("draftId", serviceDefinitionsDB.findById, (s) => s.tenant_id, opts) :
       kind === "Policy" ? requireTenantScope.forParam("draftId", policyDefinitionsDB.findById, (p) => p.tenant_id, opts) :
+      kind === "QualityGate" ? requireTenantScope.forParam("draftId", qualityGateDefinitionsDB.findById, (g) => g.tenant_id, opts) :
       kind === "Capability" ? requireTenantScope.forParam("draftId", capabilityDefinitionsDB.findById, (c) => c.tenant_id, opts) :
       null;
     if (!gate) return next();

@@ -127,7 +127,7 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
   });
   assert.ok(reviewGate);
   await qualityGatesDB.upsert({
-    name: "Requires Architecture Review",
+    code: `qg-test-${randomUUID()}`, name: "Requires Architecture Review",
     category: `test-${run}`,
     entityType: "Deliverable",
     fromState,

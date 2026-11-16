@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Tenant lease agreements execute via legally binding e-signatures with security deposit escrow documentation.",
-            "group": "PropTech Leasing"
+            "group": "PropTech Leasing",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Automated rent collection triggers late fee notices for delinquent tenant balances after grace period.",
-            "group": "Rent Collection"
+            "group": "Rent Collection",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Construction cost estimates incorporate material takeoffs, labor rates, and subcontractor bids.",
-            "group": "Construction Bidding"
+            "group": "Construction Bidding",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Change Orders documenting scope modifications receive owner and general contractor signatures before work execution.",
-            "group": "Construction Change Orders"
+            "group": "Construction Change Orders",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "AIA G702/G703 progress payment certificates verify verified completion percentages before funds disbursement.",
-            "group": "Progress Payment Certification"
+            "group": "Progress Payment Certification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

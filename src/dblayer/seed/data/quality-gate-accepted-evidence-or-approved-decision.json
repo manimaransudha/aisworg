@@ -1,0 +1,14 @@
+{
+  "code": "accepted-evidence-or-approved-decision",
+  "name": "Requires Accepted Evidence or Approved Decision",
+  "description": "A Deliverable is baselined only with Accepted Evidence of the required category, or an Approved Decision.",
+  "category": "Exit",
+  "governedTransition": "Deliverable|Approved|Baselined",
+  "criteriaType": "requires_accepted_evidence_or_approved_decision",
+  "evidenceCategory": "Validation Evidence",
+  "classification": "machine-verifiable",
+  "participant": "AI",
+  "outputContract": "passed-failed-notes",
+  "statement": "Accepted Validation Evidence or an Approved Decision supports this transition.",
+  "version": "1.0.0"
+}

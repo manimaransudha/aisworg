@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Target audience lists exclude unsubscribed users and enforce consent preferences per privacy laws.",
-            "group": "Audience Consent"
+            "group": "Audience Consent",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Marketing email templates include valid physical sender addresses and one-click unsubscribe links.",
-            "group": "Email Compliance"
+            "group": "Email Compliance",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Ad creative assets receive brand compliance and legal review prior to ad network distribution.",
-            "group": "Creative Approval"
+            "group": "Creative Approval",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Programmatic ad placements filter out non-brand-safe publisher categories and invalid bot traffic.",
-            "group": "Brand Safety & Ad Verification"
+            "group": "Brand Safety & Ad Verification",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "UTM parameters and conversion tracking pixels accurately measure multi-touch campaign attribution.",
-            "group": "Attribution Analytics"
+            "group": "Attribution Analytics",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

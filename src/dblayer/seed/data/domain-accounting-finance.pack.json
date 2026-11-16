@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Every journal entry satisfies double-entry equality (Debits = Credits) with valid COA account dimensions.",
-            "group": "General Ledger Integrity"
+            "group": "General Ledger Integrity",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Accounts Payable invoices are matched against Purchase Orders and Receiving Slips (3-Way Matching).",
-            "group": "AP & Invoice Matching"
+            "group": "AP & Invoice Matching",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Bank statement feeds are reconciled with cash ledger entries and outstanding items flagged.",
-            "group": "Bank Reconciliation"
+            "group": "Bank Reconciliation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "ASC 606 revenue recognition schedules accurately reflect performance obligation fulfillment.",
-            "group": "Revenue Recognition"
+            "group": "Revenue Recognition",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Period-end trial balance is verified and intercompany balances eliminated prior to financial consolidation.",
-            "group": "Financial Close & Consolidation"
+            "group": "Financial Close & Consolidation",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

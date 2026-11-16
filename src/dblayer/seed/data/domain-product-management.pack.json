@@ -31,23 +31,33 @@
         "items": [
           {
             "statement": "Product Discovery validates user pain points using customer interviews, survey data, or usage telemetry.",
-            "group": "Product Discovery"
+            "group": "Product Discovery",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Product Requirement Documents (PRDs) define explicit user personas, functional specs, and acceptance criteria.",
-            "group": "PRD Requirements"
+            "group": "PRD Requirements",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Feature backlog items are scored using RICE or Kano frameworks to justify roadmap placement.",
-            "group": "Feature Prioritization"
+            "group": "Feature Prioritization",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Release plans specify scope, telemetry events, feature flag strategy, and rollback criteria.",
-            "group": "Release Planning"
+            "group": "Release Planning",
+            "configurableKey": "type",
+            "configurableValue": "required"
           },
           {
             "statement": "Product analytics dashboards track post-launch feature adoption, funnel conversion, and retention metrics.",
-            "group": "Product Analytics"
+            "group": "Product Analytics",
+            "configurableKey": "type",
+            "configurableValue": "required"
           }
         ]
       }

@@ -11,6 +11,7 @@ export async function getSeuEvents(seuId: string): Promise<EventRow[]> {
 export async function getEventsPage(opts: {
   limit: number;
   offset: number;
+  tenantId?: string;
   seuId?: string;
   eventType?: string;
   entityType?: string;
