@@ -284,6 +284,22 @@ export const redirects = {
 
 Every time a db schema is created/modified , there has to be a corresponding entry/update in the dblayer folder/file. 
 
+### Connections and transactions
+
+The connection pool belongs to `src/utils/db.ts` alone. No other file calls `pool.connect()` or opens a `Client`. This holds for the dblayer, core, engines, seeds, scripts and tests.
+
+| Need | Use | Rule |
+|---|---|---|
+| One statement | `query(sql, params)` | It runs on the open transaction when one exists, and on the pool otherwise. |
+| Many rows in one insert | `bulkInsert(table, columns, rows, options)` | One round trip. It joins an open transaction in the same way. |
+| Several writes that land together or not at all | `withTransaction(async () => { ... })` | The statements inside call `query` and `bulkInsert`. The function does not write `BEGIN`, `COMMIT` or `ROLLBACK`. A throw rolls back. A call made inside a running transaction joins it. |
+| One holder at a time for a key, across processes | `withAdvisoryLock(key, work)` | The key is a string. It must not run inside `withTransaction`. |
+
+- A dblayer function that returns `{ error }` does not roll back an enclosing transaction by itself. The caller throws on the error.
+- A transaction-aware function never takes its own connection. A function that takes a second connection while its caller holds one can exhaust the pool. Every transaction in flight would then wait for a connection that no one releases, and each request ends with `timeout exceeded when trying to connect`.
+- A transition action runs inside `withTransaction` (CR-128). Every dblayer function an action calls follows these rules.
+- A seed or script that needs a transaction uses `withTransaction`. A dry run ends it by throwing a private error that the script catches.
+
 
 ## dblayer sample code. 
 Table name is subjects_master. 

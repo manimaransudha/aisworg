@@ -1,5 +1,5 @@
 import "dotenv/config";
-import pool from "../../utils/db.js";
+import pool, { withTransaction, query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, CAMBODIA_TENANT_NAME, TEMP_TENANT_ID, TEST_PLATFORM_TENANT_CODE, TEST_PLATFORM_TENANT_NAME } from "../constants.js";
 interface SeedTenant {
@@ -19,62 +19,58 @@ const TENANTS: SeedTenant[] = [
 ];
 
 export async function seedTenantsBaseline(): Promise<void> {
-  const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-    const result = await client.query(
-    `INSERT INTO tenants (code, name, status, is_system, author_id, author_badge)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     ON CONFLICT (code) DO UPDATE
-     SET
-         name = EXCLUDED.name,
-         status = EXCLUDED.status,
-         is_system = EXCLUDED.is_system,
-         author_id = EXCLUDED.author_id,
-         author_badge = EXCLUDED.author_badge
-     RETURNING id, author_badge`,
-    [
-        PLATFORM_TENANT.code,
-        PLATFORM_TENANT.name,
-        PLATFORM_TENANT.status,
-        PLATFORM_TENANT.is_system,
-        TEMP_TENANT_ID,
-        'bootstrap'
-    ]
-    );
-    const platformId = result.rows[0].id;
-    const platformBadge=result.rows[0].author_badge;
-    await client.query(
-     `UPDATE tenants
-        SET author_id = $1
-        WHERE author_id = $2`,[platformId,TEMP_TENANT_ID]
-    );
-    
-    for (const t of TENANTS) {
-      let result = await client.query(
-        `INSERT INTO tenants (code, name, status, is_system, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (code) DO UPDATE
-     SET
-         name = EXCLUDED.name,
-         status = EXCLUDED.status,
-         is_system = EXCLUDED.is_system,
-         author_id = EXCLUDED.author_id,
-         author_badge = EXCLUDED.author_badge`,
-        [t.code, t.name, t.status, t.is_system, platformId, platformBadge]
+    await withTransaction(async () => {
+      const result = await query(
+      `INSERT INTO tenants (code, name, status, is_system, author_id, author_badge)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (code) DO UPDATE
+       SET
+           name = EXCLUDED.name,
+           status = EXCLUDED.status,
+           is_system = EXCLUDED.is_system,
+           author_id = EXCLUDED.author_id,
+           author_badge = EXCLUDED.author_badge
+       RETURNING id, author_badge`,
+      [
+          PLATFORM_TENANT.code,
+          PLATFORM_TENANT.name,
+          PLATFORM_TENANT.status,
+          PLATFORM_TENANT.is_system,
+          TEMP_TENANT_ID,
+          'bootstrap'
+      ]
       );
-    }
-    
-    await client.query("COMMIT");
-    logger.info(`[seed:tenant-baseline] upserted ${TENANTS.length+1} tenants.`);
-    logger.info("[seed:tenant-baseline] done.");
-    
+      const platformId = result.rows[0].id;
+      const platformBadge=result.rows[0].author_badge;
+      await query(
+       `UPDATE tenants
+          SET author_id = $1
+          WHERE author_id = $2`,[platformId,TEMP_TENANT_ID]
+      );
+      
+      for (const t of TENANTS) {
+        let result = await query(
+          `INSERT INTO tenants (code, name, status, is_system, author_id, author_badge)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (code) DO UPDATE
+       SET
+           name = EXCLUDED.name,
+           status = EXCLUDED.status,
+           is_system = EXCLUDED.is_system,
+           author_id = EXCLUDED.author_id,
+           author_badge = EXCLUDED.author_badge`,
+          [t.code, t.name, t.status, t.is_system, platformId, platformBadge]
+        );
+      }
+      
+      logger.info(`[seed:tenant-baseline] upserted ${TENANTS.length+1} tenants.`);
+      logger.info("[seed:tenant-baseline] done.");
+      
+    });
   } catch (err) {
-    await client.query("ROLLBACK");
-    console.log('Error:', err)
+    console.log('Error:', err);
     throw err;
-  } finally {
-    client.release();
   }
 }
 

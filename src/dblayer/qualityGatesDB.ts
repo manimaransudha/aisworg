@@ -1,4 +1,4 @@
-import pool, { query } from "../utils/db.js";
+import { query, withTransaction } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, QualityGateRow, TransitionEntityType } from "./seuTypes.js";
 
@@ -24,51 +24,46 @@ export const qualityGatesDB = {
     authorId: string;
     authorBadge: string;
   }): Promise<DbResult<QualityGateRow>> {
-    const client = await pool.connect();
     try {
-      await client.query("BEGIN");
-      const { code, category, criteria } = input;
-      const checklistIds = input.checklistIds ?? [];
-      const recommendedChecklistIds = input.recommendedChecklistIds ?? [];
-      const applicabilityDeliverableNames = input.applicabilityDeliverableNames ?? [];
-      const { rows: currentRows } = await client.query<QualityGateRow>(
-        "SELECT * FROM quality_gates WHERE code = $1 AND originating_pack_id = $2 AND is_active = true",
-        [code, input.originatingPackId]
-      );
-      const current = currentRows[0];
-      const unchanged =
-        current &&
-        current.name === input.name &&
-        current.category === category &&
-        current.entity_type === input.entityType &&
-        current.from_state === input.fromState &&
-        current.to_state === input.toState &&
-        JSON.stringify(current.criteria) === JSON.stringify(criteria) &&
-        JSON.stringify([...current.checklist_ids].sort()) === JSON.stringify([...checklistIds].sort()) &&
-        JSON.stringify([...current.recommended_checklist_ids].sort()) === JSON.stringify([...recommendedChecklistIds].sort()) &&
-        JSON.stringify([...current.applicability_deliverable_names].sort()) === JSON.stringify([...applicabilityDeliverableNames].sort());
-      if (unchanged) {
-        await client.query("COMMIT");
-        return { data: current };
-      }
-      const nextVersion = current ? bumpVersion(current.version) : "1.0";
-      if (current) {
-        await client.query("UPDATE quality_gates SET is_active = false WHERE id = $1", [current.id]);
-      }
-      const { rows } = await client.query<QualityGateRow>(
-        `INSERT INTO quality_gates (code, name, category, entity_type, from_state, to_state, criteria, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids, applicability_deliverable_names, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, $12, $13, $14)
-         RETURNING *`,
-        [code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds, applicabilityDeliverableNames, input.authorId, input.authorBadge]
-      );
-      await client.query("COMMIT");
-      return { data: rows[0] };
+      return await withTransaction(async () => {
+        const { code, category, criteria } = input;
+        const checklistIds = input.checklistIds ?? [];
+        const recommendedChecklistIds = input.recommendedChecklistIds ?? [];
+        const applicabilityDeliverableNames = input.applicabilityDeliverableNames ?? [];
+        const { rows: currentRows } = await query<QualityGateRow>(
+          "SELECT * FROM quality_gates WHERE code = $1 AND originating_pack_id = $2 AND is_active = true",
+          [code, input.originatingPackId]
+        );
+        const current = currentRows[0];
+        const unchanged =
+          current &&
+          current.name === input.name &&
+          current.category === category &&
+          current.entity_type === input.entityType &&
+          current.from_state === input.fromState &&
+          current.to_state === input.toState &&
+          JSON.stringify(current.criteria) === JSON.stringify(criteria) &&
+          JSON.stringify([...current.checklist_ids].sort()) === JSON.stringify([...checklistIds].sort()) &&
+          JSON.stringify([...current.recommended_checklist_ids].sort()) === JSON.stringify([...recommendedChecklistIds].sort()) &&
+          JSON.stringify([...current.applicability_deliverable_names].sort()) === JSON.stringify([...applicabilityDeliverableNames].sort());
+        if (unchanged) {
+          return { data: current };
+        }
+        const nextVersion = current ? bumpVersion(current.version) : "1.0";
+        if (current) {
+          await query("UPDATE quality_gates SET is_active = false WHERE id = $1", [current.id]);
+        }
+        const { rows } = await query<QualityGateRow>(
+          `INSERT INTO quality_gates (code, name, category, entity_type, from_state, to_state, criteria, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids, applicability_deliverable_names, author_id, author_badge)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, $12, $13, $14)
+           RETURNING *`,
+          [code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds, applicabilityDeliverableNames, input.authorId, input.authorBadge]
+        );
+        return { data: rows[0] };
+      });
     } catch (err) {
-      await client.query("ROLLBACK");
       logger.error("[qualityGatesDB] upsert error", err as Error);
       return { error: err as Error };
-    } finally {
-      client.release();
     }
   },
 

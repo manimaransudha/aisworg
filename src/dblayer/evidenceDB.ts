@@ -1,4 +1,4 @@
-import pool, { query } from "../utils/db.js";
+import { query, withTransaction } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, EvidenceRow, EvidenceRelationshipRow, EvidenceValidationAssessment, TransitionEntityType } from "./seuTypes.js";
 
@@ -17,35 +17,31 @@ export const evidenceDB = {
     authorBadge: string;
     authorMasterId: string;
   }): Promise<DbResult<EvidenceRow>> {
-    const client = await pool.connect();
     try {
-      await client.query("BEGIN");
-      const { rows } = await client.query<EvidenceRow>(
-        `INSERT INTO evidence (category, title, description, source, supersedes_evidence_id, author_id, author_badge, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING *`,
-        [input.category, input.title, input.description ?? null, input.source ?? null, input.supersedesEvidenceId ?? null, input.authorId, input.authorBadge, input.status]
-      );
-      const evidence = rows[0];
-      await client.query(
-        `INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id, author_id, author_badge) VALUES ($1, 'SEU', $2, $3, $4)`,
-        [evidence.id, input.seuId, input.authorMasterId, input.authorBadge]
-      );
-      if (input.relatedObjectType !== "SEU" || input.relatedObjectId !== input.seuId) {
-        await client.query(
-          `INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id, author_id, author_badge) VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT ON CONSTRAINT evidence_relationships_unique DO NOTHING`,
-          [evidence.id, input.relatedObjectType, input.relatedObjectId, input.authorMasterId, input.authorBadge]
+      return await withTransaction(async () => {
+        const { rows } = await query<EvidenceRow>(
+          `INSERT INTO evidence (category, title, description, source, supersedes_evidence_id, author_id, author_badge, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING *`,
+          [input.category, input.title, input.description ?? null, input.source ?? null, input.supersedesEvidenceId ?? null, input.authorId, input.authorBadge, input.status]
         );
-      }
-      await client.query("COMMIT");
-      return { data: evidence };
+        const evidence = rows[0];
+        await query(
+          `INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id, author_id, author_badge) VALUES ($1, 'SEU', $2, $3, $4)`,
+          [evidence.id, input.seuId, input.authorMasterId, input.authorBadge]
+        );
+        if (input.relatedObjectType !== "SEU" || input.relatedObjectId !== input.seuId) {
+          await query(
+            `INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id, author_id, author_badge) VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT ON CONSTRAINT evidence_relationships_unique DO NOTHING`,
+            [evidence.id, input.relatedObjectType, input.relatedObjectId, input.authorMasterId, input.authorBadge]
+          );
+        }
+        return { data: evidence };
+      });
     } catch (err) {
-      await client.query("ROLLBACK");
       logger.error("[evidenceDB] create error", err as Error);
       return { error: err as Error };
-    } finally {
-      client.release();
     }
   },
 

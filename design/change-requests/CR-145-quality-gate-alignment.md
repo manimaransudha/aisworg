@@ -128,6 +128,7 @@ The traceability file of 2026-10-23 is older than CR-121, CR-122, CR-139 and the
 | 13 | The slot of a quality gate (its identity for the active row and the version bump) is its `code`, with no transition and no category in it. The owner said "code + tenant" and then "slot only by code", and will give the reason later. Whether the Pack is part of the slot (as for Policies: `originating_pack_id, code`) or the slot is `code` within the tenant of the Pack is not yet confirmed. | 2026-11-16 |
 | 14 | A quality gate is defined in its own authoring (a Quality Gate Definition, as a Policy Definition is), and a Pack lists only the identifiers (codes) of the gates it takes. The scope and the open points are in Still open item 14. Not built. | 2026-11-16 |
 | 15 | The references of a quality gate (`checklistIds`, `recommendedChecklistIds`, the review gate named by `deliverableName`, `requiredPolicyCodes`) resolve against the registry of the Platform and of the tenant, and are not limited to the Pack. The blocker in Still open item 14 (a) stays open until each reference has its source. | 2026-11-16 |
+| 16 | No file except `src/utils/db.ts` calls `pool.connect()`. Database code uses `query`, `bulkInsert`, `withTransaction` and `withAdvisoryLock`. | 2026-11-16 |
 
 ## Proposed order of decisions (for the owner)
 
@@ -172,6 +173,22 @@ The traceability file of 2026-10-23 is older than CR-121, CR-122, CR-139 and the
   - Composition: `unravelQualityGates` reads the definitions (`unravelQualityGatesFor` loads them), the conflict key includes the gate code (`qualityGateKey(step, deliverable, code)`), the dead gate check in `compositionEngine.detectGovernanceConflicts` is removed, and `governanceModel.ts` reads the gate rows of each Pack.
   - Seeds: src/dblayer/seed/seedQualityGateDefinitions.ts (one batch write with `bulkInsert`, no Ontology read, called by cleanSlate.ts after the schema definitions), three definition JSON files, the concept type `quality-gate-name` in ontologyConcepts.json (three codes) and test-ontology.json (one code); core-engineering, openup-development, test-openup-development and test-pack-all-tabs list codes instead of embedding gates.
 - tsc ran clean after decision 2 (2026-11-16) and after decisions 3 and 4. Tests and `db:clean-slate` were not run.
+
+## Built (2026-11-16), connection pool deadlock after decision 2
+
+Decision 2 moved `materializeContributions` into the action `materialise-pack`, which `transitionEntity` runs inside `withTransaction` (CR-128). The test fixture seed publishes 82 Packs at once on a pool of 10 connections. Each activation held one connection in its transaction. `checklistsDB`, `reviewGatesDB`, `servicesDB` and `qualityGatesDB` opened a second connection through `pool.connect()`. With 9 transactions open and the fixture-seed lock holding the tenth connection, no second connection was free. Every request waited 60 seconds and failed with `timeout exceeded when trying to connect`. `pg_stat_activity` showed 9 sessions `idle in transaction` after `INSERT INTO authority_rules` and one session on `pg_advisory_lock`.
+
+Decision 16 (owner): no file except `src/utils/db.ts` calls `pool.connect()`. CR-128 item 4 had left the checklist and objective functions on their own connection, on the assumption that no action used them. Decision 2 broke that assumption.
+
+| File | Change |
+|---|---|
+| servicesDB.ts, checklistsDB.ts, reviewGatesDB.ts, qualityGatesDB.ts, objectivesDB.ts, evidenceDB.ts | The upsert or create runs in `withTransaction` and uses `query`. No `BEGIN`, `COMMIT`, `ROLLBACK` or `pool.connect()`. The function still returns `{ error }` on a failure. |
+| cleanSlate.ts, cleanTestData.ts, seedTestIdentity.ts, seedTestTenants.ts, seedBaselineTenants.ts, seedPolicyDefinitions.ts, seedIdentityBaseline.ts, demo/demoPurge.ts | The transaction runs in `withTransaction`. `cleanTestData` ends a dry run by throwing a private error, which rolls back. |
+| tests/testFixtures.ts, tests/schemaFixtures.ts | The fixture locks use `withAdvisoryLock` with the string keys `test-fixture-packs` and `schema-fixtures`. |
+| src/utils/db.ts | `withAdvisoryLock` polls `pg_try_advisory_lock` (interval `DB_LOCK_POLL`, default 500 ms). A single blocking `pg_advisory_lock` request ended at the query timeout when the holder's work was longer. |
+| coding_principles.md, CLAUDE.md | The Database section lists the four primitives and the rule. `CLAUDE.md` holds the rule in one line. |
+
+Verification: `tsc --noEmit` has no errors. No test, `db:clean-slate` or SQL ran. The fix has not been confirmed against the fixture seed.
 
 ## Test fixtures updated in the same pass
 

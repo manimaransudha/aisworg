@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import pool, { query } from "../src/utils/db.js";
+import { query, withAdvisoryLock } from "../src/utils/db.js";
 import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
@@ -76,16 +76,9 @@ let testFixturePacksCached: Promise<void> | null = null;
 // seedAllTestFixturePacks checks for an existing Pack and then publishes, which is not atomic, so test files running in
 // separate processes can both miss the check and collide on packs_code_version_tenant_key. Only this seed is serialised
 // across processes, by a session-level Postgres advisory lock; the later holder finds every Pack already Active.
-const TEST_FIXTURE_PACKS_LOCK_KEY = 7_310_046;
-async function withSeedLock(seed: () => Promise<void>): Promise<void> {
-  const client = await pool.connect();
-  try {
-    await client.query("SELECT pg_advisory_lock($1)", [TEST_FIXTURE_PACKS_LOCK_KEY]);
-    await seed();
-  } finally {
-    await client.query("SELECT pg_advisory_unlock($1)", [TEST_FIXTURE_PACKS_LOCK_KEY]).catch(() => undefined);
-    client.release();
-  }
+const TEST_FIXTURE_PACKS_LOCK_KEY = "test-fixture-packs";
+function withSeedLock(seed: () => Promise<void>): Promise<void> {
+  return withAdvisoryLock(TEST_FIXTURE_PACKS_LOCK_KEY, seed);
 }
 
 export function ensureTestFixturePacks(): Promise<void> {

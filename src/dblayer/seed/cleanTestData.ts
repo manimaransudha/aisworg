@@ -1,5 +1,5 @@
 import "dotenv/config";
-import pool from "../../utils/db.js";
+import pool, { withTransaction, query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, TEST_PLATFORM_TENANT_NAME, TEST_PLATFORM_USER_EMAIL, TEST_ALL_EMAIL, TEST_CREATOR_EMAIL, TEST_APPROVER_EMAIL, RESERVED_TENANT_CODES } from "../constants.js";
 
@@ -112,60 +112,60 @@ const GLOBAL_DELETES: Array<[string, string]> = [
   ["metric_definitions", "originating_pack_id IS NULL AND author_id IN (SELECT id FROM tau)"],
 ];
 
+// A dry run ends the transaction by throwing this, so withTransaction rolls it back.
+class DryRunRollback extends Error {}
+
 async function run(): Promise<void> {
   const dryRun = process.argv.includes("--dry-run");
-  const client = await pool.connect();
   try {
-    await client.query("BEGIN");
+    await withTransaction(async () => {
 
-    // The test-platform participant, its user and its tenant are kept.
-    const actor = await client.query<{ participant_id: string; user_id: string; tenant_id: string }>(
-      `SELECT pm.id AS participant_id, u.id AS user_id, pm.tenant_id
-       FROM participants_master pm JOIN users u ON u.id = pm.user_id
-       WHERE lower(u.email) = lower($1)`,
-      [TEST_PLATFORM_USER_EMAIL]
-    );
-    if (actor.rows.length === 0) throw new Error(`cleanTestData: ${TEST_PLATFORM_USER_EMAIL} is not provisioned -- run db:clean-slate first.`);
-    const keep = actor.rows[0];
+      // The test-platform participant, its user and its tenant are kept.
+      const actor = await query<{ participant_id: string; user_id: string; tenant_id: string }>(
+        `SELECT pm.id AS participant_id, u.id AS user_id, pm.tenant_id
+         FROM participants_master pm JOIN users u ON u.id = pm.user_id
+         WHERE lower(u.email) = lower($1)`,
+        [TEST_PLATFORM_USER_EMAIL]
+      );
+      if (actor.rows.length === 0) throw new Error(`cleanTestData: ${TEST_PLATFORM_USER_EMAIL} is not provisioned -- run db:clean-slate first.`);
+      const keep = actor.rows[0];
 
-    const tenants = await client.query<{ id: string; code: string }>(
-      "SELECT id, code FROM tenants WHERE author_id = $1 OR name = ANY($2::text[])",
-      [keep.participant_id, [ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, TEST_PLATFORM_TENANT_NAME]]
-    );
-    const reserved = tenants.rows.filter((t) => RESERVED_TENANT_CODES.includes(t.code));
-    if (reserved.length) throw new Error(`cleanTestData: refusing to clean reserved tenant(s): ${reserved.map((t) => t.code).join(", ")}`);
-    logger.info(`[clean-test-data] ${tenants.rows.length} test tenants: ${tenants.rows.map((t) => t.code).join(", ")}`);
+      const tenants = await query<{ id: string; code: string }>(
+        "SELECT id, code FROM tenants WHERE author_id = $1 OR name = ANY($2::text[])",
+        [keep.participant_id, [ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, TEST_PLATFORM_TENANT_NAME]]
+      );
+      const reserved = tenants.rows.filter((t) => RESERVED_TENANT_CODES.includes(t.code));
+      if (reserved.length) throw new Error(`cleanTestData: refusing to clean reserved tenant(s): ${reserved.map((t) => t.code).join(", ")}`);
+      logger.info(`[clean-test-data] ${tenants.rows.length} test tenants: ${tenants.rows.map((t) => t.code).join(", ")}`);
 
-    await client.query("CREATE TEMP TABLE tt (id uuid) ON COMMIT DROP");
-    await client.query("INSERT INTO tt SELECT unnest($1::uuid[])", [tenants.rows.map((t) => t.id)]);
-    await client.query("CREATE TEMP TABLE keep_participant (id uuid, tenant_id uuid) ON COMMIT DROP");
-    await client.query("INSERT INTO keep_participant VALUES ($1, $2)", [keep.participant_id, keep.tenant_id]);
-    await client.query("CREATE TEMP TABLE keep_user (id uuid) ON COMMIT DROP");
-    await client.query("INSERT INTO keep_user VALUES ($1)", [keep.user_id]);
-    // db:clean-slate also seeds the tester-* users and their participants in the test-platform tenant, and tests resolve them by email, so they stay too.
-    await client.query("CREATE TEMP TABLE keep_users (id uuid) ON COMMIT DROP");
-    await client.query("INSERT INTO keep_users SELECT id FROM users WHERE lower(email) = ANY($1::text[])", [[TEST_PLATFORM_USER_EMAIL, TEST_ALL_EMAIL, TEST_CREATOR_EMAIL, TEST_APPROVER_EMAIL].map((e) => e.toLowerCase())]);
-    await client.query("CREATE TEMP TABLE keep_pms (id uuid) ON COMMIT DROP");
-    await client.query("INSERT INTO keep_pms SELECT id FROM participants_master WHERE user_id IN (SELECT id FROM keep_users)");
-    for (const [name, select] of TEMP_TABLES) {
-      await client.query(`CREATE TEMP TABLE ${name} (id uuid) ON COMMIT DROP`);
-      await client.query(`INSERT INTO ${name} ${select}`);
-    }
+      await query("CREATE TEMP TABLE tt (id uuid) ON COMMIT DROP");
+      await query("INSERT INTO tt SELECT unnest($1::uuid[])", [tenants.rows.map((t) => t.id)]);
+      await query("CREATE TEMP TABLE keep_participant (id uuid, tenant_id uuid) ON COMMIT DROP");
+      await query("INSERT INTO keep_participant VALUES ($1, $2)", [keep.participant_id, keep.tenant_id]);
+      await query("CREATE TEMP TABLE keep_user (id uuid) ON COMMIT DROP");
+      await query("INSERT INTO keep_user VALUES ($1)", [keep.user_id]);
+      // db:clean-slate also seeds the tester-* users and their participants in the test-platform tenant, and tests resolve them by email, so they stay too.
+      await query("CREATE TEMP TABLE keep_users (id uuid) ON COMMIT DROP");
+      await query("INSERT INTO keep_users SELECT id FROM users WHERE lower(email) = ANY($1::text[])", [[TEST_PLATFORM_USER_EMAIL, TEST_ALL_EMAIL, TEST_CREATOR_EMAIL, TEST_APPROVER_EMAIL].map((e) => e.toLowerCase())]);
+      await query("CREATE TEMP TABLE keep_pms (id uuid) ON COMMIT DROP");
+      await query("INSERT INTO keep_pms SELECT id FROM participants_master WHERE user_id IN (SELECT id FROM keep_users)");
+      for (const [name, select] of TEMP_TABLES) {
+        await query(`CREATE TEMP TABLE ${name} (id uuid) ON COMMIT DROP`);
+        await query(`INSERT INTO ${name} ${select}`);
+      }
 
-    let total = 0;
-    for (const [table, where] of [...DELETES, ...GLOBAL_DELETES]) {
-      const result = await client.query(`DELETE FROM ${table} WHERE ${where}`);
-      total += result.rowCount ?? 0;
-      if (result.rowCount) logger.info(`[clean-test-data] ${table}: ${result.rowCount}`);
-    }
-    logger.info(`[clean-test-data] ${total} rows ${dryRun ? "would be deleted (dry run, rolled back)" : "deleted"}.`);
+      let total = 0;
+      for (const [table, where] of [...DELETES, ...GLOBAL_DELETES]) {
+        const result = await query(`DELETE FROM ${table} WHERE ${where}`);
+        total += result.rowCount ?? 0;
+        if (result.rowCount) logger.info(`[clean-test-data] ${table}: ${result.rowCount}`);
+      }
+      logger.info(`[clean-test-data] ${total} rows ${dryRun ? "would be deleted (dry run, rolled back)" : "deleted"}.`);
 
-    await client.query(dryRun ? "ROLLBACK" : "COMMIT");
+      if (dryRun) throw new DryRunRollback();
+    });
   } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
+    if (!(err instanceof DryRunRollback)) throw err;
   }
 }
 

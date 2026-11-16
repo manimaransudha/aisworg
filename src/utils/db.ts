@@ -174,6 +174,7 @@ export async function withTransaction<T>(work: () => Promise<T>): Promise<T> {
 //   2. A session advisory lock on a connection of its own, so a second process is held back too.
 // The work runs on the pool as usual and commits before the lock is released. It must not run inside `withTransaction`,
 // where its writes are not visible to the next holder until the transaction commits.
+const ADVISORY_LOCK_POLL_MS = parseInt(process.env.DB_LOCK_POLL ?? "", 10) || 500;
 const inProcessLocks = new Map<string, Promise<void>>();
 export async function withAdvisoryLock<T>(key: string, work: () => Promise<T>): Promise<T> {
     if (transactionClient.getStore()) throw new Error(`withAdvisoryLock("${key}") was called inside a transaction`);
@@ -187,7 +188,10 @@ export async function withAdvisoryLock<T>(key: string, work: () => Promise<T>): 
         const client = await pool.connect();
         let unlocked = true;
         try {
-            await client.query("SELECT pg_advisory_lock(hashtextextended($1, 0))", [key]);
+            // Polls for the lock, because the work of the holder can outlast the query timeout of a single blocking lock request.
+            while (!(await client.query<{ locked: boolean }>("SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS locked", [key])).rows[0].locked) {
+                await new Promise((resolve) => setTimeout(resolve, ADVISORY_LOCK_POLL_MS));
+            }
             unlocked = false;
             try {
                 return await work();

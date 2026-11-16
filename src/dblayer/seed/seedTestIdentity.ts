@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createRequire } from "node:module";
-import pool from "../../utils/db.js";
+import { withTransaction, query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { tenantsDB } from "../tenantsDB.js";
 import { ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, TEST_PLATFORM_TENANT_NAME, TEST_PLATFORM_USER_EMAIL, NO_EXPIRY_DATE } from "../constants.js";
@@ -85,7 +85,7 @@ export async function getTestPlatformTenantId(): Promise<string> {
 
 // The test-platform participant (id and badge) that authors every test seed, provisioned by db:clean-slate.
 export async function getTestPlatformActor(): Promise<{ actorId: string; actorBadge: string }> {
-  const { rows } = await pool.query<{ id: string }>(
+  const { rows } = await query<{ id: string }>(
     "SELECT pm.id FROM participants_master pm JOIN users u ON u.id = pm.user_id WHERE lower(u.email) = lower($1)",
     [TEST_PLATFORM_USER_EMAIL]
   );
@@ -94,9 +94,7 @@ export async function getTestPlatformActor(): Promise<{ actorId: string; actorBa
 }
 
 export async function seedTestIdentity(): Promise<void> {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
+  await withTransaction(async () => {
     for (const u of USERS) {
       const tenantResult = await tenantsDB.findByName(u.tenant_name);
       if (tenantResult.error) {
@@ -110,10 +108,10 @@ export async function seedTestIdentity(): Promise<void> {
       }
 
       // Runs on every test run, so a user already seeded (and its Participant) is left as is.
-      const existing = await client.query("SELECT 1 FROM users WHERE lower(email) = lower($1)", [u.email]);
+      const existing = await query("SELECT 1 FROM users WHERE lower(email) = lower($1)", [u.email]);
       if (existing.rows.length > 0) continue;
 
-      let result = await client.query(
+      let result = await query(
         `INSERT INTO users (email, name, avatar_url, auth_provider, provider_id, is_active, is_protected, type, tenant_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (id) DO UPDATE SET
@@ -123,7 +121,7 @@ export async function seedTestIdentity(): Promise<void> {
          RETURNING id`,
         [u.email, u.name, u.avatar_url, u.auth_provider, u.provider_id, u.is_active, u.is_protected, u.type, tenantId]
       );
-       await client.query(
+       await query(
   `INSERT INTO participants_master
    (tenant_id, type, display_name, capabilities, competency, behaviour_context,
     authorised_role, authorised_badges, is_active, user_id)
@@ -144,13 +142,7 @@ export async function seedTestIdentity(): Promise<void> {
 
     }
     logger.info(`[seed:test-identity] upserted ${USERS.length} users.`);
-    await client.query("COMMIT");
     logger.info("[seed:test-identity] done.");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }
 

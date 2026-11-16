@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createRequire } from "node:module";
-import pool from "../../utils/db.js";
+import pool, { withTransaction, query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { tenantsDB } from "../tenantsDB.js";
 import { PLATFORM_TENANT_NAME, CAMBODIA_TENANT_NAME, TEST_PLATFORM_TENANT_NAME, TEST_PLATFORM_USER_EMAIL, NO_EXPIRY_DATE } from "../constants.js";
@@ -48,23 +48,20 @@ const USERS: SeedUser[] = [
 ];
 
 export async function seedIdentityBaseline(): Promise<void> {
-  const client = await pool.connect();
   const superuserEmail = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
   if (superuserEmail) {
-    const result = await client.query(
+    const result = await query(
       `SELECT * from users
          WHERE lower(email) = $1`,
       [superuserEmail]
     );
     if (result.rows.length === 0) {
       logger.error(`[seed:identity-baseline] superuser not provisioned; aborting seed.`);
-      client.release();
       return;
     }
   }
     
-  try {
-    await client.query("BEGIN");
+  await withTransaction(async () => {
     for (const u of USERS) {
       const tenantResult = await tenantsDB.findByName(u.tenant_name);
       if (tenantResult.error) {
@@ -77,7 +74,7 @@ export async function seedIdentityBaseline(): Promise<void> {
         continue;
       }
 
-      let result = await client.query(
+      let result = await query(
         `INSERT INTO users (email, name, avatar_url, auth_provider, provider_id, is_active, is_protected, type, tenant_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (id) DO UPDATE SET
@@ -87,7 +84,7 @@ export async function seedIdentityBaseline(): Promise<void> {
          RETURNING id`,
         [u.email, u.name, u.avatar_url, u.auth_provider, u.provider_id, u.is_active, u.is_protected, u.type, tenantId]
       );
-       await client.query(
+       await query(
   `INSERT INTO participants_master
    (tenant_id, type, display_name, capabilities, competency, behaviour_context,
     authorised_role, authorised_badges, is_active, user_id)
@@ -108,14 +105,8 @@ export async function seedIdentityBaseline(): Promise<void> {
 
     }
     logger.info(`[seed:identity-baseline] upserted ${USERS.length} users.`);
-    await client.query("COMMIT");
     logger.info("[seed:identity-baseline] done.");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;

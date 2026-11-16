@@ -1,5 +1,5 @@
 import "dotenv/config";
-import pool, { withLookupMemo } from "../../utils/db.js";
+import pool, { withLookupMemo, withTransaction, query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { seedTenantsBaseline } from "./seedBaselineTenants.js";
 import { seedIdentityBaseline } from "./seedIdentityBaseline.js";
@@ -86,46 +86,38 @@ const USAGE_DATA_TABLES = [
 ];
 
 async function run(): Promise<void> {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
+  await withTransaction(async () => {
 
-    await client.query(`TRUNCATE TABLE ${USAGE_DATA_TABLES.join(", ")} CASCADE`);
+    await query(`TRUNCATE TABLE ${USAGE_DATA_TABLES.join(", ")} CASCADE`);
     logger.info(`[db:clean-slate] step 1 — truncated ${USAGE_DATA_TABLES.length} usage-data tables`);
  
     const superuserEmail = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
-    await client.query(
+    await query(
     `DELETE FROM participants_master
     WHERE user_id IS DISTINCT FROM $1
       AND display_name <> $2
       AND display_name <> $3`,
     [userId, DEMO_PARTICIPANT_DISPLAY_NAME, SYSTEM_ACTOR_NAME]
     );
-    await client.query(
+    await query(
     `DELETE FROM users
      WHERE lower(email) <> $1`,
     [superuserEmail]
     );
     logger.info("[db:clean-slate] step 2 — truncated users");
 
-    const { rows: reservedRows } = await client.query("SELECT id FROM tenants WHERE code = ANY($1::text[])", [RESERVED_TENANT_CODES]);
+    const { rows: reservedRows } = await query("SELECT id FROM tenants WHERE code = ANY($1::text[])", [RESERVED_TENANT_CODES]);
     const reservedIds = reservedRows.map((r) => r.id as string);
     if (!reservedIds.length) {
       throw new Error("no reserved tenant found — migrations seed 'platform'/'demo'; refusing to wipe the tenants table without a survivor. Rolling back.");
     }
-    await client.query("DELETE FROM tenant_contracts WHERE tenant_id <> ALL($1::uuid[])", [reservedIds]);
-    await client.query("DELETE FROM tenant_concept_aliases WHERE tenant_id <> ALL($1::uuid[])", [reservedIds]);
-    const tenantsDeleted = await client.query("DELETE FROM tenants WHERE id <> ALL($1::uuid[])", [reservedIds]);
+    await query("DELETE FROM tenant_contracts WHERE tenant_id <> ALL($1::uuid[])", [reservedIds]);
+    await query("DELETE FROM tenant_concept_aliases WHERE tenant_id <> ALL($1::uuid[])", [reservedIds]);
+    const tenantsDeleted = await query("DELETE FROM tenants WHERE id <> ALL($1::uuid[])", [reservedIds]);
     logger.info(`[db:clean-slate] step 3 — deleted ${tenantsDeleted.rowCount} non-reserved tenants (+ their contracts and aliases).`);
 
-    await client.query("COMMIT");
     logger.info("[db:clean-slate] committed.");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 
   await seedTenantsBaseline();
   

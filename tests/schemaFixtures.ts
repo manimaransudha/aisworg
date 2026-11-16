@@ -20,7 +20,7 @@
 //     transition when no SEU is given, never meets it on a real Deliverable.
 //   - Stage 1 covers Capability, Deliverable, Service and Policy. Stage 2 adds the Pack. Stage 3 adds the Template. Stage 4 adds the Profile.
 //     TransitionDefinition has no fixture: a persisted row would change how the engine moves real entities.
-import pool from "../src/utils/db.js";
+import { withAdvisoryLock } from "../src/utils/db.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { capabilityDefinitionsDB } from "../src/dblayer/capabilityDefinitionsDB.js";
 import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
@@ -52,7 +52,7 @@ const PLATFORM_VIEWER = { isRoot: false, tenantId: PLATFORM_TENANT_ID };
 export const FIXTURE_VERSION = "1.0.6";
 
 // An arbitrary number that names the advisory lock the builders take.
-const FIXTURE_LOCK_KEY = 726450917;
+const FIXTURE_LOCK_KEY = "schema-fixtures";
 
 // The fixture-only concepts of the test Ontology, by concept type.
 export const FIXTURE_CODES = {
@@ -119,18 +119,10 @@ export async function ensureFixtureTenant(label: string): Promise<string> {
   throw created.error ?? new Error("schemaFixtures: tenant not created");
 }
 
-// Runs the work holding the fixture lock. The lock is held by one connection for the whole build, so the stage builders below call each
+// Runs the work holding the fixture lock. The lock is held for the whole build, so the stage builders below call each
 // other without it and only the exported ones take it.
-async function withFixtureLock<T>(work: () => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    // Polls for the lock, because a build under load outlasts the query timeout of a single blocking lock request.
-    while (!(await client.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [FIXTURE_LOCK_KEY])).rows[0].locked) await new Promise((r) => setTimeout(r, 500));
-    return await work();
-  } finally {
-    await client.query("SELECT pg_advisory_unlock($1)", [FIXTURE_LOCK_KEY]).catch(() => undefined);
-    client.release();
-  }
+function withFixtureLock<T>(work: () => Promise<T>): Promise<T> {
+  return withAdvisoryLock(FIXTURE_LOCK_KEY, work);
 }
 
 // Fails with a clear message when the test Ontology rows of FIXTURE_CODES are not in the database. A test run loads them at its start.

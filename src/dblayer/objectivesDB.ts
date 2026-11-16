@@ -1,4 +1,4 @@
-import pool, { bulkInsert, query } from "../utils/db.js";
+import { bulkInsert, query, withTransaction } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, ObjectiveRow, ObjectiveStatus, ObjectiveTier, SponsoringAuthority } from "./seuTypes.js";
 
@@ -14,55 +14,51 @@ export const objectivesDB = {
     authorId: string;
     authorBadge: string;
   }): Promise<DbResult<ObjectiveRow>> {
-    const client = await pool.connect();
     try {
-      await client.query("BEGIN");
-      if (input.requestedBy == null) throw new Error("an Objective must be attributed to a real requestedBy — this can never be null");
-      if (!input.authorBadge) throw new Error("creating an Objective requires authorBadge — this can never be null");
-      let displayId: string;
-      let sponsoringAuthority: SponsoringAuthority;
+      return await withTransaction(async () => {
+        if (input.requestedBy == null) throw new Error("an Objective must be attributed to a real requestedBy — this can never be null");
+        if (!input.authorBadge) throw new Error("creating an Objective requires authorBadge — this can never be null");
+        let displayId: string;
+        let sponsoringAuthority: SponsoringAuthority;
 
-      if (input.parentObjectiveId) {
-        const { rows: parentRows } = await client.query<{ seq: number; parent_display_id: string | null; parent_sponsoring_authority: SponsoringAuthority | null }>(
-          `UPDATE objectives SET next_child_seq = next_child_seq + 1
-           WHERE id = $1
-           RETURNING next_child_seq - 1 AS seq, display_id AS parent_display_id, sponsoring_authority AS parent_sponsoring_authority`,
-          [input.parentObjectiveId]
-        );
-        const parent = parentRows[0];
-        if (!parent) throw new Error(`parent Objective not found: ${input.parentObjectiveId}`);
-        if (!parent.parent_display_id) throw new Error(`parent Objective ${input.parentObjectiveId} has no display_id of its own yet (predates CR-068 — run db:clean-slate to reseed)`);
-        displayId = `${parent.parent_display_id}.${parent.seq}`;
-        sponsoringAuthority = parent.parent_sponsoring_authority ?? { tenant: null };
-      } else {
-        if (!input.authorId || !input.authorBadge) throw new Error("creating a root Objective requires authorId/authorBadge — this can never be null");
-        const { rows: participantRows } = await client.query<{ tenant_id: string }>("SELECT tenant_id FROM participants_master WHERE id = $1", [input.requestedBy]);
-        const tenantId = participantRows[0]?.tenant_id;
-        if (!tenantId) throw new Error(`cannot resolve a tenant for requestedBy participant ${input.requestedBy}`);
-        const { rows: seqRows } = await client.query<{ seq: number }>(
-          `INSERT INTO objective_root_sequences (tenant_id, next_seq, author_id, author_badge) VALUES ($1, 2, $2, $3)
-           ON CONFLICT (tenant_id) DO UPDATE SET next_seq = objective_root_sequences.next_seq + 1, author_id = $2, author_badge = $3
-           RETURNING next_seq - 1 AS seq`,
-          [tenantId, input.authorId, input.authorBadge]
-        );
-        displayId = String(seqRows[0].seq);
-        sponsoringAuthority = { tenant: tenantId };
-      }
+        if (input.parentObjectiveId) {
+          const { rows: parentRows } = await query<{ seq: number; parent_display_id: string | null; parent_sponsoring_authority: SponsoringAuthority | null }>(
+            `UPDATE objectives SET next_child_seq = next_child_seq + 1
+             WHERE id = $1
+             RETURNING next_child_seq - 1 AS seq, display_id AS parent_display_id, sponsoring_authority AS parent_sponsoring_authority`,
+            [input.parentObjectiveId]
+          );
+          const parent = parentRows[0];
+          if (!parent) throw new Error(`parent Objective not found: ${input.parentObjectiveId}`);
+          if (!parent.parent_display_id) throw new Error(`parent Objective ${input.parentObjectiveId} has no display_id of its own yet (predates CR-068 — run db:clean-slate to reseed)`);
+          displayId = `${parent.parent_display_id}.${parent.seq}`;
+          sponsoringAuthority = parent.parent_sponsoring_authority ?? { tenant: null };
+        } else {
+          if (!input.authorId || !input.authorBadge) throw new Error("creating a root Objective requires authorId/authorBadge — this can never be null");
+          const { rows: participantRows } = await query<{ tenant_id: string }>("SELECT tenant_id FROM participants_master WHERE id = $1", [input.requestedBy]);
+          const tenantId = participantRows[0]?.tenant_id;
+          if (!tenantId) throw new Error(`cannot resolve a tenant for requestedBy participant ${input.requestedBy}`);
+          const { rows: seqRows } = await query<{ seq: number }>(
+            `INSERT INTO objective_root_sequences (tenant_id, next_seq, author_id, author_badge) VALUES ($1, 2, $2, $3)
+             ON CONFLICT (tenant_id) DO UPDATE SET next_seq = objective_root_sequences.next_seq + 1, author_id = $2, author_badge = $3
+             RETURNING next_seq - 1 AS seq`,
+            [tenantId, input.authorId, input.authorBadge]
+          );
+          displayId = String(seqRows[0].seq);
+          sponsoringAuthority = { tenant: tenantId };
+        }
 
-      const { rows } = await client.query<ObjectiveRow>(
-        `INSERT INTO objectives (statement, tier, status, parent_objective_id, requested_by, display_id, sponsoring_authority, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING *`,
-        [input.statement, input.tier ?? "Engineering", input.status, input.parentObjectiveId ?? null, input.requestedBy, displayId, JSON.stringify(sponsoringAuthority), input.authorBadge]
-      );
-      await client.query("COMMIT");
-      return { data: rows[0] };
+        const { rows } = await query<ObjectiveRow>(
+          `INSERT INTO objectives (statement, tier, status, parent_objective_id, requested_by, display_id, sponsoring_authority, author_badge)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING *`,
+          [input.statement, input.tier ?? "Engineering", input.status, input.parentObjectiveId ?? null, input.requestedBy, displayId, JSON.stringify(sponsoringAuthority), input.authorBadge]
+        );
+        return { data: rows[0] };
+      });
     } catch (err) {
-      await client.query("ROLLBACK");
       logger.error("[objectivesDB] create error", err as Error);
       return { error: err as Error };
-    } finally {
-      client.release();
     }
   },
 

@@ -1,4 +1,4 @@
-import pool, { query } from "../utils/db.js";
+import { query, withTransaction } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, ServiceRow, ServiceLevelExpectation } from "./seuTypes.js";
 
@@ -18,53 +18,48 @@ export const servicesDB = {
     authorId: string;
     authorBadge: string;
   }): Promise<DbResult<ServiceRow>> {
-    const client = await pool.connect();
     try {
-      await client.query("BEGIN");
-      const serviceLevel = input.serviceLevel ?? [];
-      const { rows: currentRows } = await client.query<ServiceRow>(
-        "SELECT * FROM services WHERE originating_pack_id = $1 AND code = $2 AND is_active = true",
-        [input.originatingPackId, input.code]
-      );
-      const current = currentRows[0];
-      const unchanged =
-        current &&
-        current.providing_capability_id === input.providingCapabilityId &&
-        current.name === input.name &&
-        current.contract_description === input.contractDescription &&
-        JSON.stringify(current.service_level) === JSON.stringify(serviceLevel);
-      if (unchanged) {
-        await client.query("COMMIT");
-        return { data: current };
-      }
-      const nextVersion = current ? bumpVersion(current.version) : "1.0";
-      if (current) {
-        await client.query("UPDATE services SET is_active = false WHERE id = $1", [current.id]);
-      }
-      const { rows } = await client.query<ServiceRow>(
-        `INSERT INTO services (code, providing_capability_id, name, contract_description, service_level, originating_pack_id, version, is_active, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9)
-         RETURNING *`,
-        [
-          input.code,
-          input.providingCapabilityId,
-          input.name,
-          input.contractDescription,
-          JSON.stringify(serviceLevel),
-          input.originatingPackId,
-          nextVersion,
-          input.authorId,
-          input.authorBadge,
-        ]
-      );
-      await client.query("COMMIT");
-      return { data: rows[0] };
+      return await withTransaction(async () => {
+        const serviceLevel = input.serviceLevel ?? [];
+        const { rows: currentRows } = await query<ServiceRow>(
+          "SELECT * FROM services WHERE originating_pack_id = $1 AND code = $2 AND is_active = true",
+          [input.originatingPackId, input.code]
+        );
+        const current = currentRows[0];
+        const unchanged =
+          current &&
+          current.providing_capability_id === input.providingCapabilityId &&
+          current.name === input.name &&
+          current.contract_description === input.contractDescription &&
+          JSON.stringify(current.service_level) === JSON.stringify(serviceLevel);
+        if (unchanged) {
+          return { data: current };
+        }
+        const nextVersion = current ? bumpVersion(current.version) : "1.0";
+        if (current) {
+          await query("UPDATE services SET is_active = false WHERE id = $1", [current.id]);
+        }
+        const { rows } = await query<ServiceRow>(
+          `INSERT INTO services (code, providing_capability_id, name, contract_description, service_level, originating_pack_id, version, is_active, author_id, author_badge)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9)
+           RETURNING *`,
+          [
+            input.code,
+            input.providingCapabilityId,
+            input.name,
+            input.contractDescription,
+            JSON.stringify(serviceLevel),
+            input.originatingPackId,
+            nextVersion,
+            input.authorId,
+            input.authorBadge,
+          ]
+        );
+        return { data: rows[0] };
+      });
     } catch (err) {
-      await client.query("ROLLBACK");
       logger.error("[servicesDB] upsertFromPack error", err as Error);
       return { error: err as Error };
-    } finally {
-      client.release();
     }
   },
 

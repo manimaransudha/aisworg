@@ -1,4 +1,4 @@
-import pool from "../../../utils/db.js";
+import { withTransaction, query } from "../../../utils/db.js";
 import { logger } from "../../../utils/logger.js";
 import { DEMO_PARTICIPANT_DISPLAY_NAME } from "./demoBadges.js";
 import { DEMO_PURGE_PLAN, DEMO_PURGE_NULLED_REFERENCES, DEMO_CATALOGUE_TABLES, type DemoPurgeStep } from "../../constants.js";
@@ -34,11 +34,9 @@ function predicateFor(step: DemoPurgeStep): string {
 // Deletes Demo-tenant rows only, table by table in the order of DEMO_PURGE_PLAN. A table that carries
 // a tenant, SEU or sponsoring column and is missing from the plan stops the purge before anything is deleted.
 export async function purgeDemoTenant(demoTenantId: string): Promise<void> {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
+  await withTransaction(async () => {
 
-    const { rows: scopedRows } = await client.query<{ table_name: string }>(
+    const { rows: scopedRows } = await query<{ table_name: string }>(
       `SELECT DISTINCT c.table_name
          FROM information_schema.columns c
          JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE'
@@ -47,7 +45,7 @@ export async function purgeDemoTenant(demoTenantId: string): Promise<void> {
     const missing = scopedRows.map((r) => r.table_name).filter((name) => !PROTECTED_TABLES.has(name) && !planByTable.has(name));
     if (missing.length > 0) throw new Error(`[seed:demo] purge: table(s) missing from DEMO_PURGE_PLAN: ${missing.join(", ")}`);
 
-    const { rows: seuRows } = await client.query<{ id: string }>(
+    const { rows: seuRows } = await query<{ id: string }>(
       `SELECT s.id FROM seus s
         WHERE s.tenant_id::text = $1::text
            OR s.objective_id::text IN (SELECT o.id::text FROM objectives o WHERE o.sponsoring_authority->>'tenant' = $1::text)`,
@@ -61,18 +59,18 @@ export async function purgeDemoTenant(demoTenantId: string): Promise<void> {
       const owner = planByTable.get(ref.table);
       if (!parent || !owner) throw new Error(`[seed:demo] purge: ${ref.table}.${ref.column} is not covered by DEMO_PURGE_PLAN`);
       const sql = `UPDATE ${q(ref.table)} SET ${q(ref.column)} = NULL WHERE ${q(ref.table)}.${q(ref.column)}::text IN (SELECT ${q(ref.parent)}.${q(ref.parentColumn)}::text FROM ${q(ref.parent)} WHERE ${predicateFor(parent)}) AND $1::text IS NOT NULL`;
-      await client.query(sql, paramsFor(sql));
+      await query(sql, paramsFor(sql));
     }
 
     let deleted = 0;
     for (const step of DEMO_PURGE_PLAN) {
       const sql = `DELETE FROM ${q(step.table)} WHERE ($1::text IS NOT NULL) AND (${predicateFor(step)})`;
-      const result = await client.query(sql, paramsFor(sql));
+      const result = await query(sql, paramsFor(sql));
       deleted += result.rowCount ?? 0;
     }
 
     // The Demo User participant stays; its badges are cleared and SEU references dropped from its roles.
-    const cleared = await client.query(
+    const cleared = await query(
       `UPDATE participants_master
           SET authorised_badges = '[]'::jsonb,
               authorised_role = COALESCE((SELECT jsonb_agg(jsonb_set(r, '{seu_ids}', '[]'::jsonb)) FROM jsonb_array_elements(authorised_role) AS r), '[]'::jsonb),
@@ -81,12 +79,6 @@ export async function purgeDemoTenant(demoTenantId: string): Promise<void> {
       [demoTenantId, DEMO_PARTICIPANT_DISPLAY_NAME]
     );
 
-    await client.query("COMMIT");
     logger.info(`[seed:demo] purge — cleared badges on ${cleared.rowCount} Demo User participant(s); deleted ${deleted} Demo-tenant rows.`);
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }

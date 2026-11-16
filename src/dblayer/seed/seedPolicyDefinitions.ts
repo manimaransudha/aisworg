@@ -2,7 +2,7 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import pool from "../../utils/db.js";
+import pool, { withTransaction, query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { getPlatformTenantId} from "../constants.js";
 import type { PolicyCondition, PolicyScope } from "../seuTypes.js";
@@ -100,9 +100,7 @@ const PLATFORM_TENANT_ID = await getPlatformTenantId();
   
 export async function seedPolicyDefinitions(actor: SeedActor): Promise<void> {
   
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
+  await withTransaction(async () => {
     let count = 0;
     for (const file of ALL_POLICY_FILES) {
       const seed = loadJson(file);
@@ -115,7 +113,7 @@ export async function seedPolicyDefinitions(actor: SeedActor): Promise<void> {
           ? c.applicabilityDeliverables.map((row) => ({ ...row, governingCondition: row.governingCondition ?? seed.governingCondition ?? null }))
           : applicabilityDeliverables,
       }));
-      await client.query(
+      await query(
         `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, draft_content, tenant_id, authored_by, author_badge)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Active', $10, $11, $12, $13)
          ON CONFLICT (code, version, tenant_id) DO UPDATE SET
@@ -134,14 +132,8 @@ export async function seedPolicyDefinitions(actor: SeedActor): Promise<void> {
       );
       count++;
     }
-    await client.query("COMMIT");
     logger.info(`[seed:policy-definitions] ${count} Policy Definitions seeded (Active, Platform-owned).`);
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;

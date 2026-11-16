@@ -1,4 +1,4 @@
-import pool, { query } from "../utils/db.js";
+import { query, withTransaction } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { ChecklistItem, ChecklistRow, DbResult } from "./seuTypes.js";
 import { getPlatformTenantId } from "./constants.js";
@@ -12,25 +12,21 @@ export const checklistsDB = {
     authorId: string;
     authorBadge: string;
   }): Promise<DbResult<ChecklistRow>> {
-    const client = await pool.connect();
     try {
-      await client.query("BEGIN");
-      const { rows } = await client.query<ChecklistRow>(
-        `INSERT INTO checklists (name, description, items, originating_pack_id, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (originating_pack_id, name)
-         DO UPDATE SET description = EXCLUDED.description, items = EXCLUDED.items, updated_at = NOW()
-         RETURNING *`,
-        [input.name, input.description ?? null, JSON.stringify(input.items), input.originatingPackId, input.authorId, input.authorBadge]
-      );
-      await client.query("COMMIT");
-      return { data: rows[0] };
+      return await withTransaction(async () => {
+        const { rows } = await query<ChecklistRow>(
+          `INSERT INTO checklists (name, description, items, originating_pack_id, author_id, author_badge)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (originating_pack_id, name)
+           DO UPDATE SET description = EXCLUDED.description, items = EXCLUDED.items, updated_at = NOW()
+           RETURNING *`,
+          [input.name, input.description ?? null, JSON.stringify(input.items), input.originatingPackId, input.authorId, input.authorBadge]
+        );
+        return { data: rows[0] };
+      });
     } catch (err) {
-      await client.query("ROLLBACK");
       logger.error("[checklistsDB] upsert error", err as Error);
       return { error: err as Error };
-    } finally {
-      client.release();
     }
   },
 
