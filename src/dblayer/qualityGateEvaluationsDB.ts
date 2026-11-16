@@ -55,7 +55,7 @@ export const qualityGateEvaluationsDB = {
              - COALESCE(MIN(qge.evaluated_at) FILTER (WHERE qge.outcome = 'Blocked'), MIN(qge.evaluated_at) FILTER (WHERE qge.outcome = 'Passed'))
            )) AS latency_seconds
          FROM quality_gate_evaluations qge
-         JOIN quality_gates qg ON qg.id = qge.quality_gate_id
+         JOIN quality_gate_definitions qg ON qg.id = qge.quality_gate_id
          ${seuId ? "WHERE qge.seu_id = $1" : ""}
          GROUP BY qge.quality_gate_id, qg.name, qge.entity_id, qge.seu_id
          HAVING MIN(qge.evaluated_at) FILTER (WHERE qge.outcome = 'Passed') IS NOT NULL

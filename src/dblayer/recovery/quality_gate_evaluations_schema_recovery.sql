@@ -2,7 +2,7 @@ BEGIN;
 DROP TABLE IF EXISTS quality_gate_evaluations CASCADE;
 CREATE TABLE quality_gate_evaluations (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  quality_gate_id   UUID NOT NULL REFERENCES quality_gates(id),
+  quality_gate_id   UUID NOT NULL REFERENCES quality_gate_definitions(id),
   seu_id            UUID REFERENCES seus(id),
   entity_type       TEXT NOT NULL,
   entity_id         UUID NOT NULL,

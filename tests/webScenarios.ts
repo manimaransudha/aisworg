@@ -15,7 +15,8 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
-import type { SeuRow } from "../src/dblayer/seuTypes.js";
+import { qualityGateDefinitionsDB } from "../src/dblayer/qualityGateDefinitionsDB.js";
+import type { SeuRow, PackQualityGate, QualityGateDefinitionRow } from "../src/dblayer/seuTypes.js";
 import { ensureFixtureTenant, buildStage4Fixtures, type Stage4Fixtures } from "./schemaFixtures.js";
 import { initiateSeu } from "../src/routes/seu/core/commissioning.js";
 import { compositionCompletedHandler } from "../src/domain/engine/compositionCompleted.js";
@@ -44,12 +45,12 @@ function failMissingSet(): never {
 
 // A Template and a Profile that compose two Packs whose Authority Rules for the same transition name different roles, so the composition finds a conflict.
 // The Pack codes are Ontology concepts, so each test file that composes conflicting Packs has a pair of its own and files running side by side never publish over each other.
-export type ConflictSet = "objectives" | "entities" | "queue" | "kickoff" | "rows" | "branches" | "gates" | "transition" | "execution";
+export type ConflictSet = "objectives" | "entities" | "queue" | "kickoff" | "rows" | "branches" | "gates" | "transition" | "execution" | "gate-outcome" | "gate-generalization" | "review-model";
 
-async function conflictingBase(run: string, set: ConflictSet, packs: "one" | "two"): Promise<{ templateId: string; profileId: string }> {
+async function conflictingBase(run: string, set: ConflictSet, packs: "one" | "two", gates: PackQualityGate[] = []): Promise<{ templateId: string; profileId: string }> {
   const packOf = (code: string, role: string) => ({
     tenantId: PLATFORM_TENANT_ID, code: `schema-fixture-web-conflict-${set}-${code}`, name: `Web conflict ${code}`, category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
-    contributions: { authorityRules: [{ code: `web-auth-${code}-${run}`, governedTransition: `x.transition.${run}`, authorisedRole: role }] },
+    contributions: { authorityRules: [{ code: `web-auth-${code}-${run}`, governedTransition: `x.transition.${run}`, authorisedRole: role }], ...(code === "a" && gates.length > 0 ? { qualityGates: gates } : {}) },
   });
   const a = packOf("a", "general");
   const b = packOf("b", "super");
@@ -68,10 +69,10 @@ async function conflictingBase(run: string, set: ConflictSet, packs: "one" | "tw
 }
 
 // Takes the SEU through the app's commissioning flow for the scenario. Root becomes a Participant of the SEU so the web routes can act on it.
-export async function commissionScenario(kind: CompositionScenario, label: string, options: { rootParticipant?: boolean; conflictSet?: ConflictSet } = {}): Promise<ScenarioSeu> {
+export async function commissionScenario(kind: CompositionScenario, label: string, options: { rootParticipant?: boolean; conflictSet?: ConflictSet; gates?: PackQualityGate[] } = {}): Promise<ScenarioSeu> {
   await ensureEventSubscriptionsLoaded();
   const run = randomUUID().slice(0, 8);
-  const base = kind === "rich" ? await ensureWebAppTemplateFixture().then((f) => ({ templateId: f.template.id, profileId: f.profile.id })) : await conflictingBase(run, options.conflictSet ?? failMissingSet(), kind === "clean" ? "one" : "two");
+  const base = kind === "rich" ? await ensureWebAppTemplateFixture().then((f) => ({ templateId: f.template.id, profileId: f.profile.id })) : await conflictingBase(run, options.conflictSet ?? failMissingSet(), kind === "clean" ? "one" : "two", options.gates);
   const { objective: strategic } = await createObjective({ statement: `${label} strategic ${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID });
   const { objective } = await createActiveObjective({ statement: `${label} ${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: strategic.id, requestedBy: TESTER_ALL_ID });
 
@@ -96,7 +97,7 @@ export async function commissionScenario(kind: CompositionScenario, label: strin
 // The SEU of a scenario with its system participant, for the tests that act as the engine does.
 export interface CommissionedSeu extends ScenarioSeu { systemParticipantId: string; systemActorId: string }
 
-export async function commissionedSeu(label: string, kind: CompositionScenario = "rich", options: { rootParticipant?: boolean; conflictSet?: ConflictSet } = {}): Promise<CommissionedSeu> {
+export async function commissionedSeu(label: string, kind: CompositionScenario = "rich", options: { rootParticipant?: boolean; conflictSet?: ConflictSet; gates?: PackQualityGate[] } = {}): Promise<CommissionedSeu> {
   const scenario = await commissionScenario(kind, label, options);
   // An SEU whose composition is blocked is not Commissioned, so its system participant is not made yet.
   if (kind === "unsettled") await ensureSeuSystemParticipant(scenario.seu.id);
@@ -150,4 +151,12 @@ export async function ebmFromComposition(seuId: string, composition: Record<stri
   const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
   assert.ok(ebm);
   return ebm;
+}
+
+// The Quality Gate Definitions an SEU's EBM names, by gate code. The composition kept their ids in the EBM.
+export async function ebmGatesByCode(seu: SeuRow): Promise<Record<string, QualityGateDefinitionRow>> {
+  assert.ok(seu.active_ebm_id, "the SEU has an active EBM");
+  const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
+  const { data: rows } = await qualityGateDefinitionsDB.findByIds(ebm?.applicable_quality_gate_ids ?? []);
+  return Object.fromEntries((rows ?? []).map((row) => [row.code, row]));
 }

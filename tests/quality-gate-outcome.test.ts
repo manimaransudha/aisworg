@@ -1,7 +1,7 @@
 // Quality Gate decision of a Deliverable hop (qualityGateEngine.decideQualityGate, recordDecision, and the Execution Engine that stores it).
 //
-//   - The gates are created BEFORE the SEU is commissioned, with the development Pack as originating Pack. The EBM takes the gates of the composed Packs
-//     when it is created (CR-104), and qualityGateEngine.evaluate reads the EBM only. The test checks that the EBM names them.
+//   - The gates are Quality Gate Definitions that a Pack of the SEU's Template lists. The composition settles them into the EBM (CR-139) and
+//     qualityGateEngine.evaluate reads the EBM only. The test checks that the EBM names them.
 //   - Each gate is on a hop of the Deliverable that carries the run tag, so no other gate can match it. Gates and Transition Definitions are
 //     not deleted, except the edges, as in the other Quality Gate tests.
 import "dotenv/config";
@@ -12,22 +12,19 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { SYSTEM_ACTOR_BADGE } from "../src/dblayer/constants.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import { ebmsDB } from "../src/dblayer/ebmsDB.js";
-import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { qualityGateOutcomesDB } from "../src/dblayer/qualityGateOutcomesDB.js";
 import { qualityGateWaiversDB } from "../src/dblayer/qualityGateWaiversDB.js";
 import { transitionDefinitionsDB, reloadIfLoaded } from "../src/dblayer/transitionDefinitionsDB.js";
 import { executionEngine } from "../src/domain/engine/executionEngine.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
-import type { QualityGateRow } from "../src/dblayer/seuTypes.js";
-import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
-import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, getTestDevelopmentPack } from "./testFixtures.js";
+import type { QualityGateDefinitionRow } from "../src/dblayer/seuTypes.js";
+import { commissionedSeu, ebmGatesByCode, type CommissionedSeu } from "./webScenarios.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, ensureQualityGateDefinition } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const state = (label: string) => `zz-${label}-${run}`;
 const edges: Array<[string, string]> = [];
 let t: CommissionedSeu;
-let packId: string;
 let verb: string;
 let birthState: string;
 // The hop with two gates: one that blocks and one that passes.
@@ -36,15 +33,14 @@ const mixed = { from: state("mixed-open"), to: state("mixed-done") };
 const clean = { from: state("clean-open"), to: state("clean-done") };
 // The hop with no gate.
 const bare = { from: state("bare-open"), to: state("bare-done") };
-const gates: Record<"blocking" | "passingMixed" | "passingClean", QualityGateRow> = {} as never;
+const gates: Record<"blocking" | "passingMixed" | "passingClean", QualityGateDefinitionRow> = {} as never;
 
-async function createGate(label: string, hop: { from: string; to: string }, criteria: Record<string, unknown>): Promise<QualityGateRow> {
-  const { data, error } = await qualityGatesDB.upsert({
-    category: "Exit", code: `qg-test-${randomUUID()}`, name: `quality-gate-outcome ${label} ${run}`, entityType: "Deliverable", fromState: hop.from, toState: hop.to,
-    criteria, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
+// A Quality Gate Definition on one hop of the Deliverable. The Pack lists it and the EBM takes it when the SEU is commissioned.
+function gateEntry(label: string, hop: { from: string; to: string }, criteriaType: string) {
+  return ensureQualityGateDefinition({
+    code: `quality-gate-outcome-${label}-${run}`, name: `quality-gate-outcome ${label} ${run}`, category: "Exit", governedTransition: `Deliverable|${hop.from}|${hop.to}`, criteriaType,
+    ...(criteriaType === "requires_accepted_evidence_or_approved_decision" ? { evidenceCategory: "Validation Evidence" } : {}),
   });
-  assert.ok(data && !error, error);
-  return data;
 }
 
 async function addEdge(hop: { from: string; to: string }): Promise<void> {
@@ -62,9 +58,6 @@ async function createDeliverable(lifecycle: string) {
 }
 
 before(async () => {
-  const pack = await getTestDevelopmentPack();
-  assert.ok(pack, "the development Pack is seeded");
-  packId = pack.id;
   const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");
   assert.ok(birth, "the Deliverable has a birth row");
   birthState = birth.to_state;
@@ -72,13 +65,19 @@ before(async () => {
   assert.ok(verbRows.rows[0], "a seeded Deliverable edge names a verb");
   verb = verbRows.rows[0].verb;
 
-  gates.blocking = await createGate("blocking", mixed, { type: "requires_active_policy", policyIds: [] });
-  gates.passingMixed = await createGate("passing-mixed", mixed, { type: "no_unresolved_obligations" });
-  gates.passingClean = await createGate("passing-clean", clean, { type: "no_unresolved_obligations" });
-  t = await commissionedSeu("quality-gate-outcome");
+  const entries = {
+    blocking: await gateEntry("blocking", mixed, "requires_accepted_evidence_or_approved_decision"),
+    passingMixed: await gateEntry("passing-mixed", mixed, "no_unresolved_obligations"),
+    passingClean: await gateEntry("passing-clean", clean, "no_unresolved_obligations"),
+  };
+  t = await commissionedSeu("quality-gate-outcome", "clean", { conflictSet: "gate-outcome", gates: Object.values(entries) });
   assert.ok(t.seu.active_ebm_id, "the SEU has an active EBM");
-  const { data: ebm } = await ebmsDB.findById(t.seu.active_ebm_id);
-  for (const gate of Object.values(gates)) assert.ok(ebm?.applicable_quality_gate_ids.includes(gate.id), `the EBM names gate ${gate.name}`);
+  const named = await ebmGatesByCode(t.seu);
+  for (const [key, entry] of Object.entries(entries)) {
+    const row = named[entry.qualityCode];
+    assert.ok(row, `the EBM names gate ${entry.qualityCode}`);
+    gates[key as keyof typeof gates] = row;
+  }
   for (const hop of [mixed, clean, bare]) await addEdge(hop);
 });
 
@@ -152,7 +151,7 @@ test("the Execution Engine stores an Approved decision, a Waived decision and a 
 test("a failed insert of a gate evaluation is an error, and a decision outside its Ontology concept is refused", async () => {
   const deliverable = await createDeliverable(clean.from);
   await assert.rejects(
-    () => qualityGateEngine.recordAndPass(gates.passingClean, { seuId: t.seu.id, entityType: "Deliverable", entityId: deliverable.id, authorId: randomUUID(), authorBadge: ROOT_ACTOR_BADGE, tenantId: t.seu.tenant_id }),
+    () => qualityGateEngine.recordAndPass({ id: gates.passingClean.id, code: gates.passingClean.code, name: gates.passingClean.name, category: gates.passingClean.category, criteria: { type: gates.passingClean.criteria_type }, originating_pack_id: null }, { seuId: t.seu.id, entityType: "Deliverable", entityId: deliverable.id, authorId: randomUUID(), authorBadge: ROOT_ACTOR_BADGE, tenantId: t.seu.tenant_id }),
     /participants|foreign key|violates/i,
     "an author that is not a Participant fails the insert, and the engine does not report a pass"
   );

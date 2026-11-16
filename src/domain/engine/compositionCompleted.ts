@@ -1,7 +1,5 @@
 import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
-import { qualityGatesDB } from "../../dblayer/qualityGatesDB.js";
-import { policiesDB } from "../../dblayer/policiesDB.js";
 // import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
 // import { participantsDB } from "../../dblayer/participantsDB.js";
 import { eventBus } from "./eventBus.js";
@@ -62,13 +60,14 @@ async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string)
     settled?: unknown;
   } | null;
 
-  const composedPackIds = (stashed?.composedPacks ?? []).map((p) => p.packId);
-  const [{ data: applicableQualityGates }, { data: composedPolicies }] = await Promise.all([
-    qualityGatesDB.findByPackIds(composedPackIds),
-    policiesDB.findByPackIds(composedPackIds),
-  ]);
-  const transitionPolicies = (composedPolicies ?? []).filter((p) => p.scope === "Transition");
-  const eligibilityPolicies = (composedPolicies ?? []).filter((p) => p.scope === "Eligibility");
+  // The gates the SEU takes are the Quality Gate Definitions the settled result holds, with the user's picks applied.
+  const settledGates = (stashed?.settled as { qualityGates?: { result?: Array<{ qualityGateDefinitionIds: string[] }> } } | undefined)?.qualityGates?.result ?? [];
+  const applicableQualityGateIds = [...new Set(settledGates.flatMap((row) => row.qualityGateDefinitionIds))];
+  // The Policies the SEU takes are the ones the settled result holds, with the user's picks applied. A Transition Policy governs Deliverables, so its rules are the Deliverable rules.
+  const settledPolicies = (stashed?.settled as { policies?: { result?: Array<{ scope: string; step: string; policyDefinitionId: string }> } } | undefined)?.policies?.result ?? [];
+  const takenTransition = settledPolicies.filter((rule) => rule.scope === "Transition");
+  const seuScopedPolicyIds = [...new Set(takenTransition.filter((rule) => rule.step.startsWith("SEU|")).map((rule) => rule.policyDefinitionId))];
+  const entityScopedPolicyIds = [...new Set(takenTransition.filter((rule) => !rule.step.startsWith("SEU|")).map((rule) => rule.policyDefinitionId))];
   const behaviors = {
     // Commented out (owner): nothing reads the EBM's pool. The EBM saves its settled result.
     // pool: stashed?.unraveled?.pool ?? [],
@@ -80,8 +79,6 @@ async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string)
     // What the EBM saves for each table: the conflicts with the picks, and the final result the SEU takes.
     settled: stashed?.settled ?? {},
   };
-  const seuScopedPolicies = transitionPolicies.filter((p) => p.governed_transition?.startsWith("SEU|"));
-  const entityScopedPolicies = transitionPolicies.filter((p) => !p.governed_transition?.startsWith("SEU|"));
 
   const birth = await transitionEngine.beginBirth({ entityType: "EBM", actorId: event.actor_id!, seuId });
 
@@ -95,9 +92,9 @@ async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string)
     composedPacks: stashed?.composedPacks ?? [],
     compositionReport: stashed?.compositionReport ?? { warnings: [], conflicts: [], parameterConflicts: [], resolutions: [] },
     behaviors,
-    applicableQualityGateIds: (applicableQualityGates ?? []).map((g) => g.id),
-    applicablePolicyIds: entityScopedPolicies.map((p) => p.id),
-    seuScopedPolicyIds: seuScopedPolicies.map((p) => p.id),
+    applicableQualityGateIds,
+    applicablePolicyIds: entityScopedPolicyIds,
+    seuScopedPolicyIds,
   });
   if (ebmErr || !ebm) {
     // The event alone left the SEU in its current state; failComposition moves it to Failed and publishes CommissionFailed.

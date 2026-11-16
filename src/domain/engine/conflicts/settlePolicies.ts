@@ -7,6 +7,8 @@ import type { ConflictResolutions, DetectionContext } from "./types.js";
 // A rule of a Policy the SEU takes, for one Deliverable at one step, with the Packs that give it.
 export interface SettledPolicyRule {
   policyCode: string;
+  // The Policy Definition the rule was read from. The Obligations of the Policy are read from it.
+  policyDefinitionId: string;
   deliverable: string;
   step: string;
   // The field the rule tests, or null for a condition with only a statement, which a person verifies.
@@ -18,6 +20,8 @@ export interface SettledPolicyRule {
   // The governing condition as authored, which an eligibility check evaluates against a Participant.
   governingCondition: Record<string, unknown> | null;
   packs: string[];
+  // Commented out (owner): the EBM keeps Policy Definition ids and does not read the `policies` rows.
+  // policyIds: string[];
 }
 
 export interface PoliciesSettled {
@@ -48,8 +52,12 @@ export function settlePoliciesFrom(facts: PoliciesUnraveled, resolutions: Confli
   for (const r of kept) {
     const id = JSON.stringify([r.policyCode, r.deliverable, r.step, r.field, r.rule, r.statement, r.scope]);
     const existing = merged.get(id);
-    if (existing) { if (!existing.packs.includes(r.packCode)) existing.packs.push(r.packCode); continue; }
-    merged.set(id, { policyCode: r.policyCode, deliverable: r.deliverable, step: r.step, field: r.field, rule: r.rule ? JSON.parse(r.rule) : null, statement: r.statement, scope: r.scope, governingCondition: r.governingCondition, packs: [r.packCode] });
+    if (existing) {
+      if (!existing.packs.includes(r.packCode)) existing.packs.push(r.packCode);
+      // if (r.policyRowId && !existing.policyIds.includes(r.policyRowId)) existing.policyIds.push(r.policyRowId);
+      continue;
+    }
+    merged.set(id, { policyCode: r.policyCode, policyDefinitionId: r.policyDefinitionId, deliverable: r.deliverable, step: r.step, field: r.field, rule: r.rule ? JSON.parse(r.rule) : null, statement: r.statement, scope: r.scope, governingCondition: r.governingCondition, packs: [r.packCode] });
   }
   return { conflicts, result: [...merged.values()], leftOut: leftOutOf(detected) };
 }

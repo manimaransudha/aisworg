@@ -3,7 +3,7 @@ import { seusDB } from "../../../dblayer/seusDB.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { commandsDB } from "../../../dblayer/commandsDB.js";
-import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
+import { qualityGateDefinitionsDB } from "../../../dblayer/qualityGateDefinitionsDB.js";
 import { qualityGateEvaluationsDB } from "../../../dblayer/qualityGateEvaluationsDB.js";
 import { dependencyDefinitionsDB } from "../../../dblayer/dependencyDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
@@ -224,7 +224,7 @@ export async function getSeuGraph(seuId: string): Promise<SeuGraph | null> {
     const key = `${evaluation.entity_id}|${evaluation.quality_gate_id}`;
     if (!latestByEntityAndGate.has(key)) latestByEntityAndGate.set(key, evaluation);
   }
-  const { data: gates } = await qualityGatesDB.findByIds([...new Set([...latestByEntityAndGate.values()].map((e) => e.quality_gate_id))]);
+  const { data: gates } = await qualityGateDefinitionsDB.findByIds([...new Set([...latestByEntityAndGate.values()].map((e) => e.quality_gate_id))]);
   const gateNameById = new Map((gates ?? []).map((g) => [g.id, g.name]));
   const gateResultsOf = (entityId: string): GraphQualityGateResult[] =>
     [...latestByEntityAndGate.values()]

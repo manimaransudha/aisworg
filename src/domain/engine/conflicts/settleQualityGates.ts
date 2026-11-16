@@ -10,6 +10,10 @@ export interface SettledQualityGates {
   deliverable: string;
   step: string;
   gates: Array<Record<string, unknown>>;
+  // Commented out (owner): the EBM keeps Quality Gate Definition ids and does not read the `quality_gates` rows.
+  // qualityGateIds: string[];
+  // The ids of the Quality Gate Definitions of the gates the SEU takes here.
+  qualityGateDefinitionIds: string[];
   checklistIds: string[];
   recommendedChecklistIds: string[];
 }
@@ -34,10 +38,12 @@ export function settleQualityGatesFrom(facts: QualityGatesUnraveled, resolutions
     if (open.has(key)) continue;
     const picked = pickedValues(resolutions[key]);
     const distinct = group.map((g) => g.fields).filter((fields, i, all) => all.findIndex((f) => sameValue(f, fields)) === i);
+    const taken = picked ? distinct.filter((fields) => picked.some((p) => sameValue(p, fields))) : distinct;
     result.push({
       deliverable: group[0].deliverable,
       step: group[0].step,
-      gates: picked ? distinct.filter((fields) => picked.some((p) => sameValue(p, fields))) : distinct,
+      gates: taken,
+      qualityGateDefinitionIds: sortedUnion([group.filter((g) => taken.some((fields) => sameValue(fields, g.fields))).map((g) => g.qualityGateDefinitionId)]),
       checklistIds: sortedUnion(group.map((g) => g.checklistIds)),
       recommendedChecklistIds: sortedUnion(group.map((g) => g.recommendedChecklistIds)),
     });

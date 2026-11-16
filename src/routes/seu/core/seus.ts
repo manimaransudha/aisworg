@@ -24,7 +24,8 @@ import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { findEligibleParticipants, resolveEligibilityPolicies } from "./participantEligibility.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { layoutDependencyGraph, type DependencyGraphLayout } from "./templateView.js";
-import { policiesDB } from "../../../dblayer/policiesDB.js";
+import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
+import { policyChecksFromDefinitions } from "../../../domain/engine/policyChecks.js";
 import { evaluateCondition, type GoverningCondition } from "../../../domain/engine/governingCondition.js";
 import { RESOLVED_OBLIGATION_STATUSES } from "../../../dblayer/constants.js";
 import type { PoolEntry } from "../../../domain/engine/profileCompositionUnravel.js";
@@ -425,13 +426,13 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   }));
 
   // The Policies of the EBM that govern a next transition of a Deliverable, read as the policy engine reads them and tested with the context the execution engine gives them.
-  const { data: ebmPolicies } = await policiesDB.findByIds(ebm?.applicable_policy_ids ?? []);
+  const { data: ebmPolicies } = await policyDefinitionsDB.findByIds(ebm?.applicable_policy_ids ?? []);
   for (const view of deliverableViews) {
     const deliverable = (deliverables ?? []).find((row) => row.id === view.id)!;
     const producingCapabilityStatus = deliverable.producing_capability_id ? (await seuCapabilitiesDB.findBySeuIdAndCapabilityId(seuId, deliverable.producing_capability_id)).data?.status ?? null : null;
     for (const toState of view.possibleNextStates) {
       const hop = `Deliverable|${view.lifecycleState}|${toState}`;
-      for (const policy of (ebmPolicies ?? []).filter((p) => p.governed_transition === hop && (p.applicability_deliverable_names.length === 0 || (deliverable.code !== null && p.applicability_deliverable_names.includes(deliverable.code))))) {
+      for (const policy of policyChecksFromDefinitions(ebmPolicies ?? [], hop, deliverable.code)) {
         if (!evaluateCondition(policy.condition as GoverningCondition, { deliverable, producingCapabilityStatus })) {
           view.blockedBy.push({ kind: policy.constraint_type === "Policy" ? "Policy" : "Standard", label: policy.code, toState });
         }

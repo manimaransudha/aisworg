@@ -3402,6 +3402,60 @@
     "ui_grouping": "Packs"
   },
   {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-gate-outcome-a",
+    "default_label": "Schema Fixture Web Conflict gate-outcome A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-gate-outcome-b",
+    "default_label": "Schema Fixture Web Conflict gate-outcome B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-gate-generalization-a",
+    "default_label": "Schema Fixture Web Conflict gate-generalization A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-gate-generalization-b",
+    "default_label": "Schema Fixture Web Conflict gate-generalization B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-review-model-a",
+    "default_label": "Schema Fixture Web Conflict review-model A",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "organisation-name",
+    "code": "schema-fixture-web-conflict-review-model-b",
+    "default_label": "Schema Fixture Web Conflict review-model B",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
     "concept_type": "integration-name",
     "code": "schema-fixture-pack-integration",
     "default_label": "Schema Fixture Pack Integration",

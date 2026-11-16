@@ -2,14 +2,14 @@ import {
   QUALITY_GATE_CRITERIA_NO_UNRESOLVED_OBLIGATIONS, QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION,
   QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW, QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY,
 } from "../dblayer/constants.js";
-import type { QualityGateRow, TransitionEntityType } from "../dblayer/seuTypes.js";
+import type { EvaluatedQualityGate, TransitionEntityType } from "../dblayer/seuTypes.js";
 import { noUnresolvedObligations } from "./noUnresolvedObligations.js";
 import { requiresAcceptedEvidenceOrApprovedDecision } from "./requiresAcceptedEvidenceOrApprovedDecision.js";
 import { requiresAcceptedReview } from "./requiresAcceptedReview.js";
 import { requiresActivePolicy } from "./requiresActivePolicy.js";
 
 export interface QualityGateCriterionInput {
-  gate: QualityGateRow;
+  gate: EvaluatedQualityGate;
   entityType: TransitionEntityType;
   entityId: string;
   seuId: string | null;

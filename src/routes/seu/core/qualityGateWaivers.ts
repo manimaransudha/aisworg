@@ -1,4 +1,4 @@
-import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
+import { qualityGateDefinitionsDB } from "../../../dblayer/qualityGateDefinitionsDB.js";
 import { qualityGateWaiversDB } from "../../../dblayer/qualityGateWaiversDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
@@ -22,7 +22,7 @@ export async function grantQualityGateWaiver(input: {
 
   const authorityBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, QUALITY_GATE_WAIVE_BADGE);
 
-  const { data: gate } = await qualityGatesDB.findByIds([input.qualityGateId]);
+  const { data: gate } = await qualityGateDefinitionsDB.findByIds([input.qualityGateId]);
   if (!gate || gate.length === 0) return { ok: false, reason: "quality gate not found" };
 
   const { data: master } = await participantsMasterDB.findById(input.actorId);

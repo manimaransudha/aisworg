@@ -26,7 +26,7 @@ const gates = (...entries: Array<[string, PackQualityGate[]]>) => packs(...entri
 
 // A row as the unravel gathers it, for a detector test that needs two different rows with one code.
 const row = (pack: string, fields: Record<string, unknown>, deliverable = "source-code", step = STEP): QualityGateRow => ({
-  packId: `id-${pack}`, packCode: pack, deliverable, step, fields: { code: "code-review", ...fields }, checklistIds: [], recommendedChecklistIds: [],
+  packId: `id-${pack}`, packCode: pack, qualityGateDefinitionId: "definition-code-review", deliverable, step, fields: { code: "code-review", ...fields }, checklistIds: [], recommendedChecklistIds: [],
 });
 
 test("a Pack lists a gate by its code: the unravel reads the definition, and a code with no definition is left out", () => {

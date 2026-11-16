@@ -21,7 +21,7 @@ import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
-import { governedTransitionsFor } from "../../../domain/engine/policyChecks.js";
+import { governedTransitionsFor, materializedPolicyCode } from "../../../domain/engine/policyChecks.js";
 import type { PackCategory, PackClassification, PackContributions, PackRow, PolicyCondition, PolicyDefinitionRow, PolicyScope, ServiceDefinitionRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
@@ -596,7 +596,7 @@ export async function materializeContributions(pack: PackRow, seed: Pick<PackSee
       const materializedRows = governedTransitionsFor(scope, cond.applicabilityDeliverables ?? []);
       const fansOut = conditions.length > 1 || materializedRows.length > 1;
       for (const { governedTransition, deliverableNames, governingCondition } of materializedRows) {
-        const code = fansOut ? `${policyCode}::${condIndex}::${governedTransition ?? "none"}::${deliverableNames[0] ?? ""}` : policyCode;
+        const code = materializedPolicyCode(policyCode, condIndex, fansOut, { governedTransition, deliverableNames });
         const { data: created, error } = await policiesDB.upsert({
           code,
           name: definition.name,
@@ -607,6 +607,7 @@ export async function materializeContributions(pack: PackRow, seed: Pick<PackSee
           condition: governingCondition ?? { type: "always_true" },
           severity: cond.severity || "Medium",
           originatingPackId: pack.id,
+          policyDefinitionId: definition.id,
           applicabilityDeliverableNames: deliverableNames,
           authorId: pack.authored_by,
           authorBadge: pack.author_badge,
@@ -690,6 +691,7 @@ export async function materializeContributions(pack: PackRow, seed: Pick<PackSee
         toState: scope.toState,
         criteria,
         originatingPackId: pack.id,
+        qualityGateDefinitionId: definition.id,
         checklistIds: resolveChecklistIds(checklists.filter((c) => c.mandatory === true).map((c) => c.checklistId)),
         recommendedChecklistIds: resolveChecklistIds(checklists.filter((c) => c.mandatory !== true).map((c) => c.checklistId)),
         applicabilityDeliverableNames: entry.deliverableName?.trim() ? [entry.deliverableName] : [],

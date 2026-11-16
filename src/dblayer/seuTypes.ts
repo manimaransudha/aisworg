@@ -565,6 +565,8 @@ export interface PolicyRow {
   condition: Record<string, unknown>;
   severity: string;
   originating_pack_id: string | null;
+  // The Policy Definition the row was written from, or null for a row that no Definition made.
+  policy_definition_id: string | null;
   applicability_deliverable_names: string[];
   created_at: string;
 }
@@ -1009,12 +1011,24 @@ export interface QualityGateRow {
   to_state: string;
   criteria: Record<string, unknown>;
   originating_pack_id: string;
+  // The Quality Gate Definition the row was written from, or null for a row that no Definition made.
+  quality_gate_definition_id: string | null;
   version: string;
   is_active: boolean;
   created_at: string;
   checklist_ids: string[];
   recommended_checklist_ids: string[];
   applicability_deliverable_names: string[];
+}
+
+// A gate as the engine evaluates it. Its id is the id of its Quality Gate Definition, which is what an evaluation, a waiver and a governance outcome record.
+export interface EvaluatedQualityGate {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  criteria: Record<string, unknown>;
+  originating_pack_id: string | null;
 }
 
 export interface ReviewGateRow {

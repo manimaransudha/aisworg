@@ -21,5 +21,11 @@ CREATE TABLE quality_gate_definitions (
 );
 CREATE INDEX IF NOT EXISTS idx_quality_gate_definitions_authored_by ON quality_gate_definitions (authored_by);
 CREATE INDEX IF NOT EXISTS idx_quality_gate_definitions_tenant_id ON quality_gate_definitions (tenant_id);
+-- The Definition a `quality_gates` row was written from. quality_gates_schema_recovery.sql runs first, so the constraint is added here.
+ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_quality_gate_definition_id_fkey;
+ALTER TABLE quality_gates ADD CONSTRAINT quality_gates_quality_gate_definition_id_fkey FOREIGN KEY (quality_gate_definition_id) REFERENCES quality_gate_definitions(id);
+-- The Definition a governance outcome records as its Quality Gate. governance_evaluation_outcomes_schema_recovery.sql runs first, so the constraint is added here.
+ALTER TABLE governance_evaluation_outcomes DROP CONSTRAINT IF EXISTS governance_evaluation_outcomes_quality_gate_id_fkey;
+ALTER TABLE governance_evaluation_outcomes ADD CONSTRAINT governance_evaluation_outcomes_quality_gate_id_fkey FOREIGN KEY (quality_gate_id) REFERENCES quality_gate_definitions(id);
 GRANT ALL PRIVILEGES ON TABLE quality_gate_definitions TO weirdo;
 COMMIT;

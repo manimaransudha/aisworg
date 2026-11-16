@@ -35,6 +35,7 @@ DROP INDEX IF EXISTS quality_gates_active_scope_category_pack_key;
 CREATE UNIQUE INDEX IF NOT EXISTS quality_gates_active_code_pack_key
   ON quality_gates (code, originating_pack_id)
   WHERE is_active;
+ALTER TABLE quality_gates ADD COLUMN IF NOT EXISTS quality_gate_definition_id UUID;
 ALTER TABLE quality_gates
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants_master(id),
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;

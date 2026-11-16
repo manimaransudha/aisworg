@@ -19,7 +19,6 @@ import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { RESOLVED_OBLIGATION_STATUSES } from "../src/dblayer/constants.js";
-import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
 import { governanceEvaluationOutcomesDB } from "../src/dblayer/governanceEvaluationOutcomesDB.js";
@@ -29,7 +28,7 @@ import { workItemGenerator } from "../src/domain/engine/workItemGenerator.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import type { GovernanceEvaluationOutcomeDraft } from "../src/dblayer/seuTypes.js";
 import { createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
-import { getTestDevelopmentPack } from "./testFixtures.js";
+import { getTestDevelopmentPack, ensureQualityGateDefinition, createGateRowWithDefinition } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const state = (name: string) => `zz-${name}-${run}`;
@@ -152,16 +151,15 @@ test("governance refuses an edge with a submit verb until the Deliverable has be
 });
 
 test("a Work Item records the Quality Gate of the governance outcome of its Command, and none when the Deliverable does not exist", async () => {
-  const { data: gate, error: gateError } = await qualityGatesDB.upsert({
+  const gate = await createGateRowWithDefinition({
     category: "Exit", code: `qg-test-${randomUUID()}`, name: `execution-engine gate ${run}`, entityType: "AttentionItem", fromState: state("gate-from"), toState: state("gate-to"),
     criteria: { type: "no_unresolved_obligations" }, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(gate && !gateError, gateError);
 
   const deliverable = await createDeliverable();
   const governance = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(governance);
-  const draft: GovernanceEvaluationOutcomeDraft = { ...governance.governanceOutcome, outcome: "Waived", quality_gate_id: gate.id, quality_gate_outcome: "Waived", originating_pack_id: packId };
+  const draft: GovernanceEvaluationOutcomeDraft = { ...governance.governanceOutcome, outcome: "Waived", quality_gate_id: gate.quality_gate_definition_id, quality_gate_outcome: "Waived", originating_pack_id: packId };
   const { data: outcome, error: outcomeError } = await governanceEvaluationOutcomesDB.create({ ...draft, author_id: t.systemParticipantId, author_badge: ROOT_ACTOR_BADGE });
   assert.ok(outcome && !outcomeError, outcomeError);
 
@@ -177,7 +175,7 @@ test("a Work Item records the Quality Gate of the governance outcome of its Comm
   const command = await create(deliverable.id, outcome.id);
   const workItem = await workItemGenerator.generate({ command, seuId: t.seu.id, correlationId: randomUUID(), causationEventId: null });
   const stored = (await workItemsDB.findById(workItem.id)).data;
-  assert.deepEqual(stored?.execution_context?.qualityGate, { id: gate.id, name: gate.name, outcome: "Waived" });
+  assert.deepEqual(stored?.execution_context?.qualityGate, { id: gate.quality_gate_definition_id, name: gate.name, outcome: "Waived" });
   assert.equal(stored?.execution_context?.relevantDeliverable.id, deliverable.id);
 
   const orphan = await workItemGenerator.generate({ command: await create(randomUUID(), null), seuId: t.seu.id, correlationId: randomUUID(), causationEventId: null });
@@ -197,7 +195,7 @@ import { raiseAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { createEvidenceAsRoot } from "./testFixtures.js";
 import { loadSettled, configurationParameter } from "../src/domain/engine/ebmSettled.js";
 import { FIXTURE_CODES } from "./schemaFixtures.js";
-import { commissionFixtureSeu, commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
+import { commissionFixtureSeu, commissionedSeu, ebmGatesByCode, type CommissionedSeu } from "./webScenarios.js";
 import { authorityRulesDB } from "../src/dblayer/authorityRulesDB.js";
 import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
 
@@ -222,25 +220,19 @@ test("governance refuses a Deliverable while an Obligation blocks its SEU, and w
 });
 
 test("a Quality Gate on the hop blocks the Deliverable and raises an Attention Item; a Waiver turns that into a waived outcome, and a gate that holds is a passed one", async () => {
-  // The EBM takes the gates of the composed Packs when it is created, and qualityGateEngine.evaluate reads the EBM only. The gates are
-  // therefore created before the SEU is commissioned, with the development Pack as originating Pack.
-  const createGate = async (label: string, from: string, to: string, criteria: Record<string, unknown>) => {
-    const { data, error } = await qualityGatesDB.upsert({
-      category: "Exit", code: `qg-test-${randomUUID()}`, name: `execution-engine ${label} ${run}`, entityType: "Deliverable", fromState: from, toState: to, criteria, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
-    });
-    assert.ok(data && !error, error);
-    return data;
-  };
-
+  // qualityGateEngine.evaluate reads the EBM only, and the EBM takes the gates the composed Packs contribute. The gates are Quality Gate Definitions that a Pack of the
+  // SEU's Template lists, so the SEU is commissioned with them.
   const blockedFrom = state("gate-open-a");
   const blockedTo = state("gate-done-a");
   const passedFrom = state("gate-open-b");
   const passedTo = state("gate-done-b");
-  const gate = await createGate("blocking", blockedFrom, blockedTo, { type: "requires_active_policy", policyIds: [] });
-  const passingGate = await createGate("passing", passedFrom, passedTo, { type: "no_unresolved_obligations" });
-  const gateSeu = await commissionedSeu("execution-engine-gates");
-  const { data: gateEbm } = await ebmsDB.findById(gateSeu.seu.active_ebm_id!);
-  for (const g of [gate, passingGate]) assert.ok(gateEbm?.applicable_quality_gate_ids.includes(g.id), `the EBM names gate ${g.name}`);
+  const blockingEntry = await ensureQualityGateDefinition({ code: `execution-engine-blocking-${run}`, name: `execution-engine blocking ${run}`, category: "Exit", governedTransition: `Deliverable|${blockedFrom}|${blockedTo}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
+  const passingEntry = await ensureQualityGateDefinition({ code: `execution-engine-passing-${run}`, name: `execution-engine passing ${run}`, category: "Exit", governedTransition: `Deliverable|${passedFrom}|${passedTo}`, criteriaType: "no_unresolved_obligations" });
+  const gateSeu = await commissionedSeu("execution-engine-gates", "clean", { conflictSet: "execution", gates: [blockingEntry, passingEntry] });
+  const namedGates = await ebmGatesByCode(gateSeu.seu);
+  const gate = namedGates[blockingEntry.qualityCode];
+  const passingGate = namedGates[passingEntry.qualityCode];
+  assert.ok(gate && passingGate, "the EBM names both gates");
   await addEdge(blockedFrom, blockedTo, true);
   await addEdge(passedFrom, passedTo, true);
   const deliverable = await createDeliverable(blockedFrom, gateSeu);
@@ -255,7 +247,7 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
   assert.ok(!waiverError, waiverError);
   const waived = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: blockedTo, actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(waived);
-  assert.deepEqual([waived.governanceOutcome.outcome, waived.governanceOutcome.quality_gate_id, waived.governanceOutcome.originating_pack_id], ["Waived", gate.id, packId]);
+  assert.deepEqual([waived.governanceOutcome.outcome, waived.governanceOutcome.quality_gate_id, waived.governanceOutcome.originating_pack_id], ["Waived", gate.id, null]);
   assert.ok(waived.governanceOutcome.rationale.includes(`Quality Gate "${gate.name}": Waived`), waived.governanceOutcome.rationale);
 
   const passed = await executionEngine.evaluateDeliverableTransition({ deliverable: await createDeliverable(passedFrom, gateSeu), targetState: passedTo, actorId: ROOT_ACTOR_ID });

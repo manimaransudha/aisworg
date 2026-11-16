@@ -13,19 +13,20 @@ export const policiesDB = {
     condition?: Record<string, unknown>;
     severity?: string;
     originatingPackId: string;
+    policyDefinitionId?: string | null;
     applicabilityDeliverableNames?: string[];
     authorId: string;
     authorBadge: string;
   }): Promise<DbResult<PolicyRow>> {
     try {
       const { rows } = await query<PolicyRow>(
-        `INSERT INTO policies (code, name, category, constraint_type, scope, governed_transition, condition, severity, originating_pack_id, applicability_deliverable_names, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `INSERT INTO policies (code, name, category, constraint_type, scope, governed_transition, condition, severity, originating_pack_id, applicability_deliverable_names, author_id, author_badge, policy_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          ON CONFLICT (originating_pack_id, code) DO UPDATE
            SET name = EXCLUDED.name, category = EXCLUDED.category, constraint_type = EXCLUDED.constraint_type,
                scope = EXCLUDED.scope, governed_transition = EXCLUDED.governed_transition, condition = EXCLUDED.condition,
                severity = EXCLUDED.severity, applicability_deliverable_names = EXCLUDED.applicability_deliverable_names,
-               author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge
+               author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge, policy_definition_id = EXCLUDED.policy_definition_id
          RETURNING *`,
         [
           input.code,
@@ -40,6 +41,7 @@ export const policiesDB = {
           input.applicabilityDeliverableNames ?? [],
           input.authorId,
           input.authorBadge,
+          input.policyDefinitionId ?? null,
         ]
       );
       return { data: rows[0] };

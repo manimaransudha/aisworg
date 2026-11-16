@@ -1,4 +1,6 @@
 import { qualityGateDefinitionsDB } from "../../../dblayer/qualityGateDefinitionsDB.js";
+// Commented out (owner): composition does not read the materialised `quality_gates` rows.
+// import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
 import type { QualityGateDefinitionRow } from "../../../dblayer/seuTypes.js";
 import type { ComposedPacks } from "./composedPacks.js";
 
@@ -6,6 +8,10 @@ import type { ComposedPacks } from "./composedPacks.js";
 export interface QualityGateRow {
   packId: string;
   packCode: string;
+  // Commented out (owner): the EBM keeps Quality Gate Definition ids and does not read the `quality_gates` rows.
+  // qualityGateId: string | null;
+  // The Quality Gate Definition the gate was read from.
+  qualityGateDefinitionId: string;
   // The Deliverable the gate is for, or "" when the gate names none.
   deliverable: string;
   // The step, as "Entity|from|to".
@@ -29,6 +35,7 @@ const CONTENT_FIELDS = ["participant", "assurance", "classification", "outputCon
 // Gathers the quality gates of the composed Packs, one row for each Deliverable the gate names. It decides nothing. A code with no definition is left out.
 export function unravelQualityGates(input: { composedPacks: ComposedPacks; definitions: QualityGateDefinitionRow[] }): QualityGatesUnraveled {
   const definitionByCode = new Map(input.definitions.map((d) => [d.code, d]));
+  // const gateRowId = new Map((input.gateRows ?? []).map((r) => [`${r.originating_pack_id}::${r.code}`, r.id]));
   const gates: QualityGateRow[] = [];
   for (const pack of input.composedPacks.packs) {
     for (const entry of pack.contributions?.qualityGates ?? []) {
@@ -46,7 +53,7 @@ export function unravelQualityGates(input: { composedPacks: ComposedPacks; defin
       for (const field of CONTENT_FIELDS) if (content[field] !== undefined) fields[field] = content[field];
       const checklists = entry.checklists ?? [];
       gates.push({
-        packId: pack.id, packCode: pack.code, deliverable: entry.deliverableName ?? "", step: entry.governedTransition, fields,
+        packId: pack.id, packCode: pack.code, qualityGateDefinitionId: definition.id, deliverable: entry.deliverableName ?? "", step: entry.governedTransition, fields,
         checklistIds: sorted(checklists.filter((c) => c.mandatory === true).map((c) => c.checklistId)),
         recommendedChecklistIds: sorted(checklists.filter((c) => c.mandatory !== true).map((c) => c.checklistId)),
       });
@@ -59,5 +66,9 @@ export function unravelQualityGates(input: { composedPacks: ComposedPacks; defin
 export async function unravelQualityGatesFor(input: { composedPacks: ComposedPacks }, viewerTenantId: string): Promise<QualityGatesUnraveled> {
   const codes = [...new Set(input.composedPacks.packs.flatMap((pack) => (pack.contributions?.qualityGates ?? []).map((entry) => entry.qualityCode)))];
   const { data: definitions } = codes.length > 0 ? await qualityGateDefinitionsDB.findActiveByCodesVisibleTo(codes, viewerTenantId) : { data: [] };
+  // Commented out (owner): composition does not read the materialised `quality_gates` rows, and the EBM keeps the Quality Gate Definition ids.
+  // const { data: gateRows, error } = await qualityGatesDB.findByPackIds(input.composedPacks.packs.map((pack) => pack.id));
+  // if (error) throw error;
+  // return unravelQualityGates({ composedPacks: input.composedPacks, definitions: definitions ?? [], gateRows: gateRows ?? [] });
   return unravelQualityGates({ composedPacks: input.composedPacks, definitions: definitions ?? [] });
 }

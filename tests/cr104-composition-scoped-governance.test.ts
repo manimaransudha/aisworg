@@ -131,9 +131,9 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   // The materialised fact itself — this is what CR-104 actually added.
   const { data: ebmWith } = await ebmsDB.findById((await seusDB.findById(seuWith.id)).data!.active_ebm_id!);
   const { data: ebmWithout } = await ebmsDB.findById((await seusDB.findById(seuWithout.id)).data!.active_ebm_id!);
-  assert.ok(ebmWith!.applicable_quality_gate_ids.includes(gateRow![0].id), "the composing SEU's EBM materialises the scoped gate");
+  assert.ok(ebmWith!.applicable_quality_gate_ids.includes(gateRow![0].quality_gate_definition_id!), "the composing SEU's EBM materialises the scoped gate");
   assert.ok(ebmWith!.applicable_policy_ids.includes(policyRow!.id), "the composing SEU's EBM materialises the scoped policy");
-  assert.ok(!ebmWithout!.applicable_quality_gate_ids.includes(gateRow![0].id), "the non-composing SEU's EBM does NOT carry a Pack it never selected");
+  assert.ok(!ebmWithout!.applicable_quality_gate_ids.includes(gateRow![0].quality_gate_definition_id!), "the non-composing SEU's EBM does NOT carry a Pack it never selected");
   assert.ok(!ebmWithout!.applicable_policy_ids.includes(policyRow!.id), "same for the policy");
 
   // The EBM's composed Packs name the scoped Pack only for the composing EBM.

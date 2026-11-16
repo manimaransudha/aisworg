@@ -19,13 +19,14 @@ import { explainDeliverable } from "../src/routes/seu/core/traceability.js";
 import { reviewsDB } from "../src/dblayer/reviewsDB.js";
 import { findingsDB } from "../src/dblayer/findingsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
-import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
+import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
+import { commissionedSeu } from "./webScenarios.js";
 import { reviewGatesDB } from "../src/dblayer/reviewGatesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot, getEmptyPoolTenantId, emptyParticipantPool } from "./testFixtures.js";
-import { getTestDevelopmentPack } from "./testFixtures.js";
+import { getTestDevelopmentPack, ensureQualityGateDefinition } from "./testFixtures.js";
 import { TESTER_ALL_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
 
@@ -98,27 +99,18 @@ test("a Review runs its full lifecycle without modifying the reviewed object; it
 });
 
 test("requires_accepted_review Quality Gate blocks a transition until an Accepted, passing Review against the required Review Gate exists (CR-059)", async () => {
-  // CR-104 — Quality Gates are materialised onto an SEU's own EBM once, at
-  // EBM creation, from whichever Packs are composed at that exact moment —
-  // not re-derived live on every evaluate() call. This gate (and its Review
-  // Gate) must therefore exist BEFORE commissionSeu below, or the resulting
-  // EBM's applicable_quality_gate_ids will never include it.
-  //
-  // A gate on a fully run-scoped triple, not just a run-scoped category —
-  // qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate()) ANDs across EVERY active gate at a given
-  // (entityType, fromState, toState), regardless of category, so sharing
-  // the "unused" Deliverable Reviewed -> Baselined triple with any other
-  // test that also creates a gate there (transition-definition-authoring.test.ts
-  // does) can block this test on a completely unrelated gate's own criteria.
-  // Real, observed failure — a category-only fix (CR-058's own precedent)
-  // was not enough here.
+  // The Quality Gate is a Quality Gate Definition that a Pack of the SEU's Template lists, so the composition settles it into the EBM and
+  // qualityGateEngine.evaluate, which reads the EBM only, finds it. A requires_accepted_review gate names its Review Gate by the code in
+  // `deliverableName`, and the same name limits the gate to the Deliverable of that code, so the Review Gate carries the code of the Deliverable.
+  // The Review Gate exists before the Pack is published. The hop is run-scoped, so no other gate can match it.
   const corePack = await getTestDevelopmentPack();
   assert.ok(corePack, "core pack must be seeded");
   const run = randomUUID();
   const fromState = `test-from-${run}`;
   const toState = `test-to-${run}`;
+  const reviewGateCode = `rm-gate-${run}`;
   const { data: reviewGate } = await reviewGatesDB.upsert({
-    code: `Solution / Architecture Document (test-${run})`,
+    code: reviewGateCode,
     name: "Architecture Notebook Review",
     entityType: "Deliverable",
     fromState,
@@ -128,19 +120,17 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
     authorBadge: corePack!.author_badge,
   });
   assert.ok(reviewGate);
-  await qualityGatesDB.upsert({
-    code: `qg-test-${randomUUID()}`, name: "Requires Architecture Review",
-    category: `test-${run}`,
-    entityType: "Deliverable",
-    fromState,
-    toState,
-    criteria: { type: "requires_accepted_review", reviewGateId: reviewGate!.id },
-    originatingPackId: corePack!.id,
-    authorId: corePack!.authored_by,
-    authorBadge: corePack!.author_badge,
+  const gateEntry = await ensureQualityGateDefinition({
+    code: `rm-qg-${run}`, name: "Requires Architecture Review", category: "Exit", governedTransition: `Deliverable|${fromState}|${toState}`,
+    criteriaType: "requires_accepted_review", deliverableName: reviewGateCode,
   });
-
-  const { seuId, deliverable } = await commissionSeu("review-gate");
+  const gateScenario = await commissionedSeu("review-gate", "clean", { conflictSet: "review-model", gates: [gateEntry] });
+  const seuId = gateScenario.seu.id;
+  const { data: created, error: deliverableError } = await deliverablesDB.create({
+    seuId, name: `review-gate ${run}`, code: reviewGateCode, state: fromState, authorId: gateScenario.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
+  });
+  assert.ok(created && !deliverableError, deliverableError);
+  const deliverable = created;
   const { data: gateSeu } = await seusDB.findById(seuId);
   const evalGate = async () => qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState, toState, authorId: (await getSystemActor(seuId)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: gateSeu!.tenant_id }));
 

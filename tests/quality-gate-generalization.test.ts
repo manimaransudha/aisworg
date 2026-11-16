@@ -22,8 +22,6 @@
 // Quality Gate against a real (entityType, fromState, toState) tuple would be
 // a permanent, global change to this shared, never-reset dev database that
 // could affect every other test and the real running app.
-import { PLATFORM_TENANT_ID } from "./testFixtures.js";
-import { getTestDevelopmentPack } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -46,32 +44,20 @@ import { createKnowledgeItem, transitionKnowledgeItem } from "../src/routes/seu/
 import { createParticipant, transitionParticipant } from "../src/routes/seu/core/participants.js";
 import { createObligationAsRoot as createObligation, createEvidenceAsRoot, ensureActorParticipant, createReviewAsRoot, createFindingAsRoot } from "./testFixtures.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
-import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureQualityGateDefinition } from "./testFixtures.js";
+import { commissionedSeu } from "./webScenarios.js";
+import type { PackQualityGate } from "../src/dblayer/seuTypes.js";
 import { TESTER_ALL_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
 
-// originating_pack_id is a plain traceability FK — any real Pack id satisfies
-// it; which one doesn't matter for what this file is testing.
-async function anyRealPackId(): Promise<string> {
-  const pack = await getTestDevelopmentPack();
-  if (!pack) throw new Error("expected development pack to be seeded");
-  return pack.id;
-}
-
-async function commissionTestSeu(statementPrefix: string): Promise<string> {
-  await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({
-    statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
-  if (!result.ok) throw new Error("unreachable");
-  return result.seu.id;
+// The SEU is commissioned on a Template whose Pack lists the gate, so the composition settles the gate into the EBM and the engine, which reads the EBM only, finds it.
+async function commissionTestSeu(label: string, gates: PackQualityGate[]): Promise<string> {
+  const { seu } = await commissionedSeu(label, "clean", { conflictSet: "gate-generalization", gates });
+  return seu.id;
 }
 
 test("qualityGateEngine.evaluate resolves Obligations attached to a non-Deliverable entity (AttentionItem)", async () => {
@@ -88,19 +74,9 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
   // AttentionItem transition (Created/Delivered/Acknowledged/...).
   const fromState = `qg-test-from-${randomUUID()}`;
   const toState = `qg-test-to-${randomUUID()}`;
-  const { data: gate, error: gateError } = await qualityGatesDB.upsert({
-    category: "Exit", code: `qg-test-${randomUUID()}`, name: "QG generalization test gate",
-    entityType: "AttentionItem",
-    fromState,
-    toState,
-    criteria: { type: "no_unresolved_obligations" },
-    originatingPackId: await anyRealPackId(),
-    authorId: ROOT_ACTOR_ID,
-    authorBadge: "root",
-  });
-  assert.ok(!gateError && gate, gateError?.message ?? "assertion failed");
+  const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG generalization test gate", category: "Exit", governedTransition: `AttentionItem|${fromState}|${toState}`, criteriaType: "no_unresolved_obligations" });
 
-  const seuId = await commissionTestSeu("qg-generalization-direct");
+  const seuId = await commissionTestSeu("qg-generalization-direct", [gateEntry]);
   const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG generalization test item", actorId: TESTER_ALL_ID, authorBadge: "root" });
   const { data: gateSeu } = await seusDB.findById(seuId);
   const tenantId = gateSeu!.tenant_id;
@@ -155,23 +131,12 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
   // own separate, explicit call.
   const fromState = "In Progress";
   const toState = "Resolved";
-  const packId = await anyRealPackId();
   const { data: existingDefinition } = await transitionDefinitionsDB.find("AttentionItem", fromState, toState);
   assert.ok(existingDefinition, "expected the real seeded AttentionItem In Progress -> Resolved transition to already exist");
 
-  const { error: gateError } = await qualityGatesDB.upsert({
-    category: "Exit", code: `qg-test-${randomUUID()}`, name: "QG wiring test gate",
-    entityType: "AttentionItem",
-    fromState,
-    toState,
-    criteria: { type: "no_unresolved_obligations" },
-    originatingPackId: packId,
-    authorId: ROOT_ACTOR_ID,
-    authorBadge: "root",
-  });
-  assert.equal(gateError, undefined);
+  const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG wiring test gate", category: "Exit", governedTransition: `AttentionItem|${fromState}|${toState}`, criteriaType: "no_unresolved_obligations" });
 
-  const seuId = await commissionTestSeu("qg-generalization-wiring");
+  const seuId = await commissionTestSeu("qg-generalization-wiring", [gateEntry]);
   const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG wiring test item", actorId: TESTER_ALL_ID, authorBadge: "root" });
 
   // Force the AttentionItem directly into the real "In Progress" state (test
@@ -211,19 +176,9 @@ test("transitionObligation is genuinely wired to qualityGateEngine through trans
   const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Obligation", fromState, toState, verb: "analyse", eventType: "ObligationUpdated" });
   assert.equal(definitionError, undefined);
   try {
-    const { error: gateError } = await qualityGatesDB.upsert({
-      category: "Exit", code: `qg-test-${randomUUID()}`, name: "QG obligation wiring test gate",
-      entityType: "Obligation",
-      fromState,
-      toState,
-      criteria: { type: "no_unresolved_obligations" },
-      originatingPackId: await anyRealPackId(),
-      authorId: ROOT_ACTOR_ID,
-      authorBadge: "root",
-    });
-    assert.equal(gateError, undefined);
+    const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG obligation wiring test gate", category: "Exit", governedTransition: `Obligation|${fromState}|${toState}`, criteriaType: "no_unresolved_obligations" });
 
-    const seuId = await commissionTestSeu("qg-obligation-wiring");
+    const seuId = await commissionTestSeu("qg-obligation-wiring", [gateEntry]);
     const target = await createObligation({ relatedObjectType: "SEU", relatedObjectId: seuId, category: "Engineering", title: "QG obligation wiring target" });
     await createObligation({ relatedObjectType: "Obligation", relatedObjectId: target.id, category: "Engineering", title: "QG obligation wiring blocker (left unresolved)" });
     const { data: eventsBefore } = await eventsDB.findByOriginatingObject("Obligation", target.id);
@@ -251,20 +206,9 @@ test("transitionDecision is genuinely wired to qualityGateEngine through transit
   const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Decision", fromState, toState, verb: "analyse", eventType: "DecisionAnalysed" });
   assert.equal(definitionError, undefined);
   try {
-    const { error: gateError } = await qualityGatesDB.upsert({
-      code: `qg-test-${randomUUID()}`, name: "QG decision wiring test gate",
-      entityType: "Decision",
-      fromState,
-      toState,
-      category: "Exit",
-      criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
-      originatingPackId: await anyRealPackId(),
-      authorId: ROOT_ACTOR_ID,
-      authorBadge: "root",
-    });
-    assert.equal(gateError, undefined);
+    const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG decision wiring test gate", category: "Exit", governedTransition: `Decision|${fromState}|${toState}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
 
-    const seuId = await commissionTestSeu("qg-decision-wiring");
+    const seuId = await commissionTestSeu("qg-decision-wiring", [gateEntry]);
     const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
     const deliverableId = rows[0].id;
     await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
@@ -298,20 +242,9 @@ test("transitionParticipant is genuinely wired to qualityGateEngine through tran
   const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Participant", fromState, toState, verb: "assign", eventType: "ParticipantAssigned" });
   assert.equal(definitionError, undefined);
   try {
-    const { error: gateError } = await qualityGatesDB.upsert({
-      code: `qg-test-${randomUUID()}`, name: "QG participant wiring test gate",
-      entityType: "Participant",
-      fromState,
-      toState,
-      category: "Exit",
-      criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
-      originatingPackId: await anyRealPackId(),
-      authorId: ROOT_ACTOR_ID,
-      authorBadge: "root",
-    });
-    assert.equal(gateError, undefined);
+    const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG participant wiring test gate", category: "Exit", governedTransition: `Participant|${fromState}|${toState}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
 
-    const seuId = await commissionTestSeu("qg-participant-wiring");
+    const seuId = await commissionTestSeu("qg-participant-wiring", [gateEntry]);
     const participant = await createParticipant({ seuId, type: "Human", displayName: `QG participant wiring ${randomUUID()}`, actorId: ROOT_ACTOR_ID, authorBadge: "root" });
     const { data: eventsBefore } = await eventsDB.findByOriginatingObject("Participant", participant.id);
 
@@ -336,20 +269,9 @@ test("transitionKnowledgeItem is genuinely wired to qualityGateEngine through tr
   const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Knowledge", fromState, toState, verb: "propose", eventType: "KnowledgeProposed" });
   assert.equal(definitionError, undefined);
   try {
-    const { error: gateError } = await qualityGatesDB.upsert({
-      code: `qg-test-${randomUUID()}`, name: "QG knowledge wiring test gate",
-      entityType: "Knowledge",
-      fromState,
-      toState,
-      category: "Exit",
-      criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
-      originatingPackId: await anyRealPackId(),
-      authorId: ROOT_ACTOR_ID,
-      authorBadge: "root",
-    });
-    assert.equal(gateError, undefined);
+    const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG knowledge wiring test gate", category: "Exit", governedTransition: `Knowledge|${fromState}|${toState}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
 
-    const seuId = await commissionTestSeu("qg-knowledge-wiring");
+    const seuId = await commissionTestSeu("qg-knowledge-wiring", [gateEntry]);
     const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
     const deliverableId = rows[0].id;
     await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
@@ -377,20 +299,9 @@ test("transitionReview is genuinely wired to qualityGateEngine through transitio
   const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Review", fromState, toState, verb: "prepare", eventType: "ReviewPrepared" });
   assert.equal(definitionError, undefined);
   try {
-    const { error: gateError } = await qualityGatesDB.upsert({
-      code: `qg-test-${randomUUID()}`, name: "QG review wiring test gate",
-      entityType: "Review",
-      fromState,
-      toState,
-      category: "Exit",
-      criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
-      originatingPackId: await anyRealPackId(),
-      authorId: ROOT_ACTOR_ID,
-      authorBadge: "root",
-    });
-    assert.equal(gateError, undefined);
+    const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG review wiring test gate", category: "Exit", governedTransition: `Review|${fromState}|${toState}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
 
-    const seuId = await commissionTestSeu("qg-review-wiring");
+    const seuId = await commissionTestSeu("qg-review-wiring", [gateEntry]);
     const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
     const target = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: rows[0].id, category: "Architecture", name: "QG review wiring target" });
     const { data: eventsBefore } = await eventsDB.findByOriginatingObject("Review", target.id);
@@ -415,20 +326,9 @@ test("transitionFinding is genuinely wired to qualityGateEngine through transiti
   const { error: definitionError } = await transitionDefinitionsDB.upsert({ entityType: "Finding", fromState, toState, verb: "resolve", eventType: "FindingResolved" });
   assert.equal(definitionError, undefined);
   try {
-    const { error: gateError } = await qualityGatesDB.upsert({
-      code: `qg-test-${randomUUID()}`, name: "QG finding wiring test gate",
-      entityType: "Finding",
-      fromState,
-      toState,
-      category: "Exit",
-      criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
-      originatingPackId: await anyRealPackId(),
-      authorId: ROOT_ACTOR_ID,
-      authorBadge: "root",
-    });
-    assert.equal(gateError, undefined);
+    const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG finding wiring test gate", category: "Exit", governedTransition: `Finding|${fromState}|${toState}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
 
-    const seuId = await commissionTestSeu("qg-finding-wiring");
+    const seuId = await commissionTestSeu("qg-finding-wiring", [gateEntry]);
     const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
     const review = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: rows[0].id, category: "Architecture", name: "QG finding wiring review" });
     const target = await createFindingAsRoot({ reviewId: review.id, severity: "Low", title: "QG finding wiring target" });

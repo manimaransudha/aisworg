@@ -9,7 +9,7 @@ CREATE TABLE governance_evaluation_outcomes (
   to_state                      TEXT NOT NULL,
   outcome                       TEXT NOT NULL,
   rationale                     TEXT NOT NULL,
-  quality_gate_id               UUID REFERENCES quality_gates(id),
+  quality_gate_id               UUID,
   quality_gate_outcome          TEXT,
   applicable_authority_rule_id  UUID REFERENCES authority_rules(id),
   satisfied_policy_ids          UUID[] NOT NULL DEFAULT '{}',

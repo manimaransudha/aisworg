@@ -18,6 +18,7 @@ export const qualityGatesDB = {
     toState: string;
     criteria: Record<string, unknown>;
     originatingPackId: string;
+    qualityGateDefinitionId?: string | null;
     checklistIds?: string[];
     recommendedChecklistIds?: string[];
     applicabilityDeliverableNames?: string[];
@@ -42,6 +43,7 @@ export const qualityGatesDB = {
           current.entity_type === input.entityType &&
           current.from_state === input.fromState &&
           current.to_state === input.toState &&
+          current.quality_gate_definition_id === (input.qualityGateDefinitionId ?? null) &&
           JSON.stringify(current.criteria) === JSON.stringify(criteria) &&
           JSON.stringify([...current.checklist_ids].sort()) === JSON.stringify([...checklistIds].sort()) &&
           JSON.stringify([...current.recommended_checklist_ids].sort()) === JSON.stringify([...recommendedChecklistIds].sort()) &&
@@ -54,10 +56,10 @@ export const qualityGatesDB = {
           await query("UPDATE quality_gates SET is_active = false WHERE id = $1", [current.id]);
         }
         const { rows } = await query<QualityGateRow>(
-          `INSERT INTO quality_gates (code, name, category, entity_type, from_state, to_state, criteria, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids, applicability_deliverable_names, author_id, author_badge)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, $12, $13, $14)
+          `INSERT INTO quality_gates (code, name, category, entity_type, from_state, to_state, criteria, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids, applicability_deliverable_names, author_id, author_badge, quality_gate_definition_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, $12, $13, $14, $15)
            RETURNING *`,
-          [code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds, applicabilityDeliverableNames, input.authorId, input.authorBadge]
+          [code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds, applicabilityDeliverableNames, input.authorId, input.authorBadge, input.qualityGateDefinitionId ?? null]
         );
         return { data: rows[0] };
       });

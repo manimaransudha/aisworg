@@ -10,7 +10,6 @@ import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { qualityGateWaiversDB } from "../src/dblayer/qualityGateWaiversDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
@@ -18,7 +17,7 @@ import { qualityGateEngine, type QualityGateDecision } from "../src/domain/engin
 import type { QualityGateRow } from "../src/dblayer/seuTypes.js";
 import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
-import { getTestDevelopmentPack } from "./testFixtures.js";
+import { getTestDevelopmentPack, createGateRowWithDefinition } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 let packId: string;
@@ -32,12 +31,10 @@ before(async () => {
 });
 
 async function createGate(label: string, criteria: Record<string, unknown>): Promise<QualityGateRow> {
-  const { data, error } = await qualityGatesDB.upsert({
+  return createGateRowWithDefinition({
     category: "Exit", code: `qg-test-${randomUUID()}`, name: `quality-gate-engine ${label} ${run}`, entityType: "AttentionItem", fromState: `zz-from-${label}-${run}`, toState: `zz-to-${label}-${run}`,
     criteria, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
-  assert.ok(data && !error, error);
-  return data;
 }
 
 async function createPolicy(label: string, condition: Record<string, unknown>) {
@@ -88,7 +85,7 @@ test("a Waiver granted for the gate and the entity turns the block into a waived
   const gate = await createGate("waived", { type: "requires_active_policy", policyIds: [] });
   const waivedEntity = randomUUID();
   const { data: waiver, error } = await qualityGateWaiversDB.grant({
-    qualityGateId: gate.id, seuId: testSeu.seu.id, entityType: "AttentionItem", entityId: waivedEntity, rationale: "quality-gate-engine test", grantedBy: ROOT_ACTOR_ID, authorityBadge: ROOT_ACTOR_BADGE,
+    qualityGateId: gate.quality_gate_definition_id!, seuId: testSeu.seu.id, entityType: "AttentionItem", entityId: waivedEntity, rationale: "quality-gate-engine test", grantedBy: ROOT_ACTOR_ID, authorityBadge: ROOT_ACTOR_BADGE,
   });
   assert.ok(waiver && !error, error);
 

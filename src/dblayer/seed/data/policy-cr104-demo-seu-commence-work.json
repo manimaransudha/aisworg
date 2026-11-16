@@ -39,6 +39,6 @@
       "exceptionRules": []
     }
   ],
-  "scope": "Transition",
+  "scope": "Eligibility",
   "version": "1.0.0"
 }

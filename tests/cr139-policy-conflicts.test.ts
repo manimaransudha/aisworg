@@ -8,7 +8,7 @@ import type { PolicyRule } from "../src/domain/engine/conflicts/unravelPolicies.
 const STEP = "Deliverable|In Progress|Approved";
 
 function rule(pack: string, policyCode: string, field: string | null, operator: string, value: unknown, statement = `${policyCode} statement`, deliverable = "source-code"): PolicyRule {
-  return { policyCode, packId: `id-${pack}`, packCode: pack, deliverable, step: STEP, field, rule: field ? JSON.stringify({ operator, value }) : null, statement, scope: "Transition", governingCondition: null };
+  return { policyCode, packId: `id-${pack}`, packCode: pack, policyDefinitionId: "definition-1", deliverable, step: STEP, field, rule: field ? JSON.stringify({ operator, value }) : null, statement, scope: "Transition", governingCondition: null };
 }
 
 test("one Policy has no conflict", () => {

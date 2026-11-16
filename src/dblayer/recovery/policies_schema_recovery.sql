@@ -19,6 +19,7 @@ ALTER TABLE policies ALTER COLUMN governed_transition DROP NOT NULL;
 ALTER TABLE policies ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'Transition'
   CHECK (scope IN ('Transition', 'Eligibility'));
 ALTER TABLE policies ADD COLUMN IF NOT EXISTS applicability_deliverable_names TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE policies ADD COLUMN IF NOT EXISTS policy_definition_id UUID;
 ALTER TABLE policies
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants_master(id),
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;

@@ -137,7 +137,15 @@ export async function raiseObligationForBlockedTransition(input: {
   const { plainCode, conditionIndex } = parseMaterializedPolicyCode(policy?.code ?? input.policyCode);
   const { data: seu } = await seusDB.findById(input.seuId);
   if (!seu) throw new Error(`SEU "${input.seuId}" not found while raising a blocked-transition Obligation`);
-  const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(plainCode, seu.tenant_id);
+  // The Obligations come from the Policy Definition the EBM took, which the settled Policy rule names. A Policy a hop requires, or an SEU with no EBM, has no such rule, and its Definition is the Active one of its code.
+  const { data: ebmRow } = seu.active_ebm_id ? await ebmsDB.findById(seu.active_ebm_id) : { data: null };
+  const settledRule = ebmRow
+    ? (settledOf(ebmRow.behaviors)?.policies?.result ?? []).find((r) => r.policyCode === plainCode && r.step === `${input.relatedObjectType}|${input.fromState}|${input.toState}`)
+    : undefined;
+  const { data: definition, error: definitionError } = settledRule?.policyDefinitionId
+    ? await policyDefinitionsDB.findById(settledRule.policyDefinitionId)
+    : await policyDefinitionsDB.findActiveByCodeVisibleTo(plainCode, seu.tenant_id);
+  if (definitionError) throw definitionError;
   const governing = policy ?? definition;
   if (!governing) throw new Error(`policy "${input.policyCode}" not found while raising a blocked-transition Obligation`);
   const policyEntityId = governing.id;

@@ -1,11 +1,11 @@
 import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
-import { policiesDB } from "../../dblayer/policiesDB.js";
+import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
 import { evaluateCondition, type GoverningCondition } from "./governingCondition.js";
 import { eventBus } from "./eventBus.js";
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
-import type { PolicyCheck } from "./policyChecks.js";
+import { policyChecksFromDefinitions, type PolicyCheck } from "./policyChecks.js";
 
 export type PolicyEvaluationResult =
   | { outcome: "NotApplicable"; satisfiedPolicyIds: []; deviatedPolicyIds: [] }
@@ -31,17 +31,12 @@ export const policyEngine = {
     const relevantPolicyIds = input.entityType === "SEU" ? ebm.seu_scoped_policy_ids : ebm.applicable_policy_ids;
     if (relevantPolicyIds.length === 0) return { outcome: "NotApplicable", satisfiedPolicyIds: [], deviatedPolicyIds: [] };
 
-    const { data: candidatePolicies } = await policiesDB.findByIds(relevantPolicyIds);
+    // The EBM lists the ids of the Policy Definitions it took. The checks of the hop are read from them.
+    const { data: definitions, error: definitionsError } = await policyDefinitionsDB.findByIds(relevantPolicyIds);
+    if (definitionsError) throw definitionsError;
     const governedTransition = `${input.entityType}|${input.fromState}|${input.toState}`;
-    let policies = (candidatePolicies ?? []).filter((p) => p.governed_transition === governedTransition);
-    if (policies.length === 0) return { outcome: "NotApplicable", satisfiedPolicyIds: [], deviatedPolicyIds: [] };
-
-    const named = policies.some((p) => p.applicability_deliverable_names.length > 0);
-    if (named && input.entityType === "Deliverable" && input.entityId) {
-      const { data: deliverable } = await deliverablesDB.findById(input.entityId);
-      const code = deliverable?.code;
-      policies = policies.filter((p) => p.applicability_deliverable_names.length === 0 || (code && p.applicability_deliverable_names.includes(code)));
-    }
+    const deliverableCode = input.entityType === "Deliverable" && input.entityId ? ((await deliverablesDB.findById(input.entityId)).data?.code ?? null) : undefined;
+    const policies = policyChecksFromDefinitions(definitions ?? [], governedTransition, deliverableCode);
     if (policies.length === 0) return { outcome: "NotApplicable", satisfiedPolicyIds: [], deviatedPolicyIds: [] };
 
     return this.evaluateChecks(policies, { ...input, seuId: input.seuId });

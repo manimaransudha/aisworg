@@ -9,7 +9,8 @@ export interface EbmSettledView {
   engineeringCapital?: { result?: Array<{ type: string; url: string | null; packs: string[] }> };
   obligationDefinitions?: { result?: Array<{ deliverable: string; step: string; definitions: Array<{ fields: Record<string, unknown>; packs: Array<{ id: string; code: string }> }> }> };
   services?: { result?: Array<{ deliverable: string; name: string | null; service: string }> };
-  policies?: { result?: Array<{ policyCode: string; scope: string; governingCondition: Record<string, unknown> | null }> };
+  qualityGates?: { result?: Array<{ deliverable: string; step: string; gates: Array<Record<string, unknown>>; qualityGateDefinitionIds?: string[] }> };
+  policies?: { result?: Array<{ policyCode: string; policyDefinitionId?: string; step?: string; scope: string; governingCondition: Record<string, unknown> | null }> };
 }
 
 // The settled result of the SEU's active EBM, or null when the SEU has no active EBM.

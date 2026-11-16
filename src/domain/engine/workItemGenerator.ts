@@ -12,10 +12,11 @@ import { evidenceDB } from "../../dblayer/evidenceDB.js";
 import { knowledgeItemsDB } from "../../dblayer/knowledgeItemsDB.js";
 import { governanceEvaluationOutcomesDB } from "../../dblayer/governanceEvaluationOutcomesDB.js";
 import { policiesDB } from "../../dblayer/policiesDB.js";
+import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
 import { authorityRulesDB } from "../../dblayer/authorityRulesDB.js";
 import { obligationsDB } from "../../dblayer/obligationsDB.js";
 import { attentionItemsDB } from "../../dblayer/attentionItemsDB.js";
-import { qualityGatesDB } from "../../dblayer/qualityGatesDB.js";
+import { qualityGateDefinitionsDB } from "../../dblayer/qualityGateDefinitionsDB.js";
 import { eventBus } from "./eventBus.js";
 import type { CommandRow, WorkItemExecutionContext, WorkItemRow } from "../../dblayer/seuTypes.js";
 
@@ -142,16 +143,18 @@ async function buildDeliverableExecutionContext(command: CommandRow): Promise<Wo
   if (command.governance_outcome_id) {
     const { data: outcome } = await governanceEvaluationOutcomesDB.findById(command.governance_outcome_id);
     if (outcome) {
-      const [{ data: policies }, authorityRule, attentionItems] = await Promise.all([
+      // The EBM names Policy Definitions. A Policy that a Transition Definition requires may be named by the id of a materialised row, so both tables are read.
+      const [{ data: definitions }, { data: policyRows }, authorityRule, attentionItems] = await Promise.all([
+        policyDefinitionsDB.findByIds(outcome.satisfied_policy_ids),
         policiesDB.findByIds(outcome.satisfied_policy_ids),
         outcome.applicable_authority_rule_id ? authorityRulesDB.findById(outcome.applicable_authority_rule_id) : Promise.resolve({ data: null }),
         Promise.all(outcome.open_attention_item_ids.map((id) => attentionItemsDB.findById(id))),
       ]);
-      governingPolicies = (policies ?? []).map((p) => ({ id: p.id, code: p.code, name: p.name }));
+      governingPolicies = [...(definitions ?? []), ...(policyRows ?? [])].map((p) => ({ id: p.id, code: p.code, name: p.name }));
       applicableAuthority = authorityRule?.data ? { ruleId: authorityRule.data.id, code: authorityRule.data.code } : null;
       openAttentionItems = attentionItems.map((a) => a.data).filter((a): a is NonNullable<typeof a> => !!a).map((a) => ({ id: a.id, title: a.title, status: a.status }));
       if (outcome.quality_gate_id && outcome.quality_gate_outcome) {
-        const { data: gates } = await qualityGatesDB.findByIds([outcome.quality_gate_id]);
+        const { data: gates } = await qualityGateDefinitionsDB.findByIds([outcome.quality_gate_id]);
         const gate = gates?.[0];
         qualityGate = { id: outcome.quality_gate_id, name: gate?.name ?? outcome.quality_gate_id, outcome: outcome.quality_gate_outcome };
       }

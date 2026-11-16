@@ -53,7 +53,7 @@ test("capabilities: a Capability a Pack names is taken only when the user includ
 
 // Policies
 const rule = (pack: string, policyCode: string, field: string | null, operator = ">", value: unknown = 2, statement = `${policyCode} statement`): PolicyRule => ({
-  policyCode, packId: `id-${pack}`, packCode: pack, deliverable: "source-code", step: STEP, field, rule: field ? JSON.stringify({ operator, value }) : null, statement, scope: "Transition", governingCondition: field ? { type: "comparison", field, operator, value } : null,
+  policyCode, packId: `id-${pack}`, packCode: pack, policyDefinitionId: "definition-1", deliverable: "source-code", step: STEP, field, rule: field ? JSON.stringify({ operator, value }) : null, statement, scope: "Transition", governingCondition: field ? { type: "comparison", field, operator, value } : null,
 });
 
 test("policies: identical rules from two Packs are one rule that lists both Packs", () => {
@@ -100,11 +100,11 @@ test("authority rules: a conflict takes the roles of the sets the user picked, t
 });
 
 // Quality gates
-const qgate = (pack: string, fields: Record<string, unknown>, deliverable = "source-code", checklistIds: string[] = [], recommendedChecklistIds: string[] = []) => ({ packId: `id-${pack}`, packCode: pack, deliverable, step: STEP, fields, checklistIds, recommendedChecklistIds });
+const qgate = (pack: string, fields: Record<string, unknown>, deliverable = "source-code", checklistIds: string[] = [], recommendedChecklistIds: string[] = []) => ({ packId: `id-${pack}`, packCode: pack, qualityGateDefinitionId: "definition-code-review", deliverable, step: STEP, fields, checklistIds, recommendedChecklistIds });
 
 test("quality gates: the same gate from two Packs is one gate, and the checklists are a union", () => {
   const settled = settleQualityGatesFrom({ gates: [qgate("a", { name: "Review" }, "source-code", ["x"], ["r1"]), qgate("b", { name: "Review" }, "source-code", ["y"], ["r2"])] });
-  assert.deepEqual(settled.result, [{ deliverable: "source-code", step: STEP, gates: [{ name: "Review" }], checklistIds: ["x", "y"], recommendedChecklistIds: ["r1", "r2"] }]);
+  assert.deepEqual(settled.result, [{ deliverable: "source-code", step: STEP, gates: [{ name: "Review" }], qualityGateDefinitionIds: ["definition-code-review"], checklistIds: ["x", "y"], recommendedChecklistIds: ["r1", "r2"] }]);
 });
 
 test("quality gates: a conflict takes the gates the user picked", () => {
@@ -130,7 +130,7 @@ test("review gates: a conflict between gates of one code takes the gate the user
 });
 
 // Obligation definitions
-const odef = (pack: string, fields: Record<string, unknown>) => ({ packId: `id-${pack}`, packCode: pack, deliverable: "source-code", step: STEP, fields });
+const odef = (pack: string, fields: Record<string, unknown>) => ({ packId: `id-${pack}`, packCode: pack, policyDefinitionId: "definition-1", deliverable: "source-code", step: STEP, fields });
 
 test("obligation definitions: the same definition is one definition, and a conflict takes the definitions the user picked", () => {
   assert.equal(settleObligationDefinitionsFrom({ definitions: [odef("a", { code: "o1" }), odef("b", { code: "o1" })] }).result[0].definitions.length, 1);

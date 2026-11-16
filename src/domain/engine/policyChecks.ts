@@ -1,6 +1,6 @@
 import { policiesDB } from "../../dblayer/policiesDB.js";
 import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
-import type { ConstraintType, PolicyCondition, PolicyScope } from "../../dblayer/seuTypes.js";
+import type { ConstraintType, PolicyCondition, PolicyDefinitionRow, PolicyScope } from "../../dblayer/seuTypes.js";
 
 // Which governed transitions a Policy Definition condition materialises into (CR-128). The Pack install and the transition engine both use it.
 export function governedTransitionsFor(scope: PolicyScope, applicabilityDeliverables: PolicyCondition["applicabilityDeliverables"]): Array<{ governedTransition: string | null; deliverableNames: string[]; governingCondition: Record<string, unknown> | null }> {
@@ -27,6 +27,33 @@ export interface PolicyCheck {
 }
 
 const MATERIALISED_CODE_SEPARATOR = "::";
+
+// The code of the `policies` row that Pack activation writes for one condition and one governed transition of a Policy Definition. A Policy that has one condition and one
+// governed transition keeps its own code. Any other Policy fans out into one row for each condition and governed transition.
+export function materializedPolicyCode(policyCode: string, conditionIndex: number, fansOut: boolean, row: { governedTransition: string | null; deliverableNames: string[] }): string {
+  return fansOut ? [policyCode, conditionIndex, row.governedTransition ?? "none", row.deliverableNames[0] ?? ""].join(MATERIALISED_CODE_SEPARATOR) : policyCode;
+}
+
+// The checks of one hop (of every hop when `hop` is null), read from Policy Definitions: one check for each condition and governed transition of a Definition that governs the hop. `deliverableCode` is the code of
+// the Deliverable under evaluation, null for a Deliverable with no code, and undefined when the entity is not a Deliverable. A condition that names a Deliverable applies to that Deliverable only.
+// The check carries the code a materialised row would have, so the condition it came from can be found again from the code.
+export function policyChecksFromDefinitions(definitions: PolicyDefinitionRow[], hop: string | null, deliverableCode: string | null | undefined): PolicyCheck[] {
+  const checks: PolicyCheck[] = [];
+  for (const definition of definitions) {
+    const scope: PolicyScope = definition.scope ?? "Transition";
+    const conditions = definition.conditions ?? [];
+    for (const [conditionIndex, condition] of conditions.entries()) {
+      const rows = governedTransitionsFor(scope, condition.applicabilityDeliverables ?? []);
+      const fansOut = conditions.length > 1 || rows.length > 1;
+      for (const row of rows) {
+        if (hop !== null && row.governedTransition !== hop) continue;
+        if (deliverableCode !== undefined && row.deliverableNames.length > 0 && !(deliverableCode && row.deliverableNames.includes(deliverableCode))) continue;
+        checks.push({ id: definition.id, code: materializedPolicyCode(definition.code, conditionIndex, fansOut, row), constraint_type: definition.constraint_type, condition: row.governingCondition ?? { type: "always_true" } });
+      }
+    }
+  }
+  return checks;
+}
 
 // A transition row lists ids from either table. A definition id counts only when no materialised row of the same code is listed,
 // and only for the conditions that govern this hop. A definition with no condition for the hop contributes no check.

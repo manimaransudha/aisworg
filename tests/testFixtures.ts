@@ -32,7 +32,7 @@ import { seusDB } from "../src/dblayer/seusDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { transitionRequiresAttestation } from "../src/domain/engine/transitionEngine.js";
-import type { ObjectiveRow, PackQualityGate, TransitionEntityType } from "../src/dblayer/seuTypes.js";
+import type { ObjectiveRow, PackQualityGate, QualityGateRow, TransitionEntityType } from "../src/dblayer/seuTypes.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { lookupRouteAuthority } from "../src/domain/identity/routeAuthorityCache.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
@@ -1105,6 +1105,32 @@ export async function ensureQualityGateDefinition(input: {
   return entry;
 }
 
+// A `quality_gates` row written from a Quality Gate Definition, for the tests that give a Transition Definition its required gates by row id. The engine records an evaluation, a waiver and an outcome under
+// the id of the Definition, so the row has to name one. The Definition takes the criteria type of `criteria`, and the row keeps the whole of `criteria`.
+export async function createGateRowWithDefinition(input: {
+  code: string;
+  name: string;
+  category: string;
+  entityType: TransitionEntityType;
+  fromState: string;
+  toState: string;
+  criteria: Record<string, unknown>;
+  originatingPackId: string;
+  authorId: string;
+  authorBadge: string;
+}): Promise<QualityGateRow> {
+  const evidenceCategory = typeof input.criteria.evidenceCategory === "string" ? input.criteria.evidenceCategory : undefined;
+  await ensureQualityGateDefinition({
+    code: input.code, name: input.name, category: input.category, governedTransition: `${input.entityType}|${input.fromState}|${input.toState}`,
+    criteriaType: String(input.criteria.type), ...(evidenceCategory ? { evidenceCategory } : {}),
+  });
+  const { data: definition } = await qualityGateDefinitionsDB.findByCodeAndVersion(input.code, "1.0.0", PLATFORM_TENANT_ID);
+  if (!definition) throw new Error(`createGateRowWithDefinition(): the Definition ${input.code} was not found`);
+  const { data, error } = await qualityGatesDB.upsert({ ...input, qualityGateDefinitionId: definition.id });
+  if (error || !data) throw error ?? new Error(`createGateRowWithDefinition(): the gate ${input.code} was not written`);
+  return data;
+}
+
 // This is a real, event-driven platform: deliverableKickoffHandler re-fires
 // on EVERY DeliverableTransitioned, not just SEUOperational (Ch.32/33's own
 // "succession mechanism" — see eventSubscriptions.json's own description).
@@ -1363,34 +1389,10 @@ export async function getTestDevelopmentPack() {
   return pack;
 }
 
+// The core gates are listed by the contributions of the test-development Pack (test-openup-development.pack.json), so publishing the fixture Packs activates them, and the composition settles them
+// into the EBM of every SEU that composes the Pack.
 async function seedCoreGates(): Promise<void> {
-  const corePack = await getTestDevelopmentPack();
-
-  await qualityGatesDB.upsert({
-    code: "no-unresolved-obligations",
-    name: "No Unresolved Obligations",
-    category: "Exit",
-    entityType: "Deliverable",
-    fromState: "In Progress",
-    toState: "Approved",
-    criteria: { type: "no_unresolved_obligations" },
-    originatingPackId: corePack.id,
-    authorId: corePack.authored_by,
-    authorBadge: corePack.author_badge,
-  });
-
-  await qualityGatesDB.upsert({
-    code: "accepted-evidence-or-approved-decision",
-    name: "Requires Accepted Evidence or Approved Decision",
-    category: "Exit",
-    entityType: "Deliverable",
-    fromState: "Approved",
-    toState: "Baselined",
-    criteria: { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" },
-    originatingPackId: corePack.id,
-    authorId: corePack.authored_by,
-    authorBadge: corePack.author_badge,
-  });
+  await ensureTestFixturePacks();
 }
 
 // The id of the Active Platform Service Definition a seeded Service code names, for a Pack contributionServices[] entry.
