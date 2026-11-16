@@ -10,7 +10,7 @@ CREATE TABLE schema_definitions (
 );
 ALTER TABLE schema_definitions DROP CONSTRAINT IF EXISTS schema_definitions_entity_kind_check;
 ALTER TABLE schema_definitions ADD CONSTRAINT schema_definitions_entity_kind_check
-  CHECK (entity_kind IN ('Pack', 'Template', 'Profile', 'TransitionDefinition', 'Deliverable', 'Service', 'Policy', 'Capability'));
+  CHECK (entity_kind IN ('Pack', 'Template', 'Profile', 'TransitionDefinition', 'Deliverable', 'Service', 'Policy', 'Capability', 'QualityGate'));
 ALTER TABLE schema_definitions
   ADD COLUMN IF NOT EXISTS compatible_versions INTEGER[] NOT NULL DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS incompatible_versions INTEGER[] NOT NULL DEFAULT '{}';
