@@ -489,7 +489,7 @@ export async function maximalPack(
         description: "The checks the fixture gates run.",
         items: [
           { group: "Fixture group", statement: "The output is complete.", configurableKey: FIXTURE_CODES.dimension.code, configurableValue: FIXTURE_CODES.dimensionValue.code },
-          { statement: "The output is reviewed." },
+          { statement: "The output is reviewed.", configurableKey: FIXTURE_CODES.dimension.code, configurableValue: FIXTURE_CODES.dimensionValue.code },
         ],
       },
     ],
