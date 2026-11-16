@@ -20,6 +20,7 @@ import { reviewsDB } from "../src/dblayer/reviewsDB.js";
 import { findingsDB } from "../src/dblayer/findingsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
+import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { commissionedSeu } from "./webScenarios.js";
 import { reviewGatesDB } from "../src/dblayer/reviewGatesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
@@ -120,6 +121,11 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
     authorBadge: corePack!.author_badge,
   });
   assert.ok(reviewGate);
+  // The Pack validation refuses a gate on a transition that does not exist, so the hop gets a Transition Definition, removed at the end.
+  const verbRows = await pool.query<{ verb: string }>("SELECT verb FROM transition_definitions WHERE entity_type = 'Deliverable' AND verb IS NOT NULL LIMIT 1");
+  assert.ok(verbRows.rows[0], "a seeded Deliverable edge names a verb");
+  const { error: edgeError } = await transitionDefinitionsDB.upsert({ entityType: "Deliverable", fromState, toState, verb: verbRows.rows[0].verb });
+  assert.ok(!edgeError, edgeError);
   const gateEntry = await ensureQualityGateDefinition({
     code: `rm-qg-${run}`, name: "Requires Architecture Review", category: "Exit", governedTransition: `Deliverable|${fromState}|${toState}`,
     criteriaType: "requires_accepted_review", deliverableName: reviewGateCode,
@@ -151,6 +157,7 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
   const arch = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Arch review (passes)", reviewGateId: reviewGate!.id });
   await walkReviewToAccepted(arch.id, "Passed");
   assert.equal((await evalGate()).outcome, "Approved", "an Accepted, passing Review linked to the required Review Gate satisfies the gate");
+  await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'Deliverable' AND from_state = $1 AND to_state = $2", [fromState, toState]);
 });
 
 test("Findings: a High-severity Finding auto-surfaces an Attention Item; a Finding resolves and can be converted to an Obligation", async () => {

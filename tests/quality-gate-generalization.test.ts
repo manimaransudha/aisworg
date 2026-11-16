@@ -74,6 +74,9 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
   // AttentionItem transition (Created/Delivered/Acknowledged/...).
   const fromState = `qg-test-from-${randomUUID()}`;
   const toState = `qg-test-to-${randomUUID()}`;
+  // The Pack validation refuses a gate on a transition that does not exist, so the pair gets a Transition Definition, removed at the end.
+  const { error: edgeError } = await transitionDefinitionsDB.upsert({ entityType: "AttentionItem", fromState, toState, verb: "resolve", eventType: "AttentionResolved" });
+  assert.equal(edgeError, undefined);
   const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG generalization test gate", category: "Exit", governedTransition: `AttentionItem|${fromState}|${toState}`, criteriaType: "no_unresolved_obligations" });
 
   const seuId = await commissionTestSeu("qg-generalization-direct", [gateEntry]);
@@ -105,6 +108,7 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
   }
   const afterResolution = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: (await getSystemActor(seuId)).authorId, authorBadge: "root", tenantId }));
   assert.equal(afterResolution.outcome, "Approved");
+  await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'AttentionItem' AND to_state = $1", [toState]);
 });
 
 test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real transition is blocked by an unresolved Obligation attached to the same AttentionItem, and unblocks once resolved", async () => {

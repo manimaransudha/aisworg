@@ -65,6 +65,8 @@ before(async () => {
   assert.ok(verbRows.rows[0], "a seeded Deliverable edge names a verb");
   verb = verbRows.rows[0].verb;
 
+  // The Pack validation refuses a gate on a transition that does not exist, so the edges come first.
+  for (const hop of [mixed, clean, bare]) await addEdge(hop);
   const entries = {
     blocking: await gateEntry("blocking", mixed, "requires_accepted_evidence_or_approved_decision"),
     passingMixed: await gateEntry("passing-mixed", mixed, "no_unresolved_obligations"),
@@ -78,7 +80,6 @@ before(async () => {
     assert.ok(row, `the EBM names gate ${entry.qualityCode}`);
     gates[key as keyof typeof gates] = row;
   }
-  for (const hop of [mixed, clean, bare]) await addEdge(hop);
 });
 
 after(async () => {

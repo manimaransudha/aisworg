@@ -226,6 +226,9 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
   const blockedTo = state("gate-done-a");
   const passedFrom = state("gate-open-b");
   const passedTo = state("gate-done-b");
+  // The Pack validation refuses a gate on a transition that does not exist, so the edges come first.
+  await addEdge(blockedFrom, blockedTo, true);
+  await addEdge(passedFrom, passedTo, true);
   const blockingEntry = await ensureQualityGateDefinition({ code: `execution-engine-blocking-${run}`, name: `execution-engine blocking ${run}`, category: "Exit", governedTransition: `Deliverable|${blockedFrom}|${blockedTo}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
   const passingEntry = await ensureQualityGateDefinition({ code: `execution-engine-passing-${run}`, name: `execution-engine passing ${run}`, category: "Exit", governedTransition: `Deliverable|${passedFrom}|${passedTo}`, criteriaType: "no_unresolved_obligations" });
   const gateSeu = await commissionedSeu("execution-engine-gates", "clean", { conflictSet: "execution", gates: [blockingEntry, passingEntry] });
@@ -233,8 +236,6 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
   const gate = namedGates[blockingEntry.qualityCode];
   const passingGate = namedGates[passingEntry.qualityCode];
   assert.ok(gate && passingGate, "the EBM names both gates");
-  await addEdge(blockedFrom, blockedTo, true);
-  await addEdge(passedFrom, passedTo, true);
   const deliverable = await createDeliverable(blockedFrom, gateSeu);
   const blocked = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: blockedTo, actorId: ROOT_ACTOR_ID });
   assert.ok(!blocked.ok && blocked.reason === "quality_gate_blocked" && blocked.detail.includes(gate.name), JSON.stringify(blocked));
