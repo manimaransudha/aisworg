@@ -223,7 +223,7 @@ pnpm exec tsx src/dblayer/seed/seedRouteAuthority.ts
 ----------
 ##### The test scripts
 - pnpm test: compact output, written to /tmp/output.txt.
-- pnpm test:report: spec output plus test-results.xml.
+- pnpm test:report : spec output plus test-results.xml.
 - pnpm test:coverage:html: text table plus coverage/index.html.
 
 ##### Reset the database completely
@@ -304,3 +304,7 @@ Choose Configuration parameters
 
 
 -------
+
+transitionEntity
+
+executionEngine.evaluateDeliverableTransition, then applyDeliverableTransition

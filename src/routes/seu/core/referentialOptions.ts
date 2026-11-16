@@ -49,6 +49,20 @@ const SOURCE_LOADERS: Record<string, (viewer: Viewer) => Promise<string[]>> = {
     const { data } = viewer.isRoot || !viewer.tenantId ? await qualityGateDefinitionsDB.findAll() : await qualityGateDefinitionsDB.findAllVisibleTo(viewer.tenantId);
     return [...new Set((data ?? []).filter((g) => g.status === "Active").map((g) => g.code))].sort();
   },
+  // Commented out (CR-145 decision 17): the Quality Gate Definition no longer holds Policy codes, a review gate or Checklists, so no schema names these sources.
+  // Rewritten from the DB-layer functions, not the removed code. To restore, also restore the imports policyDefinitionsDB, reviewGatesDB and checklistsDB.
+  // "policy-definition-code": async (viewer) => {
+  //   const { data } = viewer.isRoot || !viewer.tenantId ? await policyDefinitionsDB.findAll() : await policyDefinitionsDB.findAllVisibleTo(viewer.tenantId);
+  //   return [...new Set((data ?? []).filter((p) => p.status === "Active").map((p) => p.code))].sort();
+  // },
+  // "review-gate-code": async (viewer) => {
+  //   const { data } = await reviewGatesDB.findActiveVisibleTo(viewer.isRoot || !viewer.tenantId ? null : viewer.tenantId);
+  //   return [...new Set((data ?? []).map((g) => g.code))].sort();
+  // },
+  // "visible-checklist-id": async (viewer) => {
+  //   const { data } = await checklistsDB.findActiveVisibleTo(viewer.isRoot || !viewer.tenantId ? null : viewer.tenantId);
+  //   return [...new Set((data ?? []).map((c) => c.name))].sort();
+  // },
   "noun": async () => (await listActiveNouns()).map((n) => n.code).sort(),
   "authority-badge": async () => Object.entries(await activeMappingByNoun()).flatMap(([noun, verbs]) => verbs.map((verb) => `${noun}_${verb}`)).sort(),
 };

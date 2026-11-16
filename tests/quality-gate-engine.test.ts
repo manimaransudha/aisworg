@@ -14,7 +14,7 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { qualityGateWaiversDB } from "../src/dblayer/qualityGateWaiversDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
+import { qualityGateEngine, type QualityGateDecision } from "../src/domain/engine/qualityGateEngine.js";
 import type { QualityGateRow } from "../src/dblayer/seuTypes.js";
 import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
@@ -46,18 +46,21 @@ async function createPolicy(label: string, condition: Record<string, unknown>) {
   return data;
 }
 
+// The reason of the first Blocked or Waived gate of a decision.
+const reasonOf = (d: QualityGateDecision) => (d.blocked[0]?.reason ?? d.waived[0]?.reason);
+
 const input = (overrides: Record<string, unknown> = {}) => ({
   entityType: "AttentionItem" as const, entityId: randomUUID(), seuId: testSeu.seu.id, authorId: testSeu.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE, tenantId: testSeu.seu.tenant_id, ...overrides,
 });
 
 test("a policy criteria gate blocks when it names no Policy, or a Policy that does not exist", async () => {
   const none = await createGate("policy-none", { type: "requires_active_policy", policyIds: [] });
-  const noneResult = await qualityGateEngine.evaluateByIds([none.id], input());
-  assert.deepEqual([noneResult.outcome, "reason" in noneResult && noneResult.reason], ["Blocked", "requires_active_policy criteria has no policyIds configured"]);
+  const noneResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([none.id], input()));
+  assert.deepEqual([noneResult.outcome, reasonOf(noneResult)], ["Blocked", "requires_active_policy criteria has no policyIds configured"]);
 
   const missing = await createGate("policy-missing", { type: "requires_active_policy", policyIds: [randomUUID()] });
-  const missingResult = await qualityGateEngine.evaluateByIds([missing.id], input());
-  assert.deepEqual([missingResult.outcome, "reason" in missingResult && missingResult.reason], ["Blocked", "one or more referenced Policies do not exist"]);
+  const missingResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([missing.id], input()));
+  assert.deepEqual([missingResult.outcome, reasonOf(missingResult)], ["Blocked", "one or more referenced Policies do not exist"]);
 });
 
 test("a policy criteria gate passes when every Policy holds for the context, and blocks on the first that does not", async () => {
@@ -65,20 +68,20 @@ test("a policy criteria gate passes when every Policy holds for the context, and
   const fails = await createPolicy("fails", { type: "field_in", field: "status", values: ["Ready"] });
 
   const passing = await createGate("policy-pass", { type: "requires_active_policy", policyIds: [holds.id] });
-  assert.equal((await qualityGateEngine.evaluateByIds([passing.id], input())).outcome, "Passed");
+  assert.equal((qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([passing.id], input()))).outcome, "Approved");
 
   const blocking = await createGate("policy-block", { type: "requires_active_policy", policyIds: [holds.id, fails.id] });
-  const blocked = await qualityGateEngine.evaluateByIds([blocking.id], input({ context: { status: "Draft" } }));
+  const blocked = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([blocking.id], input({ context: { status: "Draft" } })));
   assert.equal(blocked.outcome, "Blocked");
-  assert.equal("reason" in blocked && blocked.reason, `Policy "${fails.code}" is not satisfied for this entity`);
-  assert.equal((await qualityGateEngine.evaluateByIds([blocking.id], input({ context: { status: "Ready" } }))).outcome, "Passed", "the context decides");
+  assert.equal(reasonOf(blocked), `Policy "${fails.code}" is not satisfied for this entity`);
+  assert.equal((qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([blocking.id], input({ context: { status: "Ready" } })))).outcome, "Approved", "the context decides");
 });
 
 test("a gate with a criteria type the engine does not know blocks", async () => {
   const unknown = await createGate("unknown", { type: `zz-unknown-${run}` });
-  const result = await qualityGateEngine.evaluateByIds([unknown.id], input());
+  const result = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([unknown.id], input()));
   assert.equal(result.outcome, "Blocked");
-  assert.equal("reason" in result && result.reason, `unrecognised Quality Gate criteria type: zz-unknown-${run}`);
+  assert.equal(reasonOf(result), `unrecognised Quality Gate criteria type: zz-unknown-${run}`);
 });
 
 test("a Waiver granted for the gate and the entity turns the block into a waived outcome, and leaves another entity blocked", async () => {
@@ -89,36 +92,36 @@ test("a Waiver granted for the gate and the entity turns the block into a waived
   });
   assert.ok(waiver && !error, error);
 
-  const waived = await qualityGateEngine.evaluateByIds([gate.id], input({ entityId: waivedEntity }));
+  const waived = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([gate.id], input({ entityId: waivedEntity })));
   assert.equal(waived.outcome, "Waived");
-  assert.equal("reason" in waived && waived.reason, "requires_active_policy criteria has no policyIds configured");
-  assert.equal((await qualityGateEngine.evaluateByIds([gate.id], input())).outcome, "Blocked", "another entity has no Waiver");
+  assert.equal(reasonOf(waived), "requires_active_policy criteria has no policyIds configured");
+  assert.equal((qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([gate.id], input()))).outcome, "Blocked", "another entity has no Waiver");
 });
 
-test("an SEU with no EBM evaluates the active gates of the edge", async () => {
+test("an SEU with no EBM has no gates: its gates are the ones its EBM names", async () => {
   const gate = await createGate("no-ebm", { type: "no_unresolved_obligations" });
   assert.equal(testSeu.seu.active_ebm_id, null);
   const edge = { fromState: gate.from_state, toState: gate.to_state };
 
-  assert.equal((await qualityGateEngine.evaluate({ ...input(), ...edge })).outcome, "Passed");
-  assert.equal((await qualityGateEngine.evaluate({ ...input(), fromState: `zz-no-gate-${run}`, toState: `zz-no-gate-to-${run}` })).outcome, "NotApplicable", "an edge with no gate");
+  assert.equal((qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ ...input(), ...edge }))).outcome, "NotApplicable", "an active gate on the edge is not evaluated without an EBM that names it");
+  assert.equal((qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ ...input(), fromState: `zz-no-gate-${run}`, toState: `zz-no-gate-to-${run}` }))).outcome, "NotApplicable", "an edge with no gate");
 });
 
 test("evaluating no gates is not applicable, and a review or evidence gate with nothing to show blocks", async () => {
-  assert.deepEqual(await qualityGateEngine.evaluateByIds([], input()), { outcome: "NotApplicable" });
+  assert.deepEqual(qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([], input())), { outcome: "NotApplicable" });
 
   const unconfigured = await createGate("review-unconfigured", { type: "requires_accepted_review" });
-  const noConfig = await qualityGateEngine.evaluateByIds([unconfigured.id], input());
+  const noConfig = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([unconfigured.id], input()));
   assert.equal(noConfig.outcome, "Blocked");
-  assert.equal("reason" in noConfig && noConfig.reason, "requires_accepted_review criteria has no reviewGateId configured");
+  assert.equal(reasonOf(noConfig), "requires_accepted_review criteria has no reviewGateId configured");
 
   const noReview = await createGate("review-none", { type: "requires_accepted_review", reviewGateId: randomUUID() });
-  const missing = await qualityGateEngine.evaluateByIds([noReview.id], input());
+  const missing = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([noReview.id], input()));
   assert.equal(missing.outcome, "Blocked");
-  assert.equal("reason" in missing && missing.reason, "no Accepted, passing Review found for this entity against the required Review Gate");
+  assert.equal(reasonOf(missing), "no Accepted, passing Review found for this entity against the required Review Gate");
 
   const evidence = await createGate("evidence-none", { type: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
-  const noEvidence = await qualityGateEngine.evaluateByIds([evidence.id], input());
+  const noEvidence = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([evidence.id], input()));
   assert.equal(noEvidence.outcome, "Blocked");
-  assert.ok("reason" in noEvidence && /no accepted Evidence of category ".*" or approved Decision/.test(noEvidence.reason), JSON.stringify(noEvidence));
+  assert.ok(/no accepted Evidence of category ".*" or approved Decision/.test(reasonOf(noEvidence) ?? ""), JSON.stringify(noEvidence));
 });

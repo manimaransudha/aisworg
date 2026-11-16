@@ -9,7 +9,7 @@ import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { evaluateCondition, type GoverningCondition } from "../../../domain/engine/governingCondition.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
-import { RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGateEngine.js";
+import { RESOLVED_OBLIGATION_STATUSES } from "../../../dblayer/constants.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import { raiseAttentionItem, resolveAuthor } from "./attentionItems.js";

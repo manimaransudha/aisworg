@@ -26,7 +26,7 @@ import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDef
 import { layoutDependencyGraph, type DependencyGraphLayout } from "./templateView.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { evaluateCondition, type GoverningCondition } from "../../../domain/engine/governingCondition.js";
-import { RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGateEngine.js";
+import { RESOLVED_OBLIGATION_STATUSES } from "../../../dblayer/constants.js";
 import type { PoolEntry } from "../../../domain/engine/profileCompositionUnravel.js";
 import { getSeuEvents } from "./events.js";
 import { listObligationsBySeu } from "./obligations.js";

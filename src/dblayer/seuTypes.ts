@@ -979,7 +979,25 @@ export interface ObligationRow {
   updated_at: string;
 }
 
-export type QualityGateOutcomeValue = "Passed" | "Passed with Conditions" | "Blocked" | "Waived" | "Deferred" | "Not Applicable";
+export type QualityGateOutcomeValue = "Passed" | "PassedWithConditions" | "Blocked" | "Waived" | "Deferred" | "NotApplicable";
+export type QualityGateDecisionOutcome = "Approved" | "Blocked" | "Waived" | "NotApplicable";
+
+export interface QualityGateOutcomeRow {
+  id: string;
+  seu_id: string;
+  deliverable_id: string;
+  tenant_id: string;
+  actor_id: string;
+  actor_badge: string;
+  evaluation_ids: string[];
+  outcome: QualityGateDecisionOutcome;
+  confidence_level: string;
+  rationale: string;
+  evaluated_at: string;
+  created_at: string;
+}
+
+export type QualityGateOutcomeInput = Omit<QualityGateOutcomeRow, "id" | "confidence_level" | "evaluated_at" | "created_at"> & { confidence_level: number };
 
 export interface QualityGateRow {
   id: string;

@@ -74,6 +74,7 @@ async function cleanupPriorRuns(): Promise<void> {
     await pool.query("DELETE FROM findings WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM version_events WHERE event_id IN (SELECT id FROM events WHERE seu_id = ANY($1::uuid[]))", [seuIds]);
     await pool.query("DELETE FROM events WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM quality_gate_outcomes WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM quality_gate_evaluations WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM quality_gate_waivers WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM reviews WHERE seu_id = ANY($1::uuid[])", [seuIds]);

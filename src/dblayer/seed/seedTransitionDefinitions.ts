@@ -9,6 +9,8 @@ import { authorityVocabularyDB } from "../authorityVocabularyDB.js";
 import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
 import { ATTESTATION_REQUIRED_POLICY_CODE, getPlatformTenantId } from "../constants.js";
 import { isRegisteredAction } from "../../actions/index.js";
+import { SCHEMA_KINDS } from "../../domain/sdk/schemaCompiler.js";
+import { entityTypeForKind } from "../../routes/seu/core/sdkAuthoring.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -142,6 +144,18 @@ export async function seedTransitionDefinitions(actor: SeedActor): Promise<void>
     attestationPolicyId = rows[0].id;
   }
 
+  // An SDK-authored entity lives outside an SEU. A Quality Gate evaluation is recorded against an SEU participant, so a gate cannot be pinned on its
+  // transition definition: the gate ids of such a transition are ignored.
+  const sdkAuthoredEntityTypes = new Set<string>(SCHEMA_KINDS.map((kind) => entityTypeForKind(kind)));
+  const pinnedGateIds = (s: TransitionDefinitionSeed): string[] => {
+    const ids = s.requiredQualityGateIds ?? [];
+    if (ids.length > 0 && sdkAuthoredEntityTypes.has(s.entityType)) {
+      logger.info(`[seed:transition-definitions] ${s.entityType}|${s.fromState}|${s.toState}: ${s.entityType} is not SEU-scoped, so its ${ids.length} required Quality Gate id(s) are ignored.`);
+      return [];
+    }
+    return ids;
+  };
+
   const transitions = await transitionDefinitionsDB.replaceAll(
     seeds.map((s) => ({
       entityType: s.entityType,
@@ -150,7 +164,7 @@ export async function seedTransitionDefinitions(actor: SeedActor): Promise<void>
       verb: s.verb ?? null,
       requiredAuthorityRuleId: s.requiredAuthorityRuleId ?? null,
       requiredPolicyIds: [...(s.requiredPolicyCodes ?? []).map((code) => policyIdByCode.get(code)!), ...(s.attestationRequired && attestationPolicyId ? [attestationPolicyId] : [])],
-      requiredQualityGateIds: s.requiredQualityGateIds ?? [],
+      requiredQualityGateIds: pinnedGateIds(s),
       createsObligation: s.createsObligation ?? null,
       category: s.category ?? null,
       trigger: s.trigger ?? "manual",

@@ -47,7 +47,7 @@ Specification: src/docs/SEU Studio Specifications/04_Governance/26_Quality Gate.
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates are declarative contracts.<br>Ref: §4, QG-001, §9, §17</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gates_schema_recovery.sql:3-14<br>src/dblayer/seuTypes.ts:89-101<br>src/domain/engine/qualityGateEngine.ts:98-155</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a gate is a data row with entity type, from state, to state and a JSONB criteria document. A Pack contributes it as data with a criteriaType.<br>Gap: criteria are a closed set of four types hard-coded in an if chain in evaluateGate. Conditions are not an interpreted expression. An unknown type blocks. New criteria need a code change. Only requires_active_policy evaluates a declarative condition.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a gate is a data row with entity type, from state, to state and a JSONB criteria document. A Quality Gate Definition holds the criteriaType. A Pack lists the gate as an entry (qualityCode, governedTransition, deliverableName, checklists, requiredPolicyCodes) and publishing writes the row (CR-145 decision 17).<br>Gap: criteria are a closed set of four types hard-coded in an if chain in evaluateGate. Conditions are not an interpreted expression. An unknown type blocks. New criteria need a code change. Only requires_active_policy evaluates a declarative condition.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
@@ -77,7 +77,7 @@ Specification: src/docs/SEU Studio Specifications/04_Governance/26_Quality Gate.
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates are contributed through Packs.<br>Ref: §6 FR-26.2, §8 Originating Pack</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:89-101<br>src/routes/seu/core/packs.ts:621-646<br>src/dblayer/qualityGatesDB.ts:11-69<br>src/domain/engine/compositionEngine.ts:306-317</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a Pack contributes qualityGates. Publishing the Pack upserts each into quality_gates with originating_pack_id, author and badge.<br>Gap: the schema leaves originating_pack_id nullable, so a gate without a Pack is possible at the database.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a Pack contributes qualityGates as entries that name an Active Quality Gate Definition by qualityCode. Validation checks the Definition, the transition, the Deliverable name, the Checklist ids and the Policy codes (packs.ts:227-292). Publishing the Pack upserts each entry into quality_gates (packs.ts:658-684) with originating_pack_id, author and badge. The mandatory Checklists are written to checklist_ids and the others to recommended_checklist_ids.<br>Gap: the schema leaves originating_pack_id nullable, so a gate without a Pack is possible at the database.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
@@ -149,7 +149,7 @@ Specification: src/docs/SEU Studio Specifications/04_Governance/26_Quality Gate.
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Every Quality Gate defines Identifier, Name, Category, Scope, Applicable Lifecycle Transition, Evaluation Criteria, Required Reviews, Evidence, Decisions, Obligations, Policies, Waiver Rules, Version and Originating Pack.<br>Ref: §8</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gates_schema_recovery.sql:3-39<br>src/dblayer/seuTypes.ts:931-946</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: id, code, name, category, entity type (scope), from and to state (transition), criteria, version, originating Pack, checklists and deliverable names.<br>Gap: Required Reviews, Evidence, Decisions, Obligations and Policies are not separate fields. They are expressed through the single criteria type. Waiver Rules are not a field of the gate. code is the category, not a unique identifier of the gate.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: id, code, name, category, entity type (scope), from and to state (transition), criteria, version, originating Pack, checklists and deliverable names on the quality_gates row. The Quality Gate Definition entity holds code, name, description, category, criteriaType and evidenceCategory. The Pack entry supplies the transition, Deliverable, Checklists and Policy codes (CR-145 decision 17).<br>Gap: Required Reviews, Evidence, Decisions, Obligations and Policies are not separate fields. They are expressed through the single criteria type. Waiver Rules are not a field of the gate. code is the category, not a unique identifier of the gate.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>

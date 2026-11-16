@@ -1,7 +1,8 @@
 import { obligationsDB } from "../../dblayer/obligationsDB.js";
 import { attentionItemsDB } from "../../dblayer/attentionItemsDB.js";
 import { attemptSeuCommenceWork } from "../../routes/seu/core/commissioning.js";
-import { RESOLVED_OBLIGATION_STATUSES, RESOLVED_ATTENTION_STATUSES } from "./qualityGateEngine.js";
+import { RESOLVED_ATTENTION_STATUSES } from "./qualityGateEngine.js";
+import { RESOLVED_OBLIGATION_STATUSES } from "../../dblayer/constants.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
 import type { EventRow } from "../../dblayer/seuTypes.js";

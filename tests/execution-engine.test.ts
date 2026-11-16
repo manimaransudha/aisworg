@@ -16,6 +16,9 @@ import pool from "../src/utils/db.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
+import { obligationsDB } from "../src/dblayer/obligationsDB.js";
+import { transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { RESOLVED_OBLIGATION_STATUSES } from "../src/dblayer/constants.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
@@ -217,7 +220,8 @@ test("governance refuses a Deliverable while an Obligation blocks its SEU, and w
 });
 
 test("a Quality Gate on the hop blocks the Deliverable and raises an Attention Item; a Waiver turns that into a waived outcome, and a gate that holds is a passed one", async () => {
-  const gateSeu = await commissionedSeu("execution-engine-gates", "unsettled", { conflictSet: "execution" });
+  // The EBM takes the gates of the composed Packs when it is created, and qualityGateEngine.evaluate reads the EBM only. The gates are
+  // therefore created before the SEU is commissioned, with the development Pack as originating Pack.
   const createGate = async (label: string, from: string, to: string, criteria: Record<string, unknown>) => {
     const { data, error } = await qualityGatesDB.upsert({
       category: "Exit", code: `qg-test-${randomUUID()}`, name: `execution-engine ${label} ${run}`, entityType: "Deliverable", fromState: from, toState: to, criteria, originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
@@ -228,8 +232,15 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
 
   const blockedFrom = state("gate-open-a");
   const blockedTo = state("gate-done-a");
-  await addEdge(blockedFrom, blockedTo, true);
+  const passedFrom = state("gate-open-b");
+  const passedTo = state("gate-done-b");
   const gate = await createGate("blocking", blockedFrom, blockedTo, { type: "requires_active_policy", policyIds: [] });
+  const passingGate = await createGate("passing", passedFrom, passedTo, { type: "no_unresolved_obligations" });
+  const gateSeu = await commissionedSeu("execution-engine-gates");
+  const { data: gateEbm } = await ebmsDB.findById(gateSeu.seu.active_ebm_id!);
+  for (const g of [gate, passingGate]) assert.ok(gateEbm?.applicable_quality_gate_ids.includes(g.id), `the EBM names gate ${g.name}`);
+  await addEdge(blockedFrom, blockedTo, true);
+  await addEdge(passedFrom, passedTo, true);
   const deliverable = await createDeliverable(blockedFrom, gateSeu);
   const blocked = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: blockedTo, actorId: ROOT_ACTOR_ID });
   assert.ok(!blocked.ok && blocked.reason === "quality_gate_blocked" && blocked.detail.includes(gate.name), JSON.stringify(blocked));
@@ -245,10 +256,6 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
   assert.deepEqual([waived.governanceOutcome.outcome, waived.governanceOutcome.quality_gate_id, waived.governanceOutcome.originating_pack_id], ["Waived", gate.id, packId]);
   assert.ok(waived.governanceOutcome.rationale.includes(`Quality Gate "${gate.name}": Waived`), waived.governanceOutcome.rationale);
 
-  const passedFrom = state("gate-open-b");
-  const passedTo = state("gate-done-b");
-  await addEdge(passedFrom, passedTo, true);
-  await createGate("passing", passedFrom, passedTo, { type: "no_unresolved_obligations" });
   const passed = await executionEngine.evaluateDeliverableTransition({ deliverable: await createDeliverable(passedFrom, gateSeu), targetState: passedTo, actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(passed);
   assert.deepEqual([passed.governanceOutcome.outcome, passed.governanceOutcome.quality_gate_outcome], ["Approved", "Passed"]);
@@ -265,6 +272,15 @@ test("a Standard that fails does not stop the hop: it is approved with condition
   const [, from, to] = standard.governed_transition!.split("|");
   const deliverable = ((await deliverablesDB.findBySeuId(standardSeu.seu.id)).data ?? []).find((d) => d.code === FIXTURE_CODES.output.code);
   assert.ok(deliverable, "commissioning made the output Deliverable");
+  // Commissioning's kickoff tried the next hop and the fixture Policy blocked it, which raised an Obligation. An open Obligation fails the hop like any other check,
+  // so it is resolved first and the Standard is the only check left that can fail.
+  const { data: openObligations } = await obligationsDB.findByRelatedObject("Deliverable", deliverable.id);
+  for (const obligation of (openObligations ?? []).filter((o) => o.blocked_from_state && o.blocked_to_state && !RESOLVED_OBLIGATION_STATUSES.has(o.status))) {
+    for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
+      const resolved = await transitionObligation({ obligationId: obligation.id, targetState, actorId: ROOT_ACTOR_ID });
+      assert.ok(resolved.ok, `${obligation.title} -> ${targetState}: ${JSON.stringify(resolved)}`);
+    }
+  }
   // The Standard governs one hop, so the Deliverable is evaluated for it from the state that hop leaves.
   const governance = await executionEngine.evaluateDeliverableTransition({ deliverable: { ...deliverable, lifecycle_state: from }, targetState: to, actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(governance);

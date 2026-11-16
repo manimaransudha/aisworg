@@ -35,6 +35,7 @@ import { transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createDecision, transitionDecision } from "../src/routes/seu/core/decisions.js";
 import { decisionsDB } from "../src/dblayer/decisionsDB.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
+import { seusDB } from "../src/dblayer/seusDB.js";
 import { knowledgeItemsDB } from "../src/dblayer/knowledgeItemsDB.js";
 import { reviewsDB } from "../src/dblayer/reviewsDB.js";
 import { findingsDB } from "../src/dblayer/findingsDB.js";
@@ -100,10 +101,12 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
 
   const seuId = await commissionTestSeu("qg-generalization-direct");
   const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG generalization test item", actorId: TESTER_ALL_ID, authorBadge: "root" });
+  const { data: gateSeu } = await seusDB.findById(seuId);
+  const tenantId = gateSeu!.tenant_id;
 
   // No Obligations attached yet — must pass.
-  const beforeObligation = await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root" });
-  assert.equal(beforeObligation.outcome, "Passed");
+  const beforeObligation = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root", tenantId }));
+  assert.equal(beforeObligation.outcome, "Approved");
 
   // Attach a real, unresolved Obligation directly to the AttentionItem (not a
   // Deliverable) — the exact case that used to be impossible.
@@ -114,17 +117,17 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
     title: "QG generalization test obligation (left unresolved)",
   });
 
-  const blocked = await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root" });
+  const blocked = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root", tenantId }));
   assert.equal(blocked.outcome, "Blocked");
-  if (blocked.outcome === "Blocked") assert.match(blocked.reason, /unresolved Obligation/);
+  if (blocked.outcome === "Blocked") assert.match(blocked.blocked[0].reason, /unresolved Obligation/);
 
   // Resolve it — the gate must now pass.
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
     const step = await transitionObligation({ obligationId: obligation.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
-  const afterResolution = await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root" });
-  assert.equal(afterResolution.outcome, "Passed");
+  const afterResolution = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root", tenantId }));
+  assert.equal(afterResolution.outcome, "Approved");
 });
 
 test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real transition is blocked by an unresolved Obligation attached to the same AttentionItem, and unblocks once resolved", async () => {

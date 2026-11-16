@@ -66,6 +66,7 @@ const DELETES: Array<[string, string]> = [
   ["findings", "seu_id IN (SELECT id FROM ts)"],
   ["obligations", "seu_id IN (SELECT id FROM ts)"],
   ["reviews", "seu_id IN (SELECT id FROM ts)"],
+  ["quality_gate_outcomes", "seu_id IN (SELECT id FROM ts)"],
   ["quality_gate_evaluations", "seu_id IN (SELECT id FROM ts)"],
   ["participants", "seu_id IN (SELECT id FROM ts) OR participant_id IN (SELECT id FROM tpm)"],
   ["quality_gate_waivers", "seu_id IN (SELECT id FROM ts) OR quality_gate_id IN (SELECT id FROM quality_gates WHERE originating_pack_id IN (SELECT id FROM tp))"],

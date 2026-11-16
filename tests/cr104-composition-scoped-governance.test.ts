@@ -1,4 +1,4 @@
-// CR-104 — before this, qualityGateEngine.evaluate() matched Quality Gates
+// CR-104 — before this, qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate()) matched Quality Gates
 // by a bare (entity_type, from_state, to_state) triple against the GLOBAL
 // quality_gates table: a Pack contributing a gate on that transition applied
 // to every SEU platform-wide, regardless of whether that SEU's own EBM
@@ -146,9 +146,9 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   // must evaluate to Passed, never Blocked (there's nothing to block on) —
   // the meaningful distinction here is Passed (found + evaluated) vs
   // NotApplicable (correctly excluded), not Blocked vs Passed.
-  const gateResultWith = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWith.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
-  const gateResultWithout = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
-  assert.equal(gateResultWith.outcome, "Passed", "the composing SEU's Deliverable transition is genuinely gated (found, evaluated, satisfied)");
+  const gateResultWith = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWith.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWith.tenant_id }));
+  const gateResultWithout = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWithout.tenant_id }));
+  assert.equal(gateResultWith.outcome, "Approved", "the composing SEU's Deliverable transition is genuinely gated (found, evaluated, satisfied)");
   assert.equal(gateResultWithout.outcome, "NotApplicable", "the non-composing SEU's Deliverable transition is untouched by a Pack it never selected");
 
   // Same regression, for Policy — policyEngine.evaluate is a brand new path
@@ -241,8 +241,8 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
   const other = deliverables?.find((d) => d.code === otherName);
   assert.ok(targeted && other, "both catalogue entries materialised into real Deliverable rows");
 
-  const targetedResult = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: targeted!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
-  const otherResult = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: other!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
-  assert.equal(targetedResult.outcome, "Passed", "the named Deliverable is genuinely gated");
+  const targetedResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: targeted!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: seu.tenant_id }));
+  const otherResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: other!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: seu.tenant_id }));
+  assert.equal(targetedResult.outcome, "Approved", "the named Deliverable is genuinely gated");
   assert.equal(otherResult.outcome, "NotApplicable", "a different Deliverable on the SAME transition, SAME SEU, is untouched — the gate targets only the named one");
 });

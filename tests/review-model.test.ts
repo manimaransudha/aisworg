@@ -22,6 +22,7 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { reviewGatesDB } from "../src/dblayer/reviewGatesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
+import { seusDB } from "../src/dblayer/seusDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot, getEmptyPoolTenantId, emptyParticipantPool } from "./testFixtures.js";
 import { getTestDevelopmentPack } from "./testFixtures.js";
 import { TESTER_ALL_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
@@ -103,7 +104,7 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
   // EBM's applicable_quality_gate_ids will never include it.
   //
   // A gate on a fully run-scoped triple, not just a run-scoped category —
-  // qualityGateEngine.evaluate() ANDs across EVERY active gate at a given
+  // qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate()) ANDs across EVERY active gate at a given
   // (entityType, fromState, toState), regardless of category, so sharing
   // the "unused" Deliverable Reviewed -> Baselined triple with any other
   // test that also creates a gate there (transition-definition-authoring.test.ts
@@ -139,7 +140,8 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
   });
 
   const { seuId, deliverable } = await commissionSeu("review-gate");
-  const evalGate = () => qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const { data: gateSeu } = await seusDB.findById(seuId);
+  const evalGate = async () => qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: gateSeu!.tenant_id }));
 
   assert.equal((await evalGate()).outcome, "Blocked", "no Review yet -> blocked");
 
@@ -157,7 +159,7 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
   // An Accepted + passing Review linked to the required Review Gate satisfies it.
   const arch = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Arch review (passes)", reviewGateId: reviewGate!.id });
   await walkReviewToAccepted(arch.id, "Passed");
-  assert.equal((await evalGate()).outcome, "Passed", "an Accepted, passing Review linked to the required Review Gate satisfies the gate");
+  assert.equal((await evalGate()).outcome, "Approved", "an Accepted, passing Review linked to the required Review Gate satisfies the gate");
 });
 
 test("Findings: a High-severity Finding auto-surfaces an Attention Item; a Finding resolves and can be converted to an Obligation", async () => {

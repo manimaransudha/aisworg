@@ -6,7 +6,8 @@ import { capabilityFulfilmentPoolsDB } from "../../dblayer/capabilityFulfilmentP
 import { seusDB } from "../../dblayer/seusDB.js";
 import { eventBus } from "./eventBus.js";
 import { dependencyDefinitionEngine } from "./dependencyDefinitionEngine.js";
-import { qualityGateEngine, RESOLVED_OBLIGATION_STATUSES } from "./qualityGateEngine.js";
+import { qualityGateEngine } from "./qualityGateEngine.js";
+import { RESOLVED_OBLIGATION_STATUSES } from "../../dblayer/constants.js";
 import { policyEngine, type PolicyEvaluationResult } from "./policyEngine.js";
 import { loadPolicyChecks } from "./policyChecks.js";
 import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
@@ -111,7 +112,7 @@ export const executionEngine = {
 
     const { data: gateSeu } = await seusDB.findById(deliverable.seu_id);
     if (!gateSeu) throw new Error(`SEU ${deliverable.seu_id} not found for Deliverable ${deliverable.id}`);
-    const qualityGateResult = await qualityGateEngine.evaluate({
+    const qualityGateResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({
       entityType: "Deliverable",
       entityId: deliverable.id,
       seuId: deliverable.seu_id,
@@ -120,19 +121,28 @@ export const executionEngine = {
       authorId: systemActor.authorId,
       authorBadge: systemActor.authorBadge,
       tenantId: gateSeu.tenant_id,
+    }));
+    // The decision is stored for every hop, Blocked included, before the hop is refused or goes on.
+    await qualityGateEngine.recordDecision(qualityGateResult, {
+      seuId: deliverable.seu_id,
+      deliverableId: deliverable.id,
+      tenantId: gateSeu.tenant_id,
+      actorId: systemActor.authorId,
+      actorBadge: systemActor.authorBadge,
     });
     if (qualityGateResult.outcome === "Blocked") {
-      await checkSustainedQualityGateBlocking({ qualityGateId: qualityGateResult.gate.id, gateName: qualityGateResult.gate.name, seuId: deliverable.seu_id, deliverableId: deliverable.id });
+      const [first] = qualityGateResult.blocked;
+      await checkSustainedQualityGateBlocking({ qualityGateId: first.gate.id, gateName: first.gate.name, seuId: deliverable.seu_id, deliverableId: deliverable.id });
       await raiseAttentionItem({
         seuId: deliverable.seu_id,
         category: "Action Required",
-        title: `Deliverable "${deliverable.name}" is blocked by Quality Gate "${qualityGateResult.gate.name}"`,
-        description: qualityGateResult.reason,
+        title: `Deliverable "${deliverable.name}" is blocked by Quality Gate "${first.gate.name}"`,
+        description: first.reason,
         relatedObjectType: "Deliverable",
         relatedObjectId: deliverable.id,
         ...systemActor,
       });
-      return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
+      return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${first.gate.name}" blocked: ${first.reason}` };
     }
 
     // A Policy condition reads the producing Capability's status here; null when the Deliverable has no producing Capability.
@@ -199,7 +209,7 @@ export const executionEngine = {
     const openAttentionItemIds = [...(deliverableAttentionItems ?? []), ...(seuAttentionItems ?? [])].map((a) => a.id);
 
     const qualityGateOutcome = qualityGateResult.outcome === "NotApplicable" ? "NotApplicable" : qualityGateResult.outcome === "Waived" ? "Waived" : "Passed";
-    const waivedGate = qualityGateResult.outcome === "Waived" ? qualityGateResult.gate : null;
+    const waivedGate = qualityGateResult.outcome === "Waived" ? qualityGateResult.waived[0].gate : null;
     const outcome: GovernanceEvaluationOutcomeDraft["outcome"] =
       qualityGateOutcome === "Waived" ? "Waived" : policyResult.deviatedPolicyIds.length > 0 ? "Approved-with-Conditions" : "Approved";
     const rationaleParts = [
@@ -264,17 +274,22 @@ export const executionEngine = {
     const { deliverable, fromState, toState } = input;
     const systemActor = await getSystemActor(deliverable.seu_id);
 
-    const evaluated = await transitionEngine.authorise({
-      entityType: "Deliverable",
-      fromState,
-      toState,
-      actorId: systemActor.actorId,
-    });
-    if (!evaluated.allowed) {
-      return gateRejection(evaluated, "Deliverable", fromState, toState);
-    }
-    const { verb } = evaluated.definition;
-    if (!evaluated.authorityBadge || !verb) throw new Error(`no authority badge resolved for Deliverable ${fromState} -> ${toState}`);
+    // Commented out (owner): the badge of the system actor is the author badge of getSystemActor, and the definition is read directly.
+    // const evaluated = await transitionEngine.authorise({
+    //   entityType: "Deliverable",
+    //   fromState,
+    //   toState,
+    //   actorId: systemActor.actorId,
+    // });
+    // if (!evaluated.allowed) {
+    //   return gateRejection(evaluated, "Deliverable", fromState, toState);
+    // }
+    // const { verb } = evaluated.definition;
+    // if (!evaluated.authorityBadge || !verb) throw new Error(`no authority badge resolved for Deliverable ${fromState} -> ${toState}`);
+    const { data: definition } = await transitionDefinitionsDB.find("Deliverable", fromState, toState);
+    if (!definition) throw new Error(`no Transition Definition for Deliverable ${fromState} -> ${toState}`);
+    const { verb } = definition;
+    if (!verb) throw new Error(`Deliverable ${fromState} -> ${toState} declares no verb`);
 
     const { data: outcome, error: outcomeError } = await governanceEvaluationOutcomesDB.create({
       ...input.governanceOutcome,
@@ -310,7 +325,7 @@ export const executionEngine = {
       correlationId: input.correlationId,
     });
 
-    if (await transitionRequiresAttestation(evaluated.definition)) {
+    if (await transitionRequiresAttestation(definition)) {
       const { authorId: requesterParticipantId } = await resolveAuthor(deliverable.seu_id, input.requestedBy);
       await attestationsDB.create({
         seuId: deliverable.seu_id,
@@ -326,7 +341,7 @@ export const executionEngine = {
     }
 
     // The hop's own domain event (a Transition Definition names one), then DeliverableTransitioned, which every Deliverable transition publishes.
-    const domainEventType = evaluated.definition.event_type;
+    const domainEventType = definition.event_type;
     if (!domainEventType) throw new Error(`Deliverable ${fromState} -> ${toState} names no event`);
     await eventBus.publishOnce({
       eventType: domainEventType,
@@ -336,7 +351,7 @@ export const executionEngine = {
       correlationId: input.correlationId,
       actorId: systemActor.actorId,
       tenantId: systemActor.tenantId,
-      authorityBadge: evaluated.authorityBadge,
+      authorityBadge: systemActor.authorBadge,
       payload: { fromState, toState, commandId: command.id },
     });
     await eventBus.publishOnce({
@@ -347,7 +362,7 @@ export const executionEngine = {
       correlationId: input.correlationId,
       actorId: systemActor.actorId,
       tenantId: systemActor.tenantId,
-      authorityBadge: evaluated.authorityBadge,
+      authorityBadge: systemActor.authorBadge,
       payload: { deliverableName: deliverable.name, fromState, toState, commandId: command.id },
     });
     return { ok: true };

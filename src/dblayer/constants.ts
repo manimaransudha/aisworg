@@ -176,10 +176,19 @@ export const UNRAVEL_TEMPLATE_ACTION_CODE = "unravel-template";
 export const UNRAVEL_PROFILE_ACTION_CODE = "unravel-profile";
 export const MATERIALISE_PACK_ACTION_CODE = "materialise-pack";
 export const QUALITY_GATE_CRITERIA_TYPE_CONCEPT = "quality-gate-criteria-type";
+export const QUALITY_GATE_OUTCOME_CONCEPT = "quality-gate-outcome";
+export const QUALITY_GATE_DECISION_OUTCOME_CONCEPT = "quality-gate-decision-outcome";
+// The rules of outcome composition (qualityGateOutcomeComposition.ts), recorded in the rationale of a decision.
+export const QUALITY_GATE_COMPOSITION_RULE_NO_GATES = "no-gate-applies";
+export const QUALITY_GATE_COMPOSITION_RULE_ANY_BLOCKED = "any-gate-blocked";
+export const QUALITY_GATE_COMPOSITION_RULE_ANY_WAIVED = "any-gate-waived";
+export const QUALITY_GATE_COMPOSITION_RULE_ALL_PASSED = "all-gates-passed";
+export const QUALITY_GATE_FULL_CONFIDENCE = 100;
 export const QUALITY_GATE_CRITERIA_NO_UNRESOLVED_OBLIGATIONS = "no_unresolved_obligations";
 export const QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION = "requires_accepted_evidence_or_approved_decision";
 export const QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW = "requires_accepted_review";
 export const QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY = "requires_active_policy";
+export const RESOLVED_OBLIGATION_STATUSES = new Set(["Verified", "Closed", "Archived"]);
 export const SUPERSEDE_OBJECTIVE_ACTION_CODE = "supersede-objective";
 export const SUPERSEDE_DECISION_ACTION_CODE = "supersede-decision";
 export const COMPLETE_REVIEW_ACTION_CODE = "complete-review";
@@ -398,6 +407,7 @@ export const DEMO_PURGE_PLAN: readonly DemoPurgeStep[] = [
   { table: "objective_root_sequences", scope: "tenant" },
   { table: "obligations", scope: "seu" },
   { table: "reviews", scope: "seu" },
+  { table: "quality_gate_outcomes", scope: "seu" },
   { table: "quality_gate_evaluations", scope: "seu" },
   { table: "participants", scope: "seu" },
   { table: "quality_gate_waivers", scope: "seu" },

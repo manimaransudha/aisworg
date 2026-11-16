@@ -9,7 +9,7 @@ import { dependencyDefinitionsDB } from "../../../dblayer/dependencyDefinitionsD
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { resolveSeuOwningScope } from "../../../domain/engine/deliverableSource.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
-import { RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGateEngine.js";
+import { RESOLVED_OBLIGATION_STATUSES } from "../../../dblayer/constants.js";
 import { EEG_ATTENTION_CLOSED_STATUSES, EEG_ATTENTION_RESOLVED_STATUSES, EEG_BLOCKED_STATE, EEG_COLOUR_CONCEPT_TYPE, EEG_LAYOUT, EEG_NODE_TAB, EEG_SHAPE_CONCEPT_TYPE } from "../../../dblayer/constants.js";
 import type { DependencyDefinitionRow, QualityGateEvaluationRow } from "../../../dblayer/seuTypes.js";
 

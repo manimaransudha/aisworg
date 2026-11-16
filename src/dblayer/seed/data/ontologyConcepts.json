@@ -5706,6 +5706,69 @@
     "ui_grouping": "Governance"
   },
   {
+    "concept_type": "quality-gate-outcome",
+    "code": "Blocked",
+    "default_label": "Blocked",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-outcome",
+    "code": "PassedWithConditions",
+    "default_label": "Passed with Conditions",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-outcome",
+    "code": "Deferred",
+    "default_label": "Deferred",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-decision-outcome",
+    "code": "Approved",
+    "default_label": "Approved",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-decision-outcome",
+    "code": "Blocked",
+    "default_label": "Blocked",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-decision-outcome",
+    "code": "Waived",
+    "default_label": "Waived",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "quality-gate-decision-outcome",
+    "code": "NotApplicable",
+    "default_label": "Not Applicable",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
     "concept_type": "proficiency-level",
     "code": "Novice",
     "default_label": "Novice",

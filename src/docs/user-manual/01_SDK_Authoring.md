@@ -92,11 +92,25 @@ A Pack is the unit of contribution. It is declarative only.
 | contributionPolicies | Canonical Policy Definitions the Pack adopts. |
 | contributionChecklists | A name, a description and ordered items. An item can carry a configurable dimension and value pair that a Template can expose and a Profile can filter. |
 | contributionReviewGates | Verifiable review requirements for a governed transition (`governedTransition`, for example `Deliverable|In Progress|Approved`). Each has a code and a name. |
-| contributionQualityGates | Pass or fail criteria for one transition (`governedTransition`). Each has a name, a category (Entry, Exit, Release, Compliance or Operational), a `criteriaType` (Part 3, section 8), optional `applicabilityDeliverableNames` and `requiredPolicyCodes`. |
+| contributionQualityGates | The Quality Gates the Pack applies. Each entry names an Active Quality Gate Definition by `qualityCode` and says where it applies. The fields of an entry are listed below. |
 | contributionObligationDefinitions | Obligations the Pack can raise, each with a code, category, title, origin, priority, severity, completion criteria and the Deliverables it applies to. |
 | contributionEngineeringCapital | Engineering Behaviour, Engineering Metrics, Reusable Components or Engineering Templates, each with a type and a URL. |
 | contributionCompetencies | Competencies the Pack expects of Participants, each a dimension and a value. |
 | contributionAuthorityRules | Legacy role authorisations (code, authorised role, governed transition). New Packs rely on the platform `noun_verb` badges. |
+
+A Quality Gate Definition holds what the gate is: its code, name, description, category, `criteriaType` (Part 3, section 8) and, for the Evidence criterion, its `evidenceCategory`. It holds no transition, Checklist, Policy or Deliverable. The Pack entry supplies those.
+
+A Quality Gate entry in a Pack has these fields:
+
+| Field | Values and meaning |
+|---|---|
+| qualityCode | The code of an Active Quality Gate Definition of the tenant. Required. Each code can appear once in a Pack. |
+| governedTransition | The transition the gate governs, as `EntityType|from|to`, for example `Deliverable|In Progress|Approved`. The transition must exist. Required. |
+| deliverableName | The Deliverable the gate applies to, chosen from Ontology `deliverable-name`. Empty means every Deliverable at the transition. For the Accepted Review criterion it also names the Review Gate that must be accepted, so it is required there. |
+| checklists | A list of Checklists of the same Pack, each with a `checklistId` and a `mandatory` flag. A Checklist is optional unless `mandatory` is set. Every listed Checklist must exist in the Pack, whatever the flag. |
+| requiredPolicyCodes | Policy Definitions that must hold. Each must be a Policy the Pack adopts. The Active Policy criterion requires at least one. |
+
+When the Pack is published, the platform writes the Quality Gate from the Definition and this entry. The mandatory Checklists become the gate's required Checklists. The others become its recommended Checklists.
 
 A Review Gate item has these fields:
 

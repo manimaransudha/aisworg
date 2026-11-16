@@ -291,8 +291,8 @@ test("§4.3 / Open Q#3: a Quality Gate can gate a Pack transition with a null SE
   // this test's own fresh gate from colliding with it, same reason `code`
   // is already run-scoped.
   const { data: gate } = await qualityGatesDB.upsert({ code: `qg-test-${randomUUID()}`, name: "Pack publish gate", category: `test-${run}`, entityType: "Pack", fromState: "Published", toState: "Active", criteria: { type: "no_unresolved_obligations" }, originatingPackId: corePack.id, authorId: corePack.authored_by, authorBadge: corePack.author_badge });
-  const evalResult = await qualityGateEngine.evaluate({ entityType: "Pack", entityId: corePack.id, seuId: null, fromState: "Published", toState: "Active", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
-  assert.equal(evalResult.outcome, "Passed", "a Pack transition can be gated and evaluated with a null SEU");
+  const evalResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([gate!.id], { entityType: "Pack", entityId: corePack.id, seuId: null, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: PLATFORM_TENANT_ID }));
+  assert.equal(evalResult.outcome, "Approved", "a Pack transition can be gated and evaluated with a null SEU");
 
   // The CHECK enforces the scope invariant (the DB layer surfaces the violation
   // as { error }, not a throw): a SEU-scoped entity may not have a null SEU...

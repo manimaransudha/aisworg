@@ -13,14 +13,12 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { transitionDefinitionsDB, reloadIfLoaded } from "../src/dblayer/transitionDefinitionsDB.js";
-import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
 import { triggerEngine } from "../src/domain/engine/triggerEngine.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
-import { getTestDevelopmentPack } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const state = (name: string) => `zz-${name}-${run}`;
@@ -41,10 +39,6 @@ test("an edge with no verb is ungoverned: it is allowed and resolves no authorit
   const from = state("open-a");
   const to = state("done-a");
   await addEdge(from, to);
-
-  const authorised = await transitionEngine.authorise({ entityType: "AttentionItem", fromState: from, toState: to, actorId: ROOT_ACTOR_ID });
-  assert.ok(authorised.allowed);
-  assert.equal(authorised.authorityBadge, null);
 
   const outcome = await transitionEngine.evaluate({ entityType: "AttentionItem", fromState: from, toState: to, actorId: ROOT_ACTOR_ID });
   assert.ok(outcome.allowed);
@@ -78,23 +72,6 @@ test("an edge with a submit verb is refused until the entity has been submitted,
   assert.equal((await transitionEngine.evaluate(input)).allowed, true);
 });
 
-test("a Quality Gate on an edge with no verb is refused with an error, because the gate's records need a badge", async () => {
-  const pack = await getTestDevelopmentPack();
-  assert.ok(pack, "the development Pack is seeded");
-  const { data: gate, error } = await qualityGatesDB.upsert({
-    category: "Exit", code: `qg-test-${randomUUID()}`, name: `transition-engine gate ${run}`, entityType: "AttentionItem", fromState: state("open-c"), toState: state("done-c"),
-    criteria: { type: "no_unresolved_obligations" }, originatingPackId: pack.id, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
-  });
-  assert.ok(gate && !error, error);
-  await addEdge(state("open-c"), state("done-c"), { requiredQualityGateIds: [gate.id] });
-
-  const { seu } = await commissionedSeu("transition-engine-gate");
-  await assert.rejects(
-    () => transitionEngine.evaluate({ entityType: "AttentionItem", fromState: state("open-c"), toState: state("done-c"), actorId: ROOT_ACTOR_ID, entityId: randomUUID(), seuId: seu.id }),
-    /requires a resolved authority badge, but this transition is ungoverned/
-  );
-});
-
 // ── Branches the first tests do not reach ─────────────────────────────────────────────────────────────────────────
 
 import { gateRejection, type RejectedOutcome } from "../src/domain/engine/transitionEngine.js";
@@ -102,7 +79,7 @@ import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { COMMENT_REQUIRED_POLICY_CODE } from "../src/dblayer/constants.js";
-import { PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { PLATFORM_TENANT_ID, getTestDevelopmentPack } from "./testFixtures.js";
 
 async function seededVerb(): Promise<string> {
   const { rows } = await pool.query<{ verb: string }>("SELECT verb FROM transition_definitions WHERE entity_type = 'AttentionItem' AND verb IS NOT NULL LIMIT 1");

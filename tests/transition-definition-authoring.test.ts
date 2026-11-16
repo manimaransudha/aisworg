@@ -1,145 +1,22 @@
-// transitionEngine generalisation (SDK UI Layer Plan, Transition Definition
-// section). Proves the generic mechanism itself: transitionEngine.evaluate,
-// called directly, genuinely enforces a transition_definitions row's Quality
-// Gate for a real entity instance — blocked, then unblocked — exactly like
-// qualityGateEngine's existing single-entity-type (Deliverable) wiring does.
+// Transition Definition authoring: the Mapping's Allow trigger and the transitions added through the CR-007 add/retire form (noun x verb).
 //
 // NOTE: Transition Definitions are NOT authored through an SDK pipeline. CR-019
 // established they are authored through the CR-007 add/retire form (noun × verb),
 // and the bug fix that made Pack/Template/Profile authoring entity-direct removed
-// the old Deliverable-based SDK authoring pipeline entirely — so the earlier two
-// tests here (which drove startAuthoring → submitForReview → publish for a
-// TransitionDefinition) tested a path that no longer exists by design and were
-// removed. The engine-enforcement test below is independent of authoring.
+// the old Deliverable-based SDK authoring pipeline entirely.
 //
-// Built on throwaway, randomized (fromState, toState) pairs for AttentionItem
-// — the same isolation discipline tests/quality-gate-generalization.test.ts
-// already established, for the same reason: inserting against a real, seeded
+// Built on throwaway, randomized (fromState, toState) pairs: inserting against a real, seeded
 // triple would be a permanent, global change to this shared dev database.
-import { PLATFORM_TENANT_ID } from "./testFixtures.js";
-import { getTestDevelopmentPack } from "./testFixtures.js";
 import "dotenv/config";
-import { test, after } from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
-import { createAttentionItem } from "../src/routes/seu/core/attentionItems.js";
-import { transitionObligation } from "../src/routes/seu/core/obligations.js";
-import { createObligationAsRoot as createObligation } from "./testFixtures.js";
-import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
-import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
-import { packsDB } from "../src/dblayer/packsDB.js";
 import { addTransitionDefinition } from "../src/routes/seu/core/transitionDefinitions.js";
 import { addVerb, addMapping, listAuthorityMapping } from "../src/routes/seu/core/authorityVocabulary.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
-import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
-
-async function anyRealPackId(): Promise<string> {
-  const pack = await getTestDevelopmentPack();
-  if (!pack) throw new Error("expected development pack to be seeded");
-  return pack.id;
-}
-
-async function commissionTestSeu(statementPrefix: string): Promise<string> {
-  await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({
-    statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId: PLATFORM_TENANT_ID });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
-  if (!result.ok) throw new Error("unreachable");
-  return result.seu.id;
-}
-
-// Deliberately calls transitionEngine.evaluate directly, not through
-// transitionAttentionItem — every one of the 9 entity types migrated by
-// Open Design Questions.md #3 (Deliverable, Obligation, Evidence, Knowledge,
-// Decision, AttentionItem, ExternalInteraction) already runs its own
-// separate qualityGateEngine.evaluate pre-check before ever reaching
-// transitionEngine.evaluate, so for a gate scoped to a real, matching
-// (entityType, fromState, toState) triple, that old pre-check would fire
-// first and this test would just be re-proving the old mechanism. Pack and
-// Objective have no seu_id at all, so they can never supply one to this new
-// check either. This test proves the new, generic mechanism itself is real
-// and correct, callable by anything that does choose to use it (see the
-// design doc's own note: not yet actively exercised through any existing
-// entity's public function, since all of them already had their own).
-test("transitionEngine.evaluate itself enforces an authored Transition Definition's required_quality_gate_ids, for a real entity instance", async () => {
-  const seuId = await commissionTestSeu("td-engine-generalization");
-  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "Transition Definition engine-generalization test item", actorId: TESTER_ALL_ID, authorBadge: "root" });
-
-  const fromState = `td-engine-from-${randomUUID()}`;
-  const toState = `td-engine-to-${randomUUID()}`;
-  const { data: gate, error: gateError } = await qualityGatesDB.upsert({
-    category: "Exit", code: `qg-test-${randomUUID()}`, name: "Transition Definition engine-generalization test gate",
-    entityType: "AttentionItem",
-    fromState,
-    toState,
-    criteria: { type: "no_unresolved_obligations" },
-    originatingPackId: await anyRealPackId(),
-    authorId: ROOT_ACTOR_ID,
-    authorBadge: "root",
-  });
-  assert.ok(!gateError && gate, gateError?.message ?? "assertion failed");
-
-  // transitionEngine.evaluate's required_quality_gate_ids check requires a
-  // resolved authority badge (quality_gate_evaluations.author_badge is NOT
-  // NULL) — an ungoverned row (no verb) can never provide one. insertDefinition
-  // (not upsert, which carries no verb column at all) gives this throwaway
-  // triple a real, fabricated verb so authorityBadge resolves (root — the
-  // actor below — bypasses the badge check itself, but still needs a verb to
-  // bypass FOR).
-  const verb = `td-engine-verb-${randomUUID().slice(0, 8)}`;
-  const { error: insertError } = await transitionDefinitionsDB.insertDefinition({
-    entityType: "AttentionItem",
-    fromState,
-    toState,
-    verb,
-    authorId: ROOT_ACTOR_ID,
-    authorBadge: ROOT_ACTOR_BADGE,
-  });
-  assert.equal(insertError, undefined);
-
-  // insertDefinition's own INSERT has no required_quality_gate_ids column —
-  // its ON CONFLICT DO UPDATE also never touches `verb`, so this second call
-  // layers the gate onto the row just created without disturbing it.
-  const { error: definitionError } = await transitionDefinitionsDB.upsert({
-    entityType: "AttentionItem",
-    fromState,
-    toState,
-    requiredQualityGateIds: [gate!.id],
-  });
-  assert.equal(definitionError, undefined);
-
-  const evaluateArgs = { entityType: "AttentionItem" as const, fromState, toState, actorId: TESTER_ALL_ID, entityId: attentionItem.id, seuId };
-
-  const beforeObligation = await transitionEngine.evaluate(evaluateArgs);
-  assert.equal(beforeObligation.allowed, true);
-
-  const obligation = await createObligation({
-    relatedObjectType: "AttentionItem",
-    relatedObjectId: attentionItem.id,
-    category: "Engineering",
-    title: "Transition Definition engine-generalization test obligation (left unresolved)",
-  });
-
-  const blocked = await transitionEngine.evaluate(evaluateArgs);
-  assert.equal(blocked.allowed, false);
-  if (blocked.allowed) throw new Error("unreachable");
-  assert.equal(blocked.reason, "quality_gate_blocked");
-  assert.match(blocked.detail, /unresolved Obligation/);
-
-  for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorId: TESTER_ALL_ID });
-    assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
-  }
-
-  const afterResolution = await transitionEngine.evaluate(evaluateArgs);
-  assert.equal(afterResolution.allowed, true);
-  await pool.query("DELETE FROM transition_definitions WHERE entity_type = 'AttentionItem' AND to_state = $1", [toState]);
-});
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 // Owner: "the allow now has only [noun] and [verb]. It should also include
 // the trigger" — and the bug found reviewing the first pass: trigger has no

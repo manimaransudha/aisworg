@@ -41,6 +41,7 @@ async function seedCapabilityPatternPacksWithRetry(actor: PackSeedActor, attempt
 }
  
 const USAGE_DATA_TABLES = [
+  "quality_gate_outcomes",
   "quality_gate_evaluations",
   "work_items",
   "commands",

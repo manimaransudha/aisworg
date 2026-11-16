@@ -1,4 +1,4 @@
-import { COMMENT_REQUIRED_POLICY_CODE, SDK_ATTENTION_EVENT, UNDEFINED_EVENT } from "../../dblayer/constants.js";
+import { COMMENT_REQUIRED_POLICY_CODE, SDK_ATTENTION_EVENT, UNDEFINED_EVENT, getSystemActor } from "../../dblayer/constants.js";
 import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
 import { runAction } from "../../actions/index.js";
 import { withTransaction } from "../../utils/db.js";
@@ -6,6 +6,7 @@ import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.j
 import type { EventRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
 import { eventBus, type PublishInput } from "./eventBus.js";
+import { qualityGateEngine } from "./qualityGateEngine.js";
 import { getEntityAdapter } from "./entityAdapters.js";
 import { gateRejection, transitionEngine, type GateRejectionResult } from "./transitionEngine.js";
 
@@ -49,6 +50,26 @@ export async function transitionEntity(input: {
     : await transitionEngine.evaluate(evaluateInput);
   if (!gate.allowed) return gateRejection(gate, input.entityType, fromState, input.targetState);
   if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ${input.entityType} ${fromState} -> ${input.targetState} — the Transition Definition declares no verb`);
+
+  // The Quality Gates of the SEU's EBM are a separate check from the gates the Transition Definition names. The platform
+  // starts the evaluation, so its author is the SEU's system actor.
+  if (gateSeuId) {
+    const systemActor = await getSystemActor(gateSeuId);
+    const ebmGates = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({
+      entityType: input.entityType,
+      entityId: input.entityId,
+      seuId: gateSeuId,
+      fromState,
+      toState: input.targetState,
+      authorId: systemActor.authorId,
+      authorBadge: systemActor.authorBadge,
+      tenantId: systemActor.tenantId,
+    }));
+    if (ebmGates.outcome === "Blocked") {
+      const [first] = ebmGates.blocked;
+      return gateRejection({ allowed: false, reason: "quality_gate_blocked", gateCode: first.gate.code, gateName: first.gate.name, detail: first.reason }, input.entityType, fromState, input.targetState);
+    }
+  }
 
   const badge = gate.authorityBadge;
   // The comment, the action and the status change commit together or not at all. The event is published after the commit.

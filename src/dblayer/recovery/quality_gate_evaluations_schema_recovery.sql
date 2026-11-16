@@ -6,8 +6,7 @@ CREATE TABLE quality_gate_evaluations (
   seu_id            UUID REFERENCES seus(id),
   entity_type       TEXT NOT NULL,
   entity_id         UUID NOT NULL,
-  outcome           TEXT NOT NULL
-                       CHECK (outcome IN ('Passed', 'Passed with Conditions', 'Blocked', 'Waived', 'Deferred', 'Not Applicable')),
+  outcome           TEXT NOT NULL,
   detail            JSONB NOT NULL DEFAULT '{}',
   evaluated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
