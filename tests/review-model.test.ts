@@ -8,6 +8,7 @@
 import "dotenv/config";
 import { test, after, before } from "node:test";
 import assert from "node:assert/strict";
+import { getSystemActor } from "../src/dblayer/constants.js";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
@@ -141,7 +142,7 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
 
   const { seuId, deliverable } = await commissionSeu("review-gate");
   const { data: gateSeu } = await seusDB.findById(seuId);
-  const evalGate = async () => qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: gateSeu!.tenant_id }));
+  const evalGate = async () => qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState, toState, authorId: (await getSystemActor(seuId)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: gateSeu!.tenant_id }));
 
   assert.equal((await evalGate()).outcome, "Blocked", "no Review yet -> blocked");
 

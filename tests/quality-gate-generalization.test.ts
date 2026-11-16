@@ -27,6 +27,7 @@ import { getTestDevelopmentPack } from "./testFixtures.js";
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import { getSystemActor } from "../src/dblayer/constants.js";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
@@ -105,7 +106,7 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
   const tenantId = gateSeu!.tenant_id;
 
   // No Obligations attached yet — must pass.
-  const beforeObligation = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root", tenantId }));
+  const beforeObligation = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: (await getSystemActor(seuId)).authorId, authorBadge: "root", tenantId }));
   assert.equal(beforeObligation.outcome, "Approved");
 
   // Attach a real, unresolved Obligation directly to the AttentionItem (not a
@@ -117,7 +118,7 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
     title: "QG generalization test obligation (left unresolved)",
   });
 
-  const blocked = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root", tenantId }));
+  const blocked = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: (await getSystemActor(seuId)).authorId, authorBadge: "root", tenantId }));
   assert.equal(blocked.outcome, "Blocked");
   if (blocked.outcome === "Blocked") assert.match(blocked.blocked[0].reason, /unresolved Obligation/);
 
@@ -126,7 +127,7 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
     const step = await transitionObligation({ obligationId: obligation.id, targetState, actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
-  const afterResolution = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root", tenantId }));
+  const afterResolution = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: (await getSystemActor(seuId)).authorId, authorBadge: "root", tenantId }));
   assert.equal(afterResolution.outcome, "Approved");
 });
 

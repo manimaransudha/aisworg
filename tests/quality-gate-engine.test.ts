@@ -108,7 +108,7 @@ test("an SEU with no EBM has no gates: its gates are the ones its EBM names", as
 });
 
 test("evaluating no gates is not applicable, and a review or evidence gate with nothing to show blocks", async () => {
-  assert.deepEqual(qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([], input())), { outcome: "NotApplicable" });
+  assert.equal(qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([], input())).outcome, "NotApplicable");
 
   const unconfigured = await createGate("review-unconfigured", { type: "requires_accepted_review" });
   const noConfig = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([unconfigured.id], input()));

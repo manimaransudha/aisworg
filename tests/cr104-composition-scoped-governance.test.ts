@@ -12,6 +12,7 @@
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import { getSystemActor } from "../src/dblayer/constants.js";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
@@ -146,7 +147,7 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   // must evaluate to Passed, never Blocked (there's nothing to block on) —
   // the meaningful distinction here is Passed (found + evaluated) vs
   // NotApplicable (correctly excluded), not Blocked vs Passed.
-  const gateResultWith = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWith.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWith.tenant_id }));
+  const gateResultWith = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWith.id, fromState: "Defined", toState: "In Progress", authorId: (await getSystemActor(seuWith.id)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWith.tenant_id }));
   const gateResultWithout = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWithout.tenant_id }));
   assert.equal(gateResultWith.outcome, "Approved", "the composing SEU's Deliverable transition is genuinely gated (found, evaluated, satisfied)");
   assert.equal(gateResultWithout.outcome, "NotApplicable", "the non-composing SEU's Deliverable transition is untouched by a Pack it never selected");
@@ -241,8 +242,8 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
   const other = deliverables?.find((d) => d.code === otherName);
   assert.ok(targeted && other, "both catalogue entries materialised into real Deliverable rows");
 
-  const targetedResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: targeted!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: seu.tenant_id }));
-  const otherResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: other!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: seu.tenant_id }));
+  const targetedResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: targeted!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: (await getSystemActor(seu.id)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: seu.tenant_id }));
+  const otherResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: other!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: (await getSystemActor(seu.id)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: seu.tenant_id }));
   assert.equal(targetedResult.outcome, "Approved", "the named Deliverable is genuinely gated");
   assert.equal(otherResult.outcome, "NotApplicable", "a different Deliverable on the SAME transition, SAME SEU, is untouched — the gate targets only the named one");
 });

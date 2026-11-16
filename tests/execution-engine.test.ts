@@ -118,8 +118,10 @@ test("applying a hop with no Transition Definition is refused, and a hop whose D
   assertGovernanceOk(governance);
   const base = { deliverable, fromState: deliverableBirthState, requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, governanceOutcome: governance.governanceOutcome, correlationId: randomUUID() };
 
-  const nowhere = await executionEngine.applyGovernedDeliverableTransition({ ...base, toState: state("nowhere") });
-  assert.ok(!nowhere.ok && nowhere.reason === "no_transition_definition", JSON.stringify(nowhere));
+  await assert.rejects(
+    () => executionEngine.applyGovernedDeliverableTransition({ ...base, toState: state("nowhere") }),
+    /no Transition Definition for Deliverable/
+  );
 
   const moved = await executionEngine.applyDeliverableTransition({ ...base, fromState: state("not-current"), toState: "In Progress" });
   assert.ok(!moved.ok && moved.reason === "already_in_flight");
@@ -315,6 +317,15 @@ test("a Work Item records what the EBM settled and what its governance outcome n
   const { attentionItem } = await raiseAttentionItem({
     seuId: contextSeu.seu.id, category: "Action Required", title: `Open item ${run}`, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
   });
+
+  // Commissioning kicks the Deliverable off, the fixture Policy blocks that hop and raises an Obligation, and the Execution Engine refuses every hop while an Obligation that blocks is open on the Deliverable.
+  const { data: kickoffObligations } = await obligationsDB.findByRelatedObject("Deliverable", deliverable.id);
+  for (const o of (kickoffObligations ?? []).filter((x) => x.blocked_from_state && x.blocked_to_state && !RESOLVED_OBLIGATION_STATUSES.has(x.status))) {
+    for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
+      const moved = await transitionObligation({ obligationId: o.id, targetState, actorId: ROOT_ACTOR_ID });
+      assert.ok(moved.ok, `${o.title} -> ${targetState}: ${JSON.stringify(moved)}`);
+    }
+  }
 
   const governance = await executionEngine.evaluateDeliverableTransition({ deliverable: { ...deliverable, lifecycle_state: fromState }, targetState: toState, actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(governance);
