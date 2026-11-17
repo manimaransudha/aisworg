@@ -214,8 +214,10 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
   const other = deliverables?.find((d) => d.code === otherName);
   assert.ok(targeted && other, "both catalogue entries materialised into real Deliverable rows");
 
-  const targetedResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: targeted!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: (await getSystemActor(seu.id)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: seu.tenant_id }));
-  const otherResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: other!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: (await getSystemActor(seu.id)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: seu.tenant_id }));
-  assert.equal(targetedResult.outcome, "Approved", "the named Deliverable is genuinely gated");
-  assert.equal(otherResult.outcome, "NotApplicable", "a different Deliverable on the SAME transition, SAME SEU, is untouched — the gate targets only the named one");
+  const targetedGates = (await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: targeted!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: (await getSystemActor(seu.id)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: seu.tenant_id })) as Array<{ gate: { code: string } }>;
+  const otherGates = (await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: other!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: (await getSystemActor(seu.id)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: seu.tenant_id })) as Array<{ gate: { code: string } }>;
+  // The Mandatory baseline Pack lists its own gate for every Deliverable of the catalogue on this transition, so both Deliverables are gated by it. The named gate applies to the named Deliverable only.
+  const namedGateCode = `cr104-named-gate-${run}`;
+  assert.ok(targetedGates.some((g) => g.gate.code === namedGateCode), "the named Deliverable is genuinely gated by the named gate");
+  assert.ok(!otherGates.some((g) => g.gate.code === namedGateCode), "a different Deliverable on the SAME transition, SAME SEU, is untouched by the named gate — the gate targets only the named one");
 });

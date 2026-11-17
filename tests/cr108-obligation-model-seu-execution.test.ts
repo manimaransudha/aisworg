@@ -43,6 +43,8 @@ import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
+import { qualityGateWaiversDB } from "../src/dblayer/qualityGateWaiversDB.js";
+import { ebmGatesByCode } from "./webScenarios.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
@@ -438,6 +440,16 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
       assert.ok(capability);
       const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
       assert.ok(requirementsSpec);
+
+      // The baseline Pack's gate "no-unresolved-obligations" blocks the hop while any Obligation on the Deliverable is open, so the gate is waived for this Deliverable
+      // and the open Obligation below can sit on it while the Deliverable starts.
+      const { data: gateSeu } = await seusDB.findById(seuId);
+      const baselineGate = (await ebmGatesByCode(gateSeu!))["no-unresolved-obligations"];
+      assert.ok(baselineGate, "the EBM names the baseline gate");
+      const { error: waiverError } = await qualityGateWaiversDB.grant({
+        qualityGateId: baselineGate.id, seuId, entityType: "Deliverable", entityId: requirementsSpec!.id, rationale: "cr108 test: an open Obligation must not stop the Deliverable", grantedBy: ROOT_ACTOR_ID, authorityBadge: ROOT_ACTOR_BADGE,
+      });
+      assert.ok(!waiverError, waiverError);
 
       // Unrelated to the Governance Evaluation Outcome the transition below
       // will produce — proving activeObligations is genuinely "every

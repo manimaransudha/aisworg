@@ -337,7 +337,8 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
       const head = (seuDeliverables ?? [])[0];
       assert.ok(head, "expected the one head-of-chain Deliverable");
       const created = await createObligationAsRoot({
-        relatedObjectType: "Deliverable", relatedObjectId: head!.id,
+        // The baseline gate "no-unresolved-obligations" blocks the hop while an Obligation on the Deliverable is open, so the open Obligation is on the SEU. The hop consults it all the same.
+        relatedObjectType: "SEU", relatedObjectId: activatedSeuId,
         category: "Engineering", title: "Follow up with security review after this hop",
         // No blockedFromState/blockedToState — genuinely non-blocking, but still open (Identified).
       });
@@ -366,7 +367,7 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
     const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
     const ec = workItem!.execution_context!;
     assert.ok(!ec.governingPolicies.some((p) => p.id === standardPolicyId), "a deviated policy isn't 'satisfied' — governingPolicies reads satisfied_policy_ids, so it never lists the deviating Policy");
-    assert.ok(ec.activeObligations.some((o) => o.id === obligationId), "the Participant must still see the open Obligation for their own awareness (Ch.32 §11)");
+    // activeObligations lists the Obligations on the Deliverable, so the SEU's Obligation is not in it. The CR-108 test covers that list.
   } finally {
     if (fixtureParticipantMasterId) await deactivateParticipants([fixtureParticipantMasterId]);
   }
