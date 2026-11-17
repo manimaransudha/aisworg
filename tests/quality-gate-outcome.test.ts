@@ -36,9 +36,12 @@ const bare = { from: state("bare-open"), to: state("bare-done") };
 const gates: Record<"blocking" | "passingMixed" | "passingClean", QualityGateDefinitionRow> = {} as never;
 
 // A Quality Gate Definition on one hop of the Deliverable. The Pack lists it and the EBM takes it when the SEU is commissioned.
+// A gate that names no Deliverable applies to the Deliverables of the catalogue, so the gates name the code of the Deliverables the test creates.
+const gateDeliverableCode = `zz-gate-deliverable-${run}`;
+
 function gateEntry(label: string, hop: { from: string; to: string }, criteriaType: string) {
   return ensureQualityGateDefinition({
-    code: `quality-gate-outcome-${label}-${run}`, name: `quality-gate-outcome ${label} ${run}`, category: "Exit", governedTransition: `Deliverable|${hop.from}|${hop.to}`, criteriaType,
+    code: `quality-gate-outcome-${label}-${run}`, name: `quality-gate-outcome ${label} ${run}`, category: "Exit", governedTransition: `Deliverable|${hop.from}|${hop.to}`, criteriaType, deliverableName: gateDeliverableCode,
     ...(criteriaType === "requires_accepted_evidence_or_approved_decision" ? { evidenceCategory: "Validation Evidence" } : {}),
   });
 }
@@ -51,7 +54,7 @@ async function addEdge(hop: { from: string; to: string }): Promise<void> {
 
 async function createDeliverable(lifecycle: string) {
   const { data, error } = await deliverablesDB.create({
-    seuId: t.seu.id, name: `quality-gate-outcome ${run} ${randomUUID()}`, state: lifecycle, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
+    seuId: t.seu.id, code: gateDeliverableCode, name: `quality-gate-outcome ${run} ${randomUUID()}`, state: lifecycle, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
   });
   assert.ok(data && !error, error);
   return data;

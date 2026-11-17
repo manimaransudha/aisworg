@@ -224,6 +224,7 @@ test("governance refuses a Deliverable while an Obligation blocks its SEU, and w
 test("a Quality Gate on the hop blocks the Deliverable and raises an Attention Item; a Waiver turns that into a waived outcome, and a gate that holds is a passed one", async () => {
   // qualityGateEngine.evaluate reads the EBM only, and the EBM takes the gates the composed Packs contribute. The gates are Quality Gate Definitions that a Pack of the
   // SEU's Template lists, so the SEU is commissioned with them.
+  const gateDeliverableCode = `zz-gate-deliverable-${run}`;
   const blockedFrom = state("gate-open-a");
   const blockedTo = state("gate-done-a");
   const passedFrom = state("gate-open-b");
@@ -231,14 +232,15 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
   // The Pack validation refuses a gate on a transition that does not exist, so the edges come first.
   await addEdge(blockedFrom, blockedTo, true);
   await addEdge(passedFrom, passedTo, true);
-  const blockingEntry = await ensureQualityGateDefinition({ code: `execution-engine-blocking-${run}`, name: `execution-engine blocking ${run}`, category: "Exit", governedTransition: `Deliverable|${blockedFrom}|${blockedTo}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
-  const passingEntry = await ensureQualityGateDefinition({ code: `execution-engine-passing-${run}`, name: `execution-engine passing ${run}`, category: "Exit", governedTransition: `Deliverable|${passedFrom}|${passedTo}`, criteriaType: "no_unresolved_obligations" });
+  // A gate that names no Deliverable applies to the Deliverables of the catalogue, so these gates name the code of the Deliverables the test creates.
+  const blockingEntry = await ensureQualityGateDefinition({ code: `execution-engine-blocking-${run}`, name: `execution-engine blocking ${run}`, category: "Exit", governedTransition: `Deliverable|${blockedFrom}|${blockedTo}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence", deliverableName: gateDeliverableCode });
+  const passingEntry = await ensureQualityGateDefinition({ code: `execution-engine-passing-${run}`, name: `execution-engine passing ${run}`, category: "Exit", governedTransition: `Deliverable|${passedFrom}|${passedTo}`, criteriaType: "no_unresolved_obligations", deliverableName: gateDeliverableCode });
   const gateSeu = await commissionedSeu("execution-engine-gates", "clean", { conflictSet: "execution", gates: [blockingEntry, passingEntry] });
   const namedGates = await ebmGatesByCode(gateSeu.seu);
   const gate = namedGates[blockingEntry.qualityCode];
   const passingGate = namedGates[passingEntry.qualityCode];
   assert.ok(gate && passingGate, "the EBM names both gates");
-  const deliverable = await createDeliverable(blockedFrom, gateSeu);
+  const deliverable = await createDeliverable(blockedFrom, gateSeu, { code: gateDeliverableCode });
   const blocked = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: blockedTo, actorId: ROOT_ACTOR_ID });
   assert.ok(!blocked.ok && blocked.reason === "quality_gate_blocked" && blocked.detail.includes(gate.name), JSON.stringify(blocked));
   const { data: items } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", deliverable.id);
@@ -253,23 +255,24 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
   assert.deepEqual([waived.governanceOutcome.outcome, waived.governanceOutcome.quality_gate_id, waived.governanceOutcome.originating_pack_id], ["Waived", gate.id, null]);
   assert.ok(waived.governanceOutcome.rationale.includes(`Quality Gate "${gate.name}": Waived`), waived.governanceOutcome.rationale);
 
-  const passed = await executionEngine.evaluateDeliverableTransition({ deliverable: await createDeliverable(passedFrom, gateSeu), targetState: passedTo, actorId: ROOT_ACTOR_ID });
+  const passed = await executionEngine.evaluateDeliverableTransition({ deliverable: await createDeliverable(passedFrom, gateSeu, { code: gateDeliverableCode }), targetState: passedTo, actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(passed);
   assert.deepEqual([passed.governanceOutcome.outcome, passed.governanceOutcome.quality_gate_outcome], ["Approved", "Passed"]);
   assert.ok(passed.governanceOutcome.rationale.includes("Quality Gate(s): Passed"));
 });
 
 test("a refusal from the checks before the gate does not stop the gate: the hop is refused for the first refusal, and the gate is still evaluated, recorded and raised", async () => {
+  const gateDeliverableCode = `zz-gate-first-${run}`;
   const from = state("gate-first-open");
   const to = state("gate-first-done");
   await addEdge(from, to, true);
   await pool.query("UPDATE transition_definitions SET submit_verb = $3 WHERE entity_type = 'Deliverable' AND from_state = $1 AND to_state = $2", [from, to, verb]);
   await reloadIfLoaded();
-  const entry = await ensureQualityGateDefinition({ code: `execution-engine-first-${run}`, name: `execution-engine first ${run}`, category: "Exit", governedTransition: `Deliverable|${from}|${to}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
+  const entry = await ensureQualityGateDefinition({ code: `execution-engine-first-${run}`, name: `execution-engine first ${run}`, category: "Exit", governedTransition: `Deliverable|${from}|${to}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence", deliverableName: gateDeliverableCode });
   const gateSeu = await commissionedSeu("execution-engine-gate-after-refusal", "clean", { conflictSet: "execution", gates: [entry] });
   const gate = (await ebmGatesByCode(gateSeu.seu))[entry.qualityCode];
   assert.ok(gate, "the EBM names the gate");
-  const deliverable = await createDeliverable(from, gateSeu);
+  const deliverable = await createDeliverable(from, gateSeu, { code: gateDeliverableCode });
 
   // The Deliverable was not submitted, so the hop is refused for that, which comes before the gate in the order.
   const refused = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: to, actorId: ROOT_ACTOR_ID });

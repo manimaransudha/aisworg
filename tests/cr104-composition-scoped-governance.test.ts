@@ -126,7 +126,10 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   // must evaluate to Passed, never Blocked (there's nothing to block on) —
   // the meaningful distinction here is Passed (found + evaluated) vs
   // NotApplicable (correctly excluded), not Blocked vs Passed.
-  const gateResultWith = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWith.id, fromState: "Defined", toState: "In Progress", authorId: (await getSystemActor(seuWith.id)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWith.tenant_id }));
+  // The scoped Pack's gate names no Deliverable, so it applies to the Deliverables of the catalogue: the test evaluates the SEU's real Deliverable of the catalogue.
+  const catalogueDeliverable = ((await deliverablesDB.findBySeuId(seuWith.id)).data ?? []).find((d) => d.code === "test-strategy");
+  assert.ok(catalogueDeliverable, "commissioning made the catalogue Deliverable");
+  const gateResultWith = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: catalogueDeliverable.id, seuId: seuWith.id, fromState: "Defined", toState: "In Progress", authorId: (await getSystemActor(seuWith.id)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWith.tenant_id }));
   const gateResultWithout = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWithout.tenant_id }));
   assert.equal(gateResultWith.outcome, "Approved", "the composing SEU's Deliverable transition is genuinely gated (found, evaluated, satisfied)");
   assert.equal(gateResultWithout.outcome, "NotApplicable", "the non-composing SEU's Deliverable transition is untouched by a Pack it never selected");
