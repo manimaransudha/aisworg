@@ -204,6 +204,30 @@ export const SYSTEM_ACTOR_NAME = "System";
 export const SYSTEM_ACTOR_BADGE = "system";
 export const DELIVERABLE_BADGE_PREFIX = "deliverable_";
 export const PARTICIPANT_BADGE_PREFIX = "participant_";
+export const WAIVER_BADGE_PREFIX = "waiver_";
+export const WAIVER_ENTITY_TYPE = "Waiver";
+// What a waiver lets the Quality Gate override. One waiver has one scope.
+export const WAIVER_SCOPE_GATE = "Gate";
+export const WAIVER_SCOPE_POLICY = "Policy";
+export const WAIVER_SCOPE_POLICY_OBLIGATION = "Policy Obligation";
+export const WAIVER_SCOPE_OBLIGATION = "Obligation";
+export const WAIVER_SCOPES = [WAIVER_SCOPE_GATE, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_POLICY_OBLIGATION, WAIVER_SCOPE_OBLIGATION];
+// The originating entity type of an Obligation that a Policy raised.
+export const OBLIGATION_ORIGIN_POLICY = "Policy";
+// The outcomes of a Policy evaluation.
+export const POLICY_EVALUATION_PASSED = "Passed";
+export const POLICY_EVALUATION_BLOCKED = "Blocked";
+export const POLICY_EVALUATION_DEVIATED = "Deviated";
+export const WAIVER_ACTIVE_STATE = "Active";
+export const WAIVER_EXPIRED_STATE = "Expired";
+// The controls that offset the risk a waiver accepts (Ontology concept type below). Expiry is the default.
+export const WAIVER_CONTROL_CONCEPT = "category:waiver-control";
+export const WAIVER_CONTROL_EXPIRY = "Expiry";
+export const WAIVER_CONTROL_OBLIGATION = "Obligation";
+export const WAIVER_CONTROL_ACCEPT_RISK = "Accept risk";
+// The originating entity type of an Obligation a waiver risk raises, and its default category.
+export const WAIVER_RISK_ENTITY_TYPE = "WaiverRisk";
+export const WAIVER_RISK_OBLIGATION_CATEGORY = "Risk";
 export const DELIVERABLE_PRODUCING_STATE = "In Progress";
 export const PRODUCE_COMMAND_VERB = "produce";
 export const TRANSITION_DEFINITION_DEFINE_BADGE = "transitiondefinition_define";
@@ -412,9 +436,12 @@ export const DEMO_PURGE_PLAN: readonly DemoPurgeStep[] = [
   { table: "metric_definitions", scope: "via", via: [{ column: "originating_pack_id", parent: "packs", parentColumn: "id" }] },
   { table: "objective_capabilities", scope: "via", via: [{ column: "objective_id", parent: "objectives", parentColumn: "id" }] },
   { table: "objective_root_sequences", scope: "tenant" },
+  { table: "quality_gate_waiver_controls", scope: "seu" },
+  { table: "quality_gate_waiver_risks", scope: "seu" },
   { table: "obligations", scope: "seu" },
   { table: "reviews", scope: "seu" },
   { table: "quality_gate_evaluations", scope: "seu" },
+  { table: "policy_evaluations", scope: "seu" },
   { table: "participants", scope: "seu" },
   { table: "quality_gate_waivers", scope: "seu" },
   { table: "seus", scope: "seus" },

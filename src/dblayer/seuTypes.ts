@@ -592,6 +592,7 @@ export type TransitionEntityType =
   | "Service"
   | "Policy"
   | "QualityGate"
+  | "Waiver"
   | "Capability"
   | "EBM"
   | "Ontology"
@@ -1071,7 +1072,15 @@ export interface QualityGateEvaluationRow {
 
 export interface QualityGateWaiverRow {
   id: string;
-  quality_gate_id: string;
+  // Null for a waiver of a Policy block or an Obligation block.
+  quality_gate_id: string | null;
+  scope: string;
+  policy_code: string | null;
+  obligation_category: string | null;
+  obligation_title: string | null;
+  // The Deliverables the waiver covers, by code, in its own SEU, or in every SEU of shared_profile_id. entity_id is the Deliverable the waiver was granted from.
+  deliverable_codes: string[];
+  shared_profile_id: string | null;
   seu_id: string;
   entity_type: string;
   entity_id: string;
@@ -1080,6 +1089,38 @@ export interface QualityGateWaiverRow {
   authority_badge: string;
   status: "Active" | "Expired" | "Revoked";
   expires_at: string | null;
+  created_at: string;
+}
+
+export interface PolicyEvaluationRow {
+  id: string;
+  policy_code: string;
+  policy_id: string;
+  constraint_type: string;
+  seu_id: string;
+  entity_type: string;
+  entity_id: string;
+  from_state: string;
+  to_state: string;
+  outcome: string;
+  evaluated_at: string;
+}
+
+export interface QualityGateWaiverRiskRow {
+  id: string;
+  waiver_id: string;
+  seu_id: string;
+  risk: string;
+  created_at: string;
+}
+
+export interface QualityGateWaiverControlRow {
+  id: string;
+  risk_id: string;
+  waiver_id: string;
+  seu_id: string;
+  control_type: string;
+  obligation_id: string | null;
   created_at: string;
 }
 

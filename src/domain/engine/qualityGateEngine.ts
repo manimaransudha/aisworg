@@ -1,5 +1,6 @@
 import { qualityGateEvaluationsDB } from "../../dblayer/qualityGateEvaluationsDB.js";
 import { qualityGateWaiversDB } from "../../dblayer/qualityGateWaiversDB.js";
+import { expireDueQualityGateWaivers } from "./qualityGateWaiverExpiry.js";
 import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
@@ -11,7 +12,7 @@ import type { EvaluatedQualityGate, QualityGateDecisionOutcome, QualityGateDefin
 import { findQualityGateCriterion } from "../../qualitygates/index.js";
 import { ontologyDB } from "../../dblayer/ontologyDB.js";
 import { qualityGateOutcomesDB } from "../../dblayer/qualityGateOutcomesDB.js";
-import { QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION, QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW, QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY, QUALITY_GATE_DECISION_OUTCOME_CONCEPT, QUALITY_GATE_OUTCOME_CONCEPT } from "../../dblayer/constants.js";
+import { QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION, QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW, QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY, QUALITY_GATE_DECISION_OUTCOME_CONCEPT, QUALITY_GATE_OUTCOME_CONCEPT, WAIVER_SCOPE_OBLIGATION, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_POLICY_OBLIGATION } from "../../dblayer/constants.js";
 import { calculateConfidenceLevel, composeQualityGateOutcome, generateQualityGateRationale } from "./qualityGateOutcomeComposition.js";
 
 export const RESOLVED_ATTENTION_STATUSES = new Set(["Resolved", "Closed"]);
@@ -28,8 +29,28 @@ export type QualityGateBlockedResult = Extract<QualityGateGateResult, { outcome:
 export type QualityGateWaivedResult = Extract<QualityGateGateResult, { outcome: "Waived" }>;
 
 // The decision over the results of every gate evaluated for one hop, made by qualityGateEngine.decide.
+// A block another check of the hop found (a Policy, an Obligation, a dependency and so on). It enters the decision with the gate results. `waivable` names
+// what a waiver has to name to cover it; a block with null is covered by no waiver.
+export interface QualityGateFinding {
+  name: string;
+  reason: string;
+  waivable:
+    | { scope: typeof WAIVER_SCOPE_POLICY; policyCode: string }
+    | { scope: typeof WAIVER_SCOPE_POLICY_OBLIGATION; policyCode: string; title: string }
+    | { scope: typeof WAIVER_SCOPE_OBLIGATION; category: string; title: string }
+    | null;
+}
+
+export interface QualityGateFindingResult {
+  name: string;
+  reason: string;
+  outcome: "Blocked" | "Waived";
+  waiverId: string | null;
+}
+
 export interface QualityGateDecision {
   outcome: QualityGateDecisionOutcome;
+  findings: QualityGateFindingResult[];
   confidenceLevel: number;
   rationale: string;
   evaluationIds: string[];
@@ -165,14 +186,33 @@ export const qualityGateEngine = {
 
   // The decision over the results of evaluate or evaluateByIds. The outcome comes from composeQualityGateOutcome and the confidence
   // level from calculateConfidenceLevel. The caller acts on the decision.
-  decideQualityGate(results: QualityGateGateResult[]): QualityGateDecision {
-    const items = results.map((r) => ({ gateName: r.gate.name, outcome: r.outcome }));
+  // The blocks the other checks of a hop found, each Waived when an Active waiver of the entity names it and Blocked otherwise.
+  async resolveFindings(findings: QualityGateFinding[], entity: { entityType: TransitionEntityType; entityId: string; seuId: string | null }): Promise<QualityGateFindingResult[]> {
+    if (findings.length === 0) return [];
+    if (entity.seuId) await expireDueQualityGateWaivers(entity.seuId);
+    const { data: waivers, error } = await qualityGateWaiversDB.findActiveForEntity(entity.entityType, entity.entityId);
+    if (error) throw error;
+    return findings.map((f) => {
+      const target = f.waivable;
+      const waiver = (waivers ?? []).find((w) => {
+        if (!target || w.scope !== target.scope) return false;
+        if (target.scope === WAIVER_SCOPE_POLICY) return w.policy_code === target.policyCode;
+        if (target.scope === WAIVER_SCOPE_POLICY_OBLIGATION) return w.policy_code === target.policyCode && w.obligation_title === target.title;
+        return w.obligation_category === target.category && w.obligation_title === target.title;
+      });
+      return { name: f.name, reason: f.reason, outcome: waiver ? "Waived" as const : "Blocked" as const, waiverId: waiver?.id ?? null };
+    });
+  },
+
+  decideQualityGate(results: QualityGateGateResult[], findings: QualityGateFindingResult[] = []): QualityGateDecision {
+    const items = [...findings.map((f) => ({ gateName: f.name, outcome: f.outcome })), ...results.map((r) => ({ gateName: r.gate.name, outcome: r.outcome }))];
     const composed = composeQualityGateOutcome(items);
     const confidenceLevel = calculateConfidenceLevel(composed, items);
     return {
       outcome: composed.outcome,
+      findings,
       confidenceLevel,
-      rationale: generateQualityGateRationale(composed, items, confidenceLevel),
+      rationale: generateQualityGateRationale(composed, items, confidenceLevel) + (findings.length > 0 ? ` Other checks: ${findings.map((f) => `${f.name} ${f.outcome} (${f.reason})`).join("; ")}.` : ""),
       evaluationIds: results.map((r) => r.evaluationId),
       blocked: results.filter((r): r is QualityGateBlockedResult => r.outcome === "Blocked"),
       waived: results.filter((r): r is QualityGateWaivedResult => r.outcome === "Waived"),
@@ -206,6 +246,7 @@ export const qualityGateEngine = {
     reason: string,
     detail: Record<string, unknown>
   ): Promise<QualityGateEvaluationResult> {
+    if (input.seuId) await expireDueQualityGateWaivers(input.seuId);
     const { data: waiver } = await qualityGateWaiversDB.findActive(gate.id, input.entityType, input.entityId);
     if (waiver) return this.recordAndWaive(gate, input, reason, waiver.id);
     return this.recordAndBlock(gate, input, reason, detail);

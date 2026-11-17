@@ -1855,5 +1855,25 @@
     "trigger": "manual",
     "eventType": "SDKElementSchemaPublicationRejected",
     "versionEvent": null
+  },
+  {
+    "entityType": "Waiver",
+    "fromState": "Active",
+    "toState": "Expired",
+    "verb": "expire",
+    "trigger": "governed",
+    "requiredPolicyCodes": [],
+    "eventType": "QualityGateWaiverExpired",
+    "versionEvent": null
+  },
+  {
+    "entityType": "Waiver",
+    "fromState": "Active",
+    "toState": "Revoked",
+    "verb": "revoke",
+    "trigger": "manual",
+    "requiredPolicyCodes": [],
+    "eventType": "QualityGateWaiverRevoked",
+    "versionEvent": null
   }
 ]

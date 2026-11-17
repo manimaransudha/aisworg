@@ -2,7 +2,13 @@ BEGIN;
 DROP TABLE IF EXISTS quality_gate_waivers CASCADE;
 CREATE TABLE quality_gate_waivers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  quality_gate_id UUID NOT NULL REFERENCES quality_gate_definitions(id),
+  quality_gate_id UUID REFERENCES quality_gate_definitions(id),
+  scope TEXT NOT NULL,
+  policy_code TEXT,
+  obligation_category TEXT,
+  obligation_title TEXT,
+  deliverable_codes TEXT[] NOT NULL DEFAULT '{}',
+  shared_profile_id UUID REFERENCES profiles(id),
   seu_id UUID NOT NULL REFERENCES seus(id),
   entity_type TEXT NOT NULL,
   entity_id UUID NOT NULL,

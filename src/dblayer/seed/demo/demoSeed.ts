@@ -74,7 +74,7 @@ async function grantAuthoringBadges(actor: DemoActor): Promise<void> {
   const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Objective");
   if (birthError || !birth?.verb) throw birthError ?? new Error("no birth Transition Definition with a verb for Objective");
   await grantBadge(actor.participantId, `objective_${birth.verb}`);
-  await grantBadgesWithPrefixes(actor.participantId, ["seu_", "ebm_", "obligation_", "attentionitem_"]);
+  await grantBadgesWithPrefixes(actor.participantId, ["seu_", "ebm_", "obligation_", "attentionitem_", "qualitygate_", "waiver_"]);
   // tenant_manage makes the SEU list show every SEU of the Demo tenant, not only those the user is engaged in.
   await grantBadge(actor.participantId, "tenant_manage");
 }

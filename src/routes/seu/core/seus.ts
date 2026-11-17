@@ -8,7 +8,7 @@ import { dependencyDefinitionsDB } from "../../../dblayer/dependencyDefinitionsD
 import { resolveSeuOwningScope } from "../../../domain/engine/deliverableSource.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { nextActionsFor } from "../../../domain/engine/entityTransition.js";
-import { BIRTH_STATE, SEU_VALIDATED_STATE } from "../../../dblayer/constants.js";
+import { BIRTH_STATE, SEU_VALIDATED_STATE, WAIVER_CONTROL_CONCEPT, WAIVER_CONTROL_EXPIRY, WAIVER_CONTROL_OBLIGATION, WAIVER_CONTROL_ACCEPT_RISK, WAIVER_SCOPE_GATE, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_POLICY_OBLIGATION, WAIVER_SCOPE_OBLIGATION, POLICY_EVALUATION_BLOCKED } from "../../../dblayer/constants.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
@@ -37,6 +37,10 @@ import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
 import { qualityGateEvaluationsDB } from "../../../dblayer/qualityGateEvaluationsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { qualityGateWaiversDB } from "../../../dblayer/qualityGateWaiversDB.js";
+import { qualityGateWaiverRisksDB } from "../../../dblayer/qualityGateWaiverRisksDB.js";
+import { listCanonicalCategories } from "./ontology.js";
+import { policyEvaluationsDB } from "../../../dblayer/policyEvaluationsDB.js";
+import { originatingPolicyCode } from "../../../domain/engine/obligationOrigin.js";
 import { qualityGateDefinitionsDB } from "../../../dblayer/qualityGateDefinitionsDB.js";
 import { listEvidenceBySeu, listEvidenceRelationships, listEvidenceLinkedToSeu } from "./evidence.js";
 import { listKnowledgeItemsWithNextScopes } from "./knowledge.js";
@@ -264,10 +268,37 @@ export interface SeuDetailExternalInteraction {
 }
 
 // The Quality Gate tab: the gates the EBM settled, the latest recorded outcome of each, the waivers of the SEU and the entities a waiver can name.
+// One result that fed the Quality Gate decision of a Deliverable at its current state: a Policy evaluation, an open Obligation holding a hop, or a gate. The scope and the
+// fields name what a waiver for the line has to name. Lines of different Deliverables with the same key are the same line.
+export interface WaiverLine {
+  key: string;
+  scope: string;
+  kind: string;
+  name: string;
+  outcome: string;
+  hop: string;
+  waivable: boolean;
+  note: string | null;
+  gateId: string | null;
+  policyCode: string | null;
+  category: string | null;
+  title: string | null;
+}
+
 export interface SeuDetailQualityGates {
+  // The lines of each Deliverable of the SEU (by id), and the number of SEUs that use the Profile of this SEU.
+  waiverLines: Record<string, WaiverLine[]>;
+  deliverableNames: Record<string, string>;
+  profileSeuCount: number;
   gates: Array<{ id: string; code: string; name: string; category: string; criteriaType: string; steps: Array<{ step: string; deliverables: string[] }>; latestOutcome: string | null; latestEntity: string | null; latestAt: string | null }>;
-  waivers: Array<{ gateName: string; entity: string; grantedBy: string; rationale: string; status: string; authorityBadge: string; expiresAt: string | null; createdAt: string }>;
+  // Each Gate that blocks an entity now: its latest recorded evaluation for that entity is Blocked.
+  blocking: Array<{ gateId: string; entityValue: string; gateName: string; gateCode: string; category: string; entity: string; entityState: string; steps: string[]; details: string[]; evaluatedAt: string; waived: boolean }>;
+  waivers: Array<{ covers: string; risks: Array<{ risk: string; controls: Array<{ type: string; obligationTitle: string | null; obligationStatus: string | null; obligationOn: string | null }> }>; gateName: string; entity: string; grantedBy: string; rationale: string; status: string; authorityBadge: string; expiresAt: string | null; createdAt: string }>;
   waivableEntities: Array<{ value: string; label: string }>;
+  // What the waiver modal offers: the controls of a risk and the Ontology lists an Obligation control draws from.
+  controlTypes: string[];
+  controlCodes: { expiry: string; obligation: string; acceptRisk: string };
+  obligationOptions: { categories: string[]; severities: string[]; priorities: string[] };
 }
 
 export interface SeuDetailView {
@@ -492,7 +523,9 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
 
   // The Quality Gate tab. The gates are the ones the active EBM names, with the steps its settled result gives them. Nothing is evaluated here.
   const { data: waiverRows } = await qualityGateWaiversDB.findBySeuId(seuId);
-  const { data: waivedGateDefinitions } = await qualityGateDefinitionsDB.findByIds([...new Set((waiverRows ?? []).map((w) => w.quality_gate_id))]);
+  const { data: waiverRisks } = await qualityGateWaiverRisksDB.findRisksBySeuId(seuId);
+  const { data: waiverControls } = await qualityGateWaiverRisksDB.findControlsBySeuId(seuId);
+  const { data: waivedGateDefinitions } = await qualityGateDefinitionsDB.findByIds([...new Set((waiverRows ?? []).flatMap((w) => (w.quality_gate_id ? [w.quality_gate_id] : [])))]);
   const waivedGateNameById = new Map((waivedGateDefinitions ?? []).map((g) => [g.id, g.name]));
   const grantorNameById = new Map<string, string>();
   for (const id of new Set((waiverRows ?? []).map((w) => w.granted_by))) {
@@ -501,7 +534,85 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   }
   const entityLabel = (entityType: string, entityId: string): string =>
     entityType === "Deliverable" ? `Deliverable ${deliverableNameById.get(entityId) ?? entityId}` : entityType === "SEU" ? "SEU" : `${entityType} ${entityId}`;
+  const stateByEntity = new Map<string, string>([[`SEU|${seuId}`, seu.lifecycle_state], ...(deliverables ?? []).map((d) => [`Deliverable|${d.id}`, d.lifecycle_state] as [string, string])]);
+  const deliverableCodeById = new Map((deliverables ?? []).map((d) => [d.id, d.code ?? ""]));
+  const obligationTitleById = new Map(obligationViews.map((v) => [v.obligation.id, v.obligation.title]));
+  const seenGateEntity = new Set<string>();
+  const blocking: SeuDetailQualityGates["blocking"] = [];
+  const { data: policyEvaluationRows } = await policyEvaluationsDB.findBySeuId(seuId);
+  const { data: profileSeuCount } = await seusDB.countByProfileId(seu.profile_id);
+  const waiverLines: Record<string, WaiverLine[]> = {};
+  const obligationPolicyCodes = new Map<string, string | null>();
+  for (const v of obligationViews) obligationPolicyCodes.set(v.obligation.id, await originatingPolicyCode(v.obligation));
+  for (const d of deliverables ?? []) {
+    const lines: WaiverLine[] = [];
+    const openHolding = obligationViews
+      .map((v) => v.obligation)
+      .filter((o) => !RESOLVED_OBLIGATION_STATUSES.has(o.status) && o.blocked_from_state === d.lifecycle_state && o.blocked_to_state && ((o.related_object_type === "Deliverable" && o.related_object_id === d.id) || (o.related_object_type === "SEU" && o.related_object_id === seuId)));
+    const seenPolicy = new Set<string>();
+    for (const e of policyEvaluationRows ?? []) {
+      if (e.entity_type !== "Deliverable" || e.entity_id !== d.id || e.from_state !== d.lifecycle_state) continue;
+      const code = e.policy_code;
+      if (seenPolicy.has(`${code}|${e.to_state}`)) continue;
+      seenPolicy.add(`${code}|${e.to_state}`);
+      const raised = openHolding.some((o) => obligationPolicyCodes.get(o.id) === code && o.blocked_to_state === e.to_state);
+      lines.push({
+        key: `${WAIVER_SCOPE_POLICY}|${code}`, scope: WAIVER_SCOPE_POLICY, kind: "Policy", name: code, outcome: e.outcome, hop: `${e.from_state} → ${e.to_state}`,
+        waivable: e.outcome === POLICY_EVALUATION_BLOCKED && !raised,
+        note: raised ? "The Policy raised an Obligation. Waive the Obligation." : null,
+        gateId: null, policyCode: code, category: null, title: null,
+      });
+    }
+    for (const o of openHolding) {
+      const code = obligationPolicyCodes.get(o.id) ?? null;
+      lines.push({
+        key: code ? `${WAIVER_SCOPE_POLICY_OBLIGATION}|${code}|${o.title}` : `${WAIVER_SCOPE_OBLIGATION}|${o.category}|${o.title}`,
+        scope: code ? WAIVER_SCOPE_POLICY_OBLIGATION : WAIVER_SCOPE_OBLIGATION, kind: "Obligation", name: o.title, outcome: "Blocked", hop: `${o.blocked_from_state} → ${o.blocked_to_state}`,
+        waivable: true, note: null, gateId: null, policyCode: code, category: o.category, title: o.title,
+      });
+    }
+    for (const definition of ebmGateDefinitions ?? []) {
+      const steps = (settledForGates?.qualityGates?.result ?? [])
+        .filter((row) => row.deliverable === (d.code ?? "") && row.step.startsWith(`Deliverable|${d.lifecycle_state}|`) && row.gates.some((g) => String(g.code) === definition.code))
+        .map((row) => row.step.split("|").slice(1).join(" → "));
+      if (steps.length === 0) continue;
+      const latest = (gateEvaluations ?? []).find((ev) => ev.quality_gate_id === definition.id && ev.entity_type === "Deliverable" && ev.entity_id === d.id);
+      lines.push({
+        key: `${WAIVER_SCOPE_GATE}|${definition.id}`, scope: WAIVER_SCOPE_GATE, kind: "Quality Gate", name: definition.name, outcome: latest?.outcome ?? "not evaluated", hop: steps.join(", "),
+        waivable: latest?.outcome === "Blocked", note: null, gateId: definition.id, policyCode: null, category: null, title: null,
+      });
+    }
+    waiverLines[d.id] = lines;
+  }
+  for (const e of gateEvaluations ?? []) {
+    const key = `${e.quality_gate_id}|${e.entity_type}|${e.entity_id}`;
+    if (seenGateEntity.has(key)) continue;
+    seenGateEntity.add(key);
+    if (e.outcome !== "Blocked") continue;
+    const definition = (ebmGateDefinitions ?? []).find((d) => d.id === e.quality_gate_id);
+    const entityState = stateByEntity.get(`${e.entity_type}|${e.entity_id}`);
+    if (!definition || !entityState) continue;
+    const deliverableCode = e.entity_type === "Deliverable" ? deliverableCodeById.get(e.entity_id) ?? "" : "";
+    const steps = (settledForGates?.qualityGates?.result ?? [])
+      .filter((row) => row.deliverable === deliverableCode && row.step.startsWith(`${e.entity_type}|${entityState}|`) && row.gates.some((g) => String(g.code) === definition.code))
+      .map((row) => row.step).sort();
+    const detail = e.detail ?? {};
+    const details: string[] = [];
+    if (Array.isArray(detail.unresolvedObligationIds)) for (const id of detail.unresolvedObligationIds) details.push(`Open Obligation: ${obligationTitleById.get(String(id)) ?? String(id)}`);
+    if (detail.policyCode) details.push(`Policy not satisfied: ${String(detail.policyCode)}`);
+    if (detail.requiredCategory) details.push(`No accepted Evidence of category "${String(detail.requiredCategory)}" and no approved Decision`);
+    if (detail.reviewGateId) details.push("No accepted, passing Review against the required Review Gate");
+    blocking.push({
+      gateId: definition.id, entityValue: `${e.entity_type}|${e.entity_id}`, gateName: definition.name, gateCode: definition.code, category: definition.category, entity: entityLabel(e.entity_type, e.entity_id), entityState, steps, details, evaluatedAt: e.evaluated_at,
+      waived: (waiverRows ?? []).some((w) => w.status === "Active" && w.scope === WAIVER_SCOPE_GATE && w.quality_gate_id === e.quality_gate_id && w.entity_type === e.entity_type && (w.entity_id === e.entity_id || (deliverableCode !== "" && w.deliverable_codes.includes(deliverableCode))) && (!w.expires_at || new Date(w.expires_at) > new Date())),
+    });
+  }
+  blocking.sort((a, b) => a.gateName.localeCompare(b.gateName) || a.entity.localeCompare(b.entity));
   const qualityGates: SeuDetailQualityGates = {
+    waiverLines,
+    deliverableNames: Object.fromEntries((deliverables ?? []).map((d) => [d.id, d.name])),
+    profileSeuCount: profileSeuCount ?? 1,
+    blocking,
     gates: (ebmGateDefinitions ?? []).map((definition) => {
       const deliverablesByStep = new Map<string, string[]>();
       for (const row of settledForGates?.qualityGates?.result ?? []) {
@@ -520,11 +631,22 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
       };
     }),
     waivers: (waiverRows ?? []).map((w) => ({
-      gateName: waivedGateNameById.get(w.quality_gate_id) ?? w.quality_gate_id,
+      covers: `${w.deliverable_codes.join(", ")}${w.shared_profile_id ? " (shared with the SEUs of the Profile)" : ""}`,
+      risks: (waiverRisks ?? []).filter((r) => r.waiver_id === w.id).map((r) => ({
+        risk: r.risk,
+        controls: (waiverControls ?? []).filter((c) => c.risk_id === r.id).map((c) => {
+          const obligation = c.obligation_id ? obligationViews.find((v) => v.obligation.id === c.obligation_id)?.obligation : undefined;
+          return { type: c.control_type, obligationTitle: obligation?.title ?? null, obligationStatus: obligation?.status ?? null, obligationOn: obligation ? entityLabel(obligation.related_object_type, obligation.related_object_id) : null };
+        }),
+      })),
+      gateName: w.scope === WAIVER_SCOPE_POLICY ? `Policy ${w.policy_code}` : w.scope === WAIVER_SCOPE_POLICY_OBLIGATION ? `Obligation of Policy ${w.policy_code}: ${w.obligation_title}` : w.scope === WAIVER_SCOPE_OBLIGATION ? `Obligation ${w.obligation_category}: ${w.obligation_title}` : waivedGateNameById.get(w.quality_gate_id ?? "") ?? String(w.quality_gate_id),
       entity: entityLabel(w.entity_type, w.entity_id),
       grantedBy: grantorNameById.get(w.granted_by) ?? w.granted_by,
       rationale: w.rationale, status: w.status, authorityBadge: w.authority_badge, expiresAt: w.expires_at, createdAt: w.created_at,
     })),
+    controlTypes: await listCanonicalCategories(WAIVER_CONTROL_CONCEPT),
+    controlCodes: { expiry: WAIVER_CONTROL_EXPIRY, obligation: WAIVER_CONTROL_OBLIGATION, acceptRisk: WAIVER_CONTROL_ACCEPT_RISK },
+    obligationOptions: { categories: await listCanonicalCategories("category:obligation"), severities: await listCanonicalCategories("category:obligation-severity"), priorities: await listCanonicalCategories("category:obligation-priority") },
     waivableEntities: [
       { value: `SEU|${seuId}`, label: "SEU" },
       ...(deliverables ?? []).map((d) => ({ value: `Deliverable|${d.id}`, label: `Deliverable ${d.name}` })),

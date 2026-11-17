@@ -33,6 +33,17 @@ export const seusDB = {
     }
   },
 
+  // The number of SEUs, this one included, that use the Profile.
+  async countByProfileId(profileId: string): Promise<DbResult<number>> {
+    try {
+      const { rows } = await query<{ count: string }>("SELECT COUNT(*) AS count FROM seus WHERE profile_id = $1", [profileId]);
+      return { data: Number(rows[0].count) };
+    } catch (err) {
+      logger.error("[seusDB] countByProfileId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findById(id: string): Promise<DbResult<SeuRow | null>> {
     try {
       const { rows } = await query<SeuRow>("SELECT * FROM seus WHERE id = $1", [id]);

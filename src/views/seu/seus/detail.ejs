@@ -808,6 +808,268 @@
         <%# ---------------------------------------------------------------- Quality Gates %>
         <div class="<%= paneClass('qualityGates') %>" id="seu-detail-qualityGates" role="tabpanel">
           <div class="section-card mb-3">
+            <div class="section-header">Blocked now</div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Gate</th><th>Blocked entity</th><th>State</th><th>Hop</th><th>Why</th><th>Evaluated</th><th>Waiver</th><th></th></tr></thead>
+                <tbody>
+                  <% if (detail.qualityGates.blocking.length === 0) { %>
+                    <tr><td colspan="8" class="text-muted small">No Quality Gate blocks an entity of this SEU now.</td></tr>
+                  <% } %>
+                  <% detail.qualityGates.blocking.forEach(function(b) { %>
+                    <tr>
+                      <td class="small"><strong><%= b.gateName %></strong><br><span class="text-muted" style="font-size:0.72rem;"><%= b.gateCode %> &middot; <%= b.category %></span></td>
+                      <td class="small"><%= b.entity %></td>
+                      <td><span class="state-badge state-<%= b.entityState.replace(/\s+/g, '-') %>"><%= b.entityState %></span></td>
+                      <td class="small">
+                        <% if (b.steps.length === 0) { %><span class="text-muted">not settled for this state</span><% } %>
+                        <% b.steps.forEach(function(st) { %><div class="edge-note"><%= st.split('|').slice(1).join(' → ') %></div><% }) %>
+                      </td>
+                      <td class="small">
+                        <% if (b.details.length === 0) { %><span class="text-muted">no detail recorded</span><% } %>
+                        <% b.details.forEach(function(d) { %><div><%= d %></div><% }) %>
+                      </td>
+                      <td class="small text-muted"><%= new Date(b.evaluatedAt).toLocaleString() %></td>
+                      <td class="small"><%= b.waived ? 'Active waiver' : 'none' %></td>
+                      <td class="small text-end">
+                        <% if (locals.canWaiveQualityGate && !b.waived) { %>
+                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#qualityGateWaiverModal" data-gate-id="<%= b.gateId %>" data-entity="<%= b.entityValue %>">Grant waiver</button>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="section-card mb-3">
+            <div class="section-header d-flex justify-content-between align-items-center">
+              <span>Waivers</span>
+              <% if (locals.canWaiveQualityGate && detail.qualityGates.gates.length > 0) { %>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#qualityGateWaiverModal">Grant waiver</button>
+              <% } %>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Gate</th><th>Entity</th><th>Rationale</th><th>Risks and controls</th><th>Status</th><th>Granted by</th><th>Badge</th><th>Expires</th><th>Granted</th></tr></thead>
+                <tbody>
+                  <% if (detail.qualityGates.waivers.length === 0) { %>
+                    <tr><td colspan="9" class="text-muted small">No waiver recorded for this SEU.</td></tr>
+                  <% } %>
+                  <% detail.qualityGates.waivers.forEach(function(w) { %>
+                    <tr>
+                      <td class="small"><%= w.gateName %></td>
+                      <td class="small"><%= w.entity %><% if (w.covers) { %><br><span class="text-muted" style="font-size:0.72rem;">Covers: <%= w.covers %></span><% } %></td>
+                      <td class="small"><%= w.rationale %></td>
+                      <td class="small">
+                        <% if (w.risks.length === 0) { %><span class="text-muted">none</span><% } %>
+                        <% w.risks.forEach(function(r) { %>
+                          <div class="edge-note"><strong><%= r.risk %></strong>
+                            <% r.controls.forEach(function(c) { %>
+                              <br><span class="text-muted" style="font-size:0.72rem;"><%= c.type %><% if (c.obligationTitle) { %>: <%= c.obligationTitle %> (<%= c.obligationStatus %>, on <%= c.obligationOn %>)<% } %></span>
+                            <% }) %>
+                          </div>
+                        <% }) %>
+                      </td>
+                      <td class="small"><%= w.status %></td>
+                      <td class="small"><%= w.grantedBy %></td>
+                      <td class="small"><code><%= w.authorityBadge %></code></td>
+                      <td class="small"><%= w.expiresAt ? new Date(w.expiresAt).toLocaleString() : 'never' %></td>
+                      <td class="small text-muted"><%= new Date(w.createdAt).toLocaleString() %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="modal fade" id="qualityGateWaiverModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/quality-gate-waivers">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <div class="modal-header">
+                    <h5 class="modal-title mb-0">Grant Quality Gate waiver</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="mb-2">
+                      <label class="form-label small text-muted mb-1" for="qgwEntity">Deliverable</label>
+                      <select class="form-select form-select-sm" name="entity" id="qgwEntity" required>
+                        <% detail.qualityGates.waivableEntities.filter(function(e) { return e.value.indexOf('Deliverable|') === 0; }).forEach(function(e) { %><option value="<%= e.value %>"><%= e.label.replace('Deliverable ', '') %></option><% }) %>
+                      </select>
+                    </div>
+                    <div class="mb-2">
+                      <span class="form-label small text-muted mb-1 d-block">What fed the Quality Gate decision. Pick the line to waive.</span>
+                      <div id="qgwLines" class="border rounded p-2"></div>
+                      <input type="hidden" name="scope" id="qgwScope">
+                      <input type="hidden" name="qualityGateId" id="qgwGate">
+                      <input type="hidden" name="policyCode" id="qgwPolicy">
+                      <input type="hidden" name="obligationCategory" id="qgwObCategory">
+                      <input type="hidden" name="obligationTitle" id="qgwObTitle">
+                    </div>
+                    <div class="mb-2" id="qgwSame" hidden>
+                      <span class="form-label small text-muted mb-1 d-block">The same line on other Deliverables. Choose those the waiver covers.</span>
+                      <div id="qgwSameList"></div>
+                    </div>
+                    <% if (detail.qualityGates.profileSeuCount > 1) { %>
+                      <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="shareWithProfile" value="1" id="qgwShare">
+                        <label class="form-check-label small" for="qgwShare">Share with the other <%= detail.qualityGates.profileSeuCount - 1 %> SEU(s) that use this Profile. It covers the Deliverables of the same codes there.</label>
+                      </div>
+                    <% } %>
+                    <div class="mb-2">
+                      <label class="form-label small text-muted mb-1" for="qgwRationale">Rationale</label>
+                      <textarea class="form-control form-control-sm" name="rationale" id="qgwRationale" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label small text-muted mb-1" for="qgwExpires">Expires (optional)</label>
+                      <input type="datetime-local" class="form-control form-control-sm" name="expiresAt" id="qgwExpires">
+                    </div>
+                    <% var qgc = detail.qualityGates.controlCodes; var qgo = detail.qualityGates.obligationOptions; %>
+                    <div class="mb-2">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="form-label small text-muted mb-0">Associated risks and compensating controls</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="qgwAddRisk">Add risk</button>
+                      </div>
+                      <div id="qgwRisks"></div>
+                      <input type="hidden" name="risks" id="qgwRisksJson">
+                      <div class="text-muted" style="font-size:0.72rem;">A risk with no control gets the Expiry control, which needs the expiry time above.</div>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Grant waiver</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <template id="qgwRiskTemplate">
+            <div class="border rounded p-2 mb-2 qgw-risk">
+              <div class="d-flex gap-2 mb-1">
+                <textarea class="form-control form-control-sm qgw-risk-text" rows="2" placeholder="Associated risk" required></textarea>
+                <button type="button" class="btn btn-sm btn-outline-danger qgw-remove-risk">Remove</button>
+              </div>
+              <% detail.qualityGates.controlTypes.forEach(function(t) { %>
+                <div class="form-check">
+                  <input class="form-check-input qgw-control" type="checkbox" value="<%= t %>" <%= t === qgc.expiry ? 'checked' : '' %>>
+                  <label class="form-check-label small"><%= t %></label>
+                </div>
+              <% }) %>
+              <div class="qgw-obligation border-top mt-2 pt-2" hidden>
+                <div class="row g-1">
+                  <div class="col-6"><label class="form-label small text-muted mb-0">Raise on</label>
+                    <select class="form-select form-select-sm qgw-ob-on"><% detail.qualityGates.waivableEntities.forEach(function(e) { %><option value="<%= e.value %>"><%= e.label %></option><% }) %></select></div>
+                  <div class="col-6"><label class="form-label small text-muted mb-0">Category</label>
+                    <select class="form-select form-select-sm qgw-ob-category"><% qgo.categories.forEach(function(c) { %><option value="<%= c %>" <%= c === 'Risk' ? 'selected' : '' %>><%= c %></option><% }) %></select></div>
+                  <div class="col-12"><label class="form-label small text-muted mb-0">Title</label><input type="text" class="form-control form-control-sm qgw-ob-title"></div>
+                  <div class="col-12"><label class="form-label small text-muted mb-0">Description</label><textarea class="form-control form-control-sm qgw-ob-description" rows="2"></textarea></div>
+                  <div class="col-12"><label class="form-label small text-muted mb-0">Completion criteria</label><textarea class="form-control form-control-sm qgw-ob-criteria" rows="2"></textarea></div>
+                  <div class="col-6"><label class="form-label small text-muted mb-0">Severity</label>
+                    <select class="form-select form-select-sm qgw-ob-severity"><option value=""></option><% qgo.severities.forEach(function(c) { %><option value="<%= c %>"><%= c %></option><% }) %></select></div>
+                  <div class="col-6"><label class="form-label small text-muted mb-0">Priority</label>
+                    <select class="form-select form-select-sm qgw-ob-priority"><option value=""></option><% qgo.priorities.forEach(function(c) { %><option value="<%= c %>"><%= c %></option><% }) %></select></div>
+                  <div class="col-6 qgw-ob-hop"><label class="form-label small text-muted mb-0">Holds hop from state</label><input type="text" class="form-control form-control-sm qgw-ob-from"></div>
+                  <div class="col-6 qgw-ob-hop"><label class="form-label small text-muted mb-0">Holds hop to state</label><input type="text" class="form-control form-control-sm qgw-ob-to"></div>
+                </div>
+              </div>
+            </div>
+          </template>
+          <script>
+            (function () {
+              var codes = { obligation: <%- JSON.stringify(qgc.obligation) %> };
+              var box = document.getElementById('qgwRisks');
+              var tpl = document.getElementById('qgwRiskTemplate');
+              function sync(block) {
+                var ob = block.querySelector('.qgw-obligation');
+                var on = block.querySelector('.qgw-control[value="' + codes.obligation + '"]').checked;
+                ob.hidden = !on;
+                var onSeu = block.querySelector('.qgw-ob-on').value.indexOf('SEU|') === 0;
+                block.querySelectorAll('.qgw-ob-hop').forEach(function (el) { el.hidden = onSeu; });
+              }
+              document.getElementById('qgwAddRisk').addEventListener('click', function () {
+                var block = tpl.content.firstElementChild.cloneNode(true);
+                block.addEventListener('change', function () { sync(block); });
+                block.querySelector('.qgw-remove-risk').addEventListener('click', function () { block.remove(); });
+                box.appendChild(block);
+                sync(block);
+              });
+              document.querySelector('#qualityGateWaiverModal form').addEventListener('submit', function () {
+                var risks = [];
+                box.querySelectorAll('.qgw-risk').forEach(function (block) {
+                  var controls = [];
+                  block.querySelectorAll('.qgw-control:checked').forEach(function (c) {
+                    if (c.value !== codes.obligation) { controls.push({ type: c.value }); return; }
+                    var on = block.querySelector('.qgw-ob-on').value.split('|');
+                    var val = function (cls) { return block.querySelector(cls).value.trim() || null; };
+                    controls.push({ type: c.value, obligation: {
+                      relatedObjectType: on[0], relatedObjectId: on[1], category: block.querySelector('.qgw-ob-category').value, title: block.querySelector('.qgw-ob-title').value.trim(),
+                      description: val('.qgw-ob-description'), completionCriteria: val('.qgw-ob-criteria'), severity: val('.qgw-ob-severity') || undefined, priority: val('.qgw-ob-priority'),
+                      blockedFromState: on[0] === 'SEU' ? null : val('.qgw-ob-from'), blockedToState: on[0] === 'SEU' ? null : val('.qgw-ob-to')
+                    } });
+                  });
+                  risks.push({ risk: block.querySelector('.qgw-risk-text').value.trim(), controls: controls });
+                });
+                document.getElementById('qgwRisksJson').value = JSON.stringify(risks);
+              });
+            })();
+          </script>
+          <script type="application/json" id="qgwData"><%- JSON.stringify({ lines: detail.qualityGates.waiverLines, names: detail.qualityGates.deliverableNames }).replace(/</g, '\\u003c') %></script>
+          <script>
+            (function () {
+              var data = JSON.parse(document.getElementById('qgwData').textContent);
+              var entity = document.getElementById('qgwEntity');
+              var box = document.getElementById('qgwLines');
+              var same = document.getElementById('qgwSame');
+              var sameList = document.getElementById('qgwSameList');
+              var fields = { scope: 'qgwScope', gateId: 'qgwGate', policyCode: 'qgwPolicy', category: 'qgwObCategory', title: 'qgwObTitle' };
+              function currentId() { return entity.value.split('|')[1]; }
+              function pick(line) {
+                Object.keys(fields).forEach(function (k) { document.getElementById(fields[k]).value = line[k] || ''; });
+                sameList.innerHTML = '';
+                var others = Object.keys(data.lines).filter(function (id) {
+                  return id !== currentId() && data.lines[id].some(function (l) { return l.key === line.key && l.waivable; });
+                });
+                others.forEach(function (id) {
+                  var label = document.createElement('label');
+                  label.className = 'd-block small';
+                  var cb = document.createElement('input');
+                  cb.type = 'checkbox'; cb.name = 'deliverableIds'; cb.value = id; cb.className = 'form-check-input me-1';
+                  label.appendChild(cb);
+                  label.appendChild(document.createTextNode(data.names[id]));
+                  sameList.appendChild(label);
+                });
+                same.hidden = others.length === 0;
+              }
+              function render(preselectGateId) {
+                box.innerHTML = '';
+                same.hidden = true;
+                Object.keys(fields).forEach(function (k) { document.getElementById(fields[k]).value = ''; });
+                var lines = data.lines[currentId()] || [];
+                if (lines.length === 0) { box.textContent = 'Nothing fed a Quality Gate decision for this Deliverable at its current state.'; return; }
+                lines.forEach(function (line, i) {
+                  var label = document.createElement('label');
+                  label.className = 'd-block small mb-1';
+                  var radio = document.createElement('input');
+                  radio.type = 'radio'; radio.name = 'qgwLine'; radio.className = 'form-check-input me-1'; radio.required = true;
+                  radio.disabled = !line.waivable;
+                  radio.addEventListener('change', function () { pick(line); });
+                  label.appendChild(radio);
+                  label.appendChild(document.createTextNode(line.kind + ': ' + line.name + ' (' + line.outcome + ', ' + line.hop + ')' + (line.note ? ' ' + line.note : '')));
+                  box.appendChild(label);
+                  if (preselectGateId && line.gateId === preselectGateId && line.waivable) { radio.checked = true; pick(line); }
+                });
+              }
+              entity.addEventListener('change', function () { render(null); });
+              document.getElementById('qualityGateWaiverModal').addEventListener('show.bs.modal', function (event) {
+                var trigger = event.relatedTarget;
+                if (trigger && trigger.dataset.entity) { entity.value = trigger.dataset.entity; render(trigger.dataset.gateId || null); } else render(null);
+              });
+            })();
+          </script>
+          <div class="section-card mb-3">
             <div class="section-header">Quality Gates of the EBM</div>
             <div class="table-responsive">
               <table class="table table-sm mb-0 align-middle">
@@ -838,76 +1100,6 @@
                   <% }) %>
                 </tbody>
               </table>
-            </div>
-          </div>
-          <div class="section-card">
-            <div class="section-header d-flex justify-content-between align-items-center">
-              <span>Waivers</span>
-              <% if (locals.canWaiveQualityGate && detail.qualityGates.gates.length > 0) { %>
-                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#qualityGateWaiverModal">Grant waiver</button>
-              <% } %>
-            </div>
-            <div class="table-responsive">
-              <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light"><tr><th>Gate</th><th>Entity</th><th>Rationale</th><th>Status</th><th>Granted by</th><th>Badge</th><th>Expires</th><th>Granted</th></tr></thead>
-                <tbody>
-                  <% if (detail.qualityGates.waivers.length === 0) { %>
-                    <tr><td colspan="8" class="text-muted small">No waiver recorded for this SEU.</td></tr>
-                  <% } %>
-                  <% detail.qualityGates.waivers.forEach(function(w) { %>
-                    <tr>
-                      <td class="small"><%= w.gateName %></td>
-                      <td class="small"><%= w.entity %></td>
-                      <td class="small"><%= w.rationale %></td>
-                      <td class="small"><%= w.status %></td>
-                      <td class="small"><%= w.grantedBy %></td>
-                      <td class="small"><code><%= w.authorityBadge %></code></td>
-                      <td class="small"><%= w.expiresAt ? new Date(w.expiresAt).toLocaleString() : 'never' %></td>
-                      <td class="small text-muted"><%= new Date(w.createdAt).toLocaleString() %></td>
-                    </tr>
-                  <% }) %>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="modal fade" id="qualityGateWaiverModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-              <div class="modal-content">
-                <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/quality-gate-waivers">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <div class="modal-header">
-                    <h5 class="modal-title mb-0">Grant Quality Gate waiver</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                  </div>
-                  <div class="modal-body">
-                    <div class="mb-2">
-                      <label class="form-label small text-muted mb-1" for="qgwGate">Quality Gate</label>
-                      <select class="form-select form-select-sm" name="qualityGateId" id="qgwGate" required>
-                        <% detail.qualityGates.gates.forEach(function(g) { %><option value="<%= g.id %>"><%= g.name %></option><% }) %>
-                      </select>
-                    </div>
-                    <div class="mb-2">
-                      <label class="form-label small text-muted mb-1" for="qgwEntity">Waived for</label>
-                      <select class="form-select form-select-sm" name="entity" id="qgwEntity" required>
-                        <% detail.qualityGates.waivableEntities.forEach(function(e) { %><option value="<%= e.value %>"><%= e.label %></option><% }) %>
-                      </select>
-                    </div>
-                    <div class="mb-2">
-                      <label class="form-label small text-muted mb-1" for="qgwRationale">Rationale</label>
-                      <textarea class="form-control form-control-sm" name="rationale" id="qgwRationale" rows="3" required></textarea>
-                    </div>
-                    <div class="mb-2">
-                      <label class="form-label small text-muted mb-1" for="qgwExpires">Expires (optional)</label>
-                      <input type="datetime-local" class="form-control form-control-sm" name="expiresAt" id="qgwExpires">
-                    </div>
-                  </div>
-                  <div class="modal-footer">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-primary">Grant waiver</button>
-                  </div>
-                </form>
-              </div>
             </div>
           </div>
         </div>

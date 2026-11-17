@@ -4,6 +4,8 @@ import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
 import { evaluateCondition, type GoverningCondition } from "./governingCondition.js";
 import { eventBus } from "./eventBus.js";
+import { policyEvaluationsDB } from "../../dblayer/policyEvaluationsDB.js";
+import { POLICY_EVALUATION_BLOCKED, POLICY_EVALUATION_DEVIATED, POLICY_EVALUATION_PASSED } from "../../dblayer/constants.js";
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
 import { policyChecksFromDefinitions, type PolicyCheck } from "./policyChecks.js";
 
@@ -11,6 +13,16 @@ export type PolicyEvaluationResult =
   | { outcome: "NotApplicable"; satisfiedPolicyIds: []; deviatedPolicyIds: [] }
   | { outcome: "Passed"; satisfiedPolicyIds: string[]; deviatedPolicyIds: string[] }
   | { outcome: "Blocked"; policyCode: string; satisfiedPolicyIds: string[]; deviatedPolicyIds: string[] };
+
+// A Policy evaluation is stored for the entity under evaluation, as a Quality Gate evaluation is. The plain code of a materialised Policy is the part before "::".
+async function storeEvaluation(policy: Pick<PolicyCheck, "id" | "code" | "constraint_type">, input: { entityType: TransitionEntityType; seuId: string; entityId?: string | null; fromState: string; toState: string }, outcome: string): Promise<void> {
+  if (!input.entityId) return;
+  const { error } = await policyEvaluationsDB.create({
+    policyCode: policy.code.split("::")[0], policyId: policy.id, constraintType: policy.constraint_type, seuId: input.seuId, entityType: input.entityType,
+    entityId: input.entityId, fromState: input.fromState, toState: input.toState, outcome,
+  });
+  if (error) throw error;
+}
 
 export const policyEngine = {
   async evaluate(input: {
@@ -45,7 +57,7 @@ export const policyEngine = {
   // Evaluates Policies already resolved for one hop: from the EBM (evaluate) or from the Transition Definition's required policies.
   async evaluateChecks(
     checks: Array<Pick<PolicyCheck, "id" | "code" | "constraint_type" | "condition">>,
-    input: { entityType: TransitionEntityType; seuId: string; fromState: string; toState: string; context?: Record<string, unknown>; authorId: string; authorBadge: string },
+    input: { entityType: TransitionEntityType; seuId: string; entityId?: string | null; fromState: string; toState: string; context?: Record<string, unknown>; authorId: string; authorBadge: string },
   ): Promise<PolicyEvaluationResult> {
     if (checks.length === 0) return { outcome: "NotApplicable", satisfiedPolicyIds: [], deviatedPolicyIds: [] };
     const satisfiedPolicyIds: string[] = [];
@@ -55,6 +67,7 @@ export const policyEngine = {
       const payload = { policyCode: policy.code, entityType: input.entityType, fromState: input.fromState, toState: input.toState };
       if (satisfied) {
         satisfiedPolicyIds.push(policy.id);
+        await storeEvaluation(policy, input, POLICY_EVALUATION_PASSED);
         await eventBus.publish({
           eventType: "PolicyApplied",
           originatingObjectType: "Policy",
@@ -67,6 +80,7 @@ export const policyEngine = {
         });
         continue;
       }
+      await storeEvaluation(policy, input, policy.constraint_type === "Policy" ? POLICY_EVALUATION_BLOCKED : POLICY_EVALUATION_DEVIATED);
       await eventBus.publish({
         eventType: "PolicyViolated",
         originatingObjectType: "Policy",

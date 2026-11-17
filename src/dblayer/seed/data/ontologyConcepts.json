@@ -22471,5 +22471,32 @@
     "is_mandatory": null,
     "text_type": "text",
     "ui_grouping": "Execution"
+  },
+  {
+    "concept_type": "category:waiver-control",
+    "code": "Expiry",
+    "default_label": "Expiry",
+    "description": "The waiver ends at its expiry time.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "category:waiver-control",
+    "code": "Obligation",
+    "default_label": "Obligation",
+    "description": "An Obligation raised from the risk offsets it.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
+  },
+  {
+    "concept_type": "category:waiver-control",
+    "code": "Accept risk",
+    "default_label": "Accept risk",
+    "description": "The grantor accepts the risk as it stands.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Governance"
   }
 ]
