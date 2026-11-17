@@ -32,8 +32,8 @@ export const qualityGatesDB = {
         const recommendedChecklistIds = input.recommendedChecklistIds ?? [];
         const applicabilityDeliverableNames = input.applicabilityDeliverableNames ?? [];
         const { rows: currentRows } = await query<QualityGateRow>(
-          "SELECT * FROM quality_gates WHERE code = $1 AND originating_pack_id = $2 AND is_active = true",
-          [code, input.originatingPackId]
+          "SELECT * FROM quality_gates WHERE code = $1 AND originating_pack_id = $2 AND entity_type = $3 AND from_state = $4 AND to_state = $5 AND applicability_deliverable_names = $6::text[] AND is_active = true",
+          [code, input.originatingPackId, input.entityType, input.fromState, input.toState, applicabilityDeliverableNames]
         );
         const current = currentRows[0];
         const unchanged =

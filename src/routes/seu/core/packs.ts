@@ -226,12 +226,17 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
   // A Pack lists the Quality Gate Definitions it takes by code, and says where each applies and which of its own Checklists and Policies it uses (CR-145).
   const gateEntries = seed.contributions.qualityGates ?? [];
   const seenGateCodes = new Set<string>();
+  const seenGateSlots = new Set<string>();
   for (const entry of gateEntries) {
     if (!entry.qualityCode?.trim()) {
       errors.push("quality gate is missing a qualityCode");
       continue;
     }
-    if (seenGateCodes.has(entry.qualityCode)) errors.push(`duplicate quality gate within Pack: "${entry.qualityCode}" is listed more than once`);
+    // One Definition may govern several transitions and Deliverables of a Pack. A Definition listed twice for the same transition and Deliverable is the duplicate.
+    const deliverableName = entry.deliverableName?.trim() ?? "";
+    const slotKey = `${entry.governedTransition ?? ""}::${deliverableName}::${entry.qualityCode}`;
+    if (seenGateSlots.has(slotKey)) errors.push(`duplicate quality gate within Pack: "${entry.qualityCode}" is listed more than once for "${entry.governedTransition}"${deliverableName ? ` and Deliverable "${deliverableName}"` : ""}`);
+    seenGateSlots.add(slotKey);
     seenGateCodes.add(entry.qualityCode);
   }
   if (seenGateCodes.size > 0) {

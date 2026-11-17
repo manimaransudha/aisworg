@@ -29,11 +29,11 @@ ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_code_version_k
 ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_scope_category_version_key;
 ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_scope_category_version_pack_key;
 ALTER TABLE quality_gates ADD CONSTRAINT quality_gates_code_version_pack_key
-  UNIQUE (code, version, originating_pack_id);
+  UNIQUE (code, version, originating_pack_id, entity_type, from_state, to_state, applicability_deliverable_names);
 DROP INDEX IF EXISTS quality_gates_active_scope_category_key;
 DROP INDEX IF EXISTS quality_gates_active_scope_category_pack_key;
 CREATE UNIQUE INDEX IF NOT EXISTS quality_gates_active_code_pack_key
-  ON quality_gates (code, originating_pack_id)
+  ON quality_gates (code, originating_pack_id, entity_type, from_state, to_state, applicability_deliverable_names)
   WHERE is_active;
 ALTER TABLE quality_gates ADD COLUMN IF NOT EXISTS quality_gate_definition_id UUID;
 ALTER TABLE quality_gates
