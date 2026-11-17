@@ -4,6 +4,7 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-147](design/change-requests/CR-147-governance-telemetry-gate-latency.md) | Governance Telemetry: Quality Gate latency per hop | 🟡 Proposed (not designed) |
 | [CR-146](design/change-requests/CR-146-version-hop-previous-version-chain.md) | Version hop: the version number and the previous version, recorded in version_events, for the SDK authoring entities | 🟡 Raised — design in progress |
 | [CR-145](design/change-requests/CR-145-quality-gate-alignment.md) | Quality Gate: alignment with Chapter 26 (criteria, outcomes, evaluation record, composition, waivers, events, registry) | 🟡 Raised — design in progress |
 | [CR-144](design/change-requests/CR-144-blocked-transition-obligation-duplicates.md) | A blocked transition raises one Obligation per entity and hop, also when attempts run at the same time | ✅ Closed 2026-11-15 |

@@ -325,6 +325,18 @@ SEU hop of a Transition Policy (built 2026-11-17, owner: "Policy Definition thro
 
 Verification (2026-11-17): the owner ran `db:clean-slate` and the full test suite after decisions 22 and 23, the SEU hop change and the test migrations, and all tests pass. Earlier lines that say the tests were not run record the state of the build at that time. The schema changed (two columns, three foreign keys) and the test Ontology gained six Pack codes, so `db:clean-slate` has to run before the tests.
 
+## Built (2026-11-17), the Deliverable hop order and the gate rows of each Deliverable
+
+Request: a gate that names no Deliverable applies to every Deliverable of the catalogue, and the gate is evaluated just before the state change. The SEU `cba40d59-fc58-4dbc-93f3-ce05e23d7815` showed a Deliverable "Blocked by" a Policy Obligation beside a Quality Gate "Passed". The database showed that the gate ran first and passed with no open Obligation, and the Policy then blocked and raised the Obligation. The tab column shows the latest recorded outcome and does not re-check.
+
+| File | Change |
+|---|---|
+| src/domain/engine/conflicts/unravelQualityGates.ts, src/domain/engine/deliverableSource.ts, src/dblayer/constants.ts | `unravelQualityGates` takes `deliverableCodes`. An entry that names a Deliverable keeps it. An entry that names none and governs a `Deliverable\|` step expands to the sorted catalogue codes. An entry for another entity keeps `""`. `catalogueDeliverableCodes` reads the catalogue of the composed Templates and Profiles. `DELIVERABLE_ENTITY_TYPE` is a constant. |
+| src/domain/engine/executionEngine.ts | The Policy, `submit_verb` and `empty_centre` checks record a refusal and do not return. The Quality Gates are evaluated and stored on every hop, and a Blocked gate raises its Attention Item. The hop is decided once: the first refusal in the order Policy, `submit_verb`, `empty_centre`, then a Blocked gate. The state change stays in `applyDeliverableTransition`. The pre-checks (dependencies, Obligations, Decisions, the in-flight Command, the Transition Definition) still return early. |
+| src/routes/seu/core/seus.ts, src/views/seu/seus/detail.ejs | The Quality Gates tab groups the Deliverables under each step. The Quality gates column of the Deliverables tab lists the gates the EBM settled for the Deliverable, each with its step and the outcome of its latest evaluation, or "not evaluated". |
+| src/routes/seu/core/seus.ts, src/routes/seu/web/objectives.ts, src/views/seu/seus/ebm.ejs, src/views/seu/seus/compose.ejs | `withPackTenants` adds a Tenant column to the composed Packs tables. The tenant is read when the page is shown, so an existing EBM shows it. |
+| src/dblayer/templatesDB.ts, src/dblayer/profilesDB.ts | `upsert` writes `schema_definition_id`, read from the latest schema of the entity kind, and throws when none exists. Both INSERTs omitted the NOT NULL column. The other seven writers of the nine tables that hold the column write it (search: `INSERT INTO` and `bulkInsert` on those tables across src and tests). |
+
 ## Test fixtures updated in the same pass
 
 - Quality Gate Definition (2026-11-16): tests/schemaFixtures.ts (the code concept `schema-fixture-quality-gate`, `maximalQualityGate`, a `qualityGate` row in Stage 1, the maximal Pack lists its code instead of three embedded gates), tests/testFixtures.ts (`ensureQualityGateDefinition`; `seedCoreGates` passes codes), tests/cr104-composition-scoped-governance.test.ts (two Packs list definitions the test creates), tests/web-flow.e2e.test.ts (the isolated Pack lists `no-unresolved-obligations`), tests/cr139-quality-gate-conflicts.test.ts (rewritten over definitions and gate rows), tests/cr139-settle-tables.test.ts (the key has the code), tests/composition-engine.test.ts (the gate conflict is gone), and a `code` for every `qualityGatesDB.upsert` call (execution-engine, governance-ebm-sharpening, quality-gate-engine, quality-gate-generalization, review-model, transition-definition-authoring, transition-engine).
@@ -408,6 +420,19 @@ Verification (2026-11-17): the owner ran `db:clean-slate` and the full test suit
 - Remaining risk: the fixtures that create a Pack by `createPackDraft` and then author the rows that depend on its rows in one run (schemaFixtures.ts stages). The Pack of each stage reaches Active in `authorActive` before a dependant is authored, but this was read and not run.
 - Still to do: `saveAuthoringDraft` needs no change, since a Draft no longer has rows to keep in step. A schema change to `quality_gates`, `quality_gate_evaluations` or `quality_gate_waivers` must list its fixtures here. The files that call `qualityGatesDB.upsert` or the waiver DB are: tests/execution-engine.test.ts, tests/testFixtures.ts, tests/review-model.test.ts, tests/transition-definition-authoring.test.ts, tests/quality-gate-generalization.test.ts, tests/governance-ebm-sharpening.test.ts, tests/quality-gate-engine.test.ts, tests/transition-engine.test.ts, tests/cr104-composition-scoped-governance.test.ts, tests/author-badge-resolution.test.ts.
 
+## Test fixtures updated in the same pass (2026-11-17)
+
+| Test | Change |
+|---|---|
+| tests/cr139-quality-gate-conflicts.test.ts | Six calls carry `deliverableCodes: []`. Five tests were added or renamed for the expansion. |
+| tests/execution-engine.test.ts | A new test: a refusal before the gate leaves the gate evaluated, recorded and raised. The gate tests name the Deliverable `source-code` (Pack validation accepts only Ontology names) and create their Deliverables with that code. |
+| tests/quality-gate-outcome.test.ts | `gateEntry` names `source-code`, and `createDeliverable` uses that code. |
+| tests/cr104-composition-scoped-governance.test.ts | The first test evaluates the SEU's real `test-strategy` Deliverable. The named-gate test checks the gate codes returned for each Deliverable, because the baseline gate now applies to both. |
+| tests/cr108-obligation-model-seu-execution.test.ts | The test waives `no-unresolved-obligations` for the Deliverable before the open Obligation is attached. |
+| tests/cr109-work-item-generator.test.ts | The open non-blocking Obligation is raised on the SEU. The `activeObligations` assertion is removed. |
+
+- Verification: `tsc` was clean. No test was run by the assistant. The owner's runs went from 126 failures to 7. The three lifecycle-table tests fail on rows left by earlier failed runs. `tests/telemetry.test.ts:123` is [CR-147](CR-147-governance-telemetry-gate-latency.md). The cr104, cr108 and cr109 edits were made after the last run.
+
 ## Still open
 
 1. Which groups the owner wants in this CR and which move to their own CRs. CR-135 holds the `QualityGate waive` pair and CR-140 holds the review gate Deliverable; group E waits on CR-135, and A1 and D1 are checked against CR-140.
@@ -471,3 +496,9 @@ Open points: (a) the embedded gate references things that belong to the Pack tod
 32. Open: I5. A Waived evaluation does not keep the unresolved Obligation ids.
 33. Open: I7 and I8. A criterion option to select Obligations, and the missing tests.
 34. (Built 2026-11-17, not run.) A Quality Gate waiver has a user interface. The SEU detail page has a Quality Gates tab (`src/views/seu/seus/detail.ejs`, key `qualityGates`) with the EBM's gates (category, criteria type, settled steps, latest recorded outcome), the SEU's rows of `quality_gate_waivers` (gate, entity, rationale, status, granted by, badge, expiry, time) and a "Grant waiver" button, shown to a holder of `qualitygate_waive`, that opens a modal (gate, entity, rationale, optional expiry). The entity is the SEU or one of its Deliverables. `POST /seus/:id/quality-gate-waivers` (`src/routes/seu/web/seus.ts`) checks that the gate is one of the EBM's gates and the entity belongs to the SEU, then calls `grantQualityGateWaiver`. Added: the `route_authority` row (badge `qualitygate_waive`, no role), the `seusQualityGateWaivers` redirect, `SeuDetailQualityGates` in `src/routes/seu/core/seus.ts`, and `QUALITY_GATE_WAIVE_BADGE` in `src/dblayer/constants.ts` (replacing the literal in the core file). Open: the API routes `POST` and `GET /seus/:id/quality-gate-waivers` are still `notImplemented`; there is no revoke or expire action (status stays Active). Nothing was run except `tsc`. Search: `waiver` and `gate.?waiver` across `src/` (routes, views, dblayer, domain).
+35. The pre-checks of the Deliverable hop still return early (dependencies, SEU and Deliverable Obligations, Decisions, the in-flight Command, the Transition Definition). Whether they pass their results on as well is the owner's decision.
+36. An EBM composed before 2026-11-17 keeps its `""` gate rows until it is composed again. The engine still accepts a row with `""` for any Deliverable (qualityGateEngine.ts:127).
+37. The baseline Pack lists `no-unresolved-obligations` with no Deliverable at two hops. It now applies to every catalogue Deliverable, and the criterion counts every open Obligation of the Deliverable, blocking or not (see I2, item 31). Tests that need an open non-blocking Obligation waive the gate or place the Obligation on the SEU.
+38. `templatesDB.upsert` and `profilesDB.upsert` pin the latest schema of the entity kind without being told. Whether their callers are to pass `schemaDefinitionId`, as `createDraft` does, is the owner's decision.
+39. Quality Gate latency per hop moved to [CR-147](CR-147-governance-telemetry-gate-latency.md).
+40. Test runs: three lifecycle-table tests (attention, deliverable-definition, deliverable) fail on `qg-test-from-` and `test-from-` rows left by earlier failed runs. `db:clean-slate` clears them.

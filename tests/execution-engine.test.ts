@@ -27,7 +27,7 @@ import { executionEngine, type DeliverableGovernanceResult } from "../src/domain
 import { workItemGenerator } from "../src/domain/engine/workItemGenerator.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import type { GovernanceEvaluationOutcomeDraft } from "../src/dblayer/seuTypes.js";
-import { createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { createObligationAsRoot, waitUntilAsync, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 import { getTestDevelopmentPack, ensureQualityGateDefinition, createGateRowWithDefinition } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
@@ -343,6 +343,8 @@ test("a Work Item records what the EBM settled and what its governance outcome n
   });
 
   // Commissioning kicks the Deliverable off, the fixture Policy blocks that hop and raises an Obligation, and the Execution Engine refuses every hop while an Obligation that blocks is open on the Deliverable.
+  // The kickoff runs after commissioning returns, so the Obligation is awaited before it is read.
+  await waitUntilAsync(async () => ((await obligationsDB.findByRelatedObject("Deliverable", deliverable.id)).data ?? []).some((x) => x.blocked_from_state && x.blocked_to_state));
   const { data: kickoffObligations } = await obligationsDB.findByRelatedObject("Deliverable", deliverable.id);
   for (const o of (kickoffObligations ?? []).filter((x) => x.blocked_from_state && x.blocked_to_state && !RESOLVED_OBLIGATION_STATUSES.has(x.status))) {
     for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {

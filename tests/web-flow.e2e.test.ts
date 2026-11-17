@@ -549,18 +549,6 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   // exact, not off by the stray one.
   await resolveDispatchRejectionObligations(seuId);
 
-  // The Obligation must exist before the Deliverable ever reaches "In
-  // Progress" — deliverableKickoffHandler's own automatic rescan (off the
-  // DeliverableTransitioned that completeOutstanding's "In Progress" step
-  // publishes) attempts "In Progress -> Approved" on its own initiative too,
-  // asynchronously and un-awaited (eventBus.publish is fire-and-forget for
-  // its subscribers). The "No Unresolved Obligations" Quality Gate only
-  // blocks what it can actually see: raising the Obligation afterward would
-  // leave a real window where that automatic attempt finds zero unresolved
-  // Obligations and is never blocked, racing the Deliverable to Approved
-  // before this test's own "blocked" check ever runs. Raising it first means
-  // every attempt at that hop — manual or the platform's own — sees the same
-  // Obligation and is blocked the same way, no matter which gets there first.
   // CR-108 item 3 — the manual "Create Obligation" web form/route was
   // removed (owner: "I am unsure whether we need the ability to manually
   // create an obligation"; settled to Participant-facing raiseMyObligation
@@ -903,20 +891,6 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   // ObligationTransitioned retrigger to race against.
   await resolveDispatchRejectionObligations(seuId);
 
-  // The Obligation must exist before the Deliverable ever reaches "In
-  // Progress" — same reasoning as Phase 4's own comment, and confirmed by a
-  // real run's own DB state: creating this Obligation right after "In
-  // Progress" (even genuinely before the resulting Command row's own
-  // created_at) still isn't early enough. deliverableKickoffHandler's
-  // rescan off the DeliverableTransitioned that "In Progress" publishes is
-  // fire-and-forget and un-awaited — it can start its own governance read at
-  // any point after that event fires, independent of this test's own
-  // synchronous timeline, and its own multi-step Command/WorkItem/Dispatch
-  // pipeline can simply finish writing later than this test's own Obligation
-  // POST lands, even though it started reading first. Only "before In
-  // Progress exists at all" removes the race outright — every attempt at
-  // that hop, manual or automatic, whichever gets there first, then finds
-  // the same Obligation already in place.
   // CR-108 item 3 — manual create route removed; see Phase 4's own comment
   // above for why this now calls the core function directly.
   await createObligation({
@@ -1077,7 +1051,11 @@ test("Participant Lifecycle Governance, Build order step 5 — replacing a fulfi
   const { seuId, csrf } = await commissionSeu(request, "webflow-participant-replace");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findCapabilityId(before1.html, "requirements-analysis");
+  const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
   await fulfilByHandIfStillUnfulfilled(request, csrf, seuId, capabilityId, "requirements-analysis");
+  // Fulfilling makes the engine start the Deliverable and dispatch its producing Work Item to the Participant. The Participant is released only once that work is done,
+  // because a release that runs while the dispatch assigns the Participant leaves it Assigned, and Assigned has no hop to Archived.
+  await completeOutstanding(seuId, deliverableId, "In Progress");
 
   const afterFulfil = await getPage(request, `/seu/seus/${seuId}`);
   assert.equal(capabilityStatus(afterFulfil.html, "requirements-analysis"), "Fulfilled");
