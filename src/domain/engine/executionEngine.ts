@@ -110,40 +110,8 @@ export const executionEngine = {
     const { data: authorityRule } = await authorityRulesDB.findByCode(requiredBadge);
     const applicableAuthorityRuleId = authorityRule?.id ?? null;
 
-    const { data: gateSeu } = await seusDB.findById(deliverable.seu_id);
-    if (!gateSeu) throw new Error(`SEU ${deliverable.seu_id} not found for Deliverable ${deliverable.id}`);
-    const qualityGateResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({
-      entityType: "Deliverable",
-      entityId: deliverable.id,
-      seuId: deliverable.seu_id,
-      fromState,
-      toState: targetState,
-      authorId: systemActor.authorId,
-      authorBadge: systemActor.authorBadge,
-      tenantId: gateSeu.tenant_id,
-    }));
-    // The decision is stored for every hop, Blocked included, before the hop is refused or goes on.
-    await qualityGateEngine.recordDecision(qualityGateResult, {
-      seuId: deliverable.seu_id,
-      deliverableId: deliverable.id,
-      tenantId: gateSeu.tenant_id,
-      actorId: systemActor.authorId,
-      actorBadge: systemActor.authorBadge,
-    });
-    if (qualityGateResult.outcome === "Blocked") {
-      const [first] = qualityGateResult.blocked;
-      await checkSustainedQualityGateBlocking({ qualityGateId: first.gate.id, gateName: first.gate.name, seuId: deliverable.seu_id, deliverableId: deliverable.id });
-      await raiseAttentionItem({
-        seuId: deliverable.seu_id,
-        category: "Action Required",
-        title: `Deliverable "${deliverable.name}" is blocked by Quality Gate "${first.gate.name}"`,
-        description: first.reason,
-        relatedObjectType: "Deliverable",
-        relatedObjectId: deliverable.id,
-        ...systemActor,
-      });
-      return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${first.gate.name}" blocked: ${first.reason}` };
-    }
+    // The checks below pass their result on and do not return. The Quality Gates are evaluated after them, and the outcome decides the state change.
+    let refusal: Extract<DeliverableGovernanceResult, { ok: false }> | null = null;
 
     // A Policy condition reads the producing Capability's status here; null when the Deliverable has no producing Capability.
     const { data: producingSeuCapability } = deliverable.producing_capability_id
@@ -179,25 +147,62 @@ export const executionEngine = {
         seuId: deliverable.seu_id, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id,
         fromState, toState: targetState, policyCode: blockedResult.policyCode,
       });
-      return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${blockedResult.policyCode}` };
+      refusal = { ok: false, reason: "policy_blocked", detail: `blocked by policy ${blockedResult.policyCode}` };
     }
     const policyResult: PolicyEvaluationResult = ebmPolicyResult.outcome === "NotApplicable" && hopPolicyResult.outcome === "NotApplicable"
       ? ebmPolicyResult
       : { outcome: "Passed", satisfiedPolicyIds: [...ebmPolicyResult.satisfiedPolicyIds, ...hopPolicyResult.satisfiedPolicyIds], deviatedPolicyIds: [...ebmPolicyResult.deviatedPolicyIds, ...hopPolicyResult.deviatedPolicyIds] };
 
-    if (definition.submit_verb) {
+    if (!refusal && definition.submit_verb) {
       const hasBeenSubmitted = await triggerEngine.hasBeenSubmitted("Deliverable", deliverable.id, fromState);
       if (!hasBeenSubmitted) {
-        return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge deliverable_${definition.submit_verb})` };
+        refusal = { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge deliverable_${definition.submit_verb})` };
       }
     }
 
-    if (fromState === "In Progress" && targetState === "Approved") {
+    if (!refusal && fromState === "In Progress" && targetState === "Approved") {
       const { data: existingRef } = await deliverableReferencesDB.findLatestWithReference(deliverable.id, "In Progress");
       if (!existingRef) {
-        return { ok: false, reason: "empty_centre", detail: "cannot approve a Deliverable with no attached reference — nothing has been produced to approve" };
+        refusal = { ok: false, reason: "empty_centre", detail: "cannot approve a Deliverable with no attached reference — nothing has been produced to approve" };
       }
     }
+
+    // The Quality Gates are evaluated whatever the checks above found, just before the state change: an Obligation a Policy raised is seen here. The decision below is made once, with every result.
+    const { data: gateSeu } = await seusDB.findById(deliverable.seu_id);
+    if (!gateSeu) throw new Error(`SEU ${deliverable.seu_id} not found for Deliverable ${deliverable.id}`);
+    const qualityGateResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({
+      entityType: "Deliverable",
+      entityId: deliverable.id,
+      seuId: deliverable.seu_id,
+      fromState,
+      toState: targetState,
+      authorId: systemActor.authorId,
+      authorBadge: systemActor.authorBadge,
+      tenantId: gateSeu.tenant_id,
+    }));
+    // The decision is stored for every hop, Blocked included, before the hop is refused or goes on.
+    await qualityGateEngine.recordDecision(qualityGateResult, {
+      seuId: deliverable.seu_id,
+      deliverableId: deliverable.id,
+      tenantId: gateSeu.tenant_id,
+      actorId: systemActor.authorId,
+      actorBadge: systemActor.authorBadge,
+    });
+    if (qualityGateResult.outcome === "Blocked") {
+      const [first] = qualityGateResult.blocked;
+      await checkSustainedQualityGateBlocking({ qualityGateId: first.gate.id, gateName: first.gate.name, seuId: deliverable.seu_id, deliverableId: deliverable.id });
+      await raiseAttentionItem({
+        seuId: deliverable.seu_id,
+        category: "Action Required",
+        title: `Deliverable "${deliverable.name}" is blocked by Quality Gate "${first.gate.name}"`,
+        description: first.reason,
+        relatedObjectType: "Deliverable",
+        relatedObjectId: deliverable.id,
+        ...systemActor,
+      });
+      if (!refusal) refusal = { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${first.gate.name}" blocked: ${first.reason}` };
+    }
+    if (refusal) return refusal;
 
     const consultedObligationIds = [...(seuObligations ?? []), ...(deliverableObligations ?? [])]
       .filter((o) => !RESOLVED_OBLIGATION_STATUSES.has(o.status))

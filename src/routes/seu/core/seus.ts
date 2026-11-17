@@ -14,6 +14,7 @@ import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { packsDB } from "../../../dblayer/packsDB.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { commandsDB } from "../../../dblayer/commandsDB.js";
@@ -200,8 +201,8 @@ export interface SeuDetailDeliverable {
   dependencyEdges: SeuDetailDependencyEdge[];
   // What stops a next transition of the Deliverable today. Read only: nothing is evaluated through an engine that publishes.
   blockedBy: Array<{ kind: "Policy" | "Standard" | "Obligation"; label: string; toState: string }>;
-  // The Quality Gates evaluated for the Deliverable, each with the outcome of its latest recorded evaluation. The evaluation names no step.
-  qualityGates: Array<{ name: string; outcome: string }>;
+  // The Quality Gates the EBM settled for the Deliverable, each at its step, with the outcome of its latest recorded evaluation of the Deliverable ("not evaluated" when there is none). The evaluation names no step.
+  qualityGates: Array<{ name: string; step: string; outcome: string }>;
   // The open Attention Items related to the Deliverable or to its SEU. The execution engine records them on the governance outcome and does not refuse a hop for them.
   attentionItems: Array<{ title: string; category: string; priority: string; status: string; relatedTo: "Deliverable" | "SEU" }>;
   // The Participants on the work items of the Deliverable's Commands.
@@ -264,7 +265,7 @@ export interface SeuDetailExternalInteraction {
 
 // The Quality Gate tab: the gates the EBM settled, the latest recorded outcome of each, the waivers of the SEU and the entities a waiver can name.
 export interface SeuDetailQualityGates {
-  gates: Array<{ id: string; code: string; name: string; category: string; criteriaType: string; steps: string[]; latestOutcome: string | null; latestEntity: string | null; latestAt: string | null }>;
+  gates: Array<{ id: string; code: string; name: string; category: string; criteriaType: string; steps: Array<{ step: string; deliverables: string[] }>; latestOutcome: string | null; latestEntity: string | null; latestAt: string | null }>;
   waivers: Array<{ gateName: string; entity: string; grantedBy: string; rationale: string; status: string; authorityBadge: string; expiresAt: string | null; createdAt: string }>;
   waivableEntities: Array<{ value: string; label: string }>;
 }
@@ -449,8 +450,9 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   const { data: seuOpenAttentionItems } = await attentionItemsDB.findOpenByRelatedObjectAny("SEU", seuId);
   // The latest recorded evaluation of each Quality Gate for a Deliverable, read from the recorded evaluations (newest first). Nothing is evaluated here.
   const { data: gateEvaluations } = await qualityGateEvaluationsDB.findBySeuId(seuId);
-  const { data: gateDefinitions } = await qualityGateDefinitionsDB.findByIds([...new Set((gateEvaluations ?? []).map((e) => e.quality_gate_id))]);
-  const gateNameById = new Map((gateDefinitions ?? []).map((g) => [g.id, g.name]));
+  // The gates the EBM settled, by Deliverable code: what applies to a Deliverable is read from the EBM, not from what has been evaluated.
+  const settledForGates = ebm ? settledOf(ebm.behaviors) : null;
+  const { data: ebmGateDefinitions } = await qualityGateDefinitionsDB.findByIds(ebm?.applicable_quality_gate_ids ?? []);
   for (const view of deliverableViews) {
     const deliverable = (deliverables ?? []).find((row) => row.id === view.id)!;
     const producingCapabilityStatus = deliverable.producing_capability_id ? (await seuCapabilitiesDB.findBySeuIdAndCapabilityId(seuId, deliverable.producing_capability_id)).data?.status ?? null : null;
@@ -471,7 +473,13 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     for (const e of (gateEvaluations ?? []).filter((row) => row.entity_type === "Deliverable" && row.entity_id === view.id)) {
       if (!latestOutcomeByGate.has(e.quality_gate_id)) latestOutcomeByGate.set(e.quality_gate_id, e.outcome);
     }
-    view.qualityGates = [...latestOutcomeByGate].map(([gateId, outcome]) => ({ name: gateNameById.get(gateId) ?? gateId, outcome }));
+    view.qualityGates = (settledForGates?.qualityGates?.result ?? [])
+      .filter((row) => row.deliverable === deliverable.code)
+      .flatMap((row) => row.gates.flatMap((g) => {
+        const definition = (ebmGateDefinitions ?? []).find((d) => d.code === String(g.code));
+        return definition ? [{ name: definition.name, step: row.step, outcome: latestOutcomeByGate.get(definition.id) ?? "not evaluated" }] : [];
+      }))
+      .sort((a, b) => a.step.localeCompare(b.step) || a.name.localeCompare(b.name));
     const { data: deliverableOpenAttentionItems } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", view.id);
     view.attentionItems = [
       ...(deliverableOpenAttentionItems ?? []).map((a) => ({ title: a.title, category: a.category, priority: a.priority, status: a.status, relatedTo: "Deliverable" as const })),
@@ -483,8 +491,6 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   }
 
   // The Quality Gate tab. The gates are the ones the active EBM names, with the steps its settled result gives them. Nothing is evaluated here.
-  const settledForGates = ebm ? settledOf(ebm.behaviors) : null;
-  const { data: ebmGateDefinitions } = await qualityGateDefinitionsDB.findByIds(ebm?.applicable_quality_gate_ids ?? []);
   const { data: waiverRows } = await qualityGateWaiversDB.findBySeuId(seuId);
   const { data: waivedGateDefinitions } = await qualityGateDefinitionsDB.findByIds([...new Set((waiverRows ?? []).map((w) => w.quality_gate_id))]);
   const waivedGateNameById = new Map((waivedGateDefinitions ?? []).map((g) => [g.id, g.name]));
@@ -497,9 +503,14 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     entityType === "Deliverable" ? `Deliverable ${deliverableNameById.get(entityId) ?? entityId}` : entityType === "SEU" ? "SEU" : `${entityType} ${entityId}`;
   const qualityGates: SeuDetailQualityGates = {
     gates: (ebmGateDefinitions ?? []).map((definition) => {
-      const steps = (settledForGates?.qualityGates?.result ?? [])
-        .filter((row) => row.gates.some((g) => String(g.code) === definition.code))
-        .map((row) => (row.deliverable ? `${row.deliverable}: ${row.step}` : row.step));
+      const deliverablesByStep = new Map<string, string[]>();
+      for (const row of settledForGates?.qualityGates?.result ?? []) {
+        if (!row.gates.some((g) => String(g.code) === definition.code)) continue;
+        const list = deliverablesByStep.get(row.step) ?? [];
+        if (row.deliverable) list.push(row.deliverable);
+        deliverablesByStep.set(row.step, list);
+      }
+      const steps = [...deliverablesByStep].map(([step, deliverables]) => ({ step, deliverables: deliverables.sort() }));
       const latest = (gateEvaluations ?? []).find((e) => e.quality_gate_id === definition.id);
       return {
         id: definition.id, code: definition.code, name: definition.name, category: definition.category, criteriaType: definition.criteria_type, steps,
@@ -599,11 +610,23 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   };
 }
 
+// Each composed Pack with the name and code of the tenant that owns it.
+export async function withPackTenants(composedPacks: EbmComposedPack[]): Promise<Array<EbmComposedPack & { tenant: string }>> {
+  if (composedPacks.length === 0) return [];
+  const [{ data: packs }, { data: tenants }] = await Promise.all([packsDB.findByIds(composedPacks.map((p) => p.packId)), tenantsDB.findAll()]);
+  const tenantOfPack = new Map((packs ?? []).map((pack) => [pack.id, pack.tenant_id]));
+  return composedPacks.map((p) => {
+    const tenantId = tenantOfPack.get(p.packId);
+    const t = (tenants ?? []).find((row) => row.id === tenantId);
+    return { ...p, tenant: t ? `${t.name} (${t.code})` : (tenantId ?? "(Pack not found)") };
+  });
+}
+
 export interface SeuEbmView {
   seuId: string;
   objectiveId: string;
   objectiveStatement: string;
-  composedPacks: EbmComposedPack[];
+  composedPacks: Array<EbmComposedPack & { tenant: string }>;
   ebm: { id: string; status: string; actions: Array<{ toState: string; verb: string }> } | null;
   template: { code: string; name: string; version: string; tenant: string } | null;
   profile: { code: string; name: string; version: string; tenant: string } | null;
@@ -641,7 +664,7 @@ export async function getSeuEbmView(seuId: string, actorId: string): Promise<Seu
     seuId: seu.id,
     objectiveId: seu.objective_id,
     objectiveStatement: objective?.statement ?? "(objective not found)",
-    composedPacks: ebm?.composed_packs ?? [],
+    composedPacks: await withPackTenants(ebm?.composed_packs ?? []),
     ebm: ebm ? { id: ebm.id, status: ebm.status, actions: ebmActions } : null,
     template,
     profile,

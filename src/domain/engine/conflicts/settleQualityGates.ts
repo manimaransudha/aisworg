@@ -52,5 +52,5 @@ export function settleQualityGatesFrom(facts: QualityGatesUnraveled, resolutions
 }
 
 export async function settleQualityGates(context: DetectionContext, resolutions: ConflictResolutions = {}): Promise<QualityGatesSettled> {
-  return settleQualityGatesFrom(await unravelQualityGatesFor({ composedPacks: context.composedPacks }, context.viewerTenantId), resolutions);
+  return settleQualityGatesFrom(await unravelQualityGatesFor({ templates: context.templates, profiles: context.profiles, composedPacks: context.composedPacks }, context.viewerTenantId), resolutions);
 }

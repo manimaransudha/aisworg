@@ -35,6 +35,7 @@ import type { ProfileDetail } from "../core/profiles.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { withPackTenants } from "../core/seus.js";
 import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { resolveResultLinks } from "./conflictResultLinks.js";
 import { resultCells } from "../../../utils/resultCells.js";
@@ -665,7 +666,7 @@ router.get("/objectives/:id/compose-ebm", attachVM("seu/seus/compose"), async (r
   req.vm.req.pending = seu.lifecycle_state === SEU_VALIDATED_STATE && !stashed;
   req.vm.req.selections = stashed?.selections ?? [{ templateId: seu.template_id, profileId: seu.profile_id }];
   req.vm.req.compositionReport = stashed?.compositionReport ?? { warnings: [], conflicts: [], parameterConflicts: [], resolutions: [] };
-  req.vm.req.composedPacks = stashed?.composedPacks ?? [];
+  req.vm.req.composedPacks = await withPackTenants(stashed?.composedPacks ?? []);
   req.vm.req.profileDetails = stashed?.profileDetails ?? [];
   req.vm.req.resolvedParameterOverrides = stashed?.resolvedParameterOverrides ?? {};
   // Commented out (owner): the old composition is gone.

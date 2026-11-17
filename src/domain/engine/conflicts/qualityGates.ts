@@ -26,5 +26,5 @@ export function detectQualityGateConflictsFrom(facts: QualityGatesUnraveled, res
 }
 
 export async function detectQualityGateConflicts(context: DetectionContext, resolutions: ConflictResolutions = {}): Promise<EbmConflict[]> {
-  return detectQualityGateConflictsFrom(await unravelQualityGatesFor({ composedPacks: context.composedPacks }, context.viewerTenantId), resolutions);
+  return detectQualityGateConflictsFrom(await unravelQualityGatesFor({ templates: context.templates, profiles: context.profiles, composedPacks: context.composedPacks }, context.viewerTenantId), resolutions);
 }

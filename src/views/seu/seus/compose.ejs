@@ -294,6 +294,8 @@
             <% composedPacks.forEach(function(p) { %>
               <div class="component-row d-flex align-items-center justify-content-between gap-2">
                 <span class="component-name"><%= p.packCode %></span>
+                <span class="text-muted small ms-auto me-2"><%= p.tenant %></span>
+                <span class="text-muted small ms-auto me-2"><%= p.tenant %></span>
                 <span class="version-badge"><%= p.packVersion %></span>
               </div>
             <% }) %>

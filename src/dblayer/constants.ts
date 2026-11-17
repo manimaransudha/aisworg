@@ -158,6 +158,8 @@ export const INITIAL_VERSION = "1.0.0";
 export const BIRTH_STATE = "None";
 // The Schema Definition birth Transition Definition loads before every other seed, because every other Definition row records the schema it was authored against.
 export const SCHEMA_DEFINITION_ENTITY_TYPE = "SchemaDefinition";
+// The entity type of a governed transition whose gates are applied for each Deliverable of the Deliverable Catalogue.
+export const DELIVERABLE_ENTITY_TYPE = "Deliverable";
 // Published after the event `UNDEFINED_EVENT` when a transition row names no event (CR-128). No consumer yet.
 export const SDK_ATTENTION_EVENT = "SDKAttention";
 export const UNDEFINED_EVENT = "Undefined";

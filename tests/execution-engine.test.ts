@@ -191,6 +191,7 @@ import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
+import { qualityGateEvaluationsDB } from "../src/dblayer/qualityGateEvaluationsDB.js";
 import { createDecision } from "../src/routes/seu/core/decisions.js";
 import { raiseAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { createEvidenceAsRoot } from "./testFixtures.js";
@@ -256,6 +257,31 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
   assertGovernanceOk(passed);
   assert.deepEqual([passed.governanceOutcome.outcome, passed.governanceOutcome.quality_gate_outcome], ["Approved", "Passed"]);
   assert.ok(passed.governanceOutcome.rationale.includes("Quality Gate(s): Passed"));
+});
+
+test("a refusal from the checks before the gate does not stop the gate: the hop is refused for the first refusal, and the gate is still evaluated, recorded and raised", async () => {
+  const from = state("gate-first-open");
+  const to = state("gate-first-done");
+  await addEdge(from, to, true);
+  await pool.query("UPDATE transition_definitions SET submit_verb = $3 WHERE entity_type = 'Deliverable' AND from_state = $1 AND to_state = $2", [from, to, verb]);
+  await reloadIfLoaded();
+  const entry = await ensureQualityGateDefinition({ code: `execution-engine-first-${run}`, name: `execution-engine first ${run}`, category: "Exit", governedTransition: `Deliverable|${from}|${to}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
+  const gateSeu = await commissionedSeu("execution-engine-gate-after-refusal", "clean", { conflictSet: "execution", gates: [entry] });
+  const gate = (await ebmGatesByCode(gateSeu.seu))[entry.qualityCode];
+  assert.ok(gate, "the EBM names the gate");
+  const deliverable = await createDeliverable(from, gateSeu);
+
+  // The Deliverable was not submitted, so the hop is refused for that, which comes before the gate in the order.
+  const refused = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: to, actorId: ROOT_ACTOR_ID });
+  assert.ok(!refused.ok && refused.reason === "not_submitted", JSON.stringify(refused));
+
+  // The gate had no evidence to accept, so it is Blocked: its decision is recorded and its Attention Item is raised although the hop was refused for another reason.
+  const { data: evaluations } = await qualityGateEvaluationsDB.findBySeuId(gateSeu.seu.id);
+  const recorded = (evaluations ?? []).filter((e) => e.entity_type === "Deliverable" && e.entity_id === deliverable.id && e.quality_gate_id === gate.id);
+  assert.equal(recorded.length, 1, "the gate evaluation is recorded");
+  assert.equal(recorded[0].outcome, "Blocked");
+  const { data: items } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", deliverable.id);
+  assert.ok((items ?? []).some((i) => i.title.includes(gate.name)), "the gate block raises an Attention Item");
 });
 
 test("a Standard that fails does not stop the hop: it is approved with conditions and the deviation is recorded", async () => {

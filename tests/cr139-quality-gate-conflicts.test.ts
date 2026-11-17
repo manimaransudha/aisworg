@@ -30,19 +30,19 @@ const row = (pack: string, fields: Record<string, unknown>, deliverable = "sourc
 });
 
 test("a Pack lists a gate by its code: the unravel reads the definition, and a code with no definition is left out", () => {
-  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry(), entry({ qualityCode: "no-such-gate" })]]), definitions: [definition()] });
+  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry(), entry({ qualityCode: "no-such-gate" })]]), deliverableCodes: [], definitions: [definition()] });
   assert.equal(facts.gates.length, 1);
   assert.deepEqual([facts.gates[0].packCode, facts.gates[0].deliverable, facts.gates[0].step, facts.gates[0].fields.code], ["a", "source-code", STEP, "code-review"]);
 });
 
 test("two Packs that list the same code share one definition, so there is no conflict", () => {
-  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry()]], ["b", [entry()]]), definitions: [definition()] });
+  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry()]], ["b", [entry()]]), deliverableCodes: [], definitions: [definition()] });
   assert.equal(facts.gates.length, 2);
   assert.deepEqual(detectQualityGateConflictsFrom(facts), []);
 });
 
 test("gates with different codes are different items, even for one Deliverable at one step", () => {
-  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry()]], ["b", [entry({ qualityCode: "other-review" })]]), definitions: [definition(), definition({ code: "other-review", name: "Other" })] });
+  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry()]], ["b", [entry({ qualityCode: "other-review" })]]), deliverableCodes: [], definitions: [definition(), definition({ code: "other-review", name: "Other" })] });
   assert.deepEqual(detectQualityGateConflictsFrom(facts), []);
 });
 
@@ -58,12 +58,12 @@ test("rows of one code that differ in any field are a conflict", () => {
 });
 
 test("the required Policy codes of a Pack entry are read in order, so a different order is the same", () => {
-  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry({ requiredPolicyCodes: ["y", "x"] })]]), definitions: [definition()] });
+  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry({ requiredPolicyCodes: ["y", "x"] })]]), deliverableCodes: [], definitions: [definition()] });
   assert.deepEqual(facts.gates[0].fields.requiredPolicyCodes, ["x", "y"]);
 });
 
 test("checklists are a union, mandatory ones apart from optional ones: they are kept apart from the fields and never compared", () => {
-  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry({ checklists: [{ checklistId: "y", mandatory: true }, { checklistId: "x", mandatory: true }, { checklistId: "r2" }, { checklistId: "r1", mandatory: false }] })]]), definitions: [definition()] });
+  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry({ checklists: [{ checklistId: "y", mandatory: true }, { checklistId: "x", mandatory: true }, { checklistId: "r2" }, { checklistId: "r1", mandatory: false }] })]]), deliverableCodes: [], definitions: [definition()] });
   assert.deepEqual([facts.gates[0].checklistIds, facts.gates[0].recommendedChecklistIds], [["x", "y"], ["r1", "r2"]]);
   assert.equal("checklistIds" in facts.gates[0].fields, false);
 });
@@ -74,13 +74,31 @@ test("gates for different Deliverables or different steps are not compared", () 
 });
 
 test("a Pack that lists a gate for several Deliverables is gathered once for each of them", () => {
-  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry({ deliverableName: "d1" }), entry({ deliverableName: "d2" })]]), definitions: [definition()] });
+  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry({ deliverableName: "d1" }), entry({ deliverableName: "d2" })]]), deliverableCodes: [], definitions: [definition()] });
   assert.deepEqual(facts.gates.map((g) => g.deliverable), ["d1", "d2"]);
 });
 
-test("a gate that names no Deliverable is gathered with the Deliverable \"\"", () => {
-  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry({ deliverableName: undefined })]]), definitions: [definition()] });
+test("a gate that names no Deliverable on a Deliverable transition applies to every Deliverable of the catalogue, in code order", () => {
+  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry({ deliverableName: undefined })]]), deliverableCodes: ["d2", "d1"], definitions: [definition()] });
+  assert.deepEqual(facts.gates.map((g) => g.deliverable), ["d1", "d2"]);
+});
+
+test("a gate that names no Deliverable and a catalogue with none gives no row", () => {
+  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry({ deliverableName: undefined })]]), deliverableCodes: [], definitions: [definition()] });
+  assert.deepEqual(facts.gates, []);
+});
+
+test("a gate that names a Deliverable applies to it, whatever the catalogue holds", () => {
+  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry({ deliverableName: "source-code" })]]), deliverableCodes: ["d1"], definitions: [definition()] });
+  assert.deepEqual(facts.gates.map((g) => g.deliverable), ["source-code"]);
+});
+
+test("a gate that names no Deliverable on another entity's transition keeps the Deliverable \"\"", () => {
+  const facts = unravelQualityGates({ composedPacks: gates(["a", [entry({ governedTransition: "Pack|Draft|Validated", deliverableName: undefined })]]), deliverableCodes: ["d1"], definitions: [definition()] });
   assert.deepEqual(facts.gates.map((g) => g.deliverable), [""]);
+});
+
+test("gates that carry the Deliverable \"\" are compared with each other", () => {
   const conflicts = detectQualityGateConflictsFrom({ gates: [row("a", { name: "A" }, ""), row("b", { name: "B" }, "")] });
   assert.deepEqual(conflicts.map((c) => c.key), [qualityGateKey(STEP, "", "code-review")]);
 });

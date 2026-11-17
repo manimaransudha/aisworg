@@ -26,6 +26,18 @@ export function catalogueFor(template: TemplateRow, profile: ProfileRow, source:
   return source.type === "Profile" && profile.base_template_id === template.id ? profileOwnCatalogue(profile) : template.deliverable_catalogue;
 }
 
+// The codes of every Deliverable in the Deliverable Catalogue of the Templates and Profiles of a composition.
+export async function catalogueDeliverableCodes(templates: TemplateRow[], profiles: ProfileRow[]): Promise<string[]> {
+  const codes = new Set<string>();
+  for (const profile of profiles) {
+    const template = templates.find((t) => t.id === profile.base_template_id);
+    if (!template) continue;
+    const source = await resolveDeliverableSource(template, profile);
+    for (const entry of catalogueFor(template, profile, source)) codes.add(entry.code);
+  }
+  return [...codes].sort();
+}
+
 // The source an EBM recorded when it was composed.
 function recordedSource(ebm: EbmRow): EbmDeliverableSource {
   const recorded = ebm.composition_report?.deliverableSource;

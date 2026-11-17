@@ -224,10 +224,10 @@
               <% } %>
               <div class="table-responsive">
                 <table class="table table-sm mb-0">
-                  <thead class="table-light"><tr><th>Pack</th><th>Version</th></tr></thead>
+                  <thead class="table-light"><tr><th>Pack</th><th>Version</th><th>Tenant</th></tr></thead>
                   <tbody>
                     <% ebmView.composedPacks.forEach(function(p) { %>
-                      <tr><td class="small"><%= p.packCode %></td><td class="small text-muted"><%= p.packVersion %></td></tr>
+                      <tr><td class="small"><%= p.packCode %></td><td class="small text-muted"><%= p.packVersion %></td><td class="small"><%= p.tenant %></td></tr>
                     <% }) %>
                   </tbody>
                 </table>
