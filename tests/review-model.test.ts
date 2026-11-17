@@ -109,7 +109,8 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
   const run = randomUUID();
   const fromState = `test-from-${run}`;
   const toState = `test-to-${run}`;
-  const reviewGateCode = `rm-gate-${run}`;
+  // The gate names its Deliverable by a canonical deliverable-name concept, so the Review Gate and the Deliverable carry that name as their code.
+  const reviewGateCode = "Test Report";
   const { data: reviewGate } = await reviewGatesDB.upsert({
     code: reviewGateCode,
     name: "Architecture Notebook Review",

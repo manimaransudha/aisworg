@@ -26,7 +26,6 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { knowledgeItemsDB } from "../src/dblayer/knowledgeItemsDB.js";
@@ -45,7 +44,7 @@ async function rootParticipantId(seuId: string): Promise<string> {
   return data!.id;
 }
 
-import { PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { PLATFORM_TENANT_ID, ensurePolicyDefinition } from "./testFixtures.js";
 
 
 // Defined -> In Progress is a governed hop: the Execution Engine makes it off the kickoff, so a manual request that
@@ -169,19 +168,13 @@ async function driveDeliverableToApproved(deliverableId: string, tag: string): P
 // dispatch" as an earlier version of this comment assumed) and fulfils it
 // with a genuine eligible Participant via beforeCommenceWork, so the tests
 // below observe a real Dispatched Work Item instead of a rejected Command.
-// beforeCommission runs after the Pack is published but before commissioning
-// starts — applicable_policy_ids is materialised ONCE, at EBM composition
-// time, from whichever Policies already exist for the composed Pack at that
-// exact moment (compositionCompleted.ts); a Policy upserted after
-// commissioning has already completed is invisible to policyEngine.evaluate
-// (the bug the first version of this fixture actually had).
-async function commissionIsolatedSeu(run: string, tenantId: string, beforeCommission?: (packId: string) => Promise<void>, beforeCommenceWork?: (seuId: string) => Promise<void>): Promise<{ seuId: string; deliverableId: string; packId: string }> {
-  const packSeed = { tenantId: PLATFORM_TENANT_ID, code: "cr109-isolated-pack", name: "CR-109 Isolated Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
+// policyCodes are the Policy Definitions the Pack lists. The composition settles them into the EBM, which takes their ids once, at EBM composition time, so the Definitions
+// exist before the Pack is published.
+async function commissionIsolatedSeu(run: string, tenantId: string, policyCodes: string[], beforeCommenceWork?: (seuId: string) => Promise<void>): Promise<{ seuId: string; deliverableId: string; packId: string }> {
+  const packSeed = { tenantId: PLATFORM_TENANT_ID, code: "cr109-isolated-pack", name: "CR-109 Isolated Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: policyCodes } };
   const published = await publishPack({ seed: packSeed as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `isolated pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(packSeed.code);
-
-  if (beforeCommission) await beforeCommission(packRow!.id);
 
   const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,
     code: `cr109-tpl-${run}`, name: "CR-109 Isolated Template",
@@ -332,20 +325,12 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
   // Commissioned in the empty-pool tenant so the automatic Capability request ends unavailable and the first governance
   // evaluation waits for this test's own Obligation and fulfilment.
   try {
-    const { seuId, deliverableId } = await commissionIsolatedSeu(run, await getEmptyPoolTenantId(), async (packId) => {
-      const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
-      if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("no participants_master row for user_id 1 — is db:clean-slate seeded?");
-      const { data: standardPolicy } = await policiesDB.upsert({
-        code: `cr109-standard-deviation-${run}`, name: "CR-109 always-deviates Standard policy",
-        constraintType: "Standard", scope: "Transition", governedTransition: "Deliverable|Defined|In Progress",
-        condition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] },
-        originatingPackId: packId,
-        authorId: rootMaster.id,
-        authorBadge: "root",
-      });
-      assert.ok(standardPolicy);
-      standardPolicyId = standardPolicy!.id;
-    }, async (activatedSeuId) => {
+    const standardPolicy = await ensurePolicyDefinition({
+      code: `cr109-standard-deviation-${run}`, name: "CR-109 always-deviates Standard policy", constraintType: "Standard",
+      rows: [{ transitions: ["Deliverable|Defined|In Progress"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
+    });
+    standardPolicyId = standardPolicy.id;
+    const { seuId, deliverableId } = await commissionIsolatedSeu(run, await getEmptyPoolTenantId(), [standardPolicy.code], async (activatedSeuId) => {
       // Raised and fulfilled before commence-work, so the hop the engine makes at Operational is the first governance
       // evaluation of the Deliverable and records this open Obligation as consulted.
       const { data: seuDeliverables } = await deliverablesDB.findBySeuId(activatedSeuId);

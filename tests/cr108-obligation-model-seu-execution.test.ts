@@ -47,13 +47,13 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { policiesDB } from "../src/dblayer/policiesDB.js";
+import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import {
   uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync,
   ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations,
-  waitForDispatchedWorkItem, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID,
+  waitForDispatchedWorkItem, ensurePolicyDefinition, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID,
 } from "./testFixtures.js";
 import type { SeuRow } from "../src/dblayer/seuTypes.js";
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
@@ -178,25 +178,15 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   // Attention Item, leaving the Obligation itself untouched, to isolate
   // AttentionItemTransitioned as the real trigger — not a side effect of the
   // Obligation's own resolution.
-  const pack = { tenantId: PLATFORM_TENANT_ID, code: "cr108-attn-pack", name: "CR-108 Attention Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
+  // The Policy is a Policy Definition that the Pack lists, so the composition settles it into the EBM. It declares the Obligation that the block raises.
+  const policyCode = `cr108-attn-policy-${run}`;
+  const seuPolicy = await ensurePolicyDefinition({
+    code: policyCode, name: `CR-108 commence-work policy ${run}`, obligationTitle: `CR-108 attention blocker ${run}`,
+    rows: [{ name: "SEU", transitions: ["SEU|Activated|Operational"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
+  });
+  const pack = { tenantId: PLATFORM_TENANT_ID, code: "cr108-attn-pack", name: "CR-108 Attention Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [policyCode] } };
   const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `attention pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
-  const { data: packRow } = await packsDB.findActiveByCode(pack.code);
-
-  const policyCode = `cr108-attn-policy-${run}`;
-  const { data: seuPolicy } = await policiesDB.upsert({
-    code: policyCode, name: `CR-108 commence-work policy ${run}`, constraintType: "Policy",
-    scope: "Transition", governedTransition: "SEU|Activated|Operational",
-    condition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] },
-    originatingPackId: packRow!.id,
-    authorId: packRow!.authored_by,
-    authorBadge: packRow!.author_badge,
-  });
-  assert.ok(seuPolicy);
-  // raiseObligationForBlockedTransition raises the Obligations the blocking Policy's own
-  // Definition declares in relatedObligations[], and none when it declares none.
-  // This test declares its own.
-  await ensurePolicyDefinitionWithObligation({ code: policyCode, name: `CR-108 commence-work policy ${run}`, category: "Compliance", title: `CR-108 attention blocker ${run}` });
 
   const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,
     code: `cr108-attn-tpl-${run}`, name: "CR-108 Attention Template",
@@ -246,18 +236,11 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   });
   assert.ok(attentionItem, "raiseObligationForBlockedTransition must also raise a real Attention Item for the SEU-scoped block");
 
-  // Clear the actual blocking condition, exactly as CR-107's own test does —
-  // re-publish the same Policy (same code + originatingPackId) with a
-  // condition that now passes, so the retry below has something real to
-  // succeed against.
-  await policiesDB.upsert({
-    code: seuPolicy!.code, name: `CR-108 commence-work policy ${run} (resolved)`, constraintType: "Policy",
-    scope: "Transition", governedTransition: "SEU|Activated|Operational",
-    condition: { type: "always_true" },
-    originatingPackId: packRow!.id,
-    authorId: packRow!.authored_by,
-    authorBadge: packRow!.author_badge,
-  });
+  // Clear the actual blocking condition, as CR-107's test does: the Definition the EBM took gets a condition that now passes, so the retry has something real to succeed against.
+  const { data: definition } = await policyDefinitionsDB.findById(seuPolicy.id);
+  assert.ok(definition, "the Policy Definition the EBM took exists");
+  const resolved = definition.conditions.map((c) => ({ ...c, applicabilityDeliverables: c.applicabilityDeliverables.map((row) => ({ ...row, governingCondition: { type: "always_true" } })) }));
+  await pool.query("UPDATE policy_definitions SET conditions = $2 WHERE id = $1", [seuPolicy.id, JSON.stringify(resolved)]);
 
   // Walk ONLY the Attention Item to Resolved — the Obligation itself is
   // deliberately left untouched, so any retry that happens is provably off

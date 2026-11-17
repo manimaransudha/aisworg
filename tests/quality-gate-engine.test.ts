@@ -74,11 +74,8 @@ test("a policy criteria gate passes when every Policy holds for the context, and
   assert.equal((qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([blocking.id], input({ context: { status: "Ready" } })))).outcome, "Approved", "the context decides");
 });
 
-test("a gate with a criteria type the engine does not know blocks", async () => {
-  const unknown = await createGate("unknown", { type: `zz-unknown-${run}` });
-  const result = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds([unknown.id], input()));
-  assert.equal(result.outcome, "Blocked");
-  assert.equal(reasonOf(result), `unrecognised Quality Gate criteria type: zz-unknown-${run}`);
+test("a gate with a criteria type the Ontology does not know cannot be stored, so the engine never meets one", async () => {
+  await assert.rejects(createGate("unknown", { type: `zz-unknown-${run}` }), /is not a canonical quality-gate-criteria-type concept/);
 });
 
 test("a Waiver granted for the gate and the entity turns the block into a waived outcome, and leaves another entity blocked", async () => {

@@ -70,8 +70,8 @@ export async function unravelPolicies(input: { templates: TemplateRow[]; profile
           const field = governing && typeof governing.field === "string" && governing.type !== "always_true" ? governing.field : null;
           const operator = governing?.type === "field_in" ? "in" : String(governing?.operator ?? "");
           const value = governing?.type === "field_in" ? governing.values : governing?.value;
-          // A rule with no Deliverable covers every Deliverable of the Deliverable Catalogue. A named Deliverable is kept only when it is in the Catalogue. An Eligibility Policy names no Deliverable of the Catalogue and keeps its name.
-          const deliverables = scope === POLICY_SCOPE_ELIGIBILITY ? (governed.deliverableNames.length ? governed.deliverableNames : [""]) : governed.deliverableNames.length ? governed.deliverableNames.filter((n) => deliverableCodes.has(n)) : [...deliverableCodes].sort();
+          // A rule with no Deliverable covers every Deliverable of the Deliverable Catalogue. A named Deliverable is kept only when it is in the Catalogue. An Eligibility Policy names no Deliverable of the Catalogue and keeps its name. A rule for a step of the SEU itself ("SEU|from|to") governs the SEU and is kept once, with no Deliverable.
+          const deliverables = scope === POLICY_SCOPE_ELIGIBILITY ? (governed.deliverableNames.length ? governed.deliverableNames : [""]) : governed.governedTransition?.startsWith("SEU|") ? [""] : governed.deliverableNames.length ? governed.deliverableNames.filter((n) => deliverableCodes.has(n)) : [...deliverableCodes].sort();
           for (const deliverable of deliverables) {
             rules.push({ policyCode: code, policyDefinitionId: definition.id, packId: pack.id, packCode: pack.code, deliverable, step: governed.governedTransition ?? "", field, rule: field ? JSON.stringify({ operator, value }) : null, statement: condition.statement, scope, governingCondition: governing });
           }

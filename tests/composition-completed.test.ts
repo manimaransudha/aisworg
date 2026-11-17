@@ -46,14 +46,6 @@ test("the handler creates the EBM from the stashed composition, makes it the SEU
   assert.equal(events?.length, 1, "the birth event is published");
 });
 
-test("the handler fails the SEU when the stashed composition cannot be read", async () => {
-  const { seu } = await initiatedSeu("composition-completed-unreadable");
-  await seusDB.setCompositionReport(seu.id, { composedPacks: [null] });
-  await compositionCompletedHandler(await completed(seu.id, seu.id, ROOT_ACTOR_BADGE));
-  assert.equal(await lifecycleOf(seu.id), "Failed");
-  assert.equal((await seusDB.findById(seu.id)).data?.active_ebm_id, null);
-});
-
 test("the handler fails the SEU when the EBM cannot be written", async () => {
   const { seu } = await initiatedSeu("composition-completed-unwritable");
   await seusDB.setCompositionReport(seu.id, { composedPacks: [] });

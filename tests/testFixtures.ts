@@ -1077,6 +1077,36 @@ export async function ensurePolicyDefinitionWithObligation(input: {
   await policyDefinitionsDB.updateStatus(draft.id, "Active");
 }
 
+// A Policy Definition for a test, Active in the test Platform tenant. A Pack the test publishes lists its code in `policies`, and the composition settles it into the EBM (CR-145).
+// Each row names the hop it governs (an entity hop such as "Deliverable|Defined|In Progress", or "SEU|Activated|Operational"), the Deliverable it names ("" for every Deliverable of the
+// catalogue) and the condition that decides it. The Definition carries one Obligation, titled `obligationTitle`, that a block of the hop raises. A test gives each Definition a code of its own.
+export async function ensurePolicyDefinition(input: {
+  code: string;
+  name: string;
+  constraintType?: "Policy" | "Standard";
+  rows: Array<{ name?: string; transitions: string[]; governingCondition: Record<string, unknown> }>;
+  obligationTitle?: string;
+}): Promise<{ id: string; code: string }> {
+  const blankEvidence = { title: "", category: "", description: "", collectionMethod: "" };
+  const { data: policySchema } = await schemaDefinitionsDB.findLatest("Policy");
+  if (!policySchema) throw new Error("no schema_definitions grammar for Policy");
+  const { data: birth } = await transitionDefinitionsDB.findBirth("Policy");
+  if (!birth) throw new Error("ensurePolicyDefinition(): no birth Transition Definition for Policy");
+  const title = input.obligationTitle ?? `${input.name} obligation`;
+  const { data: draft, error } = await policyDefinitionsDB.createDraft({
+    tenantId: PLATFORM_TENANT_ID, code: input.code, name: input.name, category: "Compliance", constraintType: input.constraintType ?? "Policy", scope: "Transition",
+    status: birth.to_state as never, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", schemaDefinitionId: policySchema.id,
+    conditions: [{
+      statement: title, severity: "High", requiredEvidence: blankEvidence, exceptionRules: [],
+      applicabilityDeliverables: input.rows.map((r) => ({ name: r.name ?? "", transitions: r.transitions, governingCondition: r.governingCondition })) as never,
+      relatedObligations: [{ category: "Compliance", title, description: title, origin: "Policies", priority: "Medium", severity: "High", completionCriteria: title, requiredEvidence: blankEvidence }],
+    }],
+  });
+  if (error || !draft) throw error ?? new Error(`ensurePolicyDefinition: failed to create draft for ${input.code}`);
+  await policyDefinitionsDB.updateStatus(draft.id, "Active");
+  return { id: draft.id, code: input.code };
+}
+
 // A Quality Gate Definition for a test, Active in the test Platform tenant. It returns the entry a Pack the test publishes lists in `qualityGates` (CR-145). The row is found by code and
 // version when an earlier run left it, and is created otherwise. A test gives each definition a code of its own.
 export async function ensureQualityGateDefinition(input: {

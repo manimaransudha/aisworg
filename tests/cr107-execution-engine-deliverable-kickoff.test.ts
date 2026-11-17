@@ -24,8 +24,8 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { policiesDB } from "../src/dblayer/policiesDB.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective } from "./testFixtures.js";
+import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ensurePolicyDefinition, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import type { SeuRow } from "../src/dblayer/seuTypes.js";
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
@@ -38,25 +38,15 @@ import { PLATFORM_TENANT_ID } from "./testFixtures.js";
 // incoming dependency_definitions row resolves dependency-ready trivially,
 // exactly the "head-of-chain" shape CR-107 was raised over).
 async function commissionBlockedSeu(run: string) {
-  const pack = { tenantId: PLATFORM_TENANT_ID, code: "cr107-seu-policy-pack", name: "CR-107 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
+  // The Policy is a Policy Definition that the Pack lists, so the composition settles it into the EBM. It declares the Obligation that the block raises.
+  const policyCode = `cr107-seu-commence-work-${run}`;
+  const seuPolicy = await ensurePolicyDefinition({
+    code: policyCode, name: `CR-107 commence-work policy ${run}`, obligationTitle: `CR-107 commence-work blocker ${run}`,
+    rows: [{ name: "SEU", transitions: ["SEU|Activated|Operational"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
+  });
+  const pack = { tenantId: PLATFORM_TENANT_ID, code: "cr107-seu-policy-pack", name: "CR-107 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [policyCode] } };
   const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `seu policy pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
-  const { data: packRow } = await packsDB.findActiveByCode(pack.code);
-
-  const policyCode = `cr107-seu-commence-work-${run}`;
-  const { data: seuPolicy } = await policiesDB.upsert({
-    code: policyCode, name: `CR-107 commence-work policy ${run}`, constraintType: "Policy",
-    scope: "Transition", governedTransition: "SEU|Activated|Operational",
-    condition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] },
-    originatingPackId: packRow!.id,
-    authorId: packRow!.authored_by,
-    authorBadge: packRow!.author_badge,
-  });
-  assert.ok(seuPolicy);
-  // raiseObligationForBlockedTransition raises the Obligations the blocking Policy's own
-  // Definition declares in relatedObligations[]. A bare policiesDB.upsert row (no
-  // policy_definitions counterpart) raises no Obligation. This test declares its own.
-  await ensurePolicyDefinitionWithObligation({ code: policyCode, name: `CR-107 commence-work policy ${run}`, category: "Compliance", title: `CR-107 commence-work blocker ${run}` });
 
   const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID,
     code: `cr107-tpl-${run}`, name: "CR-107 Template",
@@ -118,10 +108,7 @@ async function commissionBlockedSeu(run: string) {
     seu: seu!,
     headOfChain: headOfChain!,
     blockingObligation: blockingObligation!,
-    packId: packRow!.id,
-    authorId: packRow!.authored_by,
-    authorBadge: packRow!.author_badge,
-    policyCode: seuPolicy!.code,
+    policyDefinitionId: seuPolicy.id,
   };
 }
 
@@ -147,7 +134,7 @@ test("CR-107: a Deliverable cannot start while its owning SEU is blocked by an o
 
 test("CR-107: once the blocking commence-work Obligation resolves, the Execution Engine's own retry unblocks both the SEU and its Deliverable", async () => {
   const run = randomUUID().slice(0, 8);
-  const { seu, headOfChain, blockingObligation, packId, authorId, authorBadge, policyCode } = await commissionBlockedSeu(run);
+  const { seu, headOfChain, blockingObligation, policyDefinitionId } = await commissionBlockedSeu(run);
 
   // Confirmed blocked at the Deliverable level too, same as the test above —
   // establishing the "before" state this test's own resolution is judged
@@ -155,24 +142,12 @@ test("CR-107: once the blocking commence-work Obligation resolves, the Execution
   const beforeResolve = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: headOfChain.id, targetState: "In Progress", actorId: TESTER_ALL_ID });
   assert.equal(beforeResolve.ok, false);
 
-  // The blocking Policy's own condition ({field_in: neverSet}) never becomes
-  // satisfiable on its own — attemptSeuCommenceWork's retry re-evaluates it
-  // against the same empty context every time (a real, separately-tracked
-  // gap: policyEngine's context has no DB lookup of its own). Simulating
-  // "the real-world condition this Policy stands for actually got resolved"
-  // (e.g. the customer sign-off happened) the same way an author would:
-  // re-publish the same Policy (same code + originatingPackId, so this
-  // upserts the existing row in place, same id) with a condition that does
-  // pass — always_true — so the retry below has something real to succeed
-  // against, not just the Obligation's own status.
-  await policiesDB.upsert({
-    code: policyCode, name: `CR-107 commence-work policy ${run} (resolved)`, constraintType: "Policy",
-    scope: "Transition", governedTransition: "SEU|Activated|Operational",
-    condition: { type: "always_true" },
-    originatingPackId: packId,
-    authorId,
-    authorBadge,
-  });
+  // The blocking Policy's own condition ({field_in: neverSet}) never becomes satisfiable on its own: the retry re-evaluates it against the same empty context every time.
+  // The test stands in for the real-world condition being resolved (for example the customer sign-off) by giving the Definition the EBM took a condition that passes.
+  const { data: definition } = await policyDefinitionsDB.findById(policyDefinitionId);
+  assert.ok(definition, "the Policy Definition the EBM took exists");
+  const resolved = definition.conditions.map((c) => ({ ...c, applicabilityDeliverables: c.applicabilityDeliverables.map((row) => ({ ...row, governingCondition: { type: "always_true" } })) }));
+  await pool.query("UPDATE policy_definitions SET conditions = $2 WHERE id = $1", [policyDefinitionId, JSON.stringify(resolved)]);
 
   // Drive the real Obligation through its full lifecycle to Verified — the
   // same real transitionObligation path a human/API caller uses, not a

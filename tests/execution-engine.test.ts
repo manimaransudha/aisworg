@@ -186,6 +186,7 @@ test("a Work Item records the Quality Gate of the governance outcome of its Comm
 
 import { qualityGateWaiversDB } from "../src/dblayer/qualityGateWaiversDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
+import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
@@ -261,10 +262,11 @@ test("a Standard that fails does not stop the hop: it is approved with condition
   // The fixture Pack contributes a Standard for the output Deliverable that fails until its producing Capability is Fulfilled. The SEU is commissioned on it, so its EBM carries the Standard.
   const standardSeu = await commissionFixtureSeu("execution-engine-standard");
   const { data: ebm } = await ebmsDB.findById(standardSeu.seu.active_ebm_id!);
-  const standards = ((await policiesDB.findByIds(ebm!.applicable_policy_ids)).data ?? []).filter((p) => p.constraint_type === "Standard");
-  assert.ok(standards.length > 0, "the EBM carries the fixture Standard");
-  const standard = standards[0];
-  const [, from, to] = standard.governed_transition!.split("|");
+  // The EBM lists the ids of the Policy Definitions it took, and the fixture Standard is one of them.
+  assert.ok(ebm!.applicable_policy_ids.includes(standardSeu.fixtures.standardPolicy.id), "the EBM carries the fixture Standard");
+  const { data: standard } = await policyDefinitionsDB.findById(standardSeu.fixtures.standardPolicy.id);
+  assert.ok(standard && standard.constraint_type === "Standard", "the fixture Standard is a Standard");
+  const [, from, to] = standard.conditions[0].applicabilityDeliverables[0].transitions[0].split("|");
   const deliverable = ((await deliverablesDB.findBySeuId(standardSeu.seu.id)).data ?? []).find((d) => d.code === FIXTURE_CODES.output.code);
   assert.ok(deliverable, "commissioning made the output Deliverable");
   // Commissioning's kickoff tried the next hop and the fixture Policy blocked it, which raised an Obligation. An open Obligation fails the hop like any other check,

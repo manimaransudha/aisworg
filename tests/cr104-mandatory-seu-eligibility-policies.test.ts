@@ -40,7 +40,7 @@ import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { ensureSeuSystemParticipant } from "../src/dblayer/constants.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { PLATFORM_TENANT_ID } from "./testFixtures.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective, seuBirthState } from "./testFixtures.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation, ensurePolicyDefinition, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective, seuBirthState } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 
 async function createTestTenant(label: string): Promise<string> {
@@ -104,22 +104,14 @@ test("CR-104: a Pack marked installation_classification 'Mandatory' composes int
 test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks the SEU's own commence-work transition, never the entity-scoped path — and raises a real Obligation instead of hard-failing the SEU", async () => {
   const run = randomUUID().slice(0, 8);
 
-  const seuPolicyPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-seu-policy-pack", name: "CR-104 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
+  // Always-unsatisfied, to prove the block and not only that a Policy exists. The Pack lists the Policy Definition, and the composition settles it into the EBM.
+  const seuPolicy = await ensurePolicyDefinition({
+    code: `cr104-seu-commence-work-${run}`, name: `CR-104 commence-work policy ${run}`, obligationTitle: `CR-104 commence-work blocker ${run}`,
+    rows: [{ name: "SEU", transitions: ["SEU|Activated|Operational"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
+  });
+  const seuPolicyPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-seu-policy-pack", name: "CR-104 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [seuPolicy.code] } };
   const published = await publishPack({ seed: seuPolicyPack as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `seu policy pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
-  const { data: packRow } = await packsDB.findActiveByCode(seuPolicyPack.code);
-
-  // Always-unsatisfied — proves the block, not just that a Policy exists.
-  const { data: seuPolicy } = await policiesDB.upsert({
-    code: `cr104-seu-commence-work-${run}`, name: `CR-104 commence-work policy ${run}`, constraintType: "Policy",
-    scope: "Transition", governedTransition: "SEU|Activated|Operational",
-    condition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] },
-    originatingPackId: packRow!.id,
-    authorId: packRow!.authored_by,
-    authorBadge: packRow!.author_badge,
-  });
-  assert.ok(seuPolicy);
-  await ensurePolicyDefinitionWithObligation({ code: `cr104-seu-commence-work-${run}`, name: `CR-104 commence-work policy ${run}`, category: "Compliance", title: `CR-104 commence-work blocker ${run}` });
 
   const { data: template } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-seu-policy-tpl-${run}`, name: "CR-104 SEU Policy Template", deliverableCatalogue: [] });
   await templatesDB.setMandatoryPacks(template!.id, [seuPolicyPack.code], ROOT_ACTOR_ID, "root");
@@ -151,8 +143,8 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
   assert.ok(seu?.active_ebm_id, "Compose EBM must have succeeded even though Activate later blocked");
   assert.equal(seu?.lifecycle_state, "Activated", "a Policy block leaves the SEU Activated — never the hard, terminal Failed state a genuinely broken commission uses");
   const { data: ebm } = await ebmsDB.findById(seu!.active_ebm_id!);
-  assert.ok(ebm!.seu_scoped_policy_ids.includes(seuPolicy!.id), "the SEU-scoped policy is materialised onto seu_scoped_policy_ids");
-  assert.ok(!ebm!.applicable_policy_ids.includes(seuPolicy!.id), "an SEU-scoped policy must never appear in applicable_policy_ids (entity-scoped governance)");
+  assert.ok(ebm!.seu_scoped_policy_ids.includes(seuPolicy.id), "the SEU-scoped policy is materialised onto seu_scoped_policy_ids");
+  assert.ok(!ebm!.applicable_policy_ids.includes(seuPolicy.id), "an SEU-scoped policy must never appear in applicable_policy_ids (entity-scoped governance)");
 
   // CR-106 Option C step 1 — a real Obligation, not just an event, records
   // exactly which transition is blocked so a later resolution can retry it.

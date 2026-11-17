@@ -25,12 +25,11 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
-import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { policyEngine } from "../src/domain/engine/policyEngine.js";
 import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
-import { PLATFORM_TENANT_ID, ensureQualityGateDefinition } from "./testFixtures.js";
+import { PLATFORM_TENANT_ID, ensureQualityGateDefinition, ensurePolicyDefinition } from "./testFixtures.js";
 
 // Two Templates: one mandates the scoped Pack (and therefore its Quality
 // Gate + Policy), one mandates nothing at all. Same shape as
@@ -73,6 +72,8 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   // transition no other seeded fixture uses ("Deliverable|Defined|In
   // Progress" + category "Exit" is free there — the shared
   // "development" fixture only uses that category on "In Progress|Approved").
+  // The Policy is a Policy Definition the Pack lists. It governs every Deliverable of the catalogue on the hop.
+  const scopedPolicy = await ensurePolicyDefinition({ code: `cr104-scoped-policy-${run}`, name: `CR-104 policy ${run}`, rows: [{ transitions: ["Deliverable|Defined|In Progress"], governingCondition: { type: "always_true" } }] });
   const scopedPack = {
     tenantId: PLATFORM_TENANT_ID,
     code: "cr104-scoped-pack",
@@ -81,6 +82,7 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
     packVersion: uniqueTestPackVersion(),
     installationClassification: "Optional",
     contributions: {
+      policies: [scopedPolicy.code],
       qualityGates: [
         await ensureQualityGateDefinition({ code: `cr104-gate-${run}`, name: `CR-104 gate ${run}`, category: "Exit", governedTransition: "Deliverable|Defined|In Progress", criteriaType: "no_unresolved_obligations" }),
       ],
@@ -91,35 +93,11 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   const { data: packRow } = await packsDB.findActiveByCode(scopedPack.code);
   assert.ok(packRow, "sanity check: the pack is really Active");
 
-  // policiesDB.upsert directly, same "bypass full Pack-seed-JSON, attribute
-  // to a real Pack id" pattern testFixtures.ts's own
-  // ensureCoreEngineeringQualityGates already uses for Quality Gates — no
-  // real Policy Definition/contributionPolicies plumbing exists in any
-  // seeded fixture today (cr088-filter-shaped-overrides.test.ts's own
-  // comment: "every *.pack.json's own contributions.policies is empty"), so
-  // this is the lower-risk way to get a real, Pack-attributed Policy row for
-  // a test. Must run BEFORE commissioning below — CR-104 materialises
-  // applicable_policy_ids once, at EBM creation, from whatever's already in
-  // the policies table at that exact moment (same ordering requirement
-  // driveCommissioningToActive's own ensureCoreEngineeringQualityGates()
-  // call now enforces for the shared fixture gates).
-  const { data: policyRow, error: policyErr } = await policiesDB.upsert({
-    code: `cr104-scoped-policy-${run}`,
-    name: `CR-104 policy ${run}`,
-    constraintType: "Policy",
-    governedTransition: "Deliverable|Defined|In Progress",
-    condition: { type: "always_true" },
-    originatingPackId: packRow!.id,
-    authorId: packRow!.authored_by,
-    authorBadge: packRow!.author_badge,
-  });
-  assert.ok(!policyErr && policyRow, "scoped policy must upsert");
-
   const { data: gateRow } = await qualityGatesDB.findByPackIds([packRow!.id]);
   assert.equal(gateRow?.length, 1, "the scoped pack's own gate exists, attributed to it");
 
   // Template A mandates the scoped Pack; Template B mandates nothing.
-  const { data: templateWithPack } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-tpl-with-pack-${run}`, name: "CR-104 With Pack", deliverableCatalogue: [] });
+  const { data: templateWithPack } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-tpl-with-pack-${run}`, name: "CR-104 With Pack", deliverableCatalogue: [{ code: "test-strategy" }] });
   await templatesDB.setMandatoryPacks(templateWithPack!.id, [scopedPack.code], ROOT_ACTOR_ID, "root");
   await templatesDB.setRequiredCapabilities(templateWithPack!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const { data: templateWithoutPack } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-tpl-without-pack-${run}`, name: "CR-104 Without Pack", deliverableCatalogue: [] });
@@ -132,9 +110,9 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   const { data: ebmWith } = await ebmsDB.findById((await seusDB.findById(seuWith.id)).data!.active_ebm_id!);
   const { data: ebmWithout } = await ebmsDB.findById((await seusDB.findById(seuWithout.id)).data!.active_ebm_id!);
   assert.ok(ebmWith!.applicable_quality_gate_ids.includes(gateRow![0].quality_gate_definition_id!), "the composing SEU's EBM materialises the scoped gate");
-  assert.ok(ebmWith!.applicable_policy_ids.includes(policyRow!.id), "the composing SEU's EBM materialises the scoped policy");
+  assert.ok(ebmWith!.applicable_policy_ids.includes(scopedPolicy.id), "the composing SEU's EBM materialises the scoped policy");
   assert.ok(!ebmWithout!.applicable_quality_gate_ids.includes(gateRow![0].quality_gate_definition_id!), "the non-composing SEU's EBM does NOT carry a Pack it never selected");
-  assert.ok(!ebmWithout!.applicable_policy_ids.includes(policyRow!.id), "same for the policy");
+  assert.ok(!ebmWithout!.applicable_policy_ids.includes(scopedPolicy.id), "same for the policy");
 
   // The EBM's composed Packs name the scoped Pack only for the composing EBM.
   assert.ok(ebmWith!.composed_packs.some((p) => p.packId === packRow!.id));
@@ -158,8 +136,8 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   const policyResultWith = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWith.id, fromState: "Defined", toState: "In Progress", context: { producingCapabilityStatus: "Fulfilled" }, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   const policyResultWithout = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", context: { producingCapabilityStatus: "Fulfilled" }, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(policyResultWith.outcome, "Passed", "the composing SEU's own Policy is found and evaluated (always_true condition)");
-  assert.ok(!(policyResultWithout.satisfiedPolicyIds as string[]).includes(policyRow!.id), "the non-composing SEU sees no Policy from a Pack it never selected");
-  assert.ok(policyResultWith.satisfiedPolicyIds.includes(policyRow!.id), "the composing SEU evaluates the Policy from its composed Pack");
+  assert.ok(!(policyResultWithout.satisfiedPolicyIds as string[]).includes(scopedPolicy.id), "the non-composing SEU sees no Policy from a Pack it never selected");
+  assert.ok(policyResultWith.satisfiedPolicyIds.includes(scopedPolicy.id), "the composing SEU evaluates the Policy from its composed Pack");
 });
 
 test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint but not on 'Standard' alone", async () => {
@@ -169,31 +147,21 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
   const unsatisfiedCondition = { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] };
 
   // Pack 1: only a Standard (non-blocking) policy.
-  const standardPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-standard-pack", name: "CR-104 Standard Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
+  const standardPolicy = await ensurePolicyDefinition({ code: `cr104-standard-policy-${run}`, name: `CR-104 standard policy ${run}`, constraintType: "Standard", rows: [{ transitions: ["Deliverable|Defined|In Progress"], governingCondition: unsatisfiedCondition }] });
+  const standardPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-standard-pack", name: "CR-104 Standard Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [standardPolicy.code] } };
   assert.ok((await publishPack({ seed: standardPack as any, actorId: TESTER_ALL_ID, activate: true })).ok);
   const { data: standardPackRow } = await packsDB.findActiveByCode(standardPack.code);
-  const { data: standardPolicy } = await policiesDB.upsert({
-    code: `cr104-standard-policy-${run}`, name: `CR-104 standard policy ${run}`, constraintType: "Standard",
-    governedTransition: "Deliverable|Defined|In Progress", condition: unsatisfiedCondition, originatingPackId: standardPackRow!.id,
-    authorId: standardPackRow!.authored_by, authorBadge: standardPackRow!.author_badge,
-  });
-  assert.ok(standardPolicy);
-  const { data: standardTemplate } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-standard-tpl-${run}`, name: "CR-104 Standard Template", deliverableCatalogue: [] });
+  const { data: standardTemplate } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-standard-tpl-${run}`, name: "CR-104 Standard Template", deliverableCatalogue: [{ code: "test-strategy" }] });
   await templatesDB.setMandatoryPacks(standardTemplate!.id, [standardPack.code], ROOT_ACTOR_ID, "root");
   await templatesDB.setRequiredCapabilities(standardTemplate!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const standardSeu = await commissionAgainstTemplate(standardTemplate!.id, `cr104-standard-${run}`);
 
   // Pack 2: a real, blocking Policy constraint.
-  const blockingPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-blocking-pack", name: "CR-104 Blocking Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
+  const blockingPolicy = await ensurePolicyDefinition({ code: `cr104-blocking-policy-${run}`, name: `CR-104 blocking policy ${run}`, rows: [{ transitions: ["Deliverable|Defined|In Progress"], governingCondition: unsatisfiedCondition }] });
+  const blockingPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-blocking-pack", name: "CR-104 Blocking Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [blockingPolicy.code] } };
   assert.ok((await publishPack({ seed: blockingPack as any, actorId: TESTER_ALL_ID, activate: true })).ok);
   const { data: blockingPackRow } = await packsDB.findActiveByCode(blockingPack.code);
-  const { data: blockingPolicy } = await policiesDB.upsert({
-    code: `cr104-blocking-policy-${run}`, name: `CR-104 blocking policy ${run}`, constraintType: "Policy",
-    governedTransition: "Deliverable|Defined|In Progress", condition: unsatisfiedCondition, originatingPackId: blockingPackRow!.id,
-    authorId: blockingPackRow!.authored_by, authorBadge: blockingPackRow!.author_badge,
-  });
-  assert.ok(blockingPolicy);
-  const { data: blockingTemplate } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-blocking-tpl-${run}`, name: "CR-104 Blocking Template", deliverableCatalogue: [] });
+  const { data: blockingTemplate } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-blocking-tpl-${run}`, name: "CR-104 Blocking Template", deliverableCatalogue: [{ code: "test-strategy" }] });
   await templatesDB.setMandatoryPacks(blockingTemplate!.id, [blockingPack.code], ROOT_ACTOR_ID, "root");
   await templatesDB.setRequiredCapabilities(blockingTemplate!.id, [], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const blockingSeu = await commissionAgainstTemplate(blockingTemplate!.id, `cr104-blocking-${run}`);
@@ -203,7 +171,7 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
 
   const blockingResult = await policyEngine.evaluate({ entityType: "Deliverable", seuId: blockingSeu.id, fromState: "Defined", toState: "In Progress", context: { producingCapabilityStatus: "Fulfilled" }, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(blockingResult.outcome, "Blocked");
-  if (blockingResult.outcome === "Blocked") assert.equal(blockingResult.policyCode, blockingPolicy!.code);
+  if (blockingResult.outcome === "Blocked") assert.equal(blockingResult.policyCode, blockingPolicy.code);
 });
 
 test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the named Deliverable(s), not every Deliverable on the same transition", async () => {

@@ -12,10 +12,11 @@ import { randomUUID } from "node:crypto";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
+import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { governedTransitionsFor } from "../src/domain/engine/policyChecks.js";
-import { loadPolicyChecks } from "../src/domain/engine/policyChecks.js";
+import { loadPolicyChecks, policyChecksFromDefinitions } from "../src/domain/engine/policyChecks.js";
 import { policyEngine } from "../src/domain/engine/policyEngine.js";
 import pool from "../src/utils/db.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
@@ -60,22 +61,31 @@ let packId: string;
 // The SEU is commissioned on the fixture Profile, so its EBM lists the Policies the fixture Pack contributes: a Policy and a Standard for the Deliverable transitions the fixtures govern.
 let f: FixtureSeu;
 let outputDeliverable: DeliverableRow;
-let reviewPolicy: PolicyRow;
-let coveragePolicy: PolicyRow;
-let standard: PolicyRow;
+// A fixture Policy as the engine checks it on one hop: the id of its Policy Definition, the code of its check and the hop.
+interface FixtureCheck { id: string; code: string; hop: string }
+let reviewPolicy: FixtureCheck;
+let coveragePolicy: FixtureCheck;
+let standard: FixtureCheck;
 before(async () => {
   const pack = await getTestDevelopmentPack();
   assert.ok(pack, "the development Pack is seeded");
   packId = pack.id;
   f = await commissionFixtureSeu("policy-engine");
   const { data: ebm } = await ebmsDB.findById(f.seu.active_ebm_id!);
-  const listed = (await policiesDB.findByIds(ebm!.applicable_policy_ids)).data ?? [];
-  const fixturePolicies = listed.filter((p) => p.originating_pack_id === f.fixtures.pack.id);
-  const conditionOf = (p: PolicyRow) => (p.condition as { field?: string }).field;
-  reviewPolicy = fixturePolicies.find((p) => p.constraint_type === "Policy" && conditionOf(p) === "reviewState")!;
-  coveragePolicy = fixturePolicies.find((p) => p.constraint_type === "Policy" && conditionOf(p) === "coveragePercent")!;
-  standard = fixturePolicies.find((p) => p.constraint_type === "Standard")!;
-  assert.ok(reviewPolicy && coveragePolicy && standard, "the EBM lists the fixture Policies and the fixture Standard");
+  // The EBM lists the ids of the Policy Definitions it took. The check of each fixture hop is built from the Definition, as the engine builds it.
+  const listed = (await policyDefinitionsDB.findByIds(ebm!.applicable_policy_ids)).data ?? [];
+  const checkOf = (definitionId: string, field: string): FixtureCheck => {
+    const definition = listed.find((d) => d.id === definitionId);
+    assert.ok(definition, "the EBM lists the fixture Policy Definition");
+    const row = definition.conditions.flatMap((c) => c.applicabilityDeliverables).find((r) => (r.governingCondition as { field?: string } | null)?.field === field);
+    assert.ok(row, `the Definition governs a hop on ${field}`);
+    const hop = row.transitions[0];
+    const [check] = policyChecksFromDefinitions([definition], hop, FIXTURE_CODES.output.code);
+    return { id: definition.id, code: check.code, hop };
+  };
+  reviewPolicy = checkOf(f.fixtures.policy.id, "reviewState");
+  coveragePolicy = checkOf(f.fixtures.policy.id, "coveragePercent");
+  standard = checkOf(f.fixtures.standardPolicy.id, "producingCapabilityStatus");
   const deliverables = (await deliverablesDB.findBySeuId(f.seu.id)).data ?? [];
   const byCode = (code: string) => deliverables.find((d) => d.code === code)!;
   outputDeliverable = byCode(FIXTURE_CODES.output.code);
@@ -91,7 +101,7 @@ async function createPolicy(label: string, hop: string, fields: { constraintType
   return data;
 }
 
-const hopOf = (p: PolicyRow) => p.governed_transition!;
+const hopOf = (p: FixtureCheck) => p.hop;
 const evaluate = (hop: string, entityId: string | null, context?: Record<string, unknown>) => {
   const [entityType, fromState, toState] = hop.split("|");
   return policyEngine.evaluate({ entityType: entityType as "Deliverable", seuId: f.seu.id, entityId, fromState, toState, context, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });

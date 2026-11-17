@@ -52,12 +52,22 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureQualityGateDefinition } from "./testFixtures.js";
 import { commissionedSeu } from "./webScenarios.js";
 import type { PackQualityGate } from "../src/dblayer/seuTypes.js";
-import { TESTER_ALL_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 
 // The SEU is commissioned on a Template whose Pack lists the gate, so the composition settles the gate into the EBM and the engine, which reads the EBM only, finds it.
 async function commissionTestSeu(label: string, gates: PackQualityGate[]): Promise<string> {
   const { seu } = await commissionedSeu(label, "clean", { conflictSet: "gate-generalization", gates });
   return seu.id;
+}
+
+// The Template of the commissioned SEU has an empty catalogue, so the SEU has no Deliverable until one is created.
+async function createSeuDeliverable(seuId: string): Promise<string> {
+  const { data: birth } = await transitionDefinitionsDB.findBirth("Deliverable");
+  assert.ok(birth, "the Deliverable has a birth row");
+  const { data, error } = await deliverablesDB.create({ seuId, name: `qg-generalization ${randomUUID()}`, state: birth.to_state, authorId: (await getSystemActor(seuId)).authorId, authorBadge: ROOT_ACTOR_BADGE });
+  assert.ok(data && !error, error);
+  return data.id;
 }
 
 test("qualityGateEngine.evaluate resolves Obligations attached to a non-Deliverable entity (AttentionItem)", async () => {
@@ -213,8 +223,7 @@ test("transitionDecision is genuinely wired to qualityGateEngine through transit
     const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG decision wiring test gate", category: "Exit", governedTransition: `Decision|${fromState}|${toState}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
 
     const seuId = await commissionTestSeu("qg-decision-wiring", [gateEntry]);
-    const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
-    const deliverableId = rows[0].id;
+    const deliverableId = await createSeuDeliverable(seuId);
     await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
     const evidence = await createEvidenceAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "QG decision wiring support" });
     const decision = await createDecision({
@@ -276,8 +285,7 @@ test("transitionKnowledgeItem is genuinely wired to qualityGateEngine through tr
     const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG knowledge wiring test gate", category: "Exit", governedTransition: `Knowledge|${fromState}|${toState}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
 
     const seuId = await commissionTestSeu("qg-knowledge-wiring", [gateEntry]);
-    const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
-    const deliverableId = rows[0].id;
+    const deliverableId = await createSeuDeliverable(seuId);
     await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
     const evidence = await createEvidenceAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "QG knowledge wiring support" });
     const item = await createKnowledgeItem({ actorId: ROOT_ACTOR_ID, seuId, deliverableId, category: "Technical Knowledge", title: "QG knowledge wiring target", evidenceReferences: { supports: [evidence.id] } });
@@ -306,8 +314,8 @@ test("transitionReview is genuinely wired to qualityGateEngine through transitio
     const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG review wiring test gate", category: "Exit", governedTransition: `Review|${fromState}|${toState}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
 
     const seuId = await commissionTestSeu("qg-review-wiring", [gateEntry]);
-    const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
-    const target = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: rows[0].id, category: "Architecture", name: "QG review wiring target" });
+    const deliverableId = await createSeuDeliverable(seuId);
+    const target = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Architecture", name: "QG review wiring target" });
     const { data: eventsBefore } = await eventsDB.findByOriginatingObject("Review", target.id);
 
     const result = await transitionReview({ reviewId: target.id, targetState: toState, actorId: TESTER_ALL_ID });
@@ -333,8 +341,8 @@ test("transitionFinding is genuinely wired to qualityGateEngine through transiti
     const gateEntry = await ensureQualityGateDefinition({ code: `qg-gen-${randomUUID()}`, name: "QG finding wiring test gate", category: "Exit", governedTransition: `Finding|${fromState}|${toState}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence" });
 
     const seuId = await commissionTestSeu("qg-finding-wiring", [gateEntry]);
-    const { rows } = await pool.query<{ id: string }>("SELECT id FROM deliverables WHERE seu_id = $1 LIMIT 1", [seuId]);
-    const review = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: rows[0].id, category: "Architecture", name: "QG finding wiring review" });
+    const deliverableId = await createSeuDeliverable(seuId);
+    const review = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Architecture", name: "QG finding wiring review" });
     const target = await createFindingAsRoot({ reviewId: review.id, severity: "Low", title: "QG finding wiring target" });
     const { data: eventsBefore } = await eventsDB.findByOriginatingObject("Finding", target.id);
 
