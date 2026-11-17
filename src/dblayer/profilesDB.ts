@@ -56,9 +56,12 @@ export const profilesDB = {
     status: ProfileRow["status"];
   }): Promise<DbResult<ProfileRow>> {
     try {
+      // The Profile is pinned to the latest Profile schema, as the authoring path pins it.
+      const { data: schemaRow } = await schemaDefinitionsDB.findLatest("Profile");
+      if (!schemaRow) throw new Error("no schema_definitions row for the Profile entity kind");
       const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, authored_by, author_badge, environment, profile_version, tenant_id, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO profiles (code, name, base_template_id, authored_by, author_badge, environment, profile_version, tenant_id, status, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT (code, profile_version, tenant_id) DO UPDATE
            SET name = EXCLUDED.name, base_template_id = EXCLUDED.base_template_id,
                environment = EXCLUDED.environment
@@ -73,6 +76,7 @@ export const profilesDB = {
           input.profileVersion ?? INITIAL_VERSION,
           input.tenantId,
           input.status,
+          schemaRow.id,
         ]
       );
       return { data: rows[0] };
