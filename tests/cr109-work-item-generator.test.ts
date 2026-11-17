@@ -171,7 +171,7 @@ async function driveDeliverableToApproved(deliverableId: string, tag: string): P
 // policyCodes are the Policy Definitions the Pack lists. The composition settles them into the EBM, which takes their ids once, at EBM composition time, so the Definitions
 // exist before the Pack is published.
 async function commissionIsolatedSeu(run: string, tenantId: string, policyCodes: string[], beforeCommenceWork?: (seuId: string) => Promise<void>): Promise<{ seuId: string; deliverableId: string; packId: string }> {
-  const packSeed = { tenantId: PLATFORM_TENANT_ID, code: "cr109-isolated-pack", name: "CR-109 Isolated Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: policyCodes } };
+  const packSeed = { tenantId: PLATFORM_TENANT_ID, code: "cr109-isolated-pack", name: "CR-109 Isolated Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: policyCodes, capabilities: [{ code: "requirements-analysis" }] } };
   const published = await publishPack({ seed: packSeed as any, actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `isolated pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(packSeed.code);
@@ -327,7 +327,7 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
   try {
     const standardPolicy = await ensurePolicyDefinition({
       code: `cr109-standard-deviation-${run}`, name: "CR-109 always-deviates Standard policy", constraintType: "Standard",
-      rows: [{ transitions: ["Deliverable|Defined|In Progress"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
+      rows: [{ name: "requirements-analysis-model", transitions: ["Deliverable|Defined|In Progress"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
     });
     standardPolicyId = standardPolicy.id;
     const { seuId, deliverableId } = await commissionIsolatedSeu(run, await getEmptyPoolTenantId(), [standardPolicy.code], async (activatedSeuId) => {

@@ -42,7 +42,7 @@ async function commissionBlockedSeu(run: string) {
   const policyCode = `cr107-seu-commence-work-${run}`;
   const seuPolicy = await ensurePolicyDefinition({
     code: policyCode, name: `CR-107 commence-work policy ${run}`, obligationTitle: `CR-107 commence-work blocker ${run}`,
-    rows: [{ name: "SEU", transitions: ["SEU|Activated|Operational"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
+    rows: [{ name: "requirements-analysis-model", transitions: ["SEU|Activated|Operational"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
   });
   const pack = { tenantId: PLATFORM_TENANT_ID, code: "cr107-seu-policy-pack", name: "CR-107 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [policyCode] } };
   const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });

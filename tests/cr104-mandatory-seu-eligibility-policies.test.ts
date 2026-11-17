@@ -107,7 +107,7 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
   // Always-unsatisfied, to prove the block and not only that a Policy exists. The Pack lists the Policy Definition, and the composition settles it into the EBM.
   const seuPolicy = await ensurePolicyDefinition({
     code: `cr104-seu-commence-work-${run}`, name: `CR-104 commence-work policy ${run}`, obligationTitle: `CR-104 commence-work blocker ${run}`,
-    rows: [{ name: "SEU", transitions: ["SEU|Activated|Operational"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
+    rows: [{ name: "requirements-analysis-model", transitions: ["SEU|Activated|Operational"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
   });
   const seuPolicyPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-seu-policy-pack", name: "CR-104 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [seuPolicy.code] } };
   const published = await publishPack({ seed: seuPolicyPack as any, actorId: TESTER_ALL_ID, activate: true });

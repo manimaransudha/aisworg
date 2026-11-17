@@ -182,7 +182,7 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   const policyCode = `cr108-attn-policy-${run}`;
   const seuPolicy = await ensurePolicyDefinition({
     code: policyCode, name: `CR-108 commence-work policy ${run}`, obligationTitle: `CR-108 attention blocker ${run}`,
-    rows: [{ name: "SEU", transitions: ["SEU|Activated|Operational"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
+    rows: [{ name: "requirements-analysis-model", transitions: ["SEU|Activated|Operational"], governingCondition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] } }],
   });
   const pack = { tenantId: PLATFORM_TENANT_ID, code: "cr108-attn-pack", name: "CR-108 Attention Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [policyCode] } };
   const published = await publishPack({ seed: pack as any, actorId: TESTER_ALL_ID, activate: true });

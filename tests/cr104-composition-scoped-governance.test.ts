@@ -73,7 +73,7 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   // Progress" + category "Exit" is free there — the shared
   // "development" fixture only uses that category on "In Progress|Approved").
   // The Policy is a Policy Definition the Pack lists. It governs every Deliverable of the catalogue on the hop.
-  const scopedPolicy = await ensurePolicyDefinition({ code: `cr104-scoped-policy-${run}`, name: `CR-104 policy ${run}`, rows: [{ transitions: ["Deliverable|Defined|In Progress"], governingCondition: { type: "always_true" } }] });
+  const scopedPolicy = await ensurePolicyDefinition({ code: `cr104-scoped-policy-${run}`, name: `CR-104 policy ${run}`, rows: [{ name: "test-strategy", transitions: ["Deliverable|Defined|In Progress"], governingCondition: { type: "always_true" } }] });
   const scopedPack = {
     tenantId: PLATFORM_TENANT_ID,
     code: "cr104-scoped-pack",
@@ -83,6 +83,7 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
     installationClassification: "Optional",
     contributions: {
       policies: [scopedPolicy.code],
+      capabilities: [{ code: "test-strategy-and-design" }],
       qualityGates: [
         await ensureQualityGateDefinition({ code: `cr104-gate-${run}`, name: `CR-104 gate ${run}`, category: "Exit", governedTransition: "Deliverable|Defined|In Progress", criteriaType: "no_unresolved_obligations" }),
       ],
@@ -147,8 +148,8 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
   const unsatisfiedCondition = { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] };
 
   // Pack 1: only a Standard (non-blocking) policy.
-  const standardPolicy = await ensurePolicyDefinition({ code: `cr104-standard-policy-${run}`, name: `CR-104 standard policy ${run}`, constraintType: "Standard", rows: [{ transitions: ["Deliverable|Defined|In Progress"], governingCondition: unsatisfiedCondition }] });
-  const standardPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-standard-pack", name: "CR-104 Standard Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [standardPolicy.code] } };
+  const standardPolicy = await ensurePolicyDefinition({ code: `cr104-standard-policy-${run}`, name: `CR-104 standard policy ${run}`, constraintType: "Standard", rows: [{ name: "test-strategy", transitions: ["Deliverable|Defined|In Progress"], governingCondition: unsatisfiedCondition }] });
+  const standardPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-standard-pack", name: "CR-104 Standard Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [standardPolicy.code], capabilities: [{ code: "test-strategy-and-design" }] } };
   assert.ok((await publishPack({ seed: standardPack as any, actorId: TESTER_ALL_ID, activate: true })).ok);
   const { data: standardPackRow } = await packsDB.findActiveByCode(standardPack.code);
   const { data: standardTemplate } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-standard-tpl-${run}`, name: "CR-104 Standard Template", deliverableCatalogue: [{ code: "test-strategy" }] });
@@ -157,8 +158,8 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
   const standardSeu = await commissionAgainstTemplate(standardTemplate!.id, `cr104-standard-${run}`);
 
   // Pack 2: a real, blocking Policy constraint.
-  const blockingPolicy = await ensurePolicyDefinition({ code: `cr104-blocking-policy-${run}`, name: `CR-104 blocking policy ${run}`, rows: [{ transitions: ["Deliverable|Defined|In Progress"], governingCondition: unsatisfiedCondition }] });
-  const blockingPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-blocking-pack", name: "CR-104 Blocking Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [blockingPolicy.code] } };
+  const blockingPolicy = await ensurePolicyDefinition({ code: `cr104-blocking-policy-${run}`, name: `CR-104 blocking policy ${run}`, rows: [{ name: "test-strategy", transitions: ["Deliverable|Defined|In Progress"], governingCondition: unsatisfiedCondition }] });
+  const blockingPack = { tenantId: PLATFORM_TENANT_ID, code: "cr104-blocking-pack", name: "CR-104 Blocking Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { policies: [blockingPolicy.code], capabilities: [{ code: "test-strategy-and-design" }] } };
   assert.ok((await publishPack({ seed: blockingPack as any, actorId: TESTER_ALL_ID, activate: true })).ok);
   const { data: blockingPackRow } = await packsDB.findActiveByCode(blockingPack.code);
   const { data: blockingTemplate } = await templatesDB.upsert({ status: "Active", tenantId: PLATFORM_TENANT_ID, code: `cr104-blocking-tpl-${run}`, name: "CR-104 Blocking Template", deliverableCatalogue: [{ code: "test-strategy" }] });
