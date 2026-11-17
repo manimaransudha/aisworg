@@ -37,7 +37,7 @@ const gates: Record<"blocking" | "passingMixed" | "passingClean", QualityGateDef
 
 // A Quality Gate Definition on one hop of the Deliverable. The Pack lists it and the EBM takes it when the SEU is commissioned.
 // A gate that names no Deliverable applies to the Deliverables of the catalogue, so the gates name the code of the Deliverables the test creates.
-const gateDeliverableCode = `zz-gate-deliverable-${run}`;
+const gateDeliverableCode = "source-code";
 
 function gateEntry(label: string, hop: { from: string; to: string }, criteriaType: string) {
   return ensureQualityGateDefinition({
