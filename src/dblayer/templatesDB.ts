@@ -59,13 +59,16 @@ export const templatesDB = {
   }): Promise<DbResult<TemplateRow>> {
     try {
       const { actorId, actorBadge } = await userDB.getSuperuserId();
+      // The Template is pinned to the latest Template schema, as the authoring path pins it.
+      const { data: schemaRow } = await schemaDefinitionsDB.findLatest("Template");
+      if (!schemaRow) throw new Error("no schema_definitions row for the Template entity kind");
       const { rows } = await query<TemplateRow>(
-        `INSERT INTO templates (code, name, template_version, deliverable_catalogue, tenant_id, status, authored_by, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO templates (code, name, template_version, deliverable_catalogue, tenant_id, status, authored_by, author_badge, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (code, template_version, tenant_id) DO UPDATE
            SET name = EXCLUDED.name, deliverable_catalogue = EXCLUDED.deliverable_catalogue
          RETURNING *`,
-        [input.code, input.name, input.templateVersion ?? INITIAL_VERSION, JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId, input.status, actorId, actorBadge]
+        [input.code, input.name, input.templateVersion ?? INITIAL_VERSION, JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId, input.status, actorId, actorBadge, schemaRow.id]
       );
       return { data: rows[0] };
     } catch (err) {
