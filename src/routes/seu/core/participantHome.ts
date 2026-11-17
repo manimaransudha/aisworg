@@ -8,7 +8,7 @@ import { completeWorkItem, type CompleteWorkItemResult, type WorkItemOutcome } f
 import { createObligation } from "./obligations.js";
 import type { ObligationRow, ParticipantMasterRow, ParticipantRow } from "../../../dblayer/seuTypes.js";
 
-export type ParticipantScopedSeuView = Omit<SeuDetailView, "capabilities" | "participantTypes" | "requiredTechnologyPacks" | "requiredDomainPacks" | "evidenceSupersedeCandidates">;
+export type ParticipantScopedSeuView = Omit<SeuDetailView, "capabilities" | "participantTypes" | "requiredTechnologyPacks" | "requiredDomainPacks" | "evidenceSupersedeCandidates" | "qualityGates">;
 
 export interface ParticipantHomeEngagement {
   participant: ParticipantRow;

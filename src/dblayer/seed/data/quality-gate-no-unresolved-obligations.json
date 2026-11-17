@@ -1,7 +1,7 @@
 {
   "code": "no-unresolved-obligations",
   "name": "No Unresolved Obligations",
-  "description": "A Deliverable leaves In Progress only when none of its Obligations is still open.",
+  "description": "A Deliverable transits to next state only when none of its Obligations is still open.",
   "category": "Exit",
   "criteriaType": "no_unresolved_obligations",
   "classification": "machine-verifiable",

@@ -62,6 +62,7 @@
         { key: 'capabilities', label: 'Capability Fulfilment', sub: detail.capabilities.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.capabilities.length + '</span>' : '' },
         { key: 'obligations', label: 'Obligations', sub: detail.obligations.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.obligations.length + '</span>' : '' },
         { key: 'attentionItems', label: 'Attention Items', sub: detail.attentionItems.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.attentionItems.length + '</span>' : '' },
+        { key: 'qualityGates', label: 'Quality Gates', sub: detail.qualityGates.gates.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.qualityGates.gates.length + '</span>' : '' },
         { key: 'evidence', label: 'Evidence', sub: detail.evidence.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.evidence.length + '</span>' : '' },
         { key: 'decisions', label: 'Decisions', sub: detail.decisions.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.decisions.length + '</span>' : '' },
         { key: 'knowledge', label: 'Knowledge', sub: detail.knowledgeItems.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.knowledgeItems.length + '</span>' : '' },
@@ -83,17 +84,22 @@
         <%# ---------------------------------------------------------------- Deliverables %>
         <div class="<%= paneClass('deliverables') %>" id="seu-detail-deliverables" role="tabpanel">
           <div class="section-card mb-3">
-            <div class="section-header">Deliverable dependencies</div>
-            <div class="p-3"><%- include('../sdk/_dependencyGraphSvg', { graph: detail.dependencyGraph }) %></div>
+            <div class="section-header collapsed d-flex justify-content-between align-items-center" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#seu-deliverable-dependencies" aria-expanded="false" aria-controls="seu-deliverable-dependencies">
+              <span>Deliverable dependencies</span>
+              <i class="bi bi-chevron-down" aria-hidden="true"></i>
+            </div>
+            <div id="seu-deliverable-dependencies" class="collapse">
+              <div class="p-3"><%- include('../sdk/_dependencyGraphSvg', { graph: detail.dependencyGraph }) %></div>
+            </div>
           </div>
           <div class="section-card">
             <div class="section-header">Deliverables</div>
             <div class="table-responsive">
               <table class="table mb-0 align-middle">
-                <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Blocked by</th><th>Participants</th><th>Transition</th></tr></thead>
+                <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Blocked by</th><th>Quality gates</th><th>Attention items</th><th>Participants</th><th>Transition</th></tr></thead>
                 <tbody>
                   <% if (detail.deliverables.length === 0) { %>
-                    <tr><td colspan="5" class="text-muted small">No Deliverable instances yet — created once commissioning reaches Create Engineering Assets.</td></tr>
+                    <tr><td colspan="7" class="text-muted small">No Deliverable instances yet — created once commissioning reaches Create Engineering Assets.</td></tr>
                   <% } %>
                   <% detail.deliverables.forEach(function(d) { %>
                     <tr>
@@ -105,6 +111,24 @@
                         <% } else { %>
                           <% d.blockedBy.forEach(function(b) { %>
                             <div class="edge-note"><%= b.kind %> <strong><%= b.label %></strong> &rarr; <%= b.toState %></div>
+                          <% }) %>
+                        <% } %>
+                      </td>
+                      <td class="small">
+                        <% if (d.qualityGates.length === 0) { %>
+                          <span class="text-muted">none</span>
+                        <% } else { %>
+                          <% d.qualityGates.forEach(function(g) { %>
+                            <div class="edge-note"><strong><%= g.name %></strong> &mdash; <%= g.outcome %></div>
+                          <% }) %>
+                        <% } %>
+                      </td>
+                      <td class="small">
+                        <% if (d.attentionItems.length === 0) { %>
+                          <span class="text-muted">none</span>
+                        <% } else { %>
+                          <% d.attentionItems.forEach(function(a) { %>
+                            <div class="edge-note"><%= a.category %> &middot; <%= a.priority %> <strong><%= a.title %></strong> (<%= a.status %><% if (a.relatedTo === 'SEU') { %>, SEU<% } %>)</div>
                           <% }) %>
                         <% } %>
                       </td>
@@ -777,6 +801,111 @@
                   <% }) %>
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+
+        <%# ---------------------------------------------------------------- Quality Gates %>
+        <div class="<%= paneClass('qualityGates') %>" id="seu-detail-qualityGates" role="tabpanel">
+          <div class="section-card mb-3">
+            <div class="section-header">Quality Gates of the EBM</div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Gate</th><th>Category</th><th>Criteria</th><th>Steps</th><th>Latest outcome</th></tr></thead>
+                <tbody>
+                  <% if (detail.qualityGates.gates.length === 0) { %>
+                    <tr><td colspan="5" class="text-muted small">The EBM of this SEU names no Quality Gate.</td></tr>
+                  <% } %>
+                  <% detail.qualityGates.gates.forEach(function(g) { %>
+                    <tr>
+                      <td class="small"><strong><%= g.name %></strong><br><span class="text-muted" style="font-size:0.72rem;"><%= g.code %></span></td>
+                      <td class="small"><%= g.category %></td>
+                      <td class="small"><code><%= g.criteriaType %></code></td>
+                      <td class="small">
+                        <% if (g.steps.length === 0) { %><span class="text-muted">none</span><% } %>
+                        <% g.steps.forEach(function(st) { %><div class="edge-note"><%= st %></div><% }) %>
+                      </td>
+                      <td class="small">
+                        <% if (!g.latestOutcome) { %>
+                          <span class="text-muted">not evaluated</span>
+                        <% } else { %>
+                          <%= g.latestOutcome %><br><span class="text-muted" style="font-size:0.72rem;"><%= g.latestEntity %> &middot; <%= new Date(g.latestAt).toLocaleString() %></span>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header d-flex justify-content-between align-items-center">
+              <span>Waivers</span>
+              <% if (locals.canWaiveQualityGate && detail.qualityGates.gates.length > 0) { %>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#qualityGateWaiverModal">Grant waiver</button>
+              <% } %>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Gate</th><th>Entity</th><th>Rationale</th><th>Status</th><th>Granted by</th><th>Badge</th><th>Expires</th><th>Granted</th></tr></thead>
+                <tbody>
+                  <% if (detail.qualityGates.waivers.length === 0) { %>
+                    <tr><td colspan="8" class="text-muted small">No waiver recorded for this SEU.</td></tr>
+                  <% } %>
+                  <% detail.qualityGates.waivers.forEach(function(w) { %>
+                    <tr>
+                      <td class="small"><%= w.gateName %></td>
+                      <td class="small"><%= w.entity %></td>
+                      <td class="small"><%= w.rationale %></td>
+                      <td class="small"><%= w.status %></td>
+                      <td class="small"><%= w.grantedBy %></td>
+                      <td class="small"><code><%= w.authorityBadge %></code></td>
+                      <td class="small"><%= w.expiresAt ? new Date(w.expiresAt).toLocaleString() : 'never' %></td>
+                      <td class="small text-muted"><%= new Date(w.createdAt).toLocaleString() %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="modal fade" id="qualityGateWaiverModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/quality-gate-waivers">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <div class="modal-header">
+                    <h5 class="modal-title mb-0">Grant Quality Gate waiver</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="mb-2">
+                      <label class="form-label small text-muted mb-1" for="qgwGate">Quality Gate</label>
+                      <select class="form-select form-select-sm" name="qualityGateId" id="qgwGate" required>
+                        <% detail.qualityGates.gates.forEach(function(g) { %><option value="<%= g.id %>"><%= g.name %></option><% }) %>
+                      </select>
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label small text-muted mb-1" for="qgwEntity">Waived for</label>
+                      <select class="form-select form-select-sm" name="entity" id="qgwEntity" required>
+                        <% detail.qualityGates.waivableEntities.forEach(function(e) { %><option value="<%= e.value %>"><%= e.label %></option><% }) %>
+                      </select>
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label small text-muted mb-1" for="qgwRationale">Rationale</label>
+                      <textarea class="form-control form-control-sm" name="rationale" id="qgwRationale" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label small text-muted mb-1" for="qgwExpires">Expires (optional)</label>
+                      <input type="datetime-local" class="form-control form-control-sm" name="expiresAt" id="qgwExpires">
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Grant waiver</button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         </div>

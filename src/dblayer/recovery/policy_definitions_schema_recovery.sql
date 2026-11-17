@@ -35,7 +35,7 @@ ALTER TABLE policy_definitions DROP COLUMN IF EXISTS applicability_deliverable_l
 ALTER TABLE policy_definitions DROP COLUMN IF EXISTS applicability_deliverables;
 ALTER TABLE policy_definitions DROP COLUMN IF EXISTS governed_transition;
 ALTER TABLE policy_definitions DROP COLUMN IF EXISTS governing_condition;
-ALTER TABLE policy_definitions ADD COLUMN IF NOT EXISTS schema_definition_id UUID REFERENCES schema_definitions(id);
+ALTER TABLE policy_definitions ADD COLUMN IF NOT EXISTS schema_definition_id UUID NOT NULL REFERENCES schema_definitions(id);
 ALTER TABLE policy_definitions DROP CONSTRAINT IF EXISTS policy_definitions_schema_definition_id_fkey;
 -- The Definition a `policies` row was written from. policies_schema_recovery.sql runs first, so the constraint is added here.
 ALTER TABLE policies DROP CONSTRAINT IF EXISTS policies_policy_definition_id_fkey;

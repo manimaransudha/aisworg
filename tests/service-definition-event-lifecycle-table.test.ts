@@ -31,7 +31,7 @@ import { evaluateImplementedPolicy } from "../src/policies/index.js";
 import { generateFields, type JsonSchemaDocument } from "../src/domain/sdk/formGenerator.js";
 import { COMMENT_REQUIRED_POLICY_CODE, VALIDATE_SCHEMA_POLICY_CODE } from "../src/dblayer/constants.js";
 import { query } from "../src/utils/db.js";
-import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID, schemaDefinitionIdOfAnotherKind } from "./testFixtures.js";
 
 // serviceDefinitionsDB.createDraft is a raw DB-layer insert (no validateServiceDefinitionSeed call), the same "bare
 // Draft, one hop at a time" fixture pattern the other lifecycle tests use. createDraft still enforces the schema's own
@@ -260,9 +260,9 @@ test("AUTHORITY: Reject is refused to an actor without service_reject", async ()
   assert.deepEqual(row?.comments, []);
 });
 
-test("POLICY: a Service Definition with no pinned schema cannot be Validated (policy-validate-schema)", async () => {
+test("POLICY: a Service Definition pinned to another kind's schema cannot be Validated (policy-validate-schema)", async () => {
   const draft = await freshServiceDefinitionDraft();
-  await query("UPDATE service_definitions SET schema_definition_id = NULL WHERE id = $1", [draft.id]);
+  await query("UPDATE service_definitions SET schema_definition_id = $2 WHERE id = $1", [draft.id, await schemaDefinitionIdOfAnotherKind("Service")]);
   assert.deepEqual(outcome(await hop(draft.id, "Validated")), { ok: false, reason: "policy_blocked" });
   const { data: row } = await serviceDefinitionsDB.findById(draft.id);
   assert.equal(row?.status, "Defined");
@@ -335,7 +335,7 @@ test("COMMENTS: comments are added, never replaced, and a comment on any transit
 test("COMMENTS: a comment given with a refused transition is not stored (the gate runs first)", async () => {
   const draft = await freshServiceDefinitionDraft();
   await hop(draft.id, "Validated");
-  await query("UPDATE service_definitions SET schema_definition_id = NULL WHERE id = $1", [draft.id]);
+  await query("UPDATE service_definitions SET schema_definition_id = $2 WHERE id = $1", [draft.id, await schemaDefinitionIdOfAnotherKind("Service")]);
   // Publish is blocked by policy-validate-schema, so the comment given with it is not stored.
   assert.deepEqual(outcome(await hop(draft.id, "Published", { comment: "should not be kept" })), { ok: false, reason: "policy_blocked" });
   const { data: row } = await serviceDefinitionsDB.findById(draft.id);

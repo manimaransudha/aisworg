@@ -27,7 +27,7 @@ import { evaluateImplementedPolicy } from "../src/policies/index.js";
 import { generateFields, type JsonSchemaDocument } from "../src/domain/sdk/formGenerator.js";
 import { COMMENT_REQUIRED_POLICY_CODE, ONTOLOGY_VALUES_PRESENT_POLICY_CODE, VALIDATE_SCHEMA_POLICY_CODE } from "../src/dblayer/constants.js";
 import { query } from "../src/utils/db.js";
-import { ensureTestFixturePacks, uniqueTestPackVersion, TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { ensureTestFixturePacks, uniqueTestPackVersion, TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID, schemaDefinitionIdOfAnotherKind } from "./testFixtures.js";
 
 async function freshPackSeed(overrides: Partial<PackSeedInput> = {}): Promise<PackSeedInput> {
   return {
@@ -211,9 +211,9 @@ test("AUTHORITY: Reject is refused to an actor without pack_reject", async () =>
   assert.deepEqual(row?.comments, []);
 });
 
-test("POLICY: a Pack with no pinned schema cannot be Validated (policy-validate-schema)", async () => {
+test("POLICY: a Pack pinned to another kind's schema cannot be Validated (policy-validate-schema)", async () => {
   const pack = await freshPack();
-  await query("UPDATE packs SET schema_definition_id = NULL WHERE id = $1", [pack.id]);
+  await query("UPDATE packs SET schema_definition_id = $2 WHERE id = $1", [pack.id, await schemaDefinitionIdOfAnotherKind("Pack")]);
   assert.deepEqual(outcome(await hop(pack.id, "Validated")), { ok: false, reason: "policy_blocked" });
 });
 
@@ -316,7 +316,7 @@ test("COMMENTS: comments are added, never replaced, and the same text may be giv
 test("COMMENTS: a comment given with a refused transition is not stored (the gate runs first)", async () => {
   const pack = await freshPack();
   await hop(pack.id, "Validated");
-  await query("UPDATE packs SET schema_definition_id = NULL WHERE id = $1", [pack.id]);
+  await query("UPDATE packs SET schema_definition_id = $2 WHERE id = $1", [pack.id, await schemaDefinitionIdOfAnotherKind("Pack")]);
   // Publish is blocked by policy-validate-schema, so the comment given with it is not stored.
   assert.deepEqual(outcome(await hop(pack.id, "Published", { comment: "should not be kept" })), { ok: false, reason: "policy_blocked" });
   const { data: row } = await packsDB.findById(pack.id);

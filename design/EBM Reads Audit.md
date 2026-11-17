@@ -69,4 +69,12 @@ CR-145 decisions 22 and 23. Composition and the engines do not read `policies` o
 
 Composition reads none of the seven materialised tables now.
 
+## SEU hop Policies (2026-11-17)
+
+| Where | State |
+|---|---|
+| `conflicts/unravelPolicies.ts` | A Transition rule with a step `SEU\|from\|to` is kept once with no Deliverable. `compositionCompleted.ts` writes its `policyDefinitionId` to `seu_scoped_policy_ids`, and `policyEngine` reads the Definitions for entity type SEU. A Pack reaches the path by listing the Policy Definition. |
+
+Tests read the Definitions the EBM lists (tests/policy-engine.test.ts, tests/execution-engine.test.ts) and build Policies as Definitions that a Pack lists (`ensurePolicyDefinition`). Verified on 2026-11-17: `db:clean-slate` and the full test suite were run and all tests pass.
+
 Searched on 2026-11-16: calls to `capabilitiesDB`, `servicesDB`, `authorityRulesDB`, `policiesDB`, `checklistsDB`, `reviewGatesDB` and `qualityGatesDB` in `conflicts/`, `compositionCompleted.ts`, `compositionEngine.ts`, `profileCompositionUnravel.ts`, `ebmActivated.ts`, `deliverableSource.ts` and `commissioning.ts`.

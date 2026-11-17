@@ -29,7 +29,7 @@ import { transitionAndPublish } from "./testFixtures.js";
 import { forgetTestOntologyConcepts } from "./ontologyTestCache.js";
 import { loadPolicyChecks } from "../src/domain/engine/policyChecks.js";
 import { ONTOLOGY_VALUES_PRESENT_POLICY_CODE, VALIDATE_SCHEMA_POLICY_CODE } from "../src/dblayer/constants.js";
-import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID, schemaDefinitionIdOfAnotherKind } from "./testFixtures.js";
 
 const createdIds: string[] = [];
 const createdConceptCodes: string[] = [];
@@ -207,9 +207,9 @@ test("AUTHORITY: Validate is refused to an actor without deliverabledefinition_v
   assert.equal(row?.status, "Draft");
 });
 
-test("POLICY: a Deliverable Definition with no pinned schema cannot be Validated (policy-validate-schema)", async () => {
+test("POLICY: a Deliverable Definition pinned to another kind's schema cannot be Validated (policy-validate-schema)", async () => {
   const draft = await freshDefinitionDraft();
-  await query("UPDATE deliverable_definitions SET schema_definition_id = NULL WHERE id = $1", [draft.id]);
+  await query("UPDATE deliverable_definitions SET schema_definition_id = $2 WHERE id = $1", [draft.id, await schemaDefinitionIdOfAnotherKind("Deliverable")]);
   assert.deepEqual(outcome(await hop(draft.id, "Validated")), { ok: false, reason: "policy_blocked" });
   const { data: row } = await deliverableDefinitionsDB.findById(draft.id);
   assert.equal(row?.status, "Draft");

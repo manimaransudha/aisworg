@@ -16,7 +16,7 @@ ALTER TABLE capability_definitions
   ADD COLUMN IF NOT EXISTS status TEXT NOT NULL,
   ADD COLUMN IF NOT EXISTS draft_content JSONB,
   ADD COLUMN IF NOT EXISTS parent_capability_definition_id UUID REFERENCES capability_definitions(id),
-  ADD COLUMN IF NOT EXISTS schema_definition_id UUID REFERENCES schema_definitions(id);
+  ADD COLUMN IF NOT EXISTS schema_definition_id UUID NOT NULL REFERENCES schema_definitions(id);
 -- ALTER TABLE capability_definitions DROP COLUMN IF EXISTS authored_by;
 -- ALTER TABLE capability_definitions DROP COLUMN IF EXISTS author_badge;
 ALTER TABLE capability_definitions

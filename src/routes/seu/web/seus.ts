@@ -30,10 +30,12 @@ import { validateEbm, validateSeu, initiateSeu } from "../core/commissioning.js"
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
-import { CONFLICT_RESULT_COLUMNS, CONFLICT_RESULT_GROUP_BY, CONFLICT_RESULT_LONG_TEXT_COLUMNS, getPlatformTenantId, EBM_ACTIVE_STATE, EBM_VALIDATED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_DECISION_ACTION_CODE, SEU_DETAIL_REFRESH_SECONDS } from "../../../dblayer/constants.js";
+import { QUALITY_GATE_WAIVE_BADGE, CONFLICT_RESULT_COLUMNS, CONFLICT_RESULT_GROUP_BY, CONFLICT_RESULT_LONG_TEXT_COLUMNS, getPlatformTenantId, EBM_ACTIVE_STATE, EBM_VALIDATED_STATE, SEU_VALIDATED_STATE, SUPERSEDE_DECISION_ACTION_CODE, SEU_DETAIL_REFRESH_SECONDS } from "../../../dblayer/constants.js";
 import { resolveResultLinks, type ResultLink } from "./conflictResultLinks.js";
 import { resultCells } from "../../../utils/resultCells.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
+import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
+import { grantQualityGateWaiver } from "../core/qualityGateWaivers.js";
 import { obligationsDB } from "../../../dblayer/obligationsDB.js";
 import { evidenceDB } from "../../../dblayer/evidenceDB.js";
 import { decisionsDB } from "../../../dblayer/decisionsDB.js";
@@ -202,6 +204,7 @@ router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: R
     const knowledgeActions: Record<string, Awaited<ReturnType<typeof nextActionsFor>>> = {};
     for (const k of detail.knowledgeItems) knowledgeActions[k.knowledgeItem.id] = await nextActionsFor("Knowledge", k.knowledgeItem.status, requireActorId(req));
     req.vm.req.knowledgeActions = knowledgeActions;
+    req.vm.req.canWaiveQualityGate = (await resolveHeldBadges(req)).has(QUALITY_GATE_WAIVE_BADGE);
     req.vm.req.activeTab = typeof req.query.tab === "string" ? req.query.tab : undefined;
     // Commented out (owner): the automatic refresh interfered with user interactions.
     // req.vm.opt.refreshSeconds = SEU_DETAIL_REFRESH_SECONDS;
@@ -438,6 +441,37 @@ router.post("/seus/:id/obligations/:obligationId/revise", async (req: Request, r
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/obligations/:obligationId/revise error", err as Error);
     return redirects.seu.seusObligationsRevise.error(req, res, (err as Error).message);
+  }
+});
+
+router.post("/seus/:id/quality-gate-waivers", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const { qualityGateId, entity, rationale, expiresAt } = req.body ?? {};
+  if (typeof qualityGateId !== "string" || !qualityGateId.trim() || typeof entity !== "string" || !entity.includes("|") || typeof rationale !== "string" || !rationale.trim()) {
+    return redirects.seu.seusQualityGateWaivers.error(req, res, "Quality Gate, entity and rationale are required.");
+  }
+  const [entityType, entityId] = entity.split("|");
+  try {
+    // The waiver names a gate the SEU's active EBM settled and an entity of this SEU.
+    const { data: seu } = await seusDB.findById(seuId);
+    const { data: ebm } = seu?.active_ebm_id ? await ebmsDB.findById(seu.active_ebm_id) : { data: null };
+    if (!ebm?.applicable_quality_gate_ids.includes(qualityGateId)) return redirects.seu.seusQualityGateWaivers.error(req, res, "The Quality Gate is not one of the gates of this SEU's EBM.");
+    if (entityType === "Deliverable") {
+      const { data: deliverable } = await deliverablesDB.findById(entityId);
+      if (deliverable?.seu_id !== seuId) return redirects.seu.seusQualityGateWaivers.error(req, res, "The Deliverable is not one of this SEU's Deliverables.");
+    } else if (!(entityType === "SEU" && entityId === seuId)) {
+      return redirects.seu.seusQualityGateWaivers.error(req, res, "The waiver entity is not part of this SEU.");
+    }
+    const result = await grantQualityGateWaiver({
+      qualityGateId, seuId, entityType, entityId, rationale: rationale.trim(),
+      actorId: requireActorId(req),
+      expiresAt: typeof expiresAt === "string" && expiresAt.trim() ? expiresAt : null,
+    });
+    if (!result.ok) return redirects.seu.seusQualityGateWaivers.error(req, res, `Waiver not granted: ${result.reason}`);
+    return redirects.seu.seusQualityGateWaivers.success(req, res, "Quality Gate waiver granted.");
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus/:id/quality-gate-waivers error", err as Error);
+    return redirects.seu.seusQualityGateWaivers.error(req, res, (err as Error).message);
   }
 });
 

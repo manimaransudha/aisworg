@@ -29,7 +29,7 @@ import { evaluateImplementedPolicy } from "../src/policies/index.js";
 import { generateFields, type JsonSchemaDocument } from "../src/domain/sdk/formGenerator.js";
 import { COMMENT_REQUIRED_POLICY_CODE, MATERIALISE_PROFILE_POLICY_CODE, ONTOLOGY_VALUES_PRESENT_POLICY_CODE, UNRAVEL_PROFILE_ACTION_CODE, VALIDATE_SCHEMA_POLICY_CODE } from "../src/dblayer/constants.js";
 import { query } from "../src/utils/db.js";
-import { uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, PLATFORM_TENANT_ID, schemaDefinitionIdOfAnotherKind } from "./testFixtures.js";
 
 // A Profile needs a real, Active base Template. The raw templatesDB.upsert is the low-level fixture every other test uses for this.
 async function freshBaseTemplateCode(): Promise<string> {
@@ -255,9 +255,9 @@ test("AUTHORITY: Reject is refused to an actor without profile_reject", async ()
   assert.deepEqual(row?.comments, []);
 });
 
-test("POLICY: a Profile with no pinned schema cannot be Validated (policy-validate-schema)", async () => {
+test("POLICY: a Profile pinned to another kind's schema cannot be Validated (policy-validate-schema)", async () => {
   const draft = await freshProfileDraft();
-  await query("UPDATE profiles SET schema_definition_id = NULL WHERE id = $1", [draft.id]);
+  await query("UPDATE profiles SET schema_definition_id = $2 WHERE id = $1", [draft.id, await schemaDefinitionIdOfAnotherKind("Profile")]);
   assert.deepEqual(outcome(await hop(draft.id, "Validated")), { ok: false, reason: "policy_blocked" });
 });
 
@@ -366,7 +366,7 @@ test("COMMENTS: comments are added, never replaced, and the same text may be giv
 test("COMMENTS: a comment given with a refused transition is not stored (the gate runs first)", async () => {
   const draft = await freshProfileDraft();
   await hop(draft.id, "Validated");
-  await query("UPDATE profiles SET schema_definition_id = NULL WHERE id = $1", [draft.id]);
+  await query("UPDATE profiles SET schema_definition_id = $2 WHERE id = $1", [draft.id, await schemaDefinitionIdOfAnotherKind("Profile")]);
   assert.deepEqual(outcome(await hop(draft.id, "Published", { comment: "should not be kept" })), { ok: false, reason: "policy_blocked" });
   const { data: row } = await profilesDB.findById(draft.id);
   assert.deepEqual(row?.comments, []);

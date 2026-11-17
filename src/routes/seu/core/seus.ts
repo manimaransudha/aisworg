@@ -32,6 +32,11 @@ import type { PoolEntry } from "../../../domain/engine/profileCompositionUnravel
 import { getSeuEvents } from "./events.js";
 import { listObligationsBySeu } from "./obligations.js";
 import { listAttentionItemsBySeu } from "./attentionItems.js";
+import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
+import { qualityGateEvaluationsDB } from "../../../dblayer/qualityGateEvaluationsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { qualityGateWaiversDB } from "../../../dblayer/qualityGateWaiversDB.js";
+import { qualityGateDefinitionsDB } from "../../../dblayer/qualityGateDefinitionsDB.js";
 import { listEvidenceBySeu, listEvidenceRelationships, listEvidenceLinkedToSeu } from "./evidence.js";
 import { listKnowledgeItemsWithNextScopes } from "./knowledge.js";
 import { listDecisionsBySeu } from "./decisions.js";
@@ -195,6 +200,10 @@ export interface SeuDetailDeliverable {
   dependencyEdges: SeuDetailDependencyEdge[];
   // What stops a next transition of the Deliverable today. Read only: nothing is evaluated through an engine that publishes.
   blockedBy: Array<{ kind: "Policy" | "Standard" | "Obligation"; label: string; toState: string }>;
+  // The Quality Gates evaluated for the Deliverable, each with the outcome of its latest recorded evaluation. The evaluation names no step.
+  qualityGates: Array<{ name: string; outcome: string }>;
+  // The open Attention Items related to the Deliverable or to its SEU. The execution engine records them on the governance outcome and does not refuse a hop for them.
+  attentionItems: Array<{ title: string; category: string; priority: string; status: string; relatedTo: "Deliverable" | "SEU" }>;
   // The Participants on the work items of the Deliverable's Commands.
   participants: string[];
 }
@@ -253,6 +262,13 @@ export interface SeuDetailExternalInteraction {
   possibleNextStates: string[];
 }
 
+// The Quality Gate tab: the gates the EBM settled, the latest recorded outcome of each, the waivers of the SEU and the entities a waiver can name.
+export interface SeuDetailQualityGates {
+  gates: Array<{ id: string; code: string; name: string; category: string; criteriaType: string; steps: string[]; latestOutcome: string | null; latestEntity: string | null; latestAt: string | null }>;
+  waivers: Array<{ gateName: string; entity: string; grantedBy: string; rationale: string; status: string; authorityBadge: string; expiresAt: string | null; createdAt: string }>;
+  waivableEntities: Array<{ value: string; label: string }>;
+}
+
 export interface SeuDetailView {
   seu: SeuRow;
   blockedTransition: { obligationTitle: string; toState: string } | null;
@@ -272,6 +288,7 @@ export interface SeuDetailView {
   deliverables: SeuDetailDeliverable[];
   // The dependency graph of the SEU's Deliverable Catalogue, drawn as the Template and Profile pages draw it, or null when there is none.
   dependencyGraph: DependencyGraphLayout | null;
+  qualityGates: SeuDetailQualityGates;
   commands: SeuDetailCommand[];
   obligations: SeuDetailObligation[];
   attentionItems: SeuDetailAttentionItem[];
@@ -367,6 +384,8 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         possibleNextStates: nextStates ?? [],
         dependencyEdges: enrichedEdges,
         blockedBy: [],
+        qualityGates: [],
+        attentionItems: [],
         participants: [],
       };
     })
@@ -427,6 +446,11 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
 
   // The Policies of the EBM that govern a next transition of a Deliverable, read as the policy engine reads them and tested with the context the execution engine gives them.
   const { data: ebmPolicies } = await policyDefinitionsDB.findByIds(ebm?.applicable_policy_ids ?? []);
+  const { data: seuOpenAttentionItems } = await attentionItemsDB.findOpenByRelatedObjectAny("SEU", seuId);
+  // The latest recorded evaluation of each Quality Gate for a Deliverable, read from the recorded evaluations (newest first). Nothing is evaluated here.
+  const { data: gateEvaluations } = await qualityGateEvaluationsDB.findBySeuId(seuId);
+  const { data: gateDefinitions } = await qualityGateDefinitionsDB.findByIds([...new Set((gateEvaluations ?? []).map((e) => e.quality_gate_id))]);
+  const gateNameById = new Map((gateDefinitions ?? []).map((g) => [g.id, g.name]));
   for (const view of deliverableViews) {
     const deliverable = (deliverables ?? []).find((row) => row.id === view.id)!;
     const producingCapabilityStatus = deliverable.producing_capability_id ? (await seuCapabilitiesDB.findBySeuIdAndCapabilityId(seuId, deliverable.producing_capability_id)).data?.status ?? null : null;
@@ -443,10 +467,58 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         view.blockedBy.push({ kind: "Obligation", label: v.obligation.title, toState: v.obligation.blocked_to_state });
       }
     }
+    const latestOutcomeByGate = new Map<string, string>();
+    for (const e of (gateEvaluations ?? []).filter((row) => row.entity_type === "Deliverable" && row.entity_id === view.id)) {
+      if (!latestOutcomeByGate.has(e.quality_gate_id)) latestOutcomeByGate.set(e.quality_gate_id, e.outcome);
+    }
+    view.qualityGates = [...latestOutcomeByGate].map(([gateId, outcome]) => ({ name: gateNameById.get(gateId) ?? gateId, outcome }));
+    const { data: deliverableOpenAttentionItems } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", view.id);
+    view.attentionItems = [
+      ...(deliverableOpenAttentionItems ?? []).map((a) => ({ title: a.title, category: a.category, priority: a.priority, status: a.status, relatedTo: "Deliverable" as const })),
+      ...(seuOpenAttentionItems ?? []).map((a) => ({ title: a.title, category: a.category, priority: a.priority, status: a.status, relatedTo: "SEU" as const })),
+    ];
     const commandIds = new Set((commands ?? []).filter((c) => c.entity_type === "Deliverable" && c.entity_id === view.id).map((c) => c.id));
     const labels = (workItems ?? []).filter((w) => commandIds.has(w.command_id) && w.participant_id).map((w) => participantLabelById.get(w.participant_id!) ?? "(unknown Participant)");
     view.participants = [...new Set(labels)];
   }
+
+  // The Quality Gate tab. The gates are the ones the active EBM names, with the steps its settled result gives them. Nothing is evaluated here.
+  const settledForGates = ebm ? settledOf(ebm.behaviors) : null;
+  const { data: ebmGateDefinitions } = await qualityGateDefinitionsDB.findByIds(ebm?.applicable_quality_gate_ids ?? []);
+  const { data: waiverRows } = await qualityGateWaiversDB.findBySeuId(seuId);
+  const { data: waivedGateDefinitions } = await qualityGateDefinitionsDB.findByIds([...new Set((waiverRows ?? []).map((w) => w.quality_gate_id))]);
+  const waivedGateNameById = new Map((waivedGateDefinitions ?? []).map((g) => [g.id, g.name]));
+  const grantorNameById = new Map<string, string>();
+  for (const id of new Set((waiverRows ?? []).map((w) => w.granted_by))) {
+    const { data: grantor } = await participantsMasterDB.findById(id);
+    grantorNameById.set(id, grantor?.display_name ?? id);
+  }
+  const entityLabel = (entityType: string, entityId: string): string =>
+    entityType === "Deliverable" ? `Deliverable ${deliverableNameById.get(entityId) ?? entityId}` : entityType === "SEU" ? "SEU" : `${entityType} ${entityId}`;
+  const qualityGates: SeuDetailQualityGates = {
+    gates: (ebmGateDefinitions ?? []).map((definition) => {
+      const steps = (settledForGates?.qualityGates?.result ?? [])
+        .filter((row) => row.gates.some((g) => String(g.code) === definition.code))
+        .map((row) => (row.deliverable ? `${row.deliverable}: ${row.step}` : row.step));
+      const latest = (gateEvaluations ?? []).find((e) => e.quality_gate_id === definition.id);
+      return {
+        id: definition.id, code: definition.code, name: definition.name, category: definition.category, criteriaType: definition.criteria_type, steps,
+        latestOutcome: latest?.outcome ?? null,
+        latestEntity: latest ? entityLabel(latest.entity_type, latest.entity_id) : null,
+        latestAt: latest?.evaluated_at ?? null,
+      };
+    }),
+    waivers: (waiverRows ?? []).map((w) => ({
+      gateName: waivedGateNameById.get(w.quality_gate_id) ?? w.quality_gate_id,
+      entity: entityLabel(w.entity_type, w.entity_id),
+      grantedBy: grantorNameById.get(w.granted_by) ?? w.granted_by,
+      rationale: w.rationale, status: w.status, authorityBadge: w.authority_badge, expiresAt: w.expires_at, createdAt: w.created_at,
+    })),
+    waivableEntities: [
+      { value: `SEU|${seuId}`, label: "SEU" },
+      ...(deliverables ?? []).map((d) => ({ value: `Deliverable|${d.id}`, label: `Deliverable ${d.name}` })),
+    ],
+  };
 
   const blockingObligation = obligationViews.find(
     (v) =>
@@ -513,6 +585,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     requiredDomainPacks,
     deliverables: deliverableViews,
     dependencyGraph,
+    qualityGates,
     commands: commandViews,
     obligations: obligationViews,
     attentionItems: attentionItemViews,

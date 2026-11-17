@@ -127,11 +127,12 @@ async function run(): Promise<void> {
   await seedOntologyConcepts({ authoredBy: actorId, authorBadge: actorBadge });
   await seedRouteAuthority({ authoredBy: actorId, authorBadge: actorBadge});
   await seedEventSubscriptions({ authoredBy: actorId, authorBadge: actorBadge});
-  // Policy Definitions load first: a Transition Definition that requires an attestation stores the UUID of
-  // policy-attestation-required.
+  // Schema Definitions load first, because every Definition row records its schema. That seed empties transition_definitions and loads the SchemaDefinition
+  // birth row it needs. Policy Definitions follow: a Transition Definition that requires an attestation stores the UUID of policy-attestation-required.
+  // Transition Definitions load the remaining rows last.
+  await seedSchemaDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedPolicyDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedTransitionDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
-  await seedSchemaDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedQualityGateDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedCapabilityDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
   await seedDeliverableDefinitions({ authoredBy: actorId, authorBadge: actorBadge });

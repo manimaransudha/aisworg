@@ -3,9 +3,8 @@ import { qualityGateWaiversDB } from "../../../dblayer/qualityGateWaiversDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { QUALITY_GATE_WAIVE_BADGE } from "../../../dblayer/constants.js";
 import type { QualityGateWaiverRow } from "../../../dblayer/seuTypes.js";
-
-const QUALITY_GATE_WAIVE_BADGE = "qualitygate_waive";
 
 export type GrantQualityGateWaiverResult = { ok: true; waiver: QualityGateWaiverRow } | { ok: false; reason: string };
 

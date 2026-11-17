@@ -15,7 +15,7 @@ CREATE TABLE quality_gate_definitions (
   author_badge                      TEXT NOT NULL,
   tenant_id                         UUID NOT NULL REFERENCES tenants(id),
   parent_quality_gate_definition_id UUID REFERENCES quality_gate_definitions(id),
-  schema_definition_id              UUID REFERENCES schema_definitions(id),
+  schema_definition_id              UUID NOT NULL REFERENCES schema_definitions(id),
   created_at                        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT quality_gate_definitions_code_version_tenant_key UNIQUE (code, version, tenant_id)
 );

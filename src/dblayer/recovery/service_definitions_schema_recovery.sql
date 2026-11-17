@@ -42,6 +42,6 @@ ALTER TABLE service_definitions ALTER COLUMN outputs DROP DEFAULT;
 ALTER TABLE service_definitions ALTER COLUMN outputs TYPE TEXT[] USING '{}'::text[];
 ALTER TABLE service_definitions ALTER COLUMN outputs SET DEFAULT '{}'::text[];
 ALTER TABLE service_definitions ALTER COLUMN outputs SET NOT NULL;
-ALTER TABLE service_definitions ADD COLUMN IF NOT EXISTS schema_definition_id UUID REFERENCES schema_definitions(id);
+ALTER TABLE service_definitions ADD COLUMN IF NOT EXISTS schema_definition_id UUID NOT NULL REFERENCES schema_definitions(id);
 GRANT ALL PRIVILEGES ON TABLE service_definitions TO weirdo;
 COMMIT;

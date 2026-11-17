@@ -37,12 +37,12 @@ export async function resolveRootActor(userId: string): Promise<SeedActor> {
 
 export async function runDataMigrations(actor: SeedActor, userId: string, codes?: string[]): Promise<{ code: string; ok: boolean; error?: string }[]> {
   const steps: Array<[string, () => Promise<void>]> = [
-    // Policy Definitions run first: a Transition Definition that requires an attestation stores the UUID of the
-    // Policy Definition policy-attestation-required.
+    // Schema Definitions run first: every Definition row records its schema, and this step empties transition_definitions and loads the SchemaDefinition birth row.
+    // Policy Definitions follow, because a Transition Definition that requires an attestation stores the UUID of the Policy Definition policy-attestation-required.
+    ["schema-definitions", () => seedSchemaDefinitions(actor)],
     ["policy-definitions", () => seedPolicyDefinitions(actor)],
     ["transition-definitions", () => seedTransitionDefinitions(actor)],
     ["event-subscriptions", () => seedEventSubscriptions(actor)],
-    ["schema-definitions", () => seedSchemaDefinitions(actor)],
     ["capability-definitions", () => seedCapabilityDefinitions(actor)],
     ["service-definitions", () => seedServiceDefinitions(actor)],
     ["route-authority", () => seedRouteAuthority(actor)],

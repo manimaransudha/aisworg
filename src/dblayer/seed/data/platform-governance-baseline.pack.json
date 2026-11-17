@@ -4,15 +4,21 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Mandatory",
-  "description": "Mandatory baseline governance. A Deliverable moves from Defined to In Progress only after the Capability that produces it is fulfilled.",
+  "description": "Mandatory baseline quality gate governance.",
   "contributions": {
-    "policies": [
-      "policy-capability-fulfilled-before-start",
-      "policy-ontology-values-present",
-      "policy-validate-schema",
-      "policy-comment-required",
-      "policy-materialise-template",
-      "policy-materialise-profile"
+    "qualityGates": [
+      {
+        "qualityCode": "no-unresolved-obligations",
+        "governedTransition": "Deliverable|Defined|In Progress"
+      },
+      {
+        "qualityCode": "no-unresolved-obligations",
+        "governedTransition": "Deliverable|In Progress|Approved"
+      },
+      {
+        "qualityCode": "accepted-evidence-or-approved-decision",
+        "governedTransition": "Deliverable|Approved|Baselined"
+      }
     ]
   }
 }

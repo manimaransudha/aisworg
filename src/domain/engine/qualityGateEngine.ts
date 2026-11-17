@@ -1,4 +1,3 @@
-import { qualityGatesDB } from "../../dblayer/qualityGatesDB.js";
 import { qualityGateEvaluationsDB } from "../../dblayer/qualityGateEvaluationsDB.js";
 import { qualityGateWaiversDB } from "../../dblayer/qualityGateWaiversDB.js";
 import { seusDB } from "../../dblayer/seusDB.js";
@@ -152,12 +151,15 @@ export const qualityGateEngine = {
     input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown>; authorId: string; authorBadge: string; tenantId: string }
   ): Promise<QualityGateGateResult[]> {
     if (gateIds.length === 0) return [];
-    const { data: rows } = await qualityGatesDB.findByIds(gateIds);
-    // A gate a Transition Definition names is a row. It is evaluated and recorded under the Quality Gate Definition it was written from.
-    const gates: EvaluatedQualityGate[] = (rows ?? []).map((row) => {
-      if (!row.quality_gate_definition_id) throw new Error(`Quality Gate "${row.code}" (${row.id}) was not written from a Quality Gate Definition, so its evaluation cannot be recorded`);
-      return { id: row.quality_gate_definition_id, code: row.code, name: row.name, category: row.category, criteria: row.criteria, originating_pack_id: row.originating_pack_id };
-    });
+    // A gate a Transition Definition names is a Quality Gate Definition. It names no Pack listing, so the criteria are the Definition's own.
+    const { data: definitions, error } = await qualityGateDefinitionsDB.findByIds(gateIds);
+    if (error) throw error;
+    const missing = gateIds.filter((id) => !(definitions ?? []).some((d) => d.id === id));
+    if (missing.length > 0) throw new Error(`the Transition Definition names no Quality Gate Definition for id(s) ${missing.join(", ")}`);
+    const gates: EvaluatedQualityGate[] = (definitions ?? []).map((definition) => ({
+      id: definition.id, code: definition.code, name: definition.name, category: definition.category, originating_pack_id: null,
+      criteria: criteriaOf(definition, {}, "", [], []),
+    }));
     return evaluateAll(gates, input);
   },
 

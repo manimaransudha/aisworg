@@ -1305,6 +1305,15 @@
   },
   {
     "method": "POST",
+    "path": "/aisworg/seu/seus/:id/quality-gate-waivers",
+    "badges": [
+      "qualitygate_waive"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
     "path": "/aisworg/seu/seus/:id/attention-items",
     "badges": [],
     "roles": [

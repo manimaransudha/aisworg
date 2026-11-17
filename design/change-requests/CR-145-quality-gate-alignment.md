@@ -79,6 +79,7 @@ The traceability file of 2026-10-23 is older than CR-121, CR-122, CR-139 and the
 | E5 | `grantQualityGateWaiver` does not check that the gate applies to the entity, that the entity exists in the SEU, that the SEU matches, that `expiresAt` lies in the future, or that an active waiver already exists. | core/qualityGateWaivers.ts:12-55 |
 | E6 | `QualityGateWaiverGranted` is published without `tenantId`, where the engine's events carry it. | core/qualityGateWaivers.ts:43-52; qualityGateEngine.ts:183 |
 | E7 | A waiver is looked up only after the criteria fail. It never changes the criteria, so a waiver does not "modify evaluation for a defined context" beyond turning a Blocked into a Waived. Expiry reads `NOW()`, so identical state evaluates differently over time (QG-006). | qualityGateEngine.ts:159-168; qualityGateWaiversDB.ts:35 |
+| E8 | The path from a waiver to the stored result: `blockOrWaive` calls `qualityGateWaiversDB.findActive(gate.id, entityType, entityId)` after a criterion fails. A waiver gives `recordAndWaive`, which stores an evaluation with outcome Waived and `detail { reason, waiverId }` and publishes `QualityGateWaived`. `composeQualityGateOutcome` returns Waived when no gate is Blocked and one is Waived. The execution engine then writes a governance outcome Waived with `quality_gate_id` of the first waived gate (read 2026-11-17). | qualityGateEngine.ts:203-212, 254-272; qualityGateOutcomeComposition.ts:21-27; executionEngine.ts:211-236 |
 
 ### F. Events (Ch.26 §15)
 
@@ -108,6 +109,21 @@ The traceability file of 2026-10-23 is older than CR-121, CR-122, CR-139 and the
 |---|---|---|
 | H1 | Seed data holds 5 gates in 3 Packs: 3 `no_unresolved_obligations` and 2 `requires_accepted_evidence_or_approved_decision`. No seeded gate uses the Policy or Review criteria. | the pack JSON files under src/dblayer/seed/data |
 | H2 | Tests exist for: the engine and waivers (quality-gate-engine.test.ts), seven entity types wired through the governed path (quality-gate-generalization.test.ts), conflicts (cr139-quality-gate-conflicts.test.ts), telemetry events and sustained blocking, and the waiver badge refusal. None covers a Waived gate followed by a Blocked gate (A5), a Standard Policy (A3), or the API. | tests/ |
+
+### I. Review of the criterion `no_unresolved_obligations` (read 2026-11-17)
+
+Read: src/qualitygates/noUnresolvedObligations.ts, Chapter 26 §8, §9 and §10, the seeded Obligation transitions, and every use of `RESOLVED_OBLIGATION_STATUSES`. Searches: `grep -rn "RESOLVED_OBLIGATION_STATUSES" src`, and `grep -rln "no_unresolved_obligations\|noUnresolvedObligations" tests src`.
+
+| # | Finding | Evidence |
+|---|---|---|
+| I1 | The read error of `obligationsDB.findByRelatedObject` was dropped, so a failed read gave an empty list and the gate was satisfied. **Fixed 2026-11-17:** the function throws the error. Not run. | noUnresolvedObligations.ts; obligationsDB.ts:70-80 |
+| I2 | Every unresolved Obligation of the entity fails the gate, whichever hop it was raised for. The criterion does not read `blocked_from_state` or `blocked_to_state`, which the execution engine's own block check reads. | noUnresolvedObligations.ts; executionEngine.ts:77, 83 |
+| I3 | Only Obligations related to the evaluated entity are read. The execution engine also consults the SEU's Obligations. Whether the gate is to include them is not stated in §9. | noUnresolvedObligations.ts; executionEngine.ts:196-203 |
+| I4 | Resolved means Verified, Closed or Archived. Resolved, Escalated and Reopened count as unresolved. This matches the other uses of `RESOLVED_OBLIGATION_STATUSES`. | constants.ts:191; the seeded Obligation transitions |
+| I5 | A Blocked evaluation stores `{ unresolvedObligationIds }`. A Waived evaluation stores only `{ reason, waiverId }`, so it loses the Obligation ids. §10 requires an evaluation to preserve the active Obligations. | qualityGateEngine.ts: `blockOrWaive`, `recordAndWaive` |
+| I6 | A Passed evaluation stores no Obligation list. This is consistent, since a pass means there is none. | qualityGateEngine.ts: `recordAndPass` |
+| I7 | The criterion takes only `{ type }`. §8 lists "Required Obligations" in a gate's structure, and nothing selects a category or priority of Obligation. | criteriaOf, qualityGateEngine.ts:80-104 |
+| I8 | Tests cover a block by an unresolved Obligation and the unblock once it is resolved, for AttentionItem and Obligation. No test covers an SEU-level Obligation, an Obligation of another hop, or the read error. | tests/quality-gate-generalization.test.ts:90-185 |
 
 ## Settled design
 
@@ -301,7 +317,13 @@ Authority rules:
 
 Effect on the findings: D2 is built for quality gates and Policies. A Policy on a step that is not a Deliverable step is dropped by the catalogue filter, so `seu_scoped_policy_ids` is empty for the seeded Policies. `policyEngine` and `attemptSeuCommenceWork` (commissioning.ts:320) are unchanged.
 
-Verification: `tsc` ran with no errors. The tests, `db:clean-slate` and SQL were not run for these changes. The schema changed (two columns, three foreign keys) and the test Ontology gained six Pack codes, so `db:clean-slate` has to run before the tests.
+SEU hop of a Transition Policy (built 2026-11-17, owner: "Policy Definition through the Pack"):
+
+| File | Change |
+|---|---|
+| src/domain/engine/conflicts/unravelPolicies.ts | A Transition rule whose step starts with `SEU\|` is kept once, with no Deliverable, and no longer needs a catalogue entry. `compositionCompleted` already sorts these rules into `seu_scoped_policy_ids`, so the SEU Policy path (item 24) is reachable through a Pack. |
+
+Verification (2026-11-17): the owner ran `db:clean-slate` and the full test suite after decisions 22 and 23, the SEU hop change and the test migrations, and all tests pass. Earlier lines that say the tests were not run record the state of the build at that time. The schema changed (two columns, three foreign keys) and the test Ontology gained six Pack codes, so `db:clean-slate` has to run before the tests.
 
 ## Test fixtures updated in the same pass
 
@@ -358,6 +380,17 @@ Verification: `tsc` ran with no errors. The tests, `db:clean-slate` and SQL were
   - tests/cr139-authority-rule-conflicts.test.ts, "unravelAuthorityRules: a Pack's roles for a step are one row...": the platform's row is no longer read, so the test expects no row with `packId` null. The read of `authority_rules` is kept as comments (item 29).
   - Not run. A search of tests/telemetry.test.ts, tests/telemetry-per-seu.test.ts and tests/web-flow.e2e.test.ts for gate ids found no use of a gate row id.
 
+- Policies and the last gate tests (2026-11-17):
+  - tests/testFixtures.ts: `ensurePolicyDefinition` creates an Active Policy Definition from rows (Deliverable name, hops, governing condition) and an Obligation title. A Pack lists its code in `policies`.
+  - tests/policy-engine.test.ts (10 tests) and the "Standard that fails" test of tests/execution-engine.test.ts read the fixture Policy and Standard from the Policy Definitions the EBM lists (`policyDefinitionsDB.findByIds`, `policyChecksFromDefinitions`), and compare the Definition id.
+  - tests/cr104-composition-scoped-governance.test.ts (2 tests) and tests/cr109-work-item-generator.test.ts: the Pack lists the Policy Definition and the Capability that produces the Deliverable the rows name (`test-strategy-and-design`, `requirements-analysis`), because the Pack validation requires it. The Templates carry a catalogue entry. `commissionIsolatedSeu` takes `policyCodes` in place of `beforeCommission`.
+  - tests/cr104-mandatory-seu-eligibility-policies.test.ts, tests/cr107-execution-engine-deliverable-kickoff.test.ts, tests/cr108-obligation-model-seu-execution.test.ts: the SEU-hop Policy is a Definition (scope Transition, step `SEU\|Activated\|Operational`) that the Pack lists. Resolving the block updates `policy_definitions.conditions` by SQL, since the engine reads the Definition.
+  - The Policy Definition schema requires a canonical Deliverable name on every row, so the rows name `test-strategy` or `requirements-analysis-model`.
+  - tests/quality-gate-generalization.test.ts: `createSeuDeliverable` creates the Deliverable that four tests used from an empty catalogue.
+  - tests/review-model.test.ts: the Review Gate and the Deliverable use the canonical name `Test Report / Results`.
+  - tests/quality-gate-engine.test.ts: the test of an unknown criteria type expects the refusal on storing the gate.
+  - tests/composition-completed.test.ts: the test of an unreadable stashed composition is deleted, since the handler no longer reads the composed Packs.
+  - Verified 2026-11-17: `db:clean-slate` and the full test suite were run by the owner and all tests pass.
 - tests/pack-sdk.test.ts ("publishPack without activate: true ..."): a Published Pack has no Capability rows, and activating it writes them.
 - tests/schemaFixtures.ts: the comment on `createDraft` names the new timing. `authorActive` already walks a Pack to Active.
 - Read on 2026-11-16, no change needed:
@@ -427,9 +460,14 @@ Open points: (a) the embedded gate references things that belong to the Pack tod
 22. Open: only a Deliverable hop stores a decision. For the entities of `transitionEntity` and for `evaluateGoverned` the decision allows or refuses the hop and is discarded, and only the per-gate evaluation rows and events remain.
 23. Open: the Ontology concepts are seeded in `ontologyConcepts.json`. Whether the test Ontology seed (`seedTestOntology.ts`) needs them was not checked. The governance outcome row (`governance_evaluation_outcomes`) still holds a separate `quality_gate_outcome` word and one gate id, which now duplicate the decision stored in `quality_gate_outcomes`.
 
-24. Open: the SEU Policy path. `seu_scoped_policy_ids`, the `SEU` branch of `policyEngine.evaluate` and the Policy check in `attemptSeuCommenceWork` (commissioning.ts:320) still exist, and no seeded Policy reaches them. Whether they are removed is not decided.
+24. Built path (2026-11-17): a Transition Policy with an `SEU|` step reaches `seu_scoped_policy_ids` through a Pack (see the SEU hop table). Open: the seeded demo Policy is Eligibility, so no seeded Policy uses the path. Whether `attemptSeuCommenceWork` (commissioning.ts:320) stays is not decided.
 25. Open: the demo pack `cr104-demo-seu-eligibility-policies` lists `cr104-demo-seu-commence-work`, which is now an Eligibility Policy. `matchesRequiredPolicies` (participantEligibility.ts:23-26) rejects a Participant with no `behaviour_context` entry for each Eligibility Policy code, so an SEU on the `cr104-demo-development` Profile finds no eligible Participant for any Capability. The `description` of the pack, of the Profile and of the Policy still says the Activated -> Operational hop is blocked. What the demo is to show is not decided.
-26. Open: `transition_definitions.required_quality_gate_ids` and `required_policy_ids` still hold ids of `quality_gates` and `policies` rows (or Policy Definition ids, which `loadPolicyChecks` accepts). A required gate is evaluated under its row's `quality_gate_definition_id`, and a row written without a Definition cannot be evaluated.
+26. (Built 2026-11-17, not run.) `transition_definitions.required_quality_gate_ids` holds Quality Gate Definition ids. `qualityGateEngine.evaluateByIds` reads `quality_gate_definitions` and throws when an id names no Definition. It builds the criteria with `criteriaOf` from the Definition alone, because a pinned id has no Pack listing. `requires_active_policy` and `requires_accepted_review` therefore block with "no policyIds configured" and "no reviewGateId configured". `findDetailById` reads the gate codes from `quality_gate_definitions`. No seed row pins a gate, and the seed discards gate ids for SDK-authored entity types, which pin none. `required_policy_ids` already holds Policy Definition ids from the seed. Open: `loadPolicyChecks` still reads `policies` before the Definitions (item 28), and the way a pinned gate of those two criteria types is given its input is not decided. No test passes `requiredQualityGateIds`. The tests that call `evaluateByIds` now pass Definition ids (tests/quality-gate-engine.test.ts, tests/governance-ebm-sharpening.test.ts). Two cases that needed a Policy id or a Review Gate id on a gate were removed (the Policy pass and block case, and the Review Gate id case), so no test covers `requires_active_policy` passing or blocking on a Policy condition. The owner accepted this on 2026-11-17.
 27. Open: these columns still hold the id of a materialised row, or of a table with no Definition: `governance_evaluation_outcomes.applicable_authority_rule_id` and `transition_definitions.required_authority_rule_id` (`authority_rules`), `reviews.review_gate_id` (`review_gates`), the Checklist ids on `quality_gates` and `review_gates` (`checklists`), and `template_capabilities.capability_id` (`capabilities`). Authority rules, review gates, Checklists and engineering capital have no Definition table.
-28. Open: the Policy tests that create a `policies` row directly (decision 23 list) are not migrated, and no test covers the Obligation read through the settled Definition id.
+28. (Built 2026-11-17, see "Test fixtures".) The Policy tests read the Definitions. Open: no test covers the Obligation read through the settled Definition id beyond the SEU-hop tests, and the `loadPolicyChecks` test still creates a `policies` row.
 29. Open: CR-139 decision 6 and the table example compare a Pack's role with the platform's role for the step. With the read commented out, `unravelAuthorityRules` gives no platform role, so that conflict does not arise from composition. `detectAuthorityRuleConflictsFrom` still handles a row with `packId: null`, and tests/cr139-authority-rule-conflicts.test.ts builds such a row directly. Where the platform's role for a step is to come from is not decided.
+30. (Built 2026-11-17, not run.) I1: `noUnresolvedObligations` throws the read error of `obligationsDB.findByRelatedObject`.
+31. Open: I2 and I3. Whether the criterion reads only the Obligations that block the hop, and whether it includes the SEU's Obligations.
+32. Open: I5. A Waived evaluation does not keep the unresolved Obligation ids.
+33. Open: I7 and I8. A criterion option to select Obligations, and the missing tests.
+34. (Built 2026-11-17, not run.) A Quality Gate waiver has a user interface. The SEU detail page has a Quality Gates tab (`src/views/seu/seus/detail.ejs`, key `qualityGates`) with the EBM's gates (category, criteria type, settled steps, latest recorded outcome), the SEU's rows of `quality_gate_waivers` (gate, entity, rationale, status, granted by, badge, expiry, time) and a "Grant waiver" button, shown to a holder of `qualitygate_waive`, that opens a modal (gate, entity, rationale, optional expiry). The entity is the SEU or one of its Deliverables. `POST /seus/:id/quality-gate-waivers` (`src/routes/seu/web/seus.ts`) checks that the gate is one of the EBM's gates and the entity belongs to the SEU, then calls `grantQualityGateWaiver`. Added: the `route_authority` row (badge `qualitygate_waive`, no role), the `seusQualityGateWaivers` redirect, `SeuDetailQualityGates` in `src/routes/seu/core/seus.ts`, and `QUALITY_GATE_WAIVE_BADGE` in `src/dblayer/constants.ts` (replacing the literal in the core file). Open: the API routes `POST` and `GET /seus/:id/quality-gate-waivers` are still `notImplemented`; there is no revoke or expire action (status stays Active). Nothing was run except `tsc`. Search: `waiver` and `gate.?waiver` across `src/` (routes, views, dblayer, domain).

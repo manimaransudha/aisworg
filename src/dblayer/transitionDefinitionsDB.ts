@@ -71,7 +71,19 @@ export const transitionDefinitionsDB = {
     }
   },
 
-  async replaceAll(inputs: Array<{
+  async deleteAll(): Promise<DbResult<number>> {
+    try {
+      const { rowCount } = await query("DELETE FROM transition_definitions");
+      await reloadIfLoaded();
+      return { data: rowCount ?? 0 };
+    } catch (err) {
+      logger.error("[transitionDefinitionsDB] deleteAll error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Inserts the rows in one batch. It deletes nothing: the seed that owns the table calls deleteAll once, before its first insert.
+  async insertAll(inputs: Array<{
     entityType: string;
     fromState: string;
     toState: string;
@@ -94,7 +106,6 @@ export const transitionDefinitionsDB = {
     authorBadge: string;
   }>): Promise<DbResult<number>> {
     try {
-      await query("DELETE FROM transition_definitions");
       const { rows } = await bulkInsert(
         "transition_definitions",
         [
@@ -109,7 +120,7 @@ export const transitionDefinitionsDB = {
       await reloadIfLoaded();
       return { data: rows.length };
     } catch (err) {
-      logger.error("[transitionDefinitionsDB] replaceAll error", err as Error);
+      logger.error("[transitionDefinitionsDB] insertAll error", err as Error);
       return { error: err as Error };
     }
   },
@@ -263,7 +274,7 @@ export const transitionDefinitionsDB = {
                 td.creates_obligation, td.category,
                 ar.code AS authority_rule_code,
                 COALESCE((SELECT array_agg(p.code ORDER BY p.code) FROM policy_definitions p WHERE p.id = ANY(td.required_policy_ids)), '{}') AS policy_codes,
-                COALESCE((SELECT array_agg(q.code ORDER BY q.code) FROM quality_gates q WHERE q.id = ANY(td.required_quality_gate_ids)), '{}') AS quality_gate_codes
+                COALESCE((SELECT array_agg(q.code ORDER BY q.code) FROM quality_gate_definitions q WHERE q.id = ANY(td.required_quality_gate_ids)), '{}') AS quality_gate_codes
          FROM transition_definitions td
          LEFT JOIN authority_rules ar ON ar.id = td.required_authority_rule_id
          WHERE td.id = $1`,

@@ -26,7 +26,7 @@ import { evaluateImplementedPolicy } from "../src/policies/index.js";
 import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
 import { ONTOLOGY_VALUES_PRESENT_POLICY_CODE, VALIDATE_SCHEMA_POLICY_CODE } from "../src/dblayer/constants.js";
 import { query } from "../src/utils/db.js";
-import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID, schemaDefinitionIdOfAnotherKind } from "./testFixtures.js";
 
 // capabilityDefinitionsDB.createDraft is a raw DB-layer insert (no
 // validateCapabilityDefinitionSeed call — the hand-coded uniqueness/parent
@@ -193,9 +193,9 @@ test("AUTHORITY: Validate is refused to an actor without capability_validate", a
   assert.equal(row?.status, "Defined");
 });
 
-test("POLICY: a Capability Definition with no pinned schema cannot be Validated (policy-validate-schema)", async () => {
+test("POLICY: a Capability Definition pinned to another kind's schema cannot be Validated (policy-validate-schema)", async () => {
   const draft = await freshCapabilityDefinitionDraft();
-  await query("UPDATE capability_definitions SET schema_definition_id = NULL WHERE id = $1", [draft.id]);
+  await query("UPDATE capability_definitions SET schema_definition_id = $2 WHERE id = $1", [draft.id, await schemaDefinitionIdOfAnotherKind("Capability")]);
   const result = await transitionAndPublish({ entityType: "Capability", entityId: draft.id, targetState: "Validated", actorId: TESTER_ALL_ID });
   assert.deepEqual({ ok: result.ok, reason: result.ok ? null : result.reason }, { ok: false, reason: "policy_blocked" });
   const { data: row } = await capabilityDefinitionsDB.findById(draft.id);

@@ -7,7 +7,7 @@ import { logger } from "../../utils/logger.js";
 import { userDB } from "../userDB.js";
 import { authorityVocabularyDB } from "../authorityVocabularyDB.js";
 import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
-import { ATTESTATION_REQUIRED_POLICY_CODE, getPlatformTenantId } from "../constants.js";
+import { ATTESTATION_REQUIRED_POLICY_CODE, BIRTH_STATE, SCHEMA_DEFINITION_ENTITY_TYPE, getPlatformTenantId } from "../constants.js";
 import { isRegisteredAction } from "../../actions/index.js";
 import { SCHEMA_KINDS } from "../../domain/sdk/schemaCompiler.js";
 import { entityTypeForKind } from "../../routes/seu/core/sdkAuthoring.js";
@@ -77,8 +77,62 @@ function findDuplicates(keys: string[]): string[] {
   return [...dupes];
 }
 
+const isSchemaDefinitionBirth = (s: TransitionDefinitionSeed): boolean => s.entityType === SCHEMA_DEFINITION_ENTITY_TYPE && s.fromState === BIRTH_STATE;
+
+// An SDK-authored entity lives outside an SEU. A Quality Gate evaluation is recorded against an SEU participant, so a gate cannot be pinned on its
+// transition definition: the gate ids of such a transition are ignored.
+function pinnedGateIds(s: TransitionDefinitionSeed): string[] {
+  const ids = s.requiredQualityGateIds ?? [];
+  const sdkAuthoredEntityTypes = new Set<string>(SCHEMA_KINDS.map((kind) => entityTypeForKind(kind)));
+  if (ids.length > 0 && sdkAuthoredEntityTypes.has(s.entityType)) {
+    logger.info(`[seed:transition-definitions] ${s.entityType}|${s.fromState}|${s.toState}: ${s.entityType} is not SEU-scoped, so its ${ids.length} required Quality Gate id(s) are ignored.`);
+    return [];
+  }
+  return ids;
+}
+
+function toInsertInput(s: TransitionDefinitionSeed, actor: SeedActor, policyIds: string[], attestationPolicyId: string | null) {
+  return {
+    entityType: s.entityType,
+    fromState: s.fromState,
+    toState: s.toState,
+    verb: s.verb ?? null,
+    requiredAuthorityRuleId: s.requiredAuthorityRuleId ?? null,
+    requiredPolicyIds: [...policyIds, ...(s.attestationRequired && attestationPolicyId ? [attestationPolicyId] : [])],
+    requiredQualityGateIds: pinnedGateIds(s),
+    createsObligation: s.createsObligation ?? null,
+    category: s.category ?? null,
+    trigger: s.trigger ?? "manual" as const,
+    submitVerb: s.submitVerb ?? null,
+    eventType: s.eventType ?? null,
+    versionEvent: s.versionEvent ?? null,
+    versionHop: s.versionHop ?? null,
+    actionCode: s.actionCode ?? null,
+    submitVersionEvent: s.submitVersionEvent ?? null,
+    isActive: s.isActive ?? true,
+    retiredAt: s.retiredAt ?? null,
+    authorId: actor.authoredBy,
+    authorBadge: actor.authorBadge,
+  };
+}
+
+// Step 1 of the seed order: deletes every Transition Definition and loads the Schema Definition birth row only. The Schema Definitions seed needs that row, and every
+// Definition row needs a Schema Definition, so this runs before the Policy Definitions seed. seedTransitionDefinitions loads the rest.
+export async function seedSchemaDefinitionBirthTransition(actor: SeedActor): Promise<void> {
+  const births = loadSeeds().filter(isSchemaDefinitionBirth);
+  if (births.length !== 1) throw new Error(`[seed:transition-definitions] expected one ${SCHEMA_DEFINITION_ENTITY_TYPE} birth transition definition, found ${births.length}`);
+  const [birth] = births;
+  if ((birth.requiredPolicyCodes ?? []).length > 0 || birth.attestationRequired) throw new Error(`[seed:transition-definitions] the ${SCHEMA_DEFINITION_ENTITY_TYPE} birth transition names a Policy, but no Policy Definition exists when it loads`);
+  const deleted = await transitionDefinitionsDB.deleteAll();
+  if (deleted.error) throw deleted.error;
+  const inserted = await transitionDefinitionsDB.insertAll([toInsertInput(birth, actor, [], null)]);
+  if (inserted.error) throw inserted.error;
+  logger.info(`[seed:transition-definitions] ${deleted.data} transition definitions deleted, ${SCHEMA_DEFINITION_ENTITY_TYPE} birth row loaded.`);
+}
+
 // Loads the Authority vocabulary (nouns, verbs) and the transition definitions together: each
-// transition carries its own verb, and the noun-verb pairs are derived from the transitions. The vocabulary and the transition definitions are deleted and reloaded.
+// transition carries its own verb, and the noun-verb pairs are derived from the transitions. The vocabulary is deleted and reloaded. The table is emptied by
+// seedSchemaDefinitionBirthTransition, which runs first.
 export async function seedTransitionDefinitions(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
   const vocab = loadVocabulary();
@@ -144,41 +198,11 @@ export async function seedTransitionDefinitions(actor: SeedActor): Promise<void>
     attestationPolicyId = rows[0].id;
   }
 
-  // An SDK-authored entity lives outside an SEU. A Quality Gate evaluation is recorded against an SEU participant, so a gate cannot be pinned on its
-  // transition definition: the gate ids of such a transition are ignored.
-  const sdkAuthoredEntityTypes = new Set<string>(SCHEMA_KINDS.map((kind) => entityTypeForKind(kind)));
-  const pinnedGateIds = (s: TransitionDefinitionSeed): string[] => {
-    const ids = s.requiredQualityGateIds ?? [];
-    if (ids.length > 0 && sdkAuthoredEntityTypes.has(s.entityType)) {
-      logger.info(`[seed:transition-definitions] ${s.entityType}|${s.fromState}|${s.toState}: ${s.entityType} is not SEU-scoped, so its ${ids.length} required Quality Gate id(s) are ignored.`);
-      return [];
-    }
-    return ids;
-  };
-
-  const transitions = await transitionDefinitionsDB.replaceAll(
-    seeds.map((s) => ({
-      entityType: s.entityType,
-      fromState: s.fromState,
-      toState: s.toState,
-      verb: s.verb ?? null,
-      requiredAuthorityRuleId: s.requiredAuthorityRuleId ?? null,
-      requiredPolicyIds: [...(s.requiredPolicyCodes ?? []).map((code) => policyIdByCode.get(code)!), ...(s.attestationRequired && attestationPolicyId ? [attestationPolicyId] : [])],
-      requiredQualityGateIds: pinnedGateIds(s),
-      createsObligation: s.createsObligation ?? null,
-      category: s.category ?? null,
-      trigger: s.trigger ?? "manual",
-      submitVerb: s.submitVerb ?? null,
-      eventType: s.eventType ?? null,
-      versionEvent: s.versionEvent ?? null,
-      versionHop: s.versionHop ?? null,
-      actionCode: s.actionCode ?? null,
-      submitVersionEvent: s.submitVersionEvent ?? null,
-      isActive: s.isActive ?? true,
-      retiredAt: s.retiredAt ?? null,
-      authorId: actor.authoredBy,
-      authorBadge: actor.authorBadge,
-    }))
+  // seedSchemaDefinitions already deleted the table and loaded the Schema Definition birth row, so that row is not inserted again.
+  const transitions = await transitionDefinitionsDB.insertAll(
+    seeds
+      .filter((s) => !isSchemaDefinitionBirth(s))
+      .map((s) => toInsertInput(s, actor, (s.requiredPolicyCodes ?? []).map((code) => policyIdByCode.get(code)!), attestationPolicyId))
   );
   if (transitions.error || transitions.data === undefined) throw transitions.error ?? new Error("transition definitions reload failed");
 

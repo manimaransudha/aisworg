@@ -4,7 +4,8 @@ import type { QualityGateCriterionInput, QualityGateCriterionResult } from "./in
 
 // The entity has no Obligation that is still open.
 export async function noUnresolvedObligations(input: QualityGateCriterionInput): Promise<QualityGateCriterionResult> {
-  const { data: obligations } = await obligationsDB.findByRelatedObject(input.entityType, input.entityId);
+  const { data: obligations, error } = await obligationsDB.findByRelatedObject(input.entityType, input.entityId);
+  if (error) throw error;
   const unresolved = (obligations ?? []).filter((o) => !RESOLVED_OBLIGATION_STATUSES.has(o.status));
   if (unresolved.length === 0) return { satisfied: true };
   return {

@@ -608,7 +608,8 @@ async function loadDbSelectOptions(kind: SchemaDefinitionEntityKind): Promise<Re
 async function resolvedSchemaFor(kind: SchemaDefinitionEntityKind, pinnedSchemaDefinitionId?: string): Promise<{ schema: JsonSchemaDocument; schemaDefinitionId: string } | null> {
   if (pinnedSchemaDefinitionId) {
     const { data: schemaDef } = await schemaDefinitionsDB.findById(pinnedSchemaDefinitionId);
-    if (schemaDef) return { schema: schemaDef.schema as JsonSchemaDocument, schemaDefinitionId: schemaDef.id };
+    // A pinned schema of another entity kind is rejected, not replaced by the latest one: the caller reports that no grammar resolved.
+    if (schemaDef) return schemaDef.entity_kind === kind ? { schema: schemaDef.schema as JsonSchemaDocument, schemaDefinitionId: schemaDef.id } : null;
   }
   const { data: schemaDef } = await schemaDefinitionsDB.findLatest(kind);
   return schemaDef ? { schema: schemaDef.schema as JsonSchemaDocument, schemaDefinitionId: schemaDef.id } : null;

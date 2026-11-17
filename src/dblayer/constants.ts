@@ -156,6 +156,8 @@ export const RESERVED_TENANT_CODES = ["default", "platform", "demo"];
 export const INITIAL_VERSION = "1.0.0";
 // The from-state of a birth row in transition_definitions (CR-128). transition_definitions_schema_recovery.sql repeats this literal in its partial unique index.
 export const BIRTH_STATE = "None";
+// The Schema Definition birth Transition Definition loads before every other seed, because every other Definition row records the schema it was authored against.
+export const SCHEMA_DEFINITION_ENTITY_TYPE = "SchemaDefinition";
 // Published after the event `UNDEFINED_EVENT` when a transition row names no event (CR-128). No consumer yet.
 export const SDK_ATTENTION_EVENT = "SDKAttention";
 export const UNDEFINED_EVENT = "Undefined";
@@ -177,6 +179,8 @@ export const UNRAVEL_PROFILE_ACTION_CODE = "unravel-profile";
 export const MATERIALISE_PACK_ACTION_CODE = "materialise-pack";
 export const QUALITY_GATE_CRITERIA_TYPE_CONCEPT = "quality-gate-criteria-type";
 export const QUALITY_GATE_OUTCOME_CONCEPT = "quality-gate-outcome";
+// The badge that authorises granting a Quality Gate waiver.
+export const QUALITY_GATE_WAIVE_BADGE = "qualitygate_waive";
 export const QUALITY_GATE_DECISION_OUTCOME_CONCEPT = "quality-gate-decision-outcome";
 // The rules of outcome composition (qualityGateOutcomeComposition.ts), recorded in the rationale of a decision.
 export const QUALITY_GATE_COMPOSITION_RULE_NO_GATES = "no-gate-applies";

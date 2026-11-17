@@ -5,6 +5,7 @@ import path from "node:path";
 import pool, { withTransaction, query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { getPlatformTenantId} from "../constants.js";
+import { schemaDefinitionsDB } from "../schemaDefinitionsDB.js";
 import type { PolicyCondition, PolicyScope } from "../seuTypes.js";
 import { userDB } from "../userDB.js";
 
@@ -99,7 +100,10 @@ export interface SeedActor {
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
   
 export async function seedPolicyDefinitions(actor: SeedActor): Promise<void> {
-  
+  const { data: policySchema, error: schemaError } = await schemaDefinitionsDB.findLatest("Policy");
+  if (schemaError) throw schemaError;
+  if (!policySchema) throw new Error("[seed:policy-definitions] no schema_definitions grammar for Policy -- seed the schema definitions first");
+
   await withTransaction(async () => {
     let count = 0;
     for (const file of ALL_POLICY_FILES) {
@@ -114,20 +118,21 @@ export async function seedPolicyDefinitions(actor: SeedActor): Promise<void> {
           : applicabilityDeliverables,
       }));
       await query(
-        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, draft_content, tenant_id, authored_by, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Active', $10, $11, $12, $13)
+        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, draft_content, tenant_id, authored_by, author_badge, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Active', $10, $11, $12, $13, $14)
          ON CONFLICT (code, version, tenant_id) DO UPDATE SET
            name = EXCLUDED.name, description = EXCLUDED.description, category = EXCLUDED.category, constraint_type = EXCLUDED.constraint_type,
            applicability_environments = EXCLUDED.applicability_environments,
            conditions = EXCLUDED.conditions,
            scope = EXCLUDED.scope,
-           draft_content = EXCLUDED.draft_content`,
+           draft_content = EXCLUDED.draft_content,
+           schema_definition_id = EXCLUDED.schema_definition_id`,
         [
           seed.code, seed.name, seed.description, seed.category, seed.constraintType,
           seed.applicabilityEnvironments,
           JSON.stringify(conditions), seed.scope ?? "Transition",
           seed.version, JSON.stringify(seed), PLATFORM_TENANT_ID,
-          actor.authoredBy, actor.authorBadge
+          actor.authoredBy, actor.authorBadge, policySchema.id
         ]
       );
       count++;

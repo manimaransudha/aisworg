@@ -192,6 +192,7 @@ export const redirects = {
     seusAttentionItemsTransition: page({ prefix: "/aisworg/seu/seus/:id/attention-items/:attentionItemId/transition", error: "/aisworg/seu/seus/:id" }),
     seusCapabilities: page({ prefix: "/aisworg/seu/seus/:id/capabilities/:capabilityId", error: "/aisworg/seu/seus/:id?tab=capabilities" }),
     seusComplianceWaivers: page({ prefix: "/aisworg/seu/seus/:id/compliance/waivers", error: "/aisworg/seu/seus/:id/compliance" }),
+    seusQualityGateWaivers: page({ prefix: "/aisworg/seu/seus/:id/quality-gate-waivers", error: "/aisworg/seu/seus/:id?tab=qualityGates" }),
     seusDecisions: page({ prefix: "/aisworg/seu/seus/:id/decisions", error: "/aisworg/seu/seus/:id" }),
     seusDecisionsTransition: page({ prefix: "/aisworg/seu/seus/:id/decisions/:decisionId/transition", error: "/aisworg/seu/seus/:id" }),
     seusDeliverablesTransition: page({ prefix: "/aisworg/seu/seus/:id/deliverables/:deliverableId/transition", error: "/aisworg/seu/seus/:id" }),

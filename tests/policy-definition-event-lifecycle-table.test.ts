@@ -26,7 +26,7 @@ import { validateAgainstSchema, type JsonSchemaDocument } from "../src/domain/sd
 import { validateReferentialFields } from "../src/routes/seu/core/referentialOptions.js";
 import { validateOntologyFieldsAgainstSchema } from "../src/routes/seu/core/ontology.js";
 import { query } from "../src/utils/db.js";
-import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
+import { TESTER_ALL_ID, TESTER_OBJECTIVE_ACHIEVE_ONLY, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID, schemaDefinitionIdOfAnotherKind } from "./testFixtures.js";
 
 async function birthState(): Promise<string> {
   const { data: birth } = await transitionDefinitionsDB.findBirth("Policy");
@@ -172,9 +172,9 @@ test("AUTHORITY: Validate is refused to an actor without policy_validate", async
   assert.equal(row?.status, "Draft");
 });
 
-test("POLICY: a Policy Definition with no pinned schema cannot be Validated (policy-validate-schema)", async () => {
+test("POLICY: a Policy Definition pinned to another kind's schema cannot be Validated (policy-validate-schema)", async () => {
   const draft = await freshPolicyDefinitionDraft();
-  await query("UPDATE policy_definitions SET schema_definition_id = NULL WHERE id = $1", [draft.id]);
+  await query("UPDATE policy_definitions SET schema_definition_id = $2 WHERE id = $1", [draft.id, await schemaDefinitionIdOfAnotherKind("Policy")]);
   assert.deepEqual(outcome(await hop(draft.id, "Validated")), { ok: false, reason: "policy_blocked" });
   const { data: row } = await policyDefinitionsDB.findById(draft.id);
   assert.equal(row?.status, "Draft");

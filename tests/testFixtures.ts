@@ -1615,3 +1615,14 @@ export async function deliverableByCode<T extends { id: string }>(detail: { seu:
   const id = (data ?? []).find((d) => d.code === code)?.id;
   return id ? detail.deliverables.find((d) => d.id === id) : undefined;
 }
+
+// The id of a schema row of another entity kind than `kind`. Pinning it on a row makes the row's content fail validateAgainstSchema, so policy-validate-schema
+// blocks the hop. schema_definition_id is NOT NULL, so a row can no longer be left with no pinned schema. The TransitionDefinition schema requires
+// entityType, fromState and toState, which no schema-governed Definition's content carries.
+export async function schemaDefinitionIdOfAnotherKind(kind: SchemaDefinitionEntityKind): Promise<string> {
+  const otherKind: SchemaDefinitionEntityKind = "TransitionDefinition";
+  if (kind === otherKind) throw new Error(`schemaDefinitionIdOfAnotherKind: ${kind} is the kind used as the other kind`);
+  const { data: schema } = await schemaDefinitionsDB.findLatest(otherKind);
+  if (!schema) throw new Error(`no schema_definitions grammar for ${otherKind}`);
+  return schema.id;
+}

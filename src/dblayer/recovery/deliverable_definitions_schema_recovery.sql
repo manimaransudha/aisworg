@@ -18,7 +18,7 @@ CREATE TABLE deliverable_definitions (
 );
 CREATE INDEX IF NOT EXISTS idx_deliverable_definitions_authored_by ON deliverable_definitions (authored_by);
 CREATE INDEX IF NOT EXISTS idx_deliverable_definitions_tenant_id ON deliverable_definitions (tenant_id);
-ALTER TABLE deliverable_definitions ADD COLUMN IF NOT EXISTS schema_definition_id UUID REFERENCES schema_definitions(id);
+ALTER TABLE deliverable_definitions ADD COLUMN IF NOT EXISTS schema_definition_id UUID NOT NULL REFERENCES schema_definitions(id);
 ALTER TABLE deliverable_definitions DROP CONSTRAINT IF EXISTS deliverable_definitions_schema_definition_id_fkey;
 ALTER TABLE deliverable_definitions ADD COLUMN IF NOT EXISTS guide_location TEXT;
 GRANT ALL PRIVILEGES ON TABLE deliverable_definitions TO weirdo;

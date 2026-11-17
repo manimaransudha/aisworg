@@ -26,7 +26,7 @@ ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_code_version_key;
 ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_code_version_tenant_key;
 ALTER TABLE templates ADD CONSTRAINT templates_code_version_tenant_key UNIQUE (code, template_version, tenant_id);
 ALTER TABLE templates ADD COLUMN IF NOT EXISTS comments JSONB NOT NULL DEFAULT '[]';
-ALTER TABLE templates ADD COLUMN IF NOT EXISTS schema_definition_id UUID REFERENCES schema_definitions(id);
+ALTER TABLE templates ADD COLUMN IF NOT EXISTS schema_definition_id UUID NOT NULL REFERENCES schema_definitions(id);
 ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_schema_definition_id_fkey;
 GRANT ALL PRIVILEGES ON TABLE templates TO weirdo;
 CREATE INDEX IF NOT EXISTS idx_templates_tenant ON templates (tenant_id);

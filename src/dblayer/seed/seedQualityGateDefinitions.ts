@@ -5,6 +5,7 @@ import path from "node:path";
 import pool, { bulkInsert } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { getPlatformTenantId } from "../constants.js";
+import { schemaDefinitionsDB } from "../schemaDefinitionsDB.js";
 import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -35,22 +36,26 @@ export interface SeedActor {
 // definition authoring paths, and this seed reads no Ontology.
 export async function seedQualityGateDefinitions(actor: SeedActor): Promise<void> {
   const platformTenantId = await getPlatformTenantId();
+  const { data: qualityGateSchema, error: schemaError } = await schemaDefinitionsDB.findLatest("QualityGate");
+  if (schemaError) throw schemaError;
+  if (!qualityGateSchema) throw new Error("[seed:quality-gate-definitions] no schema_definitions grammar for QualityGate -- seed the schema definitions first");
   const seeds = QUALITY_GATE_DEFINITION_FILES.map((file) => JSON.parse(readFileSync(path.join(dataDir, file), "utf8")) as QualityGateDefinitionSeedFile);
   const rows = seeds.map((s) => [
     s.code, s.name, s.description ?? null, s.category, s.criteriaType, s.evidenceCategory ?? null,
-    s.version, "Active", JSON.stringify(s), platformTenantId, actor.authoredBy, actor.authorBadge,
+    s.version, "Active", JSON.stringify(s), platformTenantId, actor.authoredBy, actor.authorBadge, qualityGateSchema.id,
   ]);
   await bulkInsert(
     "quality_gate_definitions",
     [
       "code", "name", "description", "category", "criteria_type", "evidence_category",
-      "version", "status", "draft_content", "tenant_id", "authored_by", "author_badge",
+      "version", "status", "draft_content", "tenant_id", "authored_by", "author_badge", "schema_definition_id",
     ],
     rows,
     {
       onConflict: `ON CONFLICT (code, version, tenant_id) DO UPDATE SET
         name = EXCLUDED.name, description = EXCLUDED.description, category = EXCLUDED.category,
-        criteria_type = EXCLUDED.criteria_type, evidence_category = EXCLUDED.evidence_category, draft_content = EXCLUDED.draft_content`,
+        criteria_type = EXCLUDED.criteria_type, evidence_category = EXCLUDED.evidence_category, draft_content = EXCLUDED.draft_content,
+        schema_definition_id = EXCLUDED.schema_definition_id`,
     }
   );
   logger.info(`[seed:quality-gate-definitions] ${rows.length} Quality Gate Definitions seeded (Active, Platform-owned).`);

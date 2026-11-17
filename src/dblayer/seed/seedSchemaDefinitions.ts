@@ -5,6 +5,8 @@ import path from "node:path";
 import { query, bulkInsert } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
+import { SCHEMA_DEFINITION_ENTITY_TYPE } from "../constants.js";
+import { seedSchemaDefinitionBirthTransition } from "./seedTransitionDefinitions.js";
 import type { SchemaDefinitionEntityKind, SchemaDefinitionRow } from "../seuTypes.js";
 import { userDB } from "../userDB.js";
 
@@ -32,9 +34,11 @@ function loadSeeds(): SchemaDefinitionSeed[] {
 export async function seedSchemaDefinitions(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
 
-  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("SchemaDefinition");
+  // This seed runs first. It empties transition_definitions and loads the SchemaDefinition birth row it needs; seedTransitionDefinitions loads the rest later.
+  await seedSchemaDefinitionBirthTransition(actor);
+  const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth(SCHEMA_DEFINITION_ENTITY_TYPE);
   if (birthError) throw birthError;
-  if (!birth) throw new Error("[seedSchemaDefinitions] no birth Transition Definition for SchemaDefinition -- seedTransitionDefinitions must run first");
+  if (!birth) throw new Error("[seedSchemaDefinitions] no birth Transition Definition for SchemaDefinition after seedSchemaDefinitionBirthTransition");
 
   await query("DELETE FROM schema_definitions");
   const { rows } = await bulkInsert(

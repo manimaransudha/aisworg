@@ -28,6 +28,9 @@ import { getDemoActor, grantBadge, grantBadgesWithPrefixes, grantTransitionBadge
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "..", "data", "demo");
+// The platform Packs the Demo tenant authors for itself, because it cannot see Platform Packs.
+const platformDataDir = path.join(__dirname, "..", "data");
+const DEMO_PLATFORM_PACK_FILES = ["platform-governance-baseline.pack.json"];
 
 function loadJson<T>(fileName: string): T {
   return JSON.parse(readFileSync(path.join(dataDir, fileName), "utf8")) as T;
@@ -101,7 +104,8 @@ async function seedPolicies(actor: DemoActor): Promise<void> {
 // canonical Ontology concept gets a ConceptCreated proposal at Draft creation and
 // stays unpublished until the concept is accepted; that is an outcome, not an error.
 async function seedPacks(actor: DemoActor): Promise<{ authored: Set<string>; active: Set<string> }> {
-  const packs = loadJson<Array<Omit<PackSeedInput, "tenantId">>>("packs.json");
+  const platformPacks = DEMO_PLATFORM_PACK_FILES.map((fileName) => JSON.parse(readFileSync(path.join(platformDataDir, fileName), "utf8")) as Omit<PackSeedInput, "tenantId">);
+  const packs = [...platformPacks, ...loadJson<Array<Omit<PackSeedInput, "tenantId">>>("packs.json")];
   const { data: packSchema, error: schemaError } = await schemaDefinitionsDB.findLatest("Pack");
   if (schemaError || !packSchema) throw schemaError ?? new Error("no schema_definitions grammar for Pack");
   const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(actor.participantId, "pack_define");
