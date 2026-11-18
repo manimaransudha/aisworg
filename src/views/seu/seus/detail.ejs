@@ -1087,17 +1087,18 @@
             })();
           </script>
           <div class="section-card mb-3">
-            <div class="section-header">Latest decision of each Deliverable</div>
+            <div class="section-header">Latest decision of each Deliverable hop</div>
             <div class="table-responsive">
               <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light"><tr><th>Deliverable</th><th>Decision</th><th>Conditions</th><th>Rationale</th><th>Decided</th></tr></thead>
+                <thead class="table-light"><tr><th>Deliverable</th><th>Hop</th><th>Decision</th><th>Conditions</th><th>Rationale</th><th>Decided</th></tr></thead>
                 <tbody>
                   <% if (detail.qualityGates.decisions.length === 0) { %>
-                    <tr><td colspan="5" class="text-muted small">No Deliverable of this SEU has a recorded decision.</td></tr>
+                    <tr><td colspan="6" class="text-muted small">No Deliverable of this SEU has a recorded decision.</td></tr>
                   <% } %>
                   <% detail.qualityGates.decisions.forEach(function(dc) { %>
                     <tr>
                       <td class="small"><strong><%= dc.deliverable %></strong><br><span class="state-badge state-<%= dc.deliverableState.replace(/\s+/g, '-') %>"><%= dc.deliverableState %></span></td>
+                      <td class="small"><%= dc.hop %></td>
                       <td class="small"><strong><%= dc.outcome %></strong><br><span class="text-muted" style="font-size:0.72rem;">confidence <%= dc.confidenceLevel %>%</span></td>
                       <td class="small">
                         <% dc.conditions.forEach(function(c) { %><div><%= c.name %>: <%= c.outcome %></div><% }) %>

@@ -8,6 +8,8 @@ CREATE TABLE quality_gate_outcomes (
   seu_id            UUID NOT NULL REFERENCES seus(id),
   deliverable_id    UUID NOT NULL REFERENCES deliverables(id),
   tenant_id         UUID NOT NULL REFERENCES tenants(id),
+  from_state        TEXT NOT NULL,
+  to_state          TEXT NOT NULL,
   actor_id          UUID NOT NULL REFERENCES participants(id),
   actor_badge       TEXT NOT NULL,
   evaluation_ids    UUID[] NOT NULL DEFAULT '{}',

@@ -155,14 +155,14 @@ test("the Execution Engine stores an Approved decision, a Waived decision and an
 test("a failed insert of a gate evaluation is an error, and a decision outside its Ontology concept is refused", async () => {
   const deliverable = await createDeliverable(clean.from);
   await assert.rejects(
-    () => qualityGateEngine.recordAndPass({ id: gates.passingClean.id, code: gates.passingClean.code, name: gates.passingClean.name, category: gates.passingClean.category, criteria: { type: gates.passingClean.criteria_type }, originating_pack_id: null }, { seuId: t.seu.id, entityType: "Deliverable", entityId: deliverable.id, authorId: randomUUID(), authorBadge: ROOT_ACTOR_BADGE, tenantId: t.seu.tenant_id }, {}),
+    () => qualityGateEngine.recordAndPass({ id: gates.passingClean.id, code: gates.passingClean.code, name: gates.passingClean.name, category: gates.passingClean.category, criteria: { type: gates.passingClean.criteria_type }, originating_pack_id: null }, { seuId: t.seu.id, entityType: "Deliverable", entityId: deliverable.id, fromState: "Defined", toState: "In Progress", authorId: randomUUID(), authorBadge: ROOT_ACTOR_BADGE, tenantId: t.seu.tenant_id }, {}),
     /participants|foreign key|violates/i,
     "an author that is not a Participant fails the insert, and the engine does not report a pass"
   );
 
   const decision = (await decideGates(gateInput(deliverable.id, clean)));
   await assert.rejects(
-    () => qualityGateEngine.recordDecision({ ...decision, outcome: `zz-unknown-${run}` as never }, { seuId: t.seu.id, deliverableId: deliverable.id, tenantId: t.seu.tenant_id, actorId: t.systemParticipantId, actorBadge: ROOT_ACTOR_BADGE }),
+    () => qualityGateEngine.recordDecision({ ...decision, outcome: `zz-unknown-${run}` as never }, { seuId: t.seu.id, deliverableId: deliverable.id, fromState: "Defined", toState: "In Progress", tenantId: t.seu.tenant_id, actorId: t.systemParticipantId, actorBadge: ROOT_ACTOR_BADGE }),
     /is not a quality-gate-decision-outcome concept/
   );
   const { data: rows } = await qualityGateOutcomesDB.findByDeliverableId(deliverable.id);

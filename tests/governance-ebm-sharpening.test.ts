@@ -300,9 +300,9 @@ test.skip("§4.3 / Open Q#3: a Quality Gate can gate a Pack transition with a nu
   // "the" gate that passed isn't well-defined from the result alone); the
   // upsert's own return value is the real source for the gate's id here.
   const gateId = gate.quality_gate_definition_id!;
-  const badDeliverable = await qualityGateEvaluationsDB.create({ qualityGateId: gateId, seuId: null, entityType: "Deliverable", entityId: corePack.id, outcome: "Passed", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const badDeliverable = await qualityGateEvaluationsDB.create({ qualityGateId: gateId, seuId: null, entityType: "Deliverable", entityId: corePack.id, fromState: "Draft", toState: "Active", outcome: "Passed", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.ok(badDeliverable.error, "a Deliverable evaluation with a null SEU is rejected by the CHECK");
   // ...and a platform-level entity may not carry a SEU.
-  const badPack = await qualityGateEvaluationsDB.create({ qualityGateId: gateId, seuId: corePack.id, entityType: "Pack", entityId: corePack.id, outcome: "Passed", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const badPack = await qualityGateEvaluationsDB.create({ qualityGateId: gateId, seuId: corePack.id, entityType: "Pack", entityId: corePack.id, fromState: "Draft", toState: "Active", outcome: "Passed", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.ok(badPack.error, "a Pack evaluation carrying a SEU is rejected by the CHECK");
 });

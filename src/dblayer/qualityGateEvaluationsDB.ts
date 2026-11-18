@@ -8,6 +8,8 @@ export const qualityGateEvaluationsDB = {
     seuId: string | null;
     entityType: TransitionEntityType;
     entityId: string;
+    fromState: string;
+    toState: string;
     outcome: QualityGateOutcomeValue;
     detail?: Record<string, unknown>;
     authorId: string;
@@ -15,10 +17,10 @@ export const qualityGateEvaluationsDB = {
   }): Promise<DbResult<QualityGateEvaluationRow>> {
     try {
       const { rows } = await query<QualityGateEvaluationRow>(
-        `INSERT INTO quality_gate_evaluations (quality_gate_id, seu_id, entity_type, entity_id, outcome, detail, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO quality_gate_evaluations (quality_gate_id, seu_id, entity_type, entity_id, from_state, to_state, outcome, detail, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
-        [input.qualityGateId, input.seuId, input.entityType, input.entityId, input.outcome, JSON.stringify(input.detail ?? {}), input.authorId, input.authorBadge]
+        [input.qualityGateId, input.seuId, input.entityType, input.entityId, input.fromState, input.toState, input.outcome, JSON.stringify(input.detail ?? {}), input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

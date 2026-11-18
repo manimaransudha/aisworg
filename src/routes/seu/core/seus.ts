@@ -299,7 +299,7 @@ export interface SeuDetailQualityGates {
   waivers: Array<{ confidence: number | null; supportingRecords: string[]; covers: string; risks: Array<{ risk: string; controls: Array<{ type: string; obligationTitle: string | null; obligationStatus: string | null; obligationOn: string | null }> }>; gateName: string; entity: string; grantedBy: string; rationale: string; status: string; authorityBadge: string; expiresAt: string | null; createdAt: string }>;
   waivableEntities: Array<{ value: string; label: string }>;
   // The latest decision of each Deliverable: the composed outcome and the conditions it was composed from.
-  decisions: Array<{ deliverable: string; deliverableState: string; outcome: string; confidenceLevel: string; rationale: string; conditions: Array<{ name: string; outcome: string }>; evaluatedAt: string }>;
+  decisions: Array<{ hop: string; deliverable: string; deliverableState: string; outcome: string; confidenceLevel: string; rationale: string; conditions: Array<{ name: string; outcome: string }>; evaluatedAt: string }>;
   // What the waiver modal offers: the controls of a risk and the Ontology lists an Obligation control draws from.
   controlTypes: string[];
   controlCodes: { expiry: string; obligation: string; acceptRisk: string };
@@ -507,15 +507,17 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         view.blockedBy.push({ kind: "Obligation", label: v.obligation.title, toState: v.obligation.blocked_to_state });
       }
     }
-    const latestOutcomeByGate = new Map<string, string>();
+    // The latest evaluation of each gate for each hop of the Deliverable. An evaluation belongs to the hop it was made for.
+    const latestOutcomeByGateAndHop = new Map<string, string>();
     for (const e of (gateEvaluations ?? []).filter((row) => row.entity_type === "Deliverable" && row.entity_id === view.id)) {
-      if (!latestOutcomeByGate.has(e.quality_gate_id)) latestOutcomeByGate.set(e.quality_gate_id, e.outcome);
+      const key = `${e.quality_gate_id}|Deliverable|${e.from_state}|${e.to_state}`;
+      if (!latestOutcomeByGateAndHop.has(key)) latestOutcomeByGateAndHop.set(key, e.outcome);
     }
     view.qualityGates = (settledForGates?.qualityGates?.result ?? [])
       .filter((row) => row.deliverable === deliverable.code)
       .flatMap((row) => row.gates.flatMap((g) => {
         const definition = (ebmGateDefinitions ?? []).find((d) => d.code === String(g.code));
-        return definition ? [{ name: definition.name, step: row.step, outcome: latestOutcomeByGate.get(definition.id) ?? "not evaluated" }] : [];
+        return definition ? [{ name: definition.name, step: row.step, outcome: latestOutcomeByGateAndHop.get(`${definition.id}|${row.step}`) ?? "not evaluated" }] : [];
       }))
       .sort((a, b) => a.step.localeCompare(b.step) || a.name.localeCompare(b.name));
     const { data: deliverableOpenAttentionItems } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", view.id);
@@ -584,7 +586,8 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         .filter((row) => row.deliverable === (d.code ?? "") && row.step.startsWith(`Deliverable|${d.lifecycle_state}|`) && row.gates.some((g) => String(g.code) === definition.code))
         .map((row) => row.step.split("|").slice(1).join(" → "));
       if (steps.length === 0) continue;
-      const latest = (gateEvaluations ?? []).find((ev) => ev.quality_gate_id === definition.id && ev.entity_type === "Deliverable" && ev.entity_id === d.id);
+      // The latest evaluation of the gate for a hop out of the Deliverable's current state.
+      const latest = (gateEvaluations ?? []).find((ev) => ev.quality_gate_id === definition.id && ev.entity_type === "Deliverable" && ev.entity_id === d.id && ev.from_state === d.lifecycle_state);
       lines.push({
         key: `${WAIVER_SCOPE_GATE}|${definition.id}`, scope: WAIVER_SCOPE_GATE, kind: "Quality Gate", name: definition.name, outcome: latest?.outcome ?? "not evaluated", hop: steps.join(", "),
         waivable: latest?.outcome === "Blocked", note: null, gateId: definition.id, policyCode: null, category: null, title: null,
@@ -593,16 +596,17 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     waiverLines[d.id] = lines;
   }
   for (const e of gateEvaluations ?? []) {
-    const key = `${e.quality_gate_id}|${e.entity_type}|${e.entity_id}`;
+    // Only the latest evaluation of a gate for one hop of one entity counts, and only when the entity is still in the state that hop leaves.
+    const key = `${e.quality_gate_id}|${e.entity_type}|${e.entity_id}|${e.from_state}|${e.to_state}`;
     if (seenGateEntity.has(key)) continue;
     seenGateEntity.add(key);
     if (e.outcome !== "Blocked") continue;
     const definition = (ebmGateDefinitions ?? []).find((d) => d.id === e.quality_gate_id);
     const entityState = stateByEntity.get(`${e.entity_type}|${e.entity_id}`);
-    if (!definition || !entityState) continue;
+    if (!definition || !entityState || e.from_state !== entityState) continue;
     const deliverableCode = e.entity_type === "Deliverable" ? deliverableCodeById.get(e.entity_id) ?? "" : "";
     const steps = (settledForGates?.qualityGates?.result ?? [])
-      .filter((row) => row.deliverable === deliverableCode && row.step.startsWith(`${e.entity_type}|${entityState}|`) && row.gates.some((g) => String(g.code) === definition.code))
+      .filter((row) => row.deliverable === deliverableCode && row.step === `${e.entity_type}|${e.from_state}|${e.to_state}` && row.gates.some((g) => String(g.code) === definition.code))
       .map((row) => row.step).sort();
     const detail = e.detail ?? {};
     const details: string[] = [];
@@ -619,14 +623,19 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   const { data: gateDecisionRows } = await qualityGateOutcomesDB.findBySeuId(seuId);
   const decisions: SeuDetailQualityGates["decisions"] = [];
   for (const d of deliverables ?? []) {
-    const latest = (gateDecisionRows ?? []).find((row) => row.deliverable_id === d.id);
-    if (!latest) continue;
+    // The latest decision of each hop of the Deliverable (the rows are newest first).
+    const seenHop = new Set<string>();
+    for (const latest of (gateDecisionRows ?? []).filter((row) => row.deliverable_id === d.id)) {
+      const hop = `${latest.from_state} → ${latest.to_state}`;
+      if (seenHop.has(hop)) continue;
+      seenHop.add(hop);
     decisions.push({
-      deliverable: d.name, deliverableState: d.lifecycle_state, outcome: latest.outcome, confidenceLevel: latest.confidence_level, rationale: latest.rationale,
+      hop, deliverable: d.name, deliverableState: d.lifecycle_state, outcome: latest.outcome, confidenceLevel: latest.confidence_level, rationale: latest.rationale,
       conditions: latest.conditions.map((c) => ({ name: c.name, outcome: c.outcome })), evaluatedAt: latest.evaluated_at,
     });
+    }
   }
-  decisions.sort((a, b) => a.deliverable.localeCompare(b.deliverable));
+  decisions.sort((a, b) => a.deliverable.localeCompare(b.deliverable) || a.hop.localeCompare(b.hop));
   const qualityGates: SeuDetailQualityGates = {
     decisions,
     waiverLines,

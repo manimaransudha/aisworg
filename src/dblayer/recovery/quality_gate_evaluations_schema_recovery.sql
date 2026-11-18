@@ -6,6 +6,9 @@ CREATE TABLE quality_gate_evaluations (
   seu_id            UUID REFERENCES seus(id),
   entity_type       TEXT NOT NULL,
   entity_id         UUID NOT NULL,
+  -- The hop the entity was making when the gate was evaluated.
+  from_state        TEXT NOT NULL,
+  to_state          TEXT NOT NULL,
   outcome           TEXT NOT NULL,
   detail            JSONB NOT NULL DEFAULT '{}',
   evaluated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()

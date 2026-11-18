@@ -995,6 +995,8 @@ export interface QualityGateOutcomeRow {
   seu_id: string;
   deliverable_id: string;
   tenant_id: string;
+  from_state: string;
+  to_state: string;
   actor_id: string;
   actor_badge: string;
   evaluation_ids: string[];
@@ -1071,6 +1073,8 @@ export interface QualityGateEvaluationRow {
   seu_id: string;
   entity_type: string;
   entity_id: string;
+  from_state: string;
+  to_state: string;
   outcome: QualityGateOutcomeValue;
   detail: Record<string, unknown>;
   evaluated_at: string;

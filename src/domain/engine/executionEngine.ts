@@ -214,6 +214,8 @@ export const executionEngine = {
     const decisionRow = await qualityGateEngine.recordDecision(qualityGateResult, {
       seuId: deliverable.seu_id,
       deliverableId: deliverable.id,
+      fromState,
+      toState: targetState,
       tenantId: gateSeu.tenant_id,
       actorId: systemActor.authorId,
       actorBadge: systemActor.authorBadge,

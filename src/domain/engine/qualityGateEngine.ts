@@ -212,13 +212,15 @@ export const qualityGateEngine = {
   // Stores the decision of one Deliverable hop. The outcome is checked against its Ontology concept first.
   async recordDecision(
     decision: QualityGateDecision,
-    input: { seuId: string; deliverableId: string; tenantId: string; actorId: string; actorBadge: string }
+    input: { seuId: string; deliverableId: string; fromState: string; toState: string; tenantId: string; actorId: string; actorBadge: string }
   ): Promise<QualityGateOutcomeRow> {
     await assertOntologyCode(QUALITY_GATE_DECISION_OUTCOME_CONCEPT, decision.outcome, input.tenantId);
     const { data, error } = await qualityGateOutcomesDB.create({
       seu_id: input.seuId,
       deliverable_id: input.deliverableId,
       tenant_id: input.tenantId,
+      from_state: input.fromState,
+      to_state: input.toState,
       actor_id: input.actorId,
       actor_badge: input.actorBadge,
       evaluation_ids: decision.evaluationIds,
@@ -277,20 +279,20 @@ export const qualityGateEngine = {
 
   async recordAndPass(
     gate: EvaluatedQualityGate,
-    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string; tenantId: string },
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; fromState: string; toState: string; authorId: string; authorBadge: string; tenantId: string },
     detail: Record<string, unknown>
   ): Promise<QualityGateEvaluationResult> {
-    const evaluation = await storeEvaluation({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Passed", detail, authorId: input.authorId, authorBadge: input.authorBadge }, input.tenantId);
+    const evaluation = await storeEvaluation({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, fromState: input.fromState, toState: input.toState, outcome: "Passed", detail, authorId: input.authorId, authorBadge: input.authorBadge }, input.tenantId);
     return { outcome: "Passed", gate, evaluationId: evaluation.id };
   },
 
   async recordAndBlock(
     gate: EvaluatedQualityGate,
-    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string; tenantId: string },
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; fromState: string; toState: string; authorId: string; authorBadge: string; tenantId: string },
     reason: string,
     detail: Record<string, unknown>
   ): Promise<QualityGateEvaluationResult> {
-    const evaluation = await storeEvaluation({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Blocked", detail, authorId: input.authorId, authorBadge: input.authorBadge }, input.tenantId);
+    const evaluation = await storeEvaluation({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, fromState: input.fromState, toState: input.toState, outcome: "Blocked", detail, authorId: input.authorId, authorBadge: input.authorBadge }, input.tenantId);
     return { outcome: "Blocked", gate, reason, evaluationId: evaluation.id };
   },
 };

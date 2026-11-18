@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
+import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { requiresActivePolicy } from "../src/qualitygates/requiresActivePolicy.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
@@ -291,6 +292,49 @@ test("a refusal from the checks before the gate does not stop the gate: the hop 
   assert.equal(recorded[0].outcome, "Blocked");
   const { data: items } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", deliverable.id);
   assert.ok((items ?? []).some((i) => i.title.includes(gate.name)), "the gate block raises an Attention Item");
+});
+
+test("the SEU page reads the evaluation and the decision of each hop: an evaluation or decision of another hop does not replace them", async () => {
+  const gateDeliverableCode = "source-code";
+  const from = state("hop-view-open");
+  const to = state("hop-view-done");
+  const otherTo = state("hop-view-other");
+  await addEdge(from, to, true);
+  await pool.query("UPDATE transition_definitions SET submit_verb = $3 WHERE entity_type = 'Deliverable' AND from_state = $1 AND to_state = $2", [from, to, verb]);
+  await reloadIfLoaded();
+  const entry = await ensureQualityGateDefinition({ code: `execution-engine-hop-${run}`, name: `execution-engine hop ${run}`, category: "Exit", governedTransition: `Deliverable|${from}|${to}`, criteriaType: "requires_accepted_evidence_or_approved_decision", evidenceCategory: "Validation Evidence", deliverableName: gateDeliverableCode });
+  const gateSeu = await commissionedSeu("execution-engine-hop-view", "clean", { conflictSet: "execution", gates: [entry] });
+  const gate = (await ebmGatesByCode(gateSeu.seu))[entry.qualityCode];
+  assert.ok(gate, "the EBM names the gate");
+  const deliverable = await createDeliverable(from, gateSeu, { code: gateDeliverableCode });
+  const hop = `${from} → ${to}`;
+
+  // The hop is attempted: the gate has no evidence to accept, so its evaluation and the decision are stored with the hop.
+  await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: to, actorId: ROOT_ACTOR_ID });
+  const { data: stored } = await qualityGateEvaluationsDB.findBySeuId(gateSeu.seu.id);
+  const own = (stored ?? []).filter((e) => e.entity_id === deliverable.id && e.quality_gate_id === gate.id);
+  assert.deepEqual(own.map((e) => [e.from_state, e.to_state, e.outcome]), [[from, to, "Blocked"]]);
+  const { data: decisionsOfDeliverable } = await qualityGateOutcomesDB.findByDeliverableId(deliverable.id);
+  assert.deepEqual((decisionsOfDeliverable ?? []).map((d) => [d.from_state, d.to_state, d.outcome]), [[from, to, "Blocked"]]);
+
+  // An evaluation and a decision of another hop, made later, replace nothing of this hop.
+  const { error: otherEvaluationError } = await qualityGateEvaluationsDB.create({
+    qualityGateId: gate.id, seuId: gateSeu.seu.id, entityType: "Deliverable", entityId: deliverable.id, fromState: from, toState: otherTo, outcome: "Passed", authorId: gateSeu.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
+  });
+  assert.ok(!otherEvaluationError, String(otherEvaluationError));
+  const { error: otherDecisionError } = await qualityGateOutcomesDB.create({
+    seu_id: gateSeu.seu.id, deliverable_id: deliverable.id, tenant_id: gateSeu.seu.tenant_id, from_state: from, to_state: otherTo, actor_id: gateSeu.systemParticipantId, actor_badge: ROOT_ACTOR_BADGE,
+    evaluation_ids: [], conditions: [], outcome: "Approved", confidence_level: 100, rationale: "another hop",
+  });
+  assert.ok(!otherDecisionError, String(otherDecisionError));
+
+  const detail = await getSeuDetailView(gateSeu.seu.id);
+  assert.ok(detail);
+  const blocking = detail.qualityGates.blocking.filter((b) => b.entityValue === `Deliverable|${deliverable.id}` && b.gateId === gate.id);
+  assert.deepEqual(blocking.map((b) => b.steps), [[`Deliverable|${from}|${to}`]], "Blocked now lists the Blocked hop only");
+  const view = detail.deliverables.find((d) => d.id === deliverable.id);
+  assert.deepEqual(view?.qualityGates.filter((g) => g.name === gate.name).map((g) => [g.step, g.outcome]), [[`Deliverable|${from}|${to}`, "Blocked"]]);
+  assert.deepEqual(detail.qualityGates.decisions.filter((d) => d.deliverable === deliverable.name).map((d) => [d.hop, d.outcome]).sort(), [[hop, "Blocked"], [`${from} → ${otherTo}`, "Approved"]].sort());
 });
 
 test("a Standard that fails does not stop the hop: it is approved with conditions and the deviation is recorded", async () => {
