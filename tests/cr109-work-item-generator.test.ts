@@ -33,7 +33,8 @@ import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { decisionsDB } from "../src/dblayer/decisionsDB.js";
 import { governanceEvaluationOutcomesDB } from "../src/dblayer/governanceEvaluationOutcomesDB.js";
-import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
+import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
+import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
 import { getEmptyPoolTenantId, deactivateParticipants, driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, ensureTestFixturePacks, waitForDispatchedWorkItem, transitionDeliverableSync, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
@@ -149,7 +150,7 @@ async function driveDeliverableToApproved(deliverableId: string, tag: string): P
   // The Execution Engine makes the hop to In Progress when the Capability is fulfilled.
   // const toInProgress = await transitionDeliverableSync({ deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   // assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : "assertion failed");
-  const { workItem: productionWorkItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
+  const { workItem: productionWorkItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
   const produced = await completeWorkItem({ workItemId: productionWorkItem.id, outcome: "done", reference: `vcs://${tag}/produced@1` });
   assert.equal(produced.ok, true, !produced.ok ? JSON.stringify(produced) : "assertion failed");
 
@@ -263,14 +264,14 @@ test("CR-109 §6.1/§6.2/§6.3: a real Decision, Evidence and Knowledge attached
 
   await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability!.capabilityId, capabilityCodes: ["requirements-analysis"] });
 
-  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "In Progress", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
   const ec = workItem!.execution_context!;
   assert.ok(ec.relevantDecisions.some((d) => d.id === decision!.id && d.title === decision!.title && d.status === "Approved"), "the actual Decision (title/status), not just a count");
   assert.ok(ec.supportingEvidence.some((e) => e.id === evidence!.id && e.title === evidence!.title), "the actual Evidence, not just a count");
   assert.ok(ec.relevantKnowledge.some((k) => k.id === knowledge!.id && k.title === knowledge!.title), "the actual Knowledge, not just a count");
 });
 
-test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Command generation and Dispatch reads it, not a live query", async () => {
+test("Ch.12 §9 / CR-109 §6.2: Dispatch reads the active fulfilments of the producing Capability and selects one of them", async () => {
   const seuId = await commissionCr104MinimalSeu("cr109-pool-persistence", PLATFORM_TENANT_ID);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
@@ -282,16 +283,15 @@ test("Ch.12 §9 / CR-109 §6.2: the eligible-Participant pool is persisted at Co
   const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 
-  const { command, workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "In Progress", "In Progress");
-  assert.ok(command!.eligible_participant_pool_id, "the Command must carry a real eligibleParticipantPoolRef");
+  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
+  const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(seuId, reqAnalysisCapability!.capabilityId);
+  assert.ok(seuCapability, "the SEU requires the Capability");
+  const { data: fulfilments } = await capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId(seuCapability!.id);
+  const fulfilling = (fulfilments ?? []).map((f) => f.participant_id);
+  assert.ok(fulfilling.includes(participant.id), "the fulfilment of the Capability includes this Participant");
 
-  const { data: pool } = await capabilityFulfilmentPoolsDB.findById(command!.eligible_participant_pool_id!);
-  assert.ok(pool, "the referenced pool snapshot must actually exist");
-  assert.equal(pool!.seu_id, seuId);
-  assert.ok(pool!.participant_ids.includes(participant.id), "the pool must be the real fulfilment and include this Participant");
-
-  // Dispatch actually selected one member of this persisted snapshot.
-  assert.ok(workItem.participant_id && pool!.participant_ids.includes(workItem.participant_id), "the Work Item goes to a member of the persisted pool");
+  // Dispatch selected one of the Participants that fulfil the Capability.
+  assert.ok(workItem.participant_id && fulfilling.includes(workItem.participant_id), "the Work Item goes to a Participant that fulfils the Capability");
 });
 
 test("Ch.12 §9 / CR-109 §6.2: with no eligible Participant the producing Capability stays unfulfilled and the Deliverable stays in Defined", async (t) => {
@@ -312,7 +312,7 @@ test("Ch.12 §9 / CR-109 §6.2: with no eligible Participant the producing Capab
     const deliverable = after?.deliverables.find((d) => d.id === requirementsSpec!.id);
     assert.equal(deliverable?.lifecycleState, "Defined", "the Deliverable stays in Defined");
     const { data: commands } = await commandsDB.findBySeuId(seuId);
-    assert.equal((commands ?? []).filter((c) => c.entity_id === requirementsSpec!.id && c.from_state === "In Progress" && c.to_state === "In Progress").length, 0, "no producing Command without a hop");
+    assert.equal((commands ?? []).filter((c) => c.entity_id === requirementsSpec!.id && c.from_state === "Defined" && c.to_state === "In Progress").length, 0, "no producing Command without a hop");
   }
 });
 
@@ -364,7 +364,7 @@ test("CR-109 §6.1: a deviating Standard Policy and an open, non-blocking Obliga
     assert.ok(outcome!.deviated_policy_ids.includes(standardPolicyId), "the deviating Policy's real id must be recorded");
     assert.ok(outcome!.consulted_obligation_ids.includes(obligationId), "the open, non-blocking Obligation's real id must be recorded even though it never blocked");
 
-    const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
+    const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
     const ec = workItem!.execution_context!;
     assert.ok(!ec.governingPolicies.some((p) => p.id === standardPolicyId), "a deviated policy isn't 'satisfied' — governingPolicies reads satisfied_policy_ids, so it never lists the deviating Policy");
     // activeObligations lists the Obligations on the Deliverable, so the SEU's Obligation is not in it. The CR-108 test covers that list.
@@ -445,7 +445,7 @@ test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation 
   const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: sourceCode!.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(dispatched);
 
-  const { workItem } = await waitForDispatchedWorkItem(sourceCode!.id, "In Progress", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(sourceCode!.id, "Defined", "In Progress");
   const ec = workItem!.execution_context!;
   assert.equal(ec.relevantDeliverable.id, sourceCode!.id);
   assert.equal(ec.service?.code, "software-construction");

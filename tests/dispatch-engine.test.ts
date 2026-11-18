@@ -1,6 +1,6 @@
 // Dispatch Engine and the redispatch chain (src/domain/engine/dispatchEngine.ts, redispatchRequest.ts, redispatch.ts).
 //
-//   - Dispatch is called directly with a Work Item built in the test: an SEU, a Deliverable, a Command, a Work Item and a pool of Participants.
+//   - Dispatch is called directly with a Work Item built in the test: an SEU, a Deliverable, a Command, a Work Item and the Capability fulfilments of the Participants.
 //     The Participants are created Available. A Participant that must not be selectable is moved to Assigned with the governed hop.
 //   - Event subscriptions are not loaded in this file, so a published event runs no handler. The test calls each handler itself with the event
 //     it would receive, and reads the events, Obligations, Attention Items and Work Items the handler left behind.
@@ -24,7 +24,8 @@ import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
-import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
+import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
+import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { ensureSeuSystemParticipant, getSystemActor } from "../src/dblayer/constants.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
@@ -97,8 +98,9 @@ async function makeUnavailable(t: TestSeu, participant: ParticipantRow): Promise
   assert.equal(result.ok, true, JSON.stringify(result));
 }
 
-// A Work Item of a producing Command for a Deliverable (or for the SEU itself), with a pool of the given Participants.
-async function makeWork(t: TestSeu, participants: ParticipantRow[], options: { poolId?: null; forSeu?: boolean } = {}): Promise<{ command: CommandRow; workItem: WorkItemRow; deliverableId: string }> {
+// A Work Item of a producing Command for a Deliverable (or for the SEU itself). Dispatch reads the active fulfilments of the producing Capability, so the
+// SEU requires the Capability (unless required is false), the fulfilments an earlier Work Item of the SEU left are revoked, and the given Participants fulfil it.
+async function makeWork(t: TestSeu, participants: ParticipantRow[], options: { required?: false; forSeu?: boolean } = {}): Promise<{ command: CommandRow; workItem: WorkItemRow; deliverableId: string }> {
   let entityType: "Deliverable" | "SEU" = "Deliverable";
   let entityId = t.seu.id;
   if (!options.forSeu) {
@@ -110,17 +112,20 @@ async function makeWork(t: TestSeu, participants: ParticipantRow[], options: { p
   } else {
     entityType = "SEU";
   }
-  let poolId: string | null = null;
-  if (options.poolId !== null) {
-    const { data: poolRow, error } = await capabilityFulfilmentPoolsDB.create({
-      seuId: t.seu.id, seuCapabilityId: null, capabilityId, participantIds: participants.map((p) => p.id), authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
-    });
-    assert.ok(poolRow && !error, error?.message ?? "the pool is created");
-    poolId = poolRow.id;
+  if (options.required !== false) {
+    await seuCapabilitiesDB.createMany(t.seu.id, [capabilityId], t.systemParticipantId, ROOT_ACTOR_BADGE);
+    const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(t.seu.id, capabilityId);
+    assert.ok(seuCapability, "the SEU requires the Capability");
+    const { data: earlier } = await capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId(seuCapability.id);
+    for (const fulfilment of earlier ?? []) await capabilityFulfilmentsDB.revoke(fulfilment.id);
+    for (const participant of participants) {
+      const { data: fulfilment, error } = await capabilityFulfilmentsDB.create({ seuCapabilityId: seuCapability.id, participantId: participant.id, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE });
+      assert.ok(fulfilment && !error, error?.message ?? "the fulfilment is created");
+    }
   }
   const { data: command, error: commandError } = await commandsDB.create({
     seuId: t.seu.id, entityType, entityId, commandType: `zz-dispatch-${run}`, fromState: "Defined", toState: "In Progress",
-    requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, correlationId: randomUUID(), eligibleParticipantPoolId: poolId,
+    requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, correlationId: randomUUID(),
   });
   assert.ok(command && !commandError, commandError?.message ?? "the Command is created");
   const { data: workItem, error: workItemError } = await workItemsDB.create({ commandId: command.id, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE });
@@ -148,7 +153,7 @@ async function commandOf(id: string): Promise<CommandRow> {
 }
 
 const dispatchInput = (t: TestSeu, work: { command: CommandRow; workItem: WorkItemRow }, overrides: Partial<Parameters<typeof dispatchEngine.dispatch>[0]> = {}) => ({
-  workItem: work.workItem, seuId: t.seu.id, producingCapabilityId: capabilityId as string | null, eligibleParticipantPoolId: work.command.eligible_participant_pool_id,
+  workItem: work.workItem, seuId: t.seu.id, producingCapabilityId: capabilityId as string | null,
   correlationId: randomUUID(), ...overrides,
 });
 
@@ -174,8 +179,8 @@ test("dispatch rejects a Work Item whose Command declares no producing Capabilit
   assert.ok((items ?? []).some((i) => i.category === "Action Required" && i.title.includes(work.workItem.id)));
 });
 
-test("dispatch rejects a Work Item with no pool, and one whose pool lists no Participant", async () => {
-  const noPool = await makeWork(plain, [], { poolId: null });
+test("dispatch rejects a Work Item when the SEU does not require the Capability, and one whose Capability has no fulfilment", async () => {
+  const noPool = await makeWork(await createSeu("no-capability", null), [], { required: false });
   await dispatchEngine.dispatch(dispatchInput(plain, noPool));
   assert.equal((await workItemOf(noPool.workItem.id)).status, "Disposed");
   assert.equal((await eventsOf(noPool.workItem.id))[0].payload.reason, "empty_eligible_pool");

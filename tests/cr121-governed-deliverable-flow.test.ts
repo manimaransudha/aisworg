@@ -19,7 +19,7 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { deliverableKickoffHandler } from "../src/domain/engine/deliverableKickoff.js";
 import type { EventRow } from "../src/dblayer/seuTypes.js";
 import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
-import { ATTESTATION_REQUIRED_POLICY_CODE, PRODUCE_COMMAND_VERB, commandTypeFor } from "../src/dblayer/constants.js";
+import { ATTESTATION_REQUIRED_POLICY_CODE } from "../src/dblayer/constants.js";
 import { getTestPlatformTenantId } from "../src/dblayer/seed/seedTestIdentity.js";
 import {
   ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, ensureActorParticipant,
@@ -53,7 +53,7 @@ async function commissionAndFulfil(prefix: string): Promise<{ seuId: string; del
   return { seuId: result.seu.id, deliverableId: deliverable.id };
 }
 
-test("only producing work has a Work Item: the engine's own hops (start, approve, baseline) create none, and each acceptance hop is attested by its Command", async () => {
+test("only producing work has a Work Item: the hop into In Progress has the one, the engine's other hops (approve, baseline) create none, and each acceptance hop is attested by its Command", async () => {
   const { seuId, deliverableId } = await commissionAndFulfil("cr121-no-work-item");
   const productionWorkItemId = await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
 
@@ -73,12 +73,10 @@ test("only producing work has a Work Item: the engine's own hops (start, approve
 
   const start = hop("Defined", "In Progress");
   assert.equal(start.length, 1, "exactly one Command for the governed start hop");
-  assert.equal(await workItemCount(start[0].id), 0, "the start hop is made by the engine and has no Work Item");
-
-  const producing = hop("In Progress", "In Progress").filter((c) => c.command_type === commandTypeFor("Deliverable", PRODUCE_COMMAND_VERB) && c.status === "Completed");
-  assert.equal(producing.length, 1, "exactly one Completed producing Command");
-  const producingWorkItems = (await workItemsDB.findByCommandIds([producing[0].id])).data ?? [];
-  assert.deepEqual(producingWorkItems.map((w) => w.id), [productionWorkItemId], "the producing Command has the one Work Item");
+  assert.equal(start[0].status, "Completed", "the start hop is the producing Command, Completed once its Work Item is");
+  const producingWorkItems = (await workItemsDB.findByCommandIds([start[0].id])).data ?? [];
+  assert.deepEqual(producingWorkItems.map((w) => w.id), [productionWorkItemId], "the start hop has the one Work Item");
+  assert.equal(hop("In Progress", "In Progress").length, 0, "no second producing Command is issued");
 
   for (const [from, to] of [["In Progress", "Approved"], ["Approved", "Baselined"]]) {
     const commandsForHop = hop(from, to);

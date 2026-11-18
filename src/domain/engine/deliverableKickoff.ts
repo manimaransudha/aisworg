@@ -183,7 +183,7 @@ async function processDispatchRejected(event: EventRow, seu: SeuRow, systemActor
 }
 
 // A Deliverable has moved. Only the Deliverables that depend on it at its new state are attempted. When it moved to
-// the producing state, its producing Command is issued.
+// the producing state, its producing Command is issued by the Execution Engine in the transition itself, not here.
 async function processDeliverableTransitioned(event: EventRow, seu: SeuRow, systemActor: SystemActor): Promise<void> {
   const payload = event.payload as { deliverableName?: string; toState?: string; commandId?: string } | null;
   if (!payload?.deliverableName || !payload.toState) throw new Error(`DeliverableTransitioned event ${event.id} carries no deliverableName or toState`);
@@ -196,34 +196,10 @@ async function processDeliverableTransitioned(event: EventRow, seu: SeuRow, syst
   }
   await requestProducingCapabilities(seu.id, ready);
   await attemptGovernedTransitions(ready, systemActor);
-  if (payload.toState !== DELIVERABLE_PRODUCING_STATE) return;
-  if (!payload.commandId) throw new Error(`DeliverableTransitioned event ${event.id} carries no commandId`);
-  const { data: transitionCommand } = await commandsDB.findById(payload.commandId);
-  if (!transitionCommand) throw new Error(`Command ${payload.commandId} not found for DeliverableTransitioned event ${event.id}`);
-  const { data: produced } = await deliverablesDB.findById(event.originating_object_id);
-  if (!produced) {
-    logger.error(`[deliverableKickoffHandler] Deliverable not found: ${event.originating_object_id}`);
-    return;
-  }
-  await withDeliverableLock(produced.id, async () => {
-    if (await hasLiveProducingCommand(seu.id, produced.id)) return;
-    if (await hasOpenBlockingObligation(produced.id)) return;
-    await executionEngine.execute({
-      seuId: seu.id,
-      entityType: "Deliverable",
-      entityId: produced.id,
-      fromState: DELIVERABLE_PRODUCING_STATE,
-      toState: DELIVERABLE_PRODUCING_STATE,
-      commandType: commandTypeFor("Deliverable", PRODUCE_COMMAND_VERB),
-      producingCapabilityId: produced.producing_capability_id,
-      requestedBy: systemActor.actorId,
-      actorId: systemActor.actorId,
-      actingBadgeType: event.authority_badge,
-      correlationId: event.correlation_id,
-      governanceOutcomeId: transitionCommand.governance_outcome_id,
-    });
-  });
 }
+
+// Issues a new producing Command for an In Progress Deliverable that has none in flight or Completed and whose
+// producing Capability has an active fulfilment now. The new Command carries a pool taken from those fulfilments.
 
 // Issues a new producing Command for an In Progress Deliverable that has none in flight or Completed and whose
 // producing Capability has an active fulfilment now. The new Command carries a pool taken from those fulfilments.
@@ -249,11 +225,6 @@ async function withDeliverableLock(deliverableId: string, work: () => Promise<vo
   }
 }
 
-async function hasLiveProducingCommand(seuId: string, deliverableId: string): Promise<boolean> {
-  const { data: commands } = await commandsDB.findBySeuId(seuId);
-  return (commands ?? []).some((c) => c.entity_id === deliverableId && c.from_state === DELIVERABLE_PRODUCING_STATE && c.to_state === DELIVERABLE_PRODUCING_STATE && c.status !== "Failed");
-}
-
 async function reissueProducingCommandLocked(
   seuId: string,
   deliverable: DeliverableRow,
@@ -264,7 +235,8 @@ async function reissueProducingCommandLocked(
   if (await hasOpenBlockingObligation(deliverable.id)) return;
   const { data: commands } = await commandsDB.findBySeuId(seuId);
   const own = (commands ?? []).filter((c) => c.entity_id === deliverable.id);
-  if (own.some((c) => c.from_state === DELIVERABLE_PRODUCING_STATE && c.to_state === DELIVERABLE_PRODUCING_STATE && c.status !== "Failed")) return;
+  // The Command of the hop into the producing state is a producing Command: its Work Item carries the work. A new one is issued only when every one of them Failed.
+  if (own.some((c) => c.to_state === DELIVERABLE_PRODUCING_STATE && c.status !== "Failed")) return;
   const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(seuId, deliverable.producing_capability_id);
   const { data: fulfilments } = seuCapability ? await capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId(seuCapability.id) : { data: [] };
   if ((fulfilments ?? []).length === 0) return;

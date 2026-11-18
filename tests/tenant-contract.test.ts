@@ -149,7 +149,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string, expectedC
   // (In Progress -> In Progress) is what the test then waits for.
   const dispatched = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: deliverable.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   if (!dispatched.ok) assert.ok(dispatched.reason === "no_transition_definition" || dispatched.reason === "already_in_flight", JSON.stringify(dispatched));
-  const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "In Progress", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "Defined", "In Progress");
   return workItem.id;
 }
 

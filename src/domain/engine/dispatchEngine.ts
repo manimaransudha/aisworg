@@ -1,4 +1,5 @@
-import { capabilityFulfilmentPoolsDB } from "../../dblayer/capabilityFulfilmentPoolsDB.js";
+import { seuCapabilitiesDB } from "../../dblayer/seuCapabilitiesDB.js";
+import { capabilityFulfilmentsDB } from "../../dblayer/capabilityFulfilmentsDB.js";
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
 import { commandsDB } from "../../dblayer/commandsDB.js";
 import { servicesDB } from "../../dblayer/servicesDB.js";
@@ -64,7 +65,6 @@ export const dispatchEngine = {
     workItem: WorkItemRow;
     seuId: string;
     producingCapabilityId: string | null;
-    eligibleParticipantPoolId: string | null;
     targetCompletionAt?: Date | null;
     correlationId: string;
     isRedispatch?: boolean;
@@ -78,8 +78,10 @@ export const dispatchEngine = {
       return;
     }
 
-    const pool = input.eligibleParticipantPoolId ? await capabilityFulfilmentPoolsDB.findById(input.eligibleParticipantPoolId) : { data: null };
-    const candidateIds = pool.data?.participant_ids ?? [];
+    // The eligible Participants are the active fulfilments of the producing Capability now, read from Capability Fulfilment (Chapter 33 §3).
+    const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(input.seuId, input.producingCapabilityId);
+    const { data: fulfilments } = seuCapability ? await capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId(seuCapability.id) : { data: [] };
+    const candidateIds = (fulfilments ?? []).map((f) => f.participant_id);
 
     if (candidateIds.length === 0) {
       await rejectDispatch({ ...input, command }, "DispatchRejected", "empty_eligible_pool");

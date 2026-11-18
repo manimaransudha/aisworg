@@ -138,8 +138,12 @@ test("a resolved Obligation, a fulfilled Capability and a rejected dispatch re-i
     requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, correlationId: randomUUID(),
   });
   assert.ok(transition);
+  // The Command of the hop into In Progress is a producing Command: while it is live, nothing is issued.
   await send("CapabilityFulfilled", { capabilityId: capability });
-  assert.deepEqual((await producing()).map((c) => c.entity_id), [free.id], "the free Deliverable gets its producing Command");
+  assert.deepEqual(await producing(), [], "a live transition Command is the producing Command");
+  await commandsDB.updateStatus(transition.id, "Failed");
+  await send("CapabilityFulfilled", { capabilityId: capability });
+  assert.deepEqual((await producing()).map((c) => c.entity_id), [free.id], "the free Deliverable gets a new producing Command once the transition Command Failed");
   await send("CapabilityFulfilled", { capabilityId: capability });
   assert.equal((await producing()).length, 1, "a second report does not issue a second Command");
 
@@ -163,7 +167,7 @@ test("a resolved Obligation, a fulfilled Capability and a rejected dispatch re-i
   assert.ok((await obligationsDB.findByRelatedObject("Deliverable", held.id)).data?.some((o) => o.title === `Holds ${run}`));
 });
 
-test("a Deliverable moving into the producing state gets no producing Command while one is live or while an Obligation holds it", async () => {
+test("a Deliverable moving into the producing state gets no producing Command from the kickoff handler", async () => {
   const { t, capability } = await operationalSeu("kickoff-transitioned");
   const live = await createDeliverable(t, "live", "In Progress", capability);
   const held = await createDeliverable(t, "held", "In Progress", capability);

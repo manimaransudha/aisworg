@@ -52,8 +52,8 @@ test("Flow Telemetry scoped to one SEU returns strictly that SEU's own Deliverab
   // assert.equal(toInProgressA.ok, true);
   // const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   // assert.equal(toInProgressB.ok, true);
-  await waitForDispatchedWorkItem(a.deliverableId, "In Progress", "In Progress");
-  await waitForDispatchedWorkItem(b.deliverableId, "In Progress", "In Progress");
+  await waitForDispatchedWorkItem(a.deliverableId, "Defined", "In Progress");
+  await waitForDispatchedWorkItem(b.deliverableId, "Defined", "In Progress");
 
   const scopedToA = await getFlowMetrics(a.seuId, PLATFORM_TENANT_ID);
   assert.ok(scopedToA.deliverableCycleTimes.some((d) => d.id === a.deliverableId));

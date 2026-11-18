@@ -22,7 +22,8 @@ import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
-import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
+import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
+import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { createAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { nextActionsFor } from "../src/domain/engine/entityTransition.js";
@@ -126,7 +127,7 @@ before(async () => {
   deliverableBirthState = birth.to_state;
 });
 
-// A Work Item that Dispatch has handed to a Participant: a Deliverable, a pool of one Participant, a Command and its Work Item.
+// A Work Item that Dispatch has handed to a Participant: a Deliverable, one Participant who alone fulfils the Capability, a Command and its Work Item. Dispatch reads the active fulfilments of the Capability.
 async function dispatchedWork(label: string) {
   const { data: deliverable } = await deliverablesDB.create({
     seuId: t.seu.id, name: `Queued ${label} ${run}`, producingCapabilityId: capabilityId, state: deliverableBirthState, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
@@ -135,18 +136,21 @@ async function dispatchedWork(label: string) {
   assert.ok(deliverable && master);
   const { data: participant } = await participantsDB.create({ seuId: t.seu.id, type: "Human", displayName: master.display_name, participantId: master.id });
   assert.ok(participant);
-  const { data: fulfilmentPool } = await capabilityFulfilmentPoolsDB.create({
-    seuId: t.seu.id, seuCapabilityId: null, capabilityId, participantIds: [participant.id], authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
-  });
-  assert.ok(fulfilmentPool);
+  await seuCapabilitiesDB.createMany(t.seu.id, [capabilityId], t.systemParticipantId, ROOT_ACTOR_BADGE);
+  const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(t.seu.id, capabilityId);
+  assert.ok(seuCapability, "the SEU requires the Capability");
+  const { data: earlier } = await capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId(seuCapability.id);
+  for (const fulfilment of earlier ?? []) await capabilityFulfilmentsDB.revoke(fulfilment.id);
+  const { data: fulfilment } = await capabilityFulfilmentsDB.create({ seuCapabilityId: seuCapability.id, participantId: participant.id, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE });
+  assert.ok(fulfilment);
   const { data: command } = await commandsDB.create({
     seuId: t.seu.id, entityType: "Deliverable", entityId: deliverable.id, commandType: `zz-queue-${run}`, fromState: deliverableBirthState, toState: "In Progress",
-    requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, correlationId: randomUUID(), eligibleParticipantPoolId: fulfilmentPool.id,
+    requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, correlationId: randomUUID(),
   });
   assert.ok(command);
   const { data: workItem } = await workItemsDB.create({ commandId: command.id, authorId: t.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE });
   assert.ok(workItem);
-  await dispatchEngine.dispatch({ workItem, seuId: t.seu.id, producingCapabilityId: capabilityId, eligibleParticipantPoolId: fulfilmentPool.id, correlationId: command.correlation_id });
+  await dispatchEngine.dispatch({ workItem, seuId: t.seu.id, producingCapabilityId: capabilityId, correlationId: command.correlation_id });
   assert.equal((await workItemsDB.findById(workItem.id)).data?.status, "Dispatched", "Dispatch handed the Work Item to the Participant");
   return { deliverable, participant, command, workItem };
 }

@@ -324,7 +324,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   // Participant — myDeliverableIds (raiseMyObligation's own ownership check)
   // is derived from a real commands/work_items row, never assumed.
   await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: TESTER_ALL_ID });
-  await waitForDispatchedWorkItem(requirementsSpec!.id, "In Progress", "In Progress");
+  await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
 
   const raised = await raiseMyObligation({
     userId: participantMasterId, seuId, deliverableId: requirementsSpec!.id,
@@ -477,7 +477,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
 
   const clicked = await clickTransitionAfterLag({ deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: TESTER_ALL_ID });
   assert.equal(clicked.ok, true, JSON.stringify(clicked));
-  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "In Progress", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
   const ec = workItem!.execution_context!;
 
   assert.ok(ec.activeObligations.some((o) => o.id === unrelatedObligation.id), "activeObligations must include every Obligation on the Deliverable, not just ones a Governance Evaluation Outcome consulted");

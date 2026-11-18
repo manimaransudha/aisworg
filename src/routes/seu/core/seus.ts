@@ -328,6 +328,7 @@ export interface SeuDetailView {
     code: string;
     name: string;
     status: string;
+    deliverables: string[];
     participantsByType: Array<{ type: string; participants: Array<{ id: string; displayName: string; state: string }> }>;
     eligibleParticipantsByType: Array<{ type: string; participants: Array<{ id: string; displayName: string }> }>;
   }>;
@@ -374,6 +375,10 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   const requiredDomainPacks = competencyRequirements.Domain ?? [];
   const eligibilityPolicies = await resolveEligibilityPolicies(seu);
 
+  // The Deliverables a Capability produces are the ones the EBM's settled result records for it, named by the SEU's Deliverables.
+  const settledCapabilities = ebm ? settledOf(ebm.behaviors)?.capabilities?.result ?? [] : [];
+  const deliverableNameByCode = new Map((deliverables ?? []).filter((d) => d.code !== null).map((d) => [d.code as string, d.name]));
+
   const capabilityViews = await Promise.all(
     (capabilities ?? []).map(async (c) => {
       let participantsByType: Array<{ type: string; participants: Array<{ id: string; displayName: string; state: string }> }> = participantTypes.map((type) => ({ type, participants: [] }));
@@ -396,7 +401,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
           participants: eligible.filter((p) => p.type === type).map((p) => ({ id: p.id, displayName: p.display_name })),
         }));
       }
-      return { id: c.id, capabilityId: c.capability_id, code: c.capability_code, name: c.capability_name, status: c.status, participantsByType, eligibleParticipantsByType };
+      return { id: c.id, capabilityId: c.capability_id, code: c.capability_code, name: c.capability_name, status: c.status, deliverables: (settledCapabilities.find((r) => r.capability === c.capability_code)?.deliverables ?? []).map((code) => deliverableNameByCode.get(code) ?? code), participantsByType, eligibleParticipantsByType };
     })
   );
 

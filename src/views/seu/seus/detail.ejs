@@ -203,7 +203,7 @@
           <% detail.capabilities.forEach(function(c) { %>
             <div class="section-card mb-3">
               <div class="section-header">
-                <span><%= c.name %> <code class="text-muted small"><%= c.code %></code></span>
+                <span><%= c.name %> <code class="text-muted small"><%= c.code %></code><% if (c.deliverables.length > 0) { %> <span class="text-muted small ms-2">Produces: <%= c.deliverables.join(', ') %></span><% } %></span>
                 <span class="state-badge state-<%= c.status %>"><%= c.status %></span>
               </div>
               <div class="p-3">
@@ -927,7 +927,9 @@
                     </div>
                     <div class="mb-2">
                       <label class="form-label small text-muted mb-1" for="qgwExpires">Expires (a waiver with no time expires after <%= detail.qualityGates.defaultExpiryDays %> days)</label>
-                      <input type="datetime-local" class="form-control form-control-sm" name="expiresAt" id="qgwExpires" data-default-days="<%= detail.qualityGates.defaultExpiryDays %>">
+                      <input type="datetime-local" class="form-control form-control-sm" id="qgwExpires" data-default-days="<%= detail.qualityGates.defaultExpiryDays %>">
+                      <%# The field holds the local time of the browser and carries no time zone, so the form posts it as an ISO time (UTC) through this hidden field. %>
+                      <input type="hidden" name="expiresAt" id="qgwExpiresIso">
                     </div>
                     <div class="mb-2">
                       <span class="form-label small text-muted mb-1 d-block">Supporting records (optional). Evidence, Knowledge and Decisions of this SEU that back the waiver. Their confidence lifts the confidence of the waiver.</span>
@@ -1012,6 +1014,8 @@
                 sync(block);
               });
               document.querySelector('#qualityGateWaiverModal form').addEventListener('submit', function () {
+                var local = document.getElementById('qgwExpires').value;
+                document.getElementById('qgwExpiresIso').value = local ? new Date(local).toISOString() : '';
                 var risks = [];
                 box.querySelectorAll('.qgw-risk').forEach(function (block) {
                   var controls = [];

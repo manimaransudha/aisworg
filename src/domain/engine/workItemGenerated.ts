@@ -40,7 +40,6 @@ export const workItemGeneratedHandler: EventHandler = async (event: EventRow) =>
     workItem,
     seuId: command.seu_id,
     producingCapabilityId,
-    eligibleParticipantPoolId: command.eligible_participant_pool_id,
     targetCompletionAt: payload?.targetCompletionAt ? new Date(payload.targetCompletionAt) : null,
     correlationId: event.correlation_id,
     strategies,

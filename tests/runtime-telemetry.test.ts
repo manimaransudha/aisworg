@@ -53,8 +53,8 @@ test("Runtime Telemetry: a real dispatched transition produces a non-negative di
   // assert.equal(toInProgressA.ok, true);
   // const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   // assert.equal(toInProgressB.ok, true);
-  await waitForDispatchedWorkItem(a.deliverableId, "In Progress", "In Progress");
-  await waitForDispatchedWorkItem(b.deliverableId, "In Progress", "In Progress");
+  await waitForDispatchedWorkItem(a.deliverableId, "Defined", "In Progress");
+  await waitForDispatchedWorkItem(b.deliverableId, "Defined", "In Progress");
 
   const after = await getRuntimeMetrics(undefined, PLATFORM_TENANT_ID);
   assert.ok(after.commandsGenerated >= before.commandsGenerated + 2, "expected at least 2 more Commands generated (2 commissionings x automatic steps + 2 explicit transitions)");

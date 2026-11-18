@@ -90,12 +90,12 @@ test("the producing Command leaves a traceable Command and a Completed/Disposed 
   const requirementsSpec = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(requirementsSpec);
 
-  // Defined -> In Progress is a governed hop: the Execution Engine makes it when the Capability is fulfilled. The producing Command
-  // (In Progress -> In Progress) is what the test waits for.
+  // Defined -> In Progress is a governed hop: the Execution Engine makes it when the Capability is fulfilled. The Command of that hop is the
+  // producing Command, and it is what the test waits for.
   // const result = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   // assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : "assertion failed");
   // Outstanding first: the producing Command and its Work Item are Dispatched, waiting for the Participant.
-  const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
+  const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
   const outstanding = await getSeuDetailView(seuId);
   // The automatic rescan's own first attempt may have already hit an empty
   // eligible-Participant pool and left a real, terminal Failed Command
@@ -110,10 +110,10 @@ test("the producing Command leaves a traceable Command and a Completed/Disposed 
   assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : "assertion failed");
 
   const after1 = await getSeuDetailView(seuId);
-  const producingCommands = (after1?.commands ?? []).filter((c) => c.commandType === commandTypeFor("Deliverable", PRODUCE_COMMAND_VERB) && c.status === "Completed");
+  const producingCommands = (after1?.commands ?? []).filter((c) => c.fromState === "Defined" && c.toState === "In Progress" && c.status === "Completed");
   assert.equal(producingCommands.length, 1, "expected exactly one Completed producing Command");
   const command = producingCommands[0];
-  assert.equal(command?.fromState, "In Progress");
+  assert.equal(command?.fromState, "Defined");
   assert.equal(command?.toState, "In Progress");
   assert.equal(command?.status, "Completed");
   assert.equal(command?.entityLabel, "Requirements Analysis Model");
@@ -205,7 +205,7 @@ test("a Participant reporting 'blocked' fails the Work Item, and raises an Atten
   // const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   // assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
 
-  const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
+  const { workItem: dispatchedWorkItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
   const completed = await completeWorkItem({ workItemId: dispatchedWorkItem.id, outcome: "blocked", reference: "vcs://phase3-blocked/partial@wip" });
   assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : "assertion failed");
   if (!completed.ok) throw new Error("unreachable");
@@ -237,7 +237,7 @@ test("completeWorkItem is idempotent-safe: a second result on an already-complet
   // const dispatched = await transitionDeliverableSync({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   // assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
 
-  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
   const first = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference: "vcs://phase3-double/req-spec@1" });
   assert.equal(first.ok, true);
 

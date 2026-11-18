@@ -133,7 +133,7 @@ test("external-orchestrator: dispatching delivers the assignment to the tenant e
 
   // Dispatch itself is async now (WorkItemGenerated -> dispatchEngine); wait
   // for the real Work Item before also waiting on its delivery.
-  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
   // Ch.30 Event Bus redesign — dispatch is fire-and-forget; poll for delivery
   // rather than assuming it's already landed synchronously.
   await waitUntil(() => captured.slice(before).some((c) => c.workItemId === workItem.id));
@@ -154,7 +154,7 @@ test("human-on-UI (default, no execution target): dispatching makes no external 
     await executionTargetsDB.deleteByTenantAndCapability(commissionTenantId, capabilityId);
   });
 
-  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
   // Ch.30 Event Bus redesign — dispatch is fire-and-forget; give a
   // (would-be erroneous) delivery a moment to land before asserting absence.
   await new Promise((resolve) => setTimeout(resolve, 200));
@@ -171,6 +171,6 @@ test("the platform-side flow is identical either way: the Deliverable is dispatc
 
   // Both dispatched, both requesting the same transition — the platform
   // behaves identically; only the edge differed.
-  await waitForDispatchedWorkItem(external.deliverableId, "In Progress", "In Progress");
-  await waitForDispatchedWorkItem(human.deliverableId, "In Progress", "In Progress");
+  await waitForDispatchedWorkItem(external.deliverableId, "Defined", "In Progress");
+  await waitForDispatchedWorkItem(human.deliverableId, "Defined", "In Progress");
 });

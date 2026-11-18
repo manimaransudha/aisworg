@@ -191,7 +191,7 @@ test("MVP acceptance: commission an SEU through the core and web paths, reach Op
   } else {
     assert.ok(transitioned.reason === "no_transition_definition" || transitioned.reason === "already_in_flight", JSON.stringify(transitioned));
   }
-  const { command: dispatchedCommand, workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
+  const { command: dispatchedCommand, workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
   console.log("[DEBUG dispatched]", JSON.stringify({ commandId: dispatchedCommand.id, commandStatus: dispatchedCommand.status, workItemId: workItem.id, workItemStatus: workItem.status }));
 
   // The Participant reports the result, which drives the governed transition.

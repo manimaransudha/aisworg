@@ -71,7 +71,7 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
 
   // Fulfilling the Capability is all the test does. The Deliverable Kickoff handler moves the Deliverable to In Progress, and dispatch follows.
   // The Work Item is not completed, so it stays outstanding.
-  const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "In Progress", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "Defined", "In Progress");
   return { seuId, deliverableId: deliverable.id, workItemId: workItem.id };
 }
 

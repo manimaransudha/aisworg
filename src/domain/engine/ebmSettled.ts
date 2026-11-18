@@ -8,6 +8,7 @@ export interface EbmSettledView {
   checklists?: { result?: Array<{ pack: string; checklist: string; items: Array<{ statement: string }> }> };
   engineeringCapital?: { result?: Array<{ type: string; url: string | null; packs: string[] }> };
   obligationDefinitions?: { result?: Array<{ deliverable: string; step: string; definitions: Array<{ fields: Record<string, unknown>; packs: Array<{ id: string; code: string }> }> }> };
+  capabilities?: { result?: Array<{ capability: string; deliverables: string[]; definitionId: string | null }> };
   services?: { result?: Array<{ deliverable: string; name: string | null; service: string }> };
   qualityGates?: { result?: Array<{ deliverable: string; step: string; gates: Array<Record<string, unknown>>; qualityGateDefinitionIds?: string[] }> };
   policies?: { result?: Array<{ policyCode: string; policyDefinitionId?: string; step?: string; scope: string; governingCondition: Record<string, unknown> | null }> };

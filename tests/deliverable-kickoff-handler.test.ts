@@ -104,10 +104,8 @@ test("a resolved Attention Item is refused when the event names no related objec
   );
 });
 
-test("a Deliverable transition into In Progress is refused without its Command, and ignored when the Command exists but the Deliverable does not", async () => {
+test("a Deliverable transition into In Progress is refused without its name and state, and the kickoff handler issues no producing Command for it", async () => {
   await assert.rejects(async () => deliverableKickoffHandler(await event("DeliverableTransitioned", { toState: "In Progress" }, producing.id)), /carries no deliverableName or toState/);
-  await assert.rejects(async () => deliverableKickoffHandler(await event("DeliverableTransitioned", { deliverableName: producing.name, toState: "In Progress" }, producing.id)), /carries no commandId/);
-  await assert.rejects(async () => deliverableKickoffHandler(await event("DeliverableTransitioned", { deliverableName: producing.name, toState: "In Progress", commandId: randomUUID() }, producing.id)), /not found for DeliverableTransitioned/);
 
   const { data: command, error } = await commandsDB.create({
     seuId: t.seu.id, entityType: "Deliverable", entityId: producing.id, commandType: `zz-kickoff-${run}`, fromState: "Defined", toState: "In Progress",

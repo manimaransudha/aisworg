@@ -71,7 +71,7 @@ test("Flow Telemetry: Deliverable cycle time is a real, non-negative number deri
   // The Execution Engine moves the Deliverable to In Progress when its Capability is fulfilled.
   // const toInProgress = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   // assert.equal(toInProgress.ok, true);
-  await waitForDispatchedWorkItem(deliverableId, "In Progress", "In Progress");
+  await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
 
   const flow = await getFlowMetrics(undefined, PLATFORM_TENANT_ID);
   const entry = flow.deliverableCycleTimes.find((d) => d.id === deliverableId);

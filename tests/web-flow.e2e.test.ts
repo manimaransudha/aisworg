@@ -195,7 +195,7 @@ async function commissionSeu(request: Session, statementPrefix: string, sponsor:
   return { seuId, csrf };
 }
 
-// The Execution Engine makes every Deliverable transition itself. Only producing work (In Progress -> In Progress)
+// The Execution Engine makes every Deliverable transition itself. Only producing work (the hop into In Progress)
 // has a Work Item. These flows stub the Participant by immediately reporting `done` through completeWorkItem (the core function behind the work-queue form), which records the reference and disposes the Work Item. A
 // governance-blocked transition creates no Command and is asserted directly on the form POST instead.
 async function completeOutstanding(seuId: string, deliverableId: string, targetState: string): Promise<void> {
@@ -209,7 +209,7 @@ async function completeOutstanding(seuId: string, deliverableId: string, targetS
   let command: CommandRow | undefined;
   await waitUntilAsync(async () => {
     const { data: commands } = await commandsDB.findBySeuId(seuId);
-    command = (commands ?? []).find((c) => c.entity_id === deliverableId && c.from_state === targetState && c.to_state === targetState && c.status === "Dispatched");
+    command = (commands ?? []).find((c) => c.entity_id === deliverableId && c.from_state === "Defined" && c.to_state === targetState && c.status === "Dispatched");
     return !!command;
   });
   assert.ok(command, `expected a Dispatched Command for ${deliverableId} -> ${targetState} (did governance block it, or did Dispatch reject/defer it?)`);
@@ -502,20 +502,15 @@ test("Phase 3 — the Deliverable stays in Defined until the Capability is fulfi
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: fixtureParticipantId });
   await waitForCapabilityFulfilled(seuId, capabilityId);
 
-  // Fulfilling the Capability lets the engine make the hop and then issue the producing Command.
+  // Fulfilling the Capability lets the engine make the hop, and the Command of that hop is the producing Command.
   await completeOutstanding(seuId, deliverableId, "In Progress");
 
   const { data: commands } = await commandsDB.findBySeuId(seuId);
   const hop = (commands ?? []).filter((c) => c.entity_id === deliverableId && c.from_state === "Defined" && c.to_state === "In Progress");
   assert.equal(hop.length, 1, "exactly one Command for the Defined -> In Progress hop");
-  assert.equal(hop[0]?.status, "Completed");
-  assert.equal(((await workItemsDB.findByCommandIds([hop[0]!.id])).data ?? []).length, 0, "the hop is made by the engine and has no Work Item");
-  const producing = (commands ?? []).filter((c) => c.entity_id === deliverableId && c.from_state === "In Progress" && c.to_state === "In Progress");
-  assert.equal(producing.length, 1, "one producing Command, from the fulfilment");
-  const completed = producing.find((c) => c.status === "Completed");
-  assert.ok(completed, "expected the producing Command to be Completed");
+  assert.equal(hop[0]?.status, "Completed", "the producing Command is Completed once its Work Item is");
 
-  const { data: workItems } = await workItemsDB.findByCommandIds([completed!.id]);
+  const { data: workItems } = await workItemsDB.findByCommandIds([hop[0]!.id]);
   assert.equal(workItems?.length, 1, "Ch.32 FR-32.1: exactly one Work Item for this one Command");
   assert.equal(workItems?.[0]?.status, "Disposed", "Ch.32 §13: a completed Work Item is disposed");
   // Ch.33 §9 — no dispatchStrategyPreference declared for this test's Profile, so selectParticipant falls back to

@@ -24,7 +24,7 @@ import { raiseObligationForBlockedTransition } from "../../routes/seu/core/oblig
 import { attentionItemsDB } from "../../dblayer/attentionItemsDB.js";
 import { authorityRulesDB } from "../../dblayer/authorityRulesDB.js";
 import type { CommandRow, DeliverableRow, DependencyDefinitionRow, GovernanceEvaluationOutcomeDraft, ObligationRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
-import { getSystemActor, commandTypeFor } from "../../dblayer/constants.js";
+import { getSystemActor, commandTypeFor, DELIVERABLE_PRODUCING_STATE } from "../../dblayer/constants.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
 import { attestationsDB } from "../../dblayer/attestationsDB.js";
 import { transitionEngine, gateRejection, transitionRequiresAttestation, type GateRejectionResult } from "./transitionEngine.js";
@@ -377,7 +377,10 @@ export const executionEngine = {
 
     const { data: updated, error: updateError } = await deliverablesDB.updateLifecycleState(deliverable.id, toState);
     if (updateError || !updated) throw updateError ?? new Error("failed to apply deliverable transition");
-    await commandsDB.updateStatus(command.id, "Completed");
+    // A hop into the producing state leaves its Command Generated: the Work Item generated from it carries the work, and the Dispatch Engine and the Work Item
+    // set the Command's later states. Any other hop has no work to follow, so its Command is Completed.
+    const startsProduction = toState === DELIVERABLE_PRODUCING_STATE;
+    if (!startsProduction) await commandsDB.updateStatus(command.id, "Completed");
 
     await dependencyDefinitionEngine.evaluateAndPublishFromTransition({
       seuId: deliverable.seu_id,
@@ -427,6 +430,20 @@ export const executionEngine = {
       authorityBadge: systemActor.authorBadge,
       payload: { deliverableName: deliverable.name, fromState, toState, commandId: command.id },
     });
+    // The Command of a hop into the producing state is generated here, so its Work Item follows. This is the last statement that publishes.
+    if (startsProduction) {
+      await eventBus.publish({
+        eventType: "CommandGenerated",
+        originatingObjectType: "Command",
+        originatingObjectId: command.id,
+        seuId: deliverable.seu_id,
+        correlationId: input.correlationId,
+        actorId: systemActor.actorId,
+        tenantId: systemActor.tenantId,
+        authorityBadge: systemActor.authorBadge,
+        payload: { entityType: "Deliverable", entityId: deliverable.id, fromState, toState, targetCompletionAt: null },
+      });
+    }
     return { ok: true };
   },
 

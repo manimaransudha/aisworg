@@ -113,7 +113,6 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
     workItem,
     seuId: command.seu_id,
     producingCapabilityId,
-    eligibleParticipantPoolId: command.eligible_participant_pool_id,
     targetCompletionAt: null,
     correlationId: event.correlation_id,
     isRedispatch: true,

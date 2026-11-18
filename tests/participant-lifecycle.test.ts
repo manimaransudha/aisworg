@@ -162,7 +162,7 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
 
   // Dispatch of the producing Work Item (In Progress -> In Progress) moves the Participant to Assigned and stops
   // there: it holds an outstanding Work Item, not yet done. Dispatch is asynchronous, so wait for it.
-  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
   // The Work Item row exists before the dispatch moves the Participant, so the Participant's state is waited for as well.
   let assigned = (await participantsDB.findById(participant.id)).data;
   for (let attempt = 0; attempt < 50 && assigned?.state !== "Assigned"; attempt++) {
@@ -192,7 +192,7 @@ test("CR-128 Entity 19: a failed Work Item returns the Participant to Idle throu
 
   const result = await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec.id, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   if (!result.ok) assert.ok(result.reason === "no_transition_definition" || result.reason === "already_in_flight", JSON.stringify(result));
-  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "In Progress", "In Progress");
+  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
   // The Work Item row exists before the dispatch moves the Participant, so the Participant's state is waited for.
   let assigned = (await participantsDB.findById(participant.id)).data;
   for (let attempt = 0; attempt < 50 && assigned?.state !== "Assigned"; attempt++) {
