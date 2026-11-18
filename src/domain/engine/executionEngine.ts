@@ -7,6 +7,7 @@ import { seusDB } from "../../dblayer/seusDB.js";
 import { eventBus } from "./eventBus.js";
 import { dependencyDefinitionEngine } from "./dependencyDefinitionEngine.js";
 import { qualityGateEngine, type QualityGateCondition } from "./qualityGateEngine.js";
+import type { Waivable } from "./qualityGateOutcomeComposition.js";
 import { originatingPolicyCode } from "./obligationOrigin.js";
 import { RESOLVED_OBLIGATION_STATUSES, WAIVER_SCOPE_OBLIGATION, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_POLICY_OBLIGATION } from "../../dblayer/constants.js";
 import { policyEngine, type PolicyEvaluationResult } from "./policyEngine.js";
@@ -53,7 +54,7 @@ async function withDeliverableTurn<T>(deliverableId: string, work: () => Promise
 }
 
 // What a waiver has to name to cover an open Obligation: its Policy and title when a Policy raised it, its category and title otherwise.
-async function obligationWaivable(obligation: ObligationRow): Promise<QualityGateCondition["waivable"]> {
+async function obligationWaivable(obligation: ObligationRow): Promise<Extract<Waivable, { scope: typeof WAIVER_SCOPE_POLICY_OBLIGATION | typeof WAIVER_SCOPE_OBLIGATION }>> {
   const policyCode = await originatingPolicyCode(obligation);
   return policyCode
     ? { scope: WAIVER_SCOPE_POLICY_OBLIGATION, policyCode, title: obligation.title }
@@ -163,13 +164,15 @@ export const executionEngine = {
       });
     const blockedResult = [ebmPolicyResult, hopPolicyResult].find((r) => r.outcome === "Blocked");
     if (blockedResult && blockedResult.outcome === "Blocked") {
-      await raiseObligationForBlockedTransition({
+      const { obligations: raised } = await raiseObligationForBlockedTransition({
         seuId: deliverable.seu_id, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id,
         fromState, toState: targetState, policyCode: blockedResult.policyCode,
       });
       const detail = `blocked by policy ${blockedResult.policyCode}`;
       const plainPolicyCode = blockedResult.policyCode.split("::")[0];
-      found.push({ name: `Policy ${plainPolicyCode}`, reason: detail, outcome: "Blocked", waivable: { scope: WAIVER_SCOPE_POLICY, policyCode: plainPolicyCode }, refusal: { ok: false, reason: "policy_blocked", detail } });
+      // The Policy is covered by a waiver of the Policy, or by a waiver of an open Obligation it raised for this hop: while that Obligation is waived, the Policy's own failed condition no longer blocks.
+      const waivableByObligation = await Promise.all(raised.map((o) => obligationWaivable(o)));
+      found.push({ name: `Policy ${plainPolicyCode}`, reason: detail, outcome: "Blocked", waivable: [{ scope: WAIVER_SCOPE_POLICY, policyCode: plainPolicyCode }, ...waivableByObligation], refusal: { ok: false, reason: "policy_blocked", detail } });
     } else if (ebmPolicyResult.outcome !== "NotApplicable" || hopPolicyResult.outcome !== "NotApplicable") {
       found.push({ name: "Policies", reason: "", outcome: "Passed", waivable: null, refusal: null });
     }

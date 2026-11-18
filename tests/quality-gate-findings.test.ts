@@ -73,6 +73,22 @@ test("a Policy Obligation waiver covers the Obligation a Policy raised, by Polic
   assert.deepEqual(results.map((r) => r.outcome), ["Waived", "Blocked", "Blocked"]);
 });
 
+test("a Policy that raised an Obligation is covered by a waiver of the Policy or of that Obligation, and by no other Obligation", async () => {
+  const alternatives = (code: string, title: string): QualityGateCondition["waivable"] => [{ scope: WAIVER_SCOPE_POLICY, policyCode: code }, { scope: WAIVER_SCOPE_POLICY_OBLIGATION, policyCode: code, title }];
+  const policyWithObligation = (code: string, title: string) => blocked(`Policy ${code}`, alternatives(code, title));
+  const waivedByObligation = randomUUID();
+  await grant(waivedByObligation, { scope: WAIVER_SCOPE_POLICY_OBLIGATION, policyCode: `policy-e-${run}`, obligationTitle: `t-${run}` });
+  const byObligation = await settle([policyWithObligation(`policy-e-${run}`, `t-${run}`), policyObligationFinding(`policy-e-${run}`, `t-${run}`)], waivedByObligation);
+  assert.deepEqual(byObligation.map((r) => r.outcome), ["Waived", "Waived"], "the waiver of the Obligation covers the Obligation and the Policy that raised it");
+  assert.equal(byObligation[0].waiverId, byObligation[1].waiverId);
+  const otherObligation = randomUUID();
+  await grant(otherObligation, { scope: WAIVER_SCOPE_POLICY_OBLIGATION, policyCode: `policy-e-${run}`, obligationTitle: `another-${run}` });
+  assert.equal((await settle([policyWithObligation(`policy-e-${run}`, `t-${run}`)], otherObligation))[0].outcome, "Blocked", "a waiver of another Obligation does not cover it");
+  const waivedByPolicy = randomUUID();
+  await grant(waivedByPolicy, { scope: WAIVER_SCOPE_POLICY, policyCode: `policy-f-${run}` });
+  assert.equal((await settle([policyWithObligation(`policy-f-${run}`, `t-${run}`)], waivedByPolicy))[0].outcome, "Waived", "a waiver of the Policy still covers it");
+});
+
 test("a waiver names Deliverables by code: it covers the Deliverable of that code in its SEU, not one of another code, and not one of another SEU unless it is shared with the Profile", async () => {
   const { deliverablesDB } = await import("../src/dblayer/deliverablesDB.js");
   const { data: mine } = await deliverablesDB.findBySeuId(testSeu.seu.id);

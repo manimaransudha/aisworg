@@ -9,7 +9,7 @@ import { evidenceDB } from "../../../dblayer/evidenceDB.js";
 import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
 import { decisionsDB } from "../../../dblayer/decisionsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { QUALITY_GATE_WAIVE_BADGE, WAIVER_CONTROL_CONCEPT, WAIVER_CONTROL_EXPIRY, WAIVER_CONTROL_OBLIGATION, WAIVER_CONTROL_ACCEPT_RISK, WAIVER_RISK_ENTITY_TYPE, WAIVER_SCOPE_GATE, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_OBLIGATION, WAIVER_SCOPE_POLICY_OBLIGATION, WAIVER_SCOPES, WAIVER_ENTITY_TYPE, WAIVER_SUPPORT_EVIDENCE, WAIVER_SUPPORT_KNOWLEDGE, WAIVER_SUPPORT_DECISION, WAIVER_SUPPORT_TYPES } from "../../../dblayer/constants.js";
+import { QUALITY_GATE_WAIVE_BADGE, WAIVER_CONTROL_CONCEPT, WAIVER_CONTROL_EXPIRY, WAIVER_CONTROL_OBLIGATION, WAIVER_CONTROL_ACCEPT_RISK, WAIVER_RISK_ENTITY_TYPE, WAIVER_SCOPE_GATE, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_OBLIGATION, WAIVER_SCOPE_POLICY_OBLIGATION, WAIVER_SCOPES, WAIVER_ENTITY_TYPE, WAIVER_SUPPORT_EVIDENCE, WAIVER_SUPPORT_KNOWLEDGE, WAIVER_SUPPORT_DECISION, WAIVER_SUPPORT_TYPES, WAIVER_DEFAULT_EXPIRY_DAYS } from "../../../dblayer/constants.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import { createObligation } from "./obligations.js";
 import { resolveAuthor } from "./attentionItems.js";
@@ -85,7 +85,9 @@ export async function grantQualityGateWaiver(input: {
   supportingRecords?: Record<string, string[]>;
 }): Promise<GrantQualityGateWaiverResult> {
   if (!input.rationale?.trim()) return { ok: false, reason: "rationale is required" };
-  if (input.expiresAt && !(new Date(input.expiresAt).getTime() > Date.now())) return { ok: false, reason: "the expiry time must be a time in the future" };
+  // A waiver with no expiry time expires after the default number of days.
+  const expiresAt = input.expiresAt || new Date(Date.now() + WAIVER_DEFAULT_EXPIRY_DAYS * 86400000).toISOString();
+  if (!(new Date(expiresAt).getTime() > Date.now())) return { ok: false, reason: "the expiry time must be a time in the future" };
   const authorityBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, QUALITY_GATE_WAIVE_BADGE);
   const scope = input.scope ?? WAIVER_SCOPE_GATE;
   if (!WAIVER_SCOPES.includes(scope)) return { ok: false, reason: `waiver scope "${scope}" is not one of ${WAIVER_SCOPES.join(", ")}` };
@@ -128,7 +130,6 @@ export async function grantQualityGateWaiver(input: {
     if (!r.risk) return { ok: false, reason: "an associated risk is empty" };
     for (const control of r.controls) {
       await assertCanonicalCategory(WAIVER_CONTROL_CONCEPT, control.type);
-      if (control.type === WAIVER_CONTROL_EXPIRY && !input.expiresAt) return { ok: false, reason: `the risk "${r.risk}" has the Expiry control, so the waiver needs an expiry time` };
       if (control.type !== WAIVER_CONTROL_OBLIGATION) continue;
       const o = control.obligation;
       if (!o.title?.trim()) return { ok: false, reason: `the Obligation control of the risk "${r.risk}" needs a title` };
@@ -182,7 +183,7 @@ export async function grantQualityGateWaiver(input: {
     rationale: input.rationale,
     grantedBy: master.id,
     authorityBadge,
-    expiresAt: input.expiresAt,
+    expiresAt,
     supportingRecords,
   });
   if (error || !waiver) return { ok: false, reason: (error ?? new Error("failed to grant waiver")).message };

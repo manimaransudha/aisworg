@@ -16,11 +16,12 @@ export type Waivable =
   | { scope: typeof WAIVER_SCOPE_OBLIGATION; category: string; title: string };
 
 // One condition of a decision: a Quality Gate line item or one of the other checks of the hop. A condition is Passed or Blocked, and never Waived.
-// `waiver` is set by the composition alone, on a Blocked condition that an Active waiver covers.
+// `waiver` is set by the composition alone, on a Blocked condition that an Active waiver covers. A condition names what a waiver has to name, or a list of
+// alternatives of which one is enough (a Policy that raised an Obligation is covered by a waiver of the Policy or of that Obligation).
 export interface QualityGateOutcomeInputItem {
   gateName: string;
   outcome: "Passed" | "Blocked";
-  waivable: Waivable | null;
+  waivable: Waivable | Waivable[] | null;
   waiver?: { outcome: "Waived"; waiverId: string };
 }
 
@@ -48,12 +49,12 @@ export async function getWaivers(seuId: string | null): Promise<QualityGateWaive
 }
 
 // A waiver covers an entity when it was granted from it or, for a Deliverable, when it names the Deliverable's code.
-function coversEntity(waiver: QualityGateWaiverRow, entity: QualityGateOutcomeEntity, deliverableCode: string | null): boolean {
+export function coversEntity(waiver: QualityGateWaiverRow, entity: QualityGateOutcomeEntity, deliverableCode: string | null): boolean {
   if (waiver.entity_type !== entity.entityType) return false;
   return waiver.entity_id === entity.entityId || (deliverableCode !== null && waiver.deliverable_codes.includes(deliverableCode));
 }
 
-function namesCondition(waiver: QualityGateWaiverRow, waivable: Waivable): boolean {
+export function namesCondition(waiver: QualityGateWaiverRow, waivable: Waivable): boolean {
   if (waiver.scope !== waivable.scope) return false;
   switch (waivable.scope) {
     case WAIVER_SCOPE_GATE: return waiver.quality_gate_id === waivable.qualityGateId;
@@ -75,8 +76,8 @@ export async function composeQualityGateOutcome(items: QualityGateOutcomeInputIt
   const deliverableCode = blockedAtFirst && waivers.length > 0 && entity.entityType === "Deliverable" ? (await deliverablesDB.findById(entity.entityId)).data?.code ?? null : null;
   const settled: QualityGateOutcomeInputItem[] = items.map((i) => {
     if (i.outcome !== "Blocked" || !i.waivable) return { ...i, waiver: undefined };
-    const waivable = i.waivable;
-    const waiver = waivers.find((w) => coversEntity(w, entity, deliverableCode) && namesCondition(w, waivable));
+    const alternatives = Array.isArray(i.waivable) ? i.waivable : [i.waivable];
+    const waiver = waivers.find((w) => coversEntity(w, entity, deliverableCode) && alternatives.some((waivable) => namesCondition(w, waivable)));
     return waiver ? { ...i, waiver: { outcome: "Waived" as const, waiverId: waiver.id } } : { ...i, waiver: undefined };
   });
   if (settled.length === 0) return { outcome: "NotApplicable", rule: QUALITY_GATE_COMPOSITION_RULE_NO_GATES, items: settled };

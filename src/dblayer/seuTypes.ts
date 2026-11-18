@@ -1,3 +1,4 @@
+import type { Waivable } from "../domain/engine/qualityGateOutcomeComposition.js";
 
 export type DbResult<T> = { data: T; error?: undefined } | { data?: undefined; error: Error };
 
@@ -988,6 +989,9 @@ export interface QualityGateOutcomeCondition {
   name: string;
   outcome: "Passed" | "Blocked" | "Waived";
   waiverId: string | null;
+  // Why a Blocked condition is Blocked, and what a waiver has to name to cover it (null when no waiver can).
+  reason: string;
+  waivable: Waivable | Waivable[] | null;
 }
 
 export interface QualityGateOutcomeRow {

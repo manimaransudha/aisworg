@@ -93,10 +93,10 @@
             </div>
           </div>
           <div class="section-card">
-            <div class="section-header">Deliverables</div>
+            <div class="section-header">Deliverable Quality Gate</div>
             <div class="table-responsive">
               <table class="table mb-0 align-middle">
-                <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Blocked by</th><th>Quality gates</th><th>Attention items</th><th>Participants</th><th>Transition</th></tr></thead>
+                <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Quality Gate</th><th>Quality Gate Outcome</th><th>Attention items</th><th>Participants</th><th>Transition</th></tr></thead>
                 <tbody>
                   <% if (detail.deliverables.length === 0) { %>
                     <tr><td colspan="7" class="text-muted small">No Deliverable instances yet — created once commissioning reaches Create Engineering Assets.</td></tr>
@@ -106,20 +106,21 @@
                       <td class="small"><%= d.name %><br><span class="text-muted" style="font-size:0.72rem;"><% if (d.category) { %><%= d.category %> &middot; <% } %>Acquisition Scope: <%= d.acquisitionScope %></span></td>
                       <td><span class="state-badge state-<%= d.lifecycleState.replace(/\s+/g, '-') %>"><%= d.lifecycleState %></span></td>
                       <td class="small">
-                        <% if (d.blockedBy.length === 0) { %>
-                          <span class="text-muted">nothing</span>
+                        <% if (d.qualityGateItems.length === 0) { %>
+                          <span class="text-muted">No Quality Gate item applies in this state.</span>
                         <% } else { %>
-                          <% d.blockedBy.forEach(function(b) { %>
-                            <div class="edge-note"><%= b.kind %> <strong><%= b.label %></strong> &rarr; <%= b.toState %></div>
+                          <% d.qualityGateItems.forEach(function(g) { %>
+                            <div class="edge-note"><strong><%= g.item %></strong> <span class="text-muted" style="font-size:0.72rem;">(<%= g.kind %>, to <%= g.toState %>)</span><br>
+                              <%= g.result %><% if (g.result === 'Blocked' || g.result === 'Deviated') { %> &middot; <%= g.waived ? 'Waived' : 'Not waived' %><% } %></div>
                           <% }) %>
                         <% } %>
                       </td>
                       <td class="small">
-                        <% if (d.qualityGates.length === 0) { %>
-                          <span class="text-muted">none</span>
+                        <% if (d.qualityGateOutcomes.length === 0) { %>
+                          <span class="text-muted">Not decided yet</span>
                         <% } else { %>
-                          <% d.qualityGates.forEach(function(g) { %>
-                            <div class="edge-note"><strong><%= g.name %></strong> &mdash; <%= g.outcome %><br><span class="text-muted" style="font-size:0.72rem;"><%= g.step %></span></div>
+                          <% d.qualityGateOutcomes.forEach(function(o) { %>
+                            <div class="edge-note"><strong><%= o.outcome %></strong> <span class="text-muted" style="font-size:0.72rem;">(to <%= o.toState %>)</span><br><span class="text-muted" style="font-size:0.72rem;">confidence <%= o.confidenceLevel %>%</span></div>
                           <% }) %>
                         <% } %>
                       </td>
@@ -149,13 +150,16 @@
                              (the overwhelmingly common case); the
                              select+submit shape stays for the genuine
                              multi-option case. %>
+                        <%# A transition stays disabled while the Quality Gate outcome of that hop is Blocked. %>
+                        <% var gateBlockedTo = {}; d.qualityGateOutcomes.forEach(function(o) { if (o.outcome === 'Blocked') gateBlockedTo[o.toState] = true; }); %>
+                        <% var openTargets = d.possibleNextStates.filter(function(s) { return !gateBlockedTo[s]; }); %>
                         <% if (d.possibleNextStates.length === 0) { %>
                           <span class="text-muted small">no further transitions defined</span>
                         <% } else if (d.possibleNextStates.length === 1) { %>
                           <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/deliverables/<%= d.id %>/transition" class="mb-0">
                             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                             <input type="hidden" name="targetState" value="<%= d.possibleNextStates[0] %>">
-                            <button type="submit" class="btn btn-sm btn-primary"><%= d.possibleNextStates[0] %></button>
+                            <button type="submit" class="btn btn-sm btn-primary" <% if (gateBlockedTo[d.possibleNextStates[0]]) { %>disabled title="The Quality Gate outcome of this transition is Blocked."<% } %>><%= d.possibleNextStates[0] %></button>
                           </form>
                         <% } else { %>
                           <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/deliverables/<%= d.id %>/transition"
@@ -163,10 +167,10 @@
                             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                             <select name="targetState" class="form-select form-select-sm" style="width: auto;">
                               <% d.possibleNextStates.forEach(function(s) { %>
-                                <option value="<%= s %>"><%= s %></option>
+                                <option value="<%= s %>" <%= gateBlockedTo[s] ? 'disabled' : '' %>><%= s %><%= gateBlockedTo[s] ? ' (Quality Gate Blocked)' : '' %></option>
                               <% }) %>
                             </select>
-                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+                            <button type="submit" class="btn btn-sm btn-outline-primary" <% if (openTargets.length === 0) { %>disabled title="The Quality Gate outcome of every transition is Blocked."<% } %>>Transition</button>
                           </form>
                         <% } %>
                       </td>
@@ -811,29 +815,23 @@
             <div class="section-header">Blocked now</div>
             <div class="table-responsive">
               <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light"><tr><th>Gate</th><th>Blocked entity</th><th>State</th><th>Hop</th><th>Why</th><th>Evaluated</th><th>Waiver</th><th></th></tr></thead>
+                <thead class="table-light"><tr><th>Item</th><th>Blocked entity</th><th>State</th><th>Hop</th><th>Why</th><th>Evaluated</th><th>Waiver</th><th></th></tr></thead>
                 <tbody>
                   <% if (detail.qualityGates.blocking.length === 0) { %>
-                    <tr><td colspan="8" class="text-muted small">No Quality Gate blocks an entity of this SEU now.</td></tr>
+                    <tr><td colspan="8" class="text-muted small">Nothing blocks an entity of this SEU now.</td></tr>
                   <% } %>
                   <% detail.qualityGates.blocking.forEach(function(b) { %>
                     <tr>
-                      <td class="small"><strong><%= b.gateName %></strong><br><span class="text-muted" style="font-size:0.72rem;"><%= b.gateCode %> &middot; <%= b.category %></span></td>
+                      <td class="small"><strong><%= b.item %></strong><br><span class="text-muted" style="font-size:0.72rem;"><%= b.kind %></span></td>
                       <td class="small"><%= b.entity %></td>
                       <td><span class="state-badge state-<%= b.entityState.replace(/\s+/g, '-') %>"><%= b.entityState %></span></td>
-                      <td class="small">
-                        <% if (b.steps.length === 0) { %><span class="text-muted">not settled for this state</span><% } %>
-                        <% b.steps.forEach(function(st) { %><div class="edge-note"><%= st.split('|').slice(1).join(' → ') %></div><% }) %>
-                      </td>
-                      <td class="small">
-                        <% if (b.details.length === 0) { %><span class="text-muted">no detail recorded</span><% } %>
-                        <% b.details.forEach(function(d) { %><div><%= d %></div><% }) %>
-                      </td>
+                      <td class="small"><%= b.hop || 'not settled for this state' %></td>
+                      <td class="small"><%= b.why %></td>
                       <td class="small text-muted"><%= new Date(b.evaluatedAt).toLocaleString() %></td>
-                      <td class="small"><%= b.waived ? 'Active waiver' : 'none' %></td>
+                      <td class="small"><%= b.waived ? 'Waived' : 'Not waived' %></td>
                       <td class="small text-end">
-                        <% if (locals.canWaiveQualityGate && !b.waived) { %>
-                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#qualityGateWaiverModal" data-gate-id="<%= b.gateId %>" data-entity="<%= b.entityValue %>">Grant waiver</button>
+                        <% if (locals.canWaiveQualityGate && !b.waived && b.waivable) { %>
+                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#qualityGateWaiverModal" data-line-key="<%= b.lineKey || '' %>" data-entity="<%= b.entityValue %>">Grant waiver</button>
                         <% } %>
                       </td>
                     </tr>
@@ -928,8 +926,8 @@
                       <textarea class="form-control form-control-sm" name="rationale" id="qgwRationale" rows="3" required></textarea>
                     </div>
                     <div class="mb-2">
-                      <label class="form-label small text-muted mb-1" for="qgwExpires">Expires (optional)</label>
-                      <input type="datetime-local" class="form-control form-control-sm" name="expiresAt" id="qgwExpires">
+                      <label class="form-label small text-muted mb-1" for="qgwExpires">Expires (a waiver with no time expires after <%= detail.qualityGates.defaultExpiryDays %> days)</label>
+                      <input type="datetime-local" class="form-control form-control-sm" name="expiresAt" id="qgwExpires" data-default-days="<%= detail.qualityGates.defaultExpiryDays %>">
                     </div>
                     <div class="mb-2">
                       <span class="form-label small text-muted mb-1 d-block">Supporting records (optional). Evidence, Knowledge and Decisions of this SEU that back the waiver. Their confidence lifts the confidence of the waiver.</span>
@@ -1060,7 +1058,7 @@
                 });
                 same.hidden = others.length === 0;
               }
-              function render(preselectGateId) {
+              function render(preselectKey) {
                 box.innerHTML = '';
                 same.hidden = true;
                 Object.keys(fields).forEach(function (k) { document.getElementById(fields[k]).value = ''; });
@@ -1076,13 +1074,18 @@
                   label.appendChild(radio);
                   label.appendChild(document.createTextNode(line.kind + ': ' + line.name + ' (' + line.outcome + ', ' + line.hop + ')' + (line.note ? ' ' + line.note : '')));
                   box.appendChild(label);
-                  if (preselectGateId && line.gateId === preselectGateId && line.waivable) { radio.checked = true; pick(line); }
+                  if (preselectKey && line.key === preselectKey && line.waivable) { radio.checked = true; pick(line); }
                 });
               }
               entity.addEventListener('change', function () { render(null); });
               document.getElementById('qualityGateWaiverModal').addEventListener('show.bs.modal', function (event) {
+                // The expiry time starts at the default: now plus the default number of days, in the local time of the browser.
+                var expires = document.getElementById('qgwExpires');
+                var at = new Date(Date.now() + Number(expires.dataset.defaultDays) * 86400000);
+                at.setMinutes(at.getMinutes() - at.getTimezoneOffset());
+                expires.value = at.toISOString().slice(0, 16);
                 var trigger = event.relatedTarget;
-                if (trigger && trigger.dataset.entity) { entity.value = trigger.dataset.entity; render(trigger.dataset.gateId || null); } else render(null);
+                if (trigger && trigger.dataset.entity) { entity.value = trigger.dataset.entity; render(trigger.dataset.lineKey || null); } else render(null);
               });
             })();
           </script>

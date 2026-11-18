@@ -211,6 +211,8 @@ export const WAIVER_SCOPE_GATE = "Gate";
 export const WAIVER_SCOPE_POLICY = "Policy";
 export const WAIVER_SCOPE_POLICY_OBLIGATION = "Policy Obligation";
 export const WAIVER_SCOPE_OBLIGATION = "Obligation";
+// A waiver that is granted with no expiry time expires this many days after it is granted.
+export const WAIVER_DEFAULT_EXPIRY_DAYS = 3;
 // The kinds of record a waiver can name as support: Evidence, Knowledge and Decision records of its SEU. A waiver keeps them as { <type>: [ids] }.
 export const WAIVER_SUPPORT_EVIDENCE = "Evidence";
 export const WAIVER_SUPPORT_KNOWLEDGE = "Knowledge";

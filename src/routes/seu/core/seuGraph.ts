@@ -130,7 +130,8 @@ export async function getSeuGraph(seuId: string): Promise<SeuGraph | null> {
   // Deliverables, with their blockers.
   const blockedDeliverableIds = new Set<string>();
   for (const d of detail.deliverables) {
-    if (d.blockedBy.length > 0) blockedDeliverableIds.add(d.id);
+    // A Deliverable is blocked while one of its Quality Gate items for the current state is Blocked and no waiver covers it.
+    if (d.qualityGateItems.some((i) => i.result === "Blocked" && !i.waived)) blockedDeliverableIds.add(d.id);
   }
 
   for (const c of detail.capabilities) {
@@ -235,7 +236,7 @@ export async function getSeuGraph(seuId: string): Promise<SeuGraph | null> {
   }
 
   for (const d of detail.deliverables) {
-    const row = { ...d, blockedBy: d.blockedBy.map((b) => `${b.kind}: ${b.label} (to ${b.toState})`), dependencyEdges: d.dependencyEdges.map((e) => `${e.dependencyType} ${e.targetLabel} at ${e.requiredState} — ${e.readinessState}`), participants: d.participants };
+    const row = { ...d, qualityGateItems: d.qualityGateItems.map((i) => `${i.kind}: ${i.item} (to ${i.toState}): ${i.result}${i.waived ? ", waived" : ""}`), qualityGateOutcomes: d.qualityGateOutcomes.map((o) => `${o.outcome} (to ${o.toState}), confidence ${o.confidenceLevel}%`), dependencyEdges: d.dependencyEdges.map((e) => `${e.dependencyType} ${e.targetLabel} at ${e.requiredState} — ${e.readinessState}`), participants: d.participants };
     rawNodes.set(d.id, { id: d.id, kind: "Deliverable", label: d.name, state: d.lifecycleState, details: detailsOf(row) });
   }
 

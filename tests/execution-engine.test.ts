@@ -330,10 +330,15 @@ test("the SEU page reads the evaluation and the decision of each hop: an evaluat
 
   const detail = await getSeuDetailView(gateSeu.seu.id);
   assert.ok(detail);
-  const blocking = detail.qualityGates.blocking.filter((b) => b.entityValue === `Deliverable|${deliverable.id}` && b.gateId === gate.id);
-  assert.deepEqual(blocking.map((b) => b.steps), [[`Deliverable|${from}|${to}`]], "Blocked now lists the Blocked hop only");
+  const blocking = detail.qualityGates.blocking.filter((b) => b.entityValue === `Deliverable|${deliverable.id}`);
+  assert.deepEqual(blocking.filter((b) => b.item === gate.name).map((b) => b.hop), [hop], "Blocked now lists the Blocked hop of the gate only");
+  // The other checks that went into the composition are listed too: the Deliverable was not submitted, which is a check of the hop and not a Quality Gate.
+  assert.ok(blocking.some((b) => b.item === "Submission" && b.kind === "Check" && b.hop === hop && !b.waived && !b.waivable && b.lineKey === null), "Blocked now lists the Submission check, which no waiver can cover");
+  assert.ok(blocking.filter((b) => b.item === gate.name).every((b) => b.waivable), "the gate row can be waived");
+  assert.ok(blocking.every((b) => b.hop === hop), "nothing of another hop is listed");
   const view = detail.deliverables.find((d) => d.id === deliverable.id);
-  assert.deepEqual(view?.qualityGates.filter((g) => g.name === gate.name).map((g) => [g.step, g.outcome]), [[`Deliverable|${from}|${to}`, "Blocked"]]);
+  assert.deepEqual(view?.qualityGateItems.filter((g) => g.kind === "Quality Gate" && g.item === gate.name).map((g) => [g.toState, g.result, g.waived]), [[to, "Blocked", false]]);
+  assert.deepEqual(view?.qualityGateOutcomes.map((o) => [o.toState, o.outcome]).sort(), [[to, "Blocked"], [otherTo, "Approved"]].sort(), "the outcome of each hop out of the current state");
   assert.deepEqual(detail.qualityGates.decisions.filter((d) => d.deliverable === deliverable.name).map((d) => [d.hop, d.outcome]).sort(), [[hop, "Blocked"], [`${from} → ${otherTo}`, "Approved"]].sort());
 });
 

@@ -10,7 +10,7 @@ import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { grantQualityGateWaiver } from "../src/routes/seu/core/qualityGateWaivers.js";
 import { rateGateWaivers } from "../src/domain/engine/waiverConfidence.js";
 import { evidenceDB } from "../src/dblayer/evidenceDB.js";
-import { WAIVER_CONTROL_ACCEPT_RISK, WAIVER_CONTROL_EXPIRY, WAIVER_CONTROL_OBLIGATION, WAIVER_RISK_ENTITY_TYPE, WAIVER_RISK_OBLIGATION_CATEGORY, WAIVER_SCOPE_POLICY } from "../src/dblayer/constants.js";
+import { WAIVER_CONTROL_ACCEPT_RISK, WAIVER_CONTROL_EXPIRY, WAIVER_CONTROL_OBLIGATION, WAIVER_RISK_ENTITY_TYPE, WAIVER_RISK_OBLIGATION_CATEGORY, WAIVER_SCOPE_POLICY, WAIVER_DEFAULT_EXPIRY_DAYS } from "../src/dblayer/constants.js";
 import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, createGateRowWithDefinition, createEvidenceAsRoot, ensureActorParticipant, getTestDevelopmentPack } from "./testFixtures.js";
 
@@ -64,16 +64,18 @@ test("a risk with an Obligation control and an Accept risk control stores the ri
   );
 });
 
-test("a risk with no control gets the Expiry control, and needs the expiry time of the waiver", async () => {
-  const refused = await grant({ risks: [{ risk: `no control ${run}`, controls: [] }] });
-  assert.equal(refused.ok, false);
-  const granted = await grant({ ...otherTarget(), expiresAt: new Date(Date.now() + 86400000).toISOString(), risks: [{ risk: `default control ${run}`, controls: [] }] });
+test("a waiver with no expiry time expires after the default number of days, and a risk with no control gets the Expiry control", async () => {
+  const granted = await grant({ ...otherTarget(), risks: [{ risk: `default control ${run}`, controls: [] }] });
   assert.ok(granted.ok, granted.ok ? "" : granted.reason);
   if (!granted.ok) return;
+  const expectedExpiry = Date.now() + WAIVER_DEFAULT_EXPIRY_DAYS * 86400000;
+  assert.ok(Math.abs(new Date(granted.waiver.expires_at!).getTime() - expectedExpiry) < 60000, "the default expiry is the default number of days from now");
   const { data: risks } = await qualityGateWaiverRisksDB.findRisksBySeuId(testSeu.seu.id);
   const risk = (risks ?? []).find((r) => r.waiver_id === granted.waiver.id);
   const { data: controls } = await qualityGateWaiverRisksDB.findControlsBySeuId(testSeu.seu.id);
   assert.deepEqual((controls ?? []).filter((c) => c.risk_id === risk?.id).map((c) => c.control_type), [WAIVER_CONTROL_EXPIRY]);
+  const past = await grant({ ...otherTarget(), expiresAt: new Date(Date.now() - 1000).toISOString() });
+  assert.equal(past.ok, false, "a past expiry is still refused");
 });
 
 test("an Obligation control on a Deliverable of another SEU, an empty risk and a risk-less waiver", async () => {

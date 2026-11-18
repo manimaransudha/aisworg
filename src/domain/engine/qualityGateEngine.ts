@@ -32,14 +32,14 @@ export interface QualityGateCondition {
   name: string;
   reason: string;
   outcome: "Passed" | "Blocked";
-  waivable: Waivable | null;
+  waivable: Waivable | Waivable[] | null;
 }
 
 // The decision over the conditions of one hop, made by qualityGateEngine.decideQualityGate. `conditions` holds the conditions given, then the Quality Gate
 // line items, each settled by the composition: Waived carries the id of the waiver that covered the condition.
 export interface QualityGateDecision {
   outcome: QualityGateDecisionOutcome;
-  conditions: Array<QualityGateOutcomeCondition & { reason: string }>;
+  conditions: QualityGateOutcomeCondition[];
   confidenceLevel: number;
   rationale: string;
   evaluationIds: string[];
@@ -199,7 +199,7 @@ export const qualityGateEngine = {
     const settledResults = composed.items.slice(conditions.length);
     return {
       outcome: composed.outcome,
-      conditions: composed.items.map((i, n) => ({ name: i.gateName, outcome: i.waiver ? i.waiver.outcome : i.outcome, waiverId: i.waiver?.waiverId ?? null, reason: reasons[n] })),
+      conditions: composed.items.map((i, n) => ({ name: i.gateName, outcome: i.waiver ? i.waiver.outcome : i.outcome, waiverId: i.waiver?.waiverId ?? null, reason: reasons[n], waivable: i.waivable })),
       confidenceLevel,
       rationale: generateQualityGateRationale(composed, confidenceLevel) + (conditions.some((c) => c.outcome === "Blocked") ? ` Other checks: ${conditions.filter((c) => c.outcome === "Blocked").map((c) => `${c.name} (${c.reason})`).join("; ")}.` : ""),
       evaluationIds: results.map((r) => r.evaluationId),
@@ -224,7 +224,7 @@ export const qualityGateEngine = {
       actor_id: input.actorId,
       actor_badge: input.actorBadge,
       evaluation_ids: decision.evaluationIds,
-      conditions: decision.conditions.map((c) => ({ name: c.name, outcome: c.outcome, waiverId: c.waiverId })),
+      conditions: decision.conditions.map((c) => ({ name: c.name, outcome: c.outcome, waiverId: c.waiverId, reason: c.reason, waivable: c.waivable })),
       outcome: decision.outcome,
       confidence_level: decision.confidenceLevel,
       rationale: decision.rationale,
