@@ -21,5 +21,5 @@ export async function requiresAcceptedEvidenceOrApprovedDecision(input: QualityG
   if (qualifyingEvidence.length === 0 && qualifyingDecisions.length === 0) {
     return { satisfied: false, reason: `no accepted Evidence of category "${requiredCategory}" or approved Decision found for this entity`, detail: { requiredCategory } };
   }
-  return { satisfied: true };
+  return { satisfied: true, detail: { evidenceIds: qualifyingEvidence.map((e) => e.id), decisionIds: qualifyingDecisions.map((d) => d.id) } };
 }

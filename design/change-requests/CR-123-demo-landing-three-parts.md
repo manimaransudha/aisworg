@@ -536,3 +536,5 @@ Badge needs found in the code:
 Declare items are tested
 Test the commission and execution for access , roles etc. 
 Clean up the scenarios and steps & deploy
+
+Moved from CR-145 (item 25, 2026-11-18): the demo pack `cr104-demo-seu-eligibility-policies` lists `cr104-demo-seu-commence-work`, which is now an Eligibility Policy. `matchesRequiredPolicies` (participantEligibility.ts:23-26) rejects a Participant with no `behaviour_context` entry for each Eligibility Policy code, so an SEU on the `cr104-demo-development` Profile finds no eligible Participant for any Capability. The `description` of the pack, of the Profile and of the Policy still says the Activated -> Operational hop is blocked. What the demo is to show is not decided.

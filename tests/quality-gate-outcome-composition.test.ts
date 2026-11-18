@@ -21,7 +21,7 @@ test("no condition is NotApplicable, any Blocked condition blocks, and all Passe
 
 test("the confidence level is full until its rules are defined, and the rationale is generated from the composition", async () => {
   const composed = await composeQualityGateOutcome([item("Passed"), item("Passed")], entity);
-  const confidence = calculateConfidenceLevel(composed);
+  const confidence = calculateConfidenceLevel(composed, []);
   assert.equal(confidence, QUALITY_GATE_FULL_CONFIDENCE);
   assert.equal(generateQualityGateRationale(composed, confidence), `Approved by rule ${QUALITY_GATE_COMPOSITION_RULE_ALL_PASSED}: 2 Passed; confidence 100%`);
 });

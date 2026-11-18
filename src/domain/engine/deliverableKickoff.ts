@@ -22,6 +22,9 @@ import { capabilityFulfilmentsDB } from "../../dblayer/capabilityFulfilmentsDB.j
 export const deliverableKickoffHandler: EventHandler = async (event: EventRow) => {
   if (!event.seu_id) throw new Error(`${event.event_type} event ${event.id} carries no seuId`);
 
+  // A waiver is assessed per SEU of its own, so it comes before the Operational check of the SEU it was granted in.
+  if (event.event_type === "QualityGateWaiverCreated") return processQualityGateWaiverCreated(event);
+
   const { data: seu } = await seusDB.findById(event.seu_id);
   if (!seu) {
     logger.error(`[deliverableKickoffHandler] SEU not found: ${event.seu_id}`);
@@ -87,6 +90,31 @@ async function processAttentionItemTransitioned(event: EventRow, seu: SeuRow, sy
   const { data: deliverable } = await deliverablesDB.findById(resolved.relatedObjectId);
   if (!deliverable || deliverable.seu_id !== seu.id) throw new Error(`AttentionItemTransitioned event ${event.id}: Deliverable ${resolved.relatedObjectId} not found in SEU ${seu.id}`);
   await attemptGovernedTransitions([deliverable], systemActor);
+}
+
+// A waiver was granted from a Deliverable. The SEUs it concerns are the SEU it was granted in or, when it is shared with a Profile, every SEU whose EBM
+// composes that Profile. In each Operational one, the Deliverables the waiver names by code are attempted again, so the Quality Gate decision is made
+// with the waiver. A waiver granted for the SEU covers no Deliverable.
+async function processQualityGateWaiverCreated(event: EventRow): Promise<void> {
+  const created = event.payload as { entityType?: string; deliverableCodes?: string[]; sharedProfileId?: string | null } | null;
+  if (!created?.entityType || !Array.isArray(created.deliverableCodes) || created.sharedProfileId === undefined) throw new Error(`QualityGateWaiverCreated event ${event.id} carries no entityType, deliverableCodes or sharedProfileId`);
+  if (created.entityType !== "Deliverable") return;
+  const seus: SeuRow[] = [];
+  if (created.sharedProfileId) {
+    const { data, error } = await seusDB.findByEbmProfileId(created.sharedProfileId);
+    if (error) throw error;
+    seus.push(...(data ?? []));
+  } else {
+    const { data } = await seusDB.findById(event.seu_id!);
+    if (!data) throw new Error(`QualityGateWaiverCreated event ${event.id}: SEU ${event.seu_id} not found`);
+    seus.push(data);
+  }
+  for (const seu of seus) {
+    if (seu.lifecycle_state !== "Operational") continue;
+    const { data: deliverables } = await deliverablesDB.findBySeuId(seu.id);
+    const covered = (deliverables ?? []).filter((d) => d.code !== null && created.deliverableCodes!.includes(d.code));
+    await attemptGovernedTransitions(covered, await getSystemActor(seu.id));
+  }
 }
 
 async function processObligationTransitioned(event: EventRow, seu: SeuRow, systemActor: SystemActor): Promise<void> {

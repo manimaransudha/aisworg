@@ -48,4 +48,14 @@ export const qualityGateWaiverRisksDB = {
       return { error: err as Error };
     }
   },
+
+  async findControlsByWaiverId(waiverId: string): Promise<DbResult<QualityGateWaiverControlRow[]>> {
+    try {
+      const { rows } = await query<QualityGateWaiverControlRow>("SELECT * FROM quality_gate_waiver_controls WHERE waiver_id = $1 ORDER BY created_at", [waiverId]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[qualityGateWaiverRisksDB] findControlsByWaiverId error", err as Error);
+      return { error: err as Error };
+    }
+  },
 };

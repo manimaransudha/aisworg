@@ -8,10 +8,10 @@ export const governanceEvaluationOutcomesDB = {
       const { rows } = await query<GovernanceEvaluationOutcomeRow>(
         `INSERT INTO governance_evaluation_outcomes
            (seu_id, entity_type, entity_id, from_state, to_state, outcome, rationale,
-            quality_gate_id, quality_gate_outcome, applicable_authority_rule_id,
+            quality_gate_outcome_id, applicable_authority_rule_id,
             satisfied_policy_ids, deviated_policy_ids, consulted_obligation_ids,
             open_attention_item_ids, originating_pack_id, author_id, author_badge)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
          RETURNING *`,
         [
           input.seu_id,
@@ -21,8 +21,7 @@ export const governanceEvaluationOutcomesDB = {
           input.to_state,
           input.outcome,
           input.rationale,
-          input.quality_gate_id,
-          input.quality_gate_outcome,
+          input.quality_gate_outcome_id,
           input.applicable_authority_rule_id,
           input.satisfied_policy_ids,
           input.deviated_policy_ids,

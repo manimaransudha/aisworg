@@ -211,7 +211,7 @@ export const executionEngine = {
       tenantId: gateSeu.tenant_id,
     }), found, { entityType: "Deliverable", entityId: deliverable.id, seuId: deliverable.seu_id });
     // The decision is stored for every hop, Blocked included, before the hop is refused or goes on.
-    await qualityGateEngine.recordDecision(qualityGateResult, {
+    const decisionRow = await qualityGateEngine.recordDecision(qualityGateResult, {
       seuId: deliverable.seu_id,
       deliverableId: deliverable.id,
       tenantId: gateSeu.tenant_id,
@@ -284,8 +284,7 @@ export const executionEngine = {
       to_state: targetState,
       outcome,
       rationale: rationaleParts.join("; "),
-      quality_gate_id: waivedGate?.id ?? null,
-      quality_gate_outcome: qualityGateOutcome,
+      quality_gate_outcome_id: decisionRow.id,
       applicable_authority_rule_id: applicableAuthorityRuleId,
       satisfied_policy_ids: policyResult.satisfiedPolicyIds,
       deviated_policy_ids: policyResult.deviatedPolicyIds,

@@ -622,7 +622,6 @@ export interface TransitionDefinitionRow {
 
 export type GovernedEntityType = TransitionEntityType;
 export type GovernanceOutcome = "Approved" | "Approved-with-Conditions" | "Deferred" | "Rejected" | "Escalated" | "Waived";
-export type QualityGateOutcomeCode = "Passed" | "NotApplicable" | "Waived";
 
 export interface GovernanceEvaluationOutcomeRow {
   id: string;
@@ -633,8 +632,7 @@ export interface GovernanceEvaluationOutcomeRow {
   to_state: string;
   outcome: GovernanceOutcome;
   rationale: string;
-  quality_gate_id: string | null;
-  quality_gate_outcome: QualityGateOutcomeCode | null;
+  quality_gate_outcome_id: string;
   applicable_authority_rule_id: string | null;
   satisfied_policy_ids: string[];
   deviated_policy_ids: string[];
@@ -901,7 +899,7 @@ export interface WorkItemExecutionContext {
   applicableAuthority: { ruleId: string; code: string } | null;
   activeObligations: Array<{ id: string; title: string; status: string }>;
   openAttentionItems: Array<{ id: string; title: string; status: string }>;
-  qualityGate: { id: string; name: string; outcome: string } | null;
+  qualityGate: { id: string; outcome: string; rationale: string } | null;
   applicableChecklists: Array<{ packCode: string; checklistName: string; statement: string }>;
   engineeringCapital: Array<{ packCode: string; type?: string; url?: string }>;
   profileConfiguration: Partial<{
@@ -1097,6 +1095,8 @@ export interface QualityGateWaiverRow {
   authority_badge: string;
   status: "Active" | "Expired" | "Revoked";
   expires_at: string | null;
+  // The records that support the waiver, by type: { Evidence: [ids], Knowledge: [ids], Decision: [ids] }.
+  supporting_records: Record<string, string[]>;
   created_at: string;
 }
 
@@ -1242,6 +1242,7 @@ export interface DecisionRow {
   category: string;
   title: string;
   engineering_question: string | null;
+  confidence_level: string | null;
   status: string;
   superseded_by: string | null;
   created_at: string;

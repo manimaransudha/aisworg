@@ -3,6 +3,7 @@ import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
 import { eventBus } from "./eventBus.js";
+import { rateGateWaivers } from "./waiverConfidence.js";
 import { qualityGateDefinitionsDB } from "../../dblayer/qualityGateDefinitionsDB.js";
 import { reviewGatesDB } from "../../dblayer/reviewGatesDB.js";
 import { settledOf } from "./ebmSettled.js";
@@ -10,7 +11,7 @@ import type { EvaluatedQualityGate, QualityGateDecisionOutcome, QualityGateDefin
 import { findQualityGateCriterion } from "../../qualitygates/index.js";
 import { ontologyDB } from "../../dblayer/ontologyDB.js";
 import { qualityGateOutcomesDB } from "../../dblayer/qualityGateOutcomesDB.js";
-import { QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION, QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW, QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY, QUALITY_GATE_DECISION_OUTCOME_CONCEPT, QUALITY_GATE_OUTCOME_CONCEPT, WAIVER_SCOPE_GATE } from "../../dblayer/constants.js";
+import { QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION, QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW, QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY, QUALITY_GATE_DECISION_OUTCOME_CONCEPT, QUALITY_GATE_OUTCOME_CONCEPT, WAIVER_ENTITY_TYPE, WAIVER_SCOPE_GATE } from "../../dblayer/constants.js";
 import { calculateConfidenceLevel, composeQualityGateOutcome, generateQualityGateRationale, type QualityGateOutcomeEntity, type QualityGateOutcomeInputItem, type Waivable } from "./qualityGateOutcomeComposition.js";
 
 export const RESOLVED_ATTENTION_STATUSES = new Set(["Resolved", "Closed"]);
@@ -23,6 +24,7 @@ export type QualityGateEvaluationResult =
 // The result of one Quality Gate line item. evaluate and evaluateByIds return one per gate they evaluated.
 export type QualityGateGateResult = Extract<QualityGateEvaluationResult, { gate: EvaluatedQualityGate }>;
 export type QualityGateBlockedResult = Extract<QualityGateGateResult, { outcome: "Blocked" }>;
+export type QualityGatePassedResult = Extract<QualityGateGateResult, { outcome: "Passed" }>;
 
 // A condition the other checks of a hop add to the decision, next to the Quality Gate line items. It is Passed or Blocked. `waivable` names what a waiver
 // has to name to cover a Blocked condition; a condition with null is covered by no waiver.
@@ -44,6 +46,8 @@ export interface QualityGateDecision {
   // The Quality Gate line items that are Blocked and not covered by a waiver, and the ones a waiver covers.
   blocked: QualityGateBlockedResult[];
   waived: QualityGateBlockedResult[];
+  // The Quality Gate line items that are Passed.
+  passed: QualityGatePassedResult[];
 }
 
 // The code checks a value against its Ontology concept. The tables carry no constraint on these values.
@@ -53,17 +57,21 @@ async function assertOntologyCode(conceptType: string, code: string, tenantId: s
 }
 
 // Used by evaluate and evaluateByIds only, so it is not part of the engine's surface.
+type EbmReference = { id: string; version: number };
+
 async function evaluateGate(
   gate: EvaluatedQualityGate,
-  input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown>; authorId: string; authorBadge: string; tenantId: string }
+  input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; fromState: string; toState: string; authorId: string; authorBadge: string; tenantId: string; ebm: EbmReference | null }
 ): Promise<QualityGateEvaluationResult> {
+  // Every evaluation row names the EBM the SEU had when the gate was evaluated (Chapter 26 §14).
+  const withEbm = (detail: Record<string, unknown>) => ({ ...detail, ebmId: input.ebm?.id ?? null, ebmVersion: input.ebm?.version ?? null });
   const criteriaType = (gate.criteria as { type?: string }).type;
   const criterion = findQualityGateCriterion(criteriaType);
-  if (!criterion) return qualityGateEngine.recordAndBlock(gate, input, `unrecognised Quality Gate criteria type: ${criteriaType}`, { criteriaType });
+  if (!criterion) return qualityGateEngine.recordAndBlock(gate, input, `unrecognised Quality Gate criteria type: ${criteriaType}`, withEbm({ criteriaType }));
 
-  const result = await criterion({ gate, entityType: input.entityType, entityId: input.entityId, seuId: input.seuId, context: input.context ?? {} });
-  if (!result.satisfied) return qualityGateEngine.recordAndBlock(gate, input, result.reason, result.detail);
-  return qualityGateEngine.recordAndPass(gate, input);
+  const result = await criterion({ gate, entityType: input.entityType, entityId: input.entityId, seuId: input.seuId, fromState: input.fromState, toState: input.toState, authorId: input.authorId, authorBadge: input.authorBadge });
+  if (!result.satisfied) return qualityGateEngine.recordAndBlock(gate, input, result.reason, withEbm(result.detail));
+  return qualityGateEngine.recordAndPass(gate, input, withEbm(result.detail));
 }
 
 // Stores one gate evaluation. The outcome is checked against its Ontology concept, and a failed insert is an error.
@@ -113,7 +121,6 @@ export const qualityGateEngine = {
     seuId: string;
     fromState: string;
     toState: string;
-    context?: Record<string, unknown>;
     authorId: string;
     authorBadge: string;
     tenantId: string;
@@ -152,12 +159,12 @@ export const qualityGateEngine = {
         });
       }
     }
-    return evaluateAll(gates, input);
+    return evaluateAll(gates, { ...input, ebm: { id: ebm.id, version: ebm.version } });
   },
 
   async evaluateByIds(
     gateIds: string[],
-    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown>; authorId: string; authorBadge: string; tenantId: string }
+    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; fromState: string; toState: string; authorId: string; authorBadge: string; tenantId: string }
   ): Promise<QualityGateGateResult[]> {
     if (gateIds.length === 0) return [];
     // A gate a Transition Definition names is a Quality Gate Definition. It names no Pack listing, so the criteria are the Definition's own.
@@ -169,7 +176,10 @@ export const qualityGateEngine = {
       id: definition.id, code: definition.code, name: definition.name, category: definition.category, originating_pack_id: null,
       criteria: criteriaOf(definition, {}, "", [], []),
     }));
-    return evaluateAll(gates, input);
+    // The EBM of the SEU, when the entity is in an SEU that has one.
+    const { data: seu } = input.seuId ? await seusDB.findById(input.seuId) : { data: null };
+    const { data: ebm } = seu?.active_ebm_id ? await ebmsDB.findById(seu.active_ebm_id) : { data: null };
+    return evaluateAll(gates, { ...input, ebm: ebm ? { id: ebm.id, version: ebm.version } : null });
   },
 
   // The decision over the results of evaluate or evaluateByIds and the conditions of the other checks of the hop. Every condition goes to
@@ -181,7 +191,10 @@ export const qualityGateEngine = {
       ...results.map((r) => ({ gateName: r.gate.name, outcome: r.outcome, waivable: { scope: WAIVER_SCOPE_GATE, qualityGateId: r.gate.id } as Waivable })),
     ];
     const composed = await composeQualityGateOutcome(items, entity);
-    const confidenceLevel = calculateConfidenceLevel(composed);
+    const settledGates = composed.items.slice(conditions.length);
+    const confidenceLevel = calculateConfidenceLevel(composed, await rateGateWaivers(
+      settledGates.flatMap((i, n) => (i.waiver ? [{ gateId: results[n]!.gate.id, waiverId: i.waiver.waiverId }] : []))
+    ));
     const reasons = [...conditions.map((c) => c.reason), ...results.map((r) => (r.outcome === "Blocked" ? r.reason : ""))];
     const settledResults = composed.items.slice(conditions.length);
     return {
@@ -192,6 +205,7 @@ export const qualityGateEngine = {
       evaluationIds: results.map((r) => r.evaluationId),
       blocked: results.filter((r, n): r is QualityGateBlockedResult => r.outcome === "Blocked" && !settledResults[n].waiver),
       waived: results.filter((r, n): r is QualityGateBlockedResult => r.outcome === "Blocked" && !!settledResults[n].waiver),
+      passed: results.filter((r): r is QualityGatePassedResult => r.outcome === "Passed"),
     };
   },
 
@@ -214,25 +228,59 @@ export const qualityGateEngine = {
       rationale: decision.rationale,
     });
     if (error || !data) throw error ?? new Error("failed to record the Quality Gate outcome");
+    // Once the decision is stored, QualityGatePassed is published for each Quality Gate line item that Passed, QualityGateBlocked for each one the decision
+    // leaves Blocked, and QualityGateWaived for each condition a waiver covers. Nothing follows the publishes but the return.
+    for (const r of decision.passed) {
+      await eventBus.publish({
+        eventType: "QualityGatePassed",
+        originatingObjectType: "QualityGate",
+        originatingObjectId: r.gate.id,
+        seuId: input.seuId,
+        correlationId: eventBus.newCorrelationId(),
+        actorId: input.actorId,
+        authorityBadge: input.actorBadge,
+        tenantId: input.tenantId,
+        payload: { entityType: "Deliverable", entityId: input.deliverableId },
+      });
+    }
+    for (const r of decision.blocked) {
+      await eventBus.publish({
+        eventType: "QualityGateBlocked",
+        originatingObjectType: "QualityGate",
+        originatingObjectId: r.gate.id,
+        seuId: input.seuId,
+        correlationId: eventBus.newCorrelationId(),
+        actorId: input.actorId,
+        authorityBadge: input.actorBadge,
+        tenantId: input.tenantId,
+        payload: { entityType: "Deliverable", entityId: input.deliverableId, reason: r.reason },
+      });
+    }
+    // QualityGateWaived is published for each condition a waiver covers.
+    if (decision.outcome === "Waived") {
+      for (const c of decision.conditions.filter((cond) => cond.waiverId)) {
+        await eventBus.publish({
+          eventType: "QualityGateWaived",
+          originatingObjectType: WAIVER_ENTITY_TYPE,
+          originatingObjectId: c.waiverId!,
+          seuId: input.seuId,
+          correlationId: eventBus.newCorrelationId(),
+          actorId: input.actorId,
+          authorityBadge: input.actorBadge,
+          tenantId: input.tenantId,
+          payload: { entityType: "Deliverable", entityId: input.deliverableId, condition: c.name },
+        });
+      }
+    }
     return data;
   },
 
   async recordAndPass(
     gate: EvaluatedQualityGate,
-    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string; tenantId: string }
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string; tenantId: string },
+    detail: Record<string, unknown>
   ): Promise<QualityGateEvaluationResult> {
-    const evaluation = await storeEvaluation({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Passed", authorId: input.authorId, authorBadge: input.authorBadge }, input.tenantId);
-    await eventBus.publish({
-      eventType: "QualityGatePassed",
-      originatingObjectType: "QualityGate",
-      originatingObjectId: gate.id,
-      seuId: input.seuId,
-      correlationId: eventBus.newCorrelationId(),
-      actorId: input.authorId,
-      authorityBadge: input.authorBadge,
-      tenantId: input.tenantId,
-      payload: { entityType: input.entityType, entityId: input.entityId },
-    });
+    const evaluation = await storeEvaluation({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Passed", detail, authorId: input.authorId, authorBadge: input.authorBadge }, input.tenantId);
     return { outcome: "Passed", gate, evaluationId: evaluation.id };
   },
 
@@ -243,17 +291,6 @@ export const qualityGateEngine = {
     detail: Record<string, unknown>
   ): Promise<QualityGateEvaluationResult> {
     const evaluation = await storeEvaluation({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Blocked", detail, authorId: input.authorId, authorBadge: input.authorBadge }, input.tenantId);
-    await eventBus.publish({
-      eventType: "QualityGateBlocked",
-      originatingObjectType: "QualityGate",
-      originatingObjectId: gate.id,
-      seuId: input.seuId,
-      correlationId: eventBus.newCorrelationId(),
-      actorId: input.authorId,
-      authorityBadge: input.authorBadge,
-      tenantId: input.tenantId,
-      payload: { entityType: input.entityType, entityId: input.entityId, reason },
-    });
     return { outcome: "Blocked", gate, reason, evaluationId: evaluation.id };
   },
 };

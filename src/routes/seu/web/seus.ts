@@ -446,7 +446,14 @@ router.post("/seus/:id/obligations/:obligationId/revise", async (req: Request, r
 
 router.post("/seus/:id/quality-gate-waivers", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
-  const { scope: scopeField, qualityGateId, policyCode, obligationCategory, obligationTitle, entity, rationale, expiresAt, risks: risksJson, deliverableIds: deliverableIdsField, shareWithProfile } = req.body ?? {};
+  const { scope: scopeField, qualityGateId, policyCode, obligationCategory, obligationTitle, entity, rationale, expiresAt, risks: risksJson, deliverableIds: deliverableIdsField, shareWithProfile, supportingRecord: supportingField } = req.body ?? {};
+  // Each supporting record arrives as "<type>|<id>".
+  const supportingRecords: Record<string, string[]> = {};
+  for (const v of Array.isArray(supportingField) ? supportingField : supportingField ? [supportingField] : []) {
+    if (typeof v !== "string" || !v.includes("|")) continue;
+    const [type, id] = v.split("|");
+    (supportingRecords[type!] ??= []).push(id!);
+  }
   const deliverableIds = (Array.isArray(deliverableIdsField) ? deliverableIdsField : deliverableIdsField ? [deliverableIdsField] : []).filter((v: unknown): v is string => typeof v === "string");
   const scope = typeof scopeField === "string" && scopeField ? scopeField : WAIVER_SCOPE_GATE;
   if ((scope === WAIVER_SCOPE_GATE && (typeof qualityGateId !== "string" || !qualityGateId.trim())) || typeof entity !== "string" || !entity.includes("|") || typeof rationale !== "string" || !rationale.trim()) {
@@ -479,7 +486,7 @@ router.post("/seus/:id/quality-gate-waivers", async (req: Request, res: Response
       seuId, entityType, entityId, deliverableIds, shareWithProfile: shareWithProfile === "1", rationale: rationale.trim(),
       actorId: requireActorId(req),
       expiresAt: typeof expiresAt === "string" && expiresAt.trim() ? expiresAt : null,
-      risks,
+      risks, supportingRecords,
     });
     if (!result.ok) return redirects.seu.seusQualityGateWaivers.error(req, res, `Waiver not granted: ${result.reason}`);
     return redirects.seu.seusQualityGateWaivers.success(req, res, "Quality Gate waiver granted.");

@@ -19,13 +19,14 @@ export const qualityGateWaiversDB = {
     grantedBy: string | null;
     authorityBadge: string;
     expiresAt?: string | null;
+    supportingRecords?: Record<string, string[]>;
   }): Promise<DbResult<QualityGateWaiverRow>> {
     try {
       const { rows } = await query<QualityGateWaiverRow>(
-        `INSERT INTO quality_gate_waivers (scope, quality_gate_id, policy_code, obligation_category, obligation_title, deliverable_codes, shared_profile_id, seu_id, entity_type, entity_id, rationale, granted_by, authority_badge, expires_at)
-         VALUES ($9, $1, $10, $11, $12, $13, $14, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO quality_gate_waivers (scope, quality_gate_id, policy_code, obligation_category, obligation_title, deliverable_codes, shared_profile_id, seu_id, entity_type, entity_id, rationale, granted_by, authority_badge, expires_at, supporting_records)
+         VALUES ($9, $1, $10, $11, $12, $13, $14, $2, $3, $4, $5, $6, $7, $8, $15)
          RETURNING *`,
-        [input.qualityGateId ?? null, input.seuId, input.entityType, input.entityId, input.rationale, input.grantedBy, input.authorityBadge, input.expiresAt ?? null, input.scope ?? WAIVER_SCOPE_GATE, input.policyCode ?? null, input.obligationCategory ?? null, input.obligationTitle ?? null, input.deliverableCodes ?? [], input.sharedProfileId ?? null]
+        [input.qualityGateId ?? null, input.seuId, input.entityType, input.entityId, input.rationale, input.grantedBy, input.authorityBadge, input.expiresAt ?? null, input.scope ?? WAIVER_SCOPE_GATE, input.policyCode ?? null, input.obligationCategory ?? null, input.obligationTitle ?? null, input.deliverableCodes ?? [], input.sharedProfileId ?? null, JSON.stringify(input.supportingRecords ?? {})]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -72,6 +73,16 @@ export const qualityGateWaiversDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[qualityGateWaiversDB] findActiveBySeu error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async findByIds(ids: string[]): Promise<DbResult<QualityGateWaiverRow[]>> {
+    try {
+      const { rows } = await query<QualityGateWaiverRow>("SELECT * FROM quality_gate_waivers WHERE id = ANY($1::uuid[])", [ids]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[qualityGateWaiversDB] findByIds error", err as Error);
       return { error: err as Error };
     }
   },

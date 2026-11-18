@@ -155,7 +155,7 @@ test("the Execution Engine stores an Approved decision, a Waived decision and an
 test("a failed insert of a gate evaluation is an error, and a decision outside its Ontology concept is refused", async () => {
   const deliverable = await createDeliverable(clean.from);
   await assert.rejects(
-    () => qualityGateEngine.recordAndPass({ id: gates.passingClean.id, code: gates.passingClean.code, name: gates.passingClean.name, category: gates.passingClean.category, criteria: { type: gates.passingClean.criteria_type }, originating_pack_id: null }, { seuId: t.seu.id, entityType: "Deliverable", entityId: deliverable.id, authorId: randomUUID(), authorBadge: ROOT_ACTOR_BADGE, tenantId: t.seu.tenant_id }),
+    () => qualityGateEngine.recordAndPass({ id: gates.passingClean.id, code: gates.passingClean.code, name: gates.passingClean.name, category: gates.passingClean.category, criteria: { type: gates.passingClean.criteria_type }, originating_pack_id: null }, { seuId: t.seu.id, entityType: "Deliverable", entityId: deliverable.id, authorId: randomUUID(), authorBadge: ROOT_ACTOR_BADGE, tenantId: t.seu.tenant_id }, {}),
     /participants|foreign key|violates/i,
     "an author that is not a Participant fails the insert, and the engine does not report a pass"
   );

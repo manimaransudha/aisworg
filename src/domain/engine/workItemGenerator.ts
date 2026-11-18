@@ -16,7 +16,7 @@ import { policyDefinitionsDB } from "../../dblayer/policyDefinitionsDB.js";
 import { authorityRulesDB } from "../../dblayer/authorityRulesDB.js";
 import { obligationsDB } from "../../dblayer/obligationsDB.js";
 import { attentionItemsDB } from "../../dblayer/attentionItemsDB.js";
-import { qualityGateDefinitionsDB } from "../../dblayer/qualityGateDefinitionsDB.js";
+import { qualityGateOutcomesDB } from "../../dblayer/qualityGateOutcomesDB.js";
 import { eventBus } from "./eventBus.js";
 import type { CommandRow, WorkItemExecutionContext, WorkItemRow } from "../../dblayer/seuTypes.js";
 
@@ -153,11 +153,10 @@ async function buildDeliverableExecutionContext(command: CommandRow): Promise<Wo
       governingPolicies = [...(definitions ?? []), ...(policyRows ?? [])].map((p) => ({ id: p.id, code: p.code, name: p.name }));
       applicableAuthority = authorityRule?.data ? { ruleId: authorityRule.data.id, code: authorityRule.data.code } : null;
       openAttentionItems = attentionItems.map((a) => a.data).filter((a): a is NonNullable<typeof a> => !!a).map((a) => ({ id: a.id, title: a.title, status: a.status }));
-      if (outcome.quality_gate_id && outcome.quality_gate_outcome) {
-        const { data: gates } = await qualityGateDefinitionsDB.findByIds([outcome.quality_gate_id]);
-        const gate = gates?.[0];
-        qualityGate = { id: outcome.quality_gate_id, name: gate?.name ?? outcome.quality_gate_id, outcome: outcome.quality_gate_outcome };
-      }
+      // The Quality Gate decision of the hop, read from the outcome the governance outcome names.
+      const { data: decision, error: decisionError } = await qualityGateOutcomesDB.findById(outcome.quality_gate_outcome_id);
+      if (decisionError || !decision) throw decisionError ?? new Error(`Quality Gate outcome ${outcome.quality_gate_outcome_id} not found for governance outcome ${outcome.id}`);
+      qualityGate = { id: decision.id, outcome: decision.outcome, rationale: decision.rationale };
     }
   }
 

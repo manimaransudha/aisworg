@@ -103,6 +103,8 @@ export const transitionEngine = {
         entityType: input.entityType,
         entityId: gateEntityId,
         seuId: gateSeuId,
+        fromState: input.fromState,
+        toState: input.toState,
         authorId: systemActor.authorId,
         authorBadge: systemActor.authorBadge,
         tenantId: systemActor.tenantId,

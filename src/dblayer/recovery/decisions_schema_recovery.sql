@@ -26,7 +26,8 @@ ALTER TABLE decisions
   ADD COLUMN IF NOT EXISTS alternatives JSONB NOT NULL DEFAULT '[]',
   ADD COLUMN IF NOT EXISTS participant_id UUID NOT NULL REFERENCES participants(id),
   ADD COLUMN IF NOT EXISTS authority_badge TEXT NOT NULL,
-  ADD COLUMN IF NOT EXISTS superseded_by UUID REFERENCES decisions(id);
+  ADD COLUMN IF NOT EXISTS superseded_by UUID REFERENCES decisions(id),
+  ADD COLUMN IF NOT EXISTS confidence_level TEXT;
 ALTER TABLE decisions
   DROP COLUMN IF EXISTS related_object_type,
   DROP COLUMN IF EXISTS related_object_id,

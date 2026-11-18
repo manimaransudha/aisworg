@@ -85,9 +85,10 @@ export async function composeQualityGateOutcome(items: QualityGateOutcomeInputIt
   return { outcome: "Approved", rule: QUALITY_GATE_COMPOSITION_RULE_ALL_PASSED, items: settled };
 }
 
-// Confidence level of a decision, from 0 to 100. The rules are defined as the build proceeds: until then an outcome has full confidence.
-export function calculateConfidenceLevel(_composed: ComposedQualityGateOutcome): number {
-  return QUALITY_GATE_FULL_CONFIDENCE;
+// Confidence level of a decision, from 0 to 100. A criterion rates each waiver of its gate (`waiverConfidences`), and the decision takes the lowest of them.
+// A decision with no rated waiver has full confidence.
+export function calculateConfidenceLevel(_composed: ComposedQualityGateOutcome, waiverConfidences: number[]): number {
+  return waiverConfidences.length > 0 ? Math.min(...waiverConfidences) : QUALITY_GATE_FULL_CONFIDENCE;
 }
 
 // The rationale, generated from the composition and the confidence level. A Waived condition names its waiver.

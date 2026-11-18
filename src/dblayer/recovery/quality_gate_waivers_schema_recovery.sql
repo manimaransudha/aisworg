@@ -17,6 +17,8 @@ CREATE TABLE quality_gate_waivers (
   authority_badge TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'Active',
   expires_at TIMESTAMPTZ,
+  -- The Evidence, Knowledge and Decision records that support the waiver: { "Evidence": [ids], "Knowledge": [ids], "Decision": [ids] }.
+  supporting_records JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_quality_gate_waivers_lookup ON quality_gate_waivers (quality_gate_id, entity_id, status);

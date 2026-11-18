@@ -1,3 +1,5 @@
+import { rateWaiver } from "../../../domain/engine/waiverConfidence.js";
+import { listWaiverSupportOptions, type WaiverSupportOption } from "./qualityGateWaivers.js";
 import { CONFLICT_TABLE_LABELS } from "../../../dblayer/constants.js";
 import { competencyRequirementsOf, settledOf } from "../../../domain/engine/ebmSettled.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
@@ -35,6 +37,7 @@ import { listObligationsBySeu } from "./obligations.js";
 import { listAttentionItemsBySeu } from "./attentionItems.js";
 import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
 import { qualityGateEvaluationsDB } from "../../../dblayer/qualityGateEvaluationsDB.js";
+import { qualityGateOutcomesDB } from "../../../dblayer/qualityGateOutcomesDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { qualityGateWaiversDB } from "../../../dblayer/qualityGateWaiversDB.js";
 import { qualityGateWaiverRisksDB } from "../../../dblayer/qualityGateWaiverRisksDB.js";
@@ -293,12 +296,16 @@ export interface SeuDetailQualityGates {
   gates: Array<{ id: string; code: string; name: string; category: string; criteriaType: string; steps: Array<{ step: string; deliverables: string[] }>; latestOutcome: string | null; latestEntity: string | null; latestAt: string | null }>;
   // Each Gate that blocks an entity now: its latest recorded evaluation for that entity is Blocked.
   blocking: Array<{ gateId: string; entityValue: string; gateName: string; gateCode: string; category: string; entity: string; entityState: string; steps: string[]; details: string[]; evaluatedAt: string; waived: boolean }>;
-  waivers: Array<{ covers: string; risks: Array<{ risk: string; controls: Array<{ type: string; obligationTitle: string | null; obligationStatus: string | null; obligationOn: string | null }> }>; gateName: string; entity: string; grantedBy: string; rationale: string; status: string; authorityBadge: string; expiresAt: string | null; createdAt: string }>;
+  waivers: Array<{ confidence: number | null; supportingRecords: string[]; covers: string; risks: Array<{ risk: string; controls: Array<{ type: string; obligationTitle: string | null; obligationStatus: string | null; obligationOn: string | null }> }>; gateName: string; entity: string; grantedBy: string; rationale: string; status: string; authorityBadge: string; expiresAt: string | null; createdAt: string }>;
   waivableEntities: Array<{ value: string; label: string }>;
+  // The latest decision of each Deliverable: the composed outcome and the conditions it was composed from.
+  decisions: Array<{ deliverable: string; deliverableState: string; outcome: string; confidenceLevel: string; rationale: string; conditions: Array<{ name: string; outcome: string }>; evaluatedAt: string }>;
   // What the waiver modal offers: the controls of a risk and the Ontology lists an Obligation control draws from.
   controlTypes: string[];
   controlCodes: { expiry: string; obligation: string; acceptRisk: string };
   obligationOptions: { categories: string[]; severities: string[]; priorities: string[] };
+  // The Evidence, Knowledge and Decision records of the SEU that the waiver modal offers as support.
+  supportOptions: WaiverSupportOption[];
 }
 
 export interface SeuDetailView {
@@ -523,6 +530,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
 
   // The Quality Gate tab. The gates are the ones the active EBM names, with the steps its settled result gives them. Nothing is evaluated here.
   const { data: waiverRows } = await qualityGateWaiversDB.findBySeuId(seuId);
+  const waiverSupportOptions = await listWaiverSupportOptions(seuId);
   const { data: waiverRisks } = await qualityGateWaiverRisksDB.findRisksBySeuId(seuId);
   const { data: waiverControls } = await qualityGateWaiverRisksDB.findControlsBySeuId(seuId);
   const { data: waivedGateDefinitions } = await qualityGateDefinitionsDB.findByIds([...new Set((waiverRows ?? []).flatMap((w) => (w.quality_gate_id ? [w.quality_gate_id] : [])))]);
@@ -608,7 +616,19 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     });
   }
   blocking.sort((a, b) => a.gateName.localeCompare(b.gateName) || a.entity.localeCompare(b.entity));
+  const { data: gateDecisionRows } = await qualityGateOutcomesDB.findBySeuId(seuId);
+  const decisions: SeuDetailQualityGates["decisions"] = [];
+  for (const d of deliverables ?? []) {
+    const latest = (gateDecisionRows ?? []).find((row) => row.deliverable_id === d.id);
+    if (!latest) continue;
+    decisions.push({
+      deliverable: d.name, deliverableState: d.lifecycle_state, outcome: latest.outcome, confidenceLevel: latest.confidence_level, rationale: latest.rationale,
+      conditions: latest.conditions.map((c) => ({ name: c.name, outcome: c.outcome })), evaluatedAt: latest.evaluated_at,
+    });
+  }
+  decisions.sort((a, b) => a.deliverable.localeCompare(b.deliverable));
   const qualityGates: SeuDetailQualityGates = {
+    decisions,
     waiverLines,
     deliverableNames: Object.fromEntries((deliverables ?? []).map((d) => [d.id, d.name])),
     profileSeuCount: profileSeuCount ?? 1,
@@ -630,7 +650,9 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         latestAt: latest?.evaluated_at ?? null,
       };
     }),
-    waivers: (waiverRows ?? []).map((w) => ({
+    waivers: await Promise.all((waiverRows ?? []).map(async (w) => ({
+      confidence: await rateWaiver(w, waivedGateDefinitions?.find((d) => d.id === w.quality_gate_id)?.criteria_type),
+      supportingRecords: Object.entries(w.supporting_records ?? {}).flatMap(([type, ids]) => ids.map((id) => `${type}: ${waiverSupportOptions.find((o) => o.type === type && o.id === id)?.label ?? id}`)),
       covers: `${w.deliverable_codes.join(", ")}${w.shared_profile_id ? " (shared with the SEUs of the Profile)" : ""}`,
       risks: (waiverRisks ?? []).filter((r) => r.waiver_id === w.id).map((r) => ({
         risk: r.risk,
@@ -643,10 +665,11 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
       entity: entityLabel(w.entity_type, w.entity_id),
       grantedBy: grantorNameById.get(w.granted_by) ?? w.granted_by,
       rationale: w.rationale, status: w.status, authorityBadge: w.authority_badge, expiresAt: w.expires_at, createdAt: w.created_at,
-    })),
+    }))),
     controlTypes: await listCanonicalCategories(WAIVER_CONTROL_CONCEPT),
     controlCodes: { expiry: WAIVER_CONTROL_EXPIRY, obligation: WAIVER_CONTROL_OBLIGATION, acceptRisk: WAIVER_CONTROL_ACCEPT_RISK },
     obligationOptions: { categories: await listCanonicalCategories("category:obligation"), severities: await listCanonicalCategories("category:obligation-severity"), priorities: await listCanonicalCategories("category:obligation-priority") },
+    supportOptions: waiverSupportOptions,
     waivableEntities: [
       { value: `SEU|${seuId}`, label: "SEU" },
       ...(deliverables ?? []).map((d) => ({ value: `Deliverable|${d.id}`, label: `Deliverable ${d.name}` })),

@@ -74,7 +74,6 @@ async function cleanupPriorRuns(): Promise<void> {
     await pool.query("DELETE FROM findings WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM version_events WHERE event_id IN (SELECT id FROM events WHERE seu_id = ANY($1::uuid[]))", [seuIds]);
     await pool.query("DELETE FROM events WHERE seu_id = ANY($1::uuid[])", [seuIds]);
-    await pool.query("DELETE FROM quality_gate_outcomes WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM quality_gate_evaluations WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM quality_gate_waivers WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM reviews WHERE seu_id = ANY($1::uuid[])", [seuIds]);
@@ -117,6 +116,8 @@ async function cleanupPriorRuns(): Promise<void> {
     await pool.query("DELETE FROM work_items WHERE command_id IN (SELECT id FROM commands WHERE seu_id = ANY($1::uuid[]))", [seuIds]);
     await pool.query("DELETE FROM commands WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM governance_evaluation_outcomes WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    // governance_evaluation_outcomes.quality_gate_outcome_id references quality_gate_outcomes, so the decisions go after the governance outcomes.
+    await pool.query("DELETE FROM quality_gate_outcomes WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     // Bug fix (owner: "let us fix the test suite") — capability_fulfilments
     // has no seu_id of its own (only seu_capability_id -> seu_capabilities,
     // participant_id -> participants), so it was never cleared here at all;

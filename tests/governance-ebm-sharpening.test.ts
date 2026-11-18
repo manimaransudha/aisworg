@@ -290,7 +290,7 @@ test.skip("§4.3 / Open Q#3: a Quality Gate can gate a Pack transition with a nu
   // this test's own fresh gate from colliding with it, same reason `code`
   // is already run-scoped.
   const gate = await createGateRowWithDefinition({ code: `qg-test-${randomUUID()}`, name: "Pack publish gate", category: `test-${run}`, entityType: "Pack", fromState: "Published", toState: "Active", criteria: { type: "no_unresolved_obligations" }, originatingPackId: corePack.id, authorId: corePack.authored_by, authorBadge: corePack.author_badge });
-  const evalResult = (await decideGatesByIds([gate.quality_gate_definition_id!], { entityType: "Pack", entityId: corePack.id, seuId: null, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: PLATFORM_TENANT_ID }));
+  const evalResult = (await decideGatesByIds([gate.quality_gate_definition_id!], { entityType: "Pack", entityId: corePack.id, seuId: null, fromState: "Draft", toState: "Active", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: PLATFORM_TENANT_ID }));
   assert.equal(evalResult.outcome, "Approved", "a Pack transition can be gated and evaluated with a null SEU");
 
   // The CHECK enforces the scope invariant (the DB layer surfaces the violation

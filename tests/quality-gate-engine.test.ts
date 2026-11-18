@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 import { qualityGateWaiversDB } from "../src/dblayer/qualityGateWaiversDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGateEngine, type QualityGateDecision } from "../src/domain/engine/qualityGateEngine.js";
+import { noUnresolvedObligations } from "../src/qualitygates/noUnresolvedObligations.js";
 import type { QualityGateRow } from "../src/dblayer/seuTypes.js";
 import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
 import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, decideGates, decideGatesByIds } from "./testFixtures.js";
@@ -44,7 +45,7 @@ const definitionIdOf = (gate: QualityGateRow) => gate.quality_gate_definition_id
 const reasonOf = (d: QualityGateDecision) => (d.blocked[0]?.reason ?? d.waived[0]?.reason);
 
 const input = (overrides: Record<string, unknown> = {}) => ({
-  entityType: "AttentionItem" as const, entityId: randomUUID(), seuId: testSeu.seu.id, authorId: testSeu.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE, tenantId: testSeu.seu.tenant_id, ...overrides,
+  entityType: "AttentionItem" as const, entityId: randomUUID(), seuId: testSeu.seu.id, fromState: "zz-from", toState: "zz-to", authorId: testSeu.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE, tenantId: testSeu.seu.tenant_id, ...overrides,
 });
 
 test("a policy criteria gate evaluated by Definition id blocks, because a Definition names no Policy", async () => {
@@ -97,4 +98,18 @@ test("evaluating no gates is not applicable, and a review gate with no Review Ga
   const noEvidence = (await decideGatesByIds([definitionIdOf(evidence)], input()));
   assert.equal(noEvidence.outcome, "Blocked");
   assert.ok(/no accepted Evidence of category ".*" or approved Decision/.test(reasonOf(noEvidence) ?? ""), JSON.stringify(noEvidence));
+});
+
+test("no_unresolved_obligations throws the read error of the Obligations, and does not report the gate as satisfied", async () => {
+  // An entity id that is not a UUID makes the Obligation read fail in the database, as a failed read does.
+  await assert.rejects(
+    () => noUnresolvedObligations({
+      gate: { id: randomUUID(), code: `read-error-${run}`, name: `read error ${run}`, category: "Exit", originating_pack_id: null, criteria: { type: "no_unresolved_obligations" } },
+      entityType: "Deliverable",
+      entityId: "not-a-uuid",
+      seuId: testSeu.seu.id,
+      fromState: "zz-from", toState: "zz-to", authorId: testSeu.systemParticipantId, authorBadge: ROOT_ACTOR_BADGE,
+    }),
+    /uuid/i
+  );
 });

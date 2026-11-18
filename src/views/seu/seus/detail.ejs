@@ -851,10 +851,10 @@
             </div>
             <div class="table-responsive">
               <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light"><tr><th>Gate</th><th>Entity</th><th>Rationale</th><th>Risks and controls</th><th>Status</th><th>Granted by</th><th>Badge</th><th>Expires</th><th>Granted</th></tr></thead>
+                <thead class="table-light"><tr><th>Gate</th><th>Entity</th><th>Rationale</th><th>Risks and controls</th><th>Supporting records</th><th>Confidence</th><th>Status</th><th>Granted by</th><th>Badge</th><th>Expires</th><th>Granted</th></tr></thead>
                 <tbody>
                   <% if (detail.qualityGates.waivers.length === 0) { %>
-                    <tr><td colspan="9" class="text-muted small">No waiver recorded for this SEU.</td></tr>
+                    <tr><td colspan="11" class="text-muted small">No waiver recorded for this SEU.</td></tr>
                   <% } %>
                   <% detail.qualityGates.waivers.forEach(function(w) { %>
                     <tr>
@@ -871,6 +871,11 @@
                           </div>
                         <% }) %>
                       </td>
+                      <td class="small">
+                        <% if (w.supportingRecords.length === 0) { %><span class="text-muted">none</span><% } %>
+                        <% w.supportingRecords.forEach(function(r) { %><div class="edge-note"><%= r %></div><% }) %>
+                      </td>
+                      <td class="small"><% if (w.confidence === null) { %><span class="text-muted">not rated</span><% } else { %><strong><%= w.confidence %>%</strong><% } %></td>
                       <td class="small"><%= w.status %></td>
                       <td class="small"><%= w.grantedBy %></td>
                       <td class="small"><code><%= w.authorityBadge %></code></td>
@@ -925,6 +930,18 @@
                     <div class="mb-2">
                       <label class="form-label small text-muted mb-1" for="qgwExpires">Expires (optional)</label>
                       <input type="datetime-local" class="form-control form-control-sm" name="expiresAt" id="qgwExpires">
+                    </div>
+                    <div class="mb-2">
+                      <span class="form-label small text-muted mb-1 d-block">Supporting records (optional). Evidence, Knowledge and Decisions of this SEU that back the waiver. Their confidence lifts the confidence of the waiver.</span>
+                      <% if (detail.qualityGates.supportOptions.length === 0) { %>
+                        <div class="text-muted small">This SEU has no Evidence, Knowledge or Decision record yet.</div>
+                      <% } else { %>
+                        <div class="border rounded p-2" style="max-height:10rem;overflow:auto;">
+                          <% detail.qualityGates.supportOptions.forEach(function(o) { %>
+                            <label class="d-block small"><input type="checkbox" class="form-check-input me-1" name="supportingRecord" value="<%= o.type %>|<%= o.id %>"><strong><%= o.type %></strong> <%= o.label %></label>
+                          <% }) %>
+                        </div>
+                      <% } %>
                     </div>
                     <% var qgc = detail.qualityGates.controlCodes; var qgo = detail.qualityGates.obligationOptions; %>
                     <div class="mb-2">
@@ -1069,6 +1086,30 @@
               });
             })();
           </script>
+          <div class="section-card mb-3">
+            <div class="section-header">Latest decision of each Deliverable</div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Deliverable</th><th>Decision</th><th>Conditions</th><th>Rationale</th><th>Decided</th></tr></thead>
+                <tbody>
+                  <% if (detail.qualityGates.decisions.length === 0) { %>
+                    <tr><td colspan="5" class="text-muted small">No Deliverable of this SEU has a recorded decision.</td></tr>
+                  <% } %>
+                  <% detail.qualityGates.decisions.forEach(function(dc) { %>
+                    <tr>
+                      <td class="small"><strong><%= dc.deliverable %></strong><br><span class="state-badge state-<%= dc.deliverableState.replace(/\s+/g, '-') %>"><%= dc.deliverableState %></span></td>
+                      <td class="small"><strong><%= dc.outcome %></strong><br><span class="text-muted" style="font-size:0.72rem;">confidence <%= dc.confidenceLevel %>%</span></td>
+                      <td class="small">
+                        <% dc.conditions.forEach(function(c) { %><div><%= c.name %>: <%= c.outcome %></div><% }) %>
+                      </td>
+                      <td class="small"><%= dc.rationale %></td>
+                      <td class="small text-muted"><%= new Date(dc.evaluatedAt).toLocaleString() %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
           <div class="section-card mb-3">
             <div class="section-header">Quality Gates of the EBM</div>
             <div class="table-responsive">

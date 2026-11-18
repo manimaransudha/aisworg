@@ -44,6 +44,17 @@ export const seusDB = {
     }
   },
 
+  // The SEUs whose active EBM composes the Profile.
+  async findByEbmProfileId(profileId: string): Promise<DbResult<SeuRow[]>> {
+    try {
+      const { rows } = await query<SeuRow>("SELECT s.* FROM seus s JOIN ebms e ON e.id = s.active_ebm_id WHERE e.profile_id = $1", [profileId]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[seusDB] findByEbmProfileId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findById(id: string): Promise<DbResult<SeuRow | null>> {
     try {
       const { rows } = await query<SeuRow>("SELECT * FROM seus WHERE id = $1", [id]);

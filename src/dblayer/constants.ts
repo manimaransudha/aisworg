@@ -211,6 +211,21 @@ export const WAIVER_SCOPE_GATE = "Gate";
 export const WAIVER_SCOPE_POLICY = "Policy";
 export const WAIVER_SCOPE_POLICY_OBLIGATION = "Policy Obligation";
 export const WAIVER_SCOPE_OBLIGATION = "Obligation";
+// The kinds of record a waiver can name as support: Evidence, Knowledge and Decision records of its SEU. A waiver keeps them as { <type>: [ids] }.
+export const WAIVER_SUPPORT_EVIDENCE = "Evidence";
+export const WAIVER_SUPPORT_KNOWLEDGE = "Knowledge";
+export const WAIVER_SUPPORT_DECISION = "Decision";
+export const WAIVER_SUPPORT_TYPES = [WAIVER_SUPPORT_EVIDENCE, WAIVER_SUPPORT_KNOWLEDGE, WAIVER_SUPPORT_DECISION];
+// Confidence of a waiver (0 to 100) by what backs it, before the confidence of its supporting records is applied: tier 1 has an expiry only, tier 2 adds supporting
+// records, tier 3 has a risk with an Obligation control, tier 4 adds supporting records to that. Used by noUnresolvedObligations.
+export const WAIVER_CONFIDENCE_TIER_EXPIRY = 25;
+export const WAIVER_CONFIDENCE_TIER_EXPIRY_RECORDS = 50;
+export const WAIVER_CONFIDENCE_TIER_OBLIGATION = 75;
+export const WAIVER_CONFIDENCE_TIER_OBLIGATION_RECORDS = 100;
+// The percentage a text confidence level of an Evidence, Knowledge or Decision record stands for (Ontology concept evidence-confidence-level).
+// The percentage a supporting record counts for when it has no confidence level.
+export const UNASSESSED_RECORD_CONFIDENCE_PERCENT = 5;
+export const CONFIDENCE_LEVEL_PERCENT: Record<string, number> = { Low: 33, Medium: 66, High: 100 };
 export const WAIVER_SCOPES = [WAIVER_SCOPE_GATE, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_POLICY_OBLIGATION, WAIVER_SCOPE_OBLIGATION];
 // The originating entity type of an Obligation that a Policy raised.
 export const OBLIGATION_ORIGIN_POLICY = "Policy";

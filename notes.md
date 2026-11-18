@@ -304,7 +304,4 @@ Choose Configuration parameters
 
 
 -------
-
-transitionEntity
-
-executionEngine.evaluateDeliverableTransition, then applyDeliverableTransition
+calculateConfidenceLevel

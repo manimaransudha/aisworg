@@ -74,7 +74,7 @@ The adapters are in src/domain/engine/entityAdapters.ts.
 | 2 | `transitionEntity` | `getState` | Reads the current state. This is the from-state. The caller never supplies it. |
 | 3 | `transitionEntity` | `seuId` | Calls `adapter.seuId` to see whether the entity lives in an SEU. If it returns a value, `transitionEntity` calls `transitionEngine.evaluateGoverned`. Otherwise it calls `transitionEngine.evaluate`. The adapter itself never calls the engine. |
 | 4 | `transitionEntity` | none | Maps a refusal to one result shape with `gateRejection`. |
-| 5 | `transitionEntity` | none | For an entity in an SEU, calls `qualityGateEngine.evaluate`, which reads the gates the SEU's active EBM names for the hop. The author, badge and tenant are the SEU's system actor (`getSystemActor`). A `Blocked` result returns `quality_gate_blocked`. A `Waived` result lets the hop continue. An SEU with no active EBM has no such gates. This check is separate from the gates of the Transition Definition. |
+| 5 | `transitionEntity` | none | For an entity in an SEU, calls `qualityGateEngine.evaluate`, which reads the gates the SEU's active EBM names for the hop. The author, badge and tenant are the SEU's system actor (`getSystemActor`). `qualityGateEngine.decideQualityGate` is called with no other condition. `evaluate` returns `Passed` or `Blocked` for each gate, and the composition marks a `Blocked` gate `Waived` when an Active waiver covers it. A decision that is `Blocked` returns `quality_gate_blocked`. A `Waived` decision lets the hop continue. The decision is not stored on this path, because only Deliverable hops call `recordDecision`. An SEU with no active EBM has no such gates. This check is separate from the gates of the Transition Definition. |
 | 6 | `transitionEntity` | `addComment`, `setState` | Runs one database transaction with three things in order: the comment (if one was given and the adapter has `addComment`), the Action (if `action_code` is set), then `setState`. A throw rolls all three back. |
 | 7 | `transitionEntity` | `tenantId` | Returns the updated entity record, the applied hop and an `event` object built from the Transition Definition's `event_type`, `version_event`, actor, badge and tenant. |
 | 8 | the caller | none | Publishes the event with `publishTransition`. `transitionEntity` never publishes. |
@@ -99,7 +99,7 @@ A Policy condition is either an implemented policy function (looked up in `src/p
 |---|---|
 | Badge is mandatory | A Transition Definition with no verb throws. |
 | Participant check | The actor's `participants` row in that SEU, found with the actor id (the `participants_master` id). A missing row throws. |
-| Quality Gates of the Transition Definition | If the Transition Definition has `required_quality_gate_ids`, `qualityGateEngine.evaluateByIds` evaluates exactly those gates. The author, badge and tenant of the evaluation are the SEU's system actor (`getSystemActor`), because the platform and not a user starts the evaluation. A `Blocked` result refuses the hop. A `Waived` result lets it continue. The gates of the SEU's EBM are not evaluated here. `transitionEntity` evaluates them in its own step (step 5 above). |
+| Quality Gates of the Transition Definition | If the Transition Definition has `required_quality_gate_ids`, `qualityGateEngine.evaluateByIds` evaluates exactly those gates. The author, badge and tenant of the evaluation are the SEU's system actor (`getSystemActor`), because the platform and not a user starts the evaluation. The results go to `decideQualityGate` with no other condition. A `Blocked` decision refuses the hop. A `Waived` decision, a gate covered by an Active waiver, lets it continue. The gates of the SEU's EBM are not evaluated here. `transitionEntity` evaluates them in its own step (step 5 above). |
 | Result | The outcome carries `authorId` (the participant id). |
 
 The adapter signals this by providing `seuId`, and `transitionEntity` then chooses `evaluateGoverned`. The SEU-scoped entities are Obligation, Knowledge, Review, Finding, Participant, Decision, Evidence and AttentionItem.
@@ -150,20 +150,22 @@ Callers found: Objective, SEU, Pack, Template, Profile, DeliverableDefinition, S
 
 A Deliverable has no adapter. `transitionDeliverable` first governs the request, then the Execution Engine applies it as a Command.
 
-Governance (`evaluateDeliverableTransition`), in order:
+Governance (`evaluateDeliverableTransition`, `executionEngine.ts`), in the order the code runs it. Each check adds a condition, `Passed` or `Blocked`, to the list `found` and does not return on its own. The Quality Gate decision at the end is composed from every condition, and it decides the hop.
 
-| Order | Check | Refusal |
-|---|---|---|
-| 1 | Dependency readiness for the target state. | `dependency_not_satisfied` |
-| 2 | An open blocking Obligation on the SEU. | `seu_blocked` |
-| 3 | An open blocking Obligation on the Deliverable. | `obligation_blocked` |
-| 4 | Every Decision on the Deliverable is Approved or beyond. | `decision_blocked` |
-| 5 | No Command for the same hop is already in flight. | `already_in_flight` |
-| 6 | A Transition Definition exists and declares a verb. The actor's badge is resolved. | `no_transition_definition` |
-| 7 | Quality Gates, evaluated with the SEU system actor as author. A block raises an Attention Item. | `quality_gate_blocked` |
-| 8 | Policies of the SEU's EBM, then Policies the Transition Definition requires. A block raises an Obligation. | `policy_blocked` |
-| 9 | Submit check. | `not_submitted` |
-| 10 | In Progress to Approved needs an attached reference. | `empty_centre` |
+| Order | Check (condition name) | Refusal if it decides the hop | Waivable by |
+|---|---|---|---|
+| 1 | `Dependencies`: dependency readiness for the target state. | `dependency_not_satisfied` | No waiver. |
+| 2 | `SEU Obligation "<title>"`: an open Obligation on the SEU that holds a hop. | `seu_blocked` | A waiver of scope Policy Obligation or Obligation (`obligationWaivable`). |
+| 3 | `Obligation "<title>"`: an open Obligation on the Deliverable that holds a hop. | `obligation_blocked` | The same as step 2. |
+| 4 | `Decision "<title>"`: a Decision on the Deliverable not yet Approved. | `decision_blocked` | No waiver. |
+| 5 | `Command in flight`: a Command for the same hop is in flight. | `already_in_flight` | No waiver. |
+| 6 | A Transition Definition exists and declares a verb, and the actor's badge is resolved. This step returns at once. A missing definition returns `no_transition_definition`, or the `already_in_flight` refusal of step 5 when a Command holds the hop. | `no_transition_definition` | Not a condition. |
+| 7 | `Policy <code>`: Policies of the SEU's EBM, then the Policies the Transition Definition requires. A block raises an Obligation (`raiseObligationForBlockedTransition`). The condition is `Policies` and `Passed` when every Policy passes. | `policy_blocked` | A waiver of scope Policy names the Policy code. |
+| 8 | `Submission`: the Transition Definition has a submit verb and the Deliverable has not been submitted. | `not_submitted` | No waiver. |
+| 9 | `Reference`: In Progress to Approved needs an attached reference. | `empty_centre` | No waiver. |
+| 10 | The Quality Gate line items, evaluated with the SEU system actor as author (`qualityGateEngine.evaluate`), then `decideQualityGate(results, found, entity)`. The decision is stored by `recordDecision` for every hop, Blocked included. | The refusal of the first `Blocked` condition that no waiver covers, in the order above. Otherwise `quality_gate_blocked` for the first blocked gate, with an Attention Item raised. | A Gate waiver names the Quality Gate. |
+
+The composition (`composeQualityGateOutcome`, `qualityGateOutcomeComposition.ts`) fetches the Active waivers of the SEU (`getWaivers`, which includes the waivers shared with the SEU's Profile) and marks each `Blocked` condition a waiver covers as `Waived`. A condition with no `waivable` is covered by no waiver. The outcome follows this order: no condition gives `NotApplicable`; a `Blocked` condition no waiver covers gives `Blocked`; otherwise a covered condition gives `Waived`; otherwise `Approved`. `recordDecision` then publishes `QualityGatePassed`, `QualityGateBlocked` and `QualityGateWaived` for the gate line items and the covered conditions.
 
 The result is a governance outcome record plus the acting badge.
 
@@ -173,14 +175,14 @@ Application (`applyDeliverableTransition`):
 |---|---|
 | 1 | Requests for one Deliverable run one at a time (an in-process queue per Deliverable id). |
 | 2 | The Deliverable is read again. If its state has changed since governance, the request is refused as `already_in_flight`. |
-| 3 | The governance outcome is stored. |
+| 3 | The governance outcome is stored (`governanceEvaluationOutcomesDB.create`). The Quality Gate decision was stored earlier, by `recordDecision` in `evaluateDeliverableTransition`. |
 | 4 | A Command is created (requester, acting badge, from and to state). |
 | 5 | The Deliverable state is updated and the Command is marked Completed. |
 | 6 | The dependency engine is told about the new state. |
 | 7 | An attestation is recorded when the Transition Definition requires one. |
 | 8 | The Transition Definition's event and `DeliverableTransitioned` are published, as the SEU system actor. |
 
-Who triggers it: a user button (`POST /seus/:id/deliverables/:deliverableId/transition`) or the platform. For governed hops, `deliverableKickoff.attemptGovernedTransitions` reads the Deliverable's next transitions with `trigger = governed` and requests each one as the SEU system actor.
+Who triggers it: a user button (`POST /seus/:id/deliverables/:deliverableId/transition`) or the platform. For governed hops, `deliverableKickoff.attemptGovernedTransitions` reads the Deliverable's next transitions with `trigger = governed` and requests each one as the SEU system actor. The handler runs on `SEUOperational`, `DeliverableTransitioned`, `CapabilityFulfilled`, `CapabilityUnavailable`, `DispatchRejected`, `ObligationTransitioned` and `AttentionItemTransitioned`, and on `QualityGateWaiverCreated`. For that event `processQualityGateWaiverCreated` takes the Deliverables the waiver names by code in the SEU it was granted in or, for a waiver shared with a Profile, in every Operational SEU whose active EBM composes that Profile, and attempts their governed transitions again so the decision is made with the waiver.
 
 ### ExternalInteraction
 
@@ -212,7 +214,7 @@ The web route then finds the action by verb (for example `POST /seus/:id/transit
 | 2 | The from-state is always the entity's stored state in the generic route. A caller cannot assert a different from-state. | `entityTransition.ts` lines 36 to 44. |
 | 3 | `evaluate` does not check `required_quality_gate_ids`. `evaluateGoverned` does, for SEU-scoped entities only. The paths that call `evaluate` alone never evaluate them: entity types whose adapter has no `seuId` (SchemaDefinition, Capability, Service, Pack, Template, Profile, Policy, QualityGate, DeliverableDefinition, Objective, EBM, SEU, Ontology), `beginBirth` and `promoteKnowledgeItemScope`. `transitionExternalInteraction` calls `evaluateGoverned`, so it does evaluate them. The EBM gates are a separate check: `transitionEntity` step 5 for entities in an SEU, and the Execution Engine for Deliverable. | `grep -rn "evaluateByIds" src` returns the definition in `qualityGateEngine.ts` and one caller in `transitionEngine.ts` `evaluateGoverned`. |
 | 4 | Deliverable serialisation is an in-memory map, so it covers one process only. | `executionEngine.ts` `deliverableTurns`. |
-| 5 | The `governed` trigger is read in one place: `deliverableKickoff.ts`. No other entity type is attempted by the platform on its own through this column. | `grep -rn '"governed"' src --include='*.ts'`, matches in the DB layer, vocabulary, seed and `deliverableKickoff.ts` only. |
+| 5 | The `governed` trigger is read in one place: `deliverableKickoff.ts`. No other entity type is attempted by the platform on its own through this column. The handler attempts a Deliverable again when an Obligation or an Attention Item is resolved, and when a waiver naming it is created (`QualityGateWaiverCreated`). | `grep -rn '"governed"' src --include='*.ts'`, matches in the DB layer, vocabulary, seed and `deliverableKickoff.ts` only. |
 
 ## 11. Open points for the owner
 

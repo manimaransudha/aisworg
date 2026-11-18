@@ -19,6 +19,26 @@ export const qualityGateOutcomesDB = {
     }
   },
 
+  async findById(id: string): Promise<DbResult<QualityGateOutcomeRow | null>> {
+    try {
+      const { rows } = await query<QualityGateOutcomeRow>("SELECT * FROM quality_gate_outcomes WHERE id = $1", [id]);
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[qualityGateOutcomesDB] findById error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async findBySeuId(seuId: string): Promise<DbResult<QualityGateOutcomeRow[]>> {
+    try {
+      const { rows } = await query<QualityGateOutcomeRow>("SELECT * FROM quality_gate_outcomes WHERE seu_id = $1 ORDER BY evaluated_at DESC", [seuId]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[qualityGateOutcomesDB] findBySeuId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findByDeliverableId(deliverableId: string): Promise<DbResult<QualityGateOutcomeRow[]>> {
     try {
       const { rows } = await query<QualityGateOutcomeRow>("SELECT * FROM quality_gate_outcomes WHERE deliverable_id = $1 ORDER BY evaluated_at DESC", [deliverableId]);

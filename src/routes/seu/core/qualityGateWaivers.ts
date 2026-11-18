@@ -5,11 +5,15 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { qualityGateWaiverRisksDB } from "../../../dblayer/qualityGateWaiverRisksDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
+import { evidenceDB } from "../../../dblayer/evidenceDB.js";
+import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
+import { decisionsDB } from "../../../dblayer/decisionsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { QUALITY_GATE_WAIVE_BADGE, WAIVER_CONTROL_CONCEPT, WAIVER_CONTROL_EXPIRY, WAIVER_CONTROL_OBLIGATION, WAIVER_CONTROL_ACCEPT_RISK, WAIVER_RISK_ENTITY_TYPE, WAIVER_SCOPE_GATE, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_OBLIGATION, WAIVER_SCOPE_POLICY_OBLIGATION, WAIVER_SCOPES, WAIVER_ENTITY_TYPE } from "../../../dblayer/constants.js";
+import { QUALITY_GATE_WAIVE_BADGE, WAIVER_CONTROL_CONCEPT, WAIVER_CONTROL_EXPIRY, WAIVER_CONTROL_OBLIGATION, WAIVER_CONTROL_ACCEPT_RISK, WAIVER_RISK_ENTITY_TYPE, WAIVER_SCOPE_GATE, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_OBLIGATION, WAIVER_SCOPE_POLICY_OBLIGATION, WAIVER_SCOPES, WAIVER_ENTITY_TYPE, WAIVER_SUPPORT_EVIDENCE, WAIVER_SUPPORT_KNOWLEDGE, WAIVER_SUPPORT_DECISION, WAIVER_SUPPORT_TYPES } from "../../../dblayer/constants.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import { createObligation } from "./obligations.js";
 import { resolveAuthor } from "./attentionItems.js";
+import { getWaivers } from "../../../domain/engine/qualityGateOutcomeComposition.js";
 import type { QualityGateWaiverRow } from "../../../dblayer/seuTypes.js";
 
 // What a waiver does about one risk it accepts. An Obligation control raises an Obligation on the SEU, or on a Deliverable of the SEU. With
@@ -39,6 +43,22 @@ export interface WaiverRiskInput {
   controls: WaiverControlInput[];
 }
 
+// The records of the SEU a waiver can name as support: its Evidence (of the SEU and of its Deliverables), its Knowledge items and its Decisions.
+export interface WaiverSupportOption { type: string; id: string; label: string }
+
+export async function listWaiverSupportOptions(seuId: string): Promise<WaiverSupportOption[]> {
+  const [evidenceOfSeu, evidenceOfDeliverables, knowledge, decisions] = await Promise.all([
+    evidenceDB.findBySeuId(seuId), evidenceDB.findLinkedToSeu(seuId), knowledgeItemsDB.findBySeuId(seuId), decisionsDB.findBySeuId(seuId),
+  ]);
+  for (const r of [evidenceOfSeu, evidenceOfDeliverables, knowledge, decisions]) if (r.error) throw r.error;
+  const evidence = new Map([...(evidenceOfSeu.data ?? []), ...(evidenceOfDeliverables.data ?? [])].map((e) => [e.id, e]));
+  return [
+    ...[...evidence.values()].map((e) => ({ type: WAIVER_SUPPORT_EVIDENCE, id: e.id, label: `${e.title} (${e.category}, ${e.status}, confidence ${e.confidence_level ?? "unassessed"})` })),
+    ...(knowledge.data ?? []).map((k) => ({ type: WAIVER_SUPPORT_KNOWLEDGE, id: k.id, label: `${k.title} (${k.category}, ${k.status}, confidence ${k.confidence_level ?? "unassessed"})` })),
+    ...(decisions.data ?? []).map((d) => ({ type: WAIVER_SUPPORT_DECISION, id: d.id, label: `${d.title} (${d.category}, ${d.status})` })),
+  ];
+}
+
 export type GrantQualityGateWaiverResult = { ok: true; waiver: QualityGateWaiverRow } | { ok: false; reason: string };
 
 export async function grantQualityGateWaiver(input: {
@@ -61,8 +81,11 @@ export async function grantQualityGateWaiver(input: {
   actorId: string;
   expiresAt?: string | null;
   risks?: WaiverRiskInput[];
+  // The records that support the waiver, by type: { Evidence: [ids], Knowledge: [ids], Decision: [ids] }. Each is a record of this SEU.
+  supportingRecords?: Record<string, string[]>;
 }): Promise<GrantQualityGateWaiverResult> {
   if (!input.rationale?.trim()) return { ok: false, reason: "rationale is required" };
+  if (input.expiresAt && !(new Date(input.expiresAt).getTime() > Date.now())) return { ok: false, reason: "the expiry time must be a time in the future" };
   const authorityBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, QUALITY_GATE_WAIVE_BADGE);
   const scope = input.scope ?? WAIVER_SCOPE_GATE;
   if (!WAIVER_SCOPES.includes(scope)) return { ok: false, reason: `waiver scope "${scope}" is not one of ${WAIVER_SCOPES.join(", ")}` };
@@ -71,6 +94,16 @@ export async function grantQualityGateWaiver(input: {
   if (scope === WAIVER_SCOPE_OBLIGATION) {
     if (!input.obligationCategory) return { ok: false, reason: "this waiver names the category of an Obligation" };
     await assertCanonicalCategory("category:obligation", input.obligationCategory);
+  }
+
+  // Every supporting record is a record of this SEU, and its type is one a waiver accepts.
+  const supportingRecords: Record<string, string[]> = {};
+  const supportOptions = await listWaiverSupportOptions(input.seuId);
+  for (const [type, ids] of Object.entries(input.supportingRecords ?? {})) {
+    if (!WAIVER_SUPPORT_TYPES.includes(type)) return { ok: false, reason: `a waiver cannot be supported by a "${type}" record` };
+    const unique = [...new Set(ids)];
+    if (unique.some((id) => !supportOptions.some((o) => o.type === type && o.id === id))) return { ok: false, reason: `a supporting ${type} record is not a record of this SEU` };
+    if (unique.length > 0) supportingRecords[type] = unique;
   }
 
   // The Deliverables the waiver covers are named by code, in this SEU or, when it is shared, in every SEU of the Profile.
@@ -118,6 +151,20 @@ export async function grantQualityGateWaiver(input: {
     if (!gate || gate.length === 0) return { ok: false, reason: "quality gate not found" };
   }
 
+  // A waiver of the same scope for the same target, granted from the same entity, that is Active already covers it.
+  const target = {
+    qualityGateId: scope === WAIVER_SCOPE_GATE ? input.qualityGateId ?? null : null,
+    policyCode: scope === WAIVER_SCOPE_POLICY || scope === WAIVER_SCOPE_POLICY_OBLIGATION ? input.policyCode?.trim() ?? null : null,
+    obligationCategory: scope === WAIVER_SCOPE_OBLIGATION ? input.obligationCategory ?? null : null,
+    obligationTitle: scope === WAIVER_SCOPE_POLICY_OBLIGATION || scope === WAIVER_SCOPE_OBLIGATION ? input.obligationTitle?.trim() ?? null : null,
+  };
+  const duplicate = (await getWaivers(input.seuId)).find((w) =>
+    w.scope === scope && w.entity_type === input.entityType && w.entity_id === input.entityId &&
+    (w.quality_gate_id ?? null) === target.qualityGateId && (w.policy_code ?? null) === target.policyCode &&
+    (w.obligation_category ?? null) === target.obligationCategory && (w.obligation_title ?? null) === target.obligationTitle
+  );
+  if (duplicate) return { ok: false, reason: `an Active waiver of this scope for the same target and entity already exists (${duplicate.id})` };
+
   const { data: master } = await participantsMasterDB.findById(input.actorId);
   if (!master) return { ok: false, reason: `No superuser provisioned.` };
 
@@ -136,6 +183,7 @@ export async function grantQualityGateWaiver(input: {
     grantedBy: master.id,
     authorityBadge,
     expiresAt: input.expiresAt,
+    supportingRecords,
   });
   if (error || !waiver) return { ok: false, reason: (error ?? new Error("failed to grant waiver")).message };
 
@@ -160,14 +208,15 @@ export async function grantQualityGateWaiver(input: {
   }
 
   await eventBus.publish({
-    eventType: "QualityGateWaiverGranted",
+    eventType: "QualityGateWaiverCreated",
     originatingObjectType: scope === WAIVER_SCOPE_GATE ? "QualityGate" : WAIVER_ENTITY_TYPE,
     originatingObjectId: scope === WAIVER_SCOPE_GATE && input.qualityGateId ? input.qualityGateId : waiver.id,
     seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
     actorId: input.actorId,
     authorityBadge,
-    payload: { scope, entityType: input.entityType, entityId: input.entityId, rationale: input.rationale },
+    tenantId: seu.tenant_id,
+    payload: { waiverId: waiver.id, sharedProfileId: waiver.shared_profile_id, scope, entityType: input.entityType, entityId: input.entityId, deliverableCodes, rationale: input.rationale },
   });
 
   return { ok: true, waiver };

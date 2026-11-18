@@ -1,8 +1,10 @@
 # Implementation Traceability: Chapter 26 – Quality Gate Model
 
-**Date of report: 23-10-2026**
+**Date of report: 18-11-2026**
 
 Specification: src/docs/SEU Studio Specifications/04_Governance/26_Quality Gate.md
+
+Basis: CR-145 (design/change-requests/CR-145-quality-gate-alignment.md), built and checked with `tsc` only. The tests and `db:clean-slate` were not run for this report.
 
 ## Traceability Table
 
@@ -28,161 +30,173 @@ Specification: src/docs/SEU Studio Specifications/04_Governance/26_Quality Gate.
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">A Quality Gate evaluates engineering readiness before a governed transition. It performs no engineering work and grants no authority.<br>Ref: §1, §4, QG-002</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:37-79<br>src/domain/engine/transitionEngine.ts:73-84</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">evaluate loads the gates for the entity type and transition and checks obligations, evidence, decisions, reviews or policies. The only writes are evaluation rows and events. The result is returned to the transition engine, which decides whether the hop proceeds.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:116-185<br>src/domain/engine/executionEngine.ts:203-236</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">evaluate reads the gates the SEU's EBM settled for the hop and runs each criterion. The only writes are evaluation rows, the stored decision and events. The Execution Engine receives the decision and decides whether the hop proceeds.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">A Quality Gate evaluation does not modify engineering state.<br>Ref: §4, §10, §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:94-156<br>src/domain/engine/transitionEngine.ts:64-86</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">evaluateGate only reads Obligations, Evidence, Decisions, Reviews and Policies. The caller updates the entity after the outcome. tests/quality-gate-generalization.test.ts:201-240 asserts a blocked hop writes and publishes nothing on the entity.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/qualitygates/index.ts:19-23<br>src/domain/engine/qualityGateEngine.ts:61-71, 274-290</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A criterion returns satisfied or not and changes nothing. recordAndPass and recordAndBlock store the evaluation row only. The caller updates the entity after the decision. tests/quality-gate-generalization.test.ts asserts a blocked hop leaves the entity unchanged.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">The position in the architecture is Policies, Reviews, Evidence, Knowledge, Decisions and Obligations feeding a Quality Gate, then Governance evaluation, then the state transition.<br>Ref: §3</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:100-153<br>src/domain/engine/transitionEngine.ts:64-86</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: gate criteria read Obligations, Evidence, Decisions, Reviews and Policies. The gate runs inside governed evaluation before the transition.<br>Gap: no criteria type reads Knowledge. The four criteria types cover Obligations, Evidence or Decisions, Reviews and Policies only.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/qualitygates/index.ts:27-32<br>src/domain/engine/executionEngine.ts:70-236</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: criteria read Obligations, Evidence, Decisions, Reviews and Policies. The gate decision is made inside governed evaluation before the state change.<br>Gap: no criterion reads Knowledge. Searched: src/qualitygates (four criterion files, one registry map).</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates are declarative contracts.<br>Ref: §4, QG-001, §9, §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gates_schema_recovery.sql:3-14<br>src/dblayer/seuTypes.ts:89-101<br>src/domain/engine/qualityGateEngine.ts:98-155</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a gate is a data row with entity type, from state, to state and a JSONB criteria document. A Quality Gate Definition holds the criteriaType. A Pack lists the gate as an entry (qualityCode, governedTransition, deliverableName, checklists, requiredPolicyCodes) and publishing writes the row (CR-145 decision 17).<br>Gap: criteria are a closed set of four types hard-coded in an if chain in evaluateGate. Conditions are not an interpreted expression. An unknown type blocks. New criteria need a code change. Only requires_active_policy evaluates a declarative condition.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gate_definitions_schema_recovery.sql:1-20<br>src/qualitygates/index.ts:27-36<br>src/dblayer/seed/data/ontologyConcepts.json:5619-5640</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A gate is a Quality Gate Definition row with a code, name, category and a criteriaType. The criteria types are Ontology concepts (quality-gate-criteria-type). The engine resolves each type to its implementation through findQualityGateCriterion and blocks an unknown type. A Pack lists a gate by Definition code with the transition, the Deliverable, the Checklists and the required Policy codes. A new criterion type is a new implementation file by design (CR-145 A1).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Criteria are interpreted by the Governance Model.<br>Ref: §9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:139-153<br>src/domain/engine/governingCondition.ts<br>src/domain/engine/transitionEngine.ts:64-86</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the Policy criterion uses the shared evaluateCondition from the governing condition module.<br>Gap: the other three criteria types are interpreted inside the Quality Gate engine, not by a Governance evaluator. evaluateGate is called with no context from the governed path, so Policy conditions see an empty context.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:61-71<br>src/qualitygates/requiresActivePolicy.ts:10-38<br>src/domain/engine/executionEngine.ts:203-236</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the engine interprets each criterion through the registry. The Execution Engine acts on the composed decision.<br>Gap: the Policy criterion evaluates each Policy condition with evaluateCondition and does not route an implemented condition to the Policy evaluation that the transition engine uses (transitionEngine.ts:151). Whether the criterion is to call the Policy evaluation is not decided (CR-145 A3).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Criteria may reference Deliverable state, review outcomes, accepted Evidence, approved Decisions, active Policies, unresolved Obligations, compliance requirements and engineering metrics.<br>Ref: §9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:100-153</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: unresolved Obligations (100-109), accepted Evidence or approved Decisions (111-124), review outcomes (126-137), Policies (139-153).<br>Gap: no criterion reads Deliverable state, compliance requirements or engineering metrics.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/qualitygates/noUnresolvedObligations.ts:6-17<br>src/qualitygates/requiresAcceptedEvidenceOrApprovedDecision.ts:10-26<br>src/qualitygates/requiresAcceptedReview.ts:8-20<br>src/qualitygates/requiresActivePolicy.ts:10-38</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: unresolved Obligations, accepted Evidence or approved Decisions, accepted Reviews and active Policies.<br>Gap: no criterion reads Deliverable state, compliance requirements or engineering metrics. The compliance evaluation in src/routes/seu/core/compliance.ts is not a gate criterion. Searched: src/qualitygates and the registry map.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">A Standard-type Policy referenced by a gate is non-blocking unless the gate explicitly treats adherence as blocking.<br>Ref: §9</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:139-153</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Gap: requires_active_policy does not look at the Policy Constraint Type. Every referenced Policy that is not satisfied blocks. There is no gate option to make a Standard blocking or non-blocking.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/qualitygates/requiresActivePolicy.ts:10-38<br>src/domain/engine/policyEngine.ts:57-107</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: requires_active_policy no longer decides the Standard rule. It passes the Policy checks to policyEngine.evaluateChecks (requiresActivePolicy.ts:31) and reports the result. The engine blocks a failed Policy and does not block a failed Standard: it stores the evaluation as Deviated, publishes PolicyViolated and StandardPolicyDeviation, and returns the deviated ids, which the criterion keeps in the evaluation detail (policyEngine.ts:83-99). The rule belongs to Policy evaluation, as the owner decided (CR-145 A3).<br>Gap: a gate has no setting that makes a Standard blocking for that gate, so the exception in §9 ("unless the gate explicitly treats adherence as blocking") cannot be expressed. The engine needs an SEU, so the criterion blocks an entity outside an SEU. The tests were not run.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Every Quality Gate has a globally unique identifier.<br>Ref: §6 FR-26.1</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gates_schema_recovery.sql:4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">id is a UUID primary key generated by gen_random_uuid.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gate_definitions_schema_recovery.sql:1-20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">quality_gate_definitions.id is a UUID primary key. Evaluations, waivers, the EBM and Transition Definitions refer to a gate by this id. The code and version are unique per tenant (quality_gate_definitions_code_version_tenant_key).</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates are contributed through Packs.<br>Ref: §6 FR-26.2, §8 Originating Pack</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:89-101<br>src/routes/seu/core/packs.ts:621-646<br>src/dblayer/qualityGatesDB.ts:11-69<br>src/domain/engine/compositionEngine.ts:306-317</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a Pack contributes qualityGates as entries that name an Active Quality Gate Definition by qualityCode. Validation checks the Definition, the transition, the Deliverable name, the Checklist ids and the Policy codes (packs.ts:227-292). Publishing the Pack upserts each entry into quality_gates (packs.ts:658-684) with originating_pack_id, author and badge. The mandatory Checklists are written to checklist_ids and the others to recommended_checklist_ids.<br>Gap: the schema leaves originating_pack_id nullable, so a gate without a Pack is possible at the database.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/quality-gate-no-unresolved-obligations.json<br>src/actions/materialisePack.ts:9-16<br>src/dblayer/recovery/quality_gates_schema_recovery.sql:12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Pack lists Quality Gate Definition codes in contributionQualityGates. The Pack Published to Active hop runs the materialise-pack action, which writes the gate rows with originating_pack_id NOT NULL. The EBM takes the gates of the composed Packs. The seed lists eight gate entries in four Packs.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates support composition from multiple organisations. Composition is deterministic. Conflicts are resolved through Governance composition rules.<br>Ref: §6 FR-26.3, §12, QG-003, §16, §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:304-317<br>src/domain/engine/compositionCompleted.ts:65-86<br>src/dblayer/qualityGatesDB.ts:84-96<br>src/domain/engine/qualityGateEngine.ts:47-63</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the Pack gates of a composition are collected into the EBM applicable_quality_gate_ids. Evaluation selects the gates of the active EBM for the transition. Two Packs gating the same transition and category are reported as a conflict to resolve before commissioning.<br>Gap: there is no composition service that merges gates. A conflict is reported and not resolved by a rule. Two gates of different categories on one transition are all evaluated, with no precedence rule. Nothing models Platform, Organisation, Customer or Compliance gate layers.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/conflicts/unravelQualityGates.ts:39-82<br>src/domain/engine/conflicts/qualityGates.ts:11-30<br>src/domain/engine/conflicts/settleQualityGates.ts:29-56<br>src/domain/engine/compositionCompleted.ts:62-68</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The gates of every composed Pack are collected per Deliverable and step. A conflict (quality-gate-different) is detected and settled by the user's pick (CR-139). The EBM stores the settled result once, and the SEU evaluates exactly that result, so the effective gates are fixed at composition. §12 names Platform, Organisation, Customer and Compliance Packs as examples. No layer field or precedence exists, and every effective gate of a hop is evaluated.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">A Quality Gate evaluates one or more engineering objects.<br>Ref: §6 FR-26.4</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gates_schema_recovery.sql:15-17<br>src/domain/engine/qualityGateEngine.ts:37-92</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a gate applies to one entity type per transition across fourteen entity types, and each evaluation is for one entity id.<br>Gap: a gate cannot evaluate several objects together. Each evaluation takes one entityId.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:116-162<br>src/domain/engine/entityTransition.ts:58-65</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Each gate line item is its own evaluation of one object. The engine evaluates Deliverables, AttentionItems, Obligations and the other SEU-scoped entity types that pass through transitionEntity. A call that takes several objects at once is expanded when a need arises (owner, CR-145 A7).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gate outcomes are immutable.<br>Ref: §6 FR-26.5</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/qualityGateEvaluationsDB.ts:5-104<br>src/dblayer/recovery/quality_gate_evaluations_schema_recovery.sql:3-13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">qualityGateEvaluationsDB exposes create and read queries only. No update or delete exists on evaluation rows.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/qualityGateEvaluationsDB.ts<br>src/dblayer/qualityGateOutcomesDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">qualityGateEvaluationsDB and qualityGateOutcomesDB hold create and read functions only. No UPDATE or DELETE of either table exists in src (the only DELETE is a test cleanup). No database trigger enforces it.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Every evaluation preserves the evaluated object, applicable Engineering Behavior Model, governing Policies, supporting Reviews, Evidence, Decisions, active Obligations, outcome and timestamp. Historical evaluations are reproducible and available.<br>Ref: §6 FR-26.6, §14, §16, §17, QG-005</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gate_evaluations_schema_recovery.sql:3-25<br>src/domain/engine/qualityGateEngine.ts:100-225<br>src/dblayer/qualityGateEvaluationsDB.ts:30-41</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: each row stores the gate, SEU, entity type and id, outcome, a detail document, evaluated_at, author and badge. Blocked rows carry the unresolved Obligation ids, the required category, the review gate id or the Policy id. The rows are queryable per SEU.<br>Gap: Passed rows store no detail. The rows do not record the EBM version, the Policies, Reviews, Evidence or Decisions that supported the pass, or the gate version. The gate version is held on the gate row. A past evaluation cannot be reproduced from the stored record.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every evaluation preserves the evaluated object, applicable Engineering Behavior Model, governing Policies, supporting Reviews, Evidence, Decisions, active Obligations, outcome and timestamp. Historical evaluations are reproducible.<br>Ref: §6 FR-26.6, §14, QG-005, §16, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:61-71, 274-290<br>src/qualitygates/noUnresolvedObligations.ts:6-17<br>src/qualitygates/requiresAcceptedEvidenceOrApprovedDecision.ts:10-26<br>src/qualitygates/requiresAcceptedReview.ts:8-20<br>src/qualitygates/requiresActivePolicy.ts:10-38</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">An evaluation row stores the gate (an exact version), the SEU, the entity, the outcome, the author, the badge and the timestamp. Its detail stores the EBM id and version and the objects the criterion relied on: Obligation ids, Evidence and Decision ids, Review ids or Policy ids. A Blocked row also stores the reason data. The decision stores the conditions and the evaluation ids. The reason text of a Blocked gate is returned to the caller and is not stored.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gate evaluations are deterministic. Identical engineering state gives the same outcome.<br>Ref: §5 QG-006, §16, §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:47-79<br>src/domain/engine/qualityGateEngine.ts:94-156</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Evaluation is a pure function of the stored rows. Gates are iterated in query order and the first Blocked or Waived result is returned. No randomness or clock enters the criteria, except waiver expiry (see §13).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateOutcomeComposition.ts:42-48, 72-86</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The outcome is a fixed function of the conditions and of the Active waivers. Due waivers are expired before every lookup, so the time of the decision is an input, and the stored decision records the waiver id of each covered condition. A past decision is reproducible from its record.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates remain independent of Participants.<br>Ref: §5 QG-004, §16</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:94-156</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No criterion reads Participant data. The author id and badge are used only to record the evaluation.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/qualitygates/index.ts:11-17<br>src/domain/engine/executionEngine.ts:203-212</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A criterion receives the gate, the entity type, the entity id and the SEU id. The author and badge of every evaluation are the SEU's system actor, not a user.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gate evaluation records are kept and historical evaluations remain available.<br>Ref: §16, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/qualityGateEvaluationsDB.ts:30-42<br>src/dblayer/qualityGateOutcomesDB.ts<br>src/routes/seu/core/seus.ts:486, 596-618</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every evaluation and every decision is stored and never deleted. The Quality Gates tab of the SEU page shows the latest outcome of each gate, the gates that block now, and the latest decision of each Deliverable. The full history is in the tables.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates support explicit waivers, with a justification, approving authority, scope, duration, risks and compensating controls. Waivers are explicit, governed and traceable.<br>Ref: §6 FR-26.7, §13, §17</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/qualityGateWaiversDB.ts:5-28<br>src/routes/seu/core/qualityGateWaivers.ts:12-55<br>src/routes/seu/api/qualityGateWaivers.ts:11-36<br>src/dblayer/recovery/quality_gate_waivers_schema_recovery.sql:3-15</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a waiver stores the gate, SEU, entity, rationale (required), granting participant, authority badge and expiry. Granting resolves the qualitygate_waive badge for the actor and publishes QualityGateWaiverGranted. Listing by SEU exists.<br>Gap: there are no fields for associated risks or compensating controls. Scope is one entity id only. There is no revoke or expire transition, so the Revoked and Expired statuses are never set. The POST route_authority row has empty badges (src/dblayer/seed/data/routeAuthority.json:484-490). The badge is checked inside the core function. No UI page grants a waiver. The waiver badge name is a literal in the core file (qualityGateWaivers.ts:8).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates support explicit waivers with a justification, approving authority, scope, duration, risks and compensating controls. Waivers are explicit, governed and traceable.<br>Ref: §6 FR-26.7, §13, §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/qualityGateWaivers.ts:45-190<br>src/routes/seu/web/seus.ts:447-487<br>src/domain/engine/qualityGateWaiverExpiry.ts:8-35<br>src/dblayer/recovery/quality_gate_waiver_risks_schema_recovery.sql</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a waiver has a rationale, the granting participant and the badge qualitygate_waive resolved through the badge authority engine, a scope (Gate, Policy, Policy Obligation or Obligation) with its target, the entity and Deliverable codes, an optional Profile share, an expiry time, risks and the controls that offset each risk (Expiry, Obligation, Accept risk). The grant refuses a past expiry time and a duplicate Active waiver. A Waiver Active to Expired hop runs through transition_definitions, and QualityGateWaiverCreated and QualityGateWaiverExpired are published with the tenant.<br>Gap: no function or route performs Active to Revoked. The lifecycle-table test and the Version Feature Plan entry for Waiver are not written. The waiver API routes are not implemented, by the owner's decision.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">A waiver does not remove the Quality Gate. It modifies evaluation for a defined context.<br>Ref: §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:158-167,207-225<br>src/dblayer/qualityGateWaiversDB.ts:30-44</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the gate is still evaluated. Only when the criteria fail and an active unexpired waiver exists for that gate and entity does the outcome become Waived, which the transition engine lets through. The Waived result is recorded and QualityGateWaived is published.<br>Gap: the waiver is looked up only after a failure and never lowers the criteria. Waiver expiry is read against NOW(), so the same state can evaluate differently over time.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateOutcomeComposition.ts:51-86<br>src/domain/engine/qualityGateEngine.ts:187-207</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The evaluation row stays Blocked. A waiver is applied in the decision: composeQualityGateOutcome marks a Blocked condition Waived only when an Active waiver names it for the entity or the Deliverable code, and the decision becomes Waived when no uncovered block remains.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates are evaluated whenever a governed lifecycle transition is requested, and the evaluation determines satisfied criteria, unsatisfied criteria, applicable waivers, blocking conditions and rationale.<br>Ref: §10</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/transitionEngine.ts:64-86,183-194<br>src/domain/engine/entityTransition.ts<br>src/domain/engine/qualityGateEngine.ts:37-92</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: governed transitions call evaluate (category-matched gates for the transition) or evaluateByIds (gates pinned on the Transition Definition). The first Blocked or Waived result stops the loop and carries a reason.<br>Gap: the loop stops at the first failing gate, so later gates are not evaluated and the unsatisfied criteria are not listed together. Satisfied criteria are not reported in the result. A transition with no seuId and no governed path skips the pinned gates (transitionEngine.ts:183).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates are evaluated whenever a governed lifecycle transition is requested.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/executionEngine.ts:203-236<br>src/domain/engine/entityTransition.ts:58-65<br>src/domain/engine/transitionEngine.ts:99-110<br>src/domain/engine/deliverableKickoff.ts:26, 98</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: a Deliverable hop decides every condition and stores the decision. transitionEntity evaluates the EBM gates for entities in an SEU, and evaluateGoverned evaluates the gates a Transition Definition pins. A granted waiver triggers a new attempt of the covered Deliverable hops.<br>Gap: entity types outside an SEU (Objective, EBM, SEU, SchemaDefinition, Ontology) are not evaluated, and only a Deliverable hop stores a decision (the owner confirmed the second as expected). No authoring path writes the pinned gate ids (CR-145 G11).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Evaluation determines satisfied criteria, unsatisfied criteria, applicable waivers, blocking conditions and supporting rationale.<br>Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:187-207<br>src/domain/engine/qualityGateOutcomeComposition.ts:93-103<br>src/dblayer/recovery/quality_gate_outcomes_schema_recovery.sql:1-23</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The decision lists every condition with its outcome, Passed or Blocked or Waived with the waiver id. It carries the composed outcome, the confidence level, the rationale and the evaluation ids, and it is stored in quality_gate_outcomes. Conditions come from the gate line items and from the other checks of the hop: dependencies, SEU Obligations, Obligations, Decisions, Command in flight, Policies, Submission and Reference.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Evaluation produces one of six outcomes: Passed, Passed with Conditions, Blocked, Waived, Deferred, Not Applicable.<br>Ref: §11</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gate_evaluations_schema_recovery.sql:9-10<br>src/dblayer/seuTypes.ts:929<br>src/domain/engine/qualityGateEngine.ts:25-34</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: Passed, Blocked, Waived and Not Applicable are produced. Not Applicable is returned, not stored.<br>Gap: Passed with Conditions and Deferred are accepted by the database check and the type but no code produces them. The stored value for Not Applicable is never written.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/ontologyConcepts.json:5682-5730<br>src/domain/engine/qualityGateOutcomeComposition.ts:72-86</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the Ontology concepts quality-gate-outcome and quality-gate-decision-outcome and the types hold the values. A gate evaluation is Passed or Blocked. The decision is Approved, Blocked, Waived or NotApplicable.<br>Gap: nothing produces Passed with Conditions or Deferred, and the composition has no rule for them. The chapter does not say when a gate produces either (CR-145 B1, item 21).</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">The outcome becomes an input to Governance, which decides whether the transition proceeds.<br>Ref: §3, §11</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/transitionEngine.ts:83-85,190-194<br>src/dblayer/governanceEvaluationOutcomesDB.ts:11-25<br>src/dblayer/seuTypes.ts:570</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the transition engine treats Blocked as a refusal and everything else as allowed. The governance evaluation outcome table has quality_gate_id and quality_gate_outcome columns.<br>Gap: the outcome type there allows only Passed, NotApplicable and Waived, so Blocked, Conditions and Deferred cannot be recorded in the governance outcome.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/executionEngine.ts:203-236<br>src/domain/engine/entityTransition.ts:58-70</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The decision is composed from the line items and acted on by the Execution Engine and by transitionEntity. A Blocked decision refuses the hop and raises an Attention Item. An Approved or Waived decision lets it go on, and the governance outcome of the hop carries the id of the stored decision (quality_gate_outcome_id).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Every Quality Gate defines Identifier, Name, Category, Scope, Applicable Lifecycle Transition, Evaluation Criteria, Required Reviews, Evidence, Decisions, Obligations, Policies, Waiver Rules, Version and Originating Pack.<br>Ref: §8</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gates_schema_recovery.sql:3-39<br>src/dblayer/seuTypes.ts:931-946</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: id, code, name, category, entity type (scope), from and to state (transition), criteria, version, originating Pack, checklists and deliverable names on the quality_gates row. The Quality Gate Definition entity holds code, name, description, category, criteriaType and evidenceCategory. The Pack entry supplies the transition, Deliverable, Checklists and Policy codes (CR-145 decision 17).<br>Gap: Required Reviews, Evidence, Decisions, Obligations and Policies are not separate fields. They are expressed through the single criteria type. Waiver Rules are not a field of the gate. code is the category, not a unique identifier of the gate.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gate_definitions_schema_recovery.sql:1-20<br>src/dblayer/recovery/quality_gates_schema_recovery.sql<br>src/dblayer/seuTypes.ts:84-99</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the Definition holds the identifier (code and id), name, category, criteria and version. The Pack entry holds the transition, the Deliverable, the Checklists and the required Policy codes. The originating Pack is the Pack that lists the gate. Reviews, Evidence, Decisions, Obligations and Policies are expressed through the criterion type and its parameters (reviewGateId, evidenceCategory, the listed Policies).<br>Gap: Waiver Rules. A gate holds no waiver rule, a waiver carries its own scope, entity, duration and risks, and nothing lets a gate refuse to be waived.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates carry a version and a change replaces the active row.<br>Ref: §8 Version</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/qualityGatesDB.ts:5-8,34-59<br>src/dblayer/recovery/quality_gates_schema_recovery.sql:19-36</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">upsert compares the contribution with the active row. If it differs, the old row is set inactive and a new row with the next minor version is inserted, in one transaction. The unique index allows one active row per transition, category and Pack.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Quality Gates carry a version, and a change gives a new version that the evaluation names.<br>Ref: §8 Version</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/quality_gate_definitions_schema_recovery.sql:11, 20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Definition is unique on (code, version, tenant), and a new version is a new row. An evaluation row stores the id of the Definition, so it names the exact version.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Categories include Entry, Exit, Release, Compliance and Operational, and additional categories may be introduced through Packs.<br>Ref: §7</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/qualityGatesDB.ts:28<br>src/dblayer/recovery/quality_gates_schema_recovery.sql:7<br>src/dblayer/seed/data/authorityVocabulary.json:85</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: category is free text supplied by the Pack, defaulting to Exit, so Packs can introduce any category.<br>Gap: category is not validated against an Ontology list of gate categories and has no behaviour. It only separates gates on the same transition.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seed/data/ontologyConcepts.json:1848-1884<br>src/dblayer/seed/data/schemaDefinitions.json (contributionQualityGates.category)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the five categories are Ontology concepts of type category:quality-gate, the category field of a gate is Ontology-driven, and a Pack author can propose another concept.<br>Gap: the category has no behaviour of its own. It groups gates and separates gates on one transition (CR-145 G4).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">The subsystem publishes QualityGateEvaluated, QualityGatePassed, QualityGateBlocked, QualityGateWaived, QualityGateDeferred and QualityGateConfigurationChanged.<br>Ref: §15</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:169-225<br>src/routes/seu/core/qualityGateWaivers.ts:43-52<br>src/routes/seu/core/packs.ts:621-646</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: QualityGatePassed, QualityGateBlocked and QualityGateWaived are published with a real actor and badge after the evaluation row is written. QualityGateWaiverGranted is published as an extra event.<br>Gap: QualityGateEvaluated, QualityGateDeferred and QualityGateConfigurationChanged are never published. Publishing a changed gate version raises no event.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/qualityGateEngine.ts:209-272<br>src/routes/seu/core/qualityGateWaivers.ts:179-190<br>src/domain/engine/qualityGateWaiverExpiry.ts:22-32</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: recordDecision publishes QualityGatePassed for each gate that passed, QualityGateBlocked for each gate the decision leaves Blocked and QualityGateWaived for each condition a waiver covers, after the decision is stored and with the real actor, badge and tenant. This holds for Deliverable hops, which are the hops that store a decision. QualityGateWaiverCreated and QualityGateWaiverExpired are also published.<br>Gap: QualityGateEvaluated, QualityGateDeferred and QualityGateConfigurationChanged are never published, and a changed gate version raises no event. Searched: eventType literals across src.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">The implementation delivers a domain model, a registry, an evaluation service, a waiver service, a composition service, APIs and events.<br>Ref: §18</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/qualityGatesDB.ts<br>src/dblayer/qualityGateEvaluationsDB.ts<br>src/dblayer/qualityGateWaiversDB.ts<br>src/domain/engine/qualityGateEngine.ts<br>src/routes/seu/core/qualityGateWaivers.ts<br>src/routes/seu/api/qualityGateWaivers.ts:11-45<br>src/domain/engine/compositionEngine.ts:304-317</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: tables and row types (model), qualityGatesDB (registry), qualityGateEngine (evaluation), the waiver core and API (waiver service), conflict detection (composition).<br>Gap: there is no gate registry API or page to list gates or evaluations. No composition service exists. The API covers waivers only. The telemetry module reads latency and rework from the evaluations (src/domain/engine/metricRegistryEngine.ts:39-57).</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:84-101, 993-1007<br>src/routes/seu/web/qualityGateDefinitionRegistry.ts<br>src/domain/engine/qualityGateEngine.ts:116-272<br>src/routes/seu/core/qualityGateWaivers.ts:45-190<br>src/routes/seu/api/qualityGateWaivers.ts:9-10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implemented: the domain model (Definition, evaluation, decision and waiver tables and types), the Definition registry page with list controls, the evaluation and decision service, the grant and expire parts of the waiver service, a composition sequence (unravel, detect, settle, store in the EBM, evaluate, compose the outcome) and the events of §15 in part.<br>Gap: no revoke in the waiver service. The Quality Gate API routes are registered as notImplemented and have no route_authority row. The owner decided that no API is needed.</td>
     </tr>
   </tbody>
 </table>
 
 ## Summary
 
-- Total intents analysed: 25
-- Fully met: 7
-- Partially met: 17
-- Not met: 1
+- Total intents analysed: 27
+- Fully met: 16
+- Partially met: 11
+- Not met: 0
 - Not verifiable: 0
-- Major implementation gaps: criteria are a closed set of four coded types; Standard Policy handling absent; Passed with Conditions and Deferred never produced; QualityGateEvaluated, QualityGateDeferred and QualityGateConfigurationChanged never published; evaluation records lack the EBM, Policy, Review, Evidence and Decision lineage needed for reproduction; waivers lack risks, compensating controls, revocation and a UI; no composition service; no gate registry API.
+- Major implementation gaps: no criterion reads Knowledge, Deliverable state, compliance requirements or engineering metrics; a gate cannot treat a Standard as blocking (the Standard rule itself is Policy evaluation's, which the policy criterion calls); Passed with Conditions and Deferred are never produced; QualityGateEvaluated, QualityGateDeferred and QualityGateConfigurationChanged are never published; waivers have no revoke; a gate holds no waiver rule; pinned gate ids have no authoring path and entity types outside an SEU are not evaluated; the gate category has no behaviour of its own.

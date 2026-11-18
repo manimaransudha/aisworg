@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
+import { requiresActivePolicy } from "../src/qualitygates/requiresActivePolicy.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
@@ -159,7 +160,7 @@ test("a Work Item records the Quality Gate of the governance outcome of its Comm
   const deliverable = await createDeliverable();
   const governance = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: "In Progress", actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(governance);
-  const draft: GovernanceEvaluationOutcomeDraft = { ...governance.governanceOutcome, outcome: "Waived", quality_gate_id: gate.quality_gate_definition_id, quality_gate_outcome: "Waived", originating_pack_id: packId };
+  const draft: GovernanceEvaluationOutcomeDraft = { ...governance.governanceOutcome, outcome: "Waived", originating_pack_id: packId };
   const { data: outcome, error: outcomeError } = await governanceEvaluationOutcomesDB.create({ ...draft, author_id: t.systemParticipantId, author_badge: ROOT_ACTOR_BADGE });
   assert.ok(outcome && !outcomeError, outcomeError);
 
@@ -175,7 +176,9 @@ test("a Work Item records the Quality Gate of the governance outcome of its Comm
   const command = await create(deliverable.id, outcome.id);
   const workItem = await workItemGenerator.generate({ command, seuId: t.seu.id, correlationId: randomUUID(), causationEventId: null });
   const stored = (await workItemsDB.findById(workItem.id)).data;
-  assert.deepEqual(stored?.execution_context?.qualityGate, { id: gate.quality_gate_definition_id, name: gate.name, outcome: "Waived" });
+  const decision = (await qualityGateOutcomesDB.findById(governance.governanceOutcome.quality_gate_outcome_id)).data;
+  assert.ok(decision);
+  assert.deepEqual(stored?.execution_context?.qualityGate, { id: decision.id, outcome: decision.outcome, rationale: decision.rationale });
   assert.equal(stored?.execution_context?.relevantDeliverable.id, deliverable.id);
 
   const orphan = await workItemGenerator.generate({ command: await create(randomUUID(), null), seuId: t.seu.id, correlationId: randomUUID(), causationEventId: null });
@@ -192,6 +195,7 @@ import { seusDB } from "../src/dblayer/seusDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { qualityGateEvaluationsDB } from "../src/dblayer/qualityGateEvaluationsDB.js";
+import { qualityGateOutcomesDB } from "../src/dblayer/qualityGateOutcomesDB.js";
 import { createDecision } from "../src/routes/seu/core/decisions.js";
 import { raiseAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { createEvidenceAsRoot } from "./testFixtures.js";
@@ -252,12 +256,14 @@ test("a Quality Gate on the hop blocks the Deliverable and raises an Attention I
   assert.ok(!waiverError, waiverError);
   const waived = await executionEngine.evaluateDeliverableTransition({ deliverable, targetState: blockedTo, actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(waived);
-  assert.deepEqual([waived.governanceOutcome.outcome, waived.governanceOutcome.quality_gate_id, waived.governanceOutcome.originating_pack_id], ["Waived", gate.id, null]);
+  assert.deepEqual([waived.governanceOutcome.outcome, waived.governanceOutcome.originating_pack_id], ["Waived", null]);
+  assert.equal((await qualityGateOutcomesDB.findById(waived.governanceOutcome.quality_gate_outcome_id)).data?.outcome, "Waived");
   assert.ok(waived.governanceOutcome.rationale.includes(`Quality Gate "${gate.name}": Waived`), waived.governanceOutcome.rationale);
 
   const passed = await executionEngine.evaluateDeliverableTransition({ deliverable: await createDeliverable(passedFrom, gateSeu, { code: gateDeliverableCode }), targetState: passedTo, actorId: ROOT_ACTOR_ID });
   assertGovernanceOk(passed);
-  assert.deepEqual([passed.governanceOutcome.outcome, passed.governanceOutcome.quality_gate_outcome], ["Approved", "Passed"]);
+  assert.equal(passed.governanceOutcome.outcome, "Approved");
+  assert.equal((await qualityGateOutcomesDB.findById(passed.governanceOutcome.quality_gate_outcome_id)).data?.outcome, "Approved");
   assert.ok(passed.governanceOutcome.rationale.includes("Quality Gate(s): Passed"));
 });
 
@@ -314,6 +320,24 @@ test("a Standard that fails does not stop the hop: it is approved with condition
   assert.equal(governance.governanceOutcome.outcome, "Approved-with-Conditions");
   const { data: events } = await eventsDB.findByOriginatingObject("Policy", standard.id);
   assert.ok((events ?? []).some((e) => e.event_type === "StandardPolicyDeviation"));
+});
+
+test("the policy criterion of a gate asks the policy engine: a failed Standard does not block the gate, and a failed Policy does", async () => {
+  const gateSeu = await commissionFixtureSeu("execution-engine-gate-standard");
+  const deliverable = ((await deliverablesDB.findBySeuId(gateSeu.seu.id)).data ?? []).find((d) => d.code === FIXTURE_CODES.output.code);
+  assert.ok(deliverable, "commissioning made the output Deliverable");
+  const criterionInput = (policyDefinitionIds: string[]) => ({
+    gate: { id: randomUUID(), code: `policy-gate-${randomUUID()}`, name: "policy gate", category: "Exit", originating_pack_id: null, criteria: { type: "requires_active_policy", policyDefinitionIds } },
+    entityType: "Deliverable" as const, entityId: deliverable.id, seuId: gateSeu.seu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
+  });
+  // The condition of the fixture Standard and of the fixture Policy fails for this entity, so the engine decides what the failure means.
+  const standard = await requiresActivePolicy(criterionInput([gateSeu.fixtures.standardPolicy.id]));
+  assert.equal(standard.satisfied, true, JSON.stringify(standard));
+  assert.deepEqual((standard.detail as { deviatedPolicyIds: string[] }).deviatedPolicyIds, [gateSeu.fixtures.standardPolicy.id]);
+  const policy = await requiresActivePolicy(criterionInput([gateSeu.fixtures.policy.id]));
+  assert.equal(policy.satisfied, false);
+  const { data: events } = await eventsDB.findByOriginatingObject("Policy", gateSeu.fixtures.standardPolicy.id);
+  assert.ok((events ?? []).some((e) => e.event_type === "StandardPolicyDeviation"), "the policy engine recorded the deviation");
 });
 
 test("a Work Item records what the EBM settled and what its governance outcome names: the locations, the checklists, the capital, the Policies, the Authority rule and the open Attention Items", async () => {

@@ -13,5 +13,5 @@ export async function requiresAcceptedReview(input: QualityGateCriterionInput): 
     (r) => r.status === "Accepted" && r.outcome != null && QUALIFYING_REVIEW_OUTCOMES.has(r.outcome) && r.review_gate_id === reviewGateId
   );
   if (qualifying.length === 0) return { satisfied: false, reason: "no Accepted, passing Review found for this entity against the required Review Gate", detail: { reviewGateId } };
-  return { satisfied: true };
+  return { satisfied: true, detail: { reviewGateId, reviewIds: qualifying.map((r) => r.id) } };
 }
