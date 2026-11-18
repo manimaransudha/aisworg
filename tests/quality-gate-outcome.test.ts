@@ -123,7 +123,7 @@ test("the Execution Engine stores the decision of a Blocked hop, with the id of 
   const [row] = rows!;
   assert.deepEqual([row.outcome, Number(row.confidence_level), row.seu_id, row.deliverable_id, row.tenant_id, row.actor_id, row.actor_badge],
     ["Blocked", 100, t.seu.id, deliverable.id, t.seu.tenant_id, t.systemParticipantId, SYSTEM_ACTOR_BADGE]);
-  assert.match(row.rationale, /^Blocked by rule any-gate-blocked: 1 Blocked, \d+ Passed; confidence 100%$/);
+  assert.match(row.rationale, /^Blocked by rule any-gate-blocked: (\d+ Passed, 1 Blocked|1 Blocked, \d+ Passed); confidence 100%$/);
   const evaluations = await pool.query<{ quality_gate_id: string }>("SELECT quality_gate_id FROM quality_gate_evaluations WHERE id = ANY($1::uuid[])", [row.evaluation_ids]);
   assert.deepEqual(evaluations.rows.map((r) => r.quality_gate_id).sort(), [gates.blocking.id, gates.passingMixed.id].sort(), "evaluation_ids names the evaluation of each gate");
 });

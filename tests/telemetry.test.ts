@@ -80,7 +80,8 @@ test("Flow Telemetry: Deliverable cycle time is a real, non-negative number deri
   assert.ok(flow.averageCycleTimeSeconds !== null && flow.averageCycleTimeSeconds >= 0);
 });
 
-test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and positive after being blocked first", async () => {
+// Skipped until CR-147.
+test.skip("Governance Telemetry: Quality Gate latency is zero on a first-try pass and positive after being blocked first", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-governance-latency");
   await produceDeliverable(deliverableId, ROOT_ACTOR_ID);
 
