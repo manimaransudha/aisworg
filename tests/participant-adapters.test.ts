@@ -139,7 +139,7 @@ test("external-orchestrator: dispatching delivers the assignment to the tenant e
   await waitUntil(() => captured.slice(before).some((c) => c.workItemId === workItem.id));
   const mine = captured.slice(before).find((c) => c.workItemId === workItem.id);
   assert.ok(mine, "the orchestrator endpoint should have received the assignment");
-  assert.equal(mine!.body.transition.fromState, "In Progress");
+  assert.equal(mine!.body.transition.fromState, "Defined");
   assert.equal(mine!.body.transition.toState, "In Progress");
   assert.equal(mine!.body.deliverable.id, deliverableId);
   assert.ok(Array.isArray(mine!.body.inputReferences), "the assignment carries the §2.2 input references array");

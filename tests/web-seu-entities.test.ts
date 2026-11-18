@@ -314,10 +314,10 @@ test("a Deliverable is moved by the Execution Engine from the SEU page, which re
   hasAlert((await submit(path, { targetState: "Baselined" })).alerts, /Transition blocked: no Transition Definition for Deliverable [A-Za-z ]+ -> Baselined/);
   assert.equal((await deliverablesDB.findById(deliverableC.id)).data?.lifecycle_state, stateBefore, "a refused hop changes nothing");
 
-  // Commissioning has the engine dispatch the producing hop of a Deliverable nothing gates, so a second request for the same hop is refused and makes no Command.
+  // Commissioning has the engine make the producing hop of a Deliverable nothing gates, so the Deliverable is In Progress. A request for In Progress again has no Transition Definition and makes no Command.
   const hopCommands = async () => ((await commandsDB.findBySeuId(t.seu.id)).data ?? []).filter((c) => c.entity_id === deliverableC.id && c.to_state === "In Progress").length;
   const commandsBefore = await hopCommands();
-  hasAlert((await submit(path, { targetState: "In Progress" })).alerts, /Transition blocked: a Command for this exact hop is already (Dispatched|Completed)/);
+  hasAlert((await submit(path, { targetState: "In Progress" })).alerts, /Transition blocked: no Transition Definition for Deliverable In Progress -> In Progress/);
   assert.equal(await hopCommands(), commandsBefore, "the refused request made no Command");
 });
 
