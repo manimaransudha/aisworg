@@ -6,7 +6,7 @@ import { capabilityFulfilmentPoolsDB } from "../../dblayer/capabilityFulfilmentP
 import { seusDB } from "../../dblayer/seusDB.js";
 import { eventBus } from "./eventBus.js";
 import { dependencyDefinitionEngine } from "./dependencyDefinitionEngine.js";
-import { qualityGateEngine, type QualityGateFinding } from "./qualityGateEngine.js";
+import { qualityGateEngine, type QualityGateCondition } from "./qualityGateEngine.js";
 import { originatingPolicyCode } from "./obligationOrigin.js";
 import { RESOLVED_OBLIGATION_STATUSES, WAIVER_SCOPE_OBLIGATION, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_POLICY_OBLIGATION } from "../../dblayer/constants.js";
 import { policyEngine, type PolicyEvaluationResult } from "./policyEngine.js";
@@ -53,7 +53,7 @@ async function withDeliverableTurn<T>(deliverableId: string, work: () => Promise
 }
 
 // What a waiver has to name to cover an open Obligation: its Policy and title when a Policy raised it, its category and title otherwise.
-async function obligationWaivable(obligation: ObligationRow): Promise<QualityGateFinding["waivable"]> {
+async function obligationWaivable(obligation: ObligationRow): Promise<QualityGateCondition["waivable"]> {
   const policyCode = await originatingPolicyCode(obligation);
   return policyCode
     ? { scope: WAIVER_SCOPE_POLICY_OBLIGATION, policyCode, title: obligation.title }
@@ -64,51 +64,65 @@ export const executionEngine = {
   async evaluateDeliverableTransition(input: { deliverable: DeliverableRow; targetState: string; actorId: string }): Promise<DeliverableGovernanceResult> {
     const { deliverable, targetState } = input;
 
-    // The dependency, Obligation, Decision, in-flight, Policy, submit verb and empty centre checks pass what they find on and do not return. Each finding goes to the
-    // Quality Gate decision with the gate results, where a waiver can cover it, and the decision decides the state change.
+    // The dependency, Obligation, Decision, in-flight, Policy, submit verb and empty centre checks do not return. Each check adds a condition, Passed or Blocked, that goes
+    // to the Quality Gate decision with the Quality Gate line items. The composition decides which Blocked conditions a waiver covers, and the decision decides the state change.
     type Refusal = Extract<DeliverableGovernanceResult, { ok: false }>;
-    const found: Array<QualityGateFinding & { refusal: Refusal }> = [];
+    const found: Array<QualityGateCondition & { refusal: Refusal | null }> = [];
 
     const readiness = await dependencyDefinitionEngine.isTargetReady(deliverable.seu_id, "Deliverable", deliverable.name, targetState);
     let dependencyBlockReason: string | null = null;
     if (!readiness.ready) {
       dependencyBlockReason = `${readiness.rows.length} governing dependency row(s) not yet satisfied (${readiness.rows.map((r) => `${r.from_entity_type}${r.from_name ? ` "${r.from_name}"` : ""} -> ${r.from_state}`).join(", ")})`;
-      found.push({ name: "Dependencies", reason: dependencyBlockReason, waivable: null, refusal: { ok: false, reason: "dependency_not_satisfied", rows: readiness.rows } });
+      found.push({ name: "Dependencies", reason: dependencyBlockReason, outcome: "Blocked", waivable: null, refusal: { ok: false, reason: "dependency_not_satisfied", rows: readiness.rows } });
+    } else {
+      found.push({ name: "Dependencies", reason: "", outcome: "Passed", waivable: null, refusal: null });
     }
 
     const { data: seuObligations } = await obligationsDB.findByRelatedObject("SEU", deliverable.seu_id);
     const openSeuBlock = (seuObligations ?? []).find((o) => o.blocked_from_state && o.blocked_to_state && !RESOLVED_OBLIGATION_STATUSES.has(o.status));
     if (openSeuBlock) {
       const detail = `owning SEU is blocked by an open Obligation ("${openSeuBlock.title}") — cannot start until it resolves`;
-      found.push({ name: `SEU Obligation "${openSeuBlock.title}"`, reason: detail, waivable: await obligationWaivable(openSeuBlock), refusal: { ok: false, reason: "seu_blocked", detail } });
+      found.push({ name: `SEU Obligation "${openSeuBlock.title}"`, reason: detail, outcome: "Blocked", waivable: await obligationWaivable(openSeuBlock), refusal: { ok: false, reason: "seu_blocked", detail } });
+    } else {
+      found.push({ name: "SEU Obligations", reason: "", outcome: "Passed", waivable: null, refusal: null });
     }
 
     const { data: deliverableObligations } = await obligationsDB.findByRelatedObject("Deliverable", deliverable.id);
     const openDeliverableBlock = (deliverableObligations ?? []).find((o) => o.blocked_from_state && o.blocked_to_state && !RESOLVED_OBLIGATION_STATUSES.has(o.status));
     if (openDeliverableBlock) {
       const detail = `blocked by an open Obligation ("${openDeliverableBlock.title}")`;
-      found.push({ name: `Obligation "${openDeliverableBlock.title}"`, reason: detail, waivable: await obligationWaivable(openDeliverableBlock), refusal: { ok: false, reason: "obligation_blocked", detail } });
+      found.push({ name: `Obligation "${openDeliverableBlock.title}"`, reason: detail, outcome: "Blocked", waivable: await obligationWaivable(openDeliverableBlock), refusal: { ok: false, reason: "obligation_blocked", detail } });
+    } else {
+      found.push({ name: "Obligations", reason: "", outcome: "Passed", waivable: null, refusal: null });
     }
 
     const { data: deliverableDecisions } = await decisionsDB.findByRelatedObject("Deliverable", deliverable.id);
+    let blockingDecisionFound = false;
     for (const decision of deliverableDecisions ?? []) {
       if (!(await dependencyDefinitionEngine.isReachedOrPassed("Decision", "Approved", decision.status))) {
         const detail = `blocked by an open Decision ("${decision.title}") not yet Approved`;
-        found.push({ name: `Decision "${decision.title}"`, reason: detail, waivable: null, refusal: { ok: false, reason: "decision_blocked", detail } });
+        found.push({ name: `Decision "${decision.title}"`, reason: detail, outcome: "Blocked", waivable: null, refusal: { ok: false, reason: "decision_blocked", detail } });
+        blockingDecisionFound = true;
         break;
       }
     }
+    if (!blockingDecisionFound) found.push({ name: "Decisions", reason: "", outcome: "Passed", waivable: null, refusal: null });
 
     const fromState = deliverable.lifecycle_state;
 
     const { data: inFlight } = await commandsDB.findInFlight("Deliverable", deliverable.id, fromState, targetState);
     if (inFlight) {
       const detail = `a Command for this exact hop is already ${inFlight.status} (Command ${inFlight.id})`;
-      found.push({ name: "Command in flight", reason: detail, waivable: null, refusal: { ok: false, reason: "already_in_flight", detail } });
+      found.push({ name: "Command in flight", reason: detail, outcome: "Blocked", waivable: null, refusal: { ok: false, reason: "already_in_flight", detail } });
+    } else {
+      found.push({ name: "Command in flight", reason: "", outcome: "Passed", waivable: null, refusal: null });
     }
 
     const { data: definition } = await transitionDefinitionsDB.find("Deliverable", fromState, targetState);
     if (!definition) {
+      // A hop already in flight is reported as that, since it names the Command that holds the hop.
+      const heldByCommand = found.find((f) => f.name === "Command in flight" && f.outcome === "Blocked");
+      if (heldByCommand?.refusal) return heldByCommand.refusal;
       return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Deliverable ${fromState} -> ${targetState}` };
     }
     if (!definition.verb) throw new Error(`Deliverable ${fromState} -> ${targetState} declares no verb — no authority badge can be resolved`);
@@ -155,7 +169,9 @@ export const executionEngine = {
       });
       const detail = `blocked by policy ${blockedResult.policyCode}`;
       const plainPolicyCode = blockedResult.policyCode.split("::")[0];
-      found.push({ name: `Policy ${plainPolicyCode}`, reason: detail, waivable: { scope: WAIVER_SCOPE_POLICY, policyCode: plainPolicyCode }, refusal: { ok: false, reason: "policy_blocked", detail } });
+      found.push({ name: `Policy ${plainPolicyCode}`, reason: detail, outcome: "Blocked", waivable: { scope: WAIVER_SCOPE_POLICY, policyCode: plainPolicyCode }, refusal: { ok: false, reason: "policy_blocked", detail } });
+    } else if (ebmPolicyResult.outcome !== "NotApplicable" || hopPolicyResult.outcome !== "NotApplicable") {
+      found.push({ name: "Policies", reason: "", outcome: "Passed", waivable: null, refusal: null });
     }
     const policyResult: PolicyEvaluationResult = ebmPolicyResult.outcome === "NotApplicable" && hopPolicyResult.outcome === "NotApplicable"
       ? ebmPolicyResult
@@ -165,7 +181,9 @@ export const executionEngine = {
       const hasBeenSubmitted = await triggerEngine.hasBeenSubmitted("Deliverable", deliverable.id, fromState);
       if (!hasBeenSubmitted) {
         const detail = `must be submitted first (requires badge deliverable_${definition.submit_verb})`;
-        found.push({ name: "Submission", reason: detail, waivable: null, refusal: { ok: false, reason: "not_submitted", detail } });
+        found.push({ name: "Submission", reason: detail, outcome: "Blocked", waivable: null, refusal: { ok: false, reason: "not_submitted", detail } });
+      } else {
+        found.push({ name: "Submission", reason: "", outcome: "Passed", waivable: null, refusal: null });
       }
     }
 
@@ -173,15 +191,16 @@ export const executionEngine = {
       const { data: existingRef } = await deliverableReferencesDB.findLatestWithReference(deliverable.id, "In Progress");
       if (!existingRef) {
         const detail = "cannot approve a Deliverable with no attached reference — nothing has been produced to approve";
-        found.push({ name: "Reference", reason: detail, waivable: null, refusal: { ok: false, reason: "empty_centre", detail } });
+        found.push({ name: "Reference", reason: detail, outcome: "Blocked", waivable: null, refusal: { ok: false, reason: "empty_centre", detail } });
+      } else {
+        found.push({ name: "Reference", reason: "", outcome: "Passed", waivable: null, refusal: null });
       }
     }
 
     // The Quality Gates are evaluated whatever the checks above found, just before the state change: an Obligation a Policy raised is seen here. The decision below is made once, with every result.
     const { data: gateSeu } = await seusDB.findById(deliverable.seu_id);
     if (!gateSeu) throw new Error(`SEU ${deliverable.seu_id} not found for Deliverable ${deliverable.id}`);
-    const findingResults = await qualityGateEngine.resolveFindings(found, { entityType: "Deliverable", entityId: deliverable.id, seuId: deliverable.seu_id });
-    const qualityGateResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({
+    const qualityGateResult = await qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({
       entityType: "Deliverable",
       entityId: deliverable.id,
       seuId: deliverable.seu_id,
@@ -190,7 +209,7 @@ export const executionEngine = {
       authorId: systemActor.authorId,
       authorBadge: systemActor.authorBadge,
       tenantId: gateSeu.tenant_id,
-    }), findingResults);
+    }), found, { entityType: "Deliverable", entityId: deliverable.id, seuId: deliverable.seu_id });
     // The decision is stored for every hop, Blocked included, before the hop is refused or goes on.
     await qualityGateEngine.recordDecision(qualityGateResult, {
       seuId: deliverable.seu_id,
@@ -201,7 +220,7 @@ export const executionEngine = {
     });
     // What the hop is refused with: the first block a check found, in the order the checks run, then the first blocked gate.
     let refusal: Refusal | null = null;
-    if (qualityGateResult.outcome === "Blocked") refusal = found.find((f, i) => findingResults[i].outcome === "Blocked")?.refusal ?? null;
+    if (qualityGateResult.outcome === "Blocked") refusal = found.find((f, i) => qualityGateResult.conditions[i].outcome === "Blocked")?.refusal ?? null;
     if (qualityGateResult.blocked.length > 0) {
       const [first] = qualityGateResult.blocked;
       await checkSustainedQualityGateBlocking({ qualityGateId: first.gate.id, gateName: first.gate.name, seuId: deliverable.seu_id, deliverableId: deliverable.id });
@@ -243,11 +262,16 @@ export const executionEngine = {
     const openAttentionItemIds = [...(deliverableAttentionItems ?? []), ...(seuAttentionItems ?? [])].map((a) => a.id);
 
     const qualityGateOutcome = qualityGateResult.outcome === "NotApplicable" ? "NotApplicable" : qualityGateResult.outcome === "Waived" ? "Waived" : "Passed";
-    const waivedGate = qualityGateResult.outcome === "Waived" ? qualityGateResult.waived[0]?.gate ?? null : null;
+    // The Quality Gate a waiver covered, when one did. A waiver of another condition names no gate.
+    const waivedGate = qualityGateResult.waived[0]?.gate ?? null;
+    const waivedParts = [
+      ...qualityGateResult.waived.map((r) => `Quality Gate "${r.gate.name}": Waived`),
+      ...qualityGateResult.conditions.slice(0, found.length).filter((c) => c.outcome === "Waived").map((c) => `${c.name}: Waived`),
+    ];
     const outcome: GovernanceEvaluationOutcomeDraft["outcome"] =
       qualityGateOutcome === "Waived" ? "Waived" : policyResult.deviatedPolicyIds.length > 0 ? "Approved-with-Conditions" : "Approved";
     const rationaleParts = [
-      qualityGateOutcome === "NotApplicable" ? "no applicable Quality Gate" : waivedGate ? `Quality Gate "${waivedGate.name}": Waived` : `Quality Gate(s): ${qualityGateOutcome}`,
+      qualityGateOutcome === "NotApplicable" ? "no applicable Quality Gate" : waivedParts.length > 0 ? waivedParts.join(", ") : `Quality Gate(s): ${qualityGateOutcome}`,
       policyResult.outcome === "NotApplicable" ? "no applicable Policy" : `${policyResult.satisfiedPolicyIds.length} Policy(ies) satisfied, ${policyResult.deviatedPolicyIds.length} deviated`,
       applicableAuthorityRuleId ? "Authority check passed" : "no Authority rule required",
     ];

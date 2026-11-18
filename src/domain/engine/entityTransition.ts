@@ -55,7 +55,7 @@ export async function transitionEntity(input: {
   // starts the evaluation, so its author is the SEU's system actor.
   if (gateSeuId) {
     const systemActor = await getSystemActor(gateSeuId);
-    const ebmGates = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({
+    const ebmGates = await qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({
       entityType: input.entityType,
       entityId: input.entityId,
       seuId: gateSeuId,
@@ -64,7 +64,7 @@ export async function transitionEntity(input: {
       authorId: systemActor.authorId,
       authorBadge: systemActor.authorBadge,
       tenantId: systemActor.tenantId,
-    }));
+    }), [], { entityType: input.entityType, entityId: input.entityId, seuId: gateSeuId });
     if (ebmGates.outcome === "Blocked") {
       const [first] = ebmGates.blocked;
       return gateRejection({ allowed: false, reason: "quality_gate_blocked", gateCode: first.gate.code, gateName: first.gate.name, detail: first.reason }, input.entityType, fromState, input.targetState);

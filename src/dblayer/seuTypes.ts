@@ -985,6 +985,13 @@ export interface ObligationRow {
 export type QualityGateOutcomeValue = "Passed" | "PassedWithConditions" | "Blocked" | "Waived" | "Deferred" | "NotApplicable";
 export type QualityGateDecisionOutcome = "Approved" | "Blocked" | "Waived" | "NotApplicable";
 
+// One condition of a decision, as the composition settled it. A Waived condition names the waiver that covered it.
+export interface QualityGateOutcomeCondition {
+  name: string;
+  outcome: "Passed" | "Blocked" | "Waived";
+  waiverId: string | null;
+}
+
 export interface QualityGateOutcomeRow {
   id: string;
   seu_id: string;
@@ -993,6 +1000,7 @@ export interface QualityGateOutcomeRow {
   actor_id: string;
   actor_badge: string;
   evaluation_ids: string[];
+  conditions: QualityGateOutcomeCondition[];
   outcome: QualityGateDecisionOutcome;
   confidence_level: string;
   rationale: string;

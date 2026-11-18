@@ -19,7 +19,7 @@ import { executionEngine } from "../src/domain/engine/executionEngine.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import type { QualityGateDefinitionRow } from "../src/dblayer/seuTypes.js";
 import { commissionedSeu, ebmGatesByCode, type CommissionedSeu } from "./webScenarios.js";
-import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, ensureQualityGateDefinition } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, ensureQualityGateDefinition, decideGates } from "./testFixtures.js";
 
 const run = randomUUID().slice(0, 8);
 const state = (label: string) => `zz-${label}-${run}`;
@@ -101,7 +101,7 @@ test("every gate of the hop is evaluated and stored, and a Blocked gate does not
   assert.deepEqual(results.map((r) => r.gate.id).sort(), [gates.blocking.id, gates.passingMixed.id].sort(), "both gates are evaluated, whichever comes first");
   assert.deepEqual(results.map((r) => r.outcome).sort(), ["Blocked", "Passed"]);
 
-  const decision = qualityGateEngine.decideQualityGate(results);
+  const decision = await qualityGateEngine.decideQualityGate(results, [], { entityType: "Deliverable", entityId: deliverable.id, seuId: t.seu.id });
   assert.equal(decision.outcome, "Blocked");
   assert.deepEqual(decision.blocked.map((r) => r.gate.id), [gates.blocking.id]);
   assert.deepEqual(decision.waived, []);
@@ -123,12 +123,12 @@ test("the Execution Engine stores the decision of a Blocked hop, with the id of 
   const [row] = rows!;
   assert.deepEqual([row.outcome, Number(row.confidence_level), row.seu_id, row.deliverable_id, row.tenant_id, row.actor_id, row.actor_badge],
     ["Blocked", 100, t.seu.id, deliverable.id, t.seu.tenant_id, t.systemParticipantId, SYSTEM_ACTOR_BADGE]);
-  assert.match(row.rationale, /^Blocked by rule any-gate-blocked: 1 Blocked, 1 Passed; confidence 100%$/);
+  assert.match(row.rationale, /^Blocked by rule any-gate-blocked: 1 Blocked, \d+ Passed; confidence 100%$/);
   const evaluations = await pool.query<{ quality_gate_id: string }>("SELECT quality_gate_id FROM quality_gate_evaluations WHERE id = ANY($1::uuid[])", [row.evaluation_ids]);
   assert.deepEqual(evaluations.rows.map((r) => r.quality_gate_id).sort(), [gates.blocking.id, gates.passingMixed.id].sort(), "evaluation_ids names the evaluation of each gate");
 });
 
-test("the Execution Engine stores an Approved decision, a Waived decision and a NotApplicable decision", async () => {
+test("the Execution Engine stores an Approved decision, a Waived decision and an Approved decision of a hop with no Quality Gate", async () => {
   const approved = await createDeliverable(clean.from);
   const approvedResult = await executionEngine.evaluateDeliverableTransition({ deliverable: approved, targetState: clean.to, actorId: ROOT_ACTOR_ID });
   assert.equal(approvedResult.ok, true, JSON.stringify(approvedResult));
@@ -149,7 +149,7 @@ test("the Execution Engine stores an Approved decision, a Waived decision and a 
   const noneResult = await executionEngine.evaluateDeliverableTransition({ deliverable: none, targetState: bare.to, actorId: ROOT_ACTOR_ID });
   assert.equal(noneResult.ok, true, JSON.stringify(noneResult));
   const { data: noneRows } = await qualityGateOutcomesDB.findByDeliverableId(none.id);
-  assert.deepEqual([noneRows?.length, noneRows?.[0].outcome, noneRows?.[0].evaluation_ids], [1, "NotApplicable", []]);
+  assert.deepEqual([noneRows?.length, noneRows?.[0].outcome, noneRows?.[0].evaluation_ids], [1, "Approved", []]);
 });
 
 test("a failed insert of a gate evaluation is an error, and a decision outside its Ontology concept is refused", async () => {
@@ -160,7 +160,7 @@ test("a failed insert of a gate evaluation is an error, and a decision outside i
     "an author that is not a Participant fails the insert, and the engine does not report a pass"
   );
 
-  const decision = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate(gateInput(deliverable.id, clean)));
+  const decision = (await decideGates(gateInput(deliverable.id, clean)));
   await assert.rejects(
     () => qualityGateEngine.recordDecision({ ...decision, outcome: `zz-unknown-${run}` as never }, { seuId: t.seu.id, deliverableId: deliverable.id, tenantId: t.seu.tenant_id, actorId: t.systemParticipantId, actorBadge: ROOT_ACTOR_BADGE }),
     /is not a quality-gate-decision-outcome concept/

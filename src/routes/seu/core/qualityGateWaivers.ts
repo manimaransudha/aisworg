@@ -63,6 +63,7 @@ export async function grantQualityGateWaiver(input: {
   risks?: WaiverRiskInput[];
 }): Promise<GrantQualityGateWaiverResult> {
   if (!input.rationale?.trim()) return { ok: false, reason: "rationale is required" };
+  const authorityBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, QUALITY_GATE_WAIVE_BADGE);
   const scope = input.scope ?? WAIVER_SCOPE_GATE;
   if (!WAIVER_SCOPES.includes(scope)) return { ok: false, reason: `waiver scope "${scope}" is not one of ${WAIVER_SCOPES.join(", ")}` };
   if ((scope === WAIVER_SCOPE_POLICY || scope === WAIVER_SCOPE_POLICY_OBLIGATION) && !input.policyCode?.trim()) return { ok: false, reason: "this waiver names a Policy code" };
@@ -110,8 +111,6 @@ export async function grantQualityGateWaiver(input: {
     }
   }
   if (risks.some((r) => r.controls.some((c) => c.type === WAIVER_CONTROL_OBLIGATION))) await resolveAuthor(input.seuId, input.actorId);
-
-  const authorityBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.actorId, QUALITY_GATE_WAIVE_BADGE);
 
   if (scope === WAIVER_SCOPE_GATE) {
     if (!input.qualityGateId) return { ok: false, reason: "a Gate waiver names a Quality Gate" };

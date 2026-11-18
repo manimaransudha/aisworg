@@ -99,14 +99,14 @@ export const transitionEngine = {
     if (definition.required_quality_gate_ids.length > 0) {
       // No user starts a Quality Gate evaluation: the platform does, as the SEU's system actor.
       const systemActor = await getSystemActor(gateSeuId);
-      const qualityGateResult = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds(definition.required_quality_gate_ids, {
+      const qualityGateResult = await qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds(definition.required_quality_gate_ids, {
         entityType: input.entityType,
         entityId: gateEntityId,
         seuId: gateSeuId,
         authorId: systemActor.authorId,
         authorBadge: systemActor.authorBadge,
         tenantId: systemActor.tenantId,
-      }));
+      }), [], { entityType: input.entityType, entityId: gateEntityId, seuId: gateSeuId });
       if (qualityGateResult.outcome === "Blocked") {
         const [first] = qualityGateResult.blocked;
         return { allowed: false, reason: "quality_gate_blocked", gateCode: first.gate.code, gateName: first.gate.name, detail: first.reason };

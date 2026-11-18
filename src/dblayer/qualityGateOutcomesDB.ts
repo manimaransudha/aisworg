@@ -7,10 +7,10 @@ export const qualityGateOutcomesDB = {
     try {
       const { rows } = await query<QualityGateOutcomeRow>(
         `INSERT INTO quality_gate_outcomes
-           (seu_id, deliverable_id, tenant_id, actor_id, actor_badge, evaluation_ids, outcome, confidence_level, rationale)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           (seu_id, deliverable_id, tenant_id, actor_id, actor_badge, evaluation_ids, conditions, outcome, confidence_level, rationale)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10)
          RETURNING *`,
-        [input.seu_id, input.deliverable_id, input.tenant_id, input.actor_id, input.actor_badge, input.evaluation_ids, input.outcome, input.confidence_level, input.rationale]
+        [input.seu_id, input.deliverable_id, input.tenant_id, input.actor_id, input.actor_badge, input.evaluation_ids, JSON.stringify(input.conditions), input.outcome, input.confidence_level, input.rationale]
       );
       return { data: rows[0] };
     } catch (err) {

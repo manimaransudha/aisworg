@@ -32,6 +32,7 @@ import { seusDB } from "../src/dblayer/seusDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { transitionRequiresAttestation } from "../src/domain/engine/transitionEngine.js";
+import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import type { ObjectiveRow, PackQualityGate, QualityGateRow, TransitionEntityType } from "../src/dblayer/seuTypes.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { lookupRouteAuthority } from "../src/domain/identity/routeAuthorityCache.js";
@@ -1625,4 +1626,14 @@ export async function schemaDefinitionIdOfAnotherKind(kind: SchemaDefinitionEnti
   const { data: schema } = await schemaDefinitionsDB.findLatest(otherKind);
   if (!schema) throw new Error(`no schema_definitions grammar for ${otherKind}`);
   return schema.id;
+}
+
+// The Quality Gate decision over the Quality Gate line items of one entity and hop, with no other condition.
+export async function decideGates(input: Parameters<typeof qualityGateEngine.evaluate>[0]) {
+  return qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate(input), [], { entityType: input.entityType, entityId: input.entityId, seuId: input.seuId });
+}
+
+// The same over the Quality Gate Definitions a Transition Definition names by id.
+export async function decideGatesByIds(gateIds: string[], input: Parameters<typeof qualityGateEngine.evaluateByIds>[1]) {
+  return qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluateByIds(gateIds, input), [], { entityType: input.entityType, entityId: input.entityId, seuId: input.seuId });
 }

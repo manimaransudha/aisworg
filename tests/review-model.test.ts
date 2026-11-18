@@ -26,7 +26,7 @@ import { reviewGatesDB } from "../src/dblayer/reviewGatesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot, getEmptyPoolTenantId, emptyParticipantPool } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot, getEmptyPoolTenantId, emptyParticipantPool, decideGates } from "./testFixtures.js";
 import { getTestDevelopmentPack, ensureQualityGateDefinition } from "./testFixtures.js";
 import { TESTER_ALL_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
@@ -139,7 +139,7 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
   assert.ok(created && !deliverableError, deliverableError);
   const deliverable = created;
   const { data: gateSeu } = await seusDB.findById(seuId);
-  const evalGate = async () => qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState, toState, authorId: (await getSystemActor(seuId)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: gateSeu!.tenant_id }));
+  const evalGate = async () => (await decideGates({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState, toState, authorId: (await getSystemActor(seuId)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: gateSeu!.tenant_id }));
 
   assert.equal((await evalGate()).outcome, "Blocked", "no Review yet -> blocked");
 

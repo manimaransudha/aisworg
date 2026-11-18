@@ -34,24 +34,6 @@ export const qualityGateWaiversDB = {
     }
   },
 
-  async findActive(qualityGateId: string, entityType: string, entityId: string): Promise<DbResult<QualityGateWaiverRow | null>> {
-    try {
-      const { rows } = await query<QualityGateWaiverRow>(
-        `SELECT w.* FROM quality_gate_waivers w
-         WHERE w.quality_gate_id = $1 AND w.entity_type = $2
-           AND w.status = 'Active' AND (w.expires_at IS NULL OR w.expires_at > NOW())
-           AND (w.entity_id = $3
-           OR EXISTS (SELECT 1 FROM deliverables d JOIN seus s ON s.id = d.seu_id WHERE d.id = $3 AND d.code = ANY(w.deliverable_codes) AND (w.seu_id = s.id OR w.shared_profile_id = s.profile_id)))
-         ORDER BY w.created_at DESC LIMIT 1`,
-        [qualityGateId, entityType, entityId]
-      );
-      return { data: rows[0] ?? null };
-    } catch (err) {
-      logger.error("[qualityGateWaiversDB] findActive error", err as Error);
-      return { error: err as Error };
-    }
-  },
-
   // The Active waivers of the SEU whose expiry time has passed.
   async findDueForExpiry(seuId: string): Promise<DbResult<QualityGateWaiverRow[]>> {
     try {
@@ -77,20 +59,19 @@ export const qualityGateWaiversDB = {
     }
   },
 
-  // Every Active waiver of the entity whose expiry time has not passed, whatever its scope.
-  async findActiveForEntity(entityType: string, entityId: string): Promise<DbResult<QualityGateWaiverRow[]>> {
+  // Every Active waiver, whose expiry time has not passed, that applies in the SEU: the ones granted in it and the ones shared with the Profile it uses.
+  async findActiveBySeu(seuId: string): Promise<DbResult<QualityGateWaiverRow[]>> {
     try {
       const { rows } = await query<QualityGateWaiverRow>(
         `SELECT w.* FROM quality_gate_waivers w
-         WHERE w.entity_type = $1 AND w.status = 'Active' AND (w.expires_at IS NULL OR w.expires_at > NOW())
-           AND (w.entity_id = $2
-           OR EXISTS (SELECT 1 FROM deliverables d JOIN seus s ON s.id = d.seu_id WHERE d.id = $2 AND d.code = ANY(w.deliverable_codes) AND (w.seu_id = s.id OR w.shared_profile_id = s.profile_id)))
+         WHERE w.status = 'Active' AND (w.expires_at IS NULL OR w.expires_at > NOW())
+           AND (w.seu_id = $1 OR w.shared_profile_id = (SELECT profile_id FROM seus WHERE id = $1))
          ORDER BY w.created_at DESC`,
-        [entityType, entityId]
+        [seuId]
       );
       return { data: rows };
     } catch (err) {
-      logger.error("[qualityGateWaiversDB] findActiveForEntity error", err as Error);
+      logger.error("[qualityGateWaiversDB] findActiveBySeu error", err as Error);
       return { error: err as Error };
     }
   },

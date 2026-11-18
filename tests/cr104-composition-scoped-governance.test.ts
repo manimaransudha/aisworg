@@ -1,4 +1,4 @@
-// CR-104 — before this, qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate()) matched Quality Gates
+// CR-104 — before this, (await decideGates()) matched Quality Gates
 // by a bare (entity_type, from_state, to_state) triple against the GLOBAL
 // quality_gates table: a Pack contributing a gate on that transition applied
 // to every SEU platform-wide, regardless of whether that SEU's own EBM
@@ -27,7 +27,7 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { policyEngine } from "../src/domain/engine/policyEngine.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective } from "./testFixtures.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, createActiveObjective, decideGates } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
 import { PLATFORM_TENANT_ID, ensureQualityGateDefinition, ensurePolicyDefinition } from "./testFixtures.js";
 
@@ -129,8 +129,8 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   // The scoped Pack's gate names no Deliverable, so it applies to the Deliverables of the catalogue: the test evaluates the SEU's real Deliverable of the catalogue.
   const catalogueDeliverable = ((await deliverablesDB.findBySeuId(seuWith.id)).data ?? []).find((d) => d.code === "test-strategy");
   assert.ok(catalogueDeliverable, "commissioning made the catalogue Deliverable");
-  const gateResultWith = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: catalogueDeliverable.id, seuId: seuWith.id, fromState: "Defined", toState: "In Progress", authorId: (await getSystemActor(seuWith.id)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWith.tenant_id }));
-  const gateResultWithout = qualityGateEngine.decideQualityGate(await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWithout.tenant_id }));
+  const gateResultWith = (await decideGates({ entityType: "Deliverable", entityId: catalogueDeliverable.id, seuId: seuWith.id, fromState: "Defined", toState: "In Progress", authorId: (await getSystemActor(seuWith.id)).authorId, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWith.tenant_id }));
+  const gateResultWithout = (await decideGates({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE, tenantId: seuWithout.tenant_id }));
   assert.equal(gateResultWith.outcome, "Approved", "the composing SEU's Deliverable transition is genuinely gated (found, evaluated, satisfied)");
   assert.equal(gateResultWithout.outcome, "NotApplicable", "the non-composing SEU's Deliverable transition is untouched by a Pack it never selected");
 
