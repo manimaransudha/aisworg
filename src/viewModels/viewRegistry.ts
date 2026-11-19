@@ -26,6 +26,7 @@ import {seu_quality_gate_definitions_indexVM} from "./seu_quality_gate_definitio
 import {seu_quality_gate_definitions_viewVM} from "./seu_quality_gate_definitions_view.js";
 import {seu_capability_definitions_indexVM} from "./seu_capability_definitions_index.js";
 import {seu_capability_definitions_viewVM} from "./seu_capability_definitions_view.js";
+import {seu_roles_indexVM} from "./seu_roles_index.js";
 import {seu_participants_indexVM} from "./seu_participants_index.js";
 import {seu_objectives_indexVM} from "./seu_objectives_index.js";
 import {seu_objectives_detailVM} from "./seu_objectives_detail.js";
@@ -93,6 +94,7 @@ export const viewModels = {
   "seu/quality-gate-definitions/view": seu_quality_gate_definitions_viewVM,
   "seu/capability-definitions/index": seu_capability_definitions_indexVM,
   "seu/capability-definitions/view": seu_capability_definitions_viewVM,
+  "seu/roles/index": seu_roles_indexVM,
   "seu/participants/index": seu_participants_indexVM,
   "seu/objectives/index": seu_objectives_indexVM,
   "seu/objectives/detail": seu_objectives_detailVM,

@@ -312,7 +312,7 @@
                           <td class="small">
                             <% cmd.workItems.forEach(function(wi) { %>
                               <div class="mb-2">
-                                <span class="state-badge state-<%= wi.status %>"><%= wi.status %></span><% if (wi.worktype) { %> <span class="text-muted" style="font-size:0.72rem;"><%= wi.role %> / <%= wi.worktype %></span><% } %><% if (wi.dispatchStrategy) { %> <span class="text-muted" style="font-size:0.7rem;">(<%= wi.dispatchStrategy %>)</span><% } %>
+                                <span class="state-badge state-<%= wi.status %>"><%= wi.status %></span><% if (wi.dispatchStrategy) { %> <span class="text-muted" style="font-size:0.7rem;">(<%= wi.dispatchStrategy %>)</span><% } %>
                                 <% if (wi.executionContextHtml) { %>
                                   <button type="button" class="btn btn-link btn-sm p-0 align-baseline" style="font-size:0.72rem;" data-bs-toggle="modal" data-bs-target="#executionContextModal" data-template="execution-context-<%= wi.id %>">Instructions</button>
                                   <template id="execution-context-<%= wi.id %>"><%- wi.executionContextHtml %></template>

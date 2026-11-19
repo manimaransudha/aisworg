@@ -158,12 +158,20 @@ export interface TemplateRow {
   comments: Array<{ text: string; actorId: string; authorityBadge: string; createdAt: string }>;
 }
 
+// One work item type of a Deliverable and where the samples, templates and guidelines for it are kept. The role and worktype are Ontology codes.
+export interface DeliverableWorkItemType {
+  role: string;
+  worktype: string;
+  guideLocation: string;
+}
+
 export interface DeliverableDefinitionRow {
   id: string;
   code: string;
   name: string;
   description: string | null;
   guide_location: string | null;
+  work_item_types: DeliverableWorkItemType[];
   version: string;
   status: PackStatus;
   draft_content: Record<string, unknown>;

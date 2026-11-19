@@ -22,6 +22,8 @@ export interface EbmConflict {
   kind: string;
   // What the user is shown, in plain language.
   message: string;
+  // What the conflict is about, shown after the title of its kind (for example the Deliverable name).
+  subject?: string;
   options: ConflictOption[];
   // True when the user may pick in composition. False when it has to be fixed at the definition.
   resolvable: boolean;
@@ -39,6 +41,8 @@ export interface ActionedConflict extends EbmConflict {
   action: ConflictAction;
   // The title of the conflict card.
   title: string;
+  // The work item types conflict of the same Deliverable, shown in the same card once the Service is decided.
+  followUp?: ActionedConflict;
 }
 
 // What every detector receives. A detector reads the Templates, Profiles and Packs itself through its own unravel function.

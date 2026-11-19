@@ -25,9 +25,6 @@ export function executionContextMarkdown(ec: WorkItemExecutionContext): string {
     ["Applicable authority", ec.applicableAuthority?.code ?? null],
   ]));
 
-  parts.push("### Quality Gate\n");
-  parts.push(ec.qualityGate ? `**${cell(ec.qualityGate.outcome)}**: ${cell(ec.qualityGate.rationale)}\n` : "_none_\n");
-
   parts.push("### Governing Policies\n");
   parts.push(table(["Code", "Name"], ec.governingPolicies.map((p) => [p.code, p.name])));
 

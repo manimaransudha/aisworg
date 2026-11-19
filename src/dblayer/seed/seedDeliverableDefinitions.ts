@@ -9,7 +9,7 @@ import { schemaDefinitionsDB } from "../schemaDefinitionsDB.js";
 import { transitionEntity, publishTransition } from "../../domain/engine/entityTransition.js";
 import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
 import { eventBus } from "../../domain/engine/eventBus.js";
-import type { DeliverableDefinitionRow } from "../seuTypes.js";
+import type { DeliverableDefinitionRow, DeliverableWorkItemType } from "../seuTypes.js";
 import { ontologyDB } from "../ontologyDB.js";
 import { userDB } from "../userDB.js";
 import { getPlatformTenantId, DELIVERABLE_DEFINITION_ACTIVE_STATE, INITIAL_VERSION } from "../constants.js";
@@ -19,6 +19,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 interface DeliverableDefinitionSeed {
   code: string;
   description: string;
+  guideLocation: string;
+  workItemTypes: DeliverableWorkItemType[];
 }
 
 function loadSeeds(): DeliverableDefinitionSeed[] {
@@ -45,6 +47,18 @@ export async function seedDeliverableDefinitions(actor: SeedActor): Promise<void
     throw new Error(`[seedDeliverableDefinitions] codes not in Ontology deliverable-name: ${invalid.map((s) => s.code).join(", ")}`);
   }
 
+  // The roles and worktypes of a Deliverable's work item types come from the Ontology, loaded once.
+  const [{ data: roleConcepts, error: roleError }, { data: worktypeConcepts, error: worktypeError }] = await Promise.all([
+    ontologyDB.findConceptsByType("role-name", { isRoot: false, tenantId: platformTenantId }),
+    ontologyDB.findConceptsByType("worktype-name", { isRoot: false, tenantId: platformTenantId }),
+  ]);
+  if (roleError) throw new Error(`[seedDeliverableDefinitions] failed to load role-name Ontology: ${roleError.message}`);
+  if (worktypeError) throw new Error(`[seedDeliverableDefinitions] failed to load worktype-name Ontology: ${worktypeError.message}`);
+  const roleCodes = new Set((roleConcepts ?? []).map((c) => c.code));
+  const worktypeCodes = new Set((worktypeConcepts ?? []).map((c) => c.code));
+  const unknownTypes = seeds.flatMap((s) => s.workItemTypes.filter((t) => !roleCodes.has(t.role) || !worktypeCodes.has(t.worktype)).map((t) => `${s.code}: ${t.role} / ${t.worktype}`));
+  if (unknownTypes.length > 0) throw new Error(`[seedDeliverableDefinitions] work item types not in Ontology role-name / worktype-name: ${unknownTypes.join(", ")}`);
+
   const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("DeliverableDefinition");
   if (birthError) throw birthError;
   if (!birth) throw new Error("[seedDeliverableDefinitions] no birth Transition Definition for DeliverableDefinition -- seed transition definitions first");
@@ -64,16 +78,18 @@ export async function seedDeliverableDefinitions(actor: SeedActor): Promise<void
   const { rowCount: deleted } = await query("DELETE FROM deliverable_definitions WHERE tenant_id = $1", [platformTenantId]);
   logger.info(`[seedDeliverableDefinitions] deleted ${deleted ?? 0} platform-tenant deliverable_definitions rows -- creating ${seeds.length} now`);
 
-  for (const { code, description } of seeds) {
+  for (const { code, description, guideLocation, workItemTypes } of seeds) {
     const { data: created, error } = await deliverableDefinitionsDB.createDraft({
       code,
       name: nameByCode.get(code)!,
       description,
+      guideLocation,
+      workItemTypes,
       version: INITIAL_VERSION,
       status: birth.to_state as DeliverableDefinitionRow["status"],
       authoredBy: actor.authoredBy,
       authorBadge: actor.authorBadge,
-      draftContent: { code, name: nameByCode.get(code)!, description, definitionVersion: INITIAL_VERSION },
+      draftContent: { code, name: nameByCode.get(code)!, description, guideLocation, definitionVersion: INITIAL_VERSION },
       tenantId: platformTenantId,
       parentDeliverableDefinitionId: null,
       schemaDefinitionId: deliverableSchema.id,

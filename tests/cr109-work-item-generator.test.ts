@@ -46,6 +46,8 @@ async function rootParticipantId(seuId: string): Promise<string> {
 }
 
 import { PLATFORM_TENANT_ID, ensurePolicyDefinition } from "./testFixtures.js";
+import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
 
 
 // Defined -> In Progress is a governed hop: the Execution Engine makes it off the kickoff, so a manual request that
@@ -449,7 +451,9 @@ test("CR-109 Source Code §6.3: Execution Context resolves a null inputLocation 
   const ec = workItem!.execution_context!;
   assert.equal(ec.relevantDeliverable.id, sourceCode!.id);
   assert.equal(ec.service?.code, "software-construction");
-  assert.equal(ec.inputLocation, null, "no Deliverable Definition for source-code carries a guide_location in this fixture — must resolve to null, not fabricated");
+  const { data: sourceCodeDefinition } = await deliverableDefinitionsDB.findActiveByCodeVisibleTo("source-code", await getPlatformTenantId());
+  assert.ok(sourceCodeDefinition?.guide_location, "the seeded Deliverable Definition for source-code carries a guide_location");
+  assert.equal(ec.inputLocation, sourceCodeDefinition!.guide_location, "the input location is the guide_location of the Deliverable Definition, not fabricated");
   assert.equal(ec.outputLocation, "https://github.com/cr104-demo/source-code");
   assert.ok(!ec.relevantDecisions.some((d) => d.id === reqDecision!.id), "Requirements Analysis Model's own Decision must not leak into Source Code's Execution Context");
   assert.equal(ec.supportingEvidence.length, 0, "Source Code has no Evidence of its own yet");

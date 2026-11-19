@@ -44,7 +44,7 @@ export type ConflictAction = typeof CONFLICT_ACTION_PICK_ONE | typeof CONFLICT_A
 export const CONFLICT_TITLE_BY_KIND: Record<string, string> = {
   "level-different": "Service level conflicts",
   "level-added": "Service level conflicts",
-  "worktype-choice": "Work item types",
+  "worktype-choice": "Work Item Types",
 };
 // The action for each kind of conflict that the detectors in src/domain/engine/conflicts report.
 export const CONFLICT_ACTION_BY_KIND: Record<string, ConflictAction> = {

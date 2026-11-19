@@ -6,7 +6,7 @@ export const DECISION_EXCLUDE = "exclude";
 
 // The action for a conflict, from the map of kinds to actions. A kind with no entry is read-only, so an unknown kind is never resolved by accident.
 export function withAction(conflict: EbmConflict): ActionedConflict {
-  return { ...conflict, action: CONFLICT_ACTION_BY_KIND[conflict.kind] ?? CONFLICT_ACTION_NONE, title: CONFLICT_TITLE_BY_KIND[conflict.kind] ?? conflict.kind };
+  return { ...conflict, action: CONFLICT_ACTION_BY_KIND[conflict.kind] ?? CONFLICT_ACTION_NONE, title: `${CONFLICT_TITLE_BY_KIND[conflict.kind] ?? conflict.kind}${conflict.subject ? ` - ${conflict.subject}` : ""}` };
 }
 
 // What the user submitted: the options picked (by position in the conflict's options) or an include or exclude decision.

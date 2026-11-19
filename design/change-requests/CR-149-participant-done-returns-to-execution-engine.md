@@ -176,10 +176,28 @@ Rules from the owner: nothing changes on the Deliverable. A Command for a Delive
 
 Test files updated: tests/execution-engine.test.ts (three `generate` calls now destructure the array).
 
-UI: the Work Queue gains a sortable, searchable Work item type column (worktype and role). The SEU detail Command tab and the Participant home show the role and worktype beside each Work Item's status.
+UI: the Work Queue gains a sortable, searchable Work item type column (worktype and role). The role and worktype are not shown on the SEU detail Command tab or the Participant home, because they are used by dispatch only (see section 14).
 
 Siblings: Work Items of one Command have no relationship to each other. A cancelled Work Item does not change its siblings. The Command is the only thing they share.
 
 A Work Item cannot fail (Ch.32 §8 has no Failed state). When a Participant reports failed or blocked, `completeWorkItem` cancels the Work Item (status Disposed, event `WorkItemCancelled` in place of `WorkItemFailed`), sets the Deliverable's Command to Failed and raises the Attention Item, whose title is now `Participant reported <outcome> on Deliverable "<name>"`. A later Done on a sibling does not complete a failed Command. The status `Failed` is removed from the `work_items` status check and from `countActiveByParticipantId`.
 
 Test files updated for the cancel rule: tests/command-pipeline.test.ts, tests/web-attention-workqueue.test.ts. Not run: tsc, tests, db:clean-slate. The `work_items` columns reach the database through db:clean-slate.
+
+## 14. Part 3 built: UI changes (2026-11-19, built, not yet run)
+
+The owner ran the tests after Part 1 and they passed. The changes below were made after that run.
+
+| Area | Change |
+|---|---|
+| Resolve Conflicts, Services tab | One card for each Deliverable. When a Service has to be chosen, the work item types are in the same card, under "Work Item Types - <Deliverable name>". The radio of a Service shows that Service's roles and worktypes at once. One Apply saves the Service and the ticked work item types together. The options table (Source, Work Item types) is removed from Service choice cards. |
+| Compose route | A Service pick that arrives with ticked work item types (`ebmWorktype`) saves the Service first, then saves the ticks that belong to that Service. A Deliverable with one Service keeps its own work item type card and Apply. |
+| Conflict titles | `CONFLICT_TITLE_BY_KIND` says "Work Item Types". A conflict may carry a `subject` (the Deliverable name), which `withAction` appends to the title. |
+| EBM page | A list of `{role, worktype}` in a result cell shows one "role / worktype" line for each entry (`cellHtml` in resultCells.ts). |
+| Work Item lines | The SEU detail Command tab and the Participant home do not show the role and worktype. The Work Queue column stays. |
+| Work Item sheet | The Quality Gate section is removed from the Execution Context markdown. The Quality Gate decision is still built and stored in the execution context. |
+| Quality Gate waiver | The success message of Grant waiver says that the decision is made again in the background and that the page has to be reloaded. The Deliverable's "Waived" cell is read from the stored decision, which the `deliverableKickoff` subscriber writes after the event. No automatic refresh was added. |
+
+Files: src/views/seu/seus/resolve-conflicts.ejs, src/views/seu/seus/_worktype-form.ejs (new), src/routes/seu/web/objectives.ts, src/domain/engine/conflicts/{types,resolve,services}.ts, src/dblayer/constants.ts, src/utils/resultCells.ts, src/views/seu/seus/detail.ejs, src/views/quickview/_participantHome.ejs, src/routes/seu/core/executionContextMarkdown.ts, src/routes/seu/web/seus.ts.
+
+Still open: whether the Work Queue column is removed, and whether the Quality Gate decision is dropped from the stored execution context (tests/execution-engine.test.ts asserts it). Not run: `tsc`, tests, `db:clean-slate`.

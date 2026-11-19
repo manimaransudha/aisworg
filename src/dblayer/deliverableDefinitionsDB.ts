@@ -2,7 +2,7 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateDeliverableDefinitionWriteAgainstSchema } from "../routes/seu/core/deliverableDefinitionWriteValidator.js";
-import type { DbResult, DeliverableDefinitionRow } from "./seuTypes.js";
+import type { DbResult, DeliverableDefinitionRow, DeliverableWorkItemType } from "./seuTypes.js";
 import { getPlatformTenantId, INITIAL_VERSION } from "./constants.js";
  
 export const deliverableDefinitionsDB = {
@@ -11,6 +11,7 @@ export const deliverableDefinitionsDB = {
     name: string;
     description?: string | null;
     guideLocation?: string | null;
+    workItemTypes?: DeliverableWorkItemType[];
     version?: string;
     authoredBy: string;
     authorBadge: string;
@@ -39,8 +40,8 @@ export const deliverableDefinitionsDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<DeliverableDefinitionRow>(
-        `INSERT INTO deliverable_definitions (code, name, description, version, status, authored_by, author_badge, draft_content, tenant_id, parent_deliverable_definition_id, schema_definition_id, guide_location)
-         VALUES ($1, $12, $2, $3, $10, $4, $5, $6, $7, $8, $9, $11)
+        `INSERT INTO deliverable_definitions (code, name, description, version, status, authored_by, author_badge, draft_content, tenant_id, parent_deliverable_definition_id, schema_definition_id, guide_location, work_item_types)
+         VALUES ($1, $12, $2, $3, $10, $4, $5, $6, $7, $8, $9, $11, $13::jsonb)
          RETURNING *`,
         [
           input.code,
@@ -55,6 +56,7 @@ export const deliverableDefinitionsDB = {
           input.status,
           input.guideLocation ?? null,
           input.name,
+          JSON.stringify(input.workItemTypes ?? []),
         ]
       );
       return { data: rows[0] };

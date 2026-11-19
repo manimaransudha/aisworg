@@ -42,6 +42,7 @@ import { resultCells } from "../../../utils/resultCells.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { listConceptsForType } from "../core/ontology.js";
+import { serviceChoiceKey, worktypeChoiceKey } from "../../../domain/engine/conflicts/services.js";
 import { applyConflictPick, blockingEbmConflicts, conflictStatus, summariseConflictTables, type ActionedConflict, type ConflictPick, type EbmConflictTable } from "../../../domain/engine/conflicts/index.js";
 import type { ObjectiveStatus, ObjectiveTier, EbmCompositionReport, EbmComposedPack } from "../../../dblayer/seuTypes.js";
 import type { UnraveledComposition, CompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
@@ -470,6 +471,19 @@ function parseEbmConflictPick(body: Record<string, unknown>): { key: string; pic
   return { key, pick: { optionIndexes: options, decision: typeof body.ebmPickDecision === "string" ? body.ebmPickDecision : undefined } };
 }
 
+// The work item types ticked beside a Service pick: each box posts {role, worktype} as JSON.
+function parseWorkItemTypeTicks(body: Record<string, unknown>): Array<{ role: string; worktype: string }> {
+  const ticks: Array<{ role: string; worktype: string }> = [];
+  for (const raw of ([] as unknown[]).concat(body.ebmWorktype ?? [])) {
+    if (typeof raw !== "string") continue;
+    try {
+      const value = JSON.parse(raw) as { role?: unknown; worktype?: unknown };
+      if (typeof value.role === "string" && typeof value.worktype === "string") ticks.push({ role: value.role, worktype: value.worktype });
+    } catch { /* a malformed tick is ignored */ }
+  }
+  return ticks;
+}
+
 // The picks of a table shown as rows: each row posts its conflict's key (ebmBulkKey) and its decision (ebmBulkDecision_<row position>). A row with no decision is left as it was.
 function parseEbmBulkPicks(body: Record<string, unknown>): Array<{ key: string; pick: ConflictPick }> {
   const picks: Array<{ key: string; pick: ConflictPick }> = [];
@@ -563,6 +577,20 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
       const applied = applyConflictPick(beforePick.ebmConflicts, newPick.key, newPick.pick);
       if (!applied.ok) return redirects.seu.objectivesComposeEbm.error(req, res, applied.error, resolveConflictsUrl(objectiveId, req.body ?? {}));
       resolvedCompositionConflicts = { ...resolvedCompositionConflicts, [applied.key]: applied.value };
+
+      // The work item types ticked with a Service pick are saved with it, once the Service is decided: the ticks that are not work item types of that Service are dropped.
+      const ticked = parseWorkItemTypeTicks(req.body ?? {});
+      if (newPick.key.startsWith(serviceChoiceKey("")) && ticked.length > 0) {
+        const afterService = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts, viewerTenantId });
+        const workTypeKey = worktypeChoiceKey(newPick.key.slice(serviceChoiceKey("").length));
+        const workTypeConflict = (afterService.ebmConflicts.services ?? []).find((c) => c.key === workTypeKey);
+        const optionIndexes = (workTypeConflict?.options ?? []).flatMap((o, i) => (ticked.some((t) => JSON.stringify(t) === JSON.stringify(o.value)) ? [i] : []));
+        if (workTypeConflict && optionIndexes.length > 0) {
+          const appliedWorkTypes = applyConflictPick(afterService.ebmConflicts, workTypeKey, { optionIndexes });
+          if (!appliedWorkTypes.ok) return redirects.seu.objectivesComposeEbm.error(req, res, appliedWorkTypes.error, resolveConflictsUrl(objectiveId, req.body ?? {}));
+          resolvedCompositionConflicts = { ...resolvedCompositionConflicts, [appliedWorkTypes.key]: appliedWorkTypes.value };
+        }
+      }
     }
 
     // The picks of a table shown as rows are checked one by one against the conflicts they are for, then stored together.
@@ -696,9 +724,21 @@ router.get("/objectives/:id/resolve-conflicts", attachVM("seu/seus/resolve-confl
   // A table of rows is sorted by key so a row keeps its place after it is decided. The cards are sorted by status, open first.
   const params = parseListParams(req.query, { sortable: ["status", "key", "kind", "pack"], defaultSort: CONFLICT_TABLES_SHOWN_AS_TABLE.includes(selectedTable) ? "pack" : "status", defaultDir: "asc" });
   const statusOrder: Record<string, number> = { open: 0, notice: 1, resolved: 2 };
-  const paginated = paginateList(stashed.ebmConflicts[selectedTable as EbmConflictTable] ?? [], params, {
+  // One card for each Deliverable: its work item types conflict is shown inside the card of its Service choice.
+  const tableConflicts = stashed.ebmConflicts[selectedTable as EbmConflictTable] ?? [];
+  const cards: ActionedConflict[] = [];
+  const serviceChoices = tableConflicts.filter((c) => c.kind === "service-choice");
+  const workTypeKeyOf = (serviceChoice: ActionedConflict) => worktypeChoiceKey(serviceChoice.key.slice(serviceChoiceKey("").length));
+  const followUpKeys = new Set(serviceChoices.map(workTypeKeyOf));
+  for (const c of tableConflicts) {
+    if (c.kind === "worktype-choice" && followUpKeys.has(c.key)) continue;
+    const followUp = c.kind === "service-choice" ? tableConflicts.find((o) => o.kind === "worktype-choice" && o.key === workTypeKeyOf(c)) : undefined;
+    cards.push(followUp ? { ...c, followUp } : c);
+  }
+  const cardStatus = (c: ActionedConflict) => (conflictStatus(c) === "open" || (c.followUp && conflictStatus(c.followUp) === "open") ? "open" : conflictStatus(c));
+  const paginated = paginateList(cards, params, {
     searchFields: [(c) => c.message, (c) => c.key, (c) => c.kind],
-    sortFields: { status: (c) => statusOrder[conflictStatus(c)], key: (c) => c.key, kind: (c) => c.kind, pack: (c) => `${c.options[0]?.sourceLabel ?? ""}\u0000${c.key}` },
+    sortFields: { status: (c) => statusOrder[cardStatus(c)], key: (c) => c.key, kind: (c) => c.kind, pack: (c) => `${c.options[0]?.sourceLabel ?? ""}\u0000${c.key}` },
   });
 
   req.vm.req.title = "Resolve Conflicts";

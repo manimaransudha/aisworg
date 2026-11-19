@@ -1,0 +1,23 @@
+<%# The work item types of one Deliverable: the roles and worktypes of the Service's Capability, one checkbox for each worktype. Locals: wt (the worktype-choice conflict), ci (a unique number for the ids), and the page's objectiveId, selectedTable, selections, csrfToken. %>
+<% function _wtSame(a, b) { return JSON.stringify(a) === JSON.stringify(b); } %>
+<form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm" class="d-flex flex-wrap align-items-center gap-3">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <input type="hidden" name="returnTo" value="resolve-conflicts">
+  <input type="hidden" name="category" value="<%= selectedTable %>">
+  <input type="hidden" name="ebmPickKey" value="<%= wt.key %>">
+  <% selections.forEach(function(s) { %>
+    <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
+  <% }) %>
+  <div class="w-100">
+    <% var _lastRole = null; %>
+    <% wt.options.forEach(function(opt, oi) { %>
+      <% if (opt.value.role !== _lastRole) { _lastRole = opt.value.role; %><div class="fw-semibold small mt-2"><%= _lastRole %></div><% } %>
+      <% var pickedWt = Array.isArray(wt.resolution) && wt.resolution.some(function(r) { return _wtSame(r, opt.value); }); %>
+      <div class="form-check ms-3">
+        <input class="form-check-input" type="checkbox" name="ebmPickOption" id="pick-<%= ci %>-<%= oi %>" value="<%= oi %>" <%= pickedWt ? 'checked' : '' %>>
+        <label class="form-check-label small" for="pick-<%= ci %>-<%= oi %>"><%= opt.value.worktype %></label>
+      </div>
+    <% }) %>
+  </div>
+  <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+</form>

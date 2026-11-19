@@ -123,7 +123,7 @@
                authoring surfaces that create/edit them. -->
           <% if (_registryVisible) { %>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-capability-definitions','seu-participants','seu-packs','seu-templates','seu-profiles','seu-deliverable-definitions','seu-service-definitions','seu-policy-definitions','seu-quality-gate-definitions','seu-sdk-schema-registry'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-capability-definitions','seu-roles','seu-participants','seu-packs','seu-templates','seu-profiles','seu-deliverable-definitions','seu-service-definitions','seu-policy-definitions','seu-quality-gate-definitions','seu-sdk-schema-registry'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-collection me-2"></i>Registry
             </a>
@@ -131,6 +131,11 @@
               <% if (_nrv('GET','/aisworg/seu/capability-definitions')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-capability-definitions' ? 'active' : '' %>" href="/aisworg/seu/capability-definitions">
                 <i class="bi bi-lightning-charge me-2"></i>Capability Registry
+              </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/roles')) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-roles' ? 'active' : '' %>" href="/aisworg/seu/roles">
+                <i class="bi bi-person-badge me-2"></i>Role Registry
               </a></li>
               <% } %>
               <% if (_nrv('GET','/aisworg/seu/service-definitions')) { %>

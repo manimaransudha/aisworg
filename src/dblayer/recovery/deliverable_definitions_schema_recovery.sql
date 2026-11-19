@@ -6,6 +6,7 @@ CREATE TABLE deliverable_definitions (
   name                              TEXT NOT NULL,
   description                       TEXT,
   guide_location                    TEXT,
+  work_item_types                   JSONB NOT NULL DEFAULT '[]'::jsonb,
   version                           TEXT NOT NULL DEFAULT '1.0.0',
   status                            TEXT NOT NULL,
   draft_content                     JSONB,
@@ -21,5 +22,6 @@ CREATE INDEX IF NOT EXISTS idx_deliverable_definitions_tenant_id ON deliverable_
 ALTER TABLE deliverable_definitions ADD COLUMN IF NOT EXISTS schema_definition_id UUID NOT NULL REFERENCES schema_definitions(id);
 ALTER TABLE deliverable_definitions DROP CONSTRAINT IF EXISTS deliverable_definitions_schema_definition_id_fkey;
 ALTER TABLE deliverable_definitions ADD COLUMN IF NOT EXISTS guide_location TEXT;
+ALTER TABLE deliverable_definitions ADD COLUMN IF NOT EXISTS work_item_types JSONB NOT NULL DEFAULT '[]'::jsonb;
 GRANT ALL PRIVILEGES ON TABLE deliverable_definitions TO weirdo;
 COMMIT;

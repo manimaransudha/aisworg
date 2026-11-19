@@ -60,6 +60,8 @@ router.get("/deliverable-definitions/:id", attachVM("seu/deliverable-definitions
     req.vm.req.title = `Deliverable Definition: ${view.displayName}`;
     req.vm.req.deliverable = view.deliverableDefinition;
     req.vm.req.displayName = view.displayName;
+    req.vm.req.services = view.services;
+    req.vm.req.workItemTypes = view.workItemTypes;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/deliverable-definitions/view", req.vm);
   } catch (err) {

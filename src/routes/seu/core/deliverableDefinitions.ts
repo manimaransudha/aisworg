@@ -6,6 +6,9 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import type { DeliverableDefinitionRow } from "../../../dblayer/seuTypes.js";
+import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
+import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
+import { listConceptsForType } from "./ontology.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "../../../utils/version.js";
 
@@ -88,6 +91,7 @@ export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionI
     name: source.name,
     description: source.description,
     guideLocation: source.guide_location,
+    workItemTypes: source.work_item_types,
     version: nextVersion,
     status: birth.initialState as DeliverableDefinitionRow["status"],
     authoredBy: copyMaster.id,
@@ -128,9 +132,28 @@ export async function listDeliverableDefinitionsWithNextStates(viewer?: { isRoot
   );
 }
 
+export interface DeliverableDefinitionViewService {
+  id: string;
+  code: string;
+  name: string;
+  capability: { id: string; code: string; label: string } | null;
+}
+
+export interface DeliverableDefinitionViewWorkItemType {
+  role: string;
+  roleLabel: string;
+  worktype: string;
+  worktypeLabel: string;
+  guideLocation: string;
+  // The Capabilities of the Services that make the Deliverable and give this role the worktype.
+  capabilities: string[];
+}
+
 export interface DeliverableDefinitionViewData {
   deliverableDefinition: DeliverableDefinitionRow;
   displayName: string;
+  services: DeliverableDefinitionViewService[];
+  workItemTypes: DeliverableDefinitionViewWorkItemType[];
 }
 
 export function deliverableDisplayName(code: string): string {
@@ -145,5 +168,29 @@ export async function getDeliverableDefinitionView(id: string, viewer: { isRoot:
   if (!row) return null;
   const platformTenantId = await getPlatformTenantId();
   if (!viewer.isRoot && row.tenant_id !== platformTenantId && row.tenant_id !== viewer.tenantId) return null;
-  return { deliverableDefinition: row, displayName: deliverableDisplayName(row.code) };
+  const viewerTenantId = viewer.tenantId ?? platformTenantId;
+  const { data: serviceRows, error: serviceError } = await serviceDefinitionsDB.findActiveByOutputsVisibleTo([row.code], viewerTenantId);
+  if (serviceError) throw serviceError;
+  const { data: capabilityRows, error: capabilityError } = await capabilityDefinitionsDB.findActiveByCodesVisibleTo([...new Set((serviceRows ?? []).map((s) => s.capability_code))], viewerTenantId);
+  if (capabilityError) throw capabilityError;
+  const capabilityByCode = new Map((capabilityRows ?? []).map((c) => [c.code, c]));
+  const services = (serviceRows ?? []).map((s) => {
+    const capability = capabilityByCode.get(s.capability_code);
+    return { id: s.id, code: s.code, name: s.name, capability: capability ? { id: capability.id, code: capability.code, label: capability.default_label } : null };
+  });
+
+  const [roleConcepts, worktypeConcepts] = await Promise.all([listConceptsForType("role-name", viewer, false), listConceptsForType("worktype-name", viewer, false)]);
+  const roleLabel = new Map(roleConcepts.map((c) => [c.code, c.default_label]));
+  const worktypeLabel = new Map(worktypeConcepts.map((c) => [c.code, c.default_label]));
+  const workItemTypes = (row.work_item_types ?? []).map((t) => ({
+    role: t.role,
+    roleLabel: roleLabel.get(t.role) ?? t.role,
+    worktype: t.worktype,
+    worktypeLabel: worktypeLabel.get(t.worktype) ?? t.worktype,
+    guideLocation: t.guideLocation,
+    capabilities: services
+      .filter((s) => s.capability && (capabilityByCode.get(s.capability.code)?.roles ?? []).some((r) => r.name === t.role && r.worktypes.includes(t.worktype)))
+      .map((s) => s.capability!.label),
+  }));
+  return { deliverableDefinition: row, displayName: deliverableDisplayName(row.code), services, workItemTypes };
 }

@@ -202,8 +202,8 @@
           </form>
         <% } else { %>
         <% list.items.forEach(function(c, ci) { %>
-          <% var st = _status(c); %>
-          <div class="section-card">
+          <% var st = (_status(c) === 'open' || (c.followUp && _status(c.followUp) === 'open')) ? 'open' : _status(c); %>
+          <div class="section-card" <%- c.kind === 'service-choice' ? 'data-service-card' : '' %>>
             <div class="section-header d-flex align-items-center justify-content-between gap-2">
               <span class="small fw-semibold"><%= c.title || c.kind %></span>
               <% if (st === 'open') { %><span class="badge bg-danger-subtle text-danger-emphasis">Open</span>
@@ -236,7 +236,7 @@
                   </table>
                 </div>
                 <div class="text-muted small mb-2">The highlighted rows differ between the sources.</div>
-              <% } else if (c.kind !== 'worktype-choice') { %>
+              <% } else if (c.kind !== 'worktype-choice' && c.kind !== 'service-choice') { %>
               <div class="table-responsive mb-2">
                 <table class="table table-sm align-middle mb-0">
                   <thead><tr><th class="small text-muted">Source</th><th class="small text-muted">Value</th><th class="small text-muted">Open</th></tr></thead>
@@ -244,14 +244,7 @@
                     <% c.options.forEach(function(opt) { %>
                       <tr>
                         <td class="small text-nowrap"><%= opt.sourceLabel %></td>
-                        <td class="small"><%- _valueHtml(opt.value, true) %>
-                          <% if (opt.detail && opt.detail.roles && opt.detail.roles.length) { %>
-                            <div class="text-muted small mt-1">Capability <code><%= opt.detail.capabilityCode %></code></div>
-                            <ul class="small mb-0 ps-3">
-                              <% opt.detail.roles.forEach(function(r) { %><li><span class="fw-semibold"><%= r.name %></span>: <%= r.worktypes.join(', ') %></li><% }) %>
-                            </ul>
-                          <% } %>
-                        </td>
+                        <td class="small"><%- _valueHtml(opt.value, true) %></td>
                         <td class="small text-nowrap"><%- _linksHtml(_optionLinks(opt, _capInfo)) %></td>
                       </tr>
                     <% }) %>
@@ -260,12 +253,14 @@
               </div>
               <% } %>
 
-              <% if (st === 'resolved') { %>
+              <% if (_status(c) === 'resolved') { %>
                 <div class="small mb-2">Your pick: <span class="fw-semibold"><code><%= _fmt(c.resolution) %></code></span></div>
               <% } %>
 
               <% if (c.notice) { %>
                 <div class="text-muted small">A person verifies this. Nothing to pick.</div>
+              <% } else if (c.kind === 'worktype-choice') { %>
+                <%- include('_worktype-form', { wt: c, ci: ci }) %>
               <% } else if (!c.resolvable || c.action === 'none') { %>
                 <div class="text-muted small">This cannot be resolved here.</div>
               <% } else { %>
@@ -283,20 +278,6 @@
                     <div class="form-check"><input class="form-check-input" type="radio" name="ebmPickDecision" id="dec-<%= ci %>-exclude" value="exclude" <%= _dec === 'exclude' ? 'checked' : '' %>><label class="form-check-label small" for="dec-<%= ci %>-exclude">Exclude</label></div>
                     <button type="submit" class="btn btn-primary btn-sm">Apply</button>
                   <% } else { %>
-                    <% if (c.kind === 'worktype-choice') { %>
-                      <div class="w-100">
-                        <% var _lastRole = null; %>
-                        <% c.options.forEach(function(opt, oi) { %>
-                          <% if (opt.value.role !== _lastRole) { _lastRole = opt.value.role; %><div class="fw-semibold small mt-2"><%= _lastRole %></div><% } %>
-                          <% var pickedWt = Array.isArray(c.resolution) && c.resolution.some(function(r) { return _same(r, opt.value); }); %>
-                          <div class="form-check ms-3">
-                            <input class="form-check-input" type="checkbox" name="ebmPickOption" id="pick-<%= ci %>-<%= oi %>" value="<%= oi %>" <%= pickedWt ? 'checked' : '' %>>
-                            <label class="form-check-label small" for="pick-<%= ci %>-<%= oi %>"><%= opt.value.worktype %></label>
-                          </div>
-                        <% }) %>
-                      </div>
-                      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-                    <% } else { %>
                     <% c.options.forEach(function(opt, oi) { %>
                       <% var picked = (c.action === 'pick-any' ? (Array.isArray(c.resolution) && c.resolution.some(function(r) { return _same(r, opt.value); })) : _same(c.resolution, opt.value)); %>
                       <div class="form-check">
@@ -304,8 +285,32 @@
                         <label class="form-check-label small" for="pick-<%= ci %>-<%= oi %>"><%= opt.sourceLabel %><% if (_compared.indexOf(c.kind) < 0) { %>: <%- _valueHtml(opt.value, false) %><% } %></label>
                       </div>
                     <% }) %>
-                    <button type="submit" class="btn btn-primary btn-sm"><%= c.action === 'pick-any' ? 'Apply (one or both)' : 'Apply' %></button>
+                    <%# The work item types of the Deliverable: the radio of a Service shows that Service's roles and worktypes, and the ones ticked are saved with the Service by the one Apply. %>
+                    <% if (c.kind === 'service-choice') { %>
+                      <div class="w-100">
+                        <hr class="mt-1">
+                        <div class="fw-semibold small mb-1">Work Item Types<%= c.subject ? ' - ' + c.subject : '' %></div>
+                        <div class="text-muted small" data-wt-hint>Select a Service to see its work item types.</div>
+                        <% var _wtPicked = c.followUp && Array.isArray(c.followUp.resolution) ? c.followUp.resolution : []; %>
+                        <% c.options.forEach(function(opt, oi) { %>
+                          <div class="d-none" data-wt-service="<%= oi %>">
+                            <% if (opt.detail && opt.detail.roles && opt.detail.roles.length) { %>
+                              <% opt.detail.roles.forEach(function(r, ri) { %>
+                                <div class="fw-semibold small mt-2"><%= r.name %></div>
+                                <% r.worktypes.forEach(function(w, wi) { %>
+                                  <% var _wtValue = { role: r.name, worktype: w }; var _wtChecked = _same(c.resolution, opt.value) && _wtPicked.some(function(x) { return _same(x, _wtValue); }); %>
+                                  <div class="form-check ms-3">
+                                    <input class="form-check-input" type="checkbox" name="ebmWorktype" id="wt-<%= ci %>-<%= oi %>-<%= ri %>-<%= wi %>" value="<%= JSON.stringify(_wtValue) %>" <%= _wtChecked ? 'checked' : '' %> disabled>
+                                    <label class="form-check-label small" for="wt-<%= ci %>-<%= oi %>-<%= ri %>-<%= wi %>"><%= w %></label>
+                                  </div>
+                                <% }) %>
+                              <% }) %>
+                            <% } else { %><span class="text-muted small">None</span><% } %>
+                          </div>
+                        <% }) %>
+                      </div>
                     <% } %>
+                    <button type="submit" class="btn btn-primary btn-sm"><%= c.action === 'pick-any' ? 'Apply (one or both)' : 'Apply' %></button>
                   <% } %>
                 </form>
               <% } %>
@@ -388,6 +393,24 @@
           if (!decided) radio.checked = true;
         });
       });
+    });
+
+    // The radio of a Service shows that Service's work item types in the same card. Only the boxes of the selected Service are submitted.
+    document.querySelectorAll('[data-service-card]').forEach(function (card) {
+      var radios = card.querySelectorAll('input[type="radio"][name="ebmPickOption"]');
+      var sync = function () {
+        var picked = null;
+        radios.forEach(function (r) { if (r.checked) picked = r.value; });
+        var hint = card.querySelector('[data-wt-hint]');
+        if (hint) hint.classList.toggle('d-none', picked !== null);
+        card.querySelectorAll('[data-wt-service]').forEach(function (el) {
+          var shown = el.getAttribute('data-wt-service') === picked;
+          el.classList.toggle('d-none', !shown);
+          el.querySelectorAll('input[name="ebmWorktype"]').forEach(function (box) { box.disabled = !shown; });
+        });
+      };
+      radios.forEach(function (r) { r.addEventListener('change', sync); });
+      sync();
     });
   </script>
 

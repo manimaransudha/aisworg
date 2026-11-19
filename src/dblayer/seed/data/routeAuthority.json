@@ -423,6 +423,16 @@
   },
   {
     "method": "GET",
+    "path": "/aisworg/seu/roles",
+    "badges": [],
+    "roles": [
+      "participant",
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
     "path": "/aisworg/seu/capability-definitions/:id",
     "badges": [],
     "roles": [

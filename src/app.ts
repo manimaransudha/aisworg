@@ -148,6 +148,7 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
                 { method: "GET", path: "/aisworg/seu/telemetry" },
                 { method: "GET", path: "/aisworg/seu/knowledge/capital" },
                 { method: "GET", path: "/aisworg/seu/capability-definitions" },
+                { method: "GET", path: "/aisworg/seu/roles" },
                 { method: "GET", path: "/aisworg/seu/participants" },
                 { method: "GET", path: "/aisworg/seu/packs" },
                 { method: "GET", path: "/aisworg/seu/templates" },

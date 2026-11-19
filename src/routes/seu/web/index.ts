@@ -13,6 +13,7 @@ import { router as serviceDefinitionRegistryRouter } from "./serviceDefinitionRe
 import { router as policyDefinitionRegistryRouter } from "./policyDefinitionRegistry.js";
 import { router as qualityGateDefinitionRegistryRouter } from "./qualityGateDefinitionRegistry.js";
 import { router as capabilityDefinitionRegistryRouter } from "./capabilityDefinitionRegistry.js";
+import { router as roleRegistryRouter } from "./roleRegistry.js";
 import { router as participantRegistryRouter } from "./participantRegistry.js";
 import { router as objectivesRouter } from "./objectives.js";
 import { router as knowledgeRouter } from "./knowledge.js";
@@ -45,6 +46,7 @@ router.use(serviceDefinitionRegistryRouter);
 router.use(policyDefinitionRegistryRouter);
 router.use(qualityGateDefinitionRegistryRouter);
 router.use(capabilityDefinitionRegistryRouter);
+router.use(roleRegistryRouter);
 router.use(participantRegistryRouter);
 router.use(knowledgeRouter);
 router.use(telemetryRouter);

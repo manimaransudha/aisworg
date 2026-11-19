@@ -131,6 +131,7 @@ export const redirects = {
     authorityTransitionDefinitionsUpdate: page({ prefix: "/aisworg/seu/authority/transition-definitions/:id/update", error: "/aisworg/seu/authority/transition-definitions/:id" }),
     authorityVerbs: page({ prefix: "/aisworg/seu/authority/verbs", error: "/aisworg/seu/authority/verbs" }),
     capabilityDefinitionsView: page({ prefix: "/aisworg/seu/capability-definitions/:id", error: "/aisworg/seu/capability-definitions" }),
+    roleRegistry: page({ prefix: "/aisworg/seu/roles", error: "/aisworg/seu/roles" }),
     capabilityDefinitionsCopy: page({ prefix: "/aisworg/seu/capability-definitions/:id/copy", error: "/aisworg/seu/capability-definitions" }),
     dataMigrationsRun: page({ prefix: "/aisworg/seu/data-migrations/run", error: "/aisworg/seu/data-migrations" }),
     deliverableDefinitionsView: page({ prefix: "/aisworg/seu/deliverable-definitions/:id", error: "/aisworg/seu/deliverable-definitions" }),

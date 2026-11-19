@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .role-description h2 { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; margin: 0.9rem 0 0.25rem; }
+    .role-description p, .role-description li { font-size: 0.875rem; }
+    .role-description ul { padding-left: 1.2rem; margin-bottom: 0.5rem; }
+    .wit-desc h2 { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; margin: 0.6rem 0 0.2rem; }
+    .wit-desc p, .wit-desc li { font-size: 0.82rem; margin-bottom: 0.2rem; }
+    .wit-desc ul { padding-left: 1.1rem; margin-bottom: 0.3rem; }
+  </style>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Role Registry</h2>
+      <p class="text-muted small mb-0">
+        A Role is a part of the work that a Capability decomposes into. Each Role covers a set of work item types, and a Participant who holds the Role and the work item type can be given a Work Item of that type. The Capabilities listed for a Role are those that need it.
+      </p>
+    </div>
+
+    <% const _base = locals.listBasePath || '/aisworg/seu/roles'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search role, work item type or Capability' }) %>
+    <div class="small text-muted mb-3">Sort:
+      <%- sortLink('Role', 'label', list, _base) %> &middot;
+      <%- sortLink('Code', 'code', list, _base) %> &middot;
+      <%- sortLink('Work item types', 'worktypes', list, _base) %> &middot;
+      <%- sortLink('Capabilities', 'capabilities', list, _base) %>
+    </div>
+
+    <% if (list.total === 0) { %>
+      <div class="alert alert-warning"><%= list.q ? 'No Roles match your search.' : 'No Roles are defined in the Ontology yet.' %></div>
+    <% } else { %>
+      <% list.items.forEach(function(r) { %>
+        <div class="section-card mb-3">
+          <div class="section-header">
+            <span class="lp-toggle-title"><%= r.label %></span>
+            <code class="text-muted small ms-2"><%= r.code %></code>
+          </div>
+          <div class="p-3">
+            <% if (r.descriptionHtml) { %>
+              <div class="role-description mb-3"><%- r.descriptionHtml %></div>
+            <% } else { %>
+              <p class="small text-muted mb-3">No description has been written for this Role.</p>
+            <% } %>
+
+            <div class="row g-4">
+              <div class="col-lg-7">
+                <div class="small text-muted mb-2">Work item types (<%= r.workItemTypes.length %>)</div>
+                <% if (r.workItemTypes.length === 0) { %>
+                  <div class="small text-muted">No Capability gives this Role a work item type.</div>
+                <% } else { %>
+                  <% r.workItemTypes.forEach(function(w) { %>
+                    <details class="mb-1">
+                      <summary class="small"><%= w.label %> <code class="text-muted small ms-1"><%= w.code %></code></summary>
+                      <% if (w.descriptionHtml) { %>
+                        <div class="wit-desc ps-3 pt-1"><%- w.descriptionHtml %></div>
+                      <% } else { %>
+                        <div class="small text-muted ps-3 pt-1">No description has been written for this work item type.</div>
+                      <% } %>
+                    </details>
+                  <% }) %>
+                <% } %>
+              </div>
+              <div class="col-lg-5">
+                <div class="small text-muted mb-2">Capabilities needing this Role (<%= r.capabilities.length %>)</div>
+                <% if (r.capabilities.length === 0) { %>
+                  <div class="small text-muted">No Active Capability needs this Role.</div>
+                <% } else { %>
+                  <ul class="list-unstyled mb-0">
+                    <% r.capabilities.forEach(function(c) { %>
+                      <li class="small mb-1">
+                        <a href="/aisworg/seu/capability-definitions/<%= c.id %>" class="text-decoration-none"><%= c.label %></a>
+                        <code class="text-muted small ms-1"><%= c.code %></code>
+                      </li>
+                    <% }) %>
+                  </ul>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    <% } %>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

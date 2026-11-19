@@ -489,7 +489,7 @@ router.post("/seus/:id/quality-gate-waivers", async (req: Request, res: Response
       risks, supportingRecords,
     });
     if (!result.ok) return redirects.seu.seusQualityGateWaivers.error(req, res, `Waiver not granted: ${result.reason}`);
-    return redirects.seu.seusQualityGateWaivers.success(req, res, "Quality Gate waiver granted.");
+    return redirects.seu.seusQualityGateWaivers.success(req, res, "Quality Gate waiver granted. The Quality Gate decision is made again in the background. Reload the page to see it.");
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/quality-gate-waivers error", err as Error);
     return redirects.seu.seusQualityGateWaivers.error(req, res, (err as Error).message);
