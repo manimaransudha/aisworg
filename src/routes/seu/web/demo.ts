@@ -24,8 +24,9 @@ import { evidenceDB } from "../../../dblayer/evidenceDB.js";
 import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
 import { createEvidence, transitionEvidence } from "../core/evidence.js";
 import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
-import { getParticipantHomeView, completeMyWorkItem, raiseMyAttentionItem } from "../core/participantHome.js";
+import { getParticipantHomeView, completeMyWorkItem, raiseMyAttentionItem, reportMyStatus, type ReportedStatus } from "../core/participantHome.js";
 import type { WorkItemOutcome } from "../core/workItems.js";
+import { createDecisionFromForm } from "../core/decisionForm.js";
 import { listViewerParticipants, getViewerParticipant, getViewerAttentionItemOptions, resolveViewerAuthorBadge } from "../core/demoParticipantViewer.js";
 import type { AcquisitionScope, ParticipantMasterRow } from "../../../dblayer/seuTypes.js";
 import { listAreaContent, saveAreaContent, createStep, updateStep, createScenario, updateScenario, setScenarioEnabled } from "../core/demoCatalogue.js";
@@ -184,6 +185,8 @@ router.get("/demo/participants", attachVM("seu/demo/participants"), async (req: 
       req.vm.opt.actionBase = `${participantsPath}/${chosen.id}`;
       req.vm.opt.attentionCategoryOptions = options.categories;
       req.vm.opt.attentionPriorityOptions = options.priorities;
+      req.vm.opt.decisionCategoryOptions = options.decisionCategories;
+      req.vm.opt.alternativeStatusOptions = options.alternativeStatuses;
     }
     return renderView(req, res, "seu/demo/participants", req.vm);
   } catch (err) {
@@ -207,13 +210,30 @@ async function actAsParticipant(req: Request, res: Response, run: (participant: 
 }
 
 router.post("/demo/participants/:participantId/seus/:seuId/attention-items", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
-  const { deliverableId, category, title, description, priority } = req.body ?? {};
+  const { deliverableId, category, title, description, priority, blocksProgress } = req.body ?? {};
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
     throw new Error("Deliverable, category and title are required.");
   }
-  const result = await raiseMyAttentionItem({ userId: participant.id, seuId: String(req.params.seuId), deliverableId, category, title, description, priority });
+  const result = await raiseMyAttentionItem({ userId: participant.id, seuId: String(req.params.seuId), deliverableId, category, title, description, priority, blocksProgress: blocksProgress === "on" });
   if (!result.ok) throw new Error(result.detail);
   return `Attention Item "${result.attentionItem.title}" raised (${result.attentionItem.category}, ${result.attentionItem.priority}).`;
+}));
+
+router.post("/demo/participants/:participantId/seus/:seuId/decisions", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
+  const decision = await createDecisionFromForm({ seuId: String(req.params.seuId), actorId: participant.id, body: req.body ?? {} });
+  return `Decision "${decision.title}" identified (${decision.category}).`;
+}));
+
+router.post("/demo/participants/:participantId/seus/:seuId/report-status", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
+  const { deliverableId, status, evidenceId, reference } = req.body ?? {};
+  if (typeof deliverableId !== "string" || !deliverableId.trim()) throw new Error("Deliverable is required.");
+  const result = await reportMyStatus({
+    userId: participant.id, seuId: String(req.params.seuId), deliverableId, status: String(status) as ReportedStatus,
+    evidenceIds: Array.isArray(evidenceId) ? evidenceId.map(String) : typeof evidenceId === "string" && evidenceId ? [evidenceId] : [],
+    reference: typeof reference === "string" && reference.trim() ? reference : null,
+  });
+  if (!result.ok) throw new Error(result.detail);
+  return result.message;
 }));
 
 router.post("/demo/participants/:participantId/work-items/:workItemId/complete", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {

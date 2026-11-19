@@ -2,12 +2,15 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { commandsDB } from "../../../dblayer/commandsDB.js";
 import { workItemsDB } from "../../../dblayer/workItemsDB.js";
+import { PARTICIPANT_TITLE_MAX_LENGTH } from "../../../dblayer/constants.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { getSeuDetailView, type SeuDetailView } from "./seus.js";
 import { completeWorkItem, type CompleteWorkItemResult, type WorkItemOutcome } from "./workItems.js";
+import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
 import { createAttentionItem } from "./attentionItems.js";
-import { assertCanonicalCategory } from "./ontology.js";
-import type { AttentionItemRow, ParticipantMasterRow, ParticipantRow } from "../../../dblayer/seuTypes.js";
+import { holdDeliverableForAttentionItem, listOpenAttentionObligations } from "./attentionObligations.js";
+import { assertCanonicalCategory, listConceptsForType } from "./ontology.js";
+import type { AttentionItemRow, CommandRow, ParticipantMasterRow, ParticipantRow, WorkItemRow } from "../../../dblayer/seuTypes.js";
 
 export type ParticipantScopedSeuView = Omit<SeuDetailView, "capabilities" | "participantTypes" | "requiredTechnologyPacks" | "requiredDomainPacks" | "evidenceSupersedeCandidates" | "qualityGates">;
 
@@ -109,6 +112,7 @@ export async function raiseMyAttentionItem(input: {
   title: string;
   description?: string;
   priority?: string;
+  blocksProgress?: boolean;
 }): Promise<RaiseMyAttentionItemResult> {
   const { data: master } = await participantsMasterDB.findById(input.userId);
   if (!master) return { ok: false, reason: "not_mine", detail: "No participant information." };
@@ -125,6 +129,7 @@ export async function raiseMyAttentionItem(input: {
     return { ok: false, reason: "not_mine", detail: "This Deliverable is not assigned to you." };
   }
 
+  if (input.title.length > PARTICIPANT_TITLE_MAX_LENGTH) return { ok: false, reason: "not_mine", detail: `The title is at most ${PARTICIPANT_TITLE_MAX_LENGTH} characters.` };
   await assertCanonicalCategory("category:attention-item", input.category);
   if (input.priority) await assertCanonicalCategory("category:attention-priority", input.priority);
 
@@ -138,8 +143,96 @@ export async function raiseMyAttentionItem(input: {
     description: input.description,
     relatedObjectType: "Deliverable",
     relatedObjectId: input.deliverableId,
+    blocksProgress: input.blocksProgress === true,
     actorId: input.userId,
     authorBadge,
   });
+  // A blocking Attention Item holds the hop of the Work Item the Participant is working on through an Obligation.
+  if (attentionItem.blocks_progress) {
+    const outstanding = await findOutstandingWorkItem(input.seuId, engagement.id, input.deliverableId);
+    if (!outstanding) return { ok: false, reason: "not_mine", detail: "The Attention Item was raised, but no outstanding Work Item of yours names the hop it holds." };
+    await holdDeliverableForAttentionItem({ attentionItem, fromState: outstanding.command.from_state, toState: outstanding.command.to_state });
+  }
   return { ok: true, attentionItem };
+}
+
+// The Dispatched Work Item of a Participant on a Deliverable, with its Command. The Command names the hop of the Deliverable the Work Item serves.
+async function findOutstandingWorkItem(seuId: string, participantId: string, deliverableId: string): Promise<{ workItem: WorkItemRow; command: CommandRow } | null> {
+  const { data: commands } = await commandsDB.findBySeuId(seuId);
+  const forDeliverable = (commands ?? []).filter((c) => c.entity_type === "Deliverable" && c.entity_id === deliverableId);
+  const { data: workItems } = await workItemsDB.findByCommandIds(forDeliverable.map((c) => c.id));
+  const workItem = (workItems ?? []).find((w) => w.participant_id === participantId && w.status === "Dispatched");
+  const command = workItem ? forDeliverable.find((c) => c.id === workItem.command_id) : undefined;
+  return workItem && command ? { workItem, command } : null;
+}
+
+export type ReportedStatus = "completed" | "completed_pending_attention" | "blocked";
+
+export type ReportMyStatusResult = { ok: true; status: ReportedStatus; message: string } | { ok: false; reason: "not_mine" | "rule"; detail: string };
+
+// A Participant reports the status of their Work Item on a Deliverable. Completing needs Evidence and no open blocking Attention Item.
+export async function reportMyStatus(input: { userId: string; seuId: string; deliverableId: string; status: ReportedStatus; evidenceIds: string[]; reference?: string | null }): Promise<ReportMyStatusResult> {
+  const { data: master } = await participantsMasterDB.findById(input.userId);
+  if (!master) return { ok: false, reason: "not_mine", detail: "No participant information." };
+  const { data: engagementRows } = await participantsDB.findByParticipantMasterId(master.id);
+  const engagement = (engagementRows ?? []).find((p) => p.seu_id === input.seuId);
+  if (!engagement) return { ok: false, reason: "not_mine", detail: "You are not a Participant on this SEU." };
+  const outstanding = await findOutstandingWorkItem(input.seuId, engagement.id, input.deliverableId);
+  if (!outstanding) return { ok: false, reason: "not_mine", detail: "You have no outstanding Work Item on this Deliverable." };
+
+  const { data: openItems } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", input.deliverableId);
+  const open = openItems ?? [];
+  const blocking = open.filter((a) => a.blocks_progress);
+
+  if (input.status === "blocked") {
+    if (blocking.length === 0) return { ok: false, reason: "rule", detail: "Blocked needs an open Attention Item that blocks the Deliverable. Raise one first." };
+    return { ok: true, status: "blocked", message: `The Deliverable is blocked by ${blocking.length} Attention Item(s). The Work Item stays open.` };
+  }
+
+  // Completing needs Evidence the Participant can see for this SEU.
+  const evidenceIds = [...new Set(input.evidenceIds)];
+  if (evidenceIds.length === 0) return { ok: false, reason: "rule", detail: "Evidence is needed to claim completion. Pick at least one Evidence item." };
+  const home = await getParticipantHomeView(input.userId);
+  const visible = new Set(home.engagements.find((e) => e.participant.id === engagement.id)?.detail.evidence.map((e) => e.evidence.id) ?? []);
+  if (evidenceIds.some((id) => !visible.has(id))) return { ok: false, reason: "rule", detail: "An Evidence item picked is not one of yours on this SEU." };
+
+  if (input.status === "completed") {
+    if (open.length > 0) return { ok: false, reason: "rule", detail: `Completed needs no open Attention Item. ${open.length} are open. Resolve them, or use Completed Pending Attention.` };
+  } else {
+    if (blocking.length > 0) return { ok: false, reason: "rule", detail: `Completed Pending Attention needs no open Attention Item that blocks the Deliverable. ${blocking.length} do.` };
+    if (open.length === 0) return { ok: false, reason: "rule", detail: "No Attention Item is open. Use Completed." };
+    // Each open Attention Item holds the hop through its own Obligation. The Obligations exist before the Work Item completes.
+    for (const attentionItem of open) {
+      await holdDeliverableForAttentionItem({ attentionItem, fromState: outstanding.command.from_state, toState: outstanding.command.to_state });
+    }
+  }
+
+  const completed = await completeWorkItem({ workItemId: outstanding.workItem.id, outcome: "done", reference: input.reference ?? null });
+  if (!completed.ok) return { ok: false, reason: "rule", detail: completed.detail };
+  const held = (await listOpenAttentionObligations(input.deliverableId)).length;
+  return {
+    ok: true,
+    status: input.status,
+    message: input.status === "completed" ? "Completion recorded." : `Completion recorded. The Deliverable is held by ${held} Obligation(s) until its Attention Items are resolved.`,
+  };
+}
+
+export interface ParticipantActionOptions {
+  categories: string[];
+  priorities: string[];
+  decisionCategories: string[];
+  alternativeStatuses: string[];
+}
+
+const codesOf = (concepts: Array<{ code: string }>): string[] => [...new Set(concepts.map((c) => c.code))].sort();
+
+// The Ontology choices of the "My Work" action forms: the Attention Item category and priority, the Decision type and the status of a Decision alternative.
+export async function getParticipantActionOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<ParticipantActionOptions> {
+  const [categories, priorities, decisionCategories, alternativeStatuses] = await Promise.all([
+    listConceptsForType("category:attention-item", viewer, false),
+    listConceptsForType("category:attention-priority", viewer, false),
+    listConceptsForType("category:decision", viewer, false),
+    listConceptsForType("decision-alternative-status", viewer, false),
+  ]);
+  return { categories: codesOf(categories), priorities: codesOf(priorities), decisionCategories: codesOf(decisionCategories), alternativeStatuses: codesOf(alternativeStatuses) };
 }

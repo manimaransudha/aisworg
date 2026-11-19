@@ -10,6 +10,7 @@ import { redispatchHandler } from "./redispatch.js";
 import { conceptCreatedHandler } from "./conceptCreated.js";
 import { capabilityRequestedHandler } from "./capabilityRequested.js";
 import { capabilityOnReadyHandler } from "./capabilityOnReady.js";
+import { attentionObligationResolveHandler } from "./attentionObligationResolve.js";
 import { demoEngagementHandler } from "../../routes/seu/core/demoEngagement.js";
 import type { EventHandler } from "./eventBus.js";
 
@@ -27,4 +28,5 @@ export const HANDLER_REGISTRY: Record<string, EventHandler> = {
   capabilityRequested: capabilityRequestedHandler,
   capabilityOnReady: capabilityOnReadyHandler,
   demoEngagement: demoEngagementHandler,
+  attentionObligationResolve: attentionObligationResolveHandler,
 };

@@ -31,15 +31,19 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
-import { createObligationAsRoot as createObligation, grantBadge, createActiveObjective, emptyParticipantPool } from "./testFixtures.js";
+import { createObligationAsRoot as createObligation, createEvidenceAsRoot, grantBadge, createActiveObjective, emptyParticipantPool } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
-import { raiseMyAttentionItem } from "../src/routes/seu/core/participantHome.js";
+import { raiseMyAttentionItem, reportMyStatus } from "../src/routes/seu/core/participantHome.js";
+import { grantQualityGateWaiver } from "../src/routes/seu/core/qualityGateWaivers.js";
 import { transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { fulfilCapabilityAsRoot as fulfilCapability, clickTransitionAfterLag, getEmptyPoolTenantId, deactivateParticipants } from "./testFixtures.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
+import { createRequire } from "module";
+import { getParticipantHomeView } from "../src/routes/seu/core/participantHome.js";
+const ejs = createRequire(import.meta.url)("ejs");
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
@@ -337,6 +341,75 @@ test("CR-108 item 3: a Participant can raise an Attention Item against their own
   assert.equal(raised.attentionItem.related_object_type, "Deliverable");
   assert.equal(raised.attentionItem.related_object_id, requirementsSpec!.id);
   assert.equal(raised.attentionItem.seu_id, seuId);
+
+  // CR-149 Part 5: an Attention Item raised with the block flag holds the Deliverable through an Obligation that no waiver covers,
+  // and resolving the Attention Item resolves that Obligation.
+  const blocking = await raiseMyAttentionItem({
+    userId: participantMasterId, seuId, deliverableId: requirementsSpec!.id,
+    category: "Operational", title: "CR-149 blocking attention item", priority: "High", blocksProgress: true,
+  });
+  assert.equal(blocking.ok, true, !blocking.ok ? JSON.stringify(blocking) : "assertion failed");
+  if (!blocking.ok) throw new Error("unreachable");
+  assert.equal(blocking.attentionItem.blocks_progress, true);
+  const heldBy = (await obligationsDB.findByRelatedObject("Deliverable", requirementsSpec!.id)).data?.filter((o) => o.originating_entity_id === blocking.attentionItem.id) ?? [];
+  assert.equal(heldBy.length, 1, "a blocking Attention Item opens exactly one Obligation");
+  assert.equal(heldBy[0]!.originating_entity_type, "AttentionItem");
+  assert.ok(heldBy[0]!.blocked_from_state && heldBy[0]!.blocked_to_state, "the Obligation names the hop it holds");
+
+  // CR-149 Part 5: no waiver covers the Obligation of a blocking Attention Item.
+  const waiverTry = await grantQualityGateWaiver({
+    scope: "Obligation", obligationCategory: "Engineering", obligationTitle: heldBy[0]!.title, seuId, entityType: "Deliverable", entityId: requirementsSpec!.id,
+    rationale: "CR-149 test", actorId: ROOT_ACTOR_ID,
+  });
+  assert.equal(waiverTry.ok, false);
+  assert.match(!waiverTry.ok ? waiverTry.reason : "", /Attention Item/);
+
+  // CR-149 Part 5: the gate that counts Obligations cannot be waived while that Obligation is open.
+  const { data: gateSeu } = await seusDB.findById(seuId);
+  const obligationsGate = (await ebmGatesByCode(gateSeu!))["no-unresolved-obligations"];
+  assert.ok(obligationsGate, "the EBM of the SEU names the no-unresolved-obligations gate");
+  const gateWaiverTry = await grantQualityGateWaiver({
+    scope: "Gate", qualityGateId: obligationsGate!.id, seuId, entityType: "Deliverable", entityId: requirementsSpec!.id, rationale: "CR-149 test", actorId: ROOT_ACTOR_ID,
+  });
+  assert.equal(gateWaiverTry.ok, false);
+  assert.match(!gateWaiverTry.ok ? gateWaiverTry.reason : "", /Attention Item/);
+
+  // The Participant's My Work page offers the five actions as modals and no Obligation form.
+  const home = await getParticipantHomeView(participantMasterId);
+  const html = await ejs.renderFile("src/views/quickview/_participantHome.ejs", {
+    participantHome: home, csrfToken: "t", attentionCategoryOptions: ["Operational"], attentionPriorityOptions: ["Medium"], decisionCategoryOptions: ["Engineering Decisions"], alternativeStatusOptions: ["Candidate"],
+  });
+  for (const label of ["Raise Attention Item", "Create Knowledge", "Create Decision", "Provide Evidence", "Report Status"]) assert.ok(html.includes(label), `the page offers "${label}"`);
+  assert.ok(!html.includes("Raise Obligation"), "a Participant has no Obligation form");
+  assert.ok(html.includes(`/aisworg/quickview/seus/${seuId}/report-status`) && html.includes(`/aisworg/quickview/seus/${seuId}/attention-items`), "the modals post to the Participant routes");
+
+  // CR-149 Part 5: Report Status. Blocked is accepted while a blocking Attention Item is open. Completed needs Evidence and no open Attention Item.
+  const blockedReport = await reportMyStatus({ userId: participantMasterId, seuId, deliverableId: requirementsSpec!.id, status: "blocked", evidenceIds: [] });
+  assert.equal(blockedReport.ok, true, JSON.stringify(blockedReport));
+  const noEvidence = await reportMyStatus({ userId: participantMasterId, seuId, deliverableId: requirementsSpec!.id, status: "completed", evidenceIds: [] });
+  assert.equal(noEvidence.ok, false);
+  assert.match(!noEvidence.ok ? noEvidence.detail : "", /Evidence is needed/);
+  const evidence = await createEvidenceAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec!.id, category: "Analytical Evidence", title: `CR-149 evidence ${run}` });
+  const openAttention = await reportMyStatus({ userId: participantMasterId, seuId, deliverableId: requirementsSpec!.id, status: "completed", evidenceIds: [evidence.id] });
+  assert.equal(openAttention.ok, false);
+  assert.match(!openAttention.ok ? openAttention.detail : "", /no open Attention Item/);
+  const pendingWhileBlocking = await reportMyStatus({ userId: participantMasterId, seuId, deliverableId: requirementsSpec!.id, status: "completed_pending_attention", evidenceIds: [evidence.id] });
+  assert.equal(pendingWhileBlocking.ok, false);
+  assert.match(!pendingWhileBlocking.ok ? pendingWhileBlocking.detail : "", /blocks the Deliverable/);
+
+  // Resolving the blocking Attention Item resolves its Obligation.
+  for (const targetState of ["Delivered", "Acknowledged", "In Progress", "Resolved"]) {
+    const moved = await transitionAttentionItem({ attentionItemId: blocking.attentionItem.id, targetState, actorId: ROOT_ACTOR_ID });
+    assert.equal(moved.ok, true, `${targetState}: ${JSON.stringify(moved)}`);
+  }
+  await waitUntilAsync(async () => (await obligationsDB.findById(heldBy[0]!.id)).data?.status === "Verified");
+  assert.equal((await obligationsDB.findById(heldBy[0]!.id)).data?.status, "Verified", "resolving the Attention Item resolves its Obligation");
+
+  // Completed Pending Attention: the first, non-blocking Attention Item is still open, so the Work Item completes and an Obligation holds the Deliverable for it.
+  const pending = await reportMyStatus({ userId: participantMasterId, seuId, deliverableId: requirementsSpec!.id, status: "completed_pending_attention", evidenceIds: [evidence.id] });
+  assert.equal(pending.ok, true, JSON.stringify(pending));
+  const heldForFirst = (await obligationsDB.findByRelatedObject("Deliverable", requirementsSpec!.id)).data?.filter((o) => o.originating_entity_id === raised.attentionItem.id) ?? [];
+  assert.equal(heldForFirst.length, 1, "an open Attention Item holds the Deliverable through its own Obligation");
 
   // A Deliverable never dispatched to this Participant — not_mine, no
   // Attention Item created, regardless of whether the id is even real.

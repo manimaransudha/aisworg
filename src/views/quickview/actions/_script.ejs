@@ -1,0 +1,37 @@
+<%# Opens an action modal for the Deliverable of the button that was clicked, and drives the Create Decision alternatives and aside. %>
+<script>
+        (function () {
+          document.querySelectorAll('[data-pm]').forEach(function (modal) {
+            var altsBox = modal.querySelector('[data-pm-alts]');
+            var tpl = modal.querySelector('[data-pm-alt-template]');
+            function addAlt() { if (altsBox && tpl) altsBox.appendChild(tpl.content.cloneNode(true)); }
+            modal.addEventListener('show.bs.modal', function (event) {
+              var b = event.relatedTarget;
+              var id = b.getAttribute('data-deliverable-id'), name = b.getAttribute('data-deliverable-name');
+              modal.querySelector('[data-pm-id]').value = id;
+              modal.querySelector('[data-pm-name]').value = name;
+              modal.querySelectorAll('[data-pm-for]').forEach(function (el) { el.style.display = el.getAttribute('data-pm-for').split(' ').indexOf(id) >= 0 ? '' : 'none'; });
+              modal.querySelectorAll('[data-pm-for-name]').forEach(function (el) { el.style.display = el.getAttribute('data-pm-for-name').split('|').indexOf(name) >= 0 ? '' : 'none'; });
+              if (altsBox && !altsBox.children.length) addAlt();
+            });
+            var add = modal.querySelector('[data-pm-add-alt]');
+            if (add) add.addEventListener('click', addAlt);
+            modal.addEventListener('click', function (e) { var r = e.target.closest('[data-pm-remove-alt]'); if (r) r.closest('[data-pm-alt]').remove(); });
+            var aside = modal.querySelector('[data-pm-aside]');
+            modal.querySelectorAll('[data-pm-detail]').forEach(function (sel) {
+              sel.addEventListener('change', function () {
+                var picked = Array.prototype.filter.call(sel.options, function (o) { return o.selected; });
+                var last = picked[picked.length - 1];
+                if (aside && last) aside.textContent = last.textContent + ': ' + last.getAttribute('data-detail');
+              });
+            });
+            modal.querySelectorAll('form').forEach(function (f) {
+              f.addEventListener('submit', function (e) {
+                if (!modal.querySelector('[data-pm-detail]')) return;
+                var picked = f.querySelectorAll('[data-pm-detail] option:checked').length;
+                if (picked === 0) { e.preventDefault(); if (aside) aside.textContent = 'Select at least one Knowledge Item or Evidence item.'; }
+              });
+            });
+          });
+        })();
+      </script>

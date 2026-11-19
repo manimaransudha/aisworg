@@ -22510,15 +22510,6 @@
   },
   {
     "concept_type": "category:attention-item",
-    "code": "Action Required",
-    "default_label": "Action Required",
-    "description": "A person has to take an action before the work can continue.",
-    "is_mandatory": null,
-    "text_type": "text",
-    "ui_grouping": "Attention Item"
-  },
-  {
-    "concept_type": "category:attention-item",
     "code": "Escalation",
     "default_label": "Escalation",
     "description": "The matter needs the notice of someone with wider authority.",

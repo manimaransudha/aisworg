@@ -217,3 +217,153 @@ A Participant can no longer raise an Obligation. A Participant raises an Attenti
 Test fixtures updated in the same pass: tests/cr108-obligation-model-seu-execution.test.ts (the Participant test raises an Attention Item and the Participant is granted `attentionitem_raise`), and a comment in tests/web-flow.e2e.test.ts.
 
 Run: `tsc` was run and is clean. Tests and `db:clean-slate` were not run. `db:clean-slate` is needed for the Ontology concepts and the route rows.
+
+## 16. Part 5: Deliverable actions in the Participant SEU view (2026-11-19, built, not yet run)
+
+### Raised
+
+In the Participant SEU view, the Deliverables tab shows a collapsible group of action buttons against each Deliverable. The forms inside the other tabs are removed. Each action opens a modal form.
+
+| Action | Replaces |
+|---|---|
+| Raise Attention Item | The form of the Attention Items tab (Part 4). |
+| Create Knowledge | The form of the Knowledge tab. |
+| Create Decision | The form of the Decisions tab, where one exists. |
+| Provide Evidence | The form of the Evidence tab. |
+| Report Status | The Work Item result form (done, failed, blocked). |
+
+### Settled
+
+- The five actions are the ones above, in that order.
+- The tabs keep their lists. Only their forms move into modals.
+
+### Raise Attention Item modal (as given by the owner)
+
+| Field | Content |
+|---|---|
+| Deliverable | The Deliverable of the row, by default. |
+| Action Required | A dropdown of `category:attention-item` with Escalation and Operational. |
+| Title | Short text, at most 100 characters. |
+| Description | The details of the Attention Item. |
+| Priority | A dropdown of `category:attention-priority`. |
+| Blocks Deliverable progress | A flag that says whether the Attention Item blocks the Deliverable. |
+
+Submitting raises the Attention Item. It shows in the Attention Items tab of the Participant view and of the SEU view.
+
+### Create Knowledge modal (as given by the owner)
+
+| Item | Content |
+|---|---|
+| Fields | The fields of the existing Knowledge form for now: Deliverable (the row's Deliverable by default), supporting Evidence, category, title and acquisition scope. The Knowledge cleanup will expand them later. |
+| Info icon | The form carries an info icon with the text "Use this to provide information on reusable components/assets only. Work Item related artefacts have to be reported in Evidence". |
+
+### Create Decision modal (as given by the owner)
+
+| Field | Content |
+|---|---|
+| Deliverable | The Deliverable of the row. |
+| Decision Type | A dropdown of the Ontology `category:decision` (Architecture, Design, Engineering, Operational and Governance Decisions). |
+| Title | At most 100 characters. |
+| Alternatives | A list of entries, each with the alternative text, a rationale, a risk and chosen or rejected. |
+| Supporting Knowledge | A dropdown of the Knowledge Items of the SEU. It shows titles and saves ids. The details of the picked item show in an aside. |
+| Supporting Evidence | The same as Supporting Knowledge, for Evidence. |
+
+At least one Knowledge Item or Evidence item has to be selected (already enforced by `createDecision`). Submitting creates the Decision. It shows in the Decisions tab of the Participant view and of the SEU view.
+
+Settled: the alternative keeps its shape (`statement`, `assumptions`, `consequences`, `status`, `rationale`) and the Ontology `decision-alternative-status` is unchanged. The risk of an alternative is kept in `consequences`.
+
+Existing support (verified): `createDecision` takes the category, the title, the alternatives, the Knowledge ids and the Evidence ids. An alternative has `statement`, `assumptions`, `consequences`, `status` and `rationale`. The status comes from the Ontology `decision-alternative-status` (Candidate, Evaluating, Investigating, Deferred, Rejected, Approved).
+
+### Provide Evidence modal (as given by the owner)
+
+The modal uses the fields of the existing Evidence form (Deliverable, category, title, source). The owner will expand it later.
+
+### Report Status modal (as given by the owner)
+
+The modal shows the list of Evidence, the list of Knowledge, the list of Decisions and the list of Attention Items of the Deliverable. It has three buttons.
+
+| Button | Rule |
+|---|---|
+| Completed | Evidence is mandatory. The Deliverable has no open Attention Item. |
+| Completed Pending Attention | Evidence is mandatory. The Deliverable has no open Attention Item that carries the block flag. |
+| Blocked | The Deliverable has an Attention Item that carries the block flag. |
+
+Completed Pending Attention blocks the Deliverable. Blocking is enforced through an Obligation: raising an Attention Item that has the block flag opens an Obligation on the Deliverable, and the existing Quality Gate on unresolved Obligations then holds the hop. When the Attention Item is resolved, its Obligation resolves with it automatically. The block flag is the flag of the Raise Attention Item modal. An Attention Item has no column for it today, so storing it is a schema change (with the test fixtures that follow from it).
+
+### Report Status effect (settled)
+
+| Button | Effect |
+|---|---|
+| Completed | The outcome is done. The Work Item completes and the Deliverable transition is applied. |
+| Completed Pending Attention | The outcome is done. The Work Item completes, and an Obligation holds the Deliverable transition. |
+| Blocked | The Work Item stays open and no transition is applied until the blocking Attention Item is resolved. |
+
+### Blocking through the existing gate (settled)
+
+- The EBM is not changed and no new Quality Gate is added. The existing gate `no-unresolved-obligations` holds the hop.
+- An Attention Item cannot be waived. It needs a person to fix it and to change its status to completion.
+- An open Obligation raised from a blocking Attention Item is a condition of the hop decision that no waiver covers (`waivable` is null). No existing waiver is cancelled. The Grant waiver form shows the line as not waivable.
+- The Obligation resolves with its Attention Item. Resolving the Attention Item is the only release.
+- To check when building: how the engine builds the extra conditions of a hop decision, and that this needs no change to the gate itself.
+
+### Evidence on Report Status (settled)
+
+Completed and Completed Pending Attention need at least one Evidence item, picked by the Participant from the list in the modal. Evidence is a must to claim completion. A Decision is preferable and is not enforced.
+
+### Build notes found while reading the code (2026-11-19)
+
+- The Obligation of a blocking Attention Item records its origin in `originating_entity_type` and `originating_entity_id` (existing columns). It carries `blocked_from_state` and `blocked_to_state`, because the Deliverable check in `executionEngine.ts` only holds a hop for an Obligation that has both.
+- `obligationWaivable` in `executionEngine.ts` gives the waivable of an open Deliverable Obligation. An Obligation that originates from an Attention Item gets null there.
+- The waiver lines of the SEU view (`seus.ts`) mark that Obligation, and the gate line of `no_unresolved_obligations`, as not waivable. `grantQualityGateWaiver` refuses a waiver that would cover it.
+- The auto-resolve is an event subscriber on `AttentionItemTransitioned`, because the effect lands on a different entity (the Obligation).
+
+### Note: authority of the system participant (owner, 2026-11-19)
+
+The system participant resolves the Obligation of an Attention Item through `badgeAuthorityEngine.resolveAuthorBadge`, which today lets the platform system actor hold the badges of the prefixes `deliverable_`, `participant_` and `waiver_`. The build adds `obligation_` to that list as an interim rule. The owner will set up authority rules inside the Profile to grant this, and will pick the point up when the authority rules are expanded. The interim prefix is then removed.
+
+### Still open
+
+- The fields of each modal form.
+- What each action does when it is submitted.
+- Raise Attention Item: what the blocking flag does (stored as a column; the Report Status rules above use it), and whether the category list drops Action Required.
+- Whether Report Status replaces the Complete control on the Work Item line.
+
+Nothing is built for this part. The owner will give the form details in the following messages, and the build starts once they are agreed.
+
+### Built (2026-11-19)
+
+| Area | Change |
+|---|---|
+| Participant view | The Deliverables tab has an Actions column with a collapsible group of five buttons. Each opens a modal that names the Deliverable. The create forms of the Attention Items, Evidence and Knowledge tabs are removed. The row transition forms stay. |
+| Raise Attention Item | Category (the Ontology `category:attention-item`, now Escalation and Operational), title (100 characters), description, priority and the block flag. `attention_items.blocks_progress` is a new column. |
+| Create Knowledge | The existing fields and the info icon. |
+| Create Decision | Decision type, title (100 characters), alternatives (statement, status, rationale, risk kept in `consequences`), Knowledge and Evidence pick lists with an aside. `createDecisionFromForm` serves the SEU route and the new Demo route. |
+| Provide Evidence | The existing fields. |
+| Report Status | Lists of Evidence (to pick), Knowledge, Decisions and Attention Items of the Deliverable, and the three buttons. `reportMyStatus` applies the rules above. Completing calls `completeWorkItem` with outcome done. |
+| Blocking | `attentionObligations.ts` raises one Obligation per Attention Item (origin `AttentionItem`, with the hop of the Work Item). The subscriber `attentionObligationResolve` (AttentionItemTransitioned) walks it to Verified when the Attention Item is Resolved or Closed. `executionEngine.ts` gives it no waiver, `seus.ts` shows its waiver lines as not waivable, and `grantQualityGateWaiver` refuses a waiver that names it or its gate. |
+| Routes | `POST /aisworg/quickview/seus/:seuId/report-status`, and the Demo `decisions` and `report-status` routes, each with a route_authority row. |
+| Constants | `OBLIGATION_BADGE_PREFIX`, `ATTENTION_ITEM_ENTITY_TYPE`, `ATTENTION_OBLIGATION_CATEGORY`, `ATTENTION_OBLIGATION_ORIGIN`, `OBLIGATION_RESOLUTION_PATH`, `PARTICIPANT_TITLE_MAX_LENGTH`. |
+
+Test fixtures updated in the same pass: tests/cr108-obligation-model-seu-execution.test.ts (a blocking Attention Item opens one Obligation that names the hop). `attention_items.blocks_progress` has a default, so no other fixture changes.
+
+Run: `tsc` is clean. Tests and `db:clean-slate` were not run. `db:clean-slate` is needed for the column, the Ontology concepts, the subscription row and the route rows.
+
+### Open after the build
+
+- The Work Item "Complete" control in the Commands tab is still there. It completes without Evidence. Report Status is meant to replace it, which the owner has not confirmed.
+- The Knowledge pick list of Create Decision shows the Knowledge Items the Participant can see, which are the ones on their own Deliverables. The owner asked for the Knowledge Items of the SEU.
+- The Evidence picked on Report Status is checked to be visible to the Participant. It is not stored against the Work Item.
+- The auto-resolve is not covered by a test yet.
+- Blocked leaves the Work Item open and changes nothing else. It needs an open Attention Item that has the block flag.
+
+### Partials (owner, 2026-11-19)
+
+Each action modal is its own partial under src/views/quickview/actions: `_attention.ejs`, `_knowledge.ejs`, `_decision.ejs`, `_evidence.ejs` and `_status.ejs`. The shared script is `_script.ejs`. `_participantHome.ejs` includes them with one locals object, so a change to one action touches one file. The modal form posts to a core function of its own (`raiseMyAttentionItem`, `createDecisionFromForm`, `reportMyStatus`, and the existing Knowledge and Evidence routes). The templates compile. They were not rendered in a browser.
+
+### Tests (2026-11-19)
+
+- tests/cr108-obligation-model-seu-execution.test.ts: the Participant raises an Attention Item, and a blocking one opens one Obligation that names the hop.
+- tests/web-seu-entities.test.ts: the Decisions route keeps its messages. A title over 100 characters is refused. Two alternatives are saved with their statuses, and the risk goes to the consequences.
+- tests/cr108-obligation-model-seu-execution.test.ts, the same Participant test: a waiver that names the Obligation of a blocking Attention Item is refused. Report Status: Blocked is accepted while a blocking Attention Item is open, Completed with no Evidence is refused, Completed and Completed Pending Attention are refused while an open Attention Item (or a blocking one) stands. Resolving the blocking Attention Item takes its Obligation to Verified. Completed Pending Attention then completes the Work Item and opens an Obligation for the remaining Attention Item.
+- The same test also checks that a Gate waiver on `no-unresolved-obligations` is refused while the Obligation is open, and renders `_participantHome.ejs` with the Participant's data. The page offers the five actions and no Obligation form, and its modals post to the Participant routes.
+- Not covered: the QuickView and Demo POST routes called over HTTP, and the browser behaviour of the modals (the Deliverable fill, the alternatives rows and the aside). Tests and `db:clean-slate` were not run.

@@ -64,6 +64,7 @@
     { "eventType": "RedispatchRequested", "handlerName": "redispatch" },
     { "eventType": "ObligationTransitioned", "handlerName": "deliverableKickoff" },
     { "eventType": "AttentionItemTransitioned", "handlerName": "executionEngineKickoff" },
+    { "eventType": "AttentionItemTransitioned", "handlerName": "attentionObligationResolve" },
     { "eventType": "AttentionItemTransitioned", "handlerName": "deliverableKickoff" },
     { "eventType": "QualityGateWaiverCreated", "handlerName": "deliverableKickoff" },
     { "eventType": "ConceptCreated", "handlerName": "conceptCreated" }

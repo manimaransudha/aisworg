@@ -9,7 +9,8 @@ import { evidenceDB } from "../../../dblayer/evidenceDB.js";
 import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
 import { decisionsDB } from "../../../dblayer/decisionsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { QUALITY_GATE_WAIVE_BADGE, WAIVER_CONTROL_CONCEPT, WAIVER_CONTROL_EXPIRY, WAIVER_CONTROL_OBLIGATION, WAIVER_CONTROL_ACCEPT_RISK, WAIVER_RISK_ENTITY_TYPE, WAIVER_SCOPE_GATE, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_OBLIGATION, WAIVER_SCOPE_POLICY_OBLIGATION, WAIVER_SCOPES, WAIVER_ENTITY_TYPE, WAIVER_SUPPORT_EVIDENCE, WAIVER_SUPPORT_KNOWLEDGE, WAIVER_SUPPORT_DECISION, WAIVER_SUPPORT_TYPES, WAIVER_DEFAULT_EXPIRY_DAYS } from "../../../dblayer/constants.js";
+import { QUALITY_GATE_WAIVE_BADGE, WAIVER_CONTROL_CONCEPT, WAIVER_CONTROL_EXPIRY, WAIVER_CONTROL_OBLIGATION, WAIVER_CONTROL_ACCEPT_RISK, WAIVER_RISK_ENTITY_TYPE, WAIVER_SCOPE_GATE, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_OBLIGATION, WAIVER_SCOPE_POLICY_OBLIGATION, WAIVER_SCOPES, WAIVER_ENTITY_TYPE, WAIVER_SUPPORT_EVIDENCE, WAIVER_SUPPORT_KNOWLEDGE, WAIVER_SUPPORT_DECISION, WAIVER_SUPPORT_TYPES, WAIVER_DEFAULT_EXPIRY_DAYS, QUALITY_GATE_CRITERIA_NO_UNRESOLVED_OBLIGATIONS } from "../../../dblayer/constants.js";
+import { listOpenAttentionObligations } from "./attentionObligations.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import { createObligation } from "./obligations.js";
 import { resolveAuthor } from "./attentionItems.js";
@@ -122,6 +123,20 @@ export async function grantQualityGateWaiver(input: {
     }
   } else if (input.shareWithProfile || coveredIds.length > 1) {
     return { ok: false, reason: "a waiver granted for the SEU covers the SEU only" };
+  }
+
+  // An Obligation that holds a Deliverable for an Attention Item is covered by no waiver. An Attention Item needs a person to fix it, so a waiver that
+  // names that Obligation, or the gate that counts it, is refused while the Obligation is open.
+  if (input.entityType === "Deliverable") {
+    let namesGateOfObligations = false;
+    if (scope === WAIVER_SCOPE_GATE && input.qualityGateId) {
+      const { data: gateDefinitions } = await qualityGateDefinitionsDB.findByIds([input.qualityGateId]);
+      namesGateOfObligations = (gateDefinitions ?? []).some((g) => g.criteria_type === QUALITY_GATE_CRITERIA_NO_UNRESOLVED_OBLIGATIONS);
+    }
+    for (const id of coveredIds) {
+      const held = (await listOpenAttentionObligations(id)).filter((o) => namesGateOfObligations || ((scope === WAIVER_SCOPE_OBLIGATION || scope === WAIVER_SCOPE_POLICY_OBLIGATION) && o.title === input.obligationTitle));
+      if (held.length > 0) return { ok: false, reason: `an Obligation holds the Deliverable for an Attention Item ("${held[0]!.title}"). No waiver covers it. Resolve the Attention Item.` };
+    }
   }
 
   // Every risk and control is checked before anything is written.

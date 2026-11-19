@@ -1,3 +1,4 @@
+import { getParticipantActionOptions, type ParticipantActionOptions } from "./participantHome.js";
 import type { Request } from "express";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { resolveAuthorBadge, type HeldBadges } from "../../../domain/identity/heldBadges.js";
@@ -30,15 +31,7 @@ export async function resolveViewerAuthorBadge(req: Request, participantId: stri
   return resolveAuthorBadge(lookupRouteAuthority(req.method, req.baseUrl + req.path), held);
 }
 
-// The Attention Item category and priority choices of the "My Work" form, read from the Ontology for the Demo tenant.
-export async function getViewerAttentionItemOptions(demoTenantId: string): Promise<{ categories: string[]; priorities: string[] }> {
-  const viewer = { isRoot: false, tenantId: demoTenantId };
-  const [categories, priorities] = await Promise.all([
-    listConceptsForType("category:attention-item", viewer, false),
-    listConceptsForType("category:attention-priority", viewer, false),
-  ]);
-  return {
-    categories: [...new Set(categories.map((c) => c.code))].sort(),
-    priorities: [...new Set(priorities.map((c) => c.code))].sort(),
-  };
+// The category and status choices of the "My Work" action forms, read from the Ontology for the Demo tenant.
+export async function getViewerAttentionItemOptions(demoTenantId: string): Promise<ParticipantActionOptions> {
+  return getParticipantActionOptions({ isRoot: false, tenantId: demoTenantId });
 }

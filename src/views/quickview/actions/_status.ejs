@@ -1,0 +1,42 @@
+<%#
+  The "status" action modal of an engagement in My Work. Opened from the Actions of a Deliverable row of the Deliverables tab.
+  Locals: d (the engagement detail), mid (the modal id of an action), relIds, urlOf (the form URLs), csrfToken, and the option lists the form needs.
+%>
+        <div class="modal fade" id="<%= mid('status') %>" tabindex="-1" aria-hidden="true" data-pm>
+          <div class="modal-dialog modal-lg modal-dialog-scrollable"><form class="modal-content" method="POST" action="<%= urlOf.reportStatus(d.seu.id) %>">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="deliverableId" data-pm-id>
+            <div class="modal-header"><h5 class="modal-title mb-0">Report Status</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body small">
+              <div class="mb-2"><label class="form-label text-muted mb-1">Deliverable</label><input type="text" class="form-control form-control-sm" data-pm-name readonly></div>
+              <div class="mb-1 text-muted">Evidence (pick at least one to claim completion)</div>
+              <div class="mb-2">
+                <% if (d.evidence.length === 0) { %><span class="text-muted">None.</span><% } %>
+                <% d.evidence.forEach(function (e) { %>
+                  <div class="form-check" data-pm-for="<%= relIds(e) %>"><input class="form-check-input" type="checkbox" name="evidenceId" value="<%= e.evidence.id %>" id="<%= mid('status') %>-e-<%= e.evidence.id %>"><label class="form-check-label" for="<%= mid('status') %>-e-<%= e.evidence.id %>"><%= e.evidence.title %> <span class="text-muted">(<%= e.evidence.category %>, <%= e.evidence.status %>)</span></label></div>
+                <% }) %>
+              </div>
+              <div class="mb-1 text-muted">Knowledge</div>
+              <div class="mb-2">
+                <% if (d.knowledgeItems.length === 0) { %><span class="text-muted">None.</span><% } %>
+                <% d.knowledgeItems.forEach(function (k) { %><div data-pm-for="<%= k.knowledgeItem.deliverable_id %>"><%= k.knowledgeItem.title %> <span class="text-muted">(<%= k.knowledgeItem.category %>, <%= k.knowledgeItem.status %>)</span></div><% }) %>
+              </div>
+              <div class="mb-1 text-muted">Decisions</div>
+              <div class="mb-2">
+                <% if (d.decisions.length === 0) { %><span class="text-muted">None.</span><% } %>
+                <% d.decisions.forEach(function (dec) { %><div data-pm-for-name="<%= dec.relatedObjectLabels.join('|') %>"><%= dec.decision.title %> <span class="text-muted">(<%= dec.decision.category %>, <%= dec.decision.status %>)</span></div><% }) %>
+              </div>
+              <div class="mb-1 text-muted">Attention Items</div>
+              <div class="mb-2">
+                <% if (d.attentionItems.length === 0) { %><span class="text-muted">None.</span><% } %>
+                <% d.attentionItems.forEach(function (a) { %><div data-pm-for="<%= a.attentionItem.related_object_id %>"><%= a.attentionItem.title %> <span class="text-muted">(<%= a.attentionItem.category %>, <%= a.attentionItem.priority %>, <%= a.attentionItem.status %><%= a.attentionItem.blocks_progress ? ', blocks the Deliverable' : '' %>)</span></div><% }) %>
+              </div>
+              <div class="mb-2"><label class="form-label text-muted mb-1">Reference</label><input type="text" name="reference" class="form-control form-control-sm" placeholder="optional"></div>
+              <p class="text-muted mb-0">Completed needs Evidence and no open Attention Item. Completed Pending Attention needs Evidence and no open Attention Item that blocks the Deliverable, and holds the Deliverable until the Attention Items are resolved. Blocked needs an open Attention Item that blocks the Deliverable.</p>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" name="status" value="completed" class="btn btn-sm btn-primary">Completed</button>
+              <button type="submit" name="status" value="completed_pending_attention" class="btn btn-sm btn-outline-primary">Completed Pending Attention</button>
+              <button type="submit" name="status" value="blocked" class="btn btn-sm btn-outline-danger">Blocked</button>
+            </div>
+          </form></div>
+        </div>

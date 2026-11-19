@@ -7,6 +7,8 @@
   var _ab = locals.actionBase || '';
   var urlOf = {
     attentionItem: function (seuId) { return _ab ? _ab + '/seus/' + seuId + '/attention-items' : '/aisworg/quickview/seus/' + seuId + '/attention-items'; },
+    decision: function (seuId) { return (_ab ? _ab + '/seus/' : '/aisworg/seu/seus/') + seuId + '/decisions'; },
+    reportStatus: function (seuId) { return _ab ? _ab + '/seus/' + seuId + '/report-status' : '/aisworg/quickview/seus/' + seuId + '/report-status'; },
     workItem: function (workItemId) { return _ab ? _ab + '/work-items/' + workItemId + '/complete' : '/aisworg/quickview/work-items/' + workItemId + '/complete'; },
     evidence: function (seuId) { return (_ab ? _ab + '/seus/' : '/aisworg/seu/seus/') + seuId + '/evidence'; },
     evidenceTransition: function (seuId, evidenceId) { return (_ab ? _ab + '/seus/' : '/aisworg/seu/seus/') + seuId + '/evidence/' + evidenceId + '/transition'; },
@@ -38,7 +40,8 @@
         <div class="section-card">
           <div class="p-3 text-muted small">No SEU engagements yet.</div>
         </div>
-      <% } %>
+  
+    <% } %>
 
       <% participantHome.engagements.forEach(function(eng, idx) { %>
         <% var d = eng.detail; var prefix = 'p' + idx; %>
@@ -76,13 +79,23 @@
               <div class="tab-pane fade show active" id="<%= prefix %>-deliverables" role="tabpanel">
                 <div class="table-responsive">
                   <table class="table table-sm mb-0 align-middle">
-                    <thead class="table-light"><tr><th>Deliverable</th><th>State</th></tr></thead>
+                    <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Actions</th></tr></thead>
                     <tbody>
-                      <% if (d.deliverables.length === 0) { %><tr><td colspan="2" class="text-muted small">Nothing assigned to you yet.</td></tr><% } %>
+                      <% if (d.deliverables.length === 0) { %><tr><td colspan="3" class="text-muted small">Nothing assigned to you yet.</td></tr><% } %>
                       <% d.deliverables.forEach(function(item) { %>
                         <tr>
                           <td class="small"><%= item.name %><br><span class="text-muted" style="font-size:0.72rem;"><% if (item.category) { %><%= item.category %> &middot; <% } %>Acquisition Scope: <%= item.acquisitionScope %></span></td>
                           <td><span class="state-badge state-<%= item.lifecycleState.replace(/\s+/g, '-') %>"><%= item.lifecycleState %></span></td>
+                          <td>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#<%= prefix %>-actions-<%= item.id %>" aria-expanded="false">Actions</button>
+                            <div class="collapse mt-1" id="<%= prefix %>-actions-<%= item.id %>">
+                              <div class="d-flex flex-wrap gap-1">
+                                <% [['attention', 'Raise Attention Item'], ['knowledge', 'Create Knowledge'], ['decision', 'Create Decision'], ['evidence', 'Provide Evidence'], ['status', 'Report Status']].forEach(function(a) { %>
+                                  <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#<%= prefix %>-modal-<%= a[0] %>" data-deliverable-id="<%= item.id %>" data-deliverable-name="<%= item.name %>"><%= a[1] %></button>
+                                <% }) %>
+                              </div>
+                            </div>
+                          </td>
                         </tr>
                       <% }) %>
                     </tbody>
@@ -113,28 +126,6 @@
               </div>
 
               <div class="tab-pane fade" id="<%= prefix %>-attention-items" role="tabpanel">
-                <form method="POST" action="<%= urlOf.attentionItem(d.seu.id) %>" class="d-flex flex-wrap gap-1 align-items-center mb-2">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <select name="deliverableId" class="form-select form-select-sm" style="width:auto;" required>
-                    <option value="" disabled selected>Deliverable&hellip;</option>
-                    <% d.deliverables.forEach(function(item) { %>
-                      <option value="<%= item.id %>"><%= item.name %></option>
-                    <% }) %>
-                  </select>
-                  <select name="category" class="form-select form-select-sm" style="width:auto;">
-                    <% (locals.attentionCategoryOptions || []).forEach(function(cat) { %>
-                      <option value="<%= cat %>"><%= cat %></option>
-                    <% }) %>
-                  </select>
-                  <input type="text" name="title" class="form-control form-control-sm" style="width:auto;" placeholder="Title" required>
-                  <input type="text" name="description" class="form-control form-control-sm" style="width:auto;" placeholder="Description (optional)">
-                  <select name="priority" class="form-select form-select-sm" style="width:auto;">
-                    <% (locals.attentionPriorityOptions || []).forEach(function(pr) { %>
-                      <option value="<%= pr %>" <%= pr === 'Medium' ? 'selected' : '' %>><%= pr %></option>
-                    <% }) %>
-                  </select>
-                  <button type="submit" class="btn btn-sm btn-primary">Raise Attention Item</button>
-                </form>
                 <div class="table-responsive">
                   <table class="table table-sm mb-0 align-middle">
                     <thead class="table-light"><tr><th>Related to</th><th>Title</th><th>Category / Priority</th><th>Status</th></tr></thead>
@@ -155,23 +146,6 @@
               </div>
 
               <div class="tab-pane fade" id="<%= prefix %>-evidence" role="tabpanel">
-                <form method="POST" action="<%= urlOf.evidence(d.seu.id) %>" class="d-flex flex-wrap gap-1 align-items-center mb-2">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <select name="deliverableId" class="form-select form-select-sm" style="width:auto;" required>
-                    <option value="" disabled selected>Deliverable&hellip;</option>
-                    <% d.deliverables.forEach(function(item) { %>
-                      <option value="<%= item.id %>"><%= item.name %></option>
-                    <% }) %>
-                  </select>
-                  <select name="category" class="form-select form-select-sm" style="width:auto;">
-                    <% ['Analytical Evidence','Validation Evidence','Operational Evidence','Review Evidence','Decision Evidence','External Evidence'].forEach(function(cat) { %>
-                      <option value="<%= cat %>"><%= cat %></option>
-                    <% }) %>
-                  </select>
-                  <input type="text" name="title" class="form-control form-control-sm" style="width:auto;" placeholder="Title" required>
-                  <input type="text" name="source" class="form-control form-control-sm" style="width:auto;" placeholder="Source (optional)">
-                  <button type="submit" class="btn btn-sm btn-primary">Collect Evidence</button>
-                </form>
                 <div class="table-responsive">
                   <table class="table table-sm mb-0 align-middle">
                     <thead class="table-light"><tr><th>Supports</th><th>Title</th><th>Category / Confidence</th><th>Status</th><th>Transition</th></tr></thead>
@@ -200,7 +174,8 @@
                                 </select>
                                 <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
                               </form>
-                            <% } %>
+                        
+    <% } %>
                           </td>
                         </tr>
                       <% }) %>
@@ -229,33 +204,6 @@
               </div>
 
               <div class="tab-pane fade" id="<%= prefix %>-knowledge" role="tabpanel">
-                <form method="POST" action="<%= urlOf.knowledge(d.seu.id) %>" class="d-flex flex-wrap gap-1 align-items-center mb-2">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <select name="deliverableId" class="form-select form-select-sm" style="width:auto;" required>
-                    <option value="" disabled selected>Deliverable&hellip;</option>
-                    <% d.deliverables.forEach(function(item) { %>
-                      <option value="<%= item.id %>"><%= item.name %></option>
-                    <% }) %>
-                  </select>
-                  <select name="evidenceId" class="form-select form-select-sm" style="width:auto;">
-                    <option value="">(no supporting Evidence)</option>
-                    <% d.evidence.forEach(function(e) { %>
-                      <option value="<%= e.evidence.id %>"><%= e.evidence.title %></option>
-                    <% }) %>
-                  </select>
-                  <select name="category" class="form-select form-select-sm" style="width:auto;">
-                    <% ['Architectural Knowledge','Domain Knowledge','Technical Knowledge','Operational Knowledge','Governance Knowledge','Process Knowledge'].forEach(function(cat) { %>
-                      <option value="<%= cat %>"><%= cat %></option>
-                    <% }) %>
-                  </select>
-                  <input type="text" name="title" class="form-control form-control-sm" style="width:auto;" placeholder="Title" required>
-                  <select name="acquisitionScope" class="form-select form-select-sm" style="width:auto;">
-                    <% ['SEU','Capability','Enterprise','Platform'].forEach(function(s) { %>
-                      <option value="<%= s %>"><%= s %></option>
-                    <% }) %>
-                  </select>
-                  <button type="submit" class="btn btn-sm btn-primary">Observe Knowledge</button>
-                </form>
                 <div class="table-responsive">
                   <table class="table table-sm mb-0 align-middle">
                     <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Scope</th><th>Status</th><th>Transition</th><th>Promote Scope</th></tr></thead>
@@ -284,7 +232,8 @@
                                 </select>
                                 <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
                               </form>
-                            <% } %>
+                        
+    <% } %>
                           </td>
                           <td>
                             <% if (k.possibleNextScopes.length > 0) { %>
@@ -299,7 +248,8 @@
                               </form>
                             <% } else { %>
                               <span class="text-muted small"><%= k.knowledgeItem.acquisition_scope === 'Platform' ? 'already Platform' : '—' %></span>
-                            <% } %>
+                        
+    <% } %>
                           </td>
                         </tr>
                       <% }) %>
@@ -326,7 +276,8 @@
                                 <% if (wi.executionContextHtml) { %>
                                   <button type="button" class="btn btn-link btn-sm p-0 align-baseline" style="font-size:0.72rem;" data-bs-toggle="modal" data-bs-target="#executionContextModal" data-template="execution-context-<%= wi.id %>">Instructions</button>
                                   <template id="execution-context-<%= wi.id %>"><%- wi.executionContextHtml %></template>
-                                <% } %>
+                            
+    <% } %>
                                 <% if (wi.status === 'Dispatched') { %>
                                   <form method="POST" action="<%= urlOf.workItem(wi.id) %>" class="mt-1 d-flex flex-wrap gap-1 align-items-center">
                                     <select name="outcome" class="form-select form-select-sm" style="width:auto;">
@@ -337,7 +288,8 @@
                                     <input type="text" name="reference" class="form-control form-control-sm" style="width:auto;" placeholder="reference (optional)">
                                     <button type="submit" class="btn btn-sm btn-primary">Report Result</button>
                                   </form>
-                                <% } %>
+                            
+    <% } %>
                               </div>
                             <% }) %>
                           </td>
@@ -388,6 +340,16 @@
             </div>
           </div>
         </div>
+
+        <%# The action modals of this engagement. Each is its own partial under quickview/actions. %>
+        <% var mid = function (k) { return prefix + '-modal-' + k; }; %>
+        <% var relIds = function (e) { return e.relationships.map(function (r) { return r.related_object_id; }).join(' '); }; %>
+        <% var actionLocals = { d: d, mid: mid, relIds: relIds, urlOf: urlOf, csrfToken: csrfToken, attentionCategoryOptions: locals.attentionCategoryOptions, attentionPriorityOptions: locals.attentionPriorityOptions, decisionCategoryOptions: locals.decisionCategoryOptions, alternativeStatusOptions: locals.alternativeStatusOptions }; %>
+        <%- include('actions/_attention', actionLocals) %>
+        <%- include('actions/_knowledge', actionLocals) %>
+        <%- include('actions/_decision', actionLocals) %>
+        <%- include('actions/_evidence', actionLocals) %>
+        <%- include('actions/_status', actionLocals) %>
       <% }) %>
       <div class="modal fade" id="executionContextModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -412,4 +374,6 @@
           });
         })();
       </script>
+
+      <%- include('actions/_script') %>
     <% } %>

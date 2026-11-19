@@ -33,7 +33,7 @@ import { layoutDependencyGraph, type DependencyGraphLayout } from "./templateVie
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { policyChecksFromDefinitions } from "../../../domain/engine/policyChecks.js";
 import { evaluateCondition, type GoverningCondition } from "../../../domain/engine/governingCondition.js";
-import { RESOLVED_OBLIGATION_STATUSES } from "../../../dblayer/constants.js";
+import { RESOLVED_OBLIGATION_STATUSES, ATTENTION_ITEM_ENTITY_TYPE, QUALITY_GATE_CRITERIA_NO_UNRESOLVED_OBLIGATIONS } from "../../../dblayer/constants.js";
 import type { PoolEntry } from "../../../domain/engine/profileCompositionUnravel.js";
 import { getSeuEvents } from "./events.js";
 import { listObligationsBySeu } from "./obligations.js";
@@ -627,9 +627,12 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
       lines.push({
         key: code ? `${WAIVER_SCOPE_POLICY_OBLIGATION}|${code}|${o.title}` : `${WAIVER_SCOPE_OBLIGATION}|${o.category}|${o.title}`,
         scope: code ? WAIVER_SCOPE_POLICY_OBLIGATION : WAIVER_SCOPE_OBLIGATION, kind: "Obligation", name: o.title, outcome: "Blocked", hop: `${o.blocked_from_state} → ${o.blocked_to_state}`,
-        waivable: true, note: null, gateId: null, policyCode: code, category: o.category, title: o.title,
+        waivable: o.originating_entity_type !== ATTENTION_ITEM_ENTITY_TYPE,
+        note: o.originating_entity_type === ATTENTION_ITEM_ENTITY_TYPE ? "The Obligation holds the Deliverable for an Attention Item. Resolve the Attention Item." : null,
+        gateId: null, policyCode: code, category: o.category, title: o.title,
       });
     }
+    const heldForAttention = openHolding.some((o) => o.originating_entity_type === ATTENTION_ITEM_ENTITY_TYPE);
     for (const definition of ebmGateDefinitions ?? []) {
       const steps = (settledForGates?.qualityGates?.result ?? [])
         .filter((row) => row.deliverable === (d.code ?? "") && row.step.startsWith(`Deliverable|${d.lifecycle_state}|`) && row.gates.some((g) => String(g.code) === definition.code))
@@ -639,7 +642,8 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
       const latest = (gateEvaluations ?? []).find((ev) => ev.quality_gate_id === definition.id && ev.entity_type === "Deliverable" && ev.entity_id === d.id && ev.from_state === d.lifecycle_state);
       lines.push({
         key: `${WAIVER_SCOPE_GATE}|${definition.id}`, scope: WAIVER_SCOPE_GATE, kind: "Quality Gate", name: definition.name, outcome: latest?.outcome ?? "not evaluated", hop: steps.join(", "),
-        waivable: latest?.outcome === "Blocked", note: null, gateId: definition.id, policyCode: null, category: null, title: null,
+        waivable: latest?.outcome === "Blocked" && !(heldForAttention && definition.criteria_type === QUALITY_GATE_CRITERIA_NO_UNRESOLVED_OBLIGATIONS),
+        note: heldForAttention && definition.criteria_type === QUALITY_GATE_CRITERIA_NO_UNRESOLVED_OBLIGATIONS ? "An Obligation holds the Deliverable for an Attention Item. No waiver covers it." : null, gateId: definition.id, policyCode: null, category: null, title: null,
       });
     }
     waiverLines[d.id] = lines;

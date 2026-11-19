@@ -9,7 +9,7 @@ import { dependencyDefinitionEngine } from "./dependencyDefinitionEngine.js";
 import { qualityGateEngine, type QualityGateCondition } from "./qualityGateEngine.js";
 import type { Waivable } from "./qualityGateOutcomeComposition.js";
 import { originatingPolicyCode } from "./obligationOrigin.js";
-import { RESOLVED_OBLIGATION_STATUSES, WAIVER_SCOPE_OBLIGATION, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_POLICY_OBLIGATION } from "../../dblayer/constants.js";
+import { ATTENTION_ITEM_ENTITY_TYPE, RESOLVED_OBLIGATION_STATUSES, WAIVER_SCOPE_OBLIGATION, WAIVER_SCOPE_POLICY, WAIVER_SCOPE_POLICY_OBLIGATION } from "../../dblayer/constants.js";
 import { policyEngine, type PolicyEvaluationResult } from "./policyEngine.js";
 import { loadPolicyChecks } from "./policyChecks.js";
 import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
@@ -89,10 +89,14 @@ export const executionEngine = {
     }
 
     const { data: deliverableObligations } = await obligationsDB.findByRelatedObject("Deliverable", deliverable.id);
-    const openDeliverableBlock = (deliverableObligations ?? []).find((o) => o.blocked_from_state && o.blocked_to_state && !RESOLVED_OBLIGATION_STATUSES.has(o.status));
+    // An Obligation raised for an Attention Item comes first, because no waiver covers it and the one that is found decides the condition.
+    const openDeliverableBlocks = (deliverableObligations ?? []).filter((o) => o.blocked_from_state && o.blocked_to_state && !RESOLVED_OBLIGATION_STATUSES.has(o.status));
+    const openDeliverableBlock = openDeliverableBlocks.find((o) => o.originating_entity_type === ATTENTION_ITEM_ENTITY_TYPE) ?? openDeliverableBlocks[0];
     if (openDeliverableBlock) {
       const detail = `blocked by an open Obligation ("${openDeliverableBlock.title}")`;
-      found.push({ name: `Obligation "${openDeliverableBlock.title}"`, reason: detail, outcome: "Blocked", waivable: await obligationWaivable(openDeliverableBlock), refusal: { ok: false, reason: "obligation_blocked", detail } });
+      // An Obligation that holds the Deliverable for an Attention Item is covered by no waiver. A person has to resolve the Attention Item.
+      const waivable = openDeliverableBlock.originating_entity_type === ATTENTION_ITEM_ENTITY_TYPE ? null : await obligationWaivable(openDeliverableBlock);
+      found.push({ name: `Obligation "${openDeliverableBlock.title}"`, reason: detail, outcome: "Blocked", waivable, refusal: { ok: false, reason: "obligation_blocked", detail } });
     } else {
       found.push({ name: "Obligations", reason: "", outcome: "Passed", waivable: null, refusal: null });
     }

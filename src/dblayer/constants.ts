@@ -207,6 +207,17 @@ export const SYSTEM_ACTOR_BADGE = "system";
 export const DELIVERABLE_BADGE_PREFIX = "deliverable_";
 export const PARTICIPANT_BADGE_PREFIX = "participant_";
 export const WAIVER_BADGE_PREFIX = "waiver_";
+export const OBLIGATION_BADGE_PREFIX = "obligation_";
+// An Obligation that holds a Deliverable for an Attention Item records the Attention Item as its originating entity. Such an Obligation is not waivable.
+export const ATTENTION_ITEM_ENTITY_TYPE = "AttentionItem";
+export const ATTENTION_OBLIGATION_CATEGORY = "Engineering";
+export const ATTENTION_OBLIGATION_ORIGIN = "Participants";
+// The longest title of an Attention Item or a Decision raised from the Participant modals.
+export const PARTICIPANT_TITLE_MAX_LENGTH = 100;
+// The status of a Decision alternative sent with no status.
+export const DECISION_ALTERNATIVE_DEFAULT_STATUS = "Candidate";
+// The states an open Obligation walks to be Verified, which is what the Quality Gate counts as resolved.
+export const OBLIGATION_RESOLUTION_PATH = ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"];
 export const WAIVER_ENTITY_TYPE = "Waiver";
 // What a waiver lets the Quality Gate override. One waiver has one scope.
 export const WAIVER_SCOPE_GATE = "Gate";

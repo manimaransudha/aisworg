@@ -15,7 +15,7 @@ import { logger } from "../../utils/logger.js";
 import {parseListParams, paginateList} from "../../utils/listQuery.js";
 import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";
 import { getSeuQuickviewPage } from "../seu/core/seus.js";
-import { getParticipantHomeView, completeMyWorkItem, raiseMyAttentionItem } from "../seu/core/participantHome.js";
+import { getParticipantHomeView, completeMyWorkItem, raiseMyAttentionItem, reportMyStatus, getParticipantActionOptions, type ReportedStatus } from "../seu/core/participantHome.js";
 import type { WorkItemOutcome } from "../seu/core/workItems.js";
 import { listConceptsForType } from "../seu/core/ontology.js";
 import { resolveHeldRoles } from "../../domain/identity/heldRoles.js";
@@ -48,12 +48,11 @@ router.get("/quickview", attachVM("quickview/index"), async (req: Request, res: 
       req.vm.req.participantHome = await getParticipantHomeView(sessionUserOf(req).id);
       const isRoot = (sessionUserOf(req).platformBadges ?? []).includes("root");
       const tenantId = sessionUserOf(req).tenant_id ?? null;
-      const [attentionCategories, attentionPriorities] = await Promise.all([
-        listConceptsForType("category:attention-item", { isRoot, tenantId }, false),
-        listConceptsForType("category:attention-priority", { isRoot, tenantId }, false),
-      ]);
-      req.vm.req.attentionCategoryOptions = [...new Set(attentionCategories.map((c) => c.code))].sort();
-      req.vm.req.attentionPriorityOptions = [...new Set(attentionPriorities.map((c) => c.code))].sort();
+      const options = await getParticipantActionOptions({ isRoot, tenantId });
+      req.vm.req.attentionCategoryOptions = options.categories;
+      req.vm.req.attentionPriorityOptions = options.priorities;
+      req.vm.req.decisionCategoryOptions = options.decisionCategories;
+      req.vm.req.alternativeStatusOptions = options.alternativeStatuses;
       req.vm.opt.flash = getFlash(req);
       return renderView(req, res, "quickview/participant", req.vm);
     }
@@ -101,7 +100,7 @@ router.post("/quickview/work-items/:workItemId/complete", async (req: Request, r
 });
 
 router.post("/quickview/seus/:seuId/attention-items", async (req: Request, res: Response) => {
-  const { deliverableId, category, title, description, priority } = req.body ?? {};
+  const { deliverableId, category, title, description, priority, blocksProgress } = req.body ?? {};
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
     return redirects.home.quickview.error(req, res, "Deliverable, category and title are required.");
   }
@@ -114,6 +113,7 @@ router.post("/quickview/seus/:seuId/attention-items", async (req: Request, res: 
       title,
       description,
       priority,
+      blocksProgress: blocksProgress === "on",
     });
     if (!result.ok) {
       return redirects.home.quickview.error(req, res, result.detail);
@@ -121,6 +121,23 @@ router.post("/quickview/seus/:seuId/attention-items", async (req: Request, res: 
     return redirects.home.quickview.success(req, res, `Attention Item "${result.attentionItem.title}" raised (${result.attentionItem.category}, ${result.attentionItem.priority}).`);
   } catch (err) {
     logger.error("[QuickView] POST attention-items error:", err);
+    return redirects.home.quickview.error(req, res, err instanceof Error ? err.message : String(err));
+  }
+});
+
+router.post("/quickview/seus/:seuId/report-status", async (req: Request, res: Response) => {
+  const { deliverableId, status, evidenceId, reference } = req.body ?? {};
+  if (typeof deliverableId !== "string" || !deliverableId.trim()) return redirects.home.quickview.error(req, res, "Deliverable is required.");
+  try {
+    const result = await reportMyStatus({
+      userId: sessionUserOf(req).id, seuId: String(req.params.seuId), deliverableId, status: String(status) as ReportedStatus,
+      evidenceIds: Array.isArray(evidenceId) ? evidenceId.map(String) : typeof evidenceId === "string" && evidenceId ? [evidenceId] : [],
+      reference: typeof reference === "string" && reference.trim() ? reference : null,
+    });
+    if (!result.ok) return redirects.home.quickview.error(req, res, result.detail);
+    return redirects.home.quickview.success(req, res, result.message);
+  } catch (err) {
+    logger.error("[QuickView] POST report-status error:", err);
     return redirects.home.quickview.error(req, res, err instanceof Error ? err.message : String(err));
   }
 });

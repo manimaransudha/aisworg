@@ -46,7 +46,8 @@ import { createAttentionItem, transitionAttentionItem } from "../core/attentionI
 import { createEvidence, transitionEvidence, linkEvidenceToObject, recordValidationAssessment } from "../core/evidence.js";
 import { listCanonicalCategories, CATEGORY_CONCEPT_TYPE } from "../core/ontology.js";
 import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
-import { createDecision, transitionDecision } from "../core/decisions.js";
+import { transitionDecision } from "../core/decisions.js";
+import { createDecisionFromForm } from "../core/decisionForm.js";
 import { createExternalInteraction, transitionExternalInteraction } from "../core/externalInteractions.js";
 import type { AcquisitionScope, InteractionDirection, ParticipantType } from "../../../dblayer/seuTypes.js";
 
@@ -702,31 +703,8 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/promote-scope", async (req: Re
 });
 
 router.post("/seus/:id/decisions", async (req: Request, res: Response) => {
-  const seuId = String(req.params.id);
-  const { deliverableId, knowledgeId, evidenceId, category, title, engineeringQuestion, alternativeStatement, alternativeRationale } = req.body ?? {};
-
-  if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
-    return redirects.seu.seusDecisions.error(req, res, "Deliverable, category and title are required.");
-  }
-  if (!knowledgeId && !evidenceId) {
-    return redirects.seu.seusDecisions.error(req, res, "Select supporting Knowledge or Evidence, or both.");
-  }
-
   try {
-    const decision = await createDecision({
-      seuId,
-      actorId: requireActorId(req),
-      relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }],
-      knowledgeIds: knowledgeId ? [knowledgeId] : [],
-      evidenceIds: evidenceId ? [evidenceId] : [],
-      category,
-      title,
-      engineeringQuestion,
-      alternatives:
-        typeof alternativeStatement === "string" && alternativeStatement.trim()
-          ? [{ statement: alternativeStatement, assumptions: [], consequences: [], status: "Candidate", rationale: alternativeRationale || null }]
-          : [],
-    });
+    const decision = await createDecisionFromForm({ seuId: String(req.params.id), actorId: requireActorId(req), body: req.body ?? {} });
     return redirects.seu.seusDecisions.success(req, res, `Decision "${decision.title}" identified (${decision.category}).`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/decisions error", err as Error);

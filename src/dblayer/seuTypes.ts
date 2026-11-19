@@ -1299,6 +1299,8 @@ export interface AttentionItemRow {
   related_object_type: string | null;
   related_object_id: string | null;
   triggering_event_id: string | null;
+  // True when the Attention Item holds the Deliverable it names. An Obligation that originates from it does the holding.
+  blocks_progress: boolean;
   status: string;
   created_at: string;
   updated_at: string;

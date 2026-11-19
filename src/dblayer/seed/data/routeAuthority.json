@@ -2312,5 +2312,30 @@
     ],
     "roles": [],
     "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/quickview/seus/:seuId/report-status",
+    "badges": [],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/participants/:participantId/seus/:seuId/decisions",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/demo/participants/:participantId/seus/:seuId/report-status",
+    "badges": [],
+    "roles": [
+      "demo"
+    ],
+    "match_mode": "any"
   }
 ]

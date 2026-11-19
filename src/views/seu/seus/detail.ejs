@@ -150,8 +150,10 @@
                              (the overwhelmingly common case); the
                              select+submit shape stays for the genuine
                              multi-option case. %>
-                        <%# A transition stays disabled while the Quality Gate outcome of that hop is Blocked. %>
-                        <% var gateBlockedTo = {}; d.qualityGateOutcomes.forEach(function(o) { if (o.outcome === 'Blocked') gateBlockedTo[o.toState] = true; }); %>
+                        <%# A transition stays disabled while the Quality Gate outcome of that hop is Blocked, and while a Quality Gate item of the hop is not evaluated and no outcome is stored for the hop yet. %>
+                        <% var gateBlockedTo = {}; var gateDecidedTo = {};
+                           d.qualityGateOutcomes.forEach(function(o) { gateDecidedTo[o.toState] = true; if (o.outcome === 'Blocked') gateBlockedTo[o.toState] = { why: 'The Quality Gate outcome of this transition is Blocked.', option: 'Quality Gate Blocked' }; });
+                           d.qualityGateItems.forEach(function(g) { if (g.result === 'Not evaluated' && !gateDecidedTo[g.toState] && !gateBlockedTo[g.toState]) gateBlockedTo[g.toState] = { why: 'A Quality Gate item of this transition is not evaluated yet.', option: 'Quality Gate not evaluated' }; }); %>
                         <% var openTargets = d.possibleNextStates.filter(function(s) { return !gateBlockedTo[s]; }); %>
                         <% if (d.possibleNextStates.length === 0) { %>
                           <span class="text-muted small">no further transitions defined</span>
@@ -159,7 +161,7 @@
                           <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/deliverables/<%= d.id %>/transition" class="mb-0">
                             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                             <input type="hidden" name="targetState" value="<%= d.possibleNextStates[0] %>">
-                            <button type="submit" class="btn btn-sm btn-primary" <% if (gateBlockedTo[d.possibleNextStates[0]]) { %>disabled title="The Quality Gate outcome of this transition is Blocked."<% } %>><%= d.possibleNextStates[0] %></button>
+                            <button type="submit" class="btn btn-sm btn-primary" <% if (gateBlockedTo[d.possibleNextStates[0]]) { %>disabled title="<%= gateBlockedTo[d.possibleNextStates[0]].why %>"<% } %>><%= d.possibleNextStates[0] %></button>
                           </form>
                         <% } else { %>
                           <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/deliverables/<%= d.id %>/transition"
@@ -167,10 +169,10 @@
                             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                             <select name="targetState" class="form-select form-select-sm" style="width: auto;">
                               <% d.possibleNextStates.forEach(function(s) { %>
-                                <option value="<%= s %>" <%= gateBlockedTo[s] ? 'disabled' : '' %>><%= s %><%= gateBlockedTo[s] ? ' (Quality Gate Blocked)' : '' %></option>
+                                <option value="<%= s %>" <%= gateBlockedTo[s] ? 'disabled' : '' %>><%= s %><%= gateBlockedTo[s] ? ' (' + gateBlockedTo[s].option + ')' : '' %></option>
                               <% }) %>
                             </select>
-                            <button type="submit" class="btn btn-sm btn-outline-primary" <% if (openTargets.length === 0) { %>disabled title="The Quality Gate outcome of every transition is Blocked."<% } %>>Transition</button>
+                            <button type="submit" class="btn btn-sm btn-outline-primary" <% if (openTargets.length === 0) { %>disabled title="Every transition is held by its Quality Gate."<% } %>>Transition</button>
                           </form>
                         <% } %>
                       </td>

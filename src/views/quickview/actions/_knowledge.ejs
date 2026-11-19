@@ -1,0 +1,31 @@
+<%#
+  The "knowledge" action modal of an engagement in My Work. Opened from the Actions of a Deliverable row of the Deliverables tab.
+  Locals: d (the engagement detail), mid (the modal id of an action), relIds, urlOf (the form URLs), csrfToken, and the option lists the form needs.
+%>
+        <div class="modal fade" id="<%= mid('knowledge') %>" tabindex="-1" aria-hidden="true" data-pm>
+          <div class="modal-dialog"><form class="modal-content" method="POST" action="<%= urlOf.knowledge(d.seu.id) %>">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="deliverableId" data-pm-id>
+            <div class="modal-header"><h5 class="modal-title mb-0">Create Knowledge
+              <i class="bi bi-info-circle text-muted ms-1" title="Use this to provide information on reusable components/assets only. Work Item related artefacts have to be reported in Evidence"></i></h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body small">
+              <p class="text-muted">Use this to provide information on reusable components/assets only. Work Item related artefacts have to be reported in Evidence.</p>
+              <div class="mb-2"><label class="form-label text-muted mb-1">Deliverable</label><input type="text" class="form-control form-control-sm" data-pm-name readonly></div>
+              <div class="mb-2"><label class="form-label text-muted mb-1">Supporting Evidence</label>
+                <select name="evidenceId" class="form-select form-select-sm" required>
+                  <option value="" disabled selected>Evidence&hellip;</option>
+                  <% d.evidence.forEach(function (e) { %><option value="<%= e.evidence.id %>"><%= e.evidence.title %></option><% }) %>
+                </select></div>
+              <div class="mb-2"><label class="form-label text-muted mb-1">Category</label>
+                <select name="category" class="form-select form-select-sm">
+                  <% ['Architectural Knowledge','Domain Knowledge','Technical Knowledge','Operational Knowledge','Governance Knowledge','Process Knowledge'].forEach(function (c) { %><option value="<%= c %>"><%= c %></option><% }) %>
+                </select></div>
+              <div class="mb-2"><label class="form-label text-muted mb-1">Title</label><input type="text" name="title" class="form-control form-control-sm" required></div>
+              <div class="mb-2"><label class="form-label text-muted mb-1">Acquisition Scope</label>
+                <select name="acquisitionScope" class="form-select form-select-sm">
+                  <% ['SEU','Capability','Enterprise','Platform'].forEach(function (sc) { %><option value="<%= sc %>"><%= sc %></option><% }) %>
+                </select></div>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-sm btn-primary">Observe Knowledge</button></div>
+          </form></div>
+        </div>

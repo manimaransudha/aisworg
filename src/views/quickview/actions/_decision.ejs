@@ -1,0 +1,53 @@
+<%#
+  The "decision" action modal of an engagement in My Work. Opened from the Actions of a Deliverable row of the Deliverables tab.
+  Locals: d (the engagement detail), mid (the modal id of an action), relIds, urlOf (the form URLs), csrfToken, and the option lists the form needs.
+%>
+        <div class="modal fade" id="<%= mid('decision') %>" tabindex="-1" aria-hidden="true" data-pm>
+          <div class="modal-dialog modal-xl modal-dialog-scrollable"><form class="modal-content" method="POST" action="<%= urlOf.decision(d.seu.id) %>">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="deliverableId" data-pm-id>
+            <div class="modal-header"><h5 class="modal-title mb-0">Create Decision</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body small">
+              <div class="row g-2 mb-2">
+                <div class="col-md-4"><label class="form-label text-muted mb-1">Deliverable</label><input type="text" class="form-control form-control-sm" data-pm-name readonly></div>
+                <div class="col-md-3"><label class="form-label text-muted mb-1">Decision Type</label>
+                  <select name="category" class="form-select form-select-sm" required>
+                    <% (locals.decisionCategoryOptions || []).forEach(function (c) { %><option value="<%= c %>"><%= c %></option><% }) %>
+                  </select></div>
+                <div class="col-md-5"><label class="form-label text-muted mb-1">Title</label><input type="text" name="title" class="form-control form-control-sm" maxlength="100" required></div>
+              </div>
+              <div class="mb-1 text-muted">Alternatives</div>
+              <div data-pm-alts></div>
+              <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-pm-add-alt>Add alternative</button>
+              <template data-pm-alt-template>
+                <div class="border rounded p-2 mb-2" data-pm-alt>
+                  <div class="row g-2">
+                    <div class="col-md-6"><input type="text" name="alternativeStatement" class="form-control form-control-sm" placeholder="Alternative"></div>
+                    <div class="col-md-3">
+                      <select name="alternativeStatus" class="form-select form-select-sm">
+                        <% (locals.alternativeStatusOptions || []).forEach(function (st) { %><option value="<%= st %>"><%= st %></option><% }) %>
+                      </select></div>
+                    <div class="col-md-3 text-end"><button type="button" class="btn btn-sm btn-link text-danger" data-pm-remove-alt>Remove</button></div>
+                    <div class="col-md-6"><input type="text" name="alternativeRationale" class="form-control form-control-sm" placeholder="Rationale"></div>
+                    <div class="col-md-6"><input type="text" name="alternativeRisk" class="form-control form-control-sm" placeholder="Risk"></div>
+                  </div>
+                </div>
+              </template>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label text-muted mb-1">Supporting Knowledge</label>
+                  <select name="knowledgeId" class="form-select form-select-sm" multiple size="4" data-pm-detail="knowledge">
+                    <% d.knowledgeItems.forEach(function (k) { %><option value="<%= k.knowledgeItem.id %>" data-detail="<%= [k.knowledgeItem.category, k.knowledgeItem.acquisition_scope + ' scope', k.knowledgeItem.status, k.knowledgeItem.description || ''].join(' | ') %>"><%= k.knowledgeItem.title %></option><% }) %>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label text-muted mb-1">Supporting Evidence</label>
+                  <select name="evidenceId" class="form-select form-select-sm" multiple size="4" data-pm-detail="evidence">
+                    <% d.evidence.forEach(function (e) { %><option value="<%= e.evidence.id %>" data-detail="<%= [e.evidence.category, e.evidence.status, e.evidence.source || '', e.evidence.description || ''].join(' | ') %>"><%= e.evidence.title %></option><% }) %>
+                  </select>
+                </div>
+              </div>
+              <aside class="border rounded p-2 mt-2 text-muted" data-pm-aside>Pick a Knowledge Item or an Evidence item to see its details here. At least one of them is needed.</aside>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-sm btn-primary">Create Decision</button></div>
+          </form></div>
+        </div>

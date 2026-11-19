@@ -264,6 +264,16 @@ test("a Decision is identified on Evidence or Knowledge and moved along its life
   const decision = ((await decisionsDB.findBySeuId(t.seu.id)).data ?? []).find((d) => d.title === title)!;
   assert.deepEqual([decision.status, decision.engineering_question, decision.alternatives.map((a) => a.statement)], ["Identified", "Which way?", ["Take the left path"]]);
 
+  // CR-149 Part 5: the Create Decision form takes a title of at most 100 characters and several alternatives, with the risk kept in the consequences.
+  hasAlert((await submit(seuPath("/decisions"), { deliverableId: deliverableB.id, evidenceId: supporting, category: "Engineering Decisions", title: "x".repeat(101) })).alerts, /The title is at most 100 characters\./);
+  const multiTitle = `Two alternatives ${run}`;
+  hasAlert((await submit(seuPath("/decisions"), {
+    deliverableId: deliverableB.id, evidenceId: supporting, category: "Engineering Decisions", title: multiTitle,
+    alternativeStatement: ["Left", "Right"], alternativeRationale: ["Shorter", "Safer"], alternativeRisk: ["Steep", ""], alternativeStatus: ["Approved", "Rejected"],
+  })).alerts, new RegExp(`Decision "${multiTitle}" identified`));
+  const multi = ((await decisionsDB.findBySeuId(t.seu.id)).data ?? []).find((d) => d.title === multiTitle)!;
+  assert.deepEqual(multi.alternatives.map((a) => [a.statement, a.status, a.consequences]), [["Left", "Approved", ["Steep"]], ["Right", "Rejected", []]]);
+
   hasAlert((await submit(seuPath(`/decisions/${randomUUID()}/transition/anything`))).alerts, /Decision not found\./);
   hasAlert((await submit(seuPath(`/decisions/${decision.id}/transition/zz-no-verb`))).alerts, /"zz-no-verb" is not available from Identified\./);
   const visited = await walk({ entityType: "Decision", label: "Decision", statusOf: async () => (await decisionsDB.findById(decision.id)).data!.status, hop: (verb) => seuPath(`/decisions/${decision.id}/transition/${verb}`), max: 2 });

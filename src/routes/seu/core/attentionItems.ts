@@ -25,6 +25,7 @@ export async function createAttentionItem(input: {
   relatedObjectType?: string | null;
   relatedObjectId?: string | null;
   triggeringEventId?: string | null;
+  blocksProgress?: boolean;
   actorId: string;
   authorBadge: string;
 }): Promise<AttentionItemRow> {

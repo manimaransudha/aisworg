@@ -18,6 +18,7 @@ CREATE INDEX IF NOT EXISTS idx_attention_items_seu ON attention_items (seu_id);
 CREATE INDEX IF NOT EXISTS idx_attention_items_related ON attention_items (related_object_type, related_object_id);
 ALTER TABLE attention_items
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants(id),
-  ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
+  ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL,
+  ADD COLUMN IF NOT EXISTS blocks_progress BOOLEAN NOT NULL DEFAULT FALSE;
 GRANT ALL PRIVILEGES ON TABLE attention_items TO weirdo;
 COMMIT;
