@@ -1,4 +1,6 @@
 import { coversEntity, namesCondition, type Waivable } from "../../../domain/engine/qualityGateOutcomeComposition.js";
+import { renderDocMarkdown } from "../../../domain/sdk/markdownRender.js";
+import { executionContextMarkdown } from "./executionContextMarkdown.js";
 import { rateWaiver } from "../../../domain/engine/waiverConfidence.js";
 import { listWaiverSupportOptions, type WaiverSupportOption } from "./qualityGateWaivers.js";
 import { CONFLICT_TABLE_LABELS } from "../../../dblayer/constants.js";
@@ -229,6 +231,7 @@ export interface SeuDetailWorkItem {
   participantLabel: string | null;
   participantId: string | null;
   executionContext: WorkItemRow["execution_context"];
+  executionContextHtml: string | null;
 }
 
 export interface SeuDetailCommand {
@@ -237,6 +240,8 @@ export interface SeuDetailCommand {
   commandType: string;
   fromState: string;
   toState: string;
+  // The current lifecycle state of the Deliverable the Command acts on, null for another entity type.
+  entityLifecycleState: string | null;
   status: CommandRow["status"];
   createdAt: string;
   workItems: SeuDetailWorkItem[];
@@ -472,6 +477,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     commandType: command.command_type,
     fromState: command.from_state,
     toState: command.to_state,
+    entityLifecycleState: command.entity_type === "Deliverable" ? (deliverables ?? []).find((d) => d.id === command.entity_id)?.lifecycle_state ?? null : null,
     status: command.status,
     createdAt: command.created_at,
     workItems: (workItems ?? [])
@@ -483,6 +489,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         participantLabel: w.participant_id ? participantLabelById.get(w.participant_id) ?? null : null,
         participantId: w.participant_id,
         executionContext: w.execution_context,
+        executionContextHtml: w.execution_context ? renderDocMarkdown(executionContextMarkdown(w.execution_context)) : null,
       })),
   }));
 

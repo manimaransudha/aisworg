@@ -32,7 +32,7 @@ import type { ProfileDetail } from "./profiles.js";
 import { resolveLabels } from "./ontology.js";
 import { buildDetectionContext, describeComposition, detectEbmConflicts, settleEbm, type ActionedConflict, type EbmConflictTable, type EbmSettled } from "../../../domain/engine/conflicts/index.js";
 import type { ProfileDetailSource, RecordedConflict, CommissioningReport, SeuLifecycleState, SeuRow, TemplateRow, ProfileRow, ObjectiveRow, CapabilityRow, CapabilityDefinitionRow, TemplateDeliverableSeed, EbmCompositionReport, EbmComposedPack, EbmRow } from "../../../dblayer/seuTypes.js";
-import { EBM_RETIRED_STATE, EBM_VALIDATED_STATE, SEU_ACTIVATED_STATE, SEU_COMMISSIONED_STATE, SEU_CONFIGURED_STATE, SEU_FAILED_STATE, SEU_INITIATED_STATE, SEU_OPERATIONAL_STATE, SEU_VALIDATED_STATE, getPlatformTenantId, getSystemActor, ensureSeuSystemParticipant } from "../../../dblayer/constants.js";
+import { EBM_ACTIVE_STATE, EBM_RETIRED_STATE, EBM_VALIDATED_STATE, SEU_ACTIVATED_STATE, SEU_COMMISSIONED_STATE, SEU_CONFIGURED_STATE, SEU_FAILED_STATE, SEU_INITIATED_STATE, SEU_OPERATIONAL_STATE, SEU_VALIDATED_STATE, getPlatformTenantId, getSystemActor, ensureSeuSystemParticipant } from "../../../dblayer/constants.js";
 import { SeuLivenessError } from "../../../actions/validateSeuRequest.js";
  
 export type CommissionResult =
@@ -371,6 +371,17 @@ export async function validateEbm(input: { ebmId: string; actorId: string }): Pr
   if (!validated.ok) return validated;
   await publishTransition(validated);
   return { ok: true, ebm: validated.row as EbmRow, appliedTransition: validated.appliedTransition };
+}
+
+// The Activate button of a Composed EBM (CR-149). The liveness check runs first. A dead reference retires the EBM, as validateEbm does. When every
+// reference is live the EBM goes Composed -> Validated and then Validated -> Active, and each hop publishes its own event.
+export async function activateComposedEbm(input: { ebmId: string; actorId: string }): Promise<ValidateEbmResult> {
+  const validated = await validateEbm(input);
+  if (!validated.ok) return validated;
+  const activated = await transitionEntity({ entityType: "EBM", entityId: validated.ebm.id, targetState: EBM_ACTIVE_STATE, actorId: input.actorId, seuId: validated.ebm.seu_id });
+  if (!activated.ok) return activated;
+  await publishTransition(activated);
+  return { ok: true, ebm: activated.row as EbmRow, appliedTransition: activated.appliedTransition };
 }
 
 export type CommissionFromFormResult =

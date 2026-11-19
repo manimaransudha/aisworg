@@ -9,6 +9,28 @@ export function serviceChoiceKey(deliverableCode: string): string {
   return `serviceChoice::${deliverableCode}`;
 }
 
+export function worktypeChoiceKey(deliverableCode: string): string {
+  return `worktypeChoice::${deliverableCode}`;
+}
+
+// One work item type of a Deliverable: a worktype of the chosen Service's Capability, with the role it belongs to.
+export interface WorkItemType {
+  role: string;
+  worktype: string;
+}
+
+// The work item types the user can pick for a Deliverable: every worktype of every role of the chosen Service's Capability.
+export function workItemTypeOptions(candidate: ServiceCandidate): WorkItemType[] {
+  return (candidate.roles ?? []).flatMap((role) => role.worktypes.map((worktype) => ({ role: role.name, worktype })));
+}
+
+// The picks the user made for a Deliverable that are still work item types of its chosen Service. A pick left over from another Service is dropped.
+export function pickedWorkItemTypes(candidate: ServiceCandidate, pick: unknown): WorkItemType[] {
+  if (!Array.isArray(pick)) return [];
+  const options = workItemTypeOptions(candidate);
+  return options.filter((o) => pick.some((p) => p && typeof p === "object" && (p as WorkItemType).role === o.role && (p as WorkItemType).worktype === o.worktype));
+}
+
 export function serviceLevelKey(serviceCode: string, levelCode: string): string {
   return `${serviceCode}.serviceLevel[code=${levelCode}]`;
 }
@@ -97,7 +119,7 @@ function serviceChoiceConflicts(facts: ServicesUnraveled, resolutions: ConflictR
       key,
       kind: "service-choice",
       message: `${SERVICE_CHOICE_MESSAGE} Deliverable: ${deliverableCode}.`,
-      options: candidates.map((c) => ({ sourceKind: "definition", sourceId: null, sourceLabel: `${c.name} (${c.code})`, value: c.code })),
+      options: candidates.map((c) => ({ sourceKind: "definition", sourceId: null, sourceLabel: `${c.name} (${c.code})`, value: c.code, ...(c.capabilityCode ? { detail: { capabilityCode: c.capabilityCode, roles: c.roles ?? [] } } : {}) })),
       resolution: resolutions[key] ?? null,
       resolvable: true,
     });
@@ -143,9 +165,33 @@ function serviceLevelConflicts(facts: ServicesUnraveled, packLists: PackServiceL
   return conflicts;
 }
 
+// Step 2: once the Service of a Deliverable is decided, the user picks its work item types from the roles and worktypes of the Service's Capability.
+// There is one conflict for each such Deliverable, and it stays open until at least one work item type is picked.
+function worktypeChoiceConflicts(facts: ServicesUnraveled, resolutions: ConflictResolutions): EbmConflict[] {
+  const conflicts: EbmConflict[] = [];
+  for (const [deliverableCode, serviceCode] of Object.entries(chosenServices(facts.candidates, resolutions))) {
+    const candidate = facts.candidates[deliverableCode]?.find((c) => c.code === serviceCode);
+    if (!candidate) continue;
+    const options = workItemTypeOptions(candidate);
+    if (options.length === 0) continue;
+    const key = worktypeChoiceKey(deliverableCode);
+    const picked = pickedWorkItemTypes(candidate, resolutions[key]);
+    conflicts.push({
+      table: "services",
+      key,
+      kind: "worktype-choice",
+      message: `Pick the work item types of the Deliverable ${deliverableCode}. Service: ${candidate.name} (${candidate.code}), Capability: ${candidate.capabilityCode}. Pick at least one.`,
+      options: options.map((o) => ({ sourceKind: "definition", sourceId: null, sourceLabel: o.role, value: o })),
+      resolution: picked.length > 0 ? picked : null,
+      resolvable: true,
+    });
+  }
+  return conflicts;
+}
+
 // The part of the Services detector that works on gathered facts, so it can be tested without a database.
 export function detectServiceConflictsFrom(facts: ServicesUnraveled, packLists: PackServiceList[], resolutions: ConflictResolutions = {}): EbmConflict[] {
-  return [...serviceChoiceConflicts(facts, resolutions), ...serviceLevelConflicts(facts, packLists, resolutions)];
+  return [...serviceChoiceConflicts(facts, resolutions), ...worktypeChoiceConflicts(facts, resolutions), ...serviceLevelConflicts(facts, packLists, resolutions)];
 }
 
 export async function detectServiceConflicts(context: DetectionContext, resolutions: ConflictResolutions = {}): Promise<EbmConflict[]> {

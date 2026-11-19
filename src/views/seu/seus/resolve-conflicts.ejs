@@ -18,7 +18,7 @@
     <% } %>
 
     <h2 class="h3 mb-1 text-dark fw-bold">Resolve Conflicts</h2>
-    <p class="text-muted small mb-4">Where the sources of this composition disagree. Pick an answer for each open conflict. Composition completes when none is left open.</p>
+    <p class="text-muted small mb-4">Where the sources of this composition disagree. Pick an answer for each open conflict, and pick the work item types of each Deliverable. Validate creates the EBM when none is left open.</p>
 
     <% var _base = locals.listBasePath || ''; %>
     <% var _openTotal = tabs.reduce(function(n, t) { return n + t.open; }, 0); %>
@@ -77,10 +77,19 @@
     </div>
 
     <% if (locals.allResolved) { %>
-      <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>No conflict is open. Continue with the composition transitions.</div>
+      <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Nothing is open. Validate creates the EBM from this composition.</div>
     <% } else { %>
-      <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i><%= _openTotal %> conflict<%= _openTotal === 1 ? ' is' : 's are' %> open.</div>
+      <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i><%= _openTotal %> item<%= _openTotal === 1 ? ' is' : 's are' %> open.</div>
     <% } %>
+    <form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm" class="d-flex justify-content-end mb-3">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="returnTo" value="resolve-conflicts">
+      <input type="hidden" name="validateComposition" value="1">
+      <% selections.forEach(function(s) { %>
+        <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
+      <% }) %>
+      <button type="submit" class="btn btn-primary btn-sm" <%= locals.allResolved ? '' : 'disabled' %>><i class="bi bi-check2-circle me-1"></i>Validate</button>
+    </form>
 
     <div class="row g-4">
       <div class="col-md-3">
@@ -227,7 +236,7 @@
                   </table>
                 </div>
                 <div class="text-muted small mb-2">The highlighted rows differ between the sources.</div>
-              <% } else { %>
+              <% } else if (c.kind !== 'worktype-choice') { %>
               <div class="table-responsive mb-2">
                 <table class="table table-sm align-middle mb-0">
                   <thead><tr><th class="small text-muted">Source</th><th class="small text-muted">Value</th><th class="small text-muted">Open</th></tr></thead>
@@ -235,7 +244,14 @@
                     <% c.options.forEach(function(opt) { %>
                       <tr>
                         <td class="small text-nowrap"><%= opt.sourceLabel %></td>
-                        <td class="small"><%- _valueHtml(opt.value, true) %></td>
+                        <td class="small"><%- _valueHtml(opt.value, true) %>
+                          <% if (opt.detail && opt.detail.roles && opt.detail.roles.length) { %>
+                            <div class="text-muted small mt-1">Capability <code><%= opt.detail.capabilityCode %></code></div>
+                            <ul class="small mb-0 ps-3">
+                              <% opt.detail.roles.forEach(function(r) { %><li><span class="fw-semibold"><%= r.name %></span>: <%= r.worktypes.join(', ') %></li><% }) %>
+                            </ul>
+                          <% } %>
+                        </td>
                         <td class="small text-nowrap"><%- _linksHtml(_optionLinks(opt, _capInfo)) %></td>
                       </tr>
                     <% }) %>
@@ -267,6 +283,20 @@
                     <div class="form-check"><input class="form-check-input" type="radio" name="ebmPickDecision" id="dec-<%= ci %>-exclude" value="exclude" <%= _dec === 'exclude' ? 'checked' : '' %>><label class="form-check-label small" for="dec-<%= ci %>-exclude">Exclude</label></div>
                     <button type="submit" class="btn btn-primary btn-sm">Apply</button>
                   <% } else { %>
+                    <% if (c.kind === 'worktype-choice') { %>
+                      <div class="w-100">
+                        <% var _lastRole = null; %>
+                        <% c.options.forEach(function(opt, oi) { %>
+                          <% if (opt.value.role !== _lastRole) { _lastRole = opt.value.role; %><div class="fw-semibold small mt-2"><%= _lastRole %></div><% } %>
+                          <% var pickedWt = Array.isArray(c.resolution) && c.resolution.some(function(r) { return _same(r, opt.value); }); %>
+                          <div class="form-check ms-3">
+                            <input class="form-check-input" type="checkbox" name="ebmPickOption" id="pick-<%= ci %>-<%= oi %>" value="<%= oi %>" <%= pickedWt ? 'checked' : '' %>>
+                            <label class="form-check-label small" for="pick-<%= ci %>-<%= oi %>"><%= opt.value.worktype %></label>
+                          </div>
+                        <% }) %>
+                      </div>
+                      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                    <% } else { %>
                     <% c.options.forEach(function(opt, oi) { %>
                       <% var picked = (c.action === 'pick-any' ? (Array.isArray(c.resolution) && c.resolution.some(function(r) { return _same(r, opt.value); })) : _same(c.resolution, opt.value)); %>
                       <div class="form-check">
@@ -275,6 +305,7 @@
                       </div>
                     <% }) %>
                     <button type="submit" class="btn btn-primary btn-sm"><%= c.action === 'pick-any' ? 'Apply (one or both)' : 'Apply' %></button>
+                    <% } %>
                   <% } %>
                 </form>
               <% } %>

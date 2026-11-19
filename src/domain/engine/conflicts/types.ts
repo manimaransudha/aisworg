@@ -9,6 +9,8 @@ export interface ConflictOption {
   sourceId: string | null;
   sourceLabel: string;
   value: unknown;
+  // What the option brings with it that the user needs to see to choose, such as the roles and worktypes of a Service's Capability.
+  detail?: { capabilityCode: string; roles: Array<{ name: string; worktypes: string[] }> };
 }
 
 export interface EbmConflict {

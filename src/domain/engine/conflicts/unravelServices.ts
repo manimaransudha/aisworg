@@ -2,7 +2,8 @@ import { resolveEffectiveParameters } from "../../../routes/seu/core/profiles.js
 import { catalogueFor, resolveDeliverableSource } from "../deliverableSource.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
-import type { ProfileRow, TemplateRow } from "../../../dblayer/seuTypes.js";
+import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
+import type { CapabilityRole, ProfileRow, TemplateRow } from "../../../dblayer/seuTypes.js";
 
 // A Service that makes a catalogue Deliverable, with the levels its Service Definition gives by default.
 export interface ServiceCandidate {
@@ -10,6 +11,9 @@ export interface ServiceCandidate {
   name: string;
   // Level code to target, from the Service Definition.
   defaultLevels: Record<string, number>;
+  // The Capability the Service belongs to, with the roles and worktypes of its Active Capability Definition. The work item types of a Deliverable are picked from these.
+  capabilityCode?: string;
+  roles?: CapabilityRole[];
 }
 
 // A service level that the Template sets or the Profile overrides.
@@ -60,8 +64,11 @@ export async function unravelServices(input: { templates: TemplateRow[]; profile
   const candidates: Record<string, ServiceCandidate[]> = {};
   if (deliverableCodes.size > 0) {
     const { data: rows } = await serviceDefinitionsDB.findActiveByOutputsVisibleTo([...deliverableCodes], viewerTenantId);
+    const capabilityCodes = [...new Set((rows ?? []).map((row) => row.capability_code))];
+    const { data: capabilityDefinitions } = capabilityCodes.length > 0 ? await capabilityDefinitionsDB.findActiveByCodesVisibleTo(capabilityCodes, viewerTenantId) : { data: [] };
+    const rolesByCapability = new Map((capabilityDefinitions ?? []).map((d) => [d.code, d.roles ?? []]));
     for (const row of rows ?? []) {
-      const candidate: ServiceCandidate = { code: row.code, name: row.name, defaultLevels: Object.fromEntries((row.service_level ?? []).map((l) => [l.code, l.target])) };
+      const candidate: ServiceCandidate = { code: row.code, name: row.name, defaultLevels: Object.fromEntries((row.service_level ?? []).map((l) => [l.code, l.target])), capabilityCode: row.capability_code, roles: rolesByCapability.get(row.capability_code) ?? [] };
       for (const output of row.outputs ?? []) if (deliverableCodes.has(output)) (candidates[output] ??= []).push(candidate);
     }
   }

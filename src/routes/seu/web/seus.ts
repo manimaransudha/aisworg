@@ -26,7 +26,7 @@ import { resolveHeldBadges, requireActorId, resolveActorAndBadge, resolveAuthorB
 import { requestCapabilityFulfilment, releaseParticipants } from "../core/capabilities.js";
 import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
-import { validateEbm, validateSeu, initiateSeu } from "../core/commissioning.js";
+import { activateComposedEbm, validateSeu, initiateSeu } from "../core/commissioning.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { nextActionsFor, transitionEntity, publishTransition } from "../../../domain/engine/entityTransition.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
@@ -379,7 +379,7 @@ router.post("/seus/:id/ebm/transition/:verb", async (req: Request, res: Response
 
     let result;
     if (action.toState === EBM_VALIDATED_STATE) {
-      result = await validateEbm({ ebmId: ebm.id, actorId });
+      result = await activateComposedEbm({ ebmId: ebm.id, actorId });
     } else {
       result = await transitionEntity({ entityType: "EBM", entityId: ebm.id, targetState: action.toState, actorId, seuId: seu.id });
       if (result.ok) await publishTransition(result);

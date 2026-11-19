@@ -314,7 +314,7 @@ test("the validation page of an Objective's SEU shows that the request passed on
 
 test("composition that finds no conflict leaves the SEU Operational with its EBM, and the compose and resolve pages lead to the SEU", async () => {
   const { seu, objectiveId, conflictKeys } = await commissionScenario("clean", "web-objectives-clean", { conflictSet: "objectives" });
-  assert.deepEqual(conflictKeys, [], "the composition found no conflict");
+  assert.deepEqual(conflictKeys.filter((key) => !key.startsWith("worktypeChoice::")), [], "the composition found no conflict, only work item types to pick");
   assert.ok(seu.active_ebm_id, "the SEU has its EBM");
   const composed = await getRedirect(root, `/seu/objectives/${objectiveId}/compose-ebm`);
   assert.equal(composed.status, 302);
@@ -340,7 +340,7 @@ test("composition that finds conflicts nobody settled stores them, announces not
 
   const recomposed = await postForm(root, composePath, csrf, { templateProfile: selection });
   assert.equal(recomposed.status, 302);
-  assert.equal(recomposed.location, `/aisworg${composePath}`);
+  assert.equal(recomposed.location, `/aisworg/seu/objectives/${objectiveId}/resolve-conflicts`, "Compose always leads to the Resolve Conflicts page");
   assert.equal(await announcedCount(), 0, "an open conflict blocks the announcement");
 
   const notOpen = await postForm(root, composePath, csrf, { templateProfile: selection, ebmPickKey: `zz-no-conflict-${run}`, ebmPickOption: "0" });
@@ -354,7 +354,10 @@ test("composition that finds conflicts nobody settled stores them, announces not
   const stored = (await seusDB.findById(seu.id)).data!.composition_report as { ebmConflicts: Record<string, Array<{ resolution: unknown; notice?: boolean }>>; resolvedCompositionConflicts: Record<string, unknown> };
   for (const key of conflictKeys) assert.ok(key in stored.resolvedCompositionConflicts, `${key} is recorded as settled`);
   assert.equal(blockingEbmConflicts(stored.ebmConflicts as never).length, 0, "no conflict blocks the composition any more");
-  assert.ok((await announcedCount()) > 0, "the composition is announced once every conflict is settled");
+  assert.equal(await announcedCount(), 0, "settling every conflict announces nothing; Validate does");
+  const validated = await postForm(root, composePath, csrf, { templateProfile: selection, validateComposition: "1" });
+  assert.equal(validated.status, 302);
+  assert.ok((await announcedCount()) > 0, "Validate announces the composition once every conflict is settled");
   await waitUntilAsync(async () => !!(await seusDB.findById(seu.id)).data?.active_ebm_id);
   assert.ok((await seusDB.findById(seu.id)).data?.active_ebm_id, "the announcement made the EBM");
 });

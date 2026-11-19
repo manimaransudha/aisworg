@@ -525,7 +525,7 @@ export async function driveCommissioningToActive(input: {
   // own POST .../compose-ebm zero-conflict path (web/objectives.ts) exactly:
   // previewCommissioningValidation, setCompositionReport, and — since this
   // fixture's own callers always expect a clean commission, no conflicts —
-  // publish CompositionCompleted directly, same as that route does.
+  // publish CompositionCompleted directly, same as the route's Validate button does (CR-149).
   let seuForCompose: SeuRow | null = null;
   {
     const { data: seu } = await seusDB.findById(input.seuId);
@@ -538,14 +538,17 @@ export async function driveCommissioningToActive(input: {
   let preview = await previewCommissioningValidation({ selections: composeSelections, viewerTenantId: composeViewerTenantId });
   // A user would answer each conflict on the Resolve Conflicts screen. This fixture takes the first option of every open conflict that has a pick,
   // and asks for the SEU's own decision (include) where the conflict is include or exclude. A conflict nobody can resolve here fails the commission.
+  // Every open conflict of a round is answered against the same preview. A Service pick opens the work item types of its Deliverable, so the next round answers those.
   for (let round = 0; round < 50 && !input.leaveConflictsOpen; round++) {
-    const open = blockingEbmConflicts(preview.ebmConflicts).find((c) => c.resolvable);
-    if (!open) break;
-    const chosenService = Object.entries(input.serviceChoices ?? {}).find(([deliverableCode]) => open.key === serviceChoiceKey(deliverableCode))?.[1];
-    const chosenIndex = chosenService ? open.options.findIndex((o) => o.value === chosenService) : -1;
-    const applied = applyConflictPick(preview.ebmConflicts, open.key, open.action === "include-or-exclude" ? { decision: "include" } : { optionIndexes: [chosenIndex >= 0 ? chosenIndex : 0] });
-    if (!applied.ok) return { ok: false, stage: "compose_ebm", reason: applied.error, seuId: input.seuId };
-    resolvedCompositionConflicts = { ...resolvedCompositionConflicts, [applied.key]: applied.value };
+    const openConflicts = blockingEbmConflicts(preview.ebmConflicts).filter((c) => c.resolvable);
+    if (openConflicts.length === 0) break;
+    for (const open of openConflicts) {
+      const chosenService = Object.entries(input.serviceChoices ?? {}).find(([deliverableCode]) => open.key === serviceChoiceKey(deliverableCode))?.[1];
+      const chosenIndex = chosenService ? open.options.findIndex((o) => o.value === chosenService) : -1;
+      const applied = applyConflictPick(preview.ebmConflicts, open.key, open.action === "include-or-exclude" ? { decision: "include" } : { optionIndexes: [chosenIndex >= 0 ? chosenIndex : 0] });
+      if (!applied.ok) return { ok: false, stage: "compose_ebm", reason: applied.error, seuId: input.seuId };
+      resolvedCompositionConflicts = { ...resolvedCompositionConflicts, [applied.key]: applied.value };
+    }
     preview = await previewCommissioningValidation({ selections: composeSelections, viewerTenantId: composeViewerTenantId, resolvedCompositionConflicts });
   }
   const { compositionReport, composedPacks, profileDetails, ebmConflicts, recordedConflicts, settled } = preview;

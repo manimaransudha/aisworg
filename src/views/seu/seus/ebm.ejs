@@ -58,11 +58,11 @@
                separate, independently human-triggered transitions on this
                EBM. This is what the EBM page exists to host ("We will need
                this to advance the EBM states"). %>
-          <%# One button per next action of the transition definitions the viewer holds the badge for (CR-128). %>
+          <%# One button per next action of the transition definitions the viewer holds the badge for (CR-128). From Composed the Validated hop shows as Activate (CR-149): it checks the references, then validates and activates. %>
           <% ebmView.ebm.actions.forEach(function(a) { %>
             <form method="POST" action="/aisworg/seu/seus/<%= ebmView.seuId %>/ebm/transition/<%= a.verb %>" class="mb-0">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <button type="submit" class="btn btn-sm btn-primary"><%= a.verb.charAt(0).toUpperCase() + a.verb.slice(1) %></button>
+              <button type="submit" class="btn btn-sm btn-primary"><%= a.toState === 'Validated' ? 'Activate' : a.verb.charAt(0).toUpperCase() + a.verb.slice(1) %></button>
             </form>
           <% }) %>
         </div>

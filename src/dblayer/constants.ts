@@ -44,10 +44,12 @@ export type ConflictAction = typeof CONFLICT_ACTION_PICK_ONE | typeof CONFLICT_A
 export const CONFLICT_TITLE_BY_KIND: Record<string, string> = {
   "level-different": "Service level conflicts",
   "level-added": "Service level conflicts",
+  "worktype-choice": "Work item types",
 };
 // The action for each kind of conflict that the detectors in src/domain/engine/conflicts report.
 export const CONFLICT_ACTION_BY_KIND: Record<string, ConflictAction> = {
   "service-choice": CONFLICT_ACTION_PICK_ONE,
+  "worktype-choice": CONFLICT_ACTION_PICK_ANY,
   "level-different": CONFLICT_ACTION_PICK_ONE,
   "level-added": CONFLICT_ACTION_PICK_ONE,
   "capability-added": CONFLICT_ACTION_INCLUDE_OR_EXCLUDE,
@@ -89,7 +91,7 @@ export const CONFLICT_KINDS_SHOWN_AS_COMPARISON: string[] = ["quality-gate-diffe
 // The columns of the "What the SEU takes" table of each conflict table, in the order they are shown. The saved result comes back from the database
 // with its keys reordered, so the screen takes the order from here and not from the rows.
 export const CONFLICT_RESULT_COLUMNS: Record<string, string[]> = {
-  services: ["deliverable", "name", "service", "levels"],
+  services: ["deliverable", "name", "service", "workItemTypes", "levels"],
   capabilities: ["capability", "deliverables", "source", "definitionId"],
   policies: ["policyCode", "statement", "deliverable", "scope", "step", "field", "rule", "governingCondition", "packs"],
   authorityRules: ["step", "roles", "packs"],

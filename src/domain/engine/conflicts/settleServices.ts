@@ -1,6 +1,6 @@
 import { CONFLICT_NO_VALUE } from "../../../dblayer/constants.js";
 import { unravelServices, type ServicesUnraveled } from "./unravelServices.js";
-import { chosenServices, detectServiceConflictsFrom, ownLevels, packServiceListsOf, serviceLevelKey, type PackServiceList } from "./services.js";
+import { chosenServices, detectServiceConflictsFrom, ownLevels, packServiceListsOf, pickedWorkItemTypes, serviceLevelKey, worktypeChoiceKey, type PackServiceList, type WorkItemType } from "./services.js";
 import { openKeys, recordConflicts, leftOutOf, type LeftOut } from "./settleShared.js";
 import type { RecordedConflict } from "../../../dblayer/seuTypes.js";
 import type { ConflictResolutions, DetectionContext } from "./types.js";
@@ -11,6 +11,8 @@ export interface SettledService {
   // The Deliverable's name, from its Active Deliverable Definition when the EBM was composed.
   name: string | null;
   service: string;
+  // The work item types the user picked for the Deliverable, each worktype with its role, from the Capability of the Service.
+  workItemTypes: WorkItemType[];
   levels: Record<string, number>;
 }
 
@@ -51,7 +53,11 @@ export function settleServicesFrom(facts: ServicesUnraveled, packLists: PackServ
   const chosen = chosenServices(facts.candidates, resolutions);
   const result: SettledService[] = facts.deliverableCodes
     .filter((deliverable) => chosen[deliverable] !== undefined)
-    .map((deliverable) => ({ deliverable, name: facts.deliverableNames[deliverable] ?? null, service: chosen[deliverable], levels: finalLevels(facts, chosen[deliverable], resolutions, open) }));
+    .map((deliverable) => {
+      const candidate = facts.candidates[deliverable]?.find((c) => c.code === chosen[deliverable]);
+      const workItemTypes = candidate ? pickedWorkItemTypes(candidate, resolutions[worktypeChoiceKey(deliverable)]) : [];
+      return { deliverable, name: facts.deliverableNames[deliverable] ?? null, service: chosen[deliverable], workItemTypes, levels: finalLevels(facts, chosen[deliverable], resolutions, open) };
+    });
   // The Services the Packs list that no catalogue Deliverable can use are not taken either.
   const candidateCodes = new Set(Object.values(facts.candidates).flat().map((c) => c.code));
   const leftOut = leftOutOf(detected);

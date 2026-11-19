@@ -304,4 +304,12 @@ Choose Configuration parameters
 
 
 -------
-calculateConfidenceLevel
+
+
+On your point that completing the work generates a command that returns control to the Execution Engine, the code doesn't do that today. It's worth deciding what should happen.
+
+What completeWorkItem does: when the Participant reports "Done", it records the reference and sets the Work Item to Completed and then Disposed. It sets the Command to Completed and the Participant to Idle (workItems.ts:88-138). It publishes WorkItemCompleted and WorkItemDisposed.
+What it doesn't do: it creates no Command, makes no call into the Execution Engine and doesn't move the Deliverable.
+Stale event text: the eventSubscriptions.json description says completeWorkItem publishes DeliverableTransitioned. It no longer does.
+Result for this SEU: the Deliverable stays In Progress after "Done". Nothing evaluates the In Progress → Approved gates until someone requests Approve.
+Is "Done" meant to trigger the Execution Engine to request In Progress → Approved, or is it a separate step? I'll add your answer to the CR as a design point if you want it there.

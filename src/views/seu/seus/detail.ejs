@@ -96,7 +96,7 @@
             <div class="section-header">Deliverable Quality Gate</div>
             <div class="table-responsive">
               <table class="table mb-0 align-middle">
-                <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Quality Gate</th><th>Quality Gate Outcome</th><th>Attention items</th><th>Participants</th><th>Transition</th></tr></thead>
+                <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Quality Gate</th><th>Quality Gate Outcome</th><th>Attention items</th><th>Participants</th><th>Blocked Transition</th></tr></thead>
                 <tbody>
                   <% if (detail.deliverables.length === 0) { %>
                     <tr><td colspan="7" class="text-muted small">No Deliverable instances yet — created once commissioning reaches Create Engineering Assets.</td></tr>
@@ -677,7 +677,7 @@
           <div class="section-card">
             <div class="table-responsive">
               <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light"><tr><th>Command</th><th>Transition</th><th>Status</th><th>Work Item</th></tr></thead>
+                <thead class="table-light"><tr><th>Command</th><th>Current State</th><th>Status</th><th>Work Item</th></tr></thead>
                 <tbody>
                   <% if (detail.commands.length === 0) { %>
                     <tr><td colspan="4" class="text-muted small">No Commands generated yet — every Deliverable transition on the Deliverables tab generates one.</td></tr>
@@ -685,7 +685,7 @@
                   <% detail.commands.forEach(function(cmd) { %>
                     <tr>
                       <td class="small"><%= cmd.entityLabel %><br><span class="text-muted" style="font-size:0.72rem;"><%= cmd.commandType %></span></td>
-                      <td class="small"><%= cmd.fromState %> &rarr; <%= cmd.toState %></td>
+                      <td><% if (cmd.entityLifecycleState) { %><span class="state-badge state-<%= cmd.entityLifecycleState.replace(/\s+/g, '-') %>"><%= cmd.entityLifecycleState %></span><% } else { %><span class="text-muted small">&mdash;</span><% } %></td>
                       <td><span class="state-badge state-<%= cmd.status %>"><%= cmd.status %></span></td>
                       <td class="small">
                         <% if (cmd.workItems.length === 0) { %>
@@ -696,29 +696,9 @@
                               <span class="state-badge state-<%= wi.status %>"><%= wi.status %></span>
                               <% if (wi.participantLabel) { %> &rarr; <%= wi.participantLabel %><% } %>
                               <% if (wi.dispatchStrategy) { %> <span class="text-muted" style="font-size:0.7rem;">(<%= wi.dispatchStrategy %>)</span><% } %>
-                              <% if (wi.executionContext) { %>
-                                <% var ec = wi.executionContext; %>
-                                <details style="font-size:0.72rem;">
-                                  <summary class="text-muted">Execution Context</summary>
-                                  <div class="ps-2">
-                                    <div><strong>Objective:</strong> <%= ec.engineeringObjective %></div>
-                                    <% if (ec.service) { %><div><strong>Service:</strong> <%= ec.service.name %> (<%= ec.service.code %>)</div><% } %>
-                                    <div><strong>Input location:</strong> <%= ec.inputLocation || '—' %></div>
-                                    <div><strong>Output location:</strong> <%= ec.outputLocation || '—' %></div>
-                                    <div><strong>Decisions:</strong> <%= ec.relevantDecisions.map(function(d){ return d.title + ' (' + d.status + ')'; }).join(', ') || 'none' %></div>
-                                    <div><strong>Evidence:</strong> <%= ec.supportingEvidence.map(function(e){ return e.title + ' (' + e.status + ')'; }).join(', ') || 'none' %></div>
-                                    <div><strong>Knowledge:</strong> <%= ec.relevantKnowledge.map(function(k){ return k.title; }).join(', ') || 'none' %></div>
-                                    <div><strong>Governing Policies:</strong> <%= ec.governingPolicies.map(function(p){ return p.name; }).join(', ') || 'none' %></div>
-                                    <div><strong>Applicable Authority:</strong> <%= ec.applicableAuthority ? ec.applicableAuthority.code : 'none' %></div>
-                                    <div><strong>Active Obligations:</strong> <%= ec.activeObligations.map(function(o){ return o.title + ' (' + o.status + ')'; }).join(', ') || 'none' %></div>
-                                    <div><strong>Open Attention Items:</strong> <%= ec.openAttentionItems.map(function(a){ return a.title; }).join(', ') || 'none' %></div>
-                                    <% if (ec.qualityGate) { %><div><strong>Quality Gate:</strong> <%= ec.qualityGate.name %> (<%= ec.qualityGate.outcome %>)</div><% } %>
-                                    <% if ((ec.applicableChecklists || []).length > 0) { %><div><strong>Checklist:</strong> <%= ec.applicableChecklists.map(function(c){ return c.statement; }).join('; ') %></div><% } %>
-                                    <% if ((ec.engineeringCapital || []).length > 0) { %><div><strong>Engineering Capital:</strong> <%= ec.engineeringCapital.map(function(c){ return c.type ? (c.type + (c.url ? ': ' + c.url : '')) : (c.url || ''); }).join(', ') %></div><% } %>
-                                    <% var pc = ec.profileConfiguration || {}; var pcEntries = Object.keys(pc).filter(function(k){ return pc[k] !== undefined && pc[k] !== null && pc[k] !== ''; }); %>
-                                    <% if (pcEntries.length > 0) { %><div><strong>Profile:</strong> <%= pcEntries.map(function(k){ var v = pc[k]; return k + ': ' + (Array.isArray(v) ? v.join('/') : (typeof v === 'object' ? JSON.stringify(v) : v)); }).join(', ') %></div><% } %>
-                                  </div>
-                                </details>
+                              <% if (wi.executionContextHtml) { %>
+                                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" style="font-size:0.72rem;" data-bs-toggle="modal" data-bs-target="#executionContextModal" data-template="execution-context-<%= wi.id %>">Execution Context</button>
+                                <template id="execution-context-<%= wi.id %>"><%- wi.executionContextHtml %></template>
                               <% } %>
                             </div>
                           <% }) %>
@@ -1276,6 +1256,30 @@
       criteria — what this Obligation IS) vs Execution State (status/blocked
       hop/timestamps — where it stands right now) rather than one flat JSON
       dump, per the owner's own ask. %>
+  <div class="modal fade" id="executionContextModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title mb-0">Execution Context</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body small" id="executionContextModalBody"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var modalEl = document.getElementById('executionContextModal');
+      if (!modalEl) return;
+      modalEl.addEventListener('show.bs.modal', function (event) {
+        var tpl = document.getElementById(event.relatedTarget.getAttribute('data-template'));
+        var body = document.getElementById('executionContextModalBody');
+        body.innerHTML = tpl ? tpl.innerHTML : '';
+        body.querySelectorAll('table').forEach(function (t) { t.classList.add('table', 'table-sm', 'table-bordered', 'align-middle'); });
+      });
+    })();
+  </script>
+
   <div class="modal fade" id="obligationModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable">
       <div class="modal-content">

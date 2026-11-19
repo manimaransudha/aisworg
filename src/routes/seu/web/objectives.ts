@@ -579,7 +579,11 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
 
     const { compositionReport, composedPacks, profileDetails, ebmConflicts, recordedConflicts, settled } = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts, viewerTenantId });
     await seusDB.setCompositionReport(existingSeu.id, { selections, compositionReport, composedPacks, profileDetails, resolvedParameterOverrides, ebmConflicts, recordedConflicts, settled, resolvedCompositionConflicts });
-    if (blockingEbmConflicts(ebmConflicts).length === 0) {
+    // Compose keeps the composition as a draft on the SEU and creates no EBM. The Validate button of the Resolve Conflicts screen creates it.
+    if (typeof req.body?.validateComposition === "string") {
+      if (existingSeu.active_ebm_id) return res.redirect(`/aisworg/seu/seus/${existingSeu.id}/ebm`);
+      const open = blockingEbmConflicts(ebmConflicts);
+      if (open.length > 0) return redirects.seu.objectivesComposeEbm.error(req, res, `Validate is not possible yet. ${open.length} item${open.length === 1 ? " is" : "s are"} still open, including the work item types of each Deliverable.`, resolveConflictsUrl(objectiveId, req.body ?? {}));
       const actorId = requireActorId(req);
       const authorBadge = await resolveAuthorBadgeForRequest(req);
       await eventBus.publish({
@@ -592,14 +596,13 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
         actorId,
         authorityBadge: authorBadge,
       });
+      return redirects.seu.objectivesComposeEbm.success(req, res, "The EBM is being created. Wait for the page to refresh.", `/aisworg/seu/seus/${existingSeu.id}/ebm?composing=1`);
     }
     // Commented out (owner): the old conflict strategies are replaced by the Resolve Conflicts screen.
     // if (strategyError) return redirects.seu.objectivesComposeEbm.error(req, res, strategyError);
     // if (strategyNotes.length) return redirects.seu.objectivesComposeEbm.success(req, res, strategyNotes.join(" · "));
-    // A composition with no open conflict is complete. The EBM page carries the next transitions of the EBM.
-    if (blockingEbmConflicts(ebmConflicts).length === 0) return redirects.seu.objectivesComposeEbm.success(req, res, "No conflict is open. The EBM is being composed. Wait for the page to refresh.", `/aisworg/seu/seus/${existingSeu.id}/ebm?composing=1`);
-    if (req.body?.returnTo === "resolve-conflicts") return res.redirect(resolveConflictsUrl(objectiveId, req.body ?? {}));
-    return res.redirect(`/aisworg/seu/objectives/${objectiveId}/compose-ebm`);
+    // The Resolve Conflicts screen always follows, so the work item types of each Deliverable are picked there.
+    return res.redirect(resolveConflictsUrl(objectiveId, req.body ?? {}));
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/compose-ebm error", err as Error);
     return redirects.seu.objectivesComposeEbm.error(req, res, (err as Error).message);
