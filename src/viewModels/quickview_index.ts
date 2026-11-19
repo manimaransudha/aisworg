@@ -2,5 +2,5 @@ import { createViewModel } from "../utils/viewModel.js";
 
 export const quickview_indexVM = createViewModel({
   required: ["title"],
-  optional: ["flash", "listBasePath", "list", "participantHome"]
+  optional: ["flash", "listBasePath", "list", "participantHome", "attentionCategoryOptions", "attentionPriorityOptions"]
 });

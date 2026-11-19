@@ -201,3 +201,19 @@ The owner ran the tests after Part 1 and they passed. The changes below were mad
 Files: src/views/seu/seus/resolve-conflicts.ejs, src/views/seu/seus/_worktype-form.ejs (new), src/routes/seu/web/objectives.ts, src/domain/engine/conflicts/{types,resolve,services}.ts, src/dblayer/constants.ts, src/utils/resultCells.ts, src/views/seu/seus/detail.ejs, src/views/quickview/_participantHome.ejs, src/routes/seu/core/executionContextMarkdown.ts, src/routes/seu/web/seus.ts.
 
 Still open: whether the Work Queue column is removed, and whether the Quality Gate decision is dropped from the stored execution context (tests/execution-engine.test.ts asserts it). Not run: `tsc`, tests, `db:clean-slate`.
+
+## 15. Part 4 built: a Participant raises Attention Items, not Obligations (2026-11-19, built, not yet run)
+
+A Participant can no longer raise an Obligation. A Participant raises an Attention Item on a Deliverable assigned to them. The Obligations tab stays and still lists the Obligations on the Participant's Deliverables.
+
+| Area | Change |
+|---|---|
+| Core | `raiseMyObligation` is replaced by `raiseMyAttentionItem` in participantHome.ts. It keeps the ownership check (the Deliverable must be on the Participant's own Work Items), checks the category and priority against the Ontology, resolves the `attentionitem_raise` badge and calls `createAttentionItem`. |
+| Ontology | New concept types `category:attention-item` (Operational, Action Required, Escalation) and `category:attention-priority` (Very High, High, Medium, Low). The three categories are the ones the engine already writes. |
+| Routes | `POST /aisworg/quickview/seus/:seuId/attention-items` and `POST /aisworg/seu/demo/participants/:participantId/seus/:seuId/attention-items` replace the two `.../obligations` routes. The route_authority rows are renamed. |
+| View | The Participant home and the Demo participant viewer have an Attention Items tab with the raise form and the list of Attention Items on the Participant's Deliverables. The Obligations tab has no form. |
+| Options | `getViewerAttentionItemOptions` replaces `getViewerObligationOptions`. The ViewModels carry `attentionCategoryOptions` and `attentionPriorityOptions`. |
+
+Test fixtures updated in the same pass: tests/cr108-obligation-model-seu-execution.test.ts (the Participant test raises an Attention Item and the Participant is granted `attentionitem_raise`), and a comment in tests/web-flow.e2e.test.ts.
+
+Run: `tsc` was run and is clean. Tests and `db:clean-slate` were not run. `db:clean-slate` is needed for the Ontology concepts and the route rows.

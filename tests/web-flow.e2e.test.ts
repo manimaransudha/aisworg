@@ -546,11 +546,10 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
 
   // CR-108 item 3 — the manual "Create Obligation" web form/route was
   // removed (owner: "I am unsure whether we need the ability to manually
-  // create an obligation"; settled to Participant-facing raiseMyObligation
-  // only, quickview/participant.ejs). This test only needs a real,
+  // create an obligation"; settled to a root-created Obligation only;
+  // a Participant raises an Attention Item, not an Obligation, CR-149 Part 4). This test only needs a real,
   // pre-existing Obligation to block the Deliverable transition below —
-  // creating it directly via the same core function the removed route and
-  // raiseMyObligation both call.
+  // creating it directly via the same core function the removed route called.
   const createdObligation = await createObligation({
     relatedObjectType: "Deliverable", relatedObjectId: deliverableId,
     category: "Security", title: "WebFlow Phase4 obligation", severity: "High",

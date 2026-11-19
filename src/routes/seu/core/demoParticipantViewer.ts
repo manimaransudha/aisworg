@@ -30,15 +30,15 @@ export async function resolveViewerAuthorBadge(req: Request, participantId: stri
   return resolveAuthorBadge(lookupRouteAuthority(req.method, req.baseUrl + req.path), held);
 }
 
-// The Obligation category and severity choices of the "My Work" form, read from the Ontology for the Demo tenant.
-export async function getViewerObligationOptions(demoTenantId: string): Promise<{ categories: string[]; severities: string[] }> {
+// The Attention Item category and priority choices of the "My Work" form, read from the Ontology for the Demo tenant.
+export async function getViewerAttentionItemOptions(demoTenantId: string): Promise<{ categories: string[]; priorities: string[] }> {
   const viewer = { isRoot: false, tenantId: demoTenantId };
-  const [categories, severities] = await Promise.all([
-    listConceptsForType("category:obligation", viewer, false),
-    listConceptsForType("category:obligation-severity", viewer, false),
+  const [categories, priorities] = await Promise.all([
+    listConceptsForType("category:attention-item", viewer, false),
+    listConceptsForType("category:attention-priority", viewer, false),
   ]);
   return {
     categories: [...new Set(categories.map((c) => c.code))].sort(),
-    severities: [...new Set(severities.map((c) => c.code))].sort(),
+    priorities: [...new Set(priorities.map((c) => c.code))].sort(),
   };
 }

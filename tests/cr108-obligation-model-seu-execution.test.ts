@@ -17,10 +17,10 @@
 //    related_object_type === "SEU", self-checking via attemptSeuCommenceWork),
 //    and deliverableKickoff runs its existing blanket per-Deliverable rescan.
 // 3. The manual "Create Obligation" web form/route (SEU detail page) is
-//    removed; Obligation creation for a Participant's own assigned
-//    Deliverable now goes through participantHome.ts's raiseMyObligation,
-//    which re-derives and enforces the caller's own myDeliverableIds before
-//    calling the same createObligation core function.
+//    removed. A Participant cannot raise an Obligation (CR-149 Part 4); a
+//    Participant raises an Attention Item on their own assigned Deliverable
+//    through participantHome.ts's raiseMyAttentionItem, which re-derives and
+//    enforces the caller's own myDeliverableIds.
 //
 // Run against the real dev database, no mocking.
 import "dotenv/config";
@@ -34,7 +34,7 @@ import { transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createObligationAsRoot as createObligation, grantBadge, createActiveObjective, emptyParticipantPool } from "./testFixtures.js";
 import { deliverableByCode } from "./testFixtures.js";
 import { initiateAndValidateSeu } from "./testFixtures.js";
-import { raiseMyObligation } from "../src/routes/seu/core/participantHome.js";
+import { raiseMyAttentionItem } from "../src/routes/seu/core/participantHome.js";
 import { transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
@@ -269,8 +269,8 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
 // --- Item 3: the manual SEU-detail "Create Obligation" web form/route is
 // gone (see tests/web-flow.e2e.test.ts's Phase 4/7/8 fixes, which now call
 // createObligation directly instead of POSTing to the removed route).
-// raiseMyObligation (participantHome.ts) is the real replacement — a
-// Participant may only raise an Obligation against a Deliverable genuinely
+// raiseMyAttentionItem (participantHome.ts) is what a Participant uses — a
+// Participant may only raise an Attention Item against a Deliverable genuinely
 // dispatched to their own engagement, re-derived server-side, never trusted
 // off the form.
 async function createTestUser(label: string): Promise<string> {
@@ -289,7 +289,7 @@ async function attachUserToParticipantMaster(participantMasterId: string, userId
   await pool.query("UPDATE participants_master SET user_id = $1 WHERE id = $2", [userId, participantMasterId]);
 }
 
-test("CR-108 item 3: a Participant can raise an Obligation against their own dispatched Deliverable, and is rejected for one that isn't theirs", async (t) => {
+test("CR-108 item 3: a Participant can raise an Attention Item against their own dispatched Deliverable, and is rejected for one that isn't theirs", async (t) => {
   t.after(await emptyParticipantPool(await getEmptyPoolTenantId()));
   const run = randomUUID().slice(0, 8);
   await ensureWebAppTemplateFixture();
@@ -306,8 +306,8 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
       assert.ok(capability);
       participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
       await attachUserToParticipantMaster(participantMasterId, userId);
-      // raiseMyObligation resolves obligation_create for this Participant; the row is test-owned and deactivated in finally.
-      await grantBadge(participantMasterId, "obligation_create");
+      // raiseMyAttentionItem resolves attentionitem_raise for this Participant; the row is test-owned and deactivated in finally.
+      await grantBadge(participantMasterId, "attentionitem_raise");
       await fulfilCapability({ seuId, capabilityId: capability!.capabilityId, participantMasterId });
     }
   );
@@ -321,28 +321,28 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   await resolveDispatchRejectionObligations(seuId);
 
   // Drive the Deliverable to a real dispatched Work Item against this exact
-  // Participant — myDeliverableIds (raiseMyObligation's own ownership check)
+  // Participant — myDeliverableIds (raiseMyAttentionItem's own ownership check)
   // is derived from a real commands/work_items row, never assumed.
   await transitionDeliverable({ requestedBy: ROOT_ACTOR_ID, deliverableId: requirementsSpec!.id, targetState: "In Progress", actorId: TESTER_ALL_ID });
   await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
 
-  const raised = await raiseMyObligation({
+  const raised = await raiseMyAttentionItem({
     userId: participantMasterId, seuId, deliverableId: requirementsSpec!.id,
-    category: "Engineering", title: "CR-108 participant-raised obligation",
+    category: "Operational", title: "CR-108 participant-raised attention item",
     description: "Raised via the Participant-facing quickview form.",
-    severity: "Medium", completionCriteria: "The named condition is addressed.",
+    priority: "Medium",
   });
   assert.equal(raised.ok, true, !raised.ok ? JSON.stringify(raised) : "assertion failed");
   if (!raised.ok) throw new Error("unreachable");
-  assert.equal(raised.obligation.related_object_type, "Deliverable");
-  assert.equal(raised.obligation.related_object_id, requirementsSpec!.id);
-  assert.equal(raised.obligation.seu_id, seuId);
+  assert.equal(raised.attentionItem.related_object_type, "Deliverable");
+  assert.equal(raised.attentionItem.related_object_id, requirementsSpec!.id);
+  assert.equal(raised.attentionItem.seu_id, seuId);
 
   // A Deliverable never dispatched to this Participant — not_mine, no
-  // Obligation created, regardless of whether the id is even real.
-  const rejected = await raiseMyObligation({
+  // Attention Item created, regardless of whether the id is even real.
+  const rejected = await raiseMyAttentionItem({
     userId: participantMasterId, seuId, deliverableId: randomUUID(),
-    category: "Engineering", title: "should never be created",
+    category: "Operational", title: "should never be created",
   });
   assert.equal(rejected.ok, false);
   if (rejected.ok) throw new Error("unreachable");

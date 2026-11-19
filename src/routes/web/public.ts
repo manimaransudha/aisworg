@@ -15,7 +15,7 @@ import { logger } from "../../utils/logger.js";
 import {parseListParams, paginateList} from "../../utils/listQuery.js";
 import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";
 import { getSeuQuickviewPage } from "../seu/core/seus.js";
-import { getParticipantHomeView, completeMyWorkItem, raiseMyObligation } from "../seu/core/participantHome.js";
+import { getParticipantHomeView, completeMyWorkItem, raiseMyAttentionItem } from "../seu/core/participantHome.js";
 import type { WorkItemOutcome } from "../seu/core/workItems.js";
 import { listConceptsForType } from "../seu/core/ontology.js";
 import { resolveHeldRoles } from "../../domain/identity/heldRoles.js";
@@ -48,12 +48,12 @@ router.get("/quickview", attachVM("quickview/index"), async (req: Request, res: 
       req.vm.req.participantHome = await getParticipantHomeView(sessionUserOf(req).id);
       const isRoot = (sessionUserOf(req).platformBadges ?? []).includes("root");
       const tenantId = sessionUserOf(req).tenant_id ?? null;
-      const [obligationCategories, obligationSeverities] = await Promise.all([
-        listConceptsForType("category:obligation", { isRoot, tenantId }, false),
-        listConceptsForType("category:obligation-severity", { isRoot, tenantId }, false),
+      const [attentionCategories, attentionPriorities] = await Promise.all([
+        listConceptsForType("category:attention-item", { isRoot, tenantId }, false),
+        listConceptsForType("category:attention-priority", { isRoot, tenantId }, false),
       ]);
-      req.vm.req.obligationCategoryOptions = [...new Set(obligationCategories.map((c) => c.code))].sort();
-      req.vm.req.obligationSeverityOptions = [...new Set(obligationSeverities.map((c) => c.code))].sort();
+      req.vm.req.attentionCategoryOptions = [...new Set(attentionCategories.map((c) => c.code))].sort();
+      req.vm.req.attentionPriorityOptions = [...new Set(attentionPriorities.map((c) => c.code))].sort();
       req.vm.opt.flash = getFlash(req);
       return renderView(req, res, "quickview/participant", req.vm);
     }
@@ -100,28 +100,27 @@ router.post("/quickview/work-items/:workItemId/complete", async (req: Request, r
   }
 });
 
-router.post("/quickview/seus/:seuId/obligations", async (req: Request, res: Response) => {
-  const { deliverableId, category, title, description, severity, completionCriteria } = req.body ?? {};
+router.post("/quickview/seus/:seuId/attention-items", async (req: Request, res: Response) => {
+  const { deliverableId, category, title, description, priority } = req.body ?? {};
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
     return redirects.home.quickview.error(req, res, "Deliverable, category and title are required.");
   }
   try {
-    const result = await raiseMyObligation({
+    const result = await raiseMyAttentionItem({
       userId: sessionUserOf(req).id,
       seuId: String(req.params.seuId),
       deliverableId,
       category,
       title,
       description,
-      severity,
-      completionCriteria,
+      priority,
     });
     if (!result.ok) {
       return redirects.home.quickview.error(req, res, result.detail);
     }
-    return redirects.home.quickview.success(req, res, `Obligation "${result.obligation.title}" created (${result.obligation.category}, ${result.obligation.severity}).`);
+    return redirects.home.quickview.success(req, res, `Attention Item "${result.attentionItem.title}" raised (${result.attentionItem.category}, ${result.attentionItem.priority}).`);
   } catch (err) {
-    logger.error("[QuickView] POST obligations error:", err);
+    logger.error("[QuickView] POST attention-items error:", err);
     return redirects.home.quickview.error(req, res, err instanceof Error ? err.message : String(err));
   }
 });

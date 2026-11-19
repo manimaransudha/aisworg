@@ -24,9 +24,9 @@ import { evidenceDB } from "../../../dblayer/evidenceDB.js";
 import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
 import { createEvidence, transitionEvidence } from "../core/evidence.js";
 import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
-import { getParticipantHomeView, completeMyWorkItem, raiseMyObligation } from "../core/participantHome.js";
+import { getParticipantHomeView, completeMyWorkItem, raiseMyAttentionItem } from "../core/participantHome.js";
 import type { WorkItemOutcome } from "../core/workItems.js";
-import { listViewerParticipants, getViewerParticipant, getViewerObligationOptions, resolveViewerAuthorBadge } from "../core/demoParticipantViewer.js";
+import { listViewerParticipants, getViewerParticipant, getViewerAttentionItemOptions, resolveViewerAuthorBadge } from "../core/demoParticipantViewer.js";
 import type { AcquisitionScope, ParticipantMasterRow } from "../../../dblayer/seuTypes.js";
 import { listAreaContent, saveAreaContent, createStep, updateStep, createScenario, updateScenario, setScenarioEnabled } from "../core/demoCatalogue.js";
 import { getDemoActor } from "../../../dblayer/seed/demo/demoBadges.js";
@@ -179,11 +179,11 @@ router.get("/demo/participants", attachVM("seu/demo/participants"), async (req: 
     if (chosenId) {
       const chosen = roster.find((p) => p.id === chosenId);
       if (!chosen) return redirects.seu.demoParticipants.error(req, res, "That participant is not in the Demo tenant.", participantsPath);
-      const options = await getViewerObligationOptions(tenantId);
+      const options = await getViewerAttentionItemOptions(tenantId);
       req.vm.opt.participantHome = await getParticipantHomeView(chosen.id);
       req.vm.opt.actionBase = `${participantsPath}/${chosen.id}`;
-      req.vm.opt.obligationCategoryOptions = options.categories;
-      req.vm.opt.obligationSeverityOptions = options.severities;
+      req.vm.opt.attentionCategoryOptions = options.categories;
+      req.vm.opt.attentionPriorityOptions = options.priorities;
     }
     return renderView(req, res, "seu/demo/participants", req.vm);
   } catch (err) {
@@ -206,14 +206,14 @@ async function actAsParticipant(req: Request, res: Response, run: (participant: 
   }
 }
 
-router.post("/demo/participants/:participantId/seus/:seuId/obligations", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
-  const { deliverableId, category, title, description, severity, completionCriteria } = req.body ?? {};
+router.post("/demo/participants/:participantId/seus/:seuId/attention-items", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {
+  const { deliverableId, category, title, description, priority } = req.body ?? {};
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
     throw new Error("Deliverable, category and title are required.");
   }
-  const result = await raiseMyObligation({ userId: participant.id, seuId: String(req.params.seuId), deliverableId, category, title, description, severity, completionCriteria });
+  const result = await raiseMyAttentionItem({ userId: participant.id, seuId: String(req.params.seuId), deliverableId, category, title, description, priority });
   if (!result.ok) throw new Error(result.detail);
-  return `Obligation "${result.obligation.title}" created (${result.obligation.category}, ${result.obligation.severity}).`;
+  return `Attention Item "${result.attentionItem.title}" raised (${result.attentionItem.category}, ${result.attentionItem.priority}).`;
 }));
 
 router.post("/demo/participants/:participantId/work-items/:workItemId/complete", (req: Request, res: Response) => actAsParticipant(req, res, async (participant) => {

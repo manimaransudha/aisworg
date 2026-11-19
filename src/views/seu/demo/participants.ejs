@@ -57,7 +57,7 @@
           <% var _name = participantHome.master ? participantHome.master.display_name : 'this participant'; %>
           <h3 class="h5 text-dark fw-bold mb-1"><%= _name %></h3>
           <p class="edge-note mb-3">You are viewing the page of <%= _name %>. Each action below is recorded under <%= _name %> and the badges that participant holds.</p>
-          <%- include('../../quickview/_participantHome', { participantHome: participantHome, csrfToken: csrfToken, actionBase: actionBase, obligationCategoryOptions: locals.obligationCategoryOptions, obligationSeverityOptions: locals.obligationSeverityOptions }) %>
+          <%- include('../../quickview/_participantHome', { participantHome: participantHome, csrfToken: csrfToken, actionBase: actionBase, attentionCategoryOptions: locals.attentionCategoryOptions, attentionPriorityOptions: locals.attentionPriorityOptions }) %>
         <% } else { %>
           <div class="section-card">
             <div class="p-3 text-muted small">Choose a participant from the list.</div>

@@ -184,7 +184,7 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/quickview/seus/:seuId/obligations",
+    "path": "/aisworg/quickview/seus/:seuId/attention-items",
     "badges": [],
     "roles": [],
     "match_mode": "any"
@@ -2180,7 +2180,7 @@
   },
   {
     "method": "POST",
-    "path": "/aisworg/seu/demo/participants/:participantId/seus/:seuId/obligations",
+    "path": "/aisworg/seu/demo/participants/:participantId/seus/:seuId/attention-items",
     "badges": [],
     "roles": [
       "demo"

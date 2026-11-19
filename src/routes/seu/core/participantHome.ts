@@ -5,8 +5,9 @@ import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { getSeuDetailView, type SeuDetailView } from "./seus.js";
 import { completeWorkItem, type CompleteWorkItemResult, type WorkItemOutcome } from "./workItems.js";
-import { createObligation } from "./obligations.js";
-import type { ObligationRow, ParticipantMasterRow, ParticipantRow } from "../../../dblayer/seuTypes.js";
+import { createAttentionItem } from "./attentionItems.js";
+import { assertCanonicalCategory } from "./ontology.js";
+import type { AttentionItemRow, ParticipantMasterRow, ParticipantRow } from "../../../dblayer/seuTypes.js";
 
 export type ParticipantScopedSeuView = Omit<SeuDetailView, "capabilities" | "participantTypes" | "requiredTechnologyPacks" | "requiredDomainPacks" | "evidenceSupersedeCandidates" | "qualityGates">;
 
@@ -97,18 +98,18 @@ export async function completeMyWorkItem(input: { userId: string; workItemId: st
   return completeWorkItem({ workItemId: input.workItemId, outcome: input.outcome, reference: input.reference });
 }
 
-export type RaiseMyObligationResult = { ok: true; obligation: ObligationRow } | { ok: false; reason: "not_mine"; detail: string };
+export type RaiseMyAttentionItemResult = { ok: true; attentionItem: AttentionItemRow } | { ok: false; reason: "not_mine"; detail: string };
 
-export async function raiseMyObligation(input: {
+// A Participant raises an Attention Item on a Deliverable assigned to them. A Participant cannot raise an Obligation.
+export async function raiseMyAttentionItem(input: {
   userId: string;
   seuId: string;
   deliverableId: string;
   category: string;
   title: string;
   description?: string;
-  severity?: string;
-  completionCriteria?: string;
-}): Promise<RaiseMyObligationResult> {
+  priority?: string;
+}): Promise<RaiseMyAttentionItemResult> {
   const { data: master } = await participantsMasterDB.findById(input.userId);
   if (!master) return { ok: false, reason: "not_mine", detail: "No participant information." };
 
@@ -124,21 +125,21 @@ export async function raiseMyObligation(input: {
     return { ok: false, reason: "not_mine", detail: "This Deliverable is not assigned to you." };
   }
 
-  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.userId, "obligation_create");
+  await assertCanonicalCategory("category:attention-item", input.category);
+  if (input.priority) await assertCanonicalCategory("category:attention-priority", input.priority);
 
-  const obligation = await createObligation({
-    relatedObjectType: "Deliverable",
-    relatedObjectId: input.deliverableId,
+  const authorBadge = await badgeAuthorityEngine.resolveAuthorBadge(input.userId, "attentionitem_raise");
+
+  const attentionItem = await createAttentionItem({
+    seuId: input.seuId,
     category: input.category,
+    priority: input.priority,
     title: input.title,
     description: input.description,
-    severity: input.severity,
-    completionCriteria: input.completionCriteria,
-    origin: "Participants",
-    originatingEntityType: "Participant",
-    originatingEntityId: engagement.id,
+    relatedObjectType: "Deliverable",
+    relatedObjectId: input.deliverableId,
     actorId: input.userId,
     authorBadge,
   });
-  return { ok: true, obligation };
+  return { ok: true, attentionItem };
 }

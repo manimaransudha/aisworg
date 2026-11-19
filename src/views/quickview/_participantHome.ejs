@@ -6,7 +6,7 @@
 <%
   var _ab = locals.actionBase || '';
   var urlOf = {
-    obligation: function (seuId) { return _ab ? _ab + '/seus/' + seuId + '/obligations' : '/aisworg/quickview/seus/' + seuId + '/obligations'; },
+    attentionItem: function (seuId) { return _ab ? _ab + '/seus/' + seuId + '/attention-items' : '/aisworg/quickview/seus/' + seuId + '/attention-items'; },
     workItem: function (workItemId) { return _ab ? _ab + '/work-items/' + workItemId + '/complete' : '/aisworg/quickview/work-items/' + workItemId + '/complete'; },
     evidence: function (seuId) { return (_ab ? _ab + '/seus/' : '/aisworg/seu/seus/') + seuId + '/evidence'; },
     evidenceTransition: function (seuId, evidenceId) { return (_ab ? _ab + '/seus/' : '/aisworg/seu/seus/') + seuId + '/evidence/' + evidenceId + '/transition'; },
@@ -58,6 +58,7 @@
             var tabs = [
               { key: 'deliverables', label: 'Deliverables', sub: d.deliverables.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.deliverables.length + '</span>' : '' },
               { key: 'obligations', label: 'Obligations', sub: d.obligations.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.obligations.length + '</span>' : '' },
+              { key: 'attention-items', label: 'Attention Items', sub: d.attentionItems.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.attentionItems.length + '</span>' : '' },
               { key: 'evidence', label: 'Evidence', sub: d.evidence.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.evidence.length + '</span>' : '' },
               { key: 'decisions', label: 'Decisions', sub: d.decisions.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.decisions.length + '</span>' : '' },
               { key: 'knowledge', label: 'Knowledge', sub: d.knowledgeItems.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.knowledgeItems.length + '</span>' : '' },
@@ -90,40 +91,7 @@
               </div>
 
               <div class="tab-pane fade" id="<%= prefix %>-obligations" role="tabpanel">
-                <%# Owner: "Remove the add form on the SEU detail page. The
-                    Participant should have an Obligation form. The
-                    obligation has to be on the SEU that the participant is
-                    assigned to, on a deliverable within the SEU." —
-                    Deliverable options are this engagement's own d.deliverables
-                    (already scoped to this Participant's own assignments by
-                    getParticipantHomeView), never the full SEU list.
-                    Governing Condition is free text here (stored on the
-                    existing completionCriteria column) — not the structured
-                    Pack-Definition rule. No evidence field, no origin label
-                    (owner, final). %>
-                <form method="POST" action="<%= urlOf.obligation(d.seu.id) %>" class="d-flex flex-wrap gap-1 align-items-center mb-2">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <select name="deliverableId" class="form-select form-select-sm" style="width:auto;" required>
-                    <option value="" disabled selected>Deliverable&hellip;</option>
-                    <% d.deliverables.forEach(function(item) { %>
-                      <option value="<%= item.id %>"><%= item.name %></option>
-                    <% }) %>
-                  </select>
-                  <select name="category" class="form-select form-select-sm" style="width:auto;">
-                    <% (locals.obligationCategoryOptions || []).forEach(function(cat) { %>
-                      <option value="<%= cat %>"><%= cat %></option>
-                    <% }) %>
-                  </select>
-                  <input type="text" name="title" class="form-control form-control-sm" style="width:auto;" placeholder="Title" required>
-                  <input type="text" name="description" class="form-control form-control-sm" style="width:auto;" placeholder="Description (optional)">
-                  <select name="severity" class="form-select form-select-sm" style="width:auto;">
-                    <% (locals.obligationSeverityOptions || []).forEach(function(sev) { %>
-                      <option value="<%= sev %>" <%= sev === 'Medium' ? 'selected' : '' %>><%= sev %></option>
-                    <% }) %>
-                  </select>
-                  <input type="text" name="completionCriteria" class="form-control form-control-sm" style="width:auto;" placeholder="Governing Condition (optional)">
-                  <button type="submit" class="btn btn-sm btn-primary">Raise Obligation</button>
-                </form>
+                <p class="small text-muted mb-2">Obligations on your Deliverables are shown here. A Participant raises an Attention Item, not an Obligation.</p>
                 <div class="table-responsive">
                   <table class="table table-sm mb-0 align-middle">
                     <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Severity</th><th>Status</th><th>Origin</th><th>Assigned</th></tr></thead>
@@ -137,6 +105,48 @@
                           <td><span class="state-badge state-<%= o.obligation.status.replace(/\s+/g, '-') %>"><%= o.obligation.status %></span></td>
                           <td class="small text-muted"><%= o.obligation.originating_entity_type || '—' %></td>
                           <td class="small text-muted"><%= o.obligation.assigned_entity_type || 'Unassigned' %></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tab-pane fade" id="<%= prefix %>-attention-items" role="tabpanel">
+                <form method="POST" action="<%= urlOf.attentionItem(d.seu.id) %>" class="d-flex flex-wrap gap-1 align-items-center mb-2">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <select name="deliverableId" class="form-select form-select-sm" style="width:auto;" required>
+                    <option value="" disabled selected>Deliverable&hellip;</option>
+                    <% d.deliverables.forEach(function(item) { %>
+                      <option value="<%= item.id %>"><%= item.name %></option>
+                    <% }) %>
+                  </select>
+                  <select name="category" class="form-select form-select-sm" style="width:auto;">
+                    <% (locals.attentionCategoryOptions || []).forEach(function(cat) { %>
+                      <option value="<%= cat %>"><%= cat %></option>
+                    <% }) %>
+                  </select>
+                  <input type="text" name="title" class="form-control form-control-sm" style="width:auto;" placeholder="Title" required>
+                  <input type="text" name="description" class="form-control form-control-sm" style="width:auto;" placeholder="Description (optional)">
+                  <select name="priority" class="form-select form-select-sm" style="width:auto;">
+                    <% (locals.attentionPriorityOptions || []).forEach(function(pr) { %>
+                      <option value="<%= pr %>" <%= pr === 'Medium' ? 'selected' : '' %>><%= pr %></option>
+                    <% }) %>
+                  </select>
+                  <button type="submit" class="btn btn-sm btn-primary">Raise Attention Item</button>
+                </form>
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Related to</th><th>Title</th><th>Category / Priority</th><th>Status</th></tr></thead>
+                    <tbody>
+                      <% if (d.attentionItems.length === 0) { %><tr><td colspan="4" class="text-muted small">None.</td></tr><% } %>
+                      <% d.attentionItems.forEach(function(a) {
+                           var rel = d.deliverables.find(function(x) { return x.id === a.attentionItem.related_object_id; }); %>
+                        <tr>
+                          <td class="small"><%= rel ? rel.name : (a.attentionItem.related_object_type || '—') %></td>
+                          <td class="small"><%= a.attentionItem.title %></td>
+                          <td class="small"><%= a.attentionItem.category %> &middot; <%= a.attentionItem.priority %></td>
+                          <td><span class="state-badge state-<%= a.attentionItem.status.replace(/\s+/g, '-') %>"><%= a.attentionItem.status %></span></td>
                         </tr>
                       <% }) %>
                     </tbody>
