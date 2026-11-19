@@ -9,7 +9,7 @@
   "sourceControlProvider": "github",
   "targetCloudProvider": "aws",
   "deploymentStrategy": "blue-green",
-  "aiProviderPreference": "openai",
+  "aiProviderPreference": ["openai"],
   "defaultRepositoryStructure": "polyrepo",
   "documentationLevel": "comprehensive",
   "dispatchStrategyPreference": [{ "strategy": "capability-match", "order": 1 }],

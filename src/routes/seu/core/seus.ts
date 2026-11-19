@@ -27,7 +27,7 @@ import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
-import { findEligibleParticipants, resolveEligibilityPolicies } from "./participantEligibility.js";
+import { findEligibleParticipants, getCapabilityRoles, resolveEligibilityPolicies } from "./participantEligibility.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { layoutDependencyGraph, type DependencyGraphLayout } from "./templateView.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
@@ -402,7 +402,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         }));
       } else if (seu.tenant_id) {
         const { data: excludeParticipantMasterIds } = await capabilityFulfilmentsDB.findReleasedParticipantMasterIds(c.id);
-        const eligible = await findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: c.capability_code, competency: competencyRequirements, requiredPolicies: eligibilityPolicies, excludeParticipantMasterIds: excludeParticipantMasterIds ?? [] });
+        const eligible = await findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: c.capability_code, competency: competencyRequirements, capabilityRoles: await getCapabilityRoles(seu, c.capability_code), requiredPolicies: eligibilityPolicies, excludeParticipantMasterIds: excludeParticipantMasterIds ?? [] });
         eligibleParticipantsByType = participantTypes.map((type) => ({
           type,
           participants: eligible.filter((p) => p.type === type).map((p) => ({ id: p.id, displayName: p.display_name })),

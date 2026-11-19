@@ -116,6 +116,7 @@ export interface PackRow {
   contributions: PackContributions;
   dependencies: Array<{ packCode: string; version: string; type: "required" | "optional" | "conditional" | "incompatible" }>;
   composition_sources: Array<{ packCode: string }>;
+  composition_conditions: Array<{ parameter: string; value: string }>;
   metadata: Record<string, unknown>;
   authored_by: string;
   author_badge: string;
@@ -494,6 +495,8 @@ export interface ParticipantMasterRow {
   authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }>;
   is_active: boolean;
   user_id: string | null;
+  // The registry key of the adapter that reaches the Participant. Null means the Capability's execution target decides.
+  adapter: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -917,7 +920,7 @@ export interface WorkItemExecutionContext {
   engineeringCapital: Array<{ packCode: string; type?: string; url?: string }>;
   profileConfiguration: Partial<{
     developmentMethodology: string; environment: string; primaryProgrammingLanguage: string; sourceControlProvider: string;
-    targetCloudProvider: string; deploymentStrategy: string; aiProviderPreference: string; defaultRepositoryStructure: string;
+    targetCloudProvider: string; deploymentStrategy: string; aiProviderPreference: string[]; defaultRepositoryStructure: string;
     documentationLevel: string; readme: string; domain: string; participatingOrganisationCodes: string[];
     environmentConfiguration: unknown; deploymentTargets: unknown;
   }>;

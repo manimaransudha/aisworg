@@ -87,7 +87,7 @@ async function commissionCr104MinimalSeu(statementPrefix: string, tenantId: stri
       environment: "development", profileVersion: "1.0.0",
       // Mandatory Configuration Parameters for this tenant — same values
       // cr104-demo-development.profile.json itself sets.
-      developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github",
+      aiProviderPreference: ["none"], developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github",
       redispatchMaxAttempts: 5, redispatchAttentionThreshold: 2,
       knowledgeLocations: [
         { deliverableCodes: ["requirements-analysis-model"], outputLocation: "s3://cr104-demo/requirements-analysis-model.md" },
@@ -202,7 +202,7 @@ async function commissionIsolatedSeu(run: string, tenantId: string, policyCodes:
       baseTemplateCode: template!.code,
       environment: "development",
       profileVersion: `1.0.${Date.now()}${process.pid}`,
-      developmentMethodology: "scrum",
+      aiProviderPreference: ["none"], developmentMethodology: "scrum",
       primaryProgrammingLanguage: "typescript",
       sourceControlProvider: "github",
       redispatchMaxAttempts: 5,

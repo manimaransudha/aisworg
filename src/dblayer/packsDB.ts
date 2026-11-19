@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validatePackWriteAgainstSchema } from "../routes/seu/core/packWriteValidator.js";
 import type { DbResult, PackCategory, PackClassification, PackContributions, PackRow, PackStatus } from "./seuTypes.js";
-import { getPlatformTenantId } from "./constants.js";
+import { getPlatformTenantId, PACK_CLASSIFICATION_CONDITIONAL } from "./constants.js";
  
 export type PackOptionRow = Pick<PackRow, "id" | "code" | "name" | "pack_version" | "status" | "category">;
 
@@ -38,6 +38,7 @@ export const packsDB = {
     contributions: PackContributions;
     dependencies?: Array<{ packCode: string; version: string; type: "required" | "optional" | "conditional" | "incompatible" }>;
     compositionSources?: Array<{ packCode: string }>;
+    compositionConditions?: Array<{ parameter: string; value: string }>;
     metadata?: Record<string, unknown>;
     status: PackStatus;
     authoredBy: string;
@@ -65,8 +66,8 @@ export const packsDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<PackRow>(
-        `INSERT INTO packs (code, name, category, pack_version, status, installation_classification, contributions, dependencies, composition_sources, metadata, authored_by, author_badge, tenant_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, $14, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        `INSERT INTO packs (code, name, category, pack_version, status, installation_classification, contributions, dependencies, composition_sources, composition_conditions, metadata, authored_by, author_badge, tenant_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $14, $5, $6, $7, $8, $15, $9, $10, $11, $12, $13)
          RETURNING *`,
         [
           input.code,
@@ -83,6 +84,7 @@ export const packsDB = {
           input.tenantId,
           schemaRow?.id ?? null,
           input.status,
+          JSON.stringify(input.compositionConditions ?? []),
         ]
       );
       return { data: rows[0] };
@@ -101,6 +103,7 @@ export const packsDB = {
     contributions: PackContributions;
     dependencies?: Array<{ packCode: string; version: string; type: "required" | "optional" | "conditional" | "incompatible" }>;
     compositionSources?: Array<{ packCode: string }>;
+    compositionConditions?: Array<{ parameter: string; value: string }>;
     metadata?: Record<string, unknown>;
   }): Promise<DbResult<PackRow>> {
     try {
@@ -125,7 +128,7 @@ export const packsDB = {
       if (errors.length > 0) return { error: new Error(errors.join("; ")) };
 
       const { rows } = await query<PackRow>(
-        `UPDATE packs SET code = $10, name = $2, category = $3, pack_version = $4, installation_classification = $5, contributions = $6, dependencies = $7, composition_sources = $8, metadata = $9
+        `UPDATE packs SET code = $10, name = $2, category = $3, pack_version = $4, installation_classification = $5, contributions = $6, dependencies = $7, composition_sources = $8, composition_conditions = $11, metadata = $9
          WHERE id = $1 AND status = 'Draft'
          RETURNING *`,
         [
@@ -139,6 +142,7 @@ export const packsDB = {
           JSON.stringify(input.compositionSources ?? []),
           JSON.stringify(input.metadata ?? {}),
           input.code,
+          JSON.stringify(input.compositionConditions ?? []),
         ]
       );
       return { data: rows[0] };
@@ -367,6 +371,20 @@ export const packsDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[packsDB] findActiveVisibleTo error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async findActiveConditionalVisibleTo(viewerTenantId: string): Promise<DbResult<PackRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+    try {
+      const { rows } = await query<PackRow>(
+        "SELECT * FROM packs WHERE status = 'Active' AND installation_classification = $3 AND (tenant_id = $1 OR tenant_id = $2) ORDER BY code",
+        [PLATFORM_TENANT_ID, viewerTenantId, PACK_CLASSIFICATION_CONDITIONAL]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[packsDB] findActiveConditionalVisibleTo error", err as Error);
       return { error: err as Error };
     }
   },

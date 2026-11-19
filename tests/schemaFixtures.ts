@@ -49,7 +49,7 @@ import { advanceAuthoringDraftToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFOR
 const PLATFORM_VIEWER = { isRoot: false, tenantId: PLATFORM_TENANT_ID };
 
 // The version every fixture row carries. A change to what a builder authors needs a new value here.
-export const FIXTURE_VERSION = "1.0.6";
+export const FIXTURE_VERSION = "1.0.9";
 
 // An arbitrary number that names the advisory lock the builders take.
 const FIXTURE_LOCK_KEY = "schema-fixtures";
@@ -469,6 +469,7 @@ export async function maximalPack(
     maxSupportedPlatformVersion: "2.0.0",
     compositionStrategy: await platformConceptCode("composition-strategy", "specialization"),
     compositionSources: [{ packCode: input.base.code }],
+    compositionConditions: [{ parameter: `ai-provider-preference`, value: FIXTURE_CODES.ai.code }],
     dependencies: [
       { type: "required", version: PACK_VERSION, packCode: input.base.code },
       { type: "optional", version: PACK_VERSION, packCode: input.base.code },
@@ -600,12 +601,12 @@ const CONFIGURATION_FIXTURE: Record<string, { type: string; code: string }> = {
   domain: FIXTURE_CODES.domain,
 };
 
-function configurationParameters(): Record<string, string> {
-  const values: Record<string, string> = {};
+function configurationParameters(): Record<string, string | string[]> {
+  const values: Record<string, string | string[]> = {};
   for (const parameter of CONFIGURATION_PARAMETER_FIELDS) {
     const fixture = CONFIGURATION_FIXTURE[parameter.field as string];
     if (!fixture) throw new Error(`schemaFixtures: the Configuration Parameter "${String(parameter.field)}" has no test-Ontology concept in CONFIGURATION_FIXTURE`);
-    values[parameter.field as string] = fixture.code;
+    values[parameter.field as string] = parameter.multiple ? [fixture.code] : fixture.code;
   }
   return values;
 }
@@ -634,6 +635,7 @@ export async function maximalProfile(tenantId: string, input: { template: Fixtur
     environment,
     profileVersion: PACK_VERSION,
     ...configurationParameters(),
+    aiProviderCredentials: [{ provider: FIXTURE_CODES.ai.code, apiKey: "fixture-not-a-real-api-key" }],
     technologyPackCodes: codes(packs.technology.slice(0, 1)),
     engineeringPackCodes: codes([packs.engineering]),
     compliancePackCodes: codes([packs.compliance]),

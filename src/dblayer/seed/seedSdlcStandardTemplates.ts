@@ -51,7 +51,7 @@ interface ProfileSeed {
   sourceControlProvider?: string;
   targetCloudProvider?: string;
   deploymentStrategy?: string;
-  aiProviderPreference?: string;
+  aiProviderPreference?: string[];
   defaultRepositoryStructure?: string;
   documentationLevel?: string;
   exposedParameterOverrides?: Array<{ sourceType: "service" | "policy" | "checklist" | "dependency"; sourceCode: string; parameterName: string; value: string }>;

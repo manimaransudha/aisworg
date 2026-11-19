@@ -2646,6 +2646,33 @@
     "ui_grouping": "Engineering Capital"
   },
   {
+    "concept_type": "engineering-capital",
+    "code": "Skill Protocol",
+    "default_label": "Skill Protocol",
+    "description": "The platform protocol skill for an AI Participant, as markdown text. The same for every AI provider.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Engineering Capital"
+  },
+  {
+    "concept_type": "engineering-capital",
+    "code": "Skill Bootstrap",
+    "default_label": "Skill Bootstrap",
+    "description": "The bootstrap instruction for an AI Participant, as markdown text.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Engineering Capital"
+  },
+  {
+    "concept_type": "engineering-capital",
+    "code": "Skill Job Anthropic",
+    "default_label": "Skill Job Anthropic",
+    "description": "The job skills and prompts for an Anthropic AI Participant, as markdown text.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Engineering Capital"
+  },
+  {
     "concept_type": "compliance-name",
     "code": "compliance-accessibility-ada-508",
     "default_label": "Digital Accessibility Compliance (ADA Title III / Sec 508 / EAA)",
@@ -4036,6 +4063,15 @@
     "code": "ai-provider-preference",
     "default_label": "AI Provider Preference",
     "description": null,
+    "is_mandatory": true,
+    "text_type": "text",
+    "ui_grouping": "SEU Configurations"
+  },
+  {
+    "concept_type": "profile-configuration",
+    "code": "ai-provider-credentials",
+    "default_label": "AI Provider Credentials",
+    "description": "The API key for each AI provider the SEU uses.",
     "is_mandatory": false,
     "text_type": "text",
     "ui_grouping": "SEU Configurations"
@@ -4288,6 +4324,15 @@
     "code": "aws-bedrock",
     "default_label": "AWS Bedrock",
     "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Profiles"
+  },
+  {
+    "concept_type": "ai-provider-preference",
+    "code": "none",
+    "default_label": "None",
+    "description": "No AI provider is used. It cannot be combined with another provider.",
     "is_mandatory": null,
     "text_type": "text",
     "ui_grouping": "Profiles"

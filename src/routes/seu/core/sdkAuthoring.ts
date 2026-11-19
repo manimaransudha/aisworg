@@ -1,4 +1,5 @@
 import { packsDB } from "../../../dblayer/packsDB.js";
+import { redactProfileSecrets, restoreProfileSecrets } from "./profileSecrets.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
@@ -145,6 +146,7 @@ export function toProfileSeedInput(content: Record<string, unknown>): ProfileSee
     featureFlagCodes: normalizeFeatureFlagCodes(content.featureFlagCodes),
     deploymentTargets: (content.deploymentTargets as Record<string, unknown>) ?? {},
     participatingOrganisationCodes: normalizeReferentialCodes(content.participatingOrganisationCodes, "organisationCode"),
+    aiProviderPreference: normalizeReferentialCodes(content.aiProviderPreference, "providerCode"),
     environmentConfiguration: (content.environmentConfiguration as Record<string, unknown>) ?? {},
     exposedParameterOverrides: Array.isArray(content.exposedParameterOverrides) ? (content.exposedParameterOverrides as ProfileSeedInput["exposedParameterOverrides"]) : [],
     deliverableCatalogue: Array.isArray(content.deliverableCatalogue) ? (content.deliverableCatalogue as ProfileSeedInput["deliverableCatalogue"]) : [],
@@ -535,7 +537,7 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
     const { data: p } = await profilesDB.findById(id);
     if (!p) return null;
     const materialised = p.status === "Draft" || p.status === "Validated" ? {} : packSelectionsToFormShape(await getProfilePackSelections(p.id));
-    return { id: p.id, code: p.code, name: p.name, status: p.status, content: { code: p.code, name: p.name, ...(p.draft_content ?? {}), ...materialised, profileVersion: p.profile_version, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id, schemaVersion: p.schema_definition_id } };
+    return { id: p.id, code: p.code, name: p.name, status: p.status, content: redactProfileSecrets({ code: p.code, name: p.name, ...(p.draft_content ?? {}), ...materialised, profileVersion: p.profile_version, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id, schemaVersion: p.schema_definition_id }) };
   }
   if (kind === "Deliverable") {
     const { data: d } = await deliverableDefinitionsDB.findById(id);
@@ -653,6 +655,7 @@ export async function inheritedPackVersionContent(fromPackId: string, viewerTena
       contributionCompetencies: c.competencies ?? [],
       dependencies: source.dependencies,
       compositionSources: source.composition_sources,
+      compositionConditions: source.composition_conditions,
     },
   };
 }
@@ -683,12 +686,15 @@ export async function inheritedProfileContent(parentProfileId: string, viewerTen
     featureFlagCodes: Array.isArray(priorContent.featureFlagCodes) ? priorContent.featureFlagCodes : [],
     deploymentTargets: typeof priorContent.deploymentTargets === "object" && priorContent.deploymentTargets ? priorContent.deploymentTargets : {},
     participatingOrganisationCodes: Array.isArray(priorContent.participatingOrganisationCodes) ? priorContent.participatingOrganisationCodes : [],
+    aiProviderCredentials: Array.isArray(priorContent.aiProviderCredentials) ? priorContent.aiProviderCredentials : [],
     environmentConfiguration: typeof priorContent.environmentConfiguration === "object" && priorContent.environmentConfiguration ? priorContent.environmentConfiguration : {},
     ...packSelections,
   };
   for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
     const priorValue = priorContent[cp.field as string];
-    if (typeof priorValue === "string") content[cp.field as string] = priorValue;
+    if (cp.multiple) {
+      if (Array.isArray(priorValue)) content[cp.field as string] = priorValue;
+    } else if (typeof priorValue === "string") content[cp.field as string] = priorValue;
   }
   content.exposedParameterOverrides = Array.isArray(priorContent.exposedParameterOverrides) ? priorContent.exposedParameterOverrides : [];
   content.deliverableCatalogue = Array.isArray(priorContent.deliverableCatalogue) ? priorContent.deliverableCatalogue : [];
@@ -739,6 +745,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       contributions: seed.contributions,
       dependencies: seed.dependencies,
       compositionSources: seed.compositionSources,
+      compositionConditions: seed.compositionConditions,
       metadata: packMetadataFromSeed(seed),
       status: birth.initialState as PackRow["status"],
       authoredBy: packMaster.id,
@@ -1107,6 +1114,7 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
       contributions: seed.contributions,
       dependencies: seed.dependencies,
       compositionSources: seed.compositionSources,
+      compositionConditions: seed.compositionConditions,
       metadata: packMetadataFromSeed(seed),
     });
     if (error) return { ok: false, errors: [error.message] };
@@ -1146,7 +1154,9 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     const { data: template } = await templatesDB.findActiveByCodeVisibleTo(baseTemplateCode, existingProfile.tenant_id);
     if (!template) return { ok: false, errors: [`baseTemplateCode "${baseTemplateCode}" not found`] };
 
-    const seed = toProfileSeedInput({ ...input.content });
+    // A key the form returns masked is the stored key.
+    const content = restoreProfileSecrets(input.content, existingProfile.draft_content);
+    const seed = toProfileSeedInput({ ...content });
     if (existingProfile.parent_profile_id) seed.code = existingProfile.code;
     seed.tenantId = existingProfile.tenant_id;
     seed.parentProfileId = existingProfile.parent_profile_id ?? undefined;
@@ -1154,10 +1164,10 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     if (saveErrors.length > 0) return { ok: false, errors: saveErrors };
 
     const { data, error } = await profilesDB.updateDraftContent(input.id, {
-      name: (input.content.name as string) || "(untitled Profile)",
+      name: (content.name as string) || "(untitled Profile)",
       baseTemplateId: template.id,
-      environment: (input.content.environment as string) || "development",
-      draftContent: { ...input.content, code: seed.code },
+      environment: (content.environment as string) || "development",
+      draftContent: { ...content, code: seed.code },
       profileVersion: seed.profileVersion,
     });
     if (error) return { ok: false, errors: [error.message] };

@@ -3,6 +3,7 @@
   "name": "Maintenance and Sustainment — Default Development Profile",
   "baseTemplateCode": "maintenance-and-sustainment",
   "environment": "development",
+  "aiProviderPreference": ["none"],
   "developmentMethodology": "scrum",
   "primaryProgrammingLanguage": "typescript",
   "sourceControlProvider": "github",

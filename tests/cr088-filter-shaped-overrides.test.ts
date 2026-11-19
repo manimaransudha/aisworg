@@ -166,7 +166,7 @@ function baseProfileSeed(templateCode: string): Omit<ProfileSeedInput, "exposedP
     // Platform-mandatory Configuration Parameters (CR-091 Part 2) — real,
     // already-seeded values, required or validateProfileSeed rejects the seed
     // for an unrelated reason before ever reaching the override checks below.
-    developmentMethodology: "scrum",
+    aiProviderPreference: ["none"], developmentMethodology: "scrum",
     primaryProgrammingLanguage: "typescript",
     sourceControlProvider: "github",
   } as Omit<ProfileSeedInput, "exposedParameterOverrides">;

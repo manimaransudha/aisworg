@@ -27,6 +27,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.28.1",
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.10.0",
     "axios": "^1.6.2",
     "bcryptjs": "^3.0.3",
     "compromise": "^14.15.1",

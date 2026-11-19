@@ -3,6 +3,7 @@
   "name": "MLOps and AI Assurance — Default Development Profile",
   "baseTemplateCode": "mlops-ai-assurance",
   "environment": "development",
+  "aiProviderPreference": ["none"],
   "developmentMethodology": "scrum",
   "primaryProgrammingLanguage": "python",
   "sourceControlProvider": "github",

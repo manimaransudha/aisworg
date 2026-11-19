@@ -9,7 +9,9 @@ import { tenantsDB } from "../dblayer/tenantsDB.js";
 import { tenantContractsDB } from "../dblayer/tenantContractsDB.js";
 import { logger } from "../utils/logger.js";
 import { resolveExecutionTarget } from "./executionTargetResolver.js";
-import { resolveAdapter } from "./adapterRegistry.js";
+import { resolveAdapter, isRegisteredAdapter } from "./adapterRegistry.js";
+import { participantsDB } from "../dblayer/participantsDB.js";
+import { participantsMasterDB } from "../dblayer/participantsMasterDB.js";
 import type { AssignmentOut } from "./participantAdapter.js";
 import type { CommandRow, DeliverableRow, WorkItemRow } from "../dblayer/seuTypes.js";
 import type { EventHandler } from "../domain/engine/eventBus.js";
@@ -43,8 +45,10 @@ async function assembleAssignment(
   tenant: { id: string | null; code: string | null },
   vcsBinding: Record<string, unknown>
 ): Promise<AssignmentOut> {
+  if (!workItem.participant_id) throw new Error(`Work Item ${workItem.id} was dispatched with no Participant, so its assignment cannot be delivered`);
   return {
     workItemId: workItem.id,
+    participantId: workItem.participant_id,
     seuId: command.seu_id,
     tenant,
     vcsBinding,
@@ -52,7 +56,17 @@ async function assembleAssignment(
     transition: { fromState: command.from_state, toState: command.to_state },
     targetCompletionAt: workItem.target_completion_at,
     inputReferences: await resolveInputReferences(deliverable, scope),
+    executionContext: workItem.execution_context,
   };
+}
+
+// The adapter the selected Participant names, or null when the Capability's execution target decides.
+async function participantAdapterKey(participantRowId: string | null): Promise<string | null> {
+  if (!participantRowId) return null;
+  const { data: participant } = await participantsDB.findById(participantRowId);
+  if (!participant?.participant_id) return null;
+  const { data: master } = await participantsMasterDB.findById(participant.participant_id);
+  return master?.adapter ?? null;
 }
 
 export async function deliverAssignmentForWorkItem(workItemId: string): Promise<void> {
@@ -69,7 +83,14 @@ export async function deliverAssignmentForWorkItem(workItemId: string): Promise<
   const { data: tenantRow } = tenantId ? await tenantsDB.findById(tenantId) : { data: null };
   const { data: contract } = tenantId ? await tenantContractsDB.findByTenantId(tenantId) : { data: null };
 
-  const target = await resolveExecutionTarget(tenantId, deliverable.producing_capability_id);
+  // The adapter is the Participant's screen. A Participant that names none is reached through the Capability's execution target.
+  const participantAdapter = await participantAdapterKey(workItem.participant_id);
+  if (participantAdapter && !isRegisteredAdapter(participantAdapter)) {
+    throw new Error(`Participant ${workItem.participant_id} of Work Item ${workItemId} names adapter "${participantAdapter}", which is not registered`);
+  }
+  const target = participantAdapter
+    ? { mode: participantAdapter, adapterEndpoint: null, adapterAuthRef: null }
+    : await resolveExecutionTarget(tenantId, deliverable.producing_capability_id);
   const adapter = resolveAdapter(target.mode);
   const scope = await resolveSeuOwningScope(seu);
   const assignment = await assembleAssignment(

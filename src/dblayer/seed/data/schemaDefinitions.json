@@ -254,6 +254,36 @@
           "x-widget": "referential-list",
           "x-show-when": "compositionStrategy"
         },
+        "compositionConditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "parameter",
+              "value"
+            ],
+            "properties": {
+              "parameter": {
+                "type": "string",
+                "x-label": "Profile parameter",
+                "x-ontology": true,
+                "x-referential": "profile-configuration"
+              },
+              "value": {
+                "type": "string",
+                "x-label": "Value",
+                "x-help": "A code of the chosen Profile parameter, for example anthropic for ai-provider-preference."
+              }
+            },
+            "x-property-order": [
+              "parameter",
+              "value"
+            ]
+          },
+          "x-help": "Used when the installation classification is Conditional. A Profile that holds one of these parameter values selects this Pack when it is published.",
+          "x-group": "metadata",
+          "x-widget": "referential-list"
+        },
         "compositionStrategy": {
           "type": "string",
           "x-help": "how contributions compose",
@@ -663,7 +693,8 @@
             "properties": {
               "url": {
                 "type": "string",
-                "x-help": "Where this resource actually lives."
+                "x-help": "Where this resource actually lives. For a skill type, the skill text itself, written as markdown.",
+                "x-format": "markdown"
               },
               "type": {
                 "type": "string",
@@ -678,7 +709,7 @@
               "url"
             ]
           },
-          "x-help": "Engineering Capital — Engineering Behaviour / Engineering Metrics / Reusable Components / Engineering Templates this Pack contributes. Minimal declaration for now: a type and a URL to the actual resource.",
+          "x-help": "Engineering Capital — Engineering Behaviour / Engineering Metrics / Reusable Components / Engineering Templates this Pack contributes. Minimal declaration for now: a type and a URL to the actual resource. A skill entry holds the skill text, as markdown, in place of the URL.",
           "x-widget": "referential-list"
         },
         "contributionObligationDefinitions": {
@@ -917,6 +948,7 @@
         "name",
         "description",
         "installationClassification",
+        "compositionConditions",
         "compositionStrategy",
         "compositionSources",
         "supportedPlatformVersion",
@@ -1659,11 +1691,54 @@
           "x-widget": "referential-list"
         },
         "aiProviderPreference": {
-          "type": "string",
-          "x-help": "AI provider preference.",
-          "x-widget": "referential-select",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-help": "The AI providers this SEU may use. Choose None when AI is not used. None cannot be combined with a provider.",
+          "x-widget": "referential-multi-select",
           "x-ontology": true,
           "x-referential-source": "ai-provider-preference"
+        },
+        "aiProviderCredentials": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "provider"
+            ],
+            "properties": {
+              "provider": {
+                "type": "string",
+                "x-label": "Provider",
+                "x-ontology": true,
+                "x-referential": "ai-provider-preference"
+              },
+              "endpoint": {
+                "type": "string",
+                "enum": [
+                  "Simulated",
+                  "Anthropic"
+                ],
+                "default": "Simulated",
+                "x-label": "Endpoint",
+                "x-help": "Simulated calls the local simulated endpoint and uses no tokens. Anthropic calls the live API with the key below."
+              },
+              "apiKey": {
+                "type": "string",
+                "x-label": "API key",
+                "x-help": "The key of the provider. It is needed only for the Anthropic endpoint. It is shown masked after it is saved. Leave the masked value to keep the key.",
+                "x-sensitive": true
+              }
+            },
+            "x-property-order": [
+              "provider",
+              "endpoint",
+              "apiKey"
+            ]
+          },
+          "x-help": "The API key for each AI provider this SEU uses. An AI adapter reads it through the EBM.",
+          "x-widget": "referential-list"
         },
         "engineeringPackCodes": {
           "type": "array",

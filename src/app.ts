@@ -249,6 +249,15 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
         logger.info(`Log Level: ${process.env.LOG_LEVEL || "info"}`);
         scheduleDemoReset();
+        // The Anthropic client exists only in a running server. A test that imports the app never registers it.
+        const { registerAiProviderClient } = await import("./adapters/aiProviderClient.js");
+        const { createAnthropicProviderClient } = await import("./adapters/anthropicProviderClient.js");
+        const { resolveAnthropicCredentials } = await import("./adapters/anthropicCredentials.js");
+        const { startSimulatedAnthropicServer } = await import("./adapters/simulatedAnthropic.js");
+        const { ANTHROPIC_ADAPTER_KEY } = await import("./dblayer/constants.js");
+        registerAiProviderClient(ANTHROPIC_ADAPTER_KEY, createAnthropicProviderClient({ resolveCredentials: resolveAnthropicCredentials }));
+        // The default endpoint of that client. It answers like the Messages API and uses no tokens.
+        await startSimulatedAnthropicServer().catch((err: NodeJS.ErrnoException) => logger.error("The simulated Anthropic endpoint did not start", err));
     });
 
     server.on("error", (err: NodeJS.ErrnoException) => {

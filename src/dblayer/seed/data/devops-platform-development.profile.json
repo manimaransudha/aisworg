@@ -3,6 +3,7 @@
   "name": "DevOps Platform — Default Development Profile",
   "baseTemplateCode": "devops-platform",
   "environment": "development",
+  "aiProviderPreference": ["none"],
   "developmentMethodology": "scrum",
   "primaryProgrammingLanguage": "typescript",
   "sourceControlProvider": "github",

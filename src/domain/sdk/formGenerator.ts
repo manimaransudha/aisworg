@@ -31,6 +31,7 @@ export interface JsonSchemaProperty {
   "x-help"?: string;
   "x-generated"?: boolean;
   "x-format"?: "markdown";
+  "x-sensitive"?: boolean;
   "x-show-when"?: string;
   "x-show-when-values"?: string[];
   "x-label"?: string;
@@ -55,6 +56,8 @@ export interface ReferentialListItemField {
   driverField?: string;
   driverSuffix?: string;
   markdown?: boolean;
+  // A secret. The editor takes it in a password input.
+  sensitive?: boolean;
   ontology?: boolean;
   nestedItemFields?: ReferentialListItemField[];
   showWhen?: string;
@@ -80,7 +83,7 @@ function labelize(name: string): string {
 
 function buildItemFields(itemProps: Record<string, JsonSchemaProperty>, itemRequired: Set<string>): ReferentialListItemField[] {
   return Object.entries(itemProps).map(([fieldName, fieldDef]) => {
-    const common = { required: itemRequired.has(fieldName), help: fieldDef["x-help"], label: fieldDef["x-label"] ?? labelize(fieldName), markdown: fieldDef["x-format"] === "markdown", showWhen: fieldDef["x-show-when"], showWhenValues: fieldDef["x-show-when-values"] };
+    const common = { required: itemRequired.has(fieldName), help: fieldDef["x-help"], label: fieldDef["x-label"] ?? labelize(fieldName), markdown: fieldDef["x-format"] === "markdown", sensitive: fieldDef["x-sensitive"] === true, showWhen: fieldDef["x-show-when"], showWhenValues: fieldDef["x-show-when-values"] };
     if (fieldDef.type === "array" && fieldDef.items?.properties) {
       const nestedRequired = new Set(fieldDef.items.required ?? []);
       const nestedItemFields = buildItemFields(fieldDef.items.properties, nestedRequired);
@@ -397,7 +400,7 @@ const EXPOSABLE_PARAMETERS_FIELD_NAMES = new Set(["exposedParameters"]);
 const PARAMETER_OVERRIDES_FIELD_NAMES = new Set(["exposedParameterOverrides"]);
 const CONFIGURATION_PARAMETER_FIELD_NAMES = new Set([
   "targetCloudProvider", "primaryProgrammingLanguage", "sourceControlProvider", "deploymentStrategy",
-  "aiProviderPreference", "defaultRepositoryStructure", "documentationLevel", "developmentMethodology",
+  "aiProviderPreference", "aiProviderCredentials", "defaultRepositoryStructure", "documentationLevel", "developmentMethodology",
   "domain", "participatingOrganisationCodes", "environmentConfiguration",
 ]);
 
@@ -447,7 +450,7 @@ export const CONTRIBUTION_SECTION_HELP: Record<string, string> = {
   contributionChecklists: "Reusable Checklists (Ch.47) — a Name/Description plus its own ordered list of Items (a Statement, optionally tagged with a Configurable Dimension/Value pair — CR-088 — so a Template can expose that dimension for a Profile to filter by). A Checklist carries no scope, participant, or required/advisory status of its own; Review Gates and Quality Gates reference it by id (checklistIds/recommendedChecklistIds) to say when it applies and whether it's required.",
   contributionReviewGates: "Verifiable review requirements — typically \"judgment\" or \"human-attested\" items that gate a review outcome.",
   contributionObligationDefinitions: "Verifiable obligations this Pack can raise — a commitment that must be resolved, of the Category given.",
-  contributionEngineeringCapital: "Engineering Behaviour, Engineering Metrics, Reusable Components, or Engineering Templates this Pack contributes — a Type and a URL to where it actually lives.",
+  contributionEngineeringCapital: "Engineering Behaviour, Engineering Metrics, Reusable Components, Engineering Templates or AI skills this Pack contributes — a Type and a URL to where it actually lives. A skill entry holds the skill text as markdown in place of the URL.",
 };
 export const VERIFIABLE_ITEM_FIELD_HELP: Record<string, string> = {
   statement: "The claim being verified, in plain language — this is the core content; everything else describes how it gets checked.",

@@ -14,6 +14,7 @@ type ParticipantMasterInput = {
   authorisedBadges?: Array<{ badge: string; effective_till: string; seu_ids: string[] }>;
   isActive?: boolean;
   userId: string | null;
+  adapter?: string | null;
 };
 
 const PARTICIPANTS_MASTER_COLUMNS = [
@@ -28,6 +29,7 @@ const PARTICIPANTS_MASTER_COLUMNS = [
   "authorised_badges",
   "is_active",
   "user_id",
+  "adapter",
 ];
 
 function toRow(input: ParticipantMasterInput): unknown[] {
@@ -43,6 +45,7 @@ function toRow(input: ParticipantMasterInput): unknown[] {
     JSON.stringify(input.authorisedBadges ?? []),
     input.isActive ?? true,
     input.userId ?? null,
+    input.adapter ?? null,
   ];
 }
 
@@ -108,14 +111,15 @@ export const participantsMasterDB = {
         behaviour_context: i.behaviourContext ?? [],
         authorised_role: i.authorisedRole ?? [],
         is_active: i.isActive ?? true,
+        adapter: i.adapter ?? null,
       }));
       const { rows } = await query<ParticipantMasterRow>(
         `UPDATE participants_master pm
             SET type = u.type, capabilities = u.capabilities, competency = u.competency, cost = u.cost,
                 behaviour_context = u.behaviour_context, authorised_role = u.authorised_role,
-                is_active = u.is_active, updated_at = NOW()
+                is_active = u.is_active, adapter = u.adapter, updated_at = NOW()
            FROM jsonb_to_recordset($1::jsonb) AS u(id uuid, type text, capabilities jsonb, competency jsonb, cost numeric,
-                                                   behaviour_context jsonb, authorised_role jsonb, is_active boolean)
+                                                   behaviour_context jsonb, authorised_role jsonb, is_active boolean, adapter text)
           WHERE pm.id = u.id
           RETURNING pm.*`,
         [JSON.stringify(payload)]

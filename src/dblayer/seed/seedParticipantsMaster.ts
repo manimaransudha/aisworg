@@ -4,9 +4,11 @@ import { participantsMasterDB } from "../participantsMasterDB.js";
 import { ontologyDB, type OntologyViewer } from "../ontologyDB.js";
 import { bulkInsert } from "../../utils/db.js";
 import { resolveOnboardingAdapter, listRegisteredOnboardingTypes } from "../../adapters/participantOnboardingRegistry.js";
+import { isRegisteredAdapter, listRegisteredAdapters } from "../../adapters/adapterRegistry.js";
 import { logger } from "../../utils/logger.js";
 import type { OnboardedParticipant, OnboardingOntology } from "../../adapters/participantOnboardingAdapter.js";
-import { NO_EXPIRY_DATE } from "../constants.js";
+import { capabilityDefinitionsDB } from "../capabilityDefinitionsDB.js";
+import { COMPETENCY_DIMENSION_ROLE, COMPETENCY_DIMENSION_WORK_TYPE, NO_EXPIRY_DATE, SEEDED_PARTICIPANT_TYPES } from "../constants.js";
 
 const require = createRequire(import.meta.url);
 const bcrypt = require("bcryptjs");
@@ -69,6 +71,7 @@ function validateOnboarded(type: string, onboarded: OnboardedParticipant, canon:
   }
   for (const entry of onboarded.behaviourContext) assertCanonicalLocal("behaviour-context-policy", entry.policy, canon.behaviourContextPolicies);
   for (const entry of onboarded.authorisedRole) assertCanonicalLocal("authorised-role", entry.role, canon.authorisedRoles);
+  if (onboarded.adapter && !isRegisteredAdapter(onboarded.adapter)) throw new Error(`onboarded Participant "${onboarded.displayName}" names adapter "${onboarded.adapter}", which is not registered (registered: ${listRegisteredAdapters().join(", ")})`);
 }
 
 // Every seeded participant holds this role in addition to whatever its adapter returns.
@@ -88,7 +91,7 @@ async function runWithConcurrency<T>(items: T[], worker: (item: T) => Promise<vo
 export async function seedParticipantsMaster(): Promise<void> {
   let created = 0;
   let usersCreated = 0;
-  const types = listRegisteredOnboardingTypes();
+  const types = listRegisteredOnboardingTypes().filter((type) => SEEDED_PARTICIPANT_TYPES.includes(type));
   const humanPasswordHash = await bcrypt.hash("password", 12);
 
   for (const code of TENANT_CODES) {
@@ -108,6 +111,11 @@ export async function seedParticipantsMaster(): Promise<void> {
       proficiencyLevels: usable(canon.proficiencyLevels),
     };
 
+    // A participant holds the roles of its Capability, and under them the work types. Both come from the Active Capability Definitions, read once for the tenant.
+    const { data: definitions, error: definitionsError } = await capabilityDefinitionsDB.findActiveByCodesVisibleTo(ontology.capabilityCodes, tenant.id);
+    if (definitionsError) throw definitionsError;
+    const rolesByCapability = new Map((definitions ?? []).map((d) => [d.code, d.roles ?? []]));
+
     for (const type of types) {
       logger.info(`[seedParticipantsMaster] type=${type} onboarding start`);
       const adapter = resolveOnboardingAdapter(type);
@@ -121,18 +129,33 @@ export async function seedParticipantsMaster(): Promise<void> {
           ? onboarded.authorisedRole
           : [...onboarded.authorisedRole, { role: DEFAULT_PARTICIPANT_ROLE, effective_till: NO_EXPIRY_DATE, seu_ids: [] }];
         validateOnboarded(type, { ...onboarded, authorisedRole }, canon);
+        const proficiency = ontology.proficiencyLevels[i % ontology.proficiencyLevels.length];
+        const roles = new Set<string>();
+        const worktypes = new Set<string>();
+        for (const capability of onboarded.capabilities) {
+          for (const role of rolesByCapability.get(capability) ?? []) {
+            roles.add(role.name);
+            for (const worktype of role.worktypes) worktypes.add(worktype);
+          }
+        }
+        const competency = {
+          ...onboarded.competency,
+          [COMPETENCY_DIMENSION_ROLE]: [...roles].map((code) => ({ code, proficiency })),
+          [COMPETENCY_DIMENSION_WORK_TYPE]: [...worktypes].map((code) => ({ code, proficiency })),
+        };
 
         rows.push({
           tenantId: tenant.id,
           type,
           displayName: onboarded.displayName,
           capabilities: onboarded.capabilities,
-          competency: onboarded.competency,
+          competency,
           cost: onboarded.cost,
           behaviourContext: onboarded.behaviourContext,
           authorisedRole,
           isActive: true,
           userId: onboarded.userId ?? null,
+          adapter: onboarded.adapter ?? null,
         });
         humanEmails.push(type === "Human" ? `human-${i + 1}@${code.toLowerCase()}.com` : null);
       });

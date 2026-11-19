@@ -18,6 +18,7 @@ ALTER TABLE participants_master ADD COLUMN IF NOT EXISTS authorised_role JSONB N
 ALTER TABLE participants_master
   ALTER COLUMN authorised_role SET DEFAULT '[{"role":"general","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb;
 ALTER TABLE participants_master ADD COLUMN IF NOT EXISTS authorised_badges JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE participants_master ADD COLUMN IF NOT EXISTS adapter TEXT;
 -- ALTER TABLE tenants
 --   ADD CONSTRAINT tenants_author_id_fkey FOREIGN KEY (author_id) REFERENCES participants_master(id);
 GRANT ALL PRIVILEGES ON TABLE participants_master TO weirdo;

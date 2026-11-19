@@ -49,7 +49,7 @@ async function publishedProfile(): Promise<string> {
       baseTemplateCode: template.code,
       environment: "development",
       profileVersion: "1.0.0",
-      developmentMethodology: "scrum",
+      aiProviderPreference: ["none"], developmentMethodology: "scrum",
       primaryProgrammingLanguage: "typescript",
       sourceControlProvider: "github",
     },

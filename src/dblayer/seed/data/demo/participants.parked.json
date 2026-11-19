@@ -1,0 +1,205 @@
+[
+  {
+    "type": "Automated",
+    "displayName": "ArchVault Build Pipeline",
+    "capabilities": [
+      "software-release",
+      "software-construction",
+      "operating-production-systems"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "docker",
+          "proficiency": "Expert"
+        },
+        {
+          "code": "git",
+          "proficiency": "Expert"
+        },
+        {
+          "code": "nodejs",
+          "proficiency": "Intermediate"
+        },
+        {
+          "code": "typescript",
+          "proficiency": "Intermediate"
+        }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
+      ]
+    },
+    "cost": 8,
+    "behaviourContext": [
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
+      }
+    ],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ],
+    "capabilityProficiency": "Intermediate"
+  },
+  {
+    "type": "Automated",
+    "displayName": "ArchVault Test Runner",
+    "capabilities": [
+      "software-validation",
+      "test-strategy-and-design",
+      "test-automation-engineering"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "typescript",
+          "proficiency": "Expert"
+        },
+        {
+          "code": "javascript",
+          "proficiency": "Expert"
+        }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
+      ]
+    },
+    "cost": 6,
+    "behaviourContext": [
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
+      }
+    ],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ],
+    "capabilityProficiency": "Intermediate"
+  },
+  {
+    "type": "External",
+    "displayName": "Harbor Security Consultants",
+    "capabilities": [
+      "protect-organisational-assets",
+      "software-validation",
+      "governing-engineering-decisions",
+      "engineering-documentation",
+      "test-strategy-and-design"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "typescript",
+          "proficiency": "Intermediate"
+        }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
+      ]
+    },
+    "cost": 700,
+    "behaviourContext": [
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
+      }
+    ],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ],
+    "capabilityProficiency": "Intermediate"
+  },
+  {
+    "type": "External",
+    "displayName": "Lakeside Architecture Studio",
+    "capabilities": [
+      "architecture-design",
+      "software-design",
+      "understanding-business-domain",
+      "requirements-analysis"
+    ],
+    "competency": {
+      "Technology": [
+        {
+          "code": "react-native",
+          "proficiency": "Intermediate"
+        },
+        {
+          "code": "typescript",
+          "proficiency": "Intermediate"
+        }
+      ],
+      "Domain": [
+        {
+          "code": "ebook-library",
+          "proficiency": "Intermediate"
+        }
+      ]
+    },
+    "cost": 650,
+    "behaviourContext": [
+      {
+        "policy": "cr104-demo-background-check",
+        "payload": {
+          "cleared": true
+        }
+      }
+    ],
+    "authorisedRole": [
+      {
+        "role": "general",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      },
+      {
+        "role": "participant",
+        "effective_till": "9999-12-31",
+        "seu_ids": []
+      }
+    ],
+    "capabilityProficiency": "Intermediate"
+  }
+]

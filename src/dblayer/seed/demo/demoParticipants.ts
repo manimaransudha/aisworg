@@ -8,6 +8,7 @@ import { capabilityDefinitionsDB } from "../../capabilityDefinitionsDB.js";
 import { COMPETENCY_DIMENSION_ROLE, COMPETENCY_DIMENSION_WORK_TYPE } from "../../constants.js";
 import type { ParticipantType } from "../../seuTypes.js";
 import { grantBadgesToMany, type DemoActor } from "./demoBadges.js";
+import { isRegisteredAdapter, listRegisteredAdapters } from "../../../adapters/adapterRegistry.js";
 
 const dataFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data", "demo", "participants.json");
 const badgesFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data", "demo", "participantBadges.json");
@@ -22,6 +23,8 @@ interface DemoParticipantSeed {
   cost: number | null;
   behaviourContext: Array<{ policy: string; payload: Record<string, unknown> }>;
   authorisedRole: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
+  // The registry key of the adapter that reaches the participant. Left out, the Capability's execution target decides.
+  adapter?: string | null;
 }
 
 async function codesOf(conceptType: string, viewer: OntologyViewer): Promise<Set<string>> {
@@ -62,6 +65,7 @@ export async function seedDemoParticipants(actor: DemoActor): Promise<void> {
     }
     for (const b of r.behaviourContext) note(assertCanonical("behaviour-context-policy", b.policy, policies, r.displayName));
     for (const a of r.authorisedRole) note(assertCanonical("authorised-role", a.role, roles, r.displayName));
+    if (r.adapter && !isRegisteredAdapter(r.adapter)) errors.push(`${r.displayName}: adapter "${r.adapter}" is not registered (registered: ${listRegisteredAdapters().join(", ")})`);
   }
   for (const r of roster) {
     note(assertCanonical("proficiency-level", r.capabilityProficiency, proficiencies, r.displayName));

@@ -6,7 +6,7 @@ import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsD
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { findEligibleParticipants, getSeuCompetencyRequirements, resolveEligibilityPolicies } from "./participantEligibility.js";
+import { findEligibleParticipants, getCapabilityRoles, getSeuCompetencyRequirements, resolveEligibilityPolicies } from "./participantEligibility.js";
 import { createParticipant, transitionParticipant } from "./participants.js";
 import { resolveAuthor } from "./attentionItems.js";
 import type { CapabilityFulfilmentRow, EventRow, FulfilmentStrategy, ParticipantMasterRow, ParticipantRow, ParticipantType, SeuRow } from "../../../dblayer/seuTypes.js";
@@ -34,7 +34,7 @@ async function loadEligiblePool(seu: SeuRow, seuCapability: SeuCapabilityWithCod
   if (!seu.tenant_id) throw new Error(`SEU ${seu.id} has no owning tenant`);
   const competency = await getSeuCompetencyRequirements(seu);
   const requiredPolicies = await resolveEligibilityPolicies(seu);
-  return findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: seuCapability.capability_code, competency, requiredPolicies, excludeParticipantMasterIds });
+  return findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: seuCapability.capability_code, competency, capabilityRoles: await getCapabilityRoles(seu, seuCapability.capability_code), requiredPolicies, excludeParticipantMasterIds });
 }
 
 type ResolvedParticipant = { type: ParticipantType; displayName: string; participantMasterId: string };

@@ -27,7 +27,7 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { createAuthoringDraft } from "./sdkAuthoring.js";
 import {
-  getPlatformTenantId, INITIAL_VERSION, QUALITY_GATE_CRITERIA_TYPE_CONCEPT, QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION,
+  getPlatformTenantId, INITIAL_VERSION, PACK_CLASSIFICATION_CONDITIONAL, QUALITY_GATE_CRITERIA_TYPE_CONCEPT, QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_EVIDENCE_OR_APPROVED_DECISION,
   QUALITY_GATE_CRITERIA_REQUIRES_ACCEPTED_REVIEW, QUALITY_GATE_CRITERIA_REQUIRES_ACTIVE_POLICY,
 } from "../../../dblayer/constants.js";
 import { compareSemver, nextUnusedPatchVersion, semverError } from "../../../utils/version.js";
@@ -106,6 +106,7 @@ export interface PackSeedInput {
   contributions: PackContributions;
   dependencies?: Array<{ packCode: string; version: string; type: PackDependencyType }>;
   compositionSources?: Array<{ packCode: string }>;
+  compositionConditions?: Array<{ parameter: string; value: string }>;
   tenantId: string;
   description?: string;
   owner?: string;
@@ -172,6 +173,25 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
     await assertCanonicalCategory("installation-classification", seed.installationClassification ?? "", ontologyViewer);
   } catch (err) {
     errors.push((err as Error).message);
+  }
+  const conditions = seed.compositionConditions ?? [];
+  if (seed.installationClassification === PACK_CLASSIFICATION_CONDITIONAL && conditions.length === 0) {
+    errors.push(`a ${PACK_CLASSIFICATION_CONDITIONAL} Pack needs at least one composition condition`);
+  }
+  for (const [i, condition] of conditions.entries()) {
+    const parameter = condition.parameter?.trim();
+    const value = condition.value?.trim();
+    if (!parameter || !value) {
+      errors.push(`compositionConditions row ${i + 1} needs a parameter and a value`);
+      continue;
+    }
+    const { data: parameterConcept } = await ontologyDB.findConcept("profile-configuration", parameter, ontologyViewer);
+    if (!parameterConcept) {
+      errors.push(`compositionConditions row ${i + 1} names unknown profile-configuration parameter "${parameter}"`);
+      continue;
+    }
+    const { data: valueConcept } = await ontologyDB.findConcept(parameter, value, ontologyViewer);
+    if (!valueConcept) errors.push(`compositionConditions row ${i + 1} names unknown ${parameter} value "${value}"`);
   }
   if (seed.compositionStrategy?.trim()) {
     try {

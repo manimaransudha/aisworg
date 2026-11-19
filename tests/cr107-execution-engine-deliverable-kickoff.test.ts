@@ -66,7 +66,7 @@ async function commissionBlockedSeu(run: string) {
       baseTemplateCode: template!.code,
       environment: "development",
       profileVersion: `1.0.${Date.now()}${process.pid}`,
-      developmentMethodology: "scrum",
+      aiProviderPreference: ["none"], developmentMethodology: "scrum",
       primaryProgrammingLanguage: "typescript",
       sourceControlProvider: "github",
       redispatchMaxAttempts: 5,

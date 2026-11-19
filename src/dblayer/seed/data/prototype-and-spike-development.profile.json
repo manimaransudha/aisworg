@@ -3,6 +3,7 @@
   "name": "Prototype and Spike — Default Development Profile",
   "baseTemplateCode": "prototype-and-spike",
   "environment": "development",
+  "aiProviderPreference": ["none"],
   "developmentMethodology": "scrum",
   "primaryProgrammingLanguage": "typescript",
   "sourceControlProvider": "github",

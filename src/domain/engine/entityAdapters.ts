@@ -122,6 +122,7 @@ export function packContent(pack: PackRow): Record<string, unknown> {
     contributionCompetencies: c.competencies ?? [],
     dependencies: pack.dependencies ?? [],
     compositionSources: pack.composition_sources ?? [],
+    compositionConditions: pack.composition_conditions ?? [],
     ...(pack.metadata ?? {}),
   };
 }

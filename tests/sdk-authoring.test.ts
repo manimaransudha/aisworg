@@ -566,7 +566,7 @@ test("Profile authoring (entity-direct): produces a real Active Profile row refe
   // CR-091 Part 2/3 — category/configParameters retired; developmentMethodology/
   // primaryProgrammingLanguage/sourceControlProvider are mandatory on the
   // Platform tenant (root authors here).
-  const content: Record<string, unknown> = { code, name: "SDK Test Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github", optionalPackCodes: [] };
+  const content: Record<string, unknown> = { code, name: "SDK Test Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", aiProviderPreference: ["none"], developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github", optionalPackCodes: [] };
 
   const created = await createAuthoringDraft({ kind: "Profile", authorBadge: "profile_define", schemaDefinitionId: await schemaDefinitionIdFor("Profile"), actorId: ROOT_ACTOR_ID, content, tenantId: PLATFORM_TENANT_ID });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
@@ -715,7 +715,7 @@ test("Profile Inheritance: a tenant author inheriting an Active Platform Profile
     tenantId: PLATFORM_TENANT_ID,
     // CR-091 Part 2/3 — category retired; the three Platform-mandatory
     // Configuration Parameters are required here (Platform tenant).
-    content: { code, name: "SDK Test Parent Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github", optionalPackCodes: [], profileVersion: "9.0.0" },
+    content: { code, name: "SDK Test Parent Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", aiProviderPreference: ["none"], developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github", optionalPackCodes: [], profileVersion: "9.0.0" },
   });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;

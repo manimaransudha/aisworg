@@ -25,6 +25,7 @@ ALTER TABLE packs DROP CONSTRAINT IF EXISTS packs_code_version_key;
 ALTER TABLE packs DROP CONSTRAINT IF EXISTS packs_code_version_tenant_key;
 ALTER TABLE packs ADD CONSTRAINT packs_code_version_tenant_key UNIQUE (code, pack_version, tenant_id);
 ALTER TABLE packs ADD COLUMN IF NOT EXISTS composition_sources JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE packs ADD COLUMN IF NOT EXISTS composition_conditions JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE packs DROP CONSTRAINT IF EXISTS packs_category_check;
 ALTER TABLE packs DROP CONSTRAINT IF EXISTS packs_status_check;
 ALTER TABLE packs DROP CONSTRAINT IF EXISTS packs_installation_classification_check;

@@ -3,6 +3,7 @@
   "name": "Game Development — Default Development Profile",
   "baseTemplateCode": "game-development",
   "environment": "development",
+  "aiProviderPreference": ["none"],
   "developmentMethodology": "scrum",
   "primaryProgrammingLanguage": "typescript",
   "sourceControlProvider": "github",

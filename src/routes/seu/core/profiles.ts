@@ -15,7 +15,7 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import type { ProfileRow, ProfileDetailSource, TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { getPlatformTenantId } from "../../../dblayer/constants.js";
+import { getPlatformTenantId, NO_AI_PROVIDER_CODE, PROFILE_CONDITIONAL_PACK_LIST_KIND } from "../../../dblayer/constants.js";
 import { createAuthoringDraft } from "./sdkAuthoring.js";
 import { nextAvailablePatchVersion as nextAvailableVersion, semverError } from "../../../utils/version.js";
 
@@ -49,7 +49,9 @@ export interface ProfileSeedInput {
   primaryProgrammingLanguage?: string;
   sourceControlProvider?: string;
   deploymentStrategy?: string;
-  aiProviderPreference?: string;
+  aiProviderPreference?: string[];
+  // One row per provider. The key is write-only on screen (profileSecrets.ts).
+  aiProviderCredentials?: Array<{ provider: string; apiKey: string }>;
   defaultRepositoryStructure?: string;
   documentationLevel?: string;
   developmentMethodology?: string;
@@ -177,12 +179,22 @@ export async function extractProfileDetails(profile: ProfileDetailSource): Promi
   return { profileId: profile.id, profileCode: profile.code, profileName: profile.name, fields, effectiveParameters };
 }
 
-export const CONFIGURATION_PARAMETER_FIELDS: Array<{ field: keyof ProfileSeedInput; parameterCode: string }> = [
+// The codes a configuration parameter holds. A list holds strings, or rows with one code field, so both are read.
+export function configurationParameterCodes(value: unknown): string[] {
+  const entries = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
+  return entries
+    .map((entry) => (typeof entry === "string" ? entry : entry && typeof entry === "object" ? String(Object.values(entry as Record<string, unknown>)[0] ?? "") : ""))
+    .map((code) => code.trim())
+    .filter((code) => code !== "");
+}
+
+// A parameter marked `multiple` holds a list of codes. The others hold one code.
+export const CONFIGURATION_PARAMETER_FIELDS: Array<{ field: keyof ProfileSeedInput; parameterCode: string; multiple?: boolean }> = [
   { field: "targetCloudProvider", parameterCode: "target-cloud-provider" },
   { field: "primaryProgrammingLanguage", parameterCode: "primary-programming-language" },
   { field: "sourceControlProvider", parameterCode: "source-control-provider" },
   { field: "deploymentStrategy", parameterCode: "deployment-strategy" },
-  { field: "aiProviderPreference", parameterCode: "ai-provider-preference" },
+  { field: "aiProviderPreference", parameterCode: "ai-provider-preference", multiple: true },
   { field: "defaultRepositoryStructure", parameterCode: "default-repository-structure" },
   { field: "documentationLevel", parameterCode: "documentation-level" },
   { field: "developmentMethodology", parameterCode: "development-methodology" },
@@ -261,11 +273,15 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   }
 
   for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
-    const value = (seed[cp.field] as string | undefined)?.trim();
-    if (value) {
+    for (const value of configurationParameterCodes(seed[cp.field])) {
       const { data: valueConcept } = await ontologyDB.findConcept(cp.parameterCode, value, ontologyViewer);
       if (!valueConcept) errors.push(`${String(cp.field)} references unknown ${cp.parameterCode} code "${value}"`);
     }
+  }
+
+  const providers = configurationParameterCodes(seed.aiProviderPreference);
+  if (providers.includes(NO_AI_PROVIDER_CODE) && providers.length > 1) {
+    errors.push(`aiProviderPreference "${NO_AI_PROVIDER_CODE}" cannot be combined with another provider`);
   }
 
   for (const code of seed.participatingOrganisationCodes ?? []) {
@@ -307,9 +323,9 @@ export async function validateProfileOnSave(seed: ProfileSeedInput): Promise<str
   const ontologyViewer = { isRoot: false, tenantId: seed.tenantId };
 
   for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
-    const value = (seed[cp.field] as string | undefined)?.trim();
+    const hasValue = configurationParameterCodes(seed[cp.field]).length > 0;
     const { data: parameterConcept } = await ontologyDB.findConcept("profile-configuration", cp.parameterCode, ontologyViewer);
-    if (parameterConcept?.is_mandatory && !value) {
+    if (parameterConcept?.is_mandatory && !hasValue) {
       errors.push(`${String(cp.field)} is required (a mandatory Configuration Parameter for this tenant)`);
     }
   }
@@ -581,12 +597,15 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
     ...packSelections,
     featureFlagCodes,
     participatingOrganisationCodes,
+    aiProviderCredentials: Array.isArray(priorContent.aiProviderCredentials) ? priorContent.aiProviderCredentials : [],
     knowledgeLocations,
     dispatchStrategyPreference,
   };
   for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
     const priorValue = priorContent[cp.field as string];
-    if (typeof priorValue === "string") draftContent[cp.field as string] = priorValue;
+    if (cp.multiple) {
+      if (Array.isArray(priorValue)) draftContent[cp.field as string] = priorValue;
+    } else if (typeof priorValue === "string") draftContent[cp.field as string] = priorValue;
   }
   draftContent.exposedParameterOverrides = Array.isArray(priorContent.exposedParameterOverrides) ? priorContent.exposedParameterOverrides : [];
   draftContent.deliverableCatalogue = Array.isArray(priorContent.deliverableCatalogue) ? priorContent.deliverableCatalogue : [];
@@ -622,6 +641,19 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
   return { ok: true, draftId: newDraft.id };
 }
 
+// The codes of the Active Conditional Packs whose conditions the Profile meets. A condition names a Profile parameter and a value.
+// A list parameter meets it when the list holds the value. A single-value parameter meets it when it equals the value.
+export async function matchingConditionalPackCodes(seed: ProfileSeedInput): Promise<string[]> {
+  const { data: packs, error } = await packsDB.findActiveConditionalVisibleTo(seed.tenantId);
+  if (error) throw error;
+  const held = new Set(
+    CONFIGURATION_PARAMETER_FIELDS.flatMap((cp) => configurationParameterCodes(seed[cp.field]).map((value) => `${cp.parameterCode}::${value}`))
+  );
+  return (packs ?? [])
+    .filter((pack) => (pack.composition_conditions ?? []).some((condition) => held.has(`${condition.parameter}::${condition.value}`)))
+    .map((pack) => pack.code);
+}
+
 export async function materialiseProfileDraft(profileId: string, seed: ProfileSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   const slots: Array<[string, string[] | undefined]> = [
     ["optional", seed.optionalPackCodes], ["technology", seed.technologyPackCodes], ["domain", seed.domainPackCodes], ["compliance", seed.compliancePackCodes],
@@ -631,6 +663,9 @@ export async function materialiseProfileDraft(profileId: string, seed: ProfileSe
     const { error: selectionError } = await profilesDB.setPackSelection(profileId, listKind, codes ?? [], authorId, authorBadge);
     if (selectionError) throw selectionError;
   }
+  // The Conditional Packs the Profile's configuration selects. They sit under their own list kind, so the Profile form and its copies never read them.
+  const { error: conditionalError } = await profilesDB.setPackSelection(profileId, PROFILE_CONDITIONAL_PACK_LIST_KIND, await matchingConditionalPackCodes(seed), authorId, authorBadge);
+  if (conditionalError) throw conditionalError;
   // The overrides are rebuilt from the parameters the base Template flags overridable; a row for any other parameter is dropped (CR-128).
   const candidates = seed.baseTemplateCode?.trim() ? await deriveOverridableParameterCandidates(seed.baseTemplateCode, seed.tenantId) : [];
   const overridable = new Set(candidates.map((c) => `${c.sourceType}::${c.sourceCode}::${c.parameterName}`));

@@ -149,7 +149,7 @@ export const CONFLICT_NO_VALUE = "none";
 // The Profile fields that are configuration parameters, in the order they are shown. The Profile's Pack codes and exposed parameter overrides are not among them.
 export const PROFILE_CONFIGURATION_PARAMETERS = [
   "environment", "developmentMethodology", "primaryProgrammingLanguage", "sourceControlProvider", "targetCloudProvider", "deploymentStrategy",
-  "aiProviderPreference", "defaultRepositoryStructure", "documentationLevel", "domain", "participatingOrganisationCodes", "environmentConfiguration",
+  "aiProviderPreference", "aiProviderCredentials", "defaultRepositoryStructure", "documentationLevel", "domain", "participatingOrganisationCodes", "environmentConfiguration",
   "deploymentTargets", "featureFlagCodes", "compositionOptions", "dispatchStrategyPreference", "knowledgeLocations", "readme",
   "redispatchMaxAttempts", "redispatchAttentionThreshold",
 ] as const;
@@ -209,6 +209,42 @@ export const PARTICIPANT_BADGE_PREFIX = "participant_";
 export const WAIVER_BADGE_PREFIX = "waiver_";
 export const OBLIGATION_BADGE_PREFIX = "obligation_";
 // An Obligation that holds a Deliverable for an Attention Item records the Attention Item as its originating entity. Such an Obligation is not waivable.
+// The ai-provider-preference code an SEU chooses when no AI provider is used. It cannot be combined with a provider.
+export const NO_AI_PROVIDER_CODE = "none";
+// The installation classification of a Pack that composes only when a Profile parameter holds a value the Pack names.
+export const PACK_CLASSIFICATION_CONDITIONAL = "Conditional";
+// The profile_packs list kind of a Conditional Pack added when the Profile is unravelled. The Profile form and its copies never read it.
+export const PROFILE_CONDITIONAL_PACK_LIST_KIND = "conditional";
+// The Anthropic AI adapter: its adapter registry key, and the Engineering Capital types of the skills it reads.
+export const ANTHROPIC_ADAPTER_KEY = "ai-anthropic";
+export const AI_SKILL_PROTOCOL_TYPE = "Skill Protocol";
+export const AI_SKILL_BOOTSTRAP_TYPE = "Skill Bootstrap";
+export const AI_SKILL_JOB_ANTHROPIC_TYPE = "Skill Job Anthropic";
+// The real Anthropic client. Calls are enabled for the Demo tenant only.
+export const DEMO_TENANT_CODE = "demo";
+export const ANTHROPIC_PROVIDER_CODE = "anthropic";
+export const AI_PROVIDER_CREDENTIALS_PARAMETER = "aiProviderCredentials";
+// A credentials row names the endpoint the Anthropic client calls. Simulated is the default. Anthropic bypasses the simulator and calls the live API with the row's key.
+export const ANTHROPIC_ENDPOINT_SIMULATED = "Simulated";
+export const ANTHROPIC_ENDPOINT_LIVE = "Anthropic";
+export const ANTHROPIC_LIVE_BASE_URL = "https://api.anthropic.com";
+// The simulated Anthropic endpoint runs inside the server process, on this local address. It answers like the Messages API and uses no tokens.
+export const ANTHROPIC_SIMULATOR_HOST = "127.0.0.1";
+export const ANTHROPIC_SIMULATOR_PORT = 4010;
+export const ANTHROPIC_SIMULATOR_BASE_URL = `http://${ANTHROPIC_SIMULATOR_HOST}:${ANTHROPIC_SIMULATOR_PORT}`;
+export const ANTHROPIC_SIMULATOR_API_KEY = "simulated-api-key";
+export const ANTHROPIC_MODEL = "claude-sonnet-5-5";
+export const ANTHROPIC_EFFORT = "high";
+export const ANTHROPIC_MAX_TOKENS = 16000;
+export const ANTHROPIC_MAX_TURNS = 40;
+export const ANTHROPIC_FALLBACK_BETA = "server-side-fallback-2026-07-01";
+// Every Engineering Capital type that holds an AI skill. A provider adapter adds its job skill type here.
+export const AI_SKILL_TYPES = [AI_SKILL_PROTOCOL_TYPE, AI_SKILL_BOOTSTRAP_TYPE, AI_SKILL_JOB_ANTHROPIC_TYPE];
+// The Attention Item an AI adapter raises for a Participant when its run fails.
+export const AI_RUN_FAILURE_ATTENTION_CATEGORY = "Operational";
+export const AI_RUN_FAILURE_ATTENTION_PRIORITY = "High";
+// The Participant types the seed creates. Automated and External are left out for the demo. Add them here to seed them again.
+export const SEEDED_PARTICIPANT_TYPES = ["Human", "AI"]; // "Automated", "External"
 export const ATTENTION_ITEM_ENTITY_TYPE = "AttentionItem";
 export const ATTENTION_OBLIGATION_CATEGORY = "Engineering";
 export const ATTENTION_OBLIGATION_ORIGIN = "Participants";

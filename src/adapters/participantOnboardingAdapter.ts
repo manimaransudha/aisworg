@@ -22,6 +22,8 @@ export interface OnboardedParticipant {
   behaviourContext: Array<{ policy: string; payload: Record<string, unknown> }>;
   authorisedRole: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
   userId: string | null;
+  // The registry key of the adapter that reaches the Participant. An adapter that is the Participant's screen names itself here.
+  adapter?: string | null;
 }
 
 export interface ParticipantOnboardingAdapter {

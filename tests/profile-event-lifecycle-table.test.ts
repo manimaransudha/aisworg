@@ -49,7 +49,7 @@ async function freshProfileSeed(overrides: Partial<ProfileSeedInput> = {}): Prom
     environment: "development",
     profileVersion: uniqueTestPackVersion(),
     tenantId: PLATFORM_TENANT_ID,
-    developmentMethodology: "scrum",
+    aiProviderPreference: ["none"], developmentMethodology: "scrum",
     primaryProgrammingLanguage: "typescript",
     sourceControlProvider: "github",
     ...overrides,

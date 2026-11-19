@@ -29,6 +29,7 @@ const CAPABILITY_PATTERN_PACK_FILES = [
   "openup-configuration-and-change-management.pack.json",
 ];
 const PLATFORM_GOVERNANCE_PACK_FILES = ["platform-governance-baseline.pack.json"];
+const AI_SKILL_PACK_FILES = ["ai-skill-protocol.pack.json", "ai-skill-bootstrap.pack.json", "ai-skill-job-anthropic.pack.json"];
 const COMPLIANCE_PACK_FILES = [
   "compliance-accessibility-ada-508.pack.json",
   "compliance-aml-kyc.pack.json",
@@ -168,6 +169,7 @@ const DOMAIN_TECHNOLOGY_PACK_FILES = [
 const ALL_PACK_FILES = [
   ...CAPABILITY_PATTERN_PACK_FILES,
   ...PLATFORM_GOVERNANCE_PACK_FILES,
+  ...AI_SKILL_PACK_FILES,
   ...COMPLIANCE_PACK_FILES,
   ...DOMAIN_PACK_FILES,
   ...INTEGRATION_PACK_FILES,

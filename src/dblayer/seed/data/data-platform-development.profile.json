@@ -9,7 +9,7 @@
   "sourceControlProvider": "github",
   "targetCloudProvider": "gcp",
   "deploymentStrategy": "canary",
-  "aiProviderPreference": "google",
+  "aiProviderPreference": ["google"],
   "defaultRepositoryStructure": "monorepo",
   "documentationLevel": "standard",
   "dispatchStrategyPreference": [{ "strategy": "capability-match", "order": 1 }],

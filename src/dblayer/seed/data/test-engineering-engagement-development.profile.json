@@ -3,6 +3,7 @@
   "name": "Test Engineering Engagement — Default Development Profile",
   "baseTemplateCode": "test-engineering-engagement",
   "environment": "development",
+  "aiProviderPreference": ["none"],
   "developmentMethodology": "scrum",
   "primaryProgrammingLanguage": "typescript",
   "sourceControlProvider": "github",

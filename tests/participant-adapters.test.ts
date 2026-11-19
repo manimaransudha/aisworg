@@ -81,7 +81,7 @@ after(async () => {
 
 // The producing Command dispatches as soon as the Capability is fulfilled (the engine makes the hop at Operational),
 // and the adapter is resolved at dispatch, so an execution target has to exist before the fulfilment.
-async function commissionAndFulfil(prefix: string, beforeFulfil?: (capabilityId: string) => Promise<void>) {
+async function commissionAndFulfil(prefix: string, beforeFulfil?: (capabilityId: string) => Promise<void>, participantAdapter?: string) {
   await ensureWebAppTemplateFixture();
   let capabilityId = "";
   const result = await commissionFromFormSync(
@@ -95,7 +95,8 @@ async function commissionAndFulfil(prefix: string, beforeFulfil?: (capabilityId:
       assert.ok(capability);
       capabilityId = capability.capabilityId;
       if (beforeFulfil) await beforeFulfil(capability.capabilityId);
-      await fulfilCapability({ seuId, capabilityId: capability.capabilityId, capabilityCodes: ["requirements-analysis"] });
+      const participantMasterId = participantAdapter ? await ensureEligibleParticipant(seuId, ["requirements-analysis"], participantAdapter) : undefined;
+      await fulfilCapability({ seuId, capabilityId: capability.capabilityId, capabilityCodes: ["requirements-analysis"], participantMasterId });
     }
   );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
@@ -143,6 +144,9 @@ test("external-orchestrator: dispatching delivers the assignment to the tenant e
   assert.equal(mine!.body.transition.toState, "In Progress");
   assert.equal(mine!.body.deliverable.id, deliverableId);
   assert.ok(Array.isArray(mine!.body.inputReferences), "the assignment carries the §2.2 input references array");
+  assert.equal(typeof mine!.body.participantId, "string", "the assignment names the Participant dispatch selected");
+  assert.ok(mine!.body.participantId, "the Participant id is not empty");
+  assert.ok(mine!.body.executionContext && Array.isArray(mine!.body.executionContext.engineeringCapital), "the assignment carries the Work Item execution context, with its Engineering Capital entries");
   assert.equal(mine!.auth, "Bearer secret-token", "the opaque outbound credential is carried by the adapter, not the core");
 });
 
@@ -173,4 +177,19 @@ test("the platform-side flow is identical either way: the Deliverable is dispatc
   // behaves identically; only the edge differed.
   await waitForDispatchedWorkItem(external.deliverableId, "Defined", "In Progress");
   await waitForDispatchedWorkItem(human.deliverableId, "Defined", "In Progress");
+});
+
+test("a Participant that names an adapter is reached through it, whatever the Capability's execution target says", async () => {
+  const seen: string[] = [];
+  const key = `test-participant-adapter-${randomUUID().slice(0, 8)}`;
+  registerAdapter(key, { mode: key, async deliverAssignment(a) { seen.push(a.participantId); seen.push(a.workItemId); return { delivered: true }; } });
+  const before = captured.length;
+  const { deliverableId } = await commissionAndFulfil("adapter-participant", async (capabilityId) => {
+    await executionTargetsDB.upsert({ tenantId: commissionTenantId, capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl });
+  }, key);
+
+  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
+  await waitUntil(() => seen.includes(workItem.id));
+  assert.ok(seen.includes(workItem.id), "the Participant's own adapter received the assignment");
+  assert.equal(captured.slice(before).some((c) => c.workItemId === workItem.id), false, "the Capability's execution target was not used for a Participant that names an adapter");
 });

@@ -367,3 +367,22 @@ Each action modal is its own partial under src/views/quickview/actions: `_attent
 - tests/cr108-obligation-model-seu-execution.test.ts, the same Participant test: a waiver that names the Obligation of a blocking Attention Item is refused. Report Status: Blocked is accepted while a blocking Attention Item is open, Completed with no Evidence is refused, Completed and Completed Pending Attention are refused while an open Attention Item (or a blocking one) stands. Resolving the blocking Attention Item takes its Obligation to Verified. Completed Pending Attention then completes the Work Item and opens an Obligation for the remaining Attention Item.
 - The same test also checks that a Gate waiver on `no-unresolved-obligations` is refused while the Obligation is open, and renders `_participantHome.ejs` with the Participant's data. The page offers the five actions and no Obligation form, and its modals post to the Participant routes.
 - Not covered: the QuickView and Demo POST routes called over HTTP, and the browser behaviour of the modals (the Deliverable fill, the alternatives rows and the aside). Tests and `db:clean-slate` were not run.
+
+## 17. Part 6: fulfilling a Capability checks the role of the Capability (2026-11-19, built, not yet run)
+
+Found: fulfilment checked the competencies of the whole SEU, which are the roles and worktypes of every Capability it takes, merged. A Participant who held a role of any Capability could fulfil every Capability. Dispatch already checked the role and worktype of the Work Item.
+
+Settled (owner): a Participant has to hold at least one of the roles of the Capability that is fulfilled.
+
+| Area | Change |
+|---|---|
+| participantEligibility.ts | `findEligibleParticipants` takes `capabilityRoles`. A Participant who holds none of them is left out. An empty list sets no limit. `getCapabilityRoles` reads the roles from the Capability Definition that the SEU's EBM recorded for the Capability (`definitionId` of the settled capabilities). |
+| Callers | `loadEligiblePool` in capabilities.ts (the automatic pool and the manual pick) and the eligible list of the Capability tab in seus.ts. |
+
+Test: tests/cr098-participants-master.test.ts (holds one role, holds another, holds none, empty list). `ensureEligibleParticipant` holds every competency value the SEU requires, roles included, so the fixture Participants still qualify. The seeded pool and the Demo Participants were not checked against this rule. Tests and `db:clean-slate` were not run.
+
+### Seeded Participants and the role check (2026-11-19)
+
+- The Demo roster (`seedDemoParticipants`) already gives each participant the roles and worktypes of its Capabilities from the Active Capability Definitions. All 11 listed Capabilities exist in `capabilityDefinitions.json` and have roles.
+- The tenant pool (`seedParticipantsMaster`, tenant `demo`) did not. Its adapters give one Capability and Domain and Technology competencies only, so those participants would never pass the role check and would also fail the role filter of dispatch. The seeder now reads the Active Capability Definitions once per tenant and gives each participant the roles and worktypes of its Capability, at the proficiency the adapter picked for it.
+- Not run: `db:clean-slate`.

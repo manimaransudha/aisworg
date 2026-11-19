@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { createParticipantMaster } from "../src/routes/seu/core/participantsMaster.js";
+import { COMPETENCY_DIMENSION_ROLE } from "../src/dblayer/constants.js";
 import { findEligibleParticipants } from "../src/routes/seu/core/participantEligibility.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { listRegisteredOnboardingTypes, resolveOnboardingAdapter } from "../src/adapters/participantOnboardingRegistry.js";
@@ -151,6 +152,23 @@ test("findEligibleParticipants: competency filter is ANY-within-a-dimension, ALL
   assert.ok(ids.has(matchesBoth.id), "expected the Participant holding a value in every required dimension to match");
   assert.ok(!ids.has(matchesOnlyTechnology.id), "a Participant missing the required Domain competency must not match — ALL dimensions required");
   assert.ok(!ids.has(matchesNeither.id), "a Participant matching neither required Technology value must not match");
+});
+
+test("findEligibleParticipants: a Participant has to hold at least one of the roles of the Capability (CR-149)", async () => {
+  const capabilityCode = REAL_CAPABILITY_CODE;
+  const make = (label: string, roles: string[]) => createParticipantMaster({ userId: null, tenantId: tenantId(), type: "Human", displayName: `CR-149 ${label} ${randomUUID()}`, capabilities: [capabilityCode],
+    competency: { [COMPETENCY_DIMENSION_ROLE]: roles.map((code) => ({ code, proficiency: "Expert" })) } });
+  const holdsOne = await make("holds-one", ["role-a", "role-x"]);
+  const holdsOther = await make("holds-other", ["role-b"]);
+  const holdsNone = await make("holds-none", ["role-z"]);
+
+  const eligible = await findEligibleParticipants({ tenantId: tenantId(), capabilityCode, capabilityRoles: ["role-a", "role-b"] });
+  const ids = new Set(eligible.map((p) => p.id));
+  assert.ok(ids.has(holdsOne.id) && ids.has(holdsOther.id), "a Participant holding any one role of the Capability is eligible");
+  assert.ok(!ids.has(holdsNone.id), "a Participant holding none of the roles is not eligible");
+
+  const unlimited = await findEligibleParticipants({ tenantId: tenantId(), capabilityCode, capabilityRoles: [] });
+  assert.ok(unlimited.some((p) => p.id === holdsNone.id), "a Capability with no roles sets no limit");
 });
 
 test("findEligibleParticipants: excludeParticipantMasterIds removes a Participant just released from this Capability", async () => {

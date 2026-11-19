@@ -4,6 +4,7 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-150](design/change-requests/CR-150-ai-participant-skills-and-provider-adapters.md) | AI Participant: skills carried by Packs and a provider adapter per AI provider | 🟡 Raised — design in progress |
 | [CR-149](design/change-requests/CR-149-participant-done-returns-to-execution-engine.md) | Participant "Done": the completed Work Item returns control to the Execution Engine | 🟡 Raised — design in progress |
 | [CR-148](design/change-requests/CR-148-command-work-item-generation-cleanup.md) | Command and Work Item generation: the Execution Engine issues the Command from the governed transition | ✅ Closed 2026-11-18 |
 | [CR-147](design/change-requests/CR-147-governance-telemetry-gate-latency.md) | Governance Telemetry: Quality Gate latency per hop | 🟡 Proposed (not designed) |

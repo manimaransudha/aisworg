@@ -3,6 +3,7 @@
   "name": "Continuous Assurance — Default Development Profile",
   "baseTemplateCode": "continuous-assurance",
   "environment": "development",
+  "aiProviderPreference": ["none"],
   "developmentMethodology": "scrum",
   "primaryProgrammingLanguage": "typescript",
   "sourceControlProvider": "github",

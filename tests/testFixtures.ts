@@ -746,7 +746,7 @@ export async function driveCommissioningToActive(input: {
 // findEligibleParticipants itself reads) and holds every one of their
 // acceptable values, so matchesCompetency's `values.some(v => held.includes(v))`
 // is trivially true for every dimension this SEU's own EBM actually requires.
-export async function ensureEligibleParticipant(seuId: string, capabilityCodes: string[]): Promise<string> {
+export async function ensureEligibleParticipant(seuId: string, capabilityCodes: string[], adapter?: string): Promise<string> {
   const { data: seu } = await seusDB.findById(seuId);
   if (!seu) throw new Error(`ensureEligibleParticipant: SEU not found: ${seuId}`);
   const competencyRequirements = await getSeuCompetencyRequirements(seu);
@@ -766,6 +766,7 @@ export async function ensureEligibleParticipant(seuId: string, capabilityCodes: 
     capabilities: capabilityCodes,
     competency: heldCompetency,
     userId: null,
+    adapter: adapter ?? null,
   });
   if (error || !participant) throw error ?? new Error("ensureEligibleParticipant: failed to create participants_master row");
   return participant.id;

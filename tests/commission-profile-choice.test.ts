@@ -173,7 +173,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // CR-091 Part 2 — development-methodology/primary-programming-language/
   // source-control-provider are mandatory on the Platform tenant; publishProfile
   // runs validateProfileSeed, so these need real values or it rejects both.
-  const mandatoryConfigParams = { developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github" };
+  const mandatoryConfigParams = { aiProviderPreference: ["none"], developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github" };
   const plainPublished = await publishProfile({
     seed: { tenantId: PLATFORM_TENANT_ID, code: plainCode, name: "Plain Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: [], profileVersion: "1.0.0", ...mandatoryConfigParams },
     actorId: TESTER_ALL_ID,

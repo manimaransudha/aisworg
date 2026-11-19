@@ -280,7 +280,7 @@ test("validateSeu requires the Objective to be Active — blocks Defined, succee
       baseTemplateCode: template.code,
       environment: "development",
       profileVersion: "1.0.0",
-      developmentMethodology: "scrum",
+      aiProviderPreference: ["none"], developmentMethodology: "scrum",
       primaryProgrammingLanguage: "typescript",
       sourceControlProvider: "github",
     },

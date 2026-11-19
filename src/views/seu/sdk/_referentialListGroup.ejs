@@ -1407,7 +1407,7 @@
               <% } else if (full) { %>
                 <textarea name="<%= inputName %>" class="form-control form-control-sm" rows="2" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>><%= value %></textarea>
               <% } else { %>
-                <input name="<%= inputName %>" class="form-control form-control-sm" value="<%= value %>" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>>
+                <input name="<%= inputName %>" class="form-control form-control-sm"<%- itemField.sensitive ? ' type="password" autocomplete="off"' : '' %> value="<%= value %>" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>>
               <% } %>
               <% if (itemField.help) { %><% if (canEdit) { %><div class="form-text small"><%= itemField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= itemField.help %>" aria-label="Help"></i><% } %><% } %>
             </div>

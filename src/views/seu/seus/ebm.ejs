@@ -308,7 +308,7 @@
                     <% parameterEntries.forEach(function(e) { %>
                       <tr>
                         <td class="small"><code><%= e.propertyName %></code></td>
-                        <td class="small"><%= formatPoolValue(e.value) %></td>
+                        <td class="small"><%- renderValueHtml(e.value) %></td>
                         <td class="small text-muted"><%= sourceLabel(e.source) %></td>
                       </tr>
                     <% }) %>
