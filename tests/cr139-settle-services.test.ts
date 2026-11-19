@@ -15,7 +15,7 @@ const packList = (code: string, levels: Array<{ code: string; target: number }>)
 test("a Deliverable with one Service takes that Service and its levels, with no conflict saved", () => {
   const settled = settleServicesFrom(facts({ "doc-1": [svcA] }), []);
   assert.deepEqual(settled.conflicts, []);
-  assert.deepEqual(settled.result, [{ deliverable: "doc-1", name: "Document one", service: "svc-a", levels: { uptime: 90, latency: 4 } }]);
+  assert.deepEqual(settled.result, [{ deliverable: "doc-1", name: "Document one", service: "svc-a", workItemTypes: [], levels: { uptime: 90, latency: 4 } }]);
 });
 
 test("the Template's value and the Profile's override take the place of the Service Definition default in the result", () => {
@@ -31,7 +31,7 @@ test("the conflict, the pick and the result are all saved: the user picks the Se
 
   const picked = settleServicesFrom(f, [], { [serviceChoiceKey("doc-1")]: "svc-b" });
   assert.deepEqual(picked.conflicts.map((c) => [c.kind, c.resolution, c.options.map((o) => o.value)]), [["service-choice", "svc-b", ["svc-a", "svc-b"]]]);
-  assert.deepEqual(picked.result, [{ deliverable: "doc-1", name: "Document one", service: "svc-b", levels: { throughput: 10 } }]);
+  assert.deepEqual(picked.result, [{ deliverable: "doc-1", name: "Document one", service: "svc-b", workItemTypes: [], levels: { throughput: 10 } }]);
 });
 
 test("a different level: the user's pick of the Pack's value sets the level, and the Service's value keeps it", () => {
