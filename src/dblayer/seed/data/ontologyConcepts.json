@@ -2610,6 +2610,24 @@
     "ui_grouping": "Packs"
   },
   {
+    "concept_type": "engineering-name",
+    "code": "ai-skill-protocol",
+    "default_label": "AI Skill: Platform Protocol",
+    "description": "The Pack that carries the platform protocol skill for AI Participants.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "engineering-name",
+    "code": "ai-skill-bootstrap",
+    "default_label": "AI Skill: Bootstrap Instruction",
+    "description": "The Pack that carries the bootstrap instruction for AI Participants.",
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
     "concept_type": "engineering-capital",
     "code": "Engineering Behaviour",
     "default_label": "Engineering Behaviour",
@@ -3388,6 +3406,15 @@
     "code": "integration-terraform",
     "default_label": "HashiCorp Terraform IaC Platform Integration",
     "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
+    "concept_type": "integration-name",
+    "code": "ai-skill-job-anthropic",
+    "default_label": "AI Skill: Anthropic Job Skills",
+    "description": "The Conditional Pack that carries the job skills for an Anthropic AI Participant.",
     "is_mandatory": null,
     "text_type": "text",
     "ui_grouping": "Packs"
