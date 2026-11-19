@@ -77,6 +77,10 @@
           <input type="checkbox" class="form-check-input" name="<%= prefix %>[markdown]" <%= w.markdown ? "checked" : "" %>>
           <label class="form-check-label small">Markdown</label>
         </div>
+        <div class="col-auto form-check">
+          <input type="checkbox" class="form-check-input" name="<%= prefix %>[sensitive]" <%= w.sensitive ? "checked" : "" %>>
+          <label class="form-check-label small">Sensitive</label>
+        </div>
       </div>
     </div>
 

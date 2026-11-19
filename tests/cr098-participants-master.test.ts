@@ -156,8 +156,13 @@ test("findEligibleParticipants: competency filter is ANY-within-a-dimension, ALL
 
 test("findEligibleParticipants: a Participant has to hold at least one of the roles of the Capability (CR-149)", async () => {
   const capabilityCode = REAL_CAPABILITY_CODE;
-  const make = (label: string, roles: string[]) => createParticipantMaster({ userId: null, tenantId: tenantId(), type: "Human", displayName: `CR-149 ${label} ${randomUUID()}`, capabilities: [capabilityCode],
-    competency: { [COMPETENCY_DIMENSION_ROLE]: roles.map((code) => ({ code, proficiency: "Expert" })) } });
+  // Created at the DB layer, as the seeds create them. createParticipantMaster checks a Role value against the concept type "role", which holds no concept.
+  const make = async (label: string, roles: string[]) => {
+    const { data, error } = await participantsMasterDB.create({ userId: null, tenantId: tenantId(), type: "Human", displayName: `CR-149 ${label} ${randomUUID()}`, capabilities: [capabilityCode],
+      competency: { [COMPETENCY_DIMENSION_ROLE]: roles.map((code) => ({ code, proficiency: "Expert" })) } });
+    if (error || !data) throw error ?? new Error("could not create the Participant");
+    return data;
+  };
   const holdsOne = await make("holds-one", ["role-a", "role-x"]);
   const holdsOther = await make("holds-other", ["role-b"]);
   const holdsNone = await make("holds-none", ["role-z"]);

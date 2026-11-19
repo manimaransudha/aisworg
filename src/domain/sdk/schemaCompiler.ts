@@ -35,6 +35,7 @@ export interface AuthoredWidget {
   minLength: string;
   defaultValue: string;
   markdown: boolean;
+  sensitive: boolean;
 
   enumValues: string;
 
@@ -76,7 +77,7 @@ export interface AuthoredDocument {
 export function blankWidget(kind: WidgetKind = "text"): AuthoredWidget {
   return {
     kind, name: "", label: "", required: false, help: "", group: "", showWhen: "", showWhenValues: "", notes: [],
-    numeric: false, pattern: "", minLength: "", defaultValue: "", markdown: false,
+    numeric: false, pattern: "", minLength: "", defaultValue: "", markdown: false, sensitive: false,
     enumValues: "",
     referentialSource: "", ontology: false, ontologyComposable: false, drivenMode: "", driverField: "", driverSuffix: "", variants: [],
     jsonIsArray: false,
@@ -146,6 +147,7 @@ function widgetToProperty(w: AuthoredWidget, isItem: boolean): JsonSchemaPropert
       if (w.minLength.trim() && !w.numeric) prop.minLength = Number(w.minLength);
       if (w.defaultValue.trim()) prop.default = w.numeric ? Number(w.defaultValue) : w.defaultValue;
       if (w.markdown) prop["x-format"] = "markdown";
+      if (w.sensitive) prop["x-sensitive"] = true;
       if (w.ontology) prop["x-ontology"] = true;
       if (w.referentialSource.trim()) prop["x-referential-source"] = w.referentialSource.trim();
       if (w.ontologyComposable) prop["x-ontology-composable"] = true;
@@ -419,6 +421,7 @@ function propertyToWidget(name: string, def: JsonSchemaProperty, required: boole
   w.minLength = def.minLength !== undefined ? String(def.minLength) : "";
   w.defaultValue = def.default !== undefined ? String(def.default) : "";
   w.markdown = def["x-format"] === "markdown";
+  w.sensitive = def["x-sensitive"] === true;
   w.ontology = def["x-ontology"] === true;
   w.ontologyComposable = def["x-ontology-composable"] === true;
   w.referentialSource = def["x-referential-source"] ?? "";
@@ -479,6 +482,7 @@ function parseWidgetFromBody(raw: Record<string, unknown>): AuthoredWidget {
   w.minLength = String(raw.minLength ?? "");
   w.defaultValue = w.kind === "select" ? String(raw.selectDefault ?? "") : w.kind === "boolean" ? String(raw.booleanDefault ?? "") : String(raw.defaultValue ?? "");
   w.markdown = toBool(raw.markdown);
+  w.sensitive = toBool(raw.sensitive);
   w.enumValues = String(raw.enumValues ?? "");
   w.referentialSource = String(raw.referentialSource ?? "");
   w.ontology = toBool(raw.ontology);

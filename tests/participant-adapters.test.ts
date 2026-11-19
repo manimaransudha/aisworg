@@ -25,7 +25,8 @@ import { externalOrchestratorAdapter } from "../src/adapters/externalOrchestrato
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import type { ParticipantAdapter } from "../src/adapters/participantAdapter.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
-import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID, emptyParticipantPool, getEmptyPoolTenantId, deactivateParticipants } from "./testFixtures.js";
+import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { deliverableByCode } from "./testFixtures.js";
 
 // A local server standing in for a tenant's external orchestrator, capturing
@@ -84,6 +85,7 @@ after(async () => {
 async function commissionAndFulfil(prefix: string, beforeFulfil?: (capabilityId: string) => Promise<void>, participantAdapter?: string) {
   await ensureWebAppTemplateFixture();
   let capabilityId = "";
+  let adapterParticipantMasterId: string | undefined;
   const result = await commissionFromFormSync(
     {
       statement: `${prefix}-${randomUUID()}`,
@@ -96,6 +98,7 @@ async function commissionAndFulfil(prefix: string, beforeFulfil?: (capabilityId:
       capabilityId = capability.capabilityId;
       if (beforeFulfil) await beforeFulfil(capability.capabilityId);
       const participantMasterId = participantAdapter ? await ensureEligibleParticipant(seuId, ["requirements-analysis"], participantAdapter) : undefined;
+      adapterParticipantMasterId = participantMasterId;
       await fulfilCapability({ seuId, capabilityId: capability.capabilityId, capabilityCodes: ["requirements-analysis"], participantMasterId });
     }
   );
@@ -105,7 +108,7 @@ async function commissionAndFulfil(prefix: string, beforeFulfil?: (capabilityId:
   const detail = await getSeuDetailView(seuId);
   const deliverable = (await deliverableByCode(detail, "requirements-analysis-model"));
   assert.ok(deliverable);
-  return { seuId, deliverableId: deliverable.id, capabilityId };
+  return { seuId, deliverableId: deliverable.id, capabilityId, adapterParticipantMasterId };
 }
 
 test("both adapters implement the one contract; the registry resolves by mode; a third adapter needs no core edit", () => {
@@ -179,17 +182,25 @@ test("the platform-side flow is identical either way: the Deliverable is dispatc
   await waitForDispatchedWorkItem(human.deliverableId, "Defined", "In Progress");
 });
 
-test("a Participant that names an adapter is reached through it, whatever the Capability's execution target says", async () => {
+test("a Participant that names an adapter is reached through it, whatever the Capability's execution target says", async (t) => {
+  // With the shared pool emptied, the Participant of this test is the only one that can fulfil the Capability and receive the Work Item.
+  t.after(await emptyParticipantPool(await getEmptyPoolTenantId()));
   const seen: string[] = [];
   const key = `test-participant-adapter-${randomUUID().slice(0, 8)}`;
   registerAdapter(key, { mode: key, async deliverAssignment(a) { seen.push(a.participantId); seen.push(a.workItemId); return { delivered: true }; } });
   const before = captured.length;
-  const { deliverableId } = await commissionAndFulfil("adapter-participant", async (capabilityId) => {
+  const { deliverableId, adapterParticipantMasterId } = await commissionAndFulfil("adapter-participant", async (capabilityId) => {
     await executionTargetsDB.upsert({ tenantId: commissionTenantId, capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl });
   }, key);
 
+  try {
   const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
+  const { data: engagement } = await participantsDB.findById(workItem.participant_id!);
+  assert.equal(engagement?.participant_id, adapterParticipantMasterId, "dispatch assigned the Work Item to the Participant of this test");
   await waitUntil(() => seen.includes(workItem.id));
   assert.ok(seen.includes(workItem.id), "the Participant's own adapter received the assignment");
   assert.equal(captured.slice(before).some((c) => c.workItemId === workItem.id), false, "the Capability's execution target was not used for a Participant that names an adapter");
+  } finally {
+    if (adapterParticipantMasterId) await deactivateParticipants([adapterParticipantMasterId]);
+  }
 });

@@ -16,11 +16,13 @@ import { FIXTURE_CODES } from "./schemaFixtures.js";
 // A value of the ai-provider-preference concept that only the test Ontology holds, so no seeded Profile and no other test meets the condition.
 const TEST_PROVIDER = FIXTURE_CODES.ai.code;
 const PARAMETER = "ai-provider-preference";
+// The Pack code has to be a canonical integration-name concept, so the test uses its own test-only concept. Each run publishes a new version of it.
+const TEST_PACK_CODE = "test-cr150-conditional-pack";
 
 function conditionalPackSeed(run: string, conditions: PackSeedInput["compositionConditions"]): PackSeedInput {
   return {
     tenantId: PLATFORM_TENANT_ID,
-    code: `cr150-conditional-pack-${run}`,
+    code: TEST_PACK_CODE,
     name: `CR-150 Conditional Pack ${run}`,
     category: "Integration",
     packVersion: uniqueTestPackVersion(),

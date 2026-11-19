@@ -3465,6 +3465,15 @@
     "ui_grouping": "Packs"
   },
   {
+    "concept_type": "integration-name",
+    "code": "test-cr150-conditional-pack",
+    "default_label": "CR-150 Conditional Pack (test only)",
+    "description": null,
+    "is_mandatory": null,
+    "text_type": "text",
+    "ui_grouping": "Packs"
+  },
+  {
     "concept_type": "deliverable-name",
     "code": "schema-fixture-extra",
     "default_label": "Schema Fixture Extra",
