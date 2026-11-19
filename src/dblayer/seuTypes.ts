@@ -705,6 +705,8 @@ export interface OutstandingWorkItemDetail {
   to_state: string;
   participant_id: string | null;
   target_completion_at: string | null;
+  role: string | null;
+  worktype: string | null;
   created_at: string;
 }
 
@@ -882,6 +884,8 @@ export interface WorkItemRow {
   dispatch_attempts: number;
   output_reference: string | null;
   target_completion_at: string | null;
+  role: string | null;
+  worktype: string | null;
   execution_context: WorkItemExecutionContext | null;
   created_at: string;
   updated_at: string;

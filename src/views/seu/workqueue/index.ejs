@@ -51,6 +51,7 @@
           <thead class="table-light">
             <tr>
               <th><%- sortLink('Deliverable', 'deliverable', list, _base) %></th>
+              <th><%- sortLink('Work item type', 'type', list, _base) %></th>
               <th><%- sortLink('Transition', 'transition', list, _base) %></th>
               <th><%- sortLink('Reach by', 'reachby', list, _base) %></th>
               <th><%- sortLink('Fulfilment', 'mode', list, _base) %></th>
@@ -59,11 +60,12 @@
           </thead>
           <tbody>
             <% if (list.total === 0) { %>
-              <tr><td colspan="5" class="text-center text-muted py-4"><%= list.q ? 'No Work Items match your search.' : 'No outstanding Work Items — nothing is waiting on a Participant.' %></td></tr>
+              <tr><td colspan="6" class="text-center text-muted py-4"><%= list.q ? 'No Work Items match your search.' : 'No outstanding Work Items — nothing is waiting on a Participant.' %></td></tr>
             <% } else { %>
               <% list.items.forEach(function (wi) { %>
                 <tr>
                   <td class="fw-semibold"><%= wi.deliverableName %></td>
+                  <td class="small"><% if (wi.worktype) { %><%= wi.worktype %><br><span class="text-muted"><%= wi.role %></span><% } else { %><span class="text-muted">&mdash;</span><% } %></td>
                   <td><span class="text-muted small"><%= wi.fromState %> &rarr; <%= wi.toState %></span></td>
                   <td class="small text-muted"><%= wi.targetCompletionAt ? new Date(wi.targetCompletionAt).toISOString().replace('T',' ').slice(0,16) : '—' %></td>
                   <td><span class="mode-badge mode-<%= wi.mode %>"><%= wi.mode %></span></td>

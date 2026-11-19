@@ -38,7 +38,8 @@ export async function completeWorkItem(input: {
   const currentWorkItem = withRef ?? workItem;
 
   if (input.outcome !== "done") {
-    await workItemsDB.updateStatus(workItem.id, "Failed");
+    // A Work Item cannot fail (Ch.32 §8). It is cancelled, which disposes it, and the failure belongs to the Deliverable's Command.
+    await workItemsDB.updateStatus(workItem.id, "Disposed");
     await commandsDB.updateStatus(command.id, "Failed");
     if (workItem.participant_id) {
       const idled = await applyParticipantHop({
@@ -55,7 +56,7 @@ export async function completeWorkItem(input: {
     if (command.requested_by == null) throw new Error(`Command ${command.id} has no requested_by — cannot author the Attention Item raised off its failure`);
     if (!command.acting_badge_type) throw new Error(`Command ${command.id} has no acting_badge_type — cannot author the Attention Item raised off its failure`);
     await eventBus.publish({
-      eventType: "WorkItemFailed",
+      eventType: "WorkItemCancelled",
       originatingObjectType: "WorkItem",
       originatingObjectId: workItem.id,
       seuId: command.seu_id,
@@ -68,7 +69,7 @@ export async function completeWorkItem(input: {
       seuId: command.seu_id,
       category: "Exception",
       priority: "High",
-      title: `Work Item ${input.outcome} on Deliverable "${deliverable?.name ?? command.entity_id}"`,
+      title: `Participant reported ${input.outcome} on Deliverable "${deliverable?.name ?? command.entity_id}"`,
       description: `A Participant reported "${input.outcome}" for the ${command.from_state} -> ${command.to_state} transition. The work was not completed.`,
       relatedObjectType: "Deliverable",
       relatedObjectId: command.entity_id,
@@ -102,7 +103,10 @@ export async function completeWorkItem(input: {
   });
   await workItemsDB.updateStatus(workItem.id, "Disposed");
   await eventBus.publish({ eventType: "WorkItemDisposed", originatingObjectType: "WorkItem", originatingObjectId: workItem.id, seuId: command.seu_id, correlationId, actorId: String(command.requested_by), authorityBadge: command.acting_badge_type, payload: {} });
-  await commandsDB.updateStatus(command.id, "Completed");
+  // The Command is complete when every one of its Work Items is complete (CR-149).
+  const { data: siblings } = await workItemsDB.findByCommandId(command.id);
+  const allDone = (siblings ?? []).every((w) => w.status === "Completed" || w.status === "Disposed");
+  if (allDone && command.status !== "Failed") await commandsDB.updateStatus(command.id, "Completed");
 
   if (workItem.participant_id) {
     const idled = await applyParticipantHop({

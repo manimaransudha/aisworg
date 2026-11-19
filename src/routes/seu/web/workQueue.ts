@@ -32,16 +32,18 @@ router.get("/seus/:id/work-queue", attachVM("seu/workqueue/index"), async (req: 
         deliverableName: wi.deliverable_name,
         fromState: wi.from_state,
         toState: wi.to_state,
+        role: wi.role,
+        worktype: wi.worktype,
         targetCompletionAt: wi.target_completion_at,
         mode: target.mode,
       });
     }
     req.vm.req.title = "Work Queue";
     req.vm.req.seuId = seuId;
-    const params = parseListParams(req.query, { sortable: ["deliverable", "transition", "reachby", "mode"], defaultSort: "reachby", defaultDir: "asc" });
+    const params = parseListParams(req.query, { sortable: ["deliverable", "type", "transition", "reachby", "mode"], defaultSort: "reachby", defaultDir: "asc" });
     req.vm.req.list = paginateList(workItems, params, {
-      searchFields: [(w) => w.deliverableName, (w) => w.toState, (w) => w.mode],
-      sortFields: { deliverable: (w) => w.deliverableName, transition: (w) => w.toState, reachby: (w) => w.targetCompletionAt, mode: (w) => w.mode },
+      searchFields: [(w) => w.deliverableName, (w) => w.worktype, (w) => w.role, (w) => w.toState, (w) => w.mode],
+      sortFields: { deliverable: (w) => w.deliverableName, type: (w) => w.worktype, transition: (w) => w.toState, reachby: (w) => w.targetCompletionAt, mode: (w) => w.mode },
     });
     req.vm.opt.listBasePath = `/aisworg/seu/seus/${seuId}/work-queue`;
     req.vm.opt.flash = getFlash(req);

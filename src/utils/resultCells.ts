@@ -23,7 +23,13 @@ export function longTextHtml(value: unknown): string {
   return `<span class="json-cell"><span class="json-short">${esc(value.slice(0, CONFLICT_RESULT_LONG_TEXT_SHORT_LENGTH))}…</span><span class="json-full d-none">${esc(value)}</span> <a href="#" class="json-more small" data-more="show more" data-less="show less">show more</a></span>`;
 }
 
+// A list of work item types ({role, worktype}) shows one "role / worktype" line for each type.
+function isWorkItemTypeList(value: unknown): value is Array<{ role: string; worktype: string }> {
+  return Array.isArray(value) && value.length > 0 && value.every((v) => v !== null && typeof v === "object" && typeof (v as Record<string, unknown>).role === "string" && typeof (v as Record<string, unknown>).worktype === "string");
+}
+
 export function cellHtml(value: unknown, column: string, links: ResultLink[] | undefined): string {
+  if (isWorkItemTypeList(value)) return value.map((t) => `<div>${esc(t.role)} / ${esc(t.worktype)}</div>`).join("");
   const mine = (links ?? []).filter((l) => l.column === column);
   const texts = Array.isArray(value) ? value : [value];
   if (mine.length === 0 || !texts.every((t) => typeof t === "string")) return jsonHtml(value);

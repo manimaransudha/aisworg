@@ -4,11 +4,26 @@ import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { loadSettled, configurationParameter } from "./ebmSettled.js";
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
-import type { ParticipantMasterRow } from "../../dblayer/seuTypes.js";
+import { COMPETENCY_DIMENSION_ROLE, COMPETENCY_DIMENSION_WORK_TYPE } from "../../dblayer/constants.js";
+import type { ParticipantMasterRow, WorkItemRow } from "../../dblayer/seuTypes.js";
 
 export interface DispatchCandidate {
   participantId: string;
   master: ParticipantMasterRow;
+}
+
+// The Participants among the candidates who hold the role and the worktype of the Work Item (CR-149). A Work Item with no role or worktype keeps every candidate.
+export async function candidatesHoldingWorkItemType(candidateIds: string[], workItem: Pick<WorkItemRow, "role" | "worktype">): Promise<string[]> {
+  if (!workItem.role && !workItem.worktype) return candidateIds;
+  const held: string[] = [];
+  for (const id of candidateIds) {
+    const { data: participant } = await participantsDB.findById(id);
+    if (!participant?.participant_id) continue;
+    const { data: master } = await participantsMasterDB.findById(participant.participant_id);
+    const holds = (dimension: string, code: string | null) => !code || (master?.competency?.[dimension] ?? []).some((e) => e.code === code);
+    if (holds(COMPETENCY_DIMENSION_ROLE, workItem.role) && holds(COMPETENCY_DIMENSION_WORK_TYPE, workItem.worktype)) held.push(id);
+  }
+  return held;
 }
 
 export async function loadAvailableCandidates(candidateIds: string[]): Promise<DispatchCandidate[]> {

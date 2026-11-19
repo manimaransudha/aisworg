@@ -162,3 +162,24 @@ Files: `dblayer/constants.ts`, `conflicts/types.ts`, `unravelServices.ts`, `serv
 Test files updated in the same pass: `tests/testFixtures.ts` (answers every open conflict of a round, so the new worktype conflicts do not exhaust the 50 rounds) and `tests/web-objectives.test.ts` (Compose leads to Resolve Conflicts, Validate announces the composition).
 
 Not run: `tsc`, tests, `db:clean-slate`. The demo simulator stores no work item type picks.
+
+## 13. Part 2 built: one Work Item per picked worktype (2026-11-19, built, not yet run)
+
+Rules from the owner: nothing changes on the Deliverable. A Command for a Deliverable with N picked worktypes has N Work Items. The Command is complete when all of them are complete. The Dispatch Engine selects each Work Item separately and checks the role and the worktype of the Work Item as a criterion.
+
+| Area | Change |
+|---|---|
+| `work_items` | Columns `role` and `worktype` (nullable, null for a Work Item with no worktype). `work_items_schema_recovery.sql`, `WorkItemRow`, `workItemsDB.create`, new `workItemsDB.findByCommandId`. |
+| Generation | `workItemGenerator.generate` reads the Deliverable's `workItemTypes` from the EBM's settled `services` and creates one Work Item per type, then publishes `WorkItemGenerated` for each. A Deliverable with no types gets one Work Item as before. It now returns `WorkItemRow[]`. |
+| Dispatch | `candidatesHoldingWorkItemType` (dispatchStrategies.ts) keeps the fulfilling Participants whose competency holds the Work Item's role (dimension Role) and worktype (dimension Work type). None qualified gives `DispatchRejected` with reason `no_participant_holds_work_item_type`. |
+| Completion | `completeWorkItem` sets the Command to Completed only when every Work Item of the Command is Completed or Disposed and the Command is not Failed. |
+
+Test files updated: tests/execution-engine.test.ts (three `generate` calls now destructure the array).
+
+UI: the Work Queue gains a sortable, searchable Work item type column (worktype and role). The SEU detail Command tab and the Participant home show the role and worktype beside each Work Item's status.
+
+Siblings: Work Items of one Command have no relationship to each other. A cancelled Work Item does not change its siblings. The Command is the only thing they share.
+
+A Work Item cannot fail (Ch.32 §8 has no Failed state). When a Participant reports failed or blocked, `completeWorkItem` cancels the Work Item (status Disposed, event `WorkItemCancelled` in place of `WorkItemFailed`), sets the Deliverable's Command to Failed and raises the Attention Item, whose title is now `Participant reported <outcome> on Deliverable "<name>"`. A later Done on a sibling does not complete a failed Command. The status `Failed` is removed from the `work_items` status check and from `countActiveByParticipantId`.
+
+Test files updated for the cancel rule: tests/command-pipeline.test.ts, tests/web-attention-workqueue.test.ts. Not run: tsc, tests, db:clean-slate. The `work_items` columns reach the database through db:clean-slate.

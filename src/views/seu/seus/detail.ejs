@@ -693,7 +693,7 @@
                         <% } else { %>
                           <% cmd.workItems.forEach(function(wi) { %>
                             <div>
-                              <span class="state-badge state-<%= wi.status %>"><%= wi.status %></span>
+                              <span class="state-badge state-<%= wi.status %>"><%= wi.status %></span><% if (wi.worktype) { %> <span class="text-muted" style="font-size:0.72rem;"><%= wi.role %> / <%= wi.worktype %></span><% } %>
                               <% if (wi.participantLabel) { %> &rarr; <%= wi.participantLabel %><% } %>
                               <% if (wi.dispatchStrategy) { %> <span class="text-muted" style="font-size:0.7rem;">(<%= wi.dispatchStrategy %>)</span><% } %>
                               <% if (wi.executionContextHtml) { %>

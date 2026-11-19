@@ -230,6 +230,8 @@ export interface SeuDetailWorkItem {
   dispatchStrategy: string | null;
   participantLabel: string | null;
   participantId: string | null;
+  role: string | null;
+  worktype: string | null;
   executionContext: WorkItemRow["execution_context"];
   executionContextHtml: string | null;
 }
@@ -488,6 +490,8 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         dispatchStrategy: w.dispatch_strategy,
         participantLabel: w.participant_id ? participantLabelById.get(w.participant_id) ?? null : null,
         participantId: w.participant_id,
+        role: w.role,
+        worktype: w.worktype,
         executionContext: w.execution_context,
         executionContextHtml: w.execution_context ? renderDocMarkdown(executionContextMarkdown(w.execution_context)) : null,
       })),

@@ -200,16 +200,16 @@ test("completing a Work Item as done records the reference, disposes the Work It
   hasAlert(await submit(completePath(work.workItem.id), { outcome: "done" }), /Could not record result: Work Item .* is not outstanding \(status: Disposed\)/);
 });
 
-test("a Work Item reported failed or blocked fails the Work Item and the Command, frees the Participant and raises an Attention Item for the Deliverable", async () => {
+test("a Work Item reported failed or blocked is cancelled and fails the Command, frees the Participant and raises an Attention Item for the Deliverable", async () => {
   for (const outcome of ["failed", "blocked"] as const) {
     const work = await dispatchedWork(outcome);
     const alerts = await submit(completePath(work.workItem.id), { outcome });
     hasAlert(alerts, new RegExp(`Reported "${outcome}" — the work was not completed and an Attention Item was raised\\.`));
-    assert.equal((await workItemsDB.findById(work.workItem.id)).data?.status, "Failed");
+    assert.equal((await workItemsDB.findById(work.workItem.id)).data?.status, "Disposed");
     assert.equal((await commandsDB.findById(work.command.id)).data?.status, "Failed");
     assert.equal((await participantsDB.findById(work.participant.id)).data?.state, "Idle");
     const { data: items } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", work.deliverable.id);
-    const raised = (items ?? []).find((i) => i.title === `Work Item ${outcome} on Deliverable "${work.deliverable.name}"`);
+    const raised = (items ?? []).find((i) => i.title === `Participant reported ${outcome} on Deliverable "${work.deliverable.name}"`);
     assert.deepEqual([raised?.category, raised?.priority], ["Exception", "High"]);
     const { rows } = await pool.query("SELECT 1 FROM deliverable_references WHERE deliverable_id = $1", [work.deliverable.id]);
     assert.equal(rows.length, 0, "a failed Work Item records no reference");

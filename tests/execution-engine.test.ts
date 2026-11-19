@@ -175,14 +175,14 @@ test("a Work Item records the Quality Gate of the governance outcome of its Comm
   };
 
   const command = await create(deliverable.id, outcome.id);
-  const workItem = await workItemGenerator.generate({ command, seuId: t.seu.id, correlationId: randomUUID(), causationEventId: null });
+  const [workItem] = await workItemGenerator.generate({ command, seuId: t.seu.id, correlationId: randomUUID(), causationEventId: null });
   const stored = (await workItemsDB.findById(workItem.id)).data;
   const decision = (await qualityGateOutcomesDB.findById(governance.governanceOutcome.quality_gate_outcome_id)).data;
   assert.ok(decision);
   assert.deepEqual(stored?.execution_context?.qualityGate, { id: decision.id, outcome: decision.outcome, rationale: decision.rationale });
   assert.equal(stored?.execution_context?.relevantDeliverable.id, deliverable.id);
 
-  const orphan = await workItemGenerator.generate({ command: await create(randomUUID(), null), seuId: t.seu.id, correlationId: randomUUID(), causationEventId: null });
+  const [orphan] = await workItemGenerator.generate({ command: await create(randomUUID(), null), seuId: t.seu.id, correlationId: randomUUID(), causationEventId: null });
   assert.equal((await workItemsDB.findById(orphan.id)).data?.execution_context, null, "a Command for a Deliverable that does not exist has no execution context");
 });
 
@@ -439,7 +439,7 @@ test("a Work Item records what the EBM settled and what its governance outcome n
     requestedBy: ROOT_ACTOR_ID, actingBadgeType: ROOT_ACTOR_BADGE, correlationId: randomUUID(), governanceOutcomeId: outcome.id,
   });
   assert.ok(command);
-  const workItem = await workItemGenerator.generate({ command, seuId: contextSeu.seu.id, correlationId: randomUUID(), causationEventId: null, targetCompletionAt: "2030-01-01T00:00:00.000Z" });
+  const [workItem] = await workItemGenerator.generate({ command, seuId: contextSeu.seu.id, correlationId: randomUUID(), causationEventId: null, targetCompletionAt: "2030-01-01T00:00:00.000Z" });
   const context = (await workItemsDB.findById(workItem.id)).data!.execution_context!;
 
   // What the EBM settled, as the commissioning recorded it.

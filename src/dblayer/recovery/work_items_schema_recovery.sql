@@ -14,7 +14,7 @@ CREATE INDEX IF NOT EXISTS idx_work_items_participant ON work_items (participant
 ALTER TABLE work_items ADD COLUMN IF NOT EXISTS output_reference TEXT;
 ALTER TABLE work_items DROP CONSTRAINT IF EXISTS work_items_status_check;
 ALTER TABLE work_items ADD CONSTRAINT work_items_status_check
-  CHECK (status IN ('Generated', 'Assigned', 'Dispatched', 'Executing', 'Completed', 'Failed', 'Cancelled', 'Disposed'));
+  CHECK (status IN ('Generated', 'Assigned', 'Dispatched', 'Executing', 'Completed', 'Cancelled', 'Disposed'));
 ALTER TABLE work_items ADD COLUMN IF NOT EXISTS target_completion_at TIMESTAMPTZ;
 ALTER TABLE work_items
   ADD COLUMN IF NOT EXISTS execution_context JSONB;
@@ -22,6 +22,8 @@ ALTER TABLE work_items ADD COLUMN IF NOT EXISTS dispatch_attempts INTEGER NOT NU
 ALTER TABLE work_items
   ADD COLUMN IF NOT EXISTS author_id UUID NOT NULL REFERENCES participants(id),
   ADD COLUMN IF NOT EXISTS author_badge TEXT NOT NULL;
+-- The role and the worktype the Work Item is for, picked at composition (CR-149). Null for a Work Item that is not for a worktype.
+ALTER TABLE work_items ADD COLUMN IF NOT EXISTS role TEXT, ADD COLUMN IF NOT EXISTS worktype TEXT;
 GRANT ALL PRIVILEGES ON TABLE work_items TO weirdo;
 CREATE INDEX IF NOT EXISTS idx_work_items_dispatched_target ON work_items (target_completion_at) WHERE status = 'Dispatched';
 CREATE INDEX IF NOT EXISTS idx_work_items_participant_status ON work_items (participant_id, status);

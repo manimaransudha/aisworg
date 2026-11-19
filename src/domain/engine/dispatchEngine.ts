@@ -7,7 +7,7 @@ import { eventBus } from "./eventBus.js";
 import { createObligation } from "../../routes/seu/core/obligations.js";
 import { raiseAttentionItem } from "../../routes/seu/core/attentionItems.js";
 import { applyParticipantHop } from "../../routes/seu/core/participants.js";
-import { loadAvailableCandidates, selectParticipant } from "./dispatchStrategies.js";
+import { candidatesHoldingWorkItemType, loadAvailableCandidates, selectParticipant } from "./dispatchStrategies.js";
 import type { CommandRow, ServiceRow, WorkItemRow } from "../../dblayer/seuTypes.js";
 import { getSystemActor } from "../../dblayer/constants.js";
 
@@ -81,10 +81,17 @@ export const dispatchEngine = {
     // The eligible Participants are the active fulfilments of the producing Capability now, read from Capability Fulfilment (Chapter 33 §3).
     const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(input.seuId, input.producingCapabilityId);
     const { data: fulfilments } = seuCapability ? await capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId(seuCapability.id) : { data: [] };
-    const candidateIds = (fulfilments ?? []).map((f) => f.participant_id);
+    const fulfilledIds = (fulfilments ?? []).map((f) => f.participant_id);
 
-    if (candidateIds.length === 0) {
+    if (fulfilledIds.length === 0) {
       await rejectDispatch({ ...input, command }, "DispatchRejected", "empty_eligible_pool");
+      return;
+    }
+
+    // The Work Item is for a role and a worktype, so only the fulfilling Participants who hold both are candidates.
+    const candidateIds = await candidatesHoldingWorkItemType(fulfilledIds, input.workItem);
+    if (candidateIds.length === 0) {
+      await rejectDispatch({ ...input, command }, "DispatchRejected", "no_participant_holds_work_item_type");
       return;
     }
 

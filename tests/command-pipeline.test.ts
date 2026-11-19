@@ -215,9 +215,9 @@ test("a Participant reporting 'blocked' fails the Work Item, and raises an Atten
   const after = await getSeuDetailView(seuId);
   assert.equal((await deliverableByCode(after, "requirements-analysis-model"))?.lifecycleState, "In Progress", "a blocked result never changes the Deliverable's state");
 
-  // Work Item Failed, Command Failed, but the raw reference is still stored.
+  // Work Item cancelled (Disposed), Command Failed, but the raw reference is still stored.
   const { data: workItem } = await workItemsDB.findById(dispatchedWorkItem.id);
-  assert.equal(workItem?.status, "Failed");
+  assert.equal(workItem?.status, "Disposed");
   assert.equal(workItem?.output_reference, "vcs://phase3-blocked/partial@wip", "candidate output is stored even on a blocked outcome");
   const { data: command } = await commandsDB.findById(workItem!.command_id);
   assert.equal(command?.status, "Failed");

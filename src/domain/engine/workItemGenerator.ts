@@ -190,29 +190,46 @@ async function resolveWorkItemAuthor(command: CommandRow): Promise<{ authorId: s
   return { authorId: participant.id, authorBadge: command.acting_badge_type };
 }
 
+// The work item types the EBM settled for the Deliverable of a Command. A Command for anything else, or for a Deliverable with none, has no types.
+async function settledWorkItemTypes(command: CommandRow): Promise<Array<{ role: string; worktype: string }>> {
+  if (command.entity_type !== "Deliverable") return [];
+  const { data: deliverable } = await deliverablesDB.findById(command.entity_id);
+  if (!deliverable?.code) return [];
+  const settled = await loadSettled(command.seu_id);
+  return settled?.services?.result?.find((s) => s.deliverable === deliverable.code)?.workItemTypes ?? [];
+}
+
 export const workItemGenerator = {
-  async generate(input: { command: CommandRow; seuId: string | null; correlationId: string; causationEventId: string | null; targetCompletionAt?: string | null }): Promise<WorkItemRow> {
+  // One Work Item for each work item type the EBM settled for the Deliverable. Without types, one Work Item for the Command.
+  async generate(input: { command: CommandRow; seuId: string | null; correlationId: string; causationEventId: string | null; targetCompletionAt?: string | null }): Promise<WorkItemRow[]> {
     const executionContext = input.command.entity_type === "Deliverable" ? await buildDeliverableExecutionContext(input.command) : null;
     const { authorId, authorBadge } = await resolveWorkItemAuthor(input.command);
+    const types = await settledWorkItemTypes(input.command);
 
-    const { data: workItem, error } = await workItemsDB.create({ commandId: input.command.id, authorId, authorBadge, executionContext });
-    if (error || !workItem) throw error ?? new Error("failed to generate work item");
+    const workItems: WorkItemRow[] = [];
+    for (const type of types.length > 0 ? types : [null]) {
+      const { data: workItem, error } = await workItemsDB.create({ commandId: input.command.id, authorId, authorBadge, executionContext, role: type?.role ?? null, worktype: type?.worktype ?? null });
+      if (error || !workItem) throw error ?? new Error("failed to generate work item");
+      workItems.push(workItem);
+    }
 
     const { data: seu } = await seusDB.findById(input.command.seu_id);
     if (!seu) throw new Error(`SEU ${input.command.seu_id} not found for Command ${input.command.id}`);
-    await eventBus.publish({
-      eventType: "WorkItemGenerated",
-      originatingObjectType: "WorkItem",
-      originatingObjectId: workItem.id,
-      seuId: input.seuId,
-      correlationId: input.correlationId,
-      causationId: input.causationEventId,
-      actorId: authorId,
-      authorityBadge: authorBadge,
-      tenantId: seu.tenant_id,
-      payload: { commandId: input.command.id, targetCompletionAt: input.targetCompletionAt ?? null },
-    });
+    for (const workItem of workItems) {
+      await eventBus.publish({
+        eventType: "WorkItemGenerated",
+        originatingObjectType: "WorkItem",
+        originatingObjectId: workItem.id,
+        seuId: input.seuId,
+        correlationId: input.correlationId,
+        causationId: input.causationEventId,
+        actorId: authorId,
+        authorityBadge: authorBadge,
+        tenantId: seu.tenant_id,
+        payload: { commandId: input.command.id, targetCompletionAt: input.targetCompletionAt ?? null },
+      });
+    }
 
-    return workItem;
+    return workItems;
   },
 };

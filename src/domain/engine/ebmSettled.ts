@@ -9,7 +9,7 @@ export interface EbmSettledView {
   engineeringCapital?: { result?: Array<{ type: string; url: string | null; packs: string[] }> };
   obligationDefinitions?: { result?: Array<{ deliverable: string; step: string; definitions: Array<{ fields: Record<string, unknown>; packs: Array<{ id: string; code: string }> }> }> };
   capabilities?: { result?: Array<{ capability: string; deliverables: string[]; definitionId: string | null }> };
-  services?: { result?: Array<{ deliverable: string; name: string | null; service: string }> };
+  services?: { result?: Array<{ deliverable: string; name: string | null; service: string; workItemTypes?: Array<{ role: string; worktype: string }> }> };
   qualityGates?: { result?: Array<{ deliverable: string; step: string; gates: Array<Record<string, unknown>>; qualityGateDefinitionIds?: string[] }> };
   policies?: { result?: Array<{ policyCode: string; policyDefinitionId?: string; step?: string; scope: string; governingCondition: Record<string, unknown> | null }> };
 }

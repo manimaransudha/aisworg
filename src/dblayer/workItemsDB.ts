@@ -3,11 +3,11 @@ import { logger } from "../utils/logger.js";
 import type { DbResult, OutstandingWorkItemDetail, WorkItemExecutionContext, WorkItemRow, WorkItemStatus } from "./seuTypes.js";
 
 export const workItemsDB = {
-  async create(input: { commandId: string; authorId: string; authorBadge: string; executionContext?: WorkItemExecutionContext | null }): Promise<DbResult<WorkItemRow>> {
+  async create(input: { commandId: string; authorId: string; authorBadge: string; executionContext?: WorkItemExecutionContext | null; role?: string | null; worktype?: string | null }): Promise<DbResult<WorkItemRow>> {
     try {
       const { rows } = await query<WorkItemRow>(
-        "INSERT INTO work_items (command_id, author_id, author_badge, execution_context) VALUES ($1, $2, $3, $4) RETURNING *",
-        [input.commandId, input.authorId, input.authorBadge, input.executionContext ? JSON.stringify(input.executionContext) : null]
+        "INSERT INTO work_items (command_id, author_id, author_badge, execution_context, role, worktype) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+        [input.commandId, input.authorId, input.authorBadge, input.executionContext ? JSON.stringify(input.executionContext) : null, input.role ?? null, input.worktype ?? null]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -134,7 +134,7 @@ export const workItemsDB = {
       const { rows } = await query<OutstandingWorkItemDetail>(
         `SELECT wi.id, c.seu_id, d.id AS deliverable_id, d.name AS deliverable_name,
                 d.producing_capability_id, c.from_state, c.to_state,
-                wi.participant_id, wi.target_completion_at, wi.created_at
+                wi.participant_id, wi.target_completion_at, wi.role, wi.worktype, wi.created_at
          FROM work_items wi
          JOIN commands c ON c.id = wi.command_id AND c.entity_type = 'Deliverable'
          JOIN deliverables d ON d.id = c.entity_id
@@ -165,12 +165,23 @@ export const workItemsDB = {
   async countActiveByParticipantId(participantId: string): Promise<DbResult<number>> {
     try {
       const { rows } = await query<{ count: string }>(
-        "SELECT COUNT(*) AS count FROM work_items WHERE participant_id = $1 AND status NOT IN ('Completed', 'Failed', 'Cancelled', 'Disposed')",
+        "SELECT COUNT(*) AS count FROM work_items WHERE participant_id = $1 AND status NOT IN ('Completed', 'Cancelled', 'Disposed')",
         [participantId]
       );
       return { data: Number(rows[0]?.count ?? 0) };
     } catch (err) {
       logger.error("[workItemsDB] countActiveByParticipantId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Every Work Item of one Command, oldest first.
+  async findByCommandId(commandId: string): Promise<DbResult<WorkItemRow[]>> {
+    try {
+      const { rows } = await query<WorkItemRow>("SELECT * FROM work_items WHERE command_id = $1 ORDER BY created_at", [commandId]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[workItemsDB] findByCommandId error", err as Error);
       return { error: err as Error };
     }
   },
