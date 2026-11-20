@@ -1,84 +1,12 @@
 [
   {
-    "code": "archvault-catalogue-build",
-    "name": "ArchVault Catalogue Build",
+    "code": "archvault-digital-store",
+    "name": "ArchVault Digital App",
     "baseTemplateCode": "mobile-application",
     "environment": "development",
     "aiProviderPreference": ["anthropic"],
     "profileVersion": "1.0.0",
-    "description": "Catalogue work for ArchVault Digital Shelf.",
-    "developmentMethodology": "scrum",
-    "primaryProgrammingLanguage": "typescript",
-    "sourceControlProvider": "github",
-    "dispatchStrategyPreference": [
-      {
-        "strategy": "capability-match",
-        "order": 1
-      }
-    ],
-    "redispatchMaxAttempts": 5,
-    "redispatchAttentionThreshold": 2,
-    "optionalPackCodes": [
-      "technology-react-native",
-      "domain-ebook-library"
-    ]
-  },
-  {
-    "code": "archvault-lending-build",
-    "name": "ArchVault Lending Build",
-    "baseTemplateCode": "mobile-application",
-    "environment": "development",
-    "aiProviderPreference": ["anthropic"],
-    "profileVersion": "1.0.0",
-    "description": "Lending work (checkout, return, holds, renewal) for ArchVault Digital Shelf.",
-    "developmentMethodology": "scrum",
-    "primaryProgrammingLanguage": "typescript",
-    "sourceControlProvider": "github",
-    "dispatchStrategyPreference": [
-      {
-        "strategy": "capability-match",
-        "order": 1
-      }
-    ],
-    "redispatchMaxAttempts": 5,
-    "redispatchAttentionThreshold": 2,
-    "optionalPackCodes": [
-      "technology-react-native",
-      "domain-ebook-library"
-    ]
-  },
-  {
-    "code": "archvault-notifications-build",
-    "name": "ArchVault Notifications Build",
-    "baseTemplateCode": "mobile-application",
-    "environment": "development",
-    "aiProviderPreference": ["anthropic"],
-    "profileVersion": "1.0.0",
-    "description": "Push notification work for ArchVault Digital Shelf.",
-    "developmentMethodology": "scrum",
-    "primaryProgrammingLanguage": "typescript",
-    "sourceControlProvider": "github",
-    "dispatchStrategyPreference": [
-      {
-        "strategy": "capability-match",
-        "order": 1
-      }
-    ],
-    "redispatchMaxAttempts": 5,
-    "redispatchAttentionThreshold": 2,
-    "optionalPackCodes": [
-      "technology-react-native",
-      "domain-ebook-library"
-    ]
-  },
-  {
-    "code": "archvault-release",
-    "name": "ArchVault Release",
-    "baseTemplateCode": "mobile-application",
-    "environment": "production",
-    "aiProviderPreference": ["anthropic"],
-    "profileVersion": "1.0.0",
-    "description": "Delivery of ArchVault Digital Shelf to production and the app stores.",
+    "description": "Software for ArchVault Digital Shelf.",
     "developmentMethodology": "scrum",
     "primaryProgrammingLanguage": "typescript",
     "sourceControlProvider": "github",

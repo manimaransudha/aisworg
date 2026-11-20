@@ -1,4 +1,5 @@
 import type { WorkItemExecutionContext } from "../../../dblayer/seuTypes.js";
+import { AI_SKILL_TYPES } from "../../../dblayer/constants.js";
 
 // A table cell holds one line, and a pipe would end the cell.
 function cell(value: unknown): string {
@@ -11,6 +12,20 @@ function table(headers: string[], rows: unknown[][]): string {
   const lines = [`| ${headers.join(" | ")} |`, `| ${headers.map(() => "---").join(" | ")} |`];
   for (const row of rows) lines.push(`| ${row.map(cell).join(" | ")} |`);
   return `${lines.join("\n")}\n`;
+}
+
+// A skill text is markdown with headings of its own. They move below the sub heading of the skill, and a heading never goes deeper than level 6.
+// A heading inside a fenced code block is code, so it is left as it is.
+function demoteHeadings(markdown: string, by: number): string {
+  let fenced = false;
+  return markdown
+    .split("\n")
+    .map((line) => {
+      if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+      const heading = !fenced && /^(#{1,6})\s/.exec(line);
+      return heading ? `${"#".repeat(Math.min(6, heading[1]!.length + by))}${line.slice(heading[1]!.length)}` : line;
+    })
+    .join("\n");
 }
 
 // The Execution Context of a Work Item as markdown, one section per part of the context.
@@ -46,8 +61,18 @@ export function executionContextMarkdown(ec: WorkItemExecutionContext): string {
   parts.push("### Checklists\n");
   parts.push(table(["Pack", "Checklist", "Statement"], (ec.applicableChecklists ?? []).map((c) => [c.packCode, c.checklistName, c.statement])));
 
+  // An AI skill is a text in markdown, so it gets a sub heading of its own and is not put in a table cell. Every other entry is a link and stays in the table.
+  const capital = ec.engineeringCapital ?? [];
+  const isSkill = (c: { type?: string }): boolean => !!c.type && AI_SKILL_TYPES.includes(c.type);
+  const links = capital.filter((c) => !isSkill(c));
+  const skills = capital.filter(isSkill);
   parts.push("### Engineering Capital\n");
-  parts.push(table(["Pack", "Type", "URL"], (ec.engineeringCapital ?? []).map((c) => [c.packCode, c.type, c.url])));
+  if (links.length > 0 || skills.length === 0) parts.push(table(["Pack", "Type", "URL"], links.map((c) => [c.packCode, c.type, c.url])));
+  for (const skill of skills) {
+    parts.push(`#### ${skill.type}\n`);
+    parts.push(`_Pack: ${skill.packCode}_\n`);
+    parts.push(`${demoteHeadings(skill.url ?? "", 4)}\n`);
+  }
 
   const profile = Object.entries(ec.profileConfiguration ?? {}).filter(([, v]) => v !== undefined && v !== null && v !== "");
   parts.push("### Profile Configuration\n");

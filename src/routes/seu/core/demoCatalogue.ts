@@ -76,6 +76,7 @@ export async function saveAreaContent(form: Form): Promise<string> {
   const howToSteps = lines(form, "howToSteps").map((t) => ({ text: t }));
   const { data, error } = await demoAreasDB.update(tenantId, tab, {
     stageTitle: required(form, "stageTitle", "Stage title"),
+    howToTitle: required(form, "howToTitle", "How To title"),
     howToLead: required(form, "howToLead", "How To lead"),
     howToSteps,
   });

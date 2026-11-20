@@ -5,6 +5,7 @@ CREATE TABLE demo_areas (
   tenant_id      UUID NOT NULL REFERENCES tenants(id),
   area           TEXT NOT NULL,
   stage_title    TEXT NOT NULL,
+  how_to_title   TEXT NOT NULL,
   how_to_lead    TEXT NOT NULL,
   how_to_steps   JSONB NOT NULL DEFAULT '[]',
   author_id      UUID NOT NULL REFERENCES participants_master(id),

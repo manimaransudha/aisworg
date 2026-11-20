@@ -2,6 +2,7 @@
   {
     "area": "Declare",
     "stageTitle": "Engineering architecture",
+    "howToTitle": "What to expect from this demo",
     "howToLead": "Declaration defines what the platform may build and under which rules. Everything declared is held in the registries.",
     "howToSteps": [
       {
@@ -21,6 +22,7 @@
   {
     "area": "Commission",
     "stageTitle": "SEU commissioning",
+    "howToTitle": "What to expect from this demo",
     "howToLead": "Commissioning turns an Objective into a governed SEU, composed from the declarations.",
     "howToSteps": [
       {
@@ -40,6 +42,7 @@
   {
     "area": "Execute",
     "stageTitle": "Execution",
+    "howToTitle": "What to expect from this demo",
     "howToLead": "Execution moves Deliverables forward while Governance responds to what happens.",
     "howToSteps": [
       {

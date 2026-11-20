@@ -55,7 +55,7 @@ async function renderDemo(req: Request, res: Response, next: NextFunction, root:
     req.vm.req.title = root ? "Demo Root" : "Demo";
     req.vm.req.root = root;
     const areaContent = await listAreaContent(tenantId);
-    req.vm.req.areaContent = areaContent.map((a) => ({ area: a.area, stageTitle: a.stage_title, howToLead: a.how_to_lead, howToSteps: a.how_to_steps }));
+    req.vm.req.areaContent = areaContent.map((a) => ({ area: a.area, stageTitle: a.stage_title, howToTitle: a.how_to_title, howToLead: a.how_to_lead, howToSteps: a.how_to_steps }));
     req.vm.opt.kinds = listStepKinds();
     req.vm.opt.noteKind = DEMO_NOTE_STEP_KIND;
     req.vm.opt.stepsTab = stepsTab;

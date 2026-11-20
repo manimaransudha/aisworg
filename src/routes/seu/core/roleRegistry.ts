@@ -25,7 +25,7 @@ export interface RoleRegistryEntry {
 }
 
 // The description of an Ontology concept is markdown or plain text, as its text_type states.
-function descriptionHtml(concept: OntologyConceptRow | undefined): string {
+export function descriptionHtml(concept: OntologyConceptRow | undefined): string {
   if (!concept?.description) return "";
   return concept.text_type === "markdown" ? renderMarkdown(concept.description) : renderMarkdown(concept.description.replace(/[\\`*_{}[\]()#+\-.!>|]/g, "\\$&"));
 }

@@ -8,6 +8,12 @@ export async function getSeuEvents(seuId: string): Promise<EventRow[]> {
   return data?.items ?? [];
 }
 
+// The events one Participant caused in one SEU, newest first. The actor is a participants_master id.
+export async function getSeuEventsByActor(seuId: string, actorId: string): Promise<EventRow[]> {
+  const { data } = await eventsDB.findPage({ seuId, actorId, limit: SEU_EVENTS_DISPLAY_LIMIT, offset: 0, sort: "sequence", dir: "desc" });
+  return data?.items ?? [];
+}
+
 export async function getEventsPage(opts: {
   limit: number;
   offset: number;

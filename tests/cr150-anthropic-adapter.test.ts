@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
+import { getParticipantHomeView } from "../src/routes/seu/core/participantHome.js";
 import { evidenceDB } from "../src/dblayer/evidenceDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { anthropicAiAdapter, runAnthropicAssignment } from "../src/adapters/anthropicAiAdapter.js";
@@ -71,6 +72,9 @@ test("the Anthropic adapter acts as the dispatched Participant: its tools provid
     assert.equal(statusResult!.ok, true, statusResult!.content);
     const evidence = (await evidenceDB.findByRelatedObject("Deliverable", deliverable!.id)).data ?? [];
     assert.ok(evidence.some((e) => e.title === `CR-150 AI evidence ${run}`), "the Evidence the AI provided is recorded on the Deliverable");
+    // The Participant's page lists that Evidence.
+    const home = await getParticipantHomeView(participantMasterId);
+    assert.ok(home.engagements.flatMap((e) => e.detail.evidence).some((e) => e.evidence.title === `CR-150 AI evidence ${run}`), "the Participant's page lists the Evidence the AI provided");
 
     const { system, prompt, tools } = { ...client.runs[0]!.request };
     for (const text of Object.values(SKILLS)) assert.ok(system.includes(text), `the system prompt holds ${text}`);

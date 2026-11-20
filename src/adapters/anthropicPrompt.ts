@@ -15,7 +15,7 @@ export function composeAnthropicPrompt(input: { skills: SelectedSkills; workItem
   const prompt = [
     "<work_item>", input.workItemMarkdown, "</work_item>",
     "<output_contract>",
-    `Do the work for the Deliverable "${input.deliverableName}". Use the platform tools to provide Evidence and to raise Attention Items.`,
+    `Do the work for the Deliverable "${input.deliverableName}". Read the input location with read_input_location. Use the platform tools to provide Evidence and to raise Attention Items. Give the output in the Evidence description.`,
     "Think before you act. State your final answer in a separate <final_answer> section.",
     "Call report_status once, last.",
     "</output_contract>",

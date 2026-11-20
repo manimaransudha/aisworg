@@ -54,27 +54,37 @@
       };
     %>
 
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-      <div class="small text-muted flex-grow-1" style="max-width: 46rem;">
-        <strong class="text-body">This is a demo.</strong> Anyone can modify its data. Demo data is reset periodically, so the changes you make may not be saved.
-        It showcases the core features of SEU Studio. To access the entire specification,
-        <a href="#" data-bs-toggle="modal" data-bs-target="#contactModal">contact us</a>.
-      </div>
-      <% if (root) { %>
+    <% if (root) { %>
+    <div class="d-flex justify-content-end mb-4">
       <form method="POST" action="/aisworg/seu/demo/reset" class="mb-0 flex-shrink-0">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input type="hidden" name="from" value="<%= _from %>">
         <input type="hidden" name="category" value="<%= area %>">
         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reset the Demo tenant to its seeded base state?');">Reset demo data</button>
       </form>
-      <% } %>
     </div>
+    <% } %>
 
     <div class="alert alert-info border-0 border-start border-4 border-info shadow-sm mb-4" role="note">
       <div class="fw-bold mb-1"><i class="bi bi-info-circle me-2"></i>About this demo</div>
-      <div class="fs-6">The SEU Studio for a Demo tenant is setup for the ArchVault Public Library as they build their ArchVault Digital Shelf. The Digital Shelf should allow members to browse, borrow, return and wait-list ebooks on their mobiles.</div>
+      <div class="fs-6">
+        <p>What would software engineering look like if AI agents were not just tools executing assigned tasks, but governed participants in an engineering team, working alongside humans under a common organisational framework?</p>
+
+<p>The demo illustrates SEU Studio through a sample software development initiative: the ArchVault Digital Shelf, a mobile-friendly digital library platform for the fictional ArchVault Public Library.</p>
+
+<p>Explore how <a href="/aisworg/seu/dashboard/demo">SEU Studio</a> establishes organisational accountability for both humans and AI agents, governs their collaboration, preserves engineering knowledge and maintains continuity across the software development lifecycle — from requirements through delivery.</p>
+
+<p><strong>Discover what it means to make AI-native software engineering governed, accountable and continuous.</strong></p>
+      </div>
     </div>
 
+    <div class="small text-muted mb-4">
+      <p><strong class="text-body">Demo Environment:</strong> Explore the core features of SEU Studio using this interactive demo. You are free to create, modify, and experiment with the demo data. The demo environment is periodically reset, so your changes are intended for exploration and may not persist.</p>
+      <!-- <p>To access the complete specification,
+      <a href="#" data-bs-toggle="modal" data-bs-target="#contactModal">contact us</a>.</p> -->
+    </div>
+
+    <div class="demo-tabs-lead"><i class="bi bi-hand-index-thumb" aria-hidden="true"></i> Explore the demo in <%= areas.length %> stages. Select a tab below to switch between them.</div>
     <ul class="nav nav-tabs demo-tabs mb-4">
       <% areas.forEach(function(a) { %>
         <li class="nav-item">
@@ -93,7 +103,7 @@
     <% if (!root) { %>
     <div class="section-card">
       <div class="section-header collapsed d-flex justify-content-between align-items-center" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#howTo" aria-expanded="false" aria-controls="howTo">
-        <span class="lp-toggle-title">How To</span>
+        <span class="lp-toggle-title"><%= _content.howToTitle %></span>
         <i class="bi bi-chevron-down" aria-hidden="true"></i>
       </div>
       <div id="howTo" class="collapse">
@@ -117,6 +127,7 @@
         <form method="POST" action="/aisworg/seu/demo/root/areas/<%= area %>" class="p-3 row g-2 small">
           <%- hidden %>
           <div class="col-12"><label class="form-label mb-0">Stage title</label><input name="stageTitle" class="form-control form-control-sm" value="<%= _content.stageTitle %>" required></div>
+          <div class="col-12"><label class="form-label mb-0">How To title</label><input type="text" name="howToTitle" class="form-control form-control-sm" required value="<%= _content.howToTitle %>"></div>
           <div class="col-12"><label class="form-label mb-0">How To lead</label><textarea name="howToLead" rows="2" class="form-control form-control-sm" required><%= _content.howToLead %></textarea></div>
           <div class="col-12"><label class="form-label mb-0">How To steps: one per line, HTML links allowed</label><textarea name="howToSteps" rows="6" class="form-control form-control-sm font-monospace"><%= _content.howToSteps.map(function(x) { return x.text; }).join('\n') %></textarea></div>
           <div class="col-12"><button type="submit" class="btn btn-sm btn-primary">Save tab text</button></div>
@@ -141,8 +152,9 @@
     <% scenarios.forEach(function(pb, pbIndex) { %>
       <div class="section-card">
         <div class="section-header d-flex justify-content-between align-items-center">
-          <span class="lp-toggle-title flex-grow-1 collapsed" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#scenario-<%= pb.code %>" aria-expanded="false" aria-controls="scenario-<%= pb.code %>">
-            <i class="bi bi-chevron-down demo-chevron me-2" aria-hidden="true"></i><%= pbIndex + 1 %>. <%- renderInlineMarkdown(pb.title) %><% if (!pb.enabled) { %> <span class="badge text-bg-secondary fw-normal">Disabled</span><% } %>
+          <% const _allDone = pb.progress >= pb.steps.length; %>
+          <span class="lp-toggle-title flex-grow-1<%= _allDone ? ' collapsed' : '' %>"<% if (_allDone) { %> role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#scenario-<%= pb.code %>" aria-expanded="false" aria-controls="scenario-<%= pb.code %>"<% } %>>
+            <% if (_allDone) { %><i class="bi bi-chevron-down demo-chevron me-2" aria-hidden="true"></i><% } %><%= pbIndex + 1 %>. <%- renderInlineMarkdown(pb.title) %><% if (!pb.enabled) { %> <span class="badge text-bg-secondary fw-normal">Disabled</span><% } %>
           </span>
           <span class="d-flex align-items-center gap-3">
             <% if (pb.progress >= pb.steps.length) { %><i class="bi bi-check-circle-fill text-success fs-5" title="Completed" aria-hidden="true"></i><span class="visually-hidden">Completed</span><% } %>
@@ -155,7 +167,7 @@
               </form>
             <% } %>
             <% if (pb.enabled && pb.progress < pb.steps.length) { %>
-              <button type="button" class="btn btn-sm btn-primary js-start-guide" data-code="<%= pb.code %>"><%= pb.progress === 0 ? 'Start guide' : 'Resume guide' %></button>
+              <button type="button" class="btn btn-sm btn-primary js-start-guide" data-code="<%= pb.code %>" data-resume="<%= pb.progress > 0 ? 'true' : 'false' %>"><%= pb.progress === 0 ? 'Start guide' : 'Resume guide' %></button>
             <% } %>
           </span>
         </div>
@@ -320,8 +332,11 @@
     } catch (e) {}
     document.querySelectorAll('.js-start-guide').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var panel = document.getElementById('scenario-' + btn.dataset.code);
-        if (panel && !panel.classList.contains('show')) bootstrap.Collapse.getOrCreateInstance(panel).show();
+        // Start guide leaves the panel collapsed; Resume guide opens it.
+        if (btn.dataset.resume === 'true') {
+          var panel = document.getElementById('scenario-' + btn.dataset.code);
+          if (panel && !panel.classList.contains('show')) bootstrap.Collapse.getOrCreateInstance(panel).show();
+        }
         fetch('/aisworg/seu/demo/guide/start/' + encodeURIComponent(btn.dataset.code), { method: 'POST' })
           .then(function () { return window.demoGuide && window.demoGuide.refresh(); });
       });

@@ -9,12 +9,8 @@
     attentionItem: function (seuId) { return _ab ? _ab + '/seus/' + seuId + '/attention-items' : '/aisworg/quickview/seus/' + seuId + '/attention-items'; },
     decision: function (seuId) { return (_ab ? _ab + '/seus/' : '/aisworg/seu/seus/') + seuId + '/decisions'; },
     reportStatus: function (seuId) { return _ab ? _ab + '/seus/' + seuId + '/report-status' : '/aisworg/quickview/seus/' + seuId + '/report-status'; },
-    workItem: function (workItemId) { return _ab ? _ab + '/work-items/' + workItemId + '/complete' : '/aisworg/quickview/work-items/' + workItemId + '/complete'; },
     evidence: function (seuId) { return (_ab ? _ab + '/seus/' : '/aisworg/seu/seus/') + seuId + '/evidence'; },
-    evidenceTransition: function (seuId, evidenceId) { return (_ab ? _ab + '/seus/' : '/aisworg/seu/seus/') + seuId + '/evidence/' + evidenceId + '/transition'; },
     knowledge: function (seuId) { return (_ab ? _ab + '/seus/' : '/aisworg/seu/seus/') + seuId + '/knowledge'; },
-    knowledgeTransition: function (seuId, knowledgeItemId) { return (_ab ? _ab + '/seus/' : '/aisworg/seu/seus/') + seuId + '/knowledge/' + knowledgeItemId + '/transition'; },
-    promote: function (seuId, knowledgeItemId) { return (_ab ? _ab + '/seus/' : '/aisworg/seu/seus/') + seuId + '/knowledge/' + knowledgeItemId + '/promote-scope'; }
   };
 %>
     <% var master = participantHome.master; %>
@@ -79,13 +75,27 @@
               <div class="tab-pane fade show active" id="<%= prefix %>-deliverables" role="tabpanel">
                 <div class="table-responsive">
                   <table class="table table-sm mb-0 align-middle">
-                    <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Actions</th></tr></thead>
+                    <% var viaAdapter = master.adapter != null; %>
+                    <thead class="table-light"><tr><th>Deliverable</th><th>State</th><% if (!viaAdapter) { %><th>Actions</th><% } %></tr></thead>
+                    <%
+                      // What the adapter driven Participant produced, found by the id of the object each event came from.
+                      var titleOf = {};
+                      var descOf = {};
+                      // A Knowledge event names no Deliverable in its payload, so the Knowledge row gives it.
+                      var deliverableOfKnowledge = {};
+                      d.knowledgeItems.forEach(function(x) { deliverableOfKnowledge[x.knowledgeItem.id] = x.knowledgeItem.deliverable_id; });
+                      d.evidence.forEach(function(x) { titleOf[x.evidence.id] = x.evidence.title; descOf[x.evidence.id] = x.evidence.description; });
+                      d.knowledgeItems.forEach(function(x) { titleOf[x.knowledgeItem.id] = x.knowledgeItem.title; });
+                      d.decisions.forEach(function(x) { titleOf[x.decision.id] = x.decision.title; });
+                      d.attentionItems.forEach(function(x) { titleOf[x.attentionItem.id] = x.attentionItem.title; });
+                    %>
                     <tbody>
-                      <% if (d.deliverables.length === 0) { %><tr><td colspan="3" class="text-muted small">Nothing assigned to you yet.</td></tr><% } %>
+                      <% if (d.deliverables.length === 0) { %><tr><td colspan="<%= viaAdapter ? 2 : 3 %>" class="text-muted small">Nothing assigned to you yet.</td></tr><% } %>
                       <% d.deliverables.forEach(function(item) { %>
                         <tr>
                           <td class="small"><%= item.name %><br><span class="text-muted" style="font-size:0.72rem;"><% if (item.category) { %><%= item.category %> &middot; <% } %>Acquisition Scope: <%= item.acquisitionScope %></span></td>
                           <td><span class="state-badge state-<%= item.lifecycleState.replace(/\s+/g, '-') %>"><%= item.lifecycleState %></span></td>
+                          <% if (!viaAdapter) { %>
                           <td>
                             <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#<%= prefix %>-actions-<%= item.id %>" aria-expanded="false">Actions</button>
                             <div class="collapse mt-1" id="<%= prefix %>-actions-<%= item.id %>">
@@ -96,7 +106,21 @@
                               </div>
                             </div>
                           </td>
+                          <% } %>
                         </tr>
+                        <% if (viaAdapter) { %>
+                          <% var done = d.actedEvents.filter(function(ev) { return ev.originating_object_id === item.id || deliverableOfKnowledge[ev.originating_object_id] === item.id || (ev.payload && ev.payload.relatedObjectId === item.id); }).reverse(); %>
+                          <tr>
+                            <td colspan="2" class="small bg-light">
+                              <% if (done.length === 0) { %><div class="text-muted">Nothing recorded yet.</div><% } %>
+                              <% done.forEach(function(ev) { %>
+                                <% var what = ev.event_type.replace(/([a-z])([A-Z])/g, '$1 $2'); var title = titleOf[ev.originating_object_id]; var cat = ev.payload && ev.payload.category; var said = descOf[ev.originating_object_id]; %>
+                                <% if (said) { %><div class="border-start border-3 ps-2 my-2" style="white-space: pre-wrap;"><%= said %></div><% } %>
+                                <div><span class="text-muted" style="font-size:0.72rem;"><%= new Date(ev.occurred_at).toLocaleString() %></span> <%= what %><% if (title) { %>: &ldquo;<%= title %>&rdquo;<% } %><% if (cat) { %> <span class="text-muted">(<%= cat %>)</span><% } %>.</div>
+                              <% }) %>
+                            </td>
+                          </tr>
+                        <% } %>
                       <% }) %>
                     </tbody>
                   </table>
@@ -148,35 +172,15 @@
               <div class="tab-pane fade" id="<%= prefix %>-evidence" role="tabpanel">
                 <div class="table-responsive">
                   <table class="table table-sm mb-0 align-middle">
-                    <thead class="table-light"><tr><th>Supports</th><th>Title</th><th>Category / Confidence</th><th>Status</th><th>Transition</th></tr></thead>
+                    <thead class="table-light"><tr><th>Supports</th><th>Title</th><th>Category / Confidence</th><th>Status</th></tr></thead>
                     <tbody>
-                      <% if (d.evidence.length === 0) { %><tr><td colspan="5" class="text-muted small">None.</td></tr><% } %>
+                      <% if (d.evidence.length === 0) { %><tr><td colspan="4" class="text-muted small">None.</td></tr><% } %>
                       <% d.evidence.forEach(function(e) { %>
                         <tr>
                           <td class="small"><%= e.relatedObjectLabels.join(', ') || '—' %></td>
                           <td class="small"><%= e.evidence.title %></td>
                           <td class="small"><%= e.evidence.category %> &middot; <%= e.evidence.confidence_level || 'unassessed' %></td>
                           <td><span class="state-badge state-<%= e.evidence.status %>"><%= e.evidence.status %></span></td>
-                          <td>
-                            <% if (e.possibleNextStates.length === 1) { %>
-                              <form method="POST" action="<%= urlOf.evidenceTransition(d.seu.id, e.evidence.id) %>" class="mb-0">
-                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                                <input type="hidden" name="targetState" value="<%= e.possibleNextStates[0] %>">
-                                <button type="submit" class="btn btn-sm btn-primary"><%= e.possibleNextStates[0] %></button>
-                              </form>
-                            <% } else if (e.possibleNextStates.length > 1) { %>
-                              <form method="POST" action="<%= urlOf.evidenceTransition(d.seu.id, e.evidence.id) %>" class="d-flex align-items-center gap-1">
-                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                                <select name="targetState" class="form-select form-select-sm" style="width:auto;">
-                                  <% e.possibleNextStates.forEach(function(s) { %>
-                                    <option value="<%= s %>"><%= s %></option>
-                                  <% }) %>
-                                </select>
-                                <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                              </form>
-                        
-    <% } %>
-                          </td>
                         </tr>
                       <% }) %>
                     </tbody>
@@ -206,51 +210,15 @@
               <div class="tab-pane fade" id="<%= prefix %>-knowledge" role="tabpanel">
                 <div class="table-responsive">
                   <table class="table table-sm mb-0 align-middle">
-                    <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Scope</th><th>Status</th><th>Transition</th><th>Promote Scope</th></tr></thead>
+                    <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Scope</th><th>Status</th></tr></thead>
                     <tbody>
-                      <% if (d.knowledgeItems.length === 0) { %><tr><td colspan="6" class="text-muted small">None.</td></tr><% } %>
+                      <% if (d.knowledgeItems.length === 0) { %><tr><td colspan="4" class="text-muted small">None.</td></tr><% } %>
                       <% d.knowledgeItems.forEach(function(k) { %>
                         <tr>
                           <td class="small"><%= k.deliverableName %></td>
                           <td class="small"><%= k.knowledgeItem.title %></td>
                           <td class="small"><%= k.knowledgeItem.category %> &middot; <%= k.knowledgeItem.acquisition_scope %></td>
                           <td><span class="state-badge state-<%= k.knowledgeItem.status %>"><%= k.knowledgeItem.status %></span></td>
-                          <td>
-                            <% if (k.possibleNextStates.length === 1) { %>
-                              <form method="POST" action="<%= urlOf.knowledgeTransition(d.seu.id, k.knowledgeItem.id) %>" class="mb-0">
-                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                                <input type="hidden" name="targetState" value="<%= k.possibleNextStates[0] %>">
-                                <button type="submit" class="btn btn-sm btn-primary"><%= k.possibleNextStates[0] %></button>
-                              </form>
-                            <% } else if (k.possibleNextStates.length > 1) { %>
-                              <form method="POST" action="<%= urlOf.knowledgeTransition(d.seu.id, k.knowledgeItem.id) %>" class="d-flex align-items-center gap-1">
-                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                                <select name="targetState" class="form-select form-select-sm" style="width:auto;">
-                                  <% k.possibleNextStates.forEach(function(s) { %>
-                                    <option value="<%= s %>"><%= s %></option>
-                                  <% }) %>
-                                </select>
-                                <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                              </form>
-                        
-    <% } %>
-                          </td>
-                          <td>
-                            <% if (k.possibleNextScopes.length > 0) { %>
-                              <form method="POST" action="<%= urlOf.promote(d.seu.id, k.knowledgeItem.id) %>" class="d-flex align-items-center gap-1">
-                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                                <select name="targetScope" class="form-select form-select-sm" style="width:auto;">
-                                  <% k.possibleNextScopes.forEach(function(s) { %>
-                                    <option value="<%= s %>"><%= s %></option>
-                                  <% }) %>
-                                </select>
-                                <button type="submit" class="btn btn-sm btn-outline-secondary">Promote</button>
-                              </form>
-                            <% } else { %>
-                              <span class="text-muted small"><%= k.knowledgeItem.acquisition_scope === 'Platform' ? 'already Platform' : '—' %></span>
-                        
-    <% } %>
-                          </td>
                         </tr>
                       <% }) %>
                     </tbody>
@@ -276,18 +244,6 @@
                                 <% if (wi.executionContextHtml) { %>
                                   <button type="button" class="btn btn-link btn-sm p-0 align-baseline" style="font-size:0.72rem;" data-bs-toggle="modal" data-bs-target="#executionContextModal" data-template="execution-context-<%= wi.id %>">Instructions</button>
                                   <template id="execution-context-<%= wi.id %>"><%- wi.executionContextHtml %></template>
-                            
-    <% } %>
-                                <% if (wi.status === 'Dispatched') { %>
-                                  <form method="POST" action="<%= urlOf.workItem(wi.id) %>" class="mt-1 d-flex flex-wrap gap-1 align-items-center">
-                                    <select name="outcome" class="form-select form-select-sm" style="width:auto;">
-                                      <option value="done">Done</option>
-                                      <option value="failed">Failed</option>
-                                      <option value="blocked">Blocked</option>
-                                    </select>
-                                    <input type="text" name="reference" class="form-control form-control-sm" style="width:auto;" placeholder="reference (optional)">
-                                    <button type="submit" class="btn btn-sm btn-primary">Report Result</button>
-                                  </form>
                             
     <% } %>
                               </div>

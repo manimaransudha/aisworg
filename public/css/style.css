@@ -130,6 +130,7 @@ a:hover { color: var(--primary); text-decoration: underline; }
   background: var(--surface);
   border-radius: var(--radius-sm);
   padding: .5rem;
+  z-index: 1030; /* above sticky page elements such as .lp-cta (1020) */
 }
 .navbar .dropdown-item {
   color: var(--text);
@@ -427,10 +428,23 @@ li.demo-note { margin: .75rem 1rem; border-top: 1px solid #6ea8f0 !important; }
 /* Demo area tabs: filled tab buttons joined to the content below. */
 .demo-tabs { border-bottom: 2px solid var(--primary-dark); gap: .25rem; }
 .demo-tabs .nav-link {
-  background: #f1f3f5; color: #495057; border: 1px solid #dee2e6; border-bottom: 0;
-  border-radius: .5rem .5rem 0 0; padding: .7rem 1.25rem; margin-bottom: 0;
+  background: #fff; color: var(--primary-dark); border: 2px solid var(--primary-dark); border-bottom: 0;
+  border-radius: .5rem .5rem 0 0; padding: .7rem 1.25rem; margin-bottom: 0; cursor: pointer;
+  box-shadow: 0 -1px 4px rgba(0, 0, 0, .08); transition: background .15s, transform .15s;
 }
-.demo-tabs .nav-link:hover { background: #e9ecef; }
+.demo-tabs-lead { font-size: .9rem; font-weight: 600; color: var(--primary-dark); margin-bottom: .5rem; }
+.demo-tabs { counter-reset: demostage; flex-wrap: nowrap; }
+.demo-tabs .nav-item { flex: 1 1 0; counter-increment: demostage; }
+.demo-tabs .nav-link { width: 100%; text-align: center; display: flex; align-items: center; justify-content: center; gap: .6rem; }
+.demo-tabs .nav-link::before {
+  content: counter(demostage); display: inline-flex; align-items: center; justify-content: center;
+  width: 1.7rem; height: 1.7rem; border-radius: 50%; font-weight: 700; font-size: .9rem;
+  background: var(--primary-dark); color: #fff; flex: none;
+}
+.demo-tabs .nav-link.active::before { background: #fff; color: var(--primary-dark); }
+.demo-tabs .nav-link .fw-semibold { font-size: 1.05rem; }
+@media (max-width: 767.98px) { .demo-tabs { flex-wrap: wrap; } .demo-tabs .nav-item { flex: 1 1 100%; } }
+.demo-tabs .nav-link:hover { background: var(--primary-light); transform: translateY(-2px); }
 .demo-tabs .nav-link.active { background: var(--primary-dark); border-color: var(--primary-dark); color: #fff; box-shadow: 0 -2px 6px rgba(79, 70, 229, .25); }
 .demo-tabs .nav-link.active .text-muted { color: rgba(255, 255, 255, .85) !important; }
 @media (max-width: 767.98px) {
@@ -768,7 +782,7 @@ li.demo-note { margin: .75rem 1rem; border-top: 1px solid #6ea8f0 !important; }
 .lp-point span { display: block; font-size: .9rem; line-height: 1.6; color: var(--text-muted); }
 .lp-card-problem .lp-point i { background: #fffbeb; color: var(--warning-text); }
 
-.lp-closing { background: var(--primary-dark); color: #fff; border-radius: var(--radius); padding: 1.5rem 1.75rem; display: flex; gap: 1rem; align-items: center; box-shadow: var(--shadow-md); }
+.lp-closing { background: var(--dark); color: #fff; border-radius: var(--radius); padding: 1.5rem 1.75rem; display: flex; gap: 1rem; align-items: center; box-shadow: var(--shadow-md); }
 .lp-closing i { font-size: 1.75rem; color: #fff; flex: none; }
 .lp-closing p { margin: 0; font-size: 1.15rem; line-height: 1.5; font-weight: 600; }
 
@@ -794,7 +808,7 @@ li.demo-note { margin: .75rem 1rem; border-top: 1px solid #6ea8f0 !important; }
 .lp-terms dt { font-size: .9rem; font-weight: 700; color: var(--text); margin-top: .65rem; }
 .lp-terms dd { font-size: .85rem; line-height: 1.55; color: var(--text-muted); margin: 0; }
 .lp-stage-note { margin-top: auto; padding: .85rem 1rem; background: var(--primary-light); border-left: 3px solid var(--primary-dark); border-radius: var(--radius-sm); font-size: .85rem; line-height: 1.5; color: var(--text); }
-.lp-cta { margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; background: var(--primary-dark); color: #fff; border-radius: var(--radius); padding: 1.5rem 1.75rem; box-shadow: var(--shadow-md); }
+.lp-cta { position: sticky; top: .5rem; z-index: 1020; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; background: var(--primary-dark); color: #fff; border-radius: var(--radius); padding: 1.5rem 1.75rem; box-shadow: var(--shadow-md); }
 .lp-cta strong { display: block; font-size: 1.15rem; }
 .lp-cta span { font-size: .95rem; opacity: .9; }
 .lp-cta .btn { color: var(--primary-dark); font-weight: 700; }

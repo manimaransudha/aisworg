@@ -1,3 +1,4 @@
+import { AI_READ_LOCATION_MAX_CHARS, AI_READ_LOCATION_SCHEMES, AI_READ_LOCATION_TIMEOUT_MS } from "../dblayer/constants.js";
 import type { AiToolDefinition, AiToolHandler, AiToolResult } from "./aiProviderClient.js";
 
 // The platform operations an AI Participant can use. Each runs the core function the Participant home runs, as the Participant,
@@ -7,11 +8,18 @@ export interface PlatformToolContext {
   deliverableId: string;
   // The participants_master id of the Participant the Work Item was assigned to.
   participantMasterId: string;
+  // The input location of the Work Item. The read tool opens this address and no other.
+  inputLocation: string | null;
 }
 
 const text = (name: string, description: string): Record<string, unknown> => ({ type: "string", description: `${name}: ${description}` });
 
 export const PLATFORM_TOOLS: AiToolDefinition[] = [
+  {
+    name: "read_input_location",
+    description: "Read the input location of this Work Item and return its text. It takes no input. It opens an http or https address and returns the start of the page.",
+    inputSchema: { type: "object", properties: {} },
+  },
   {
     name: "provide_evidence",
     description: "Record Evidence for this Deliverable. An artefact of the work is Evidence. Returns the Evidence id.",
@@ -58,6 +66,7 @@ export function createPlatformToolHandler(context: PlatformToolContext): AiToolH
   return async (name, input): Promise<AiToolResult> => {
     try {
       switch (name) {
+        case "read_input_location": return await readInputLocation(context);
         case "provide_evidence": return await provideEvidence(context, input);
         case "create_knowledge": return await createKnowledge(context, input);
         case "create_decision": return await createDecision(context, input);
@@ -69,6 +78,23 @@ export function createPlatformToolHandler(context: PlatformToolContext): AiToolH
       return { ok: false, content: (err as Error).message };
     }
   };
+}
+
+// The tool opens the Work Item's own input location and takes no address from the model, so the AI cannot send the platform to another host.
+async function readInputLocation(context: PlatformToolContext): Promise<AiToolResult> {
+  if (!context.inputLocation) return { ok: false, content: "This Work Item has no input location." };
+  let url: URL;
+  try {
+    url = new URL(context.inputLocation);
+  } catch {
+    return { ok: false, content: `The input location "${context.inputLocation}" is not an address I can open.` };
+  }
+  if (!AI_READ_LOCATION_SCHEMES.includes(url.protocol)) return { ok: false, content: `The input location "${context.inputLocation}" is not an ${AI_READ_LOCATION_SCHEMES.map((s) => s.replace(":", "")).join(" or ")} address, so I cannot open it.` };
+  const response = await fetch(url, { signal: AbortSignal.timeout(AI_READ_LOCATION_TIMEOUT_MS) });
+  if (!response.ok) return { ok: false, content: `Opening ${context.inputLocation} returned HTTP ${response.status}.` };
+  const body = await response.text();
+  const shown = body.length > AI_READ_LOCATION_MAX_CHARS ? `${body.slice(0, AI_READ_LOCATION_MAX_CHARS)}\n[The page continues. The first ${AI_READ_LOCATION_MAX_CHARS} characters are shown.]` : body;
+  return { ok: true, content: shown };
 }
 
 async function provideEvidence(context: PlatformToolContext, input: Record<string, unknown>): Promise<AiToolResult> {

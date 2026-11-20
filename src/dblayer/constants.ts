@@ -233,6 +233,21 @@ export const ANTHROPIC_SIMULATOR_HOST = "127.0.0.1";
 export const ANTHROPIC_SIMULATOR_PORT = 4010;
 export const ANTHROPIC_SIMULATOR_BASE_URL = `http://${ANTHROPIC_SIMULATOR_HOST}:${ANTHROPIC_SIMULATOR_PORT}`;
 export const ANTHROPIC_SIMULATOR_API_KEY = "simulated-api-key";
+// The tool that reads the input location of a Work Item for an AI Participant: the schemes it opens, how long it waits and how much text it returns.
+export const AI_READ_LOCATION_SCHEMES = ["http:", "https:"];
+export const AI_READ_LOCATION_TIMEOUT_MS = 15000;
+export const AI_READ_LOCATION_MAX_CHARS = 60000;
+// The Ontology codes the simulated endpoint uses in the tool calls it makes: Evidence, Knowledge and Attention Item categories and the Attention Item priority.
+export const SIMULATOR_EVIDENCE_CATEGORY = "Analytical Evidence";
+export const SIMULATOR_KNOWLEDGE_CATEGORY = "Operational Knowledge";
+export const SIMULATOR_ATTENTION_CATEGORY = "Escalation";
+export const SIMULATOR_ATTENTION_PRIORITY = "High";
+export const SIMULATOR_ATTENTION_TITLE_MAX_LENGTH = 100;
+export const SIMULATOR_ATTENTION_NON_BLOCKING_PRIORITY = "Medium";
+export const SIMULATOR_DECISION_CATEGORY = "Design Decisions";
+export const SIMULATOR_DECISION_CHOSEN_STATUS = "Approved";
+export const SIMULATOR_DECISION_REJECTED_STATUS = "Rejected";
+export const SIMULATOR_REQUIREMENTS_SERVICE_PATTERN = /requirement/i;
 export const ANTHROPIC_MODEL = "claude-sonnet-5-5";
 export const ANTHROPIC_EFFORT = "high";
 export const ANTHROPIC_MAX_TOKENS = 16000;

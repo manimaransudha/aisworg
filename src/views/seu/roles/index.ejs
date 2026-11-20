@@ -31,6 +31,9 @@
     </div>
 
     <% const _base = locals.listBasePath || '/aisworg/seu/roles'; %>
+    <% if (locals.roleCode) { %>
+      <div class="alert alert-info small py-2">Showing only the Role <code><%= roleCode %></code>. <a href="<%= _base %>">Show all Roles</a></div>
+    <% } %>
     <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search role, work item type or Capability' }) %>
     <div class="small text-muted mb-3">Sort:
       <%- sortLink('Role', 'label', list, _base) %> &middot;

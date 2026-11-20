@@ -16,12 +16,15 @@ router.get("/roles", attachVM("seu/roles/index"), async (req: Request, res: Resp
     req.vm.req.title = "Role Registry";
     const params = parseListParams(req.query, { sortable: ["label", "code", "worktypes", "capabilities"], defaultSort: "label", defaultDir: "asc" });
     const viewer = { isRoot: (req.session?.user?.platformBadges ?? []).includes("root"), tenantId: req.session?.user?.tenant_id ?? null };
-    const entries = await listRoleRegistry(viewer);
+    const roleCode = typeof req.query.role === "string" ? req.query.role : "";
+    const all = await listRoleRegistry(viewer);
+    const entries = roleCode ? all.filter((e) => e.code === roleCode) : all;
     const list = paginateList(entries, params, {
       searchFields: [(r) => r.label, (r) => r.code, (r) => r.workItemTypes.map((w) => `${w.label} ${w.code}`).join(" "), (r) => r.capabilities.map((c) => `${c.label} ${c.code}`).join(" ")],
       sortFields: { label: (r) => r.label, code: (r) => r.code, worktypes: (r) => r.workItemTypes.length, capabilities: (r) => r.capabilities.length },
     });
     req.vm.req.list = list;
+    req.vm.opt.roleCode = roleCode;
     req.vm.opt.listBasePath = "/aisworg/seu/roles";
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/roles/index", req.vm);

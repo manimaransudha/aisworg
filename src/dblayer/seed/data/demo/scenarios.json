@@ -29,7 +29,8 @@
       "title": "What engineering competencies are available?",
       "playbook": [
         "capability-definitions-note",
-        "browse-capability-definitions"
+        "browse-capability-definitions",
+        "browse-designing-software-architecture"
       ],
       "sortOrder": 3,
       "enabled": true

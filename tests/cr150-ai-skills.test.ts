@@ -53,8 +53,8 @@ test("the Anthropic prompt carries the three skills in tagged sections and ends 
   assert.ok(prompt.includes("Requirements Analysis Model"));
 });
 
-test("the platform tools are the five Participant operations", () => {
-  assert.deepEqual(PLATFORM_TOOLS.map((t) => t.name), ["provide_evidence", "create_knowledge", "create_decision", "raise_attention_item", "report_status"]);
+test("the platform tools are the read of the input location and the five Participant operations", () => {
+  assert.deepEqual(PLATFORM_TOOLS.map((t) => t.name), ["read_input_location", "provide_evidence", "create_knowledge", "create_decision", "raise_attention_item", "report_status"]);
 });
 
 test("the mock client plays its script, and a later step can use an earlier result", async () => {

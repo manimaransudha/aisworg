@@ -35,8 +35,11 @@
 | 12b | A run starts in the background so the delivery handler is not held. A failed run raises an Attention Item for the Participant. |
 | 13 | The adapter takes an injectable provider client. Tests use the mock client. The Demo uses the real client, which only a running server registers. |
 | 13a | Only the Demo reaches Anthropic. Four guards: no test file imports the real client, and only the server start-up block of `app.ts` registers it, by dynamic import; the client refuses to run when `NODE_ENV` is `test` or `NODE_TEST_CONTEXT` is set; the key resolver refuses any SEU whose tenant code is not `demo`; and with no registered client, delivery throws and never reaches the network. |
-| 13c | The Anthropic client calls a simulated endpoint by default. The endpoint runs inside the server process on `127.0.0.1:4010`, answers `POST /v1/messages` as the Messages API does (streaming and non-streaming), and uses no tokens. Its script provides Evidence, reports Completed with that Evidence, and stops. A `aiProviderCredentials` row for `anthropic` has an `endpoint` of `Simulated` (the default) or `Anthropic`. Only `Anthropic` bypasses the simulator and calls the live API with the row's key. A row is not needed for the simulator. For now the Demo points at the simulator. |
+| 13c | The Anthropic client calls a simulated endpoint by default. The endpoint runs inside the server process on `127.0.0.1:4010`, answers `POST /v1/messages` as the Messages API does (streaming and non-streaming), and uses no tokens. It plays the situation closest to the Work Item (13d). A `aiProviderCredentials` row for `anthropic` has an `endpoint` of `Simulated` (the default) or `Anthropic`. Only `Anthropic` bypasses the simulator and calls the live API with the row's key. A row is not needed for the simulator. For now the Demo points at the simulator. |
 | 13b | The client runs its own tool loop on `claude-sonnet-5-5` (a lower model than Opus, chosen by the owner for the pilot) with effort `high`, thinking left at its adaptive default, and server-side fallbacks `default`. It stops on `refusal` or `max_tokens`, which raises the failure Attention Item. |
+| 13d | The simulator reads the Work Item markdown in the first message (objective, Deliverable and state, Service and its code, input and output locations, open Attention Items, Obligations, recorded Decisions, Evidence and Knowledge, checklist statements, profile). It scores a list of situations against it and plays the closest one. Each situation holds weighted conditions, the reasoning the AI states, the Evidence it records, the tool calls that follow and the statuses it tries. The list is `SITUATIONS` in `simulatedAnthropic.ts`. The owner edits the texts there and adds a situation by adding an entry. The highest total wins and a tie goes to the situation listed first. The situations are: output location missing (Evidence, Knowledge, a blocking Attention Item, Blocked), input location missing (a non-blocking Attention Item, Completed Pending Attention), builds on recorded work, requirements analysis (the Service code matches `requirement`: two Decisions that cite the Evidence, then Knowledge) and produce the deliverable. A status that the platform refuses moves to the next one in the situation's list. With an open Attention Item the order is Completed Pending Attention, then Blocked. Any other refused call ends the run with no status. The values the simulator puts in tool calls (categories, statuses, priorities) are constants in `constants.ts`. |
+| 13e | The reasoning of the first turn (Steps 1 to 4 and the plan) is also the start of the Evidence description, followed by a line stating what was done and what was not (protocol skill, section 6). The narration of a run is not stored anywhere else, so the Evidence description is how the page shows it. No table is added. |
+| 13f | For a Participant reached through an adapter (`participants_master.adapter` is set), the Participant page shows no Actions column on the Deliverables tab. A row under each Deliverable shows the Evidence description as the AI's reasoning, then the events the Participant caused on that Deliverable, oldest first, with the title of the Evidence, Knowledge, Decision or Attention Item. The events come from `eventsDB.findPage` with the new `actorId` filter (`getSeuEventsByActor`, 200 at most). A Knowledge event names its Deliverable through the Knowledge row. A Human Participant keeps the Actions column. |
 | 14 | Dispatch is unchanged. `human-on-ui` and `external-orchestrator` are unchanged. |
 | 15 | The pilot is restricted to the Demo. Only the four Demo Profiles hold `anthropic`. The seed creates Human and AI Participants only (`SEEDED_PARTICIPANT_TYPES`). The Demo roster keeps its four Humans and three AIs. The Automated and External roster entries sit in `participants.parked.json`, which no seed reads. |
 | 16 | The Demo Participants hold every Domain and Technology the Demo EBM can ask for, the `background-verification` and `cr104-demo-background-check` eligibility entries, and the Role and Work type competencies of their Capabilities, so the Demo shows the functionality and not Capability fulfilment. The three Demo AI Participants name the adapter `ai-anthropic`. |
@@ -69,6 +72,57 @@
 | 8 | Build the Anthropic AI adapter with a mock client: skill selection, prompt composition, tools, a client registry. The pilot Participant is added to the Demo roster in step 9, when a client is registered. | Built pending testing 2026-11-19 |
 | 9 | The real Anthropic client, enabled for the Demo only, then a live run on a Demo SEU commissioned from a Profile version that holds the key. | Client built pending testing 2026-11-19. No live call has been made. |
 
+## Local model with Ollama (proposed, nothing built)
+
+An AI Participant can run on a local model served by Ollama. The facts below come from the Ollama documentation ([Anthropic compatibility](https://docs.ollama.com/api/anthropic-compatibility)). The code facts come from this repository.
+
+### What Ollama offers
+
+| Fact | Detail |
+|---|---|
+| Endpoint | Ollama implements the Anthropic Messages API at `/v1/messages`. The local server listens on `http://localhost:11434`. Ollama v0.14.0 or later is required. |
+| Authentication | The local server does not check the API key. The Anthropic SDK still needs one, so a placeholder such as `ollama` is used. |
+| Supported | `system`, `messages` with `tool_use` and `tool_result` blocks, `tools`, `stream`, `temperature`, `thinking`, and `output_config.effort` with names the model defines. |
+| Not supported | `tool_choice`, `metadata`, token counting, prompt caching, the Batches API, citations and image URLs. The documentation does not mention beta features. |
+| Models | The documentation suggests `qwen3-coder`, `glm-4.7` and `minimax-m2.1` for coding and `gpt-oss:20b` as a general local model. Tool calling depends on the model, so a model is chosen for tool support. |
+
+### How the platform differs today
+
+| Point | Where |
+|---|---|
+| The real client sends the model `claude-sonnet-5-5`, the beta header `server-side-fallback-2026-07-01` and `fallbacks: "default"` through `client.beta.messages.stream`. Ollama is documented to support none of the betas, so the request needs a plain `client.messages.stream` call. | anthropicProviderClient.ts, constants.ts |
+| The base URL is a constant for the live API. The `endpoint` of an `aiProviderCredentials` row is `Simulated` or `Anthropic`. | anthropicCredentials.ts |
+| The skills, the adapter key and the Ontology value are Anthropic specific. | CR-150 settled design 3, 9 and 10 |
+
+### Setup on the machine that runs the model
+
+1. Install Ollama, version 0.14.0 or later.
+2. Pull a model that supports tools, for example `ollama pull qwen3-coder` or `ollama pull gpt-oss:20b`.
+3. Confirm the server answers on port 11434, with a `POST` to `/v1/messages` that names the model.
+4. Check the model's memory need on its Ollama page, and check the context length the model runs with. The Work Item prompt carries three skill texts and the execution context. Neither the memory need nor the default context length has been verified here.
+5. The platform server must reach the Ollama host. A model on a laptop is not reachable from a VPS, so run Ollama on the VPS or reach it through a tunnel.
+
+### Wiring in the platform
+
+The recommended route is a provider of its own, as Settled 9 states (one adapter per provider). Ollama speaks the Anthropic wire format, so it reuses the Anthropic client.
+
+| # | Work |
+|---|---|
+| 1 | Ontology: the value `ollama` of `ai-provider-preference`, the Engineering Capital type `Skill Job Ollama`, and the Pack code concept `ai-skill-job-ollama` (data changes). |
+| 2 | A Conditional Pack `ai-skill-job-ollama` with the condition `ai-provider-preference = ollama`. Its text suits an open model: shorter steps, one tool call per turn and the same output contract. |
+| 3 | The adapter key `ai-ollama`, registered like `ai-anthropic`, with its own job skill type. The roster names it on the Participant. |
+| 4 | `aiProviderCredentials` rows gain `baseUrl` and `model`. A row for `ollama` holds the Ollama address and the model name, and needs no key. |
+| 5 | The client takes the model and the base URL from the row. For Ollama it calls `client.messages.stream` with no beta header and no `fallbacks`. |
+| 6 | The Demo-only guards stay. The credential resolver still refuses a tenant other than `demo`, and the client still refuses to run under a test. |
+
+The alternative is a third `endpoint` value, `Local`, on the existing `anthropic` row. It needs less work and keeps the Claude tuned job skill for a model it was not written for. It also records a local model under the provider `anthropic`. The owner chooses between the two.
+
+### What to expect
+
+- The Work Item content stays on the machine that runs the model.
+- A small local model calls tools less reliably than Claude. The adapter already returns a refused call to the model as text, and a run that fails raises the Attention Item "The AI run failed".
+- No per-token cost applies. The run time depends on the hardware.
+
 ## Accepted trade-offs
 
 | # | Trade-off |
@@ -89,18 +143,31 @@
 | tests/cr150-conditional-packs.test.ts | New. Covers Conditional Pack validation and the Profile hop. |
 | tests/participant-adapters.test.ts (step 6) | The external-orchestrator test asserts that the delivered assignment carries `participantId` and the `executionContext` with its Engineering Capital entries. |
 | tests/participant-adapters.test.ts and tests/testFixtures.ts (step 7) | A new test registers an adapter, gives a fixture Participant that adapter, and asserts the assignment reaches it and not the Capability's external-orchestrator target. `ensureEligibleParticipant` takes an optional adapter. |
-| tests/cr150-simulated-anthropic.test.ts | New. The turn logic and the wire formats of the simulated endpoint, as pure functions. No server is started. |
+| tests/cr150-simulated-anthropic.test.ts | New. The turn logic and the wire formats of the simulated endpoint, as pure functions. No server is started. It covers the first scripted sequence and is not updated for the situations in 13d. The owner decided the simulator needs no tests. |
 | tests/cr150-profile-secrets.test.ts | New. Masking, redaction of shown content, and restoring a masked key on save, with no database. |
 | tests/schemaFixtures.ts (credentials) | The maximal Profile carries `aiProviderCredentials`. `FIXTURE_VERSION` moves to 1.0.9. |
 | tests/cr150-ai-skills.test.ts (step 8) | New. Skill selection, prompt composition, the five tools and the mock client, with no database. |
 | tests/cr150-anthropic-adapter.test.ts (step 8) | New. A dispatched Participant's scripted run provides Evidence and reports status, a rule failure reaches the model as text, a failed run raises an Attention Item, and a missing skill or client is refused at delivery. |
 
+## Incidental changes in the same pass
+
+| File | Change |
+|---|---|
+| src/views/quickview/_participantHome.ejs | The Evidence, Decisions, Knowledge and Commands tabs of the Participant page carry no action buttons or forms. The Instructions link stays. The Deliverables tab keeps the action buttons for a Human Participant (13f). |
+| src/routes/seu/core/participantHome.ts, events.ts, src/dblayer/eventsDB.ts | `actedEvents` on the Participant's SEU view, `getSeuEventsByActor` and the `actorId` filter of `findPage`. |
+| design/ai-participant-typical-conversation.md | The conversation an AI has under the three skills, for the Coding Agent's Work Item. The simulator's first situation follows its Section 3. |
+
 ## Verification runs
 
-`tsc` was run after each step and is clean. `db:clean-slate` and the tests have not been run. Steps 1 to 8 are built pending testing. Step 9: the client is built and no live run has been made.
+`tsc` was run after each of steps 1 to 9 and was clean. After that, the simulator situations (13d), the Evidence description (13e) and the Participant page (13f) were checked only through the editor diagnostics, which report no errors. `db:clean-slate` and the tests have not been run. Steps 1 to 8 are built pending testing. Step 9: the client is built and no live run has been made. The simulator has run on the Demo up to its first situation. The situations of 13d have not run.
 
 ## Still open
 
 | # | Point |
 |---|---|
 | 2 | The mechanism of the adapter's authentication (session, token or API). A build detail for step 8. |
+| 3 | The AI has no tool that reads the input location or writes the output location. A Work Item that needs a file written cannot be completed with the five tools. The simulator states this in the Evidence. |
+| 4 | The Work Item markdown carries no Quality Gate and no blocking flag of an Attention Item. The simulator cannot read either, so it tries Completed Pending Attention and falls back to Blocked. |
+| 5 | The Coding Agent held two Work Items on one Deliverable in the Demo, so two runs produced twice the rows. The cause of the second Work Item is not investigated. |
+| 7 | Ollama: a provider of its own (`ollama`, `ai-ollama`, its own job skill) or an `endpoint` value `Local` on the `anthropic` row. The CR recommends the first. Nothing is built. |
+| 6 | The narration after the first turn (the text before each tool call and the final answer) is not stored and the page does not show it. |

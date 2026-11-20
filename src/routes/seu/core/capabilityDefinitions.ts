@@ -9,6 +9,7 @@ import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { CapabilityDefinitionRow, CapabilityRole } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { descriptionHtml } from "./roleRegistry.js";
 import { nextAvailablePatchVersion, semverError } from "../../../utils/version.js";
  
 
@@ -149,6 +150,7 @@ export interface CapabilityDefinitionViewData {
   capabilityDefinition: CapabilityDefinitionRow;
   labels: { category: Record<string, string>; roles: Record<string, string>; worktypes: Record<string, string> };
   activeServiceId: string | null;
+  worktypeDescriptions: Record<string, string>;
 }
 
 async function labelsFor(conceptType: string, viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string>> {
@@ -164,12 +166,14 @@ export async function getCapabilityDefinitionView(id: string, viewer: { isRoot: 
   if (!row) return null;
   const platformTenantId = await getPlatformTenantId();
   if (!viewer.isRoot && row.tenant_id !== platformTenantId && row.tenant_id !== viewer.tenantId) return null;
-  const [category, roles, worktypes] = await Promise.all([
+  const [category, roles, worktypeConcepts] = await Promise.all([
     labelsFor("category:capability", viewer),
     labelsFor("role-name", viewer),
-    labelsFor("worktype-name", viewer),
+    listConceptsForType("worktype-name", viewer),
   ]);
+  const worktypes = Object.fromEntries(worktypeConcepts.map((w) => [w.code, w.default_label]));
+  const worktypeDescriptions = Object.fromEntries(worktypeConcepts.map((w) => [w.code, descriptionHtml(w)]));
   const { data: service, error: serviceError } = await serviceDefinitionsDB.findActiveByCapabilityCodeVisibleTo(row.code, viewer.tenantId);
   if (serviceError) throw serviceError;
-  return { capabilityDefinition: row, labels: { category, roles, worktypes }, activeServiceId: service?.id ?? null };
+  return { capabilityDefinition: row, labels: { category, roles, worktypes }, activeServiceId: service?.id ?? null, worktypeDescriptions };
 }

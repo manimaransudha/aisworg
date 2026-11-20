@@ -3,6 +3,9 @@
 <head>
   <%- include('../../partials/head') %>
   <style>
+    .wit-desc h2 { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; margin: 0.9rem 0 0.25rem; }
+    .wit-desc p, .wit-desc li { font-size: 0.9rem; }
+    .wit-desc ul { padding-left: 1.2rem; }
     .role-group { border-top: 2px solid #6c757d; }
     .role-group tr:not(:last-child) > td:not([rowspan]) { border-bottom-style: dashed; border-bottom-color: #ced4da; }
   </style>
@@ -70,13 +73,13 @@
                   <tr>
                     <% if (i === 0) { %>
                       <td rowspan="<%= _wts.length %>">
-                        <div><%= _label(labels.roles, role.name) %></div>
+                        <div><a href="/aisworg/seu/roles?role=<%= encodeURIComponent(role.name) %>" class="text-decoration-none"><%= _label(labels.roles, role.name) %></a></div>
                         <div class="small text-muted"><%= role.name %></div>
                       </td>
                     <% } %>
                     <td>
                       <% if (wt) { %>
-                        <div><%= _label(labels.worktypes, wt) %></div>
+                        <div><a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#worktypeModal-<%= wt %>"><%= _label(labels.worktypes, wt) %></a></div>
                         <div class="small text-muted"><%= wt %></div>
                       <% } else { %>
                         <span class="text-muted">—</span>
@@ -90,6 +93,27 @@
         </div>
       <% } %>
     </div>
+
+    <%
+      var _wtDescs = locals.worktypeDescriptions || {};
+      var _usedWts = [];
+      _roles.forEach(function (r) { (r.worktypes || []).forEach(function (w) { if (_usedWts.indexOf(w) < 0) _usedWts.push(w); }); });
+    %>
+    <% _usedWts.forEach(function (wt) { %>
+      <div class="modal fade" id="worktypeModal-<%= wt %>" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"><%= _label(labels.worktypes, wt) %> <code class="text-muted small ms-1"><%= wt %></code></h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body wit-desc">
+              <% if (_wtDescs[wt]) { %><%- _wtDescs[wt] %><% } else { %><span class="text-muted">No description has been written for this work item type.</span><% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% }) %>
   </main>
 
   <%- include('../../partials/footer') %>

@@ -7,7 +7,7 @@ Status: draft for the Anthropic pilot. Carried by the Conditional Anthropic Pack
 - Read the whole execution context before you write anything.
 - Work in small, checkable steps. State the step you are on and the result you expect.
 - Use the checklists in the execution context as the acceptance criteria. Walk each checklist statement and record how the work meets it.
-- Read the input location. Write the output to the output location.
+- Read the input location with `read_input_location`. No tool writes to the output location yet, so give the output in the description of your Evidence and name the output location it belongs in. A person places it.
 - Keep to the Deliverable's objective. Leave out work no one asked for.
 
 ## 2. Prompt shape for Anthropic models
@@ -23,6 +23,7 @@ The adapter offers these tools. Names are provisional until step 8 of CR-150.
 
 | Tool | Platform operation |
 |---|---|
+| `read_input_location` | Read the input location of the Work Item. It takes no input. |
 | `provide_evidence` | Provide Evidence |
 | `create_knowledge` | Create Knowledge |
 | `create_decision` | Create Decision |

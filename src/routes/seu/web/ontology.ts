@@ -11,6 +11,7 @@ import { redirects } from "../../../middleware/redirects.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { listConceptTypes, listConceptsForType, addConcept, deprecateConcept, retireConcept, archiveConcept, composeConcept, updateConceptMeta, quickRetireConcept, listAllConceptsForPicker, listDistinctUiGroupings, getConceptTypeNav, tabsForActiveType, approveConcept, rejectConcept, listDraftConceptsForApproval, type OntologyActor } from "../core/ontology.js";
+import type { OntologyViewer } from "../../../dblayer/ontologyDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
 import { getPlatformTenantId  } from "../../../dblayer/constants.js";
@@ -23,6 +24,10 @@ async function heldBadges(req: Request): Promise<Set<string>> {
   const { badgeTypes } = await resolveHeldBadges(req);
   for (const b of badgeTypes) set.add(b);
   return set;
+}
+
+function viewerFrom(req: Request, held: Set<string>): OntologyViewer {
+  return { isRoot: held.has("root"), tenantId: req.session?.user?.tenant_id ?? null };
 }
 
 async function actorFrom(req: Request, held: Set<string>): Promise<OntologyActor> {
@@ -38,7 +43,7 @@ async function actorFrom(req: Request, held: Set<string>): Promise<OntologyActor
 router.get("/sdk/ontology", attachVM("seu/sdk/ontology/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const held = await heldBadges(req);
-    const actor = await actorFrom(req, held);
+    const actor = viewerFrom(req, held);
     const conceptTypes = await listConceptTypes(actor);
     const nav = await getConceptTypeNav(actor, conceptTypes);
     const topLevelTypes = nav.topLevel.map((t) => t.type);
@@ -96,7 +101,7 @@ router.get("/sdk/ontology", attachVM("seu/sdk/ontology/index"), async (req: Requ
 router.get("/sdk/ontology/metadata", attachVM("seu/sdk/ontology/metadata"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const held = await heldBadges(req);
-    const actor = await actorFrom(req, held);
+    const actor = viewerFrom(req, held);
     const allConcepts = await listAllConceptsForPicker(actor);
 
     const PLATFORM_TENANT_ID = await getPlatformTenantId();
@@ -259,7 +264,7 @@ router.get("/sdk/ontology/approvals", attachVM("seu/sdk/ontology/approvals"), as
   const PLATFORM_TENANT_ID = await getPlatformTenantId();
   try {
     const held = await heldBadges(req);
-    const actor = await actorFrom(req, held);
+    const actor = viewerFrom(req, held);
     const drafts = await listDraftConceptsForApproval(actor);
     const rows = drafts.map((c) => ({
       id: c.id,

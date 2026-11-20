@@ -220,6 +220,7 @@ interface DemoScenarioSeed {
 interface DemoAreaSeed {
   area: string;
   stageTitle: string;
+  howToTitle: string;
   howToLead: string;
   howToSteps: Array<{ text: string }>;
 }

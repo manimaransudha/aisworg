@@ -464,7 +464,7 @@ export async function rejectConcept(conceptType: string, code: string, targetTen
   return transitionConcept(conceptType, code, targetTenantId, "Draft", actor, { comment });
 }
 
-export async function listDraftConceptsForApproval(actor: OntologyActor): Promise<OntologyConceptRow[]> {
+export async function listDraftConceptsForApproval(actor: OntologyViewer): Promise<OntologyConceptRow[]> {
   const { data } = await ontologyDB.findDraftConcepts({ isRoot: actor.isRoot, tenantId: actor.tenantId });
   return data ?? [];
 }

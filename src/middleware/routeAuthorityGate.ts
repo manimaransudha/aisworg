@@ -82,7 +82,9 @@ export function routeAuthorityGate() {
     const rootBypassAllowed = process.env.NODE_ENV !== "production";
     const isRootBadge = (user.platformBadges ?? []).includes("root");
 
-    if (badges.length > 0 && !(isRootBadge && rootBypassAllowed)) {
+    const roleGovernedPage = req.method.toUpperCase() === "GET" && roles.length > 0;
+
+    if (badges.length > 0 && !roleGovernedPage && !(isRootBadge && rootBypassAllowed)) {
       const held = await resolveHeldBadges(req);
       const satisfied = matchMode === "any" ? badges.some((b) => held.has(b)) : badges.every((b) => held.has(b));
       if (!(satisfied || (held.isRoot && rootBypassAllowed))) {

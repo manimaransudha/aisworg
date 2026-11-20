@@ -8,11 +8,15 @@ import { getSeuDetailView, type SeuDetailView } from "./seus.js";
 import { completeWorkItem, type CompleteWorkItemResult, type WorkItemOutcome } from "./workItems.js";
 import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
 import { createAttentionItem } from "./attentionItems.js";
+import { getSeuEventsByActor } from "./events.js";
 import { holdDeliverableForAttentionItem, listOpenAttentionObligations } from "./attentionObligations.js";
 import { assertCanonicalCategory, listConceptsForType } from "./ontology.js";
-import type { AttentionItemRow, CommandRow, ParticipantMasterRow, ParticipantRow, WorkItemRow } from "../../../dblayer/seuTypes.js";
+import type { AttentionItemRow, CommandRow, EventRow, ParticipantMasterRow, ParticipantRow, WorkItemRow } from "../../../dblayer/seuTypes.js";
 
-export type ParticipantScopedSeuView = Omit<SeuDetailView, "capabilities" | "participantTypes" | "requiredTechnologyPacks" | "requiredDomainPacks" | "evidenceSupersedeCandidates" | "qualityGates">;
+export type ParticipantScopedSeuView = Omit<SeuDetailView, "capabilities" | "participantTypes" | "requiredTechnologyPacks" | "requiredDomainPacks" | "evidenceSupersedeCandidates" | "qualityGates"> & {
+  // The events this Participant caused in the SEU. A Participant reached through an adapter has no screen to act on, so the page shows these as its work.
+  actedEvents: EventRow[];
+};
 
 export interface ParticipantHomeEngagement {
   participant: ParticipantRow;
@@ -48,6 +52,7 @@ async function scopeToParticipant(detail: SeuDetailView, participantId: string, 
   const externalInteractions = detail.externalInteractions.filter((ei) => ei.interaction.deliverable_id != null && myDeliverableIds.has(ei.interaction.deliverable_id));
   const relevantObjectIds = new Set<string>([...myDeliverableIds, ...myCommandIds]);
   const events = detail.events.filter((ev) => relevantObjectIds.has(ev.originating_object_id));
+  const actedEvents = await getSeuEventsByActor(detail.seu.id, userId);
 
   return {
     seu: detail.seu,
@@ -61,6 +66,7 @@ async function scopeToParticipant(detail: SeuDetailView, participantId: string, 
     decisions,
     externalInteractions,
     events,
+    actedEvents,
     blockedTransition: detail.blockedTransition,
     dependencyGraph: detail.dependencyGraph,
     attentionItems: detail.attentionItems.filter((a) => a.attentionItem.related_object_id != null && relevantObjectIds.has(a.attentionItem.related_object_id)),

@@ -25,7 +25,7 @@ export async function runAnthropicAssignment(assignment: AssignmentOut, skills: 
   const participantMasterId = await participantMasterIdOf(assignment.participantId);
   const workItemMarkdown = assignment.executionContext ? executionContextMarkdown(withoutSkills(assignment.executionContext, AI_SKILL_TYPES)) : "";
   const { system, prompt } = composeAnthropicPrompt({ skills, workItemMarkdown, deliverableName: assignment.deliverable.name });
-  await client.run({ seuId: assignment.seuId, system, prompt, tools: PLATFORM_TOOLS }, createPlatformToolHandler({ seuId: assignment.seuId, deliverableId: assignment.deliverable.id, participantMasterId }));
+  await client.run({ seuId: assignment.seuId, system, prompt, tools: PLATFORM_TOOLS }, createPlatformToolHandler({ seuId: assignment.seuId, deliverableId: assignment.deliverable.id, participantMasterId, inputLocation: assignment.executionContext?.inputLocation ?? null }));
 }
 
 // A failed run is the Participant's own Attention Item, so a human sees it where Participants raise theirs.

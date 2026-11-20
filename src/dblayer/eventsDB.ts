@@ -199,6 +199,7 @@ export const eventsDB = {
     // Restricts the page to the events of one tenant: events recorded under the tenant, and events of an SEU of the tenant.
     tenantId?: string;
     seuId?: string;
+    actorId?: string;
     eventType?: string;
     entityType?: string;
     name?: string;
@@ -215,6 +216,10 @@ export const eventsDB = {
       if (opts.seuId) {
         params.push(opts.seuId);
         conditions.push(`seu_id = $${params.length}`);
+      }
+      if (opts.actorId) {
+        params.push(opts.actorId);
+        conditions.push(`actor_id = $${params.length}`);
       }
       if (opts.eventType) {
         params.push(opts.eventType);

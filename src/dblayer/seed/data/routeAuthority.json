@@ -1081,7 +1081,8 @@
       "ontology_manage"
     ],
     "roles": [
-      "sdk_author"
+      "sdk_author",
+      "demo"
     ],
     "match_mode": "any"
   },

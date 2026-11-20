@@ -60,6 +60,7 @@ router.get("/capability-definitions/:id", attachVM("seu/capability-definitions/v
     req.vm.req.capability = view.capabilityDefinition;
     req.vm.req.labels = view.labels;
     req.vm.opt.activeServiceId = view.activeServiceId;
+    req.vm.opt.worktypeDescriptions = view.worktypeDescriptions;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/capability-definitions/view", req.vm);
   } catch (err) {
