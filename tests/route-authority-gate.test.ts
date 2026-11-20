@@ -38,6 +38,7 @@ const PATHS = {
   rolesAny: `${webBase}/roles-any`,
   rolesAll: `${webBase}/roles-all`,
   both: `${webBase}/both`,
+  bothPost: `${webBase}/both-post`,
   apiBadge: `${apiBase}/badge`,
   noRow: `${webBase}/no-row`,
   apiNoRow: `${apiBase}/no-row`,
@@ -91,6 +92,7 @@ before(async () => {
   await createRow("GET", PATHS.rolesAny, [], [ROLE_A, ROLE_B], "any");
   await createRow("GET", PATHS.rolesAll, [], [ROLE_A, ROLE_B], "all");
   await createRow("GET", PATHS.both, [BADGE_A], [ROLE_A], "any");
+  await createRow("POST", PATHS.bothPost, [BADGE_A], [ROLE_A], "any");
   await createRow("GET", PATHS.apiBadge, [BADGE_A], [], "any");
   await refreshRouteAuthorityCache();
 });
@@ -224,10 +226,15 @@ test("a role row with match_mode all needs every role", async () => {
   assertPageDenied(await call({ path: PATHS.rolesAll, actor: holdsRoleA }));
 });
 
-test("a row with both badges and roles needs the badge check and the role check to pass", async () => {
+test("a GET page with roles is decided by the role check alone, and any other request with both badges and roles needs the badge check and the role check to pass", async () => {
+  // A GET page with roles is a role-governed page: the badges of the row do not decide it.
   assertPasses(await call({ path: PATHS.both, actor: holdsAAndRoleA }));
+  assertPasses(await call({ path: PATHS.both, actor: holdsRoleA }));
   assertPageDenied(await call({ path: PATHS.both, actor: holdsA }));
-  assertPageDenied(await call({ path: PATHS.both, actor: holdsRoleA }));
+  // A POST needs the badge check and the role check.
+  assertPasses(await call({ method: "POST", path: PATHS.bothPost, actor: holdsAAndRoleA }));
+  assertPageDenied(await call({ method: "POST", path: PATHS.bothPost, actor: holdsA }));
+  assertPageDenied(await call({ method: "POST", path: PATHS.bothPost, actor: holdsRoleA }));
 });
 
 test("an api request denied for a missing badge answers 403 JSON", async () => {

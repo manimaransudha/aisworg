@@ -817,7 +817,7 @@
     "area": "Declare",
     "title": "Copy the Capability Definition",
     "description": "Copy a Capability Definition into a new draft.",
-    "annotation": "Choose <span style=\"color: blue\">Copy</span> on the Capability Definition. A new Draft is created from it and opens for editing.",
+    "annotation": "Let us try to create a copy of \"Designing software architecture Capability\". Choose <span style=\"color: blue\">Copy</span> on the Capability Definition. A new Draft is created from it and opens for editing.",
     "target": {},
     "payload": {
       "routes": [

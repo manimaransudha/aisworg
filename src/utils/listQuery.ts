@@ -70,6 +70,30 @@ export function searchTerms(q: string): string[] {
   return q.toLowerCase().split(/\s+/).filter((t) => t.length > 0);
 }
 
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j++) {
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}
+
+// The typos a search word tolerates: none for a short word, one for a word of 4 to 7 letters, two for a longer one.
+const typosAllowed = (word: string): number => (word.length >= 8 ? 2 : word.length >= 4 ? 1 : 0);
+
+// A fuzzy match of one search word in one field's text (both lower-case): the word is part of the text, or it is within the typos allowed of a
+// word of the text, or of the start of one (a word typed only in part).
+export function fuzzyIncludes(text: string, term: string): boolean {
+  if (text.includes(term)) return true;
+  const allowed = typosAllowed(term);
+  if (allowed === 0) return false;
+  return text.split(/[^a-z0-9]+/).some((word) => word.length > 0 && (editDistance(term, word) <= allowed || editDistance(term, word.slice(0, term.length)) <= allowed));
+}
+
 export function paginateList<T>(
   items: T[],
   params: ListParams,
@@ -78,11 +102,11 @@ export function paginateList<T>(
   let rows = items;
 
   if (params.q && opts.searchFields?.length) {
-    // Every word of the search must appear, in any of the searched fields, ignoring case.
+    // A fuzzy search, ignoring case: every word of the search must be found, with the typos fuzzyIncludes allows, within one single field.
     const terms = searchTerms(params.q);
     rows = rows.filter((r) => {
       const values = opts.searchFields!.map((f) => f(r)).filter((v) => v != null).map((v) => String(v).toLowerCase());
-      return terms.every((t) => values.some((v) => v.includes(t)));
+      return values.some((v) => terms.every((t) => fuzzyIncludes(v, t)));
     });
   }
 
@@ -160,12 +184,16 @@ export async function runPaginatedQuery<T>(
     if (config.baseParams?.length) values.push(...config.baseParams);
   }
   if (params.q && config.searchColumns?.length) {
-    // Every word of the search must appear, in any of the searched columns, ignoring case.
-    for (const term of searchTerms(params.q)) {
-      const p = values.length + 1;
-      values.push(`%${term}%`);
-      where.push(`(${config.searchColumns.map((c) => `${c} ILIKE $${p}`).join(" OR ")})`);
-    }
+    // Every word of the search must appear within one single column, ignoring case. The database holds no fuzzy index, so there is no typo tolerance here.
+    const terms = searchTerms(params.q);
+    const perColumn = config.searchColumns.map((c) => {
+      const conditions = terms.map((term) => {
+        values.push(`%${term}%`);
+        return `${c} ILIKE $${values.length}`;
+      });
+      return `(${conditions.join(" AND ")})`;
+    });
+    where.push(`(${perColumn.join(" OR ")})`);
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 

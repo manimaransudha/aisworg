@@ -2,7 +2,8 @@
 // Capability has nobody to fulfil it.
 //
 //   - The SEU is a plain row in the Operational state, with the Capability of a Service, a Deliverable that is In Progress and produced by that Capability, and
-//     a Deliverable that is Approved and produced by it (the handler leaves that one alone). Event subscriptions are not loaded in this file.
+//     a Deliverable that is Approved and produced by it (the handler leaves that one alone). Commissioning the SEU loads the event subscriptions, so the Event Bus runs
+//     the handler on every event the test publishes. The test waits for that run to finish before it calls the handler itself, so the two runs never overlap.
 //   - Rows are not deleted, as in the other tests that create SEUs.
 import { activeCapabilityDefinitionIds } from "./entityTenantCache.js";
 import "dotenv/config";
@@ -24,7 +25,8 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import type { DeliverableRow } from "../src/dblayer/seuTypes.js";
 import { publishTestEvent } from "./engineFixtures.js";
 import { commissionedSeu, type CommissionedSeu } from "./webScenarios.js";
-import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, waitUntilAsync } from "./testFixtures.js";
+import type { EventRow } from "../src/dblayer/seuTypes.js";
 
 const run = randomUUID().slice(0, 8);
 let t: CommissionedSeu;
@@ -55,8 +57,17 @@ before(async () => {
   approved = await create("approved", "Approved");
 });
 
-const event = (eventType: string, payload: Record<string, unknown>, originatingObjectId = t.seu.id) =>
-  publishTestEvent({ eventType, originatingObjectType: eventType === "DeliverableTransitioned" ? "Deliverable" : "SEU", originatingObjectId, seuId: t.seu.id, payload });
+// The Event Bus runs the handler in the background on a published event. Waits until that run has recorded its outcome (consumed or failed).
+async function handlerRunFinished(published: EventRow): Promise<EventRow> {
+  await waitUntilAsync(async () => {
+    const { data } = await eventsDB.findByCorrelationId(published.correlation_id);
+    return !!(data ?? []).find((e) => e.id === published.id)?.consumption_state?.deliverableKickoff;
+  });
+  return published;
+}
+
+const event = async (eventType: string, payload: Record<string, unknown>, originatingObjectId = t.seu.id) =>
+  handlerRunFinished(await publishTestEvent({ eventType, originatingObjectType: eventType === "DeliverableTransitioned" ? "Deliverable" : "SEU", originatingObjectId, seuId: t.seu.id, payload }));
 
 const obligationsOf = async (deliverableId: string) => (await obligationsDB.findByRelatedObject("Deliverable", deliverableId)).data ?? [];
 
