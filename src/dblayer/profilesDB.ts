@@ -7,7 +7,7 @@ import { getPlatformTenantId, INITIAL_VERSION } from "./constants.js";
  
 
 export type ProfileOptionRow = Pick<ProfileRow, "id" | "code" | "name" | "profile_version">;
-export type ProfileSummaryRow = Pick<ProfileRow, "id" | "code" | "name" | "status" | "created_at">;
+export type ProfileSummaryRow = Pick<ProfileRow, "id" | "code" | "name" | "status" | "created_at" | "tenant_id">;
 
 export const profilesDB = {
   // The identity columns of every Active Profile visible to a tenant. Option lists need nothing else; the full rows carry the large content JSON.
@@ -29,12 +29,12 @@ export const profilesDB = {
   async listSummaryRows(viewerTenantId: string | null): Promise<DbResult<ProfileSummaryRow[]>> {
     try {
       if (!viewerTenantId) {
-        const { rows } = await query<ProfileSummaryRow>("SELECT id, code, name, status, created_at FROM profiles ORDER BY category, code, created_at DESC");
+        const { rows } = await query<ProfileSummaryRow>("SELECT id, code, name, status, created_at, tenant_id FROM profiles ORDER BY category, code, created_at DESC");
         return { data: rows };
       }
       const PLATFORM_TENANT_ID = await getPlatformTenantId();
       const { rows } = await query<ProfileSummaryRow>(
-        "SELECT id, code, name, status, created_at FROM profiles WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY category, code, created_at DESC",
+        "SELECT id, code, name, status, created_at, tenant_id FROM profiles WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY category, code, created_at DESC",
         [PLATFORM_TENANT_ID, viewerTenantId]
       );
       return { data: rows };

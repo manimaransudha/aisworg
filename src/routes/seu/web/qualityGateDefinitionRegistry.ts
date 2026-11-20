@@ -14,7 +14,7 @@ import { definitionTenantScope } from "../../../middleware/seuTenantScope.js";
 import { logger } from "../../../utils/logger.js";
 import { listQualityGateDefinitionsWithNextStates, copyQualityGateDefinitionAsNewDraft } from "../core/qualityGateDefinitions.js";
 import { getQualityGateView } from "../core/qualityGateView.js";
-import { parseListParams, paginateList } from "../../../utils/listQuery.js";
+import { parseListParams, paginateGroupedList } from "../../../utils/listQuery.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
@@ -31,7 +31,8 @@ router.get("/quality-gate-definitions", attachVM("seu/quality-gate-definitions/i
     const rows = await listQualityGateDefinitionsWithNextStates(viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null);
     const activeStatus = typeof req.query.status === "string" && QUALITY_GATE_DEFINITION_STATES.includes(req.query.status) ? req.query.status : "";
     const scoped = activeStatus ? rows.filter((r) => r.qualityGateDefinition.status === activeStatus) : rows;
-    const list = paginateList(scoped, params, {
+    const list = paginateGroupedList(scoped, params, {
+      groupKey: (r) => r.qualityGateDefinition.tenant_id, groupPages: req.query,
       searchFields: [(r) => r.qualityGateDefinition.code, (r) => r.qualityGateDefinition.name],
       sortFields: { code: (r) => r.qualityGateDefinition.code, version: (r) => r.qualityGateDefinition.version, status: (r) => r.qualityGateDefinition.status },
     });

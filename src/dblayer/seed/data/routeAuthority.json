@@ -444,9 +444,12 @@
   {
     "method": "POST",
     "path": "/aisworg/seu/capability-definitions/:id/copy",
-    "badges": [],
+    "badges": [
+      "capability_define"
+    ],
     "roles": [
-      "participant"
+      "participant",
+      "demo"
     ],
     "match_mode": "any"
   },
@@ -1015,8 +1018,7 @@
     "path": "/aisworg/seu/sdk/:slug/:draftId/import",
     "badges": [],
     "roles": [
-      "sdk_author",
-      "demo"
+      "sdk_author"
     ],
     "match_mode": "any"
   },

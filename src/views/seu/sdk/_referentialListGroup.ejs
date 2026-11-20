@@ -126,7 +126,7 @@
     // card layout below, unchanged.
     var soloPackCodeField = (!isDependencies && field.itemFields.length === 1 && field.itemFields[0].kind === 'referential' && field.itemFields[0].referentialSource.indexOf('pack-code') === 0) ? field.itemFields[0] : null;
     function packLink(matchedPack) {
-      return matchedPack ? ('<a href="/aisworg/seu/sdk/pack-authoring/' + matchedPack.id + '" class="btn btn-sm btn-link p-0">View</a>') : '';
+      return matchedPack ? ('<a href="/aisworg/seu/packs/' + matchedPack.id + '" class="btn btn-sm btn-link p-0">View</a>') : '';
     }
     // Owner: "Now there is item1, item2 etc. labels which is not relevant" —
     // same compact-list treatment as the solo-Pack-code case above, for
@@ -1303,14 +1303,16 @@
                 <select name="<%= inputName %>" class="form-select form-select-sm rlg-autofill-source" data-row-field="<%= itemField.name %>" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>>
                   <option value="">— <%= itemLabel %> —</option>
                   <% _ontItemOpts.forEach(function(opt) { %>
-                    <option value="<%= opt.code %>" data-label="<%= opt.label %>" data-description="<%= opt.description || '' %>" <%= value === opt.code ? 'selected' : '' %>><%= opt.label %></option>
+                    <option value="<%= opt.code %>" data-label="<%= opt.label %>" data-description="<%= opt.description || '' %>" data-description-html="<%= renderMarkdown(opt.description || '') %>" <%= value === opt.code ? 'selected' : '' %>><%= opt.label %></option>
                   <% }) %>
                   <% if (value && !_ontItemOpts.some(function(opt) { return opt.code === value; })) { %>
                     <option value="<%= value %>" selected>&#9888; <%= value %> (not currently active)</option>
                   <% } %>
                 </select>
                 <% var _selectedOntItem = _ontItemOpts.find(function(opt) { return opt.code === value; }); %>
-                <div class="form-text small fst-italic" data-autofill-from="<%= itemField.name %>" data-autofill-attr="description"><%= (_selectedOntItem && _selectedOntItem.description) || '' %></div>
+                <% var _selDescHtml = renderMarkdown((_selectedOntItem && _selectedOntItem.description) || ''); %>
+                <%# The description is a hover link, not inline text; its popover body is the rendered markdown (referentialListGroup.js keeps it in step with the selection). %>
+                <div class="form-text small"><span class="rlg-desc-link text-primary text-decoration-underline<%= _selDescHtml ? '' : ' d-none' %>" role="button" tabindex="0" data-autofill-from="<%= itemField.name %>" data-autofill-attr="description-html" data-autofill-popover="1" data-bs-content="<%= _selDescHtml %>">description</span></div>
               <% } else if (itemField.kind === 'referential-dynamic') { %>
                 <%# CR-100 — Competency's own `value`, driven by this same
                     row's own `dimension` (e.g. "Technology" -> concept type

@@ -142,8 +142,8 @@ function requireDraftTenantScope() {
     const slug = String(req.params.slug);
     const kind = resolveKind(slug);
     if (!kind) return next();
-    const PLATFORM_TENANT_ID = await getPlatformTenantId();
-    const opts = { mode: "web" as const, notFoundMessage: "Not found.", platformTenantId: PLATFORM_TENANT_ID };
+    // No platformTenantId: the edit page and every save or transition reach only the viewer's own tenant (root reaches all). Viewing and copying Platform rows do not go through this gate.
+    const opts = { mode: "web" as const, notFoundMessage: "Not found." };
     const gate =
       kind === "Pack" ? requireTenantScope.forParam("draftId", packsDB.findById, (p) => p.tenant_id, opts) :
       kind === "Template" ? requireTenantScope.forParam("draftId", templatesDB.findById, (t) => t.tenant_id, opts) :
@@ -165,7 +165,8 @@ async function tenantAuthoringRowsWithActions(kind: SchemaDefinitionEntityKind, 
   for (const status of new Set(rows.map((r) => r.status))) {
     actionsByStatus.set(status, await computeRowActions(kind, status, actorId));
   }
-  return rows.map((r) => ({ ...r, actions: actionsByStatus.get(r.status) ?? [] }));
+  // A transition is tenant-scoped: a row outside the viewer's own tenant (unless root) carries no buttons.
+  return rows.map((r) => ({ ...r, actions: isRoot || r.tenantId === tenantId ? actionsByStatus.get(r.status) ?? [] : [] }));
 }
 
 router.get("/sdk/profile-parameter-overrides", async (req: Request, res: Response, next: NextFunction) => {
@@ -196,12 +197,18 @@ router.get("/sdk/:slug", requireAuthoring(), attachVM("seu/sdk/authoring/index")
     req.vm.opt.viewBase = VIEW_BASE_BY_KIND[kind] ?? null;
 
     if (grammarAuthored) {
-      const params = parseListParams(req.query, { sortable: ["code", "name", "status", "created"], defaultSort: "code", defaultDir: "asc" });
+      const params = parseListParams(req.query, { sortable: ["code", "name", "tenant", "status", "created"], defaultSort: "code", defaultDir: "asc" });
       const authoringRows = await tenantAuthoringRowsWithActions(kind, requireActorId(req), isRoot, tenantId);
+      // The list shows which Tenant each row belongs to.
+      const tenantNameById: Record<string, string> = Object.fromEntries(((await tenantsDB.findAll()).data ?? []).map((t) => [t.id, t.name]));
+      const tenantNameOf = (r: { tenantId?: string }): string => (r.tenantId ? tenantNameById[r.tenantId] ?? r.tenantId : "");
       const list = paginateList(authoringRows, params, {
-        searchFields: [(r) => r.code, (r) => r.name, (r) => r.status],
-        sortFields: { code: (r) => r.code, name: (r) => r.name, status: (r) => r.status, created: (r) => String(r.createdAt) },
+        searchFields: [(r) => r.code, (r) => r.name, (r) => r.status, tenantNameOf],
+        sortFields: { code: (r) => r.code, name: (r) => r.name, tenant: tenantNameOf, status: (r) => r.status, created: (r) => String(r.createdAt) },
       });
+      req.vm.opt.tenantNameById = tenantNameById;
+      req.vm.opt.viewerTenantId = tenantId;
+      req.vm.opt.viewerIsRoot = isRoot;
       req.vm.req.rows = list.items;
       req.vm.opt.list = list;
       req.vm.opt.listBasePath = `/aisworg/seu/sdk/${slug}`;

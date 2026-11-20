@@ -788,7 +788,7 @@
     "code": "browse-designing-software-architecture",
     "kind": "visitor-action",
     "area": "Declare",
-    "title": "View \"Designing Software Architecture\" Capability",
+    "title": "Suppose, you want to view \"Designing Software Architecture\" Capability",
     "description": "Search and view the Capability Definitions.",
     "annotation": "Scroll to locate or Search for Designing Software Architecture, click on <span style=\"color: blue\">View</span>. \n\nYou can view the details.\n\nClick on <span style=\"color: blue\">View the Service offered</span> to see the value the competency promises to deliver.\n\nYou can also see the <span style=\"color: blue\">Roles</span> performing the activites in the Capability and the typical <span style=\"color: blue\">Work Items </span>they produce.",
     "target": {},
@@ -807,7 +807,7 @@
     "area": "Declare",
     "title": "Copying starts a new Draft from an existing Capability Definition",
     "description": "Copy the Capability Definition - note",
-    "annotation": "Copying is the quickest way to define a new Capability Definition. The new Draft starts with the same content and can be edited before it is published. A new Capability can also be created from scratch.\n\nA new Capability needs a new code. The code must be an approved Ontology concept before the Capability can be published.\n\n<span style=\"color: red\">Also create/assign the corresponding Role, WorkType, Service and Deliverables to complete the definition.</span>",
+    "annotation": "A published Capability cannot be edited.\n\nCopying is the quickest way to define a new Capability Definition. The new Draft starts with the same content and can be edited before it is published. A new Capability can also be created from scratch.\n\nA new Capability needs a new code. The code must be an approved Ontology concept before the Capability can be published.\n\n<span style=\"color: red\">Also create/assign the corresponding Role, WorkType, Service and Deliverables to complete the definition.</span>",
     "target": {},
     "payload": {}
   },

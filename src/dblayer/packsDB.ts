@@ -7,19 +7,19 @@ import { getPlatformTenantId, PACK_CLASSIFICATION_CONDITIONAL } from "./constant
  
 export type PackOptionRow = Pick<PackRow, "id" | "code" | "name" | "pack_version" | "status" | "category">;
 
-export type PackSummaryRow = Pick<PackRow, "id" | "code" | "name" | "status" | "created_at">;
+export type PackSummaryRow = Pick<PackRow, "id" | "code" | "name" | "status" | "created_at" | "tenant_id">;
 
 export const packsDB = {
   // The summary columns of every Pack a viewer can see (all tenants for root), whatever its status.
   async listSummaryRows(viewerTenantId: string | null): Promise<DbResult<PackSummaryRow[]>> {
     try {
       if (!viewerTenantId) {
-        const { rows } = await query<PackSummaryRow>("SELECT id, code, name, status, created_at FROM packs ORDER BY category, code, created_at DESC");
+        const { rows } = await query<PackSummaryRow>("SELECT id, code, name, status, created_at, tenant_id FROM packs ORDER BY category, code, created_at DESC");
         return { data: rows };
       }
       const PLATFORM_TENANT_ID = await getPlatformTenantId();
       const { rows } = await query<PackSummaryRow>(
-        "SELECT id, code, name, status, created_at FROM packs WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY category, code, created_at DESC",
+        "SELECT id, code, name, status, created_at, tenant_id FROM packs WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY category, code, created_at DESC",
         [PLATFORM_TENANT_ID, viewerTenantId]
       );
       return { data: rows };

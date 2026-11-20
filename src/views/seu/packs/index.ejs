@@ -43,7 +43,7 @@
     <%- include('../../partials/verticalTabs', { tabs: _categoryTabs, active: _activeCategory }) %>
     <div class="flex-grow-1" style="min-width: 0;">
 
-    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search name / code / category' }) %>
+    <%- include('../../partials/listControls', { list: list, hidePager: true, listBasePath: _base, searchPlaceholder: 'Search name / code / category' }) %>
     <div class="small text-muted mb-3">Sort:
       <%- sortLink('Name', 'name', list, _base) %> &middot;
       <%- sortLink('Version', 'version', list, _base) %> &middot;
@@ -73,7 +73,9 @@
         <div class="alert alert-warning">No Packs published — run <code>pnpm db:clean-slate</code> or <code>pnpm pack:publish &lt;file&gt; --activate</code>.</div>
       <% } %>
     <% } else { %>
-      <% list.items.forEach(function(p) { %>
+      <% list.groups.forEach(function(g, gi) { %>
+      <%- include('../../partials/tenantGroupOpen', { g: g, gi: gi }) %>
+      <% g.items.forEach(function(p) { %>
         <div class="card border-0 shadow-sm mb-3">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
@@ -115,6 +117,8 @@
             </div>
           </div>
         </div>
+      <% }) %>
+      <%- include('../../partials/tenantGroupClose', { list: list, listBasePath: _base, g: g }) %>
       <% }) %>
     <% } %>
 

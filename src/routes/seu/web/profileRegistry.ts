@@ -15,7 +15,7 @@ import { logger } from "../../../utils/logger.js";
 import { listProfilesWithNextStates, copyProfileAsNewDraft } from "../core/profiles.js";
 import { getProfileView } from "../core/profileView.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
-import { parseListParams, paginateList } from "../../../utils/listQuery.js";
+import { parseListParams, paginateGroupedList } from "../../../utils/listQuery.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
@@ -46,7 +46,8 @@ router.get("/profiles", attachVM("seu/profiles/index"), async (req: Request, res
     const activeStatus = typeof req.query.status === "string" && PROFILE_STATES.includes(req.query.status) ? req.query.status : "";
     let scoped = activeTemplateCode ? profiles.filter((p) => templateCodeFor(p) === activeTemplateCode) : profiles;
     if (activeStatus) scoped = scoped.filter((p) => p.profile.status === activeStatus);
-    const list = paginateList(scoped, params, {
+    const list = paginateGroupedList(scoped, params, {
+      groupKey: (r) => r.profile.tenant_id, groupPages: req.query,
       searchFields: [(p) => p.profile.name, (p) => p.profile.code],
       sortFields: { name: (p) => p.profile.name, version: (p) => p.profile.profile_version, status: (p) => p.profile.status },
     });

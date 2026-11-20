@@ -1,0 +1,8 @@
+<%# One Tenant's group on a registry page: a collapsible section whose title is the Tenant and whose pill is the number of rows in it. Closed by tenantGroupClose.ejs. %>
+<% var _tgName = g.key === locals.platformTenantId ? 'Platform' : ((locals.tenantNameById || {})[g.key] || g.key); %>
+<div class="section-card">
+  <div class="section-header d-flex justify-content-between align-items-center" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#tenant-group-<%= gi %>" aria-expanded="true" aria-controls="tenant-group-<%= gi %>">
+    <span class="lp-toggle-title"><i class="bi bi-chevron-down demo-chevron me-2" aria-hidden="true"></i><%= _tgName %></span>
+    <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle"><%= g.total %></span>
+  </div>
+  <div id="tenant-group-<%= gi %>" class="collapse show"><div class="p-3">

@@ -17,7 +17,7 @@ import { definitionTenantScope } from "../../../middleware/seuTenantScope.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
-import { parseListParams, paginateList } from "../../../utils/listQuery.js";
+import { parseListParams, paginateGroupedList } from "../../../utils/listQuery.js";
 
 const PACK_STATES = ["Draft", "Validated", "Published", "Active", "Retired", "Archived"];
 
@@ -33,7 +33,8 @@ router.get("/packs", attachVM("seu/packs/index"), async (req: Request, res: Resp
     const activeStatus = typeof req.query.status === "string" && PACK_STATES.includes(req.query.status) ? req.query.status : "";
     let scoped = activeCategory ? packs.filter((p) => p.pack.category === activeCategory) : packs;
     if (activeStatus) scoped = scoped.filter((p) => p.pack.status === activeStatus);
-    const list = paginateList(scoped, params, {
+    const list = paginateGroupedList(scoped, params, {
+      groupKey: (r) => r.pack.tenant_id, groupPages: req.query,
       searchFields: [(p) => p.pack.name, (p) => p.pack.code, (p) => p.pack.category],
       sortFields: { name: (p) => p.pack.name, version: (p) => p.pack.pack_version, status: (p) => p.pack.status, category: (p) => p.pack.category },
     });

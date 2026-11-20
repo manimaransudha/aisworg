@@ -13,7 +13,7 @@ import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsD
 import { definitionTenantScope } from "../../../middleware/seuTenantScope.js";
 import { logger } from "../../../utils/logger.js";
 import { listCapabilityDefinitionsWithNextStates, copyCapabilityDefinitionAsNewDraft, getCapabilityDefinitionView } from "../core/capabilityDefinitions.js";
-import { parseListParams, paginateList } from "../../../utils/listQuery.js";
+import { parseListParams, paginateGroupedList } from "../../../utils/listQuery.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
@@ -29,7 +29,8 @@ router.get("/capability-definitions", attachVM("seu/capability-definitions/index
     const rows = await listCapabilityDefinitionsWithNextStates(viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null);
     const activeStatus = typeof req.query.status === "string" && CAPABILITY_DEFINITION_STATES.includes(req.query.status) ? req.query.status : "";
     const scoped = activeStatus ? rows.filter((r) => r.capabilityDefinition.status === activeStatus) : rows;
-    const list = paginateList(scoped, params, {
+    const list = paginateGroupedList(scoped, params, {
+      groupKey: (r) => r.capabilityDefinition.tenant_id, groupPages: req.query,
       searchFields: [(r) => r.capabilityDefinition.code, (r) => r.capabilityDefinition.default_label],
       sortFields: { code: (r) => r.capabilityDefinition.code, version: (r) => r.capabilityDefinition.version, status: (r) => r.capabilityDefinition.status },
     });

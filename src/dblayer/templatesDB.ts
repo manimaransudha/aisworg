@@ -7,7 +7,7 @@ import { getPlatformTenantId, PLATFORM_TENANT_NAME, INITIAL_VERSION } from "./co
 import { userDB } from "./userDB.js";
  
 export type TemplateOptionRow = Pick<TemplateRow, "id" | "code" | "name" | "template_version" | "tenant_id">;
-export type TemplateSummaryRow = Pick<TemplateRow, "id" | "code" | "name" | "status" | "created_at">;
+export type TemplateSummaryRow = Pick<TemplateRow, "id" | "code" | "name" | "status" | "created_at" | "tenant_id">;
 
 export const templatesDB = {
   // The identity columns of every Active Template a viewer can see (all tenants for root). Option lists need nothing else;
@@ -34,12 +34,12 @@ export const templatesDB = {
   async listSummaryRows(viewerTenantId: string | null): Promise<DbResult<TemplateSummaryRow[]>> {
     try {
       if (!viewerTenantId) {
-        const { rows } = await query<TemplateSummaryRow>("SELECT id, code, name, status, created_at FROM templates ORDER BY code, created_at DESC");
+        const { rows } = await query<TemplateSummaryRow>("SELECT id, code, name, status, created_at, tenant_id FROM templates ORDER BY code, created_at DESC");
         return { data: rows };
       }
       const PLATFORM_TENANT_ID = await getPlatformTenantId();
       const { rows } = await query<TemplateSummaryRow>(
-        "SELECT id, code, name, status, created_at FROM templates WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY code, created_at DESC",
+        "SELECT id, code, name, status, created_at, tenant_id FROM templates WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY code, created_at DESC",
         [PLATFORM_TENANT_ID, viewerTenantId]
       );
       return { data: rows };

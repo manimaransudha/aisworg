@@ -9,8 +9,19 @@
         "defaultLabel",
         "category"
       ],
+      "x-groups": [
+        {
+          "key": "metadata",
+          "label": "Metadata"
+        },
+        {
+          "key": "roles",
+          "label": "Roles"
+        }
+      ],
       "properties": {
         "code": {
+          "x-group": "metadata",
           "type": "string",
           "x-help": "The Capability's Ontology identity. Choose from existing or add a new one. Publishing is blocked until the new Ontology is approved.",
           "minLength": 1,
@@ -19,6 +30,7 @@
           "x-referential-source": "capability-name"
         },
         "category": {
+          "x-group": "metadata",
           "type": "string",
           "x-help": "Capability category. Choose from existing or add a new one. Publishing is blocked until the new Ontology is approved.",
           "x-widget": "referential-select",
@@ -27,6 +39,7 @@
           "x-referential-source": "category:capability"
         },
         "roles": {
+          "x-group": "roles",
           "type": "array",
           "items": {
             "type": "object",
@@ -36,7 +49,6 @@
             "properties": {
               "name": {
                 "type": "string",
-                "x-help": "Role name.",
                 "x-ontology": true,
                 "x-referential": "role-name"
               },
@@ -57,16 +69,25 @@
           "x-widget": "referential-list"
         },
         "description": {
+          "x-group": "metadata",
           "type": "string",
           "x-help": "What this Capability covers.",
           "x-widget": "textarea"
         },
         "defaultLabel": {
+          "x-group": "metadata",
           "type": "string",
           "x-help": "Display label.",
           "minLength": 1
         }
-      }
+      },
+      "x-property-order": [
+        "code",
+        "category",
+        "description",
+        "defaultLabel",
+        "roles"
+      ]
     }
   },
   {

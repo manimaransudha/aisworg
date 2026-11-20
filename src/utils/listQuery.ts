@@ -65,6 +65,11 @@ export function listResult<T>(items: T[], total: number, p: ListParams): ListRes
   };
 }
 
+// The words of a search string, lower-cased; a search matches when each word is found.
+export function searchTerms(q: string): string[] {
+  return q.toLowerCase().split(/\s+/).filter((t) => t.length > 0);
+}
+
 export function paginateList<T>(
   items: T[],
   params: ListParams,
@@ -73,13 +78,12 @@ export function paginateList<T>(
   let rows = items;
 
   if (params.q && opts.searchFields?.length) {
-    const needle = params.q.toLowerCase();
-    rows = rows.filter((r) =>
-      opts.searchFields!.some((f) => {
-        const v = f(r);
-        return v != null && String(v).toLowerCase().includes(needle);
-      })
-    );
+    // Every word of the search must appear, in any of the searched fields, ignoring case.
+    const terms = searchTerms(params.q);
+    rows = rows.filter((r) => {
+      const values = opts.searchFields!.map((f) => f(r)).filter((v) => v != null).map((v) => String(v).toLowerCase());
+      return terms.every((t) => values.some((v) => v.includes(t)));
+    });
   }
 
   const sorter = opts.sortFields[params.sort] ?? Object.values(opts.sortFields)[0];
@@ -101,6 +105,42 @@ export function paginateList<T>(
   return listResult(rows.slice(params.offset, params.offset + params.limit), total, params);
 }
 
+export interface GroupPage<T> {
+  key: string;
+  total: number;
+  page: number;
+  totalPages: number;
+  items: T[];
+}
+
+export interface GroupedListResult<T> extends ListResult<T> {
+  groups: GroupPage<T>[];
+}
+
+// Search and sort run over the whole list, the rows are then grouped, and each group is paginated on its own.
+// groupPages carries each group's requested page (the tpage[<key>] query parameter); the page size is the list's own.
+export function paginateGroupedList<T>(
+  items: T[],
+  params: ListParams,
+  opts: { searchFields?: ((x: T) => unknown)[]; sortFields: Record<string, (x: T) => unknown>; groupKey: (x: T) => string; groupPages?: unknown /* the request query */ }
+): GroupedListResult<T> {
+  const all = paginateList(items, { ...params, offset: 0, limit: Number.MAX_SAFE_INTEGER }, opts);
+  const byKey = new Map<string, T[]>();
+  for (const row of all.items) {
+    const key = opts.groupKey(row);
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key)!.push(row);
+  }
+  // Express leaves tpage[<key>] as a flat key, so the whole query is read here.
+  const requested = opts.groupPages && typeof opts.groupPages === "object" ? (opts.groupPages as Record<string, unknown>) : {};
+  const groups: GroupPage<T>[] = [...byKey.entries()].map(([key, rows]) => {
+    const totalPages = Math.max(1, Math.ceil(rows.length / params.pageSize));
+    const page = Math.min(totalPages, Math.max(1, clampInt(requested[`tpage[${key}]`], 1, 1, Number.MAX_SAFE_INTEGER)));
+    return { key, total: rows.length, page, totalPages, items: rows.slice((page - 1) * params.pageSize, page * params.pageSize) };
+  });
+  return { ...all, page: 1, totalPages: 1, groups };
+}
+
 export async function runPaginatedQuery<T>(
   config: {
     select: string;
@@ -120,9 +160,12 @@ export async function runPaginatedQuery<T>(
     if (config.baseParams?.length) values.push(...config.baseParams);
   }
   if (params.q && config.searchColumns?.length) {
-    const p = values.length + 1;
-    values.push(`%${params.q}%`);
-    where.push(`(${config.searchColumns.map((c) => `${c} ILIKE $${p}`).join(" OR ")})`);
+    // Every word of the search must appear, in any of the searched columns, ignoring case.
+    for (const term of searchTerms(params.q)) {
+      const p = values.length + 1;
+      values.push(`%${term}%`);
+      where.push(`(${config.searchColumns.map((c) => `${c} ILIKE $${p}`).join(" OR ")})`);
+    }
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 

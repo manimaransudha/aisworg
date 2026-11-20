@@ -287,10 +287,23 @@
     var rowField = select.getAttribute('data-row-field');
     row.querySelectorAll('[data-autofill-from="' + rowField + '"]').forEach(function (field) {
       var attr = field.getAttribute('data-autofill-attr');
-      field.textContent = (opt && opt.value) ? (opt.getAttribute('data-' + attr) || '') : '';
+      var text = (opt && opt.value) ? (opt.getAttribute('data-' + attr) || '') : '';
+      // "-html" attributes carry markdown already rendered and sanitised on the server.
+      if (field.hasAttribute('data-autofill-popover')) {
+        // A hover link: the rendered text is the popover body, and the link is hidden when there is none.
+        var existing = window.bootstrap && bootstrap.Popover.getInstance(field);
+        if (existing) existing.dispose();
+        field.setAttribute('data-bs-content', text);
+        field.classList.toggle('d-none', !text);
+        if (text && window.bootstrap) {
+          new bootstrap.Popover(field, { trigger: 'hover focus', html: true, placement: 'auto', customClass: 'lp-popover', title: 'Description' });
+        }
+      } else if (/-html$/.test(attr)) { field.innerHTML = text; } else { field.textContent = text; }
     });
   }
-  document.querySelectorAll('.rlg-autofill-source').forEach(syncAutofillRow);
+  // Bootstrap (the popovers) loads after this script, so the first pass waits for the page to finish loading.
+  function syncAllAutofillRows() { document.querySelectorAll('.rlg-autofill-source').forEach(syncAutofillRow); }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', syncAllAutofillRows); } else { syncAllAutofillRows(); }
   document.addEventListener('change', function (e) {
     if (e.target.classList && e.target.classList.contains('rlg-autofill-source')) {
       syncAutofillRow(e.target);

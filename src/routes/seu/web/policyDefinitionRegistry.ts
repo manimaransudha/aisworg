@@ -15,7 +15,7 @@ import { logger } from "../../../utils/logger.js";
 import { listPolicyDefinitionsWithNextStates, copyPolicyDefinitionAsNewDraft } from "../core/policyDefinitions.js";
 import { getPolicyView } from "../core/policyView.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
-import { parseListParams, paginateList } from "../../../utils/listQuery.js";
+import { parseListParams, paginateGroupedList } from "../../../utils/listQuery.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
@@ -31,7 +31,8 @@ router.get("/policy-definitions", attachVM("seu/policy-definitions/index"), asyn
     const rows = await listPolicyDefinitionsWithNextStates(viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null);
     const activeStatus = typeof req.query.status === "string" && POLICY_DEFINITION_STATES.includes(req.query.status) ? req.query.status : "";
     const scoped = activeStatus ? rows.filter((r) => r.policyDefinition.status === activeStatus) : rows;
-    const list = paginateList(scoped, params, {
+    const list = paginateGroupedList(scoped, params, {
+      groupKey: (r) => r.policyDefinition.tenant_id, groupPages: req.query,
       searchFields: [(r) => r.policyDefinition.code, (r) => r.policyDefinition.name],
       sortFields: { code: (r) => r.policyDefinition.code, version: (r) => r.policyDefinition.version, status: (r) => r.policyDefinition.status },
     });

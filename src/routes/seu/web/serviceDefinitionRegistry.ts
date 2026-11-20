@@ -13,7 +13,7 @@ import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { definitionTenantScope } from "../../../middleware/seuTenantScope.js";
 import { logger } from "../../../utils/logger.js";
 import { listServiceDefinitionsWithNextStates, copyServiceDefinitionAsNewDraft, getServiceDefinitionView } from "../core/serviceDefinitions.js";
-import { parseListParams, paginateList } from "../../../utils/listQuery.js";
+import { parseListParams, paginateGroupedList } from "../../../utils/listQuery.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
@@ -29,7 +29,8 @@ router.get("/service-definitions", attachVM("seu/service-definitions/index"), as
     const rows = await listServiceDefinitionsWithNextStates(viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null);
     const activeStatus = typeof req.query.status === "string" && SERVICE_DEFINITION_STATES.includes(req.query.status) ? req.query.status : "";
     const scoped = activeStatus ? rows.filter((r) => r.serviceDefinition.status === activeStatus) : rows;
-    const list = paginateList(scoped, params, {
+    const list = paginateGroupedList(scoped, params, {
+      groupKey: (r) => r.serviceDefinition.tenant_id, groupPages: req.query,
       searchFields: [(r) => r.serviceDefinition.code, (r) => r.serviceDefinition.name],
       sortFields: { code: (r) => r.serviceDefinition.code, version: (r) => r.serviceDefinition.version, status: (r) => r.serviceDefinition.status },
     });

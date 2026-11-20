@@ -26,7 +26,7 @@
     </div>
 
     <% const _base = locals.listBasePath || '/aisworg/seu/capability-definitions'; %>
-    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search code or label' }) %>
+    <%- include('../../partials/listControls', { list: list, hidePager: true, listBasePath: _base, searchPlaceholder: 'Search code or label' }) %>
     <div class="small text-muted mb-3">Sort:
       <%- sortLink('Code', 'code', list, _base) %> &middot;
       <%- sortLink('Version', 'version', list, _base) %> &middot;
@@ -53,7 +53,9 @@
         <div class="alert alert-warning">No Capability Definitions published yet — author one via SDK / Authoring &rarr; Capability Authoring.</div>
       <% } %>
     <% } else { %>
-      <% list.items.forEach(function(r) { var c = r.capabilityDefinition; %>
+      <% list.groups.forEach(function(g, gi) { %>
+      <%- include('../../partials/tenantGroupOpen', { g: g, gi: gi }) %>
+      <% g.items.forEach(function(r) { var c = r.capabilityDefinition; %>
         <div class="card border-0 shadow-sm mb-3">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
@@ -88,6 +90,8 @@
             </div>
           </div>
         </div>
+      <% }) %>
+      <%- include('../../partials/tenantGroupClose', { list: list, listBasePath: _base, g: g }) %>
       <% }) %>
     <% } %>
   </main>

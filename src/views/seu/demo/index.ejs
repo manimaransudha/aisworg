@@ -150,15 +150,15 @@
       <div class="section-card"><div class="p-3 small text-muted">Nothing to try for this area yet.</div></div>
     <% } %>
     <% scenarios.forEach(function(pb, pbIndex) { %>
-      <div class="section-card">
+      <div class="section-card" data-scenario="<%= pb.code %>">
         <div class="section-header d-flex justify-content-between align-items-center">
           <% const _allDone = pb.progress >= pb.steps.length; %>
-          <span class="lp-toggle-title flex-grow-1<%= _allDone ? ' collapsed' : '' %>"<% if (_allDone) { %> role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#scenario-<%= pb.code %>" aria-expanded="false" aria-controls="scenario-<%= pb.code %>"<% } %>>
-            <% if (_allDone) { %><i class="bi bi-chevron-down demo-chevron me-2" aria-hidden="true"></i><% } %><%= pbIndex + 1 %>. <%- renderInlineMarkdown(pb.title) %><% if (!pb.enabled) { %> <span class="badge text-bg-secondary fw-normal">Disabled</span><% } %>
+          <span class="lp-toggle-title js-title flex-grow-1<%= _allDone ? ' collapsed' : '' %>" data-target="#scenario-<%= pb.code %>"<% if (_allDone) { %> role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#scenario-<%= pb.code %>" aria-expanded="false" aria-controls="scenario-<%= pb.code %>"<% } %>>
+            <i class="bi bi-chevron-down demo-chevron js-chevron me-2<%= _allDone ? '' : ' d-none' %>" aria-hidden="true"></i><%= pbIndex + 1 %>. <%- renderInlineMarkdown(pb.title) %><% if (!pb.enabled) { %> <span class="badge text-bg-secondary fw-normal">Disabled</span><% } %>
           </span>
           <span class="d-flex align-items-center gap-3">
-            <% if (pb.progress >= pb.steps.length) { %><i class="bi bi-check-circle-fill text-success fs-5" title="Completed" aria-hidden="true"></i><span class="visually-hidden">Completed</span><% } %>
-            <span class="small text-muted fw-normal"><%= pb.done %> of <%= pb.total %> done</span>
+            <span class="js-done-tick<%= pb.progress >= pb.steps.length ? '' : ' d-none' %>"><i class="bi bi-check-circle-fill text-success fs-5" title="Completed" aria-hidden="true"></i><span class="visually-hidden">Completed</span></span>
+            <span class="small text-muted fw-normal js-count"><%= pb.done %> of <%= pb.total %> done</span>
             <% if (root) { %>
               <form method="POST" action="/aisworg/seu/demo/root/scenarios/<%= pb.code %>/enabled" class="mb-0">
                 <%- hidden %>
@@ -314,22 +314,31 @@
         area.value = area.value.trim() ? area.value.replace(/\s+$/, '') + '\n' + code : code;
       });
     });
-        // The scenario list is rendered on the server, so after the guide advances the page is reloaded; the open panels are kept.
-    var openKey = 'demoOpenScenarios';
-    window.demoPageRefresh = function () {
-      var open = Array.prototype.map.call(document.querySelectorAll('.collapse.show[id^="scenario-"]'), function (e) { return e.id; });
-      try { sessionStorage.setItem(openKey, JSON.stringify(open)); } catch (e) {}
-      window.location.reload();
+    // The scenario header is updated in place from the guide's state; the page is not reloaded.
+    window.demoPageRefresh = function (guide) {
+      if (!guide) return;
+      var card = document.querySelector('[data-scenario="' + guide.code + '"]');
+      if (!card) return;
+      card.querySelector('.js-count').textContent = guide.index + ' of ' + guide.total + ' done';
+      card.querySelector('.js-done-tick').classList.toggle('d-none', !guide.finished);
+      var title = card.querySelector('.js-title');
+      card.querySelector('.js-chevron').classList.toggle('d-none', !guide.finished);
+      if (guide.finished) {
+        title.classList.add('collapsed');
+        title.setAttribute('role', 'button');
+        title.setAttribute('tabindex', '0');
+        title.setAttribute('data-bs-toggle', 'collapse');
+        title.setAttribute('data-bs-target', title.dataset.target);
+        title.setAttribute('aria-controls', title.dataset.target.slice(1));
+        title.setAttribute('aria-expanded', document.querySelector(title.dataset.target).classList.contains('show') ? 'true' : 'false');
+      }
+      var btn = card.querySelector('.js-start-guide');
+      if (btn) {
+        btn.classList.toggle('d-none', guide.finished);
+        btn.textContent = guide.progress === 0 ? 'Start guide' : 'Resume guide';
+        btn.dataset.resume = guide.progress > 0 ? 'true' : 'false';
+      }
     };
-    try {
-      JSON.parse(sessionStorage.getItem(openKey) || '[]').forEach(function (id) {
-        var panel = document.getElementById(id);
-        var toggle = document.querySelector('[data-bs-target="#' + id + '"]');
-        if (panel) panel.classList.add('show');
-        if (toggle) { toggle.classList.remove('collapsed'); toggle.setAttribute('aria-expanded', 'true'); }
-      });
-      sessionStorage.removeItem(openKey);
-    } catch (e) {}
     document.querySelectorAll('.js-start-guide').forEach(function (btn) {
       btn.addEventListener('click', function () {
         // Start guide leaves the panel collapsed; Resume guide opens it.

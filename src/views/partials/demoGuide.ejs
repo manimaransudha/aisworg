@@ -79,7 +79,7 @@
     btn.disabled = true;
     fetch(base + '/step', { method: 'POST' })
       .then(function (r) { return r.json(); })
-      .then(function (d) { render(d.guide); if (window.demoPageRefresh) window.demoPageRefresh(); show(d.ok && !ran ? '' : (d.message || d.error), d.ok); })
+      .then(function (d) { render(d.guide); if (window.demoPageRefresh) window.demoPageRefresh(d.guide); show(d.ok && !ran ? '' : (d.message || d.error), d.ok); })
       .catch(function (e) { show(e.message, false); })
       .then(function () { btn.disabled = false; });
   });

@@ -390,6 +390,7 @@ export interface AuthoringDraftSummary {
   name: string;
   status: string;
   createdAt: string;
+  tenantId?: string;
 }
 
 export interface AuthoringDraft {
@@ -403,8 +404,8 @@ export interface AuthoringDraft {
 export type AuthoringResult = { ok: true; draftId: string } | { ok: false; errors: string[] };
 export type AuthoringActionResult = { ok: true } | { ok: false; errors: string[] };
 
-function toSummary(r: { id: string; code: string; name: string; status: string; created_at: string }): AuthoringDraftSummary {
-  return { id: r.id, code: r.code, name: r.name, status: r.status, createdAt: r.created_at };
+function toSummary(r: { id: string; code: string; name: string; status: string; created_at: string; tenant_id?: string }): AuthoringDraftSummary {
+  return { id: r.id, code: r.code, name: r.name, status: r.status, createdAt: r.created_at, ...(r.tenant_id ? { tenantId: r.tenant_id } : {}) };
 }
 
 export async function listTenantAuthoringRows(kind: SchemaDefinitionEntityKind, viewer: { isRoot: boolean; tenantId: string | null }): Promise<AuthoringDraftSummary[]> {
@@ -423,23 +424,23 @@ export async function listTenantAuthoringRows(kind: SchemaDefinitionEntityKind, 
   }
   if (kind === "Deliverable") {
     const { data } = visible ? await deliverableDefinitionsDB.findAll() : await deliverableDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
-    return (data ?? []).map((d) => toSummary({ id: d.id, code: d.code, name: d.code, status: d.status, created_at: d.created_at }));
+    return (data ?? []).map((d) => toSummary({ id: d.id, code: d.code, name: d.code, status: d.status, created_at: d.created_at, tenant_id: d.tenant_id }));
   }
   if (kind === "Service") {
     const { data } = visible ? await serviceDefinitionsDB.findAll() : await serviceDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
-    return (data ?? []).map((s) => toSummary({ id: s.id, code: s.code, name: s.name, status: s.status, created_at: s.created_at }));
+    return (data ?? []).map((s) => toSummary({ id: s.id, code: s.code, name: s.name, status: s.status, created_at: s.created_at, tenant_id: s.tenant_id }));
   }
   if (kind === "Policy") {
     const { data } = visible ? await policyDefinitionsDB.findAll() : await policyDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
-    return (data ?? []).map((p) => toSummary({ id: p.id, code: p.code, name: p.name, status: p.status, created_at: p.created_at }));
+    return (data ?? []).map((p) => toSummary({ id: p.id, code: p.code, name: p.name, status: p.status, created_at: p.created_at, tenant_id: p.tenant_id }));
   }
   if (kind === "QualityGate") {
     const { data } = visible ? await qualityGateDefinitionsDB.findAll() : await qualityGateDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
-    return (data ?? []).map((g) => toSummary({ id: g.id, code: g.code, name: g.name, status: g.status, created_at: g.created_at }));
+    return (data ?? []).map((g) => toSummary({ id: g.id, code: g.code, name: g.name, status: g.status, created_at: g.created_at, tenant_id: g.tenant_id }));
   }
   if (kind === "Capability") {
     const { data } = visible ? await capabilityDefinitionsDB.findAll() : await capabilityDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
-    return (data ?? []).map((c) => toSummary({ id: c.id, code: c.code, name: c.default_label, status: c.status, created_at: c.created_at }));
+    return (data ?? []).map((c) => toSummary({ id: c.id, code: c.code, name: c.default_label, status: c.status, created_at: c.created_at, tenant_id: c.tenant_id }));
   }
   return [];
 }

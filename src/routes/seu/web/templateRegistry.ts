@@ -14,7 +14,7 @@ import { definitionTenantScope } from "../../../middleware/seuTenantScope.js";
 import { logger } from "../../../utils/logger.js";
 import { listTemplatesWithNextStates, copyTemplateAsNewDraft } from "../core/templates.js";
 import { getTemplateView } from "../core/templateView.js";
-import { parseListParams, paginateList } from "../../../utils/listQuery.js";
+import { parseListParams, paginateGroupedList } from "../../../utils/listQuery.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
@@ -33,7 +33,8 @@ router.get("/templates", attachVM("seu/templates/index"), async (req: Request, r
     const activeStatus = typeof req.query.status === "string" && TEMPLATE_STATES.includes(req.query.status) ? req.query.status : "";
     let scoped = activeCategory ? templates.filter((t) => t.template.code === activeCategory) : templates;
     if (activeStatus) scoped = scoped.filter((t) => t.template.status === activeStatus);
-    const list = paginateList(scoped, params, {
+    const list = paginateGroupedList(scoped, params, {
+      groupKey: (r) => r.template.tenant_id, groupPages: req.query,
       searchFields: [(t) => t.template.name, (t) => t.template.code],
       sortFields: { name: (t) => t.template.name, version: (t) => t.template.template_version, status: (t) => t.template.status, code: (t) => t.template.code },
     });

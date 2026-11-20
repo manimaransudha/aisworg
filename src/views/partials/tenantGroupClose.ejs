@@ -1,0 +1,25 @@
+<%# Closes tenantGroupOpen.ejs and adds that Tenant's own pager when it has more than one page. Each Tenant's page travels as tpage[<tenant id>]; the other groups' pages are kept in the links. %>
+<% if (g.totalPages > 1) {
+  var _tgHref = function (n) {
+    var qs = listQueryString(list, { page: 1 });
+    var parts = qs ? qs.slice(1).split('&') : [];
+    list.groups.forEach(function (x) {
+      var pg = x.key === g.key ? n : x.page;
+      if (pg > 1) parts.push(encodeURIComponent('tpage[' + x.key + ']') + '=' + pg);
+    });
+    return listBasePath + (parts.length ? '?' + parts.join('&') : '');
+  };
+  var _tgFrom = (g.page - 1) * list.pageSize + 1;
+  var _tgTo = Math.min(g.page * list.pageSize, g.total);
+%>
+    <div class="d-flex justify-content-end align-items-center gap-2 small text-muted">
+      <span><%= _tgFrom %>&ndash;<%= _tgTo %> of <%= g.total %></span>
+      <div class="btn-group btn-group-sm" role="group" aria-label="Pagination">
+        <a class="btn btn-outline-secondary <%= g.page > 1 ? '' : 'disabled' %>" href="<%= g.page > 1 ? _tgHref(g.page - 1) : '#' %>" <%= g.page > 1 ? '' : 'aria-disabled="true" tabindex="-1"' %>><i class="bi bi-chevron-left"></i></a>
+        <span class="btn btn-outline-secondary disabled">Page <%= g.page %> / <%= g.totalPages %></span>
+        <a class="btn btn-outline-secondary <%= g.page < g.totalPages ? '' : 'disabled' %>" href="<%= g.page < g.totalPages ? _tgHref(g.page + 1) : '#' %>" <%= g.page < g.totalPages ? '' : 'aria-disabled="true" tabindex="-1"' %>><i class="bi bi-chevron-right"></i></a>
+      </div>
+    </div>
+<% } %>
+  </div></div>
+</div>

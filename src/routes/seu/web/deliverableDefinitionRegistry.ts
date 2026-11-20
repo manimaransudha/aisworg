@@ -13,7 +13,7 @@ import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinition
 import { definitionTenantScope } from "../../../middleware/seuTenantScope.js";
 import { logger } from "../../../utils/logger.js";
 import { listDeliverableDefinitionsWithNextStates, copyDeliverableDefinitionAsNewDraft, getDeliverableDefinitionView } from "../core/deliverableDefinitions.js";
-import { parseListParams, paginateList } from "../../../utils/listQuery.js";
+import { parseListParams, paginateGroupedList } from "../../../utils/listQuery.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
 import { resolveHeldBadges, resolveActorAndBadge } from "../../../domain/identity/heldBadges.js";
@@ -29,7 +29,8 @@ router.get("/deliverable-definitions", attachVM("seu/deliverable-definitions/ind
     const rows = await listDeliverableDefinitionsWithNextStates(viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null);
     const activeStatus = typeof req.query.status === "string" && DELIVERABLE_DEFINITION_STATES.includes(req.query.status) ? req.query.status : "";
     const scoped = activeStatus ? rows.filter((r) => r.deliverableDefinition.status === activeStatus) : rows;
-    const list = paginateList(scoped, params, {
+    const list = paginateGroupedList(scoped, params, {
+      groupKey: (r) => r.deliverableDefinition.tenant_id, groupPages: req.query,
       searchFields: [(r) => r.deliverableDefinition.code],
       sortFields: { code: (r) => r.deliverableDefinition.code, version: (r) => r.deliverableDefinition.version, status: (r) => r.deliverableDefinition.status },
     });

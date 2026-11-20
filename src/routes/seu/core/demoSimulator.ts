@@ -375,6 +375,7 @@ export interface GuideState {
   titleHtml: string;
   index: number;
   total: number;
+  progress: number;
   finished: boolean;
   step: GuideStep | null;
 }
@@ -401,6 +402,7 @@ export async function getGuide(code: string): Promise<GuideState | null> {
     titleHtml: renderInlineMarkdown(scenario.title),
     index: scenario.playbook.slice(0, scenario.progress).filter((c) => !isNote(c)).length,
     total: scenario.playbook.filter((c) => !isNote(c)).length,
+    progress: scenario.progress,
     finished: !step,
     step: step ? {
       title: step.title,
