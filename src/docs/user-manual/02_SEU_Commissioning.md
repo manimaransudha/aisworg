@@ -9,12 +9,12 @@ Commissioning turns one Objective into one running SEU (Software Engineering Uni
 | 1 | Create and activate the Objective | Objectives | Sponsor | `objective_propose`, then `objective_activate` | Objective is Active. |
 | 2 | Choose a Profile and Save | Objective, Commission SEU | Commissioner | `seu_commission` | SEU row in Initiated. CommissionInitiated published. |
 | 3 | Validate | Commission SEU, Validate button | Commissioner | `seu_validate` | SEU Validated and CommissionValidated, or SEU Failed. |
-| 4 | Compose EBM | Compose EBM | Commissioner | none on the route | EBM in Composed state. The SEU stays Validated. |
-| 5 | Validate EBM | SEU detail, EBM | Reviewer | `ebm_validate` | EBM Validated, or EBM Retired. |
-| 6 | Activate EBM | SEU detail, EBM | Approver | `ebm_activate` | EBM Active. Finalization starts. |
-| 7 | Finalize commissioning | none | Automatic | Held by the activating user | SEU Configured, Commissioned, Activated. Capabilities and Deliverables exist. |
-| 8 | Commence work | none | Automatic | Held by the activating user | SEU Operational, if the commence-work checks pass. |
-| 9 | Fulfil Capabilities | SEU detail, Capability Fulfilment | Staffing lead | none on the route | Participants assigned. Work can be dispatched. |
+| 4 | Compose EBM | Compose EBM | Commissioner | `seu_commission` | EBM in Composed state. The SEU stays Validated. |
+| 4a | Resolve conflicts, then Validate | Resolve Conflicts | Commissioner | `seu_commission` | EBM created in Composed state. |
+| 5 | Validate EBM | SEU detail, EBM | Reviewer | `ebm_validate`, and `ebm_activate` for the activation that follows | EBM Validated and then Active, or EBM Retired. Finalization starts. |
+| 6 | Finalize commissioning | none | Automatic | Held by the activating user | SEU Configured, Commissioned, Activated. Capabilities and Deliverables exist. |
+| 7 | Commence work | none | Automatic | Held by the activating user | SEU Operational, if the commence-work checks pass. |
+| 8 | Fulfil Capabilities | SEU detail, Capability Fulfilment | Staffing lead | none on the route | Participants assigned. Work can be dispatched. |
 
 ## 2. Before you start
 
@@ -23,10 +23,9 @@ Commissioning turns one Objective into one running SEU (Software Engineering Uni
 | The Objective is Active, is not Strategic, has no children and has no SEU yet. | Objectives |
 | At least one Template is Active and a Profile whose base Template is that Template is Active. | Templates, Profiles |
 | Every Pack the Template and Profile name has an Active version. | Packs |
-| Every Capability the Profile adds is an Active `capability-name` concept. | Ontology |
 | Every Service the Profile overrides has an Active version. | Service Definitions |
-| The commissioning user holds `seu_commission` (Save) and `seu_validate` (Validate). | Identity |
-| The user who activates the EBM holds the SEU badges listed in section 8. | Identity |
+| The commissioning user holds `seu_commission` (Save and Compose EBM) and `seu_validate` (Validate). | Identity |
+| The user who validates the EBM holds `ebm_validate` and `ebm_activate`, and the SEU badges listed in section 8. | Identity |
 | Participants exist for the Capabilities the SEU needs. | Participants |
 
 ## 3. Objectives
@@ -86,9 +85,8 @@ Choose Validate on the Saved SEU panel. The button needs `seu_validate`. The hop
 | Objective | Status is Active. |
 | Profile | Status is Active. |
 | Template | Status is Active. |
-| Each Pack | An Active version exists. The list comes from the Template's Mandatory Packs and the Profile's selections. |
-| Each additional Capability | It is an Active `capability-name` concept. |
-| Each overridden Service | An Active version exists. |
+| Each Pack | An Active version, visible to the SEU's tenant, exists. The list comes from the Template's Mandatory Packs and the Profile's selections. |
+| Each Service whose parameters the Profile overrides | An Active version exists. |
 
 Outcomes:
 
@@ -99,32 +97,44 @@ Outcomes:
 
 ## 6. Compose the EBM
 
-The EBM is the effective set of behaviours for this SEU. It combines the Packs of the Template and Profile into one pool.
+The EBM is the effective set of behaviours for this SEU. It combines the Packs of the Template and Profile into one settled result.
 
-1. Open Compose EBM for the Objective and choose Compose. The SEU remains Validated while the EBM is composed.
+1. Open Compose EBM for the Objective and choose Compose. Compose keeps the composition as a draft on the SEU and creates no EBM. The SEU remains Validated. The Resolve Conflicts screen follows.
 2. Review the composed Packs, the Profile details and any warnings.
-3. Resolve each conflict that the page lists. A conflict is a property that two or more Packs set to different values. For each, choose a strategy and the sources it applies to.
+3. On Resolve Conflicts, each tab is one table of the composition. A tab shows the conflicts of that table and the result the SEU takes from it.
 
-| Strategy | Sources to check | Outcome |
+| Tab | Content |
+|---|---|
+| Services | The Service chosen for each Deliverable, and the work item types picked for it. |
+| Capabilities | A Capability a Pack names that no Service of the Deliverables names. |
+| Policies | A Policy code with different rules in different Packs, different Policies with different rules for the same Deliverable and step, and Policies verified by a person. |
+| Authority rules | Authority rules that differ between Packs. |
+| Quality gates | Quality Gates that differ between Packs. |
+| Review gates | Review Gates that differ between Packs. |
+| Obligation definitions | Obligation Definitions that differ between Packs. |
+| Engineering capital | Entries with no link, and different links for one type. |
+| Dependencies | A Pack dependency on another Pack that is not met. |
+| Checklists, Competencies, Profile configuration | The settled result of each. |
+
+4. Resolve each open conflict. The action depends on the kind of conflict.
+
+| Action | Applies to | Effect |
 |---|---|---|
-| merge | 2 or more | Combined value, with a note on residual conflicts. |
-| union | 2 or more | All distinct values. |
-| intersection | 2 or more | The value all checked sources share. Nothing survives when they differ. |
-| supplement | A base and others | The base value, supplemented. |
-| specialization | A base | The base source's value. |
+| Pick one | Service choice, service level, Policies with the same code | The picked option is kept. |
+| Pick any | Work item types, Policies with different codes, Authority rules, Quality Gates, Review Gates, Obligation Definitions, Engineering Capital links | The picked options are kept. |
+| Include or exclude | Capabilities no Service names, Engineering Capital entries with no link | The row is kept or dropped. The page offers Include all remaining and Exclude all remaining. |
+| None | Human-verified Policies, unmet or incompatible Pack dependencies | Shown for information. The Pack set must change to remove them. |
 
-4. Choose Apply and re-validate after each change. The page stores the current state of the composition.
-5. When no conflicts remain the system publishes CompositionCompleted and creates the EBM.
+5. When no conflict is open, the Validate button of Resolve Conflicts is enabled. Validate publishes CompositionCompleted and the system creates the EBM. The page shows "The EBM is being created. Wait for the page to refresh."
 
 Composition errors set the SEU to Failed with stage `compose_ebm`.
 
 The EBM records:
 
 - the composed Packs and the composition report,
-- the behaviour pool (including Profile configuration, dispatch strategy and knowledge locations),
-- the competency requirements,
-- the Quality Gates of the composed Packs,
-- the Transition-scope Policies of the composed Packs, split into SEU-scoped Policies and entity-scoped Policies.
+- the settled result of each table, with the picks applied, the resolved conflicts and the recorded conflicts,
+- the Quality Gate Definitions the SEU takes,
+- the Transition-scope Policies the SEU takes, split into SEU-scoped Policies and entity-scoped Policies.
 
 The EBM starts in the Composed state.
 
@@ -134,21 +144,21 @@ Open the SEU and use the EBM controls.
 
 | Action | Badge | Effect |
 |---|---|---|
-| Validate | `ebm_validate` | The platform re-checks that the Template, Profile and every composed Pack are still live. When all are live the EBM is Validated. |
+| Validate | `ebm_validate`, and `ebm_activate` for the second hop | The platform re-checks that the Template, Profile and every composed Pack are still live. When all are live the EBM moves Composed to Validated and then Validated to Active in one action. Finalization starts in the background. |
 | Retire | `ebm_retire` | Composed to Retired. |
-| Activate | `ebm_activate` | Validated to Active. Finalization starts in the background. |
+| Activate | `ebm_activate` | Offered when the EBM is Validated and not yet Active. |
 
 If any reference is no longer live, Validate sets the EBM to Retired, publishes EBMRetired and raises an Attention Item of category EBM Retired that lists the references. Compose again after the references are repaired.
 
 ## 8. Finalization
 
-Activating the EBM publishes EBMActivated. A background handler runs finalization with the identity of the user who activated the EBM. That user must hold `seu_configure`, `seu_commission` and `seu_activate`, or `root`. A missing badge sets the SEU to Failed with stage `finalize_commissioning`.
+Activating the EBM publishes EBMActivated. A background handler runs finalization with the identity of the user who activated the EBM. That user must hold `seu_configure`, `seu_commission` and `seu_activate`, or `root`. Any finalization error, including a missing badge or an EBM with no settled result, sets the SEU to Failed with stage `finalize_commissioning`.
 
 Finalization performs these steps in order:
 
 1. Creates a system Participant for the SEU.
-2. Creates one SEU Capability for every Capability the Template requires.
-3. Creates one Deliverable in the Defined state for every entry in the Template's Deliverable catalogue. Each Deliverable receives a producing Capability when an Active Service lists the Deliverable code among its outputs. A Deliverable without a producing Capability cannot be dispatched.
+2. Creates one SEU Capability for every Capability the EBM settled.
+3. Creates one Deliverable in the Defined state for every Deliverable the EBM settled. Each Deliverable receives a producing Capability when a settled Capability lists the Deliverable code. A Deliverable without a producing Capability cannot be dispatched.
 4. SEU Validated to Configured (SEUConfigured) and Configured to Commissioned (SEUCommissioned).
 5. Saves the commissioning report: identity, composition, validation and runtime sections.
 6. SEU Commissioned to Activated (SEUActivated).
@@ -163,11 +173,11 @@ SEUActivated starts the commence-work attempt. The SEU moves from Activated to O
 | The SEU-scoped Policies for Activated to Operational are satisfied. | An Obligation is raised and the SEU shows a Blocked badge. |
 | The Packs raise no Obligation Definitions for this hop. | The Obligations are raised and the SEU stays Activated. |
 
-The attempt repeats when an Obligation or Attention Item related to the SEU reaches a resolved state. Resolve the Obligation to continue. When the SEU becomes Operational, SEUOperational is published and the governed start of Deliverables begins (Part 3).
+The attempt repeats when an Obligation of the SEU that holds this hop, or an Attention Item raised against the SEU, reaches a resolved state. Resolve the Obligation to continue. When the SEU becomes Operational, SEUOperational is published and the governed start of Deliverables begins (Part 3).
 
 ## 10. Fulfil Capabilities
 
-An SEU needs Participants before work can be dispatched. Open the SEU, tab Capability Fulfilment.
+An SEU needs Participants before work can be dispatched. When the SEU is Operational and a Deliverable becomes ready, the platform requests fulfilment of its producing Capability and assigns the whole eligible pool. Assign by hand to choose the Participants. Open the SEU, tab Capability Fulfilment.
 
 1. Each required Capability is listed with its status.
 2. Choose Assign for a Capability and select one or more Participants. Selecting more than one gives a Composite fulfilment. The page shows "Capability requested." and the assignment is made in the background after CapabilityRequested. Without a selection the whole eligible pool is assigned. An empty pool publishes CapabilityUnavailable (Part 3, section 5.8).
@@ -179,8 +189,9 @@ A Participant is eligible when all of these hold:
 |---|---|
 | The Participant belongs to the SEU's tenant. | Participant record |
 | The Participant lists the Capability. | Participant record |
-| The Participant matches the SEU's competency requirements, for every dimension. | EBM behaviour pool |
-| The Participant's behaviour context satisfies each Eligibility-scope Policy of the composed Packs. | Policy Definitions |
+| The Participant matches the SEU's competency requirements, for every dimension. | EBM settled result |
+| The Participant holds one of the roles of the Capability in its Role competency. No limit applies when the Capability has no roles. | Capability Definition |
+| The Participant's behaviour context satisfies each Eligibility-scope Policy the EBM settled. | EBM settled result |
 | The Participant has not been released from this Capability. | Fulfilment history |
 
 Each assignment creates a Participant engagement for the SEU and publishes CapabilityFulfilled. A Deliverable already In Progress then receives its producing Command (Part 3, section 4).
@@ -203,6 +214,8 @@ A user created in Identity receives a Human Participant record. The Participants
 
 Manual buttons appear on the SEU pages for a holder of the badge. No transition leaves Failed.
 
+The Transition Definitions also hold a second chain for the SEU (Composed, RuntimeAllocated, KnowledgeInitialised, ParticipantsRecruited). No code moves an SEU through those states. Commissioning uses the chain in the table above.
+
 ## 12. Troubleshooting
 
 | Symptom | Cause | Action |
@@ -214,7 +227,7 @@ Manual buttons appear on the SEU pages for a holder of the badge. No transition 
 | Choose a Profile to commission against. | No Profile selected | Select one Profile and Save. |
 | Validation failed: ... | A reference is Dead | Repair the reference. The SEU is Failed, so commission against a new Objective. |
 | Validation shows Dead for a Pack | Pack has no Active version | Activate a version, then request again. |
-| SEU Failed at `finalize_commissioning` | The activating user lacks an SEU badge | Grant the badge. No transition leaves Failed, and the Objective stays assigned to the Failed SEU. |
+| SEU Failed at `finalize_commissioning` | A finalization error, for example the activating user lacks an SEU badge | Read the CommissionFailed event reason and repair it. No transition leaves Failed, and the Objective stays assigned to the Failed SEU. |
 | SEU stays Activated | Commence-work Policy or Pack Obligation | Resolve the listed Obligation. |
 | No participants offered in Assign | Eligibility | Check tenant, Capability, competency and Policy behaviour context. |
 | EBM Retired | A reference stopped being live | Repair the reference and compose again. |

@@ -7,10 +7,11 @@ SDK Authoring covers every declarative definition of the platform. A definition 
 | Definition | Authoring page | Registry page | Lifecycle |
 |---|---|---|---|
 | Ontology concept | Ontology menu | Ontology menu | Draft, Active, Deprecated, Retired, Archived |
-| Capability | `sdk/capability-authoring` | `capability-definitions` | Defined, Published, Active, Deprecated, Retired, Archived |
-| Service | `sdk/service-authoring` | `service-definitions` | Defined, Published, Active, Deprecated, Retired, Archived |
+| Capability | `sdk/capability-authoring` | `capability-definitions` | Defined, Validated, Published, Active, Deprecated, Retired, Archived |
+| Service | `sdk/service-authoring` | `service-definitions` | Defined, Validated, Published, Active, Deprecated, Retired, Archived |
 | Deliverable definition | `sdk/deliverable-authoring` | `deliverable-definitions` | Draft, Validated, Published, Active, Deprecated, Retired, Archived |
 | Policy | `sdk/policy-authoring` | `policy-definitions` | Draft, Validated, Published, Active, Deprecated, Retired, Archived |
+| Quality Gate Definition | `sdk/quality-gate-authoring` | `quality-gate-definitions` | Draft, Validated, Published, Active, Deprecated, Retired, Archived |
 | Pack | `sdk/pack-authoring` | `packs` | Draft, Validated, Published, Active, Retired, Archived |
 | Template | `sdk/template-authoring` | `templates` | Draft, Validated, Published, Active, Deprecated, Retired, Archived |
 | Profile | `sdk/profile-authoring` | `profiles` | Draft, Validated, Published, Active, Deprecated, Retired, Archived |
@@ -20,7 +21,7 @@ SDK Authoring covers every declarative definition of the platform. A definition 
 ## 2. Recommended authoring order
 
 1. Ontology concepts. Every coded value in a form is chosen from the Ontology.
-2. Capabilities, then Services (each Service names one Capability), Deliverable definitions and Policies.
+2. Capabilities, then Services (each Service names one Capability), Deliverable definitions, Policies and Quality Gate Definitions.
 3. Packs that contribute Capabilities, Services, Policies, Checklists, Review Gates, Quality Gates, Obligation Definitions and Engineering Capital.
 4. Templates that select Packs and declare a Deliverable catalogue.
 5. Profiles that fix a Template's parameters for one environment.
@@ -30,12 +31,12 @@ Each step refers to the previous one by code. A reference to a definition with n
 
 ## 3. The common authoring workflow
 
-The same workflow applies to Pack, Template, Profile, Deliverable, Service, Policy and Capability.
+The same workflow applies to Pack, Template, Profile, Deliverable, Service, Policy, Quality Gate and Capability.
 
 ### 3.1 Create
 
 1. Open the authoring page. It lists the definitions visible to the user with Code, Name, Status, Created and Actions.
-2. Choose New. This needs the `<kind>_define` badge, for example `pack_define`.
+2. Choose New. This needs the `<kind>_define` badge, for example `pack_define`. The Deliverable kind uses `deliverabledefinition_define`.
 3. Complete the generated form. The form is built from the published schema of that kind (section 9). Coded fields offer an Ontology picker with the concept description shown as guidance. A field marked as Ontology-composable lets the author propose a new concept in place (section 7).
 4. Choose Create draft. The row is created in the first state with the creator recorded as author.
 
@@ -49,7 +50,7 @@ The same workflow applies to Pack, Template, Profile, Deliverable, Service, Poli
 | Add another / Remove | Adds or removes a row in a list field such as Dependencies or a contribution section. |
 | Compose from sources | Pack only. See section 4.3. |
 
-Save the draft before using an advance button. The page prompts when there are unsaved changes.
+Save the draft before using an advance button. The advance button is disabled as soon as any field changes, and is enabled again by the page that loads after a save.
 
 ### 3.3 Advance through the lifecycle
 
@@ -58,10 +59,13 @@ Save the draft before using an advance button. The page prompts when there are u
 - A button is shown only to a holder of `<kind>_<verb>`.
 - A different holder can take each step, so one author can define and a second person can publish.
 - The forward path Draft to Validated to Published to Active is advanced one step at a time. Retire, Deprecate, Archive and Reject are separate buttons.
-- Validation runs when a draft moves out of Draft. The step is refused with the list of errors when the content is invalid.
+- Validation runs on the hop out of Draft and again on the hop to Published. The step is refused with the list of errors when the content is invalid.
+- Publishing a Template or a Profile unravels it into its tables (catalogue, Pack selections, dependency graph, parameter overrides). The step is refused when the content cannot be unravelled.
+- Activating a Pack writes the rows its contributions name: Capabilities, Services, authority rules, Policies, Checklists, Review Gates and Quality Gates. A failure leaves the Pack Published.
 - Rejecting a Pack, Template or Profile to Draft, or a Service to Defined, requires a comment.
+- Capability, Deliverable, Policy and Quality Gate have no Reject step.
 
-The Pack API routes accept alternate badges. `POST /aisworg/api/seu/packs/:id/transition/validate` accepts `pack_validate`, `pack_define` or `pack_reject`. The reject route accepts `pack_reject` or `pack_validate`.
+The Pack, Template, Service and Ontology routes under `/aisworg/api/seu` answer 501 Not implemented. The authoring pages are the supported path.
 
 ### 3.4 Versions
 
@@ -79,7 +83,7 @@ A Pack is the unit of contribution. It is declarative only.
 | category | One of Compliance, Domain, Engineering, Organisation, Integration, Technology (Ontology `category:pack`). |
 | packVersion | Semantic version. |
 | installationClassification | Mandatory, Recommended, Optional or Conditional. A Mandatory Pack is composed into every Template. |
-| dependencies | Other Packs required. |
+| dependencies | Other Packs. Each entry has a `packCode`, a `type` (required, optional, conditional or incompatible; the default is required) and a `version`. |
 | minSupportedPlatformVersion, maxSupportedPlatformVersion, supportedPlatformVersion | Platform version bounds. |
 | incompatiblePackVersions, migrationGuidance | Compatibility notes. |
 
@@ -88,17 +92,17 @@ A Pack is the unit of contribution. It is declarative only.
 | Section | Content |
 |---|---|
 | contributionCapabilities | Abilities introduced, such as software-construction. Chosen from Ontology `capability-name`. |
-| contributionServices | Work products. Each entry has a `code` (a Service Definition whose Capability is declared in the same Pack) and an optional `serviceLevel` override. |
+| contributionServices | Work products. Each entry has a `code` (a Service Definition whose Capability is declared in the same Pack), a `serviceDefinitionId` (the exact Service Definition version the Pack composes) and optional `serviceLevel` overrides. Each override has a `code` and a numeric `target`. |
 | contributionPolicies | Canonical Policy Definitions the Pack adopts. |
 | contributionChecklists | A name, a description and ordered items. An item can carry a configurable dimension and value pair that a Template can expose and a Profile can filter. |
-| contributionReviewGates | Verifiable review requirements for a governed transition (`governedTransition`, for example `Deliverable|In Progress|Approved`). Each has a code and a name. |
+| contributionReviewGates | Verifiable review requirements for a governed transition (`governedTransition`, for example `Deliverable|In Progress|Approved`). Each has a `code` (the Deliverable type the Review Gate is for, from Ontology `deliverable-name`) and a name. |
 | contributionQualityGates | The Quality Gates the Pack applies. Each entry names an Active Quality Gate Definition by `qualityCode` and says where it applies. The fields of an entry are listed below. |
-| contributionObligationDefinitions | Obligations the Pack can raise, each with a code, category, title, origin, priority, severity, completion criteria and the Deliverables it applies to. |
+| contributionObligationDefinitions | Obligations the Pack can raise. Required: `code`, `category`, `severity`. Optional: title, description, origin, priority, completionCriteria, requiredEvidence (title, category, description, collection method), and the verification fields `participant`, `classification`, `outputContract`, `prompt`, `assurance` and `externalEvidence`. `applicabilityDeliverables` lists the Deliverables it applies to, each with a name, its transitions and a governing condition. |
 | contributionEngineeringCapital | Engineering Behaviour, Engineering Metrics, Reusable Components or Engineering Templates, each with a type and a URL. |
 | contributionCompetencies | Competencies the Pack expects of Participants, each a dimension and a value. |
 | contributionAuthorityRules | Legacy role authorisations (code, authorised role, governed transition). New Packs rely on the platform `noun_verb` badges. |
 
-A Quality Gate Definition holds what the gate is: its code, name, description, category, `criteriaType` (Part 3, section 8) and, for the Evidence criterion, its `evidenceCategory`. It holds no transition, Checklist, Policy or Deliverable. The Pack entry supplies those.
+A Quality Gate Definition holds what the gate is: its code (Ontology `quality-gate-name`), name, description, category, `criteriaType` (Part 3, section 8) and, for the Evidence criterion, its `evidenceCategory`. It also carries the verification fields `statement`, `assurance`, `participant` (AI, AI+human or human), `classification`, `outputContract`, `prompt` and `externalEvidence`, with the meanings given for a Review Gate item below. It holds no transition, Checklist, Policy or Deliverable. The Pack entry supplies those.
 
 A Quality Gate entry in a Pack has these fields:
 
@@ -150,7 +154,7 @@ A Template groups Packs and declares what an SEU produces.
 | name, purpose, templateVersion | Identity. |
 | compliancePackCodes, domainPackCodes, engineeringPackCodes, integrationPackCodes, organisationPackCodes, technologyPackCodes | One list per Pack category. Each list accepts Packs of its own category only. |
 | deliverableCatalogue | The Deliverables created when an SEU is commissioned. Each entry has a Deliverable code. |
-| dependencyGraph | Edges between Deliverables and Capabilities. Each edge has `toCode`, `fromType` (Deliverable or Capability), `fromCode` or `fromCapabilityCode`, an optional `requiredState` and an optional relationship kind. |
+| dependencyGraph | Edges between Deliverables and Capabilities. Each edge has `toCode`, `fromType` (Deliverable or Capability), `fromCode` or `fromCapabilityCode`, an optional `requiredState` and an optional `relationshipKind` (dependency, derivation, implementation or decomposition; the default is dependency). |
 | exposedParameters | Parameters of a Service, Policy, Checklist or Dependency that a Profile may set. Each has `sourceType`, `sourceCode`, `parameterName`, `value` and `overridable`. |
 
 Notes:
@@ -168,7 +172,9 @@ A Profile configures one Template for one environment. Exactly one Profile is ch
 |---|---|
 | Identity | name, baseTemplateCode, environment (development, staging, production), profileVersion, description, readme, domain |
 | Extra Packs | optionalPackCodes, plus domain, compliance, technology, engineering, integration and organisation lists |
+| Deliverables | deliverableCatalogue and dependencyGraph. A new Profile starts with the catalogue of its base Template. Remove the entries the Profile does not need. A Service Level override of a Service that makes none of the remaining Deliverables is rejected when the Profile is saved. |
 | Parameters | exposedParameterOverrides, limited to parameters the Template marks as overridable |
+| AI providers | aiProviderPreference and aiProviderCredentials. Each credential has a `provider`, an `endpoint` (Simulated or Anthropic) and an `apiKey`. Simulated uses no tokens. The key is needed for the Anthropic endpoint only and is shown masked after it is saved. |
 | Delivery configuration | developmentMethodology, primaryProgrammingLanguage, sourceControlProvider, targetCloudProvider, deploymentStrategy, aiProviderPreference, defaultRepositoryStructure, documentationLevel, deploymentTargets, environmentConfiguration, featureFlagCodes, participatingOrganisationCodes, knowledgeLocations |
 | Dispatch | dispatchStrategyPreference (ordered list), redispatchMaxAttempts, redispatchAttentionThreshold |
 | Composition options | compositionOptions. The field is stored for documentation and is not enforced by the Composition Engine. |
@@ -191,9 +197,9 @@ Strategies are tried in order. The first that yields a candidate wins.
 
 A tenant author can start from a published Profile with Inherit.
 
-## 6A. Capabilities, Services, Deliverable definitions and Policies
+## 6A. Capabilities, Services, Deliverable definitions, Policies and Quality Gates
 
-These four kinds follow the common workflow (section 3). Their fields come from the published schema of each kind.
+These kinds follow the common workflow (section 3). Their fields come from the published schema of each kind.
 
 ### Capability
 
@@ -202,6 +208,8 @@ These four kinds follow the common workflow (section 3). Their fields come from 
 | code, defaultLabel, description | Identity. The code becomes a `capability-name` concept. |
 | category | Ontology `category:capability`. |
 | roles | The roles the Capability decomposes into, each with the worktypes it covers. Capability fulfilment is matched against them. |
+
+The Role Registry page (`roles`) lists each role with its description, its work item types and the Capabilities whose roles name it. It is read only.
 
 ### Service
 
@@ -219,8 +227,14 @@ These four kinds follow the common workflow (section 3). Their fields come from 
 | Field | Meaning |
 |---|---|
 | code | A `deliverable-name` concept. |
+| name | Required. A new definition takes it from the Ontology label of its code. |
 | description | Plain-language description. |
+| guideLocation | Where the format or guide for the Deliverable is kept. A Work Item for the Deliverable shows it as its input location. |
 | definitionVersion | Semantic version, for example 1.0.0. |
+
+### Quality Gate Definition
+
+The fields are listed in section 4.2. Creation needs `qualitygate_define`. The Quality Gate Registry page lists the definitions of the Platform and of the user's tenant. A Pack adopts a definition by `qualityCode`.
 
 ### Policy
 
@@ -230,9 +244,9 @@ These four kinds follow the common workflow (section 3). Their fields come from 
 | scope | Transition (default) governs a state hop. Eligibility governs the choice of Participants for a Capability. |
 | constraintType | Policy blocks the hop when the condition fails. Standard records a deviation and lets the hop continue. |
 | applicabilityEnvironments | Environments the Policy governs. Empty matches every environment. |
-| conditions | One or more conditions. Each has a statement, a severity, the evidence required, the Obligations raised on violation, exception rules and the Deliverables and transitions it governs. |
+| conditions | One or more conditions. Each has a statement and a severity (both required), the evidence required (title, category, description, collection method), the Obligations raised on violation (category and severity required), exception rules and the Deliverables and transitions it governs. An exception rule has a statement, a duration, a scope, approvers (Authority Vocabulary badges), a composition (all or any approvers) and review requirements. Exception rules apply to the constraint type Policy only. |
 
-A condition names the Deliverables and the transitions (`Entity|From|To`) it governs. A condition with no transition governs `Deliverable|Approved|Baselined`. Each Deliverable row carries a governing condition of type `always_true`, `field_in`, `comparison` or `threshold`. A row with no type is attested by a person and the engine does not check it.
+A condition names the Deliverables and the transitions (`Entity|From|To`) it governs. A condition with no transition governs `Deliverable|Approved|Baselined`. Each Deliverable row carries a governing condition of type `always_true`, `always_false`, `field_in`, `comparison` or `threshold`. A row with no type is attested by a person and the engine does not check it.
 
 ## 7. Ontology
 
@@ -257,7 +271,6 @@ Lifecycle:
 
 A form field marked Ontology-composable lets an author propose a concept without leaving the form. The proposal is a Draft until approved.
 
-A tenant can define aliases for concept labels. The API paths are `GET/POST /aisworg/api/seu/tenants/:id/aliases` and `GET /aisworg/api/seu/tenants/:id/vocabulary`.
 
 ## 8. Transition Definitions and the authority vocabulary
 
@@ -313,7 +326,7 @@ Each authorable kind has a versioned schema. The authoring forms are generated f
 
 Creating a user also creates a Human Participant record for the user. The user receives an email verification link. When mail is not configured the page shows the link.
 
-Every new route needs a row in the route authority table. A route without a row is denied.
+Every new route needs a row in the route authority table. A route without a row is denied. The Route Authority and Data Migrations pages need the `root` badge and have no row.
 
 ## 11. Common errors
 

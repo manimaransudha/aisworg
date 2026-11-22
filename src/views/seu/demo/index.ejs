@@ -322,7 +322,7 @@
       card.querySelector('.js-count').textContent = guide.index + ' of ' + guide.total + ' done';
       card.querySelector('.js-done-tick').classList.toggle('d-none', !guide.finished);
       var title = card.querySelector('.js-title');
-      card.querySelector('.js-chevron').classList.toggle('d-none', !guide.finished && !<%- JSON.stringify(!!root) %>);
+      card.querySelector('.js-chevron').classList.toggle('d-none', !guide.finished && '<%- root ? "1" : "" %>' !== '1');
       if (guide.finished) {
         title.classList.add('collapsed');
         title.setAttribute('role', 'button');

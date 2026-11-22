@@ -381,6 +381,7 @@
   {
     "code": "view-participants",
     "area": "Execute",
+    "enabled": false,
     "title": "View Participants",
     "playbook": [
       "browse-participants-note",
@@ -488,7 +489,7 @@
     "area": "Commission",
     "title": "Refine an Objective",
     "playbook": [
-      "open-objective-note",
+      "objective-hierarchy-note",
       "open-objective",
       "edit-objective-note",
       "edit-objective",
@@ -505,7 +506,7 @@
     "area": "Commission",
     "title": "End an Objective",
     "playbook": [
-      "open-objective-note",
+      "objective-hierarchy-note",
       "open-objective",
       "retire-objective-note",
       "retire-objective",
@@ -520,7 +521,7 @@
     "area": "Commission",
     "title": "Reject a proposed Objective",
     "playbook": [
-      "open-objective-note",
+      "objective-hierarchy-note",
       "open-objective",
       "reject-objective-note",
       "reject-objective"
@@ -533,7 +534,7 @@
     "area": "Commission",
     "title": "Check an Objective is ready to commission",
     "playbook": [
-      "open-objective-note",
+      "objective-hierarchy-note",
       "open-objective",
       "validate-commission-note",
       "validate-commission",
@@ -563,6 +564,7 @@
   {
     "code": "work-the-queue",
     "area": "Execute",
+    "enabled": false,
     "title": "Work the queue",
     "playbook": [
       "open-work-queue-note",
@@ -575,6 +577,7 @@
   {
     "code": "progress-deliverable",
     "area": "Execute",
+    "enabled": false,
     "title": "Progress a Deliverable",
     "playbook": [
       "open-work-queue-note",
@@ -587,6 +590,7 @@
   {
     "code": "progress-obligation",
     "area": "Execute",
+    "enabled": false,
     "title": "Progress an Obligation",
     "playbook": [
       "transition-obligation-note",
@@ -599,7 +603,8 @@
   {
     "code": "evidence-for-obligation",
     "area": "Execute",
-    "title": "Record Evidence for an Obligation",
+    "enabled": false,
+    "title": "Record Evidence for a Deliverable",
     "playbook": [
       "record-evidence-note",
       "record-evidence",
@@ -615,6 +620,7 @@
   {
     "code": "capture-knowledge",
     "area": "Execute",
+    "enabled": false,
     "title": "Capture Knowledge",
     "playbook": [
       "record-knowledge-note",
@@ -629,6 +635,7 @@
   {
     "code": "view-knowledge-capital",
     "area": "Execute",
+    "enabled": false,
     "title": "View Knowledge Capital",
     "playbook": [
       "view-knowledge-capital-note",
@@ -639,6 +646,7 @@
   {
     "code": "make-a-decision",
     "area": "Execute",
+    "enabled": false,
     "title": "Make a Decision",
     "playbook": [
       "record-decision-note",
@@ -651,6 +659,7 @@
   {
     "code": "log-external-interaction",
     "area": "Execute",
+    "enabled": false,
     "title": "Log an external interaction",
     "playbook": [
       "record-external-interaction-note",
@@ -663,6 +672,7 @@
   {
     "code": "review-and-raise-finding",
     "area": "Execute",
+    "enabled": false,
     "title": "Review the work and raise a Finding",
     "playbook": [
       "open-reviews-note",
@@ -679,6 +689,7 @@
   {
     "code": "finding-to-obligation",
     "area": "Execute",
+    "enabled": false,
     "title": "Turn a Finding into an Obligation",
     "playbook": [
       "open-reviews-note",
@@ -719,6 +730,7 @@
   {
     "code": "review-compliance",
     "area": "Execute",
+    "enabled": false,
     "title": "Review compliance and waive an Obligation",
     "playbook": [
       "open-compliance-note",
@@ -742,6 +754,7 @@
   {
     "code": "view-telemetry",
     "area": "Execute",
+    "enabled": false,
     "title": "View Telemetry",
     "playbook": [
       "open-telemetry-note",
@@ -774,5 +787,55 @@
     ],
     "enabled": false,
     "sortOrder": 2
+  },
+  {
+    "code": "view-seu-in-execution",
+    "area": "Execute",
+    "title": "View an SEU in execution",
+    "playbook": [
+      "browse-seus-note",
+      "browse-seus",
+      "seu-deliverables-note",
+      "seu-open-deliverables-tab",
+      "why-gate-blocked-requirements-model",
+      "why-gate-not-decided-other-deliverables",
+      "check-policy-obligation-attention"
+    ],
+    "sortOrder": 17
+  },
+  {
+    "code": "unblock-progress",
+    "area": "Execute",
+    "title": "Unblock progress",
+    "playbook": [
+      "unblock-progress-note",
+      "why-gate-blocked-requirements-model",
+      "unblock-progress-waivers",
+      "unblock-progress-check-deliverables"
+    ],
+    "sortOrder": 18
+  },
+  {
+    "code": "participants-view-human",
+    "area": "Execute",
+    "title": "Participants view - Human",
+    "playbook": [
+      "participants-view-human-note",
+      "participants-view-open",
+      "participants-view-evidence",
+      "participants-view-knowledge",
+      "participants-view-decision"
+    ],
+    "sortOrder": 19
+  },
+  {
+    "code": "participants-view-ai",
+    "area": "Execute",
+    "title": "Participants view - AI",
+    "playbook": [
+      "participants-view-ai-note",
+      "participants-view-ai-response"
+    ],
+    "sortOrder": 20
   }
 ]

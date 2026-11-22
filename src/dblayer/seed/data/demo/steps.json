@@ -23,7 +23,7 @@
     "area": "Declare",
     "title": "Propose a new code",
     "description": "Add a new code under a concept type.",
-    "annotation": "Under the concept type, enter a code and a label, then choose Add. A new code is a proposal until the Ontology Manager approves it. Approval is not part of this demo: the Ontology Manager reviews each proposed code and decides whether it becomes canonical.",
+    "annotation": "Under the concept type, enter a code and a label, then choose <span style=\"color: blue\">Add / Save</span>. A new code is a proposal until the Ontology Manager approves it. Approval is not part of this demo: the Ontology Manager reviews each proposed code and decides whether it becomes canonical.",
     "target": {},
     "payload": {
       "routes": [
@@ -40,7 +40,7 @@
     "area": "Declare",
     "title": "Find the pending code",
     "description": "Open Ontology Approvals and find the pending code.",
-    "annotation": "Open Ontology Approvals and find the code you proposed. This is where the Ontology Manager decides which codes become canonical.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Ontology</span>, then <span style=\"color: blue\">Approvals</span>, and find the code you proposed. This is where the Ontology Manager decides which codes become canonical.",
     "target": {},
     "payload": {
       "routes": [
@@ -58,7 +58,7 @@
     "area": "Declare",
     "title": "Approve the code",
     "description": "Approve the pending code.",
-    "annotation": "Choose Approve on the pending code. Approval makes the code canonical, so Packs that use it can be published.",
+    "annotation": "Choose <span style=\"color: blue\">Accept</span> on the pending code. Acceptance makes the code canonical, so Packs that use it can be published.",
     "target": {},
     "payload": {
       "routes": [
@@ -76,7 +76,7 @@
     "area": "Declare",
     "title": "Reject the code",
     "description": "Reject a pending code with a reason.",
-    "annotation": "Enter a reason on the pending code and choose Reject. A rejected code is not canonical, and the reason tells the author what to change.",
+    "annotation": "Choose <span style=\"color: blue\">Reject</span> on the pending code, enter what needs to change and choose <span style=\"color: blue\">Confirm reject</span>. A rejected code is not canonical, and the comment tells the author what to change.",
     "target": {},
     "payload": {
       "routes": [
@@ -130,8 +130,8 @@
     "kind": "visitor-action",
     "area": "Declare",
     "title": "Find the Pack in the Registry",
-    "description": "Open Registry, then Packs, and find the Pack.",
-    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Packs</span>. \n\nPacks are grouped into different categories. You can also view them grouped in different states.\n\nPacks can contribute to Capabilites, Services etc. They can also be declared as independent behaviors that can be added to Templates/Profiles.\n\n**Example**: \n- C Engineering Practices Pack contributes to \"Constructing software systems \" and \"Reviewing engineering work \" Capabilities.\n- Banking, Payments & Capital Markets Domain Practices Pack is an independent Pack that can be added to any Template/Profile used for delivering software in the Banking domain.",
+    "description": "Open Registry, then Pack Registry, and find the Pack.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Pack Registry</span>. \n\nPacks are grouped into different categories. You can also view them grouped in different states.\n\nPacks can contribute to Capabilites, Services etc. They can also be declared as independent behaviors that can be added to Templates/Profiles.\n\n**Example**: \n- C Engineering Practices Pack contributes to \"Constructing software systems \" and \"Reviewing engineering work \" Capabilities.\n- Banking, Payments & Capital Markets Domain Practices Pack is an independent Pack that can be added to any Template/Profile used for delivering software in the Banking domain.",
     "target": {},
     "payload": {
       "routes": [
@@ -158,7 +158,7 @@
     "area": "Declare",
     "title": "Open Pack Authoring",
     "description": "Open SDK / Pack Authoring and choose New Pack.",
-    "annotation": "In the navbar, open SDK / Authoring and choose Pack Authoring. Choose New Pack. Enter the detals. \n\nValidate ensures the created Pack complies to the Schema so it can be converted to a computable configuration.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">SDK / Authoring</span> and choose <span style=\"color: blue\">Pack Authoring</span>. Choose <span style=\"color: blue\">New Pack</span>. Enter the details.\n\n<span style=\"color: blue\">Validate Pack</span> ensures the created Pack complies to the Schema so it can be converted to a computable configuration.",
     "target": {},
     "payload": {
       "routes": [
@@ -189,7 +189,7 @@
     "area": "Declare",
     "title": "Create the draft",
     "description": "Enter code, name, category, version and classification, then create the draft.",
-    "annotation": "Enter a code, a name, a category, a version and an installation classification. Choose Create draft. A new Pack starts as a Draft.",
+    "annotation": "Enter a code, a name, a category, a version and an installation classification. Choose <span style=\"color: blue\">Create draft</span>. A new Pack starts as a Draft. Use <span style=\"color: blue\">Save draft</span> for later changes.",
     "target": {},
     "payload": {
       "routes": [
@@ -224,7 +224,7 @@
     "area": "Declare",
     "title": "Add the contributions",
     "description": "Paste a Pack document into the JSON import card and import it.",
-    "annotation": "If you want this Pack to be part of a competency and be reused elsewhere, add the Capability this should be part of. For example, you are creating a new ESLint, add it to the \"Development\" Capability.\n\nYou can now define your Checklists and Quality Gates in the Pack.\n\nRemember to include this in the Profile you choose for your engineering work.",
+    "annotation": "Add the contributions in the form, or paste a JSON document into the <span style=\"color: blue\">JSON import</span> card and choose <span style=\"color: blue\">Import</span>. An import replaces the whole document.\n\nIf you want this Pack to be part of a competency and be reused elsewhere, add the Capability this should be part of. For example, you are creating a new ESLint, add it to the \"Development\" Capability.\n\nYou can now define your Checklists and Quality Gates in the Pack.\n\nRemember to include this in the Profile you choose for your engineering work.",
     "target": {},
     "payload": {
       "routes": [
@@ -282,13 +282,17 @@
     "area": "Declare",
     "title": "Validate the Pack",
     "description": "Validate the Pack.",
-    "annotation": "Choose Validate Pack. Validation checks that the Pack is complete and consistent.",
+    "annotation": "Save the draft, then choose <span style=\"color: blue\">Validate Pack</span> at the bottom of the page. Validation checks that the Pack is complete and consistent and moves it to Validated.",
     "target": {},
     "payload": {
       "routes": [
         {
           "method": "POST",
           "path": "/aisworg/seu/sdk/pack-authoring/00000000-0000-0000-0000-000000000000/transition"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/pack-authoring/00000000-0000-0000-0000-000000000000/publish"
         }
       ]
     }
@@ -299,7 +303,7 @@
     "area": "Declare",
     "title": "Publishing makes the Pack available",
     "description": "Publish the Pack - note",
-    "annotation": "A published Pack is Active and can be selected by a Profile.",
+    "annotation": "A Pack moves one state at a time: Validated, Published, then Active. Only an Active Pack can be selected by a Profile.",
     "target": {},
     "payload": {}
   },
@@ -309,7 +313,7 @@
     "area": "Declare",
     "title": "Publish the Pack",
     "description": "Publish the Pack.",
-    "annotation": "Choose Publish. A published Pack is Active and can be selected by a Profile.",
+    "annotation": "Choose <span style=\"color: blue\">Publish Pack</span> to move the Pack to Published. Then choose <span style=\"color: blue\">Activate Pack</span> to make it Active so that a Profile can select it.",
     "target": {},
     "payload": {
       "routes": [
@@ -442,7 +446,7 @@
     "area": "Declare",
     "title": "Create the draft",
     "description": "Enter the Template details and create the draft.",
-    "annotation": "Enter a code, a name and a version for the Template. Choose Create draft. A new Template starts as a Draft.",
+    "annotation": "Enter a code, a name and a version for the Template. Choose <span style=\"color: blue\">Create draft</span>. A new Template starts as a Draft.",
     "target": {},
     "payload": {
       "routes": [
@@ -504,13 +508,17 @@
     "area": "Declare",
     "title": "Validate the Template",
     "description": "Validate the Template.",
-    "annotation": "Choose Validate Template. Validation checks that the Template is complete and consistent.",
+    "annotation": "Save the draft, then choose <span style=\"color: blue\">Validate Template</span>. Validation checks that the Template is complete and consistent.",
     "target": {},
     "payload": {
       "routes": [
         {
           "method": "POST",
           "path": "/aisworg/seu/sdk/template-authoring/00000000-0000-0000-0000-000000000000/transition"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/template-authoring/00000000-0000-0000-0000-000000000000/publish"
         }
       ]
     }
@@ -521,7 +529,7 @@
     "area": "Declare",
     "title": "Publishing makes the Template available",
     "description": "Publish the Template - note",
-    "annotation": "A published Template is Active and can be used by a Profile.",
+    "annotation": "A Template moves one state at a time: Validated, Published, then Active. An Active Template can be used by a Profile.",
     "target": {},
     "payload": {}
   },
@@ -531,7 +539,7 @@
     "area": "Declare",
     "title": "Publish the Template",
     "description": "Publish the Template.",
-    "annotation": "Choose Publish. A published Template is Active and can be used by a Profile.",
+    "annotation": "Choose <span style=\"color: blue\">Publish Template</span>, then <span style=\"color: blue\">Activate Template</span>. An Active Template can be used by a Profile.",
     "target": {},
     "payload": {
       "routes": [
@@ -585,7 +593,7 @@
     "area": "Declare",
     "title": "Copy the Profile",
     "description": "Copy an existing Profile into a new draft.",
-    "annotation": "Choose Copy on the Profile. A new Draft is created from it and opens for editing.\n\nLet us give it a name \"Modified Demo Profile for ArchVault Team.\" You can modify other fields and <span style=\"color: blue\">Save Draft</span>.",
+    "annotation": "Choose <span style=\"color: blue\">Copy</span> on the Profile. A new Draft is created from it and opens for editing.\n\nLet us give it a name \"Modified Demo Profile for ArchVault Team.\" You can modify other fields and choose <span style=\"color: blue\">Save draft</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -710,7 +718,7 @@
     "area": "Declare",
     "title": "Create the draft",
     "description": "Enter the Profile details and create the draft.",
-    "annotation": "Enter a code, a name and a version for the Profile. Choose Create draft. A new Profile starts as a Draft.",
+    "annotation": "Enter a code, a name and a version for the Profile. Choose <span style=\"color: blue\">Create draft</span>. A new Profile starts as a Draft.",
     "target": {},
     "payload": {
       "routes": [
@@ -799,13 +807,17 @@
     "area": "Declare",
     "title": "Validate the Profile",
     "description": "Validate the Profile.",
-    "annotation": "Choose Validate Profile. Validation checks that the Profile is complete and consistent.",
+    "annotation": "Save the draft, then choose <span style=\"color: blue\">Validate Profile</span>. Validation checks that the Profile is complete and consistent.",
     "target": {},
     "payload": {
       "routes": [
         {
           "method": "POST",
           "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000/transition"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000/publish"
         }
       ]
     }
@@ -816,7 +828,7 @@
     "area": "Declare",
     "title": "Publishing makes the Profile available",
     "description": "Publish the Profile - note",
-    "annotation": "A published Profile not longer editable and has to be Activated for SEUs to be able to use it.",
+    "annotation": "A Published Profile is no longer editable. It has to be Activated before SEUs can use it.",
     "target": {},
     "payload": {}
   },
@@ -826,7 +838,7 @@
     "area": "Declare",
     "title": "Publish the Profile",
     "description": "Publish the Profile.",
-    "annotation": "Choose Publish. A published Profile is Active and can be used to commission a Software Engineering Unit.\n\nActivate the Profile ans we will use it to commission a SEU in the next section.",
+    "annotation": "Choose <span style=\"color: blue\">Publish Profile</span>, then <span style=\"color: blue\">Activate Profile</span>. An Active Profile can be used to commission a Software Engineering Unit.\n\nActivate the Profile and we will use it to commission an SEU in the next section.",
     "target": {},
     "payload": {
       "routes": [
@@ -870,7 +882,7 @@
     "area": "Declare",
     "title": "Suppose, you want to view \"Designing Software Architecture\" Capability",
     "description": "Search and view the Capability Definitions.",
-    "annotation": "Scroll to locate or Search for Designing Software Architecture, click on <span style=\"color: blue\">View</span>. \n\nYou can view the details.\n\nClick on <span style=\"color: blue\">View the Service offered</span> to see the value the competency promises to deliver.\n\nYou can also see the <span style=\"color: blue\">Roles</span> performing the activites in the Capability and the typical <span style=\"color: blue\">Work Items </span>they produce.",
+    "annotation": "Scroll to locate or search for Designing Software Architecture and choose <span style=\"color: blue\">View</span>.\n\nYou can view the details.\n\nChoose <span style=\"color: blue\">View the Service offered</span> to see the value the competency promises to deliver.\n\nThe <span style=\"color: blue\">Roles and Worktypes</span> section lists the Roles performing the activities in the Capability and the typical Worktypes they produce.",
     "target": {},
     "payload": {
       "routes": [
@@ -916,7 +928,7 @@
     "code": "edit-capability-definition",
     "kind": "visitor-action",
     "area": "Declare",
-    "title": "Create the Capability Definition",
+    "title": "Edit the Capability Definition",
     "description": "Edit a Capability Definition.",
     "annotation": "Make edits to the definition. There are help texts to guide you on the fields.\n\nYou can save the draft. Saved drafts can be viewed on the Registry and edited further till you publish.\n\n<span style=\"color: red\">Demo does not allow publishing of new Capability.</span>",
     "target": {},
@@ -939,7 +951,7 @@
     "area": "Declare",
     "title": "A new Capability Definition starts as a Draft",
     "description": "Author a new Capability Definition - note",
-    "annotation": "A Capability Definition is created as a Draft. It has no effect until it is validated and published. A published Capability Definition is Active.",
+    "annotation": "A Capability Definition is created as a draft. It has no effect until it is validated, published and activated. It is Active only after the last step.",
     "target": {},
     "payload": {}
   },
@@ -949,7 +961,7 @@
     "area": "Declare",
     "title": "Author a new Capability Definition",
     "description": "Create, save, validate and publish a Capability Definition in SDK / Capability Authoring.",
-    "annotation": "In the navbar, open SDK / Authoring and choose Capability Authoring. Choose New, enter the details and create the draft. Save it, choose Validate, then Publish.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">SDK / Authoring</span> and choose <span style=\"color: blue\">Capability Authoring</span>. Choose <span style=\"color: blue\">New Capability</span>, enter the details and choose <span style=\"color: blue\">Create draft</span>. Then save, and choose <span style=\"color: blue\">Validate Capability</span>, <span style=\"color: blue\">Publish Capability</span> and <span style=\"color: blue\">Activate Capability</span> in turn.",
     "target": {},
     "payload": {
       "routes": [
@@ -991,8 +1003,8 @@
     "kind": "visitor-action",
     "area": "Declare",
     "title": "Find the Deliverable Definition in the Registry",
-    "description": "Open Registry, then Deliverable Definitions, and find the Deliverable Definition.",
-    "annotation": "In the navbar, open Registry, then Deliverable Definitions. Each card shows the Deliverable Definition and its version.",
+    "description": "Open Registry, then Deliverable Registry, and find the Deliverable Definition.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Deliverable Registry</span>. Each card shows the Deliverable Definition and its version.",
     "target": {},
     "payload": {
       "routes": [
@@ -1040,7 +1052,7 @@
     "area": "Declare",
     "title": "A new Deliverable Definition starts as a Draft",
     "description": "Author a new Deliverable Definition - note",
-    "annotation": "A Deliverable Definition is created as a Draft. It has no effect until it is validated and published. A published Deliverable Definition is Active.",
+    "annotation": "A Deliverable Definition is created as a draft. It has no effect until it is validated, published and activated. It is Active only after the last step.",
     "target": {},
     "payload": {}
   },
@@ -1050,7 +1062,7 @@
     "area": "Declare",
     "title": "Author a new Deliverable Definition",
     "description": "Create, save, validate and publish a Deliverable Definition in SDK / Deliverable Authoring.",
-    "annotation": "In the navbar, open SDK / Authoring and choose Deliverable Authoring. Choose New, enter the details and create the draft. Save it, choose Validate, then Publish.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">SDK / Authoring</span> and choose <span style=\"color: blue\">Deliverable Authoring</span>. Choose <span style=\"color: blue\">New Deliverable</span>, enter the details and choose <span style=\"color: blue\">Create draft</span>. Then save, and choose <span style=\"color: blue\">Validate Deliverable</span>, <span style=\"color: blue\">Publish Deliverable</span> and <span style=\"color: blue\">Activate Deliverable</span> in turn.",
     "target": {},
     "payload": {
       "routes": [
@@ -1092,8 +1104,8 @@
     "kind": "visitor-action",
     "area": "Declare",
     "title": "Find the Service Definition in the Registry",
-    "description": "Open Registry, then Service Definitions, and find the Service Definition.",
-    "annotation": "In the navbar, open Registry, then Service Definitions. Each card shows the Service Definition and its version.",
+    "description": "Open Registry, then Service Registry, and find the Service Definition.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Service Registry</span>. Each card shows the Service Definition and its version.",
     "target": {},
     "payload": {
       "routes": [
@@ -1141,7 +1153,7 @@
     "area": "Declare",
     "title": "A new Service Definition starts as a Draft",
     "description": "Author a new Service Definition - note",
-    "annotation": "A Service Definition is created as a Draft. It has no effect until it is validated and published. A published Service Definition is Active.",
+    "annotation": "A Service Definition is created as a draft. It has no effect until it is validated, published and activated. It is Active only after the last step.",
     "target": {},
     "payload": {}
   },
@@ -1151,7 +1163,7 @@
     "area": "Declare",
     "title": "Author a new Service Definition",
     "description": "Create, save, validate and publish a Service Definition in SDK / Service Authoring.",
-    "annotation": "In the navbar, open SDK / Authoring and choose Service Authoring. Choose New, enter the details and create the draft. Save it, choose Validate, then Publish.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">SDK / Authoring</span> and choose <span style=\"color: blue\">Service Authoring</span>. Choose <span style=\"color: blue\">New Service</span>, enter the details and choose <span style=\"color: blue\">Create draft</span>. Then save, and choose <span style=\"color: blue\">Validate Service</span>, <span style=\"color: blue\">Publish Service</span> and <span style=\"color: blue\">Activate Service</span> in turn.",
     "target": {},
     "payload": {
       "routes": [
@@ -1193,8 +1205,8 @@
     "kind": "visitor-action",
     "area": "Declare",
     "title": "Find the Policy Definition in the Registry",
-    "description": "Open Registry, then Policy Definitions, and find the Policy Definition.",
-    "annotation": "In the navbar, open Registry, then Policy Definitions. Each card shows the Policy Definition and its version.",
+    "description": "Open Registry, then Policy Registry, and find the Policy Definition.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Policy Registry</span>. Each card shows the Policy Definition and its version.",
     "target": {},
     "payload": {
       "routes": [
@@ -1242,7 +1254,7 @@
     "area": "Declare",
     "title": "A new Policy Definition starts as a Draft",
     "description": "Author a new Policy Definition - note",
-    "annotation": "A Policy Definition is created as a Draft. It has no effect until it is validated and published. A published Policy Definition is Active.",
+    "annotation": "A Policy Definition is created as a draft. It has no effect until it is validated, published and activated. It is Active only after the last step.",
     "target": {},
     "payload": {}
   },
@@ -1252,7 +1264,7 @@
     "area": "Declare",
     "title": "Author a new Policy Definition",
     "description": "Create, save, validate and publish a Policy Definition in SDK / Policy Authoring.",
-    "annotation": "In the navbar, open SDK / Authoring and choose Policy Authoring. Choose New, enter the details and create the draft. Save it, choose Validate, then Publish.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">SDK / Authoring</span> and choose <span style=\"color: blue\">Policy Authoring</span>. Choose <span style=\"color: blue\">New Policy</span>, enter the details and choose <span style=\"color: blue\">Create draft</span>. Then save, and choose <span style=\"color: blue\">Validate Policy</span>, <span style=\"color: blue\">Publish Policy</span> and <span style=\"color: blue\">Activate Policy</span> in turn.",
     "target": {},
     "payload": {
       "routes": [
@@ -1285,7 +1297,7 @@
     "area": "Declare",
     "title": "A Transition Definition declares one state change",
     "description": "Author a new Transition Definition - note",
-    "annotation": "A Transition Definition declares one move from one state to another for an entity, and the authority needed to make it. It starts as a Draft until it is validated and published.",
+    "annotation": "A Transition Definition declares one move from one state to another for an entity, and the authority needed to make it. It is added directly to the Current Transition Definitions and has no draft.",
     "target": {},
     "payload": {}
   },
@@ -1293,31 +1305,19 @@
     "code": "author-transition-definition",
     "kind": "visitor-action",
     "area": "Declare",
-    "title": "Author a new Transition Definition",
-    "description": "Create, save, validate and publish a Transition Definition in SDK / Transition Definition Authoring.",
-    "annotation": "In the navbar, open SDK / Authoring and choose Transition Definition Authoring. Choose New, enter the details and create the draft. Save it, choose Validate, then Publish.",
+    "title": "Add a Transition Definition",
+    "description": "Add a Transition Definition in SDK / Transition Definition Authoring.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">SDK / Authoring</span> and choose <span style=\"color: blue\">Transition Definition Authoring</span>. Under Current Transition Definitions choose the Noun, enter the From and To states, choose the Verb and the Required Policies, then choose <span style=\"color: blue\">Add</span>.",
     "target": {},
     "payload": {
       "routes": [
         {
           "method": "GET",
-          "path": "/aisworg/seu/sdk/transition-definition-authoring/new"
-        },
-        {
-          "method": "POST",
           "path": "/aisworg/seu/sdk/transition-definition-authoring"
         },
         {
           "method": "POST",
-          "path": "/aisworg/seu/sdk/transition-definition-authoring/00000000-0000-0000-0000-000000000000/save"
-        },
-        {
-          "method": "POST",
-          "path": "/aisworg/seu/sdk/transition-definition-authoring/00000000-0000-0000-0000-000000000000/transition"
-        },
-        {
-          "method": "POST",
-          "path": "/aisworg/seu/sdk/transition-definition-authoring/00000000-0000-0000-0000-000000000000/publish"
+          "path": "/aisworg/seu/authority/transition-definitions/add"
         }
       ]
     }
@@ -1338,7 +1338,7 @@
     "area": "Declare",
     "title": "Find the schemas in the Schema Registry",
     "description": "Open Registry / Schema Registry.",
-    "annotation": "In the navbar, open Registry, then Schema Registry. Each schema describes the fields of one kind of definition.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Schema Registry</span>. Each schema describes the fields of one kind of definition.",
     "target": {},
     "payload": {
       "routes": [
@@ -1364,8 +1364,8 @@
     "kind": "visitor-action",
     "area": "Declare",
     "title": "Find the Participants",
-    "description": "Open Registry / Participants.",
-    "annotation": "In the navbar, open Registry, then Participants. Each entry is a person or system that can be given work.",
+    "description": "Open Registry, then Participant Registry.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Participant Registry</span>. Each entry is a person or system that can be given work.",
     "target": {},
     "payload": {
       "routes": [
@@ -1391,8 +1391,8 @@
     "kind": "visitor-action",
     "area": "Declare",
     "title": "Open the authority nouns",
-    "description": "Open the authority nouns.",
-    "annotation": "Open Authority, then Nouns. A noun names a kind of entity that authority applies to.",
+    "description": "Open the Nouns tab of the authority pages.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">SDK / Authoring</span>, choose <span style=\"color: blue\">Transition Definition Authoring</span> and then the <span style=\"color: blue\">Work outcome</span> tab (Nouns). A noun names a kind of entity that authority applies to.",
     "target": {},
     "payload": {
       "routes": [
@@ -1419,7 +1419,7 @@
     "area": "Declare",
     "title": "Add a noun",
     "description": "Add a noun.",
-    "annotation": "On the Nouns page, enter a noun and choose Add.",
+    "annotation": "On the Nouns tab, enter the code, the label and the description, and choose <span style=\"color: blue\">Add noun</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -1445,8 +1445,8 @@
     "kind": "visitor-action",
     "area": "Declare",
     "title": "Open the authority verbs",
-    "description": "Open the authority verbs.",
-    "annotation": "Open Authority, then Verbs. A verb names an action that authority permits.",
+    "description": "Open the Verbs tab of the authority pages.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">SDK / Authoring</span>, choose <span style=\"color: blue\">Transition Definition Authoring</span> and then the <span style=\"color: blue\">Work process</span> tab (Verbs). A verb names an action that authority permits.",
     "target": {},
     "payload": {
       "routes": [
@@ -1473,7 +1473,7 @@
     "area": "Declare",
     "title": "Add a verb",
     "description": "Add a verb.",
-    "annotation": "On the Verbs page, enter a verb and choose Add.",
+    "annotation": "On the Verbs tab, enter the code, the label and the description, and choose <span style=\"color: blue\">Add verb</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -1490,7 +1490,7 @@
     "area": "Declare",
     "title": "The mapping pairs a noun with a verb",
     "description": "Open the noun and verb mapping - note",
-    "annotation": "Each pairing is a badge. The mapping states which actions apply to which entity, and whether a person or the system triggers them.",
+    "annotation": "Each pairing is a badge. The mapping states which verbs are allowed for which noun, and whether a person or the platform triggers them.",
     "target": {},
     "payload": {}
   },
@@ -1499,8 +1499,8 @@
     "kind": "visitor-action",
     "area": "Declare",
     "title": "Open the noun and verb mapping",
-    "description": "Open the noun and verb mapping.",
-    "annotation": "Open Authority, then Mapping. Each row pairs a noun with a verb and shows how the transition is triggered.",
+    "description": "Open the Mapping tab of the authority pages.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">SDK / Authoring</span>, choose <span style=\"color: blue\">Transition Definition Authoring</span> and then the <span style=\"color: blue\">Mapping</span> tab. Each row pairs a noun with an allowed verb and shows whether the transition is Manual or Governed.",
     "target": {},
     "payload": {
       "routes": [
@@ -1527,7 +1527,7 @@
     "area": "Declare",
     "title": "Map a verb to a noun",
     "description": "Map a verb to a noun.",
-    "annotation": "On the Mapping page, choose a noun and a verb and choose Add.",
+    "annotation": "On the Mapping tab, choose a noun and a verb, choose the trigger and choose <span style=\"color: blue\">Allow</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -1544,7 +1544,7 @@
     "area": "Declare",
     "title": "The trigger states who starts the transition",
     "description": "Change the trigger of a mapping - note",
-    "annotation": "A manual trigger means a person starts the transition. An automatic trigger means the platform does.",
+    "annotation": "A Manual trigger means a person starts the transition. A Governed trigger means the platform does.",
     "target": {},
     "payload": {}
   },
@@ -1554,7 +1554,7 @@
     "area": "Declare",
     "title": "Change the trigger of a mapping",
     "description": "Change the trigger of a mapping.",
-    "annotation": "On the Mapping page, choose a mapping and change its trigger. Choose Save.",
+    "annotation": "On the Mapping tab, choose <span style=\"color: blue\">Edit</span> on a mapping that has wired transitions, change the trigger and choose <span style=\"color: blue\">Save</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -1638,8 +1638,8 @@
     "kind": "visitor-action",
     "area": "Declare",
     "title": "Grant a badge to a user",
-    "description": "Open Tenant Users and grant a badge to a user.",
-    "annotation": "Open Tenant Administration, then Users. Choose a user and grant a badge.",
+    "description": "Open Tenant User Management and grant badges to a user.",
+    "annotation": "In the user menu at the top right, open <span style=\"color: blue\">Tenant User Management</span>. In the row of a user, select the badges and choose <span style=\"color: blue\">Save</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -1687,7 +1687,7 @@
     "area": "Commission",
     "title": "A new Objective starts as a proposal",
     "description": "Propose an Objective - note",
-    "annotation": "The Objective waits in its first state until a person with the authority activates it.",
+    "annotation": "The Objective waits in its first state, Defined, until a person with the authority activates it.",
     "target": {},
     "payload": {}
   },
@@ -1697,7 +1697,7 @@
     "area": "Commission",
     "title": "Propose an Objective",
     "description": "Choose New under a parent Objective, enter the details and create it.",
-    "annotation": "Choose New under a parent Objective. Enter the details and create it. A new Objective is a proposal until it is activated.",
+    "annotation": "On the <span style=\"color: blue\">Objectives</span> page choose <span style=\"color: blue\">New Strategic Objective</span>, or use the plus button of a tier on an existing Objective to add a child. Enter the details and create it. A new Objective is in the Defined state until it is activated.",
     "target": {},
     "payload": {
       "routes": [
@@ -1728,7 +1728,7 @@
     "area": "Commission",
     "title": "Open an Objective",
     "description": "Open an Objective.",
-    "annotation": "Choose an Objective in the list to see its details and its child Objectives.\n\nYou can add Objectives and build the hierarchy as long as you are in the Proposal state.",
+    "annotation": "Choose <span style=\"color: blue\">View</span> on an Objective in the list to see its details and its child Objectives.\n\nYou can edit the Objective, add Objectives and build the hierarchy as long as it is in the Defined state.",
     "target": {},
     "payload": {
       "routes": [
@@ -1749,7 +1749,7 @@
     "area": "Commission",
     "title": "An Objective can be refined",
     "description": "Edit the Objective - note",
-    "annotation": "Edits change the proposal. They are recorded against the Objective.",
+    "annotation": "The statement and the required Capabilities can be edited only while the Objective is in the Defined state. Submit sends the revision for validation. Save keeps it without a new version.",
     "target": {},
     "payload": {}
   },
@@ -1759,7 +1759,7 @@
     "area": "Commission",
     "title": "Edit the Objective",
     "description": "Edit the Objective and save.",
-    "annotation": "Choose Edit, change the details and choose Save.",
+    "annotation": "Open the Objective and choose <span style=\"color: blue\">Edit Objective</span>. Change the statement or the required Capabilities, then choose <span style=\"color: blue\">Submit</span> or <span style=\"color: blue\">Save</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -1780,7 +1780,7 @@
     "area": "Commission",
     "title": "Moving changes where an Objective sits",
     "description": "Move the Objective - note",
-    "annotation": "The Objective keeps its content and takes a new place in the hierarchy.",
+    "annotation": "The Objective keeps its content and takes a new place in the hierarchy. Its whole subtree moves with it.",
     "target": {},
     "payload": {}
   },
@@ -1790,7 +1790,7 @@
     "area": "Commission",
     "title": "Move the Objective",
     "description": "Move the Objective under another parent.",
-    "annotation": "Choose Move and select the new parent Objective.",
+    "annotation": "On the Edit page of the Objective, open <span style=\"color: blue\">Move to a Different Parent</span>, select the new parent and choose <span style=\"color: blue\">Move</span>. A Strategic Objective has no parent, so it cannot be moved.",
     "target": {},
     "payload": {
       "routes": [
@@ -1807,7 +1807,7 @@
     "area": "Commission",
     "title": "Comments record the discussion",
     "description": "Comment on the Objective - note",
-    "annotation": "Comments stay with the Objective so that later readers can see why it changed.",
+    "annotation": "Comments stay with the Objective so that later readers can see why it changed. A comment can be added in any state.",
     "target": {},
     "payload": {}
   },
@@ -1817,7 +1817,7 @@
     "area": "Commission",
     "title": "Comment on the Objective",
     "description": "Add a comment.",
-    "annotation": "Enter a comment on the Objective and choose Add.",
+    "annotation": "On the Edit page of the Objective, enter the comment under <span style=\"color: blue\">Comments</span> and choose <span style=\"color: blue\">Post</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -1844,7 +1844,7 @@
     "area": "Commission",
     "title": "Activate the Objective",
     "description": "Activate the Objective.",
-    "annotation": "Choose Activate on the Objective and confirm.",
+    "annotation": "On the Objective page, choose <span style=\"color: blue\">Transition to Active</span>. Only a person holding the activation badge sees the button.",
     "target": {},
     "payload": {
       "routes": [
@@ -1871,7 +1871,7 @@
     "area": "Commission",
     "title": "Supersede the Objective",
     "description": "Supersede the Objective.",
-    "annotation": "Choose Supersede on the Objective and confirm.",
+    "annotation": "On an Active Objective, choose <span style=\"color: blue\">Supersede</span>. Select the Objective that replaces it, or choose the link to create a new one, then choose <span style=\"color: blue\">Supersede</span> in the dialog.",
     "target": {},
     "payload": {
       "routes": [
@@ -1888,7 +1888,7 @@
     "area": "Commission",
     "title": "Retire is a state change of the Objective",
     "description": "Retire the Objective - note",
-    "annotation": "Retirement ends an Objective that is no longer pursued.",
+    "annotation": "Retirement ends an Active Objective that is no longer pursued. The Objective and its subtree are retired and keep their history.",
     "target": {},
     "payload": {}
   },
@@ -1898,13 +1898,13 @@
     "area": "Commission",
     "title": "Retire the Objective",
     "description": "Retire the Objective.",
-    "annotation": "Choose Retire on the Objective and confirm.",
+    "annotation": "On an Active Objective, choose <span style=\"color: blue\">Retire Objective & subtree</span> and confirm.",
     "target": {},
     "payload": {
       "routes": [
         {
           "method": "POST",
-          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/transition/retire"
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/retire"
         }
       ]
     }
@@ -1915,7 +1915,7 @@
     "area": "Commission",
     "title": "Archive is a state change of the Objective",
     "description": "Archive the Objective - note",
-    "annotation": "Archiving removes an ended Objective from active lists. It stays on record.",
+    "annotation": "Archiving is the last state of an Objective that is achieved, superseded or retired. It stays on record.",
     "target": {},
     "payload": {}
   },
@@ -1925,7 +1925,7 @@
     "area": "Commission",
     "title": "Archive the Objective",
     "description": "Archive the Objective.",
-    "annotation": "Choose Archive on the Objective and confirm.",
+    "annotation": "On an achieved, superseded or retired Objective, choose <span style=\"color: blue\">Transition to Archived</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -1942,7 +1942,7 @@
     "area": "Commission",
     "title": "Reject is a state change of the Objective",
     "description": "Reject the Objective - note",
-    "annotation": "Rejection ends a proposal that will not go ahead.",
+    "annotation": "An Active Objective that will not go ahead is rejected, with a reason. Rejected Objectives are listed on the <span style=\"color: blue\">Rejected</span> tab of the Objectives page.",
     "target": {},
     "payload": {}
   },
@@ -1951,8 +1951,8 @@
     "kind": "visitor-action",
     "area": "Commission",
     "title": "Reject the Objective",
-    "description": "Reject a proposed Objective.",
-    "annotation": "Choose Reject on the Objective and confirm.",
+    "description": "Reject an Active Objective.",
+    "annotation": "On an Active Objective, enter the reason in the <span style=\"color: blue\">Reject</span> box and choose <span style=\"color: blue\">Reject</span>. The reason is required.",
     "target": {},
     "payload": {
       "routes": [
@@ -1967,9 +1967,9 @@
     "code": "delete-objective-note",
     "kind": "note",
     "area": "Commission",
-    "title": "Only a draft can be deleted",
+    "title": "Only a Defined leaf can be deleted",
     "description": "Delete a draft Objective - note",
-    "annotation": "A draft has not been acted on. Once an Objective has moved on, it is retired or archived instead.",
+    "annotation": "An Objective with no children that is still in the Defined state has not been acted on and can be deleted. Once an Objective has moved on, it is retired or archived instead.",
     "target": {},
     "payload": {}
   },
@@ -1977,9 +1977,9 @@
     "code": "delete-objective",
     "kind": "visitor-action",
     "area": "Commission",
-    "title": "Delete a draft Objective",
-    "description": "Delete a draft Objective.",
-    "annotation": "Choose Delete on a draft Objective and confirm.",
+    "title": "Delete a Defined Objective",
+    "description": "Delete a leaf Objective that is in the Defined state.",
+    "annotation": "Open a leaf Objective in the Defined state, choose <span style=\"color: blue\">Delete Objective</span> and confirm.",
     "target": {},
     "payload": {
       "routes": [
@@ -2006,10 +2006,14 @@
     "area": "Commission",
     "title": "Check the Objective is ready to commission",
     "description": "Check the Objective is ready to commission.",
-    "annotation": "Choose Validate commission. The check lists anything that must be fixed first.",
+    "annotation": "After the SEU is saved, choose <span style=\"color: blue\">Validate</span> in the Saved SEU section. The <span style=\"color: blue\">Commission Validation</span> page checks that the Objective, Profile, Template and everything they reference are still live, and lists each check as Live or Dead.",
     "target": {},
     "payload": {
       "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/transition/validate"
+        },
         {
           "method": "GET",
           "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/validate-commission"
@@ -2021,8 +2025,8 @@
     "code": "compose-ebm-note",
     "kind": "note",
     "area": "Commission",
-    "title": "The Evidence-Based Model is composed from Packs",
-    "description": "Compose the Evidence-Based Model - note",
+    "title": "The Engineering Behavior Model is composed from Packs",
+    "description": "Compose the Engineering Behavior Model - note",
     "annotation": "Composition joins the Packs of the Template and Profile into the model that governs the Software Engineering Unit.",
     "target": {},
     "payload": {}
@@ -2031,9 +2035,9 @@
     "code": "compose-ebm",
     "kind": "visitor-action",
     "area": "Commission",
-    "title": "Compose the Evidence-Based Model",
-    "description": "Compose the Evidence-Based Model for the Objective.",
-    "annotation": "Choose Compose Evidence-Based Model, select the Template and Profile, and compose.",
+    "title": "Compose the Engineering Behavior Model",
+    "description": "Compose the Engineering Behavior Model for the Objective.",
+    "annotation": "On the <span style=\"color: blue\">Commission Validation</span> page choose <span style=\"color: blue\">Compose EBM</span>. The <span style=\"color: blue\">Compose EBM</span> page shows what the Template and Profile resolve to, the Packs they compose and any conflicts.",
     "target": {},
     "payload": {
       "routes": [
@@ -2091,7 +2095,7 @@
     "area": "Commission",
     "title": "Commission a Software Engineering Unit",
     "description": "Choose New SEU, select the Objective, Template and Profile, and commission.",
-    "annotation": "Go to any of the Objective. Look for the action button group and click on <span style=\"color: blue\">Commission SEU</span>.\n\nIf SEU is already operational, the button would say SEU Commissioned.\n\nChoose the Profile \"Modified Demo Profile for ArchVault Team\". Click on \n\n<span style=\"color: blue\">Save</span>.\n\nCommissioning has to ensure the Packs and Profiles used are still Active. So validate the \"liveness\" by clicking on <span style=\"color: blue\">Validate</span>.\n\nCompose the EBM(Engineerging Behavior Model) by clicking on <span style=\"color: blue\">Compose EBM</span>.\n\n",
+    "annotation": "Find an Active Engineering Objective that has no SEU. In the Objectives tree, open its <span style=\"color: blue\">Options</span> menu and choose <span style=\"color: blue\">Commission SEU</span>. On the Objective page the button reads <span style=\"color: blue\">Commission an SEU from this Objective</span>. If an SEU already exists, the menu shows <span style=\"color: blue\">Commissioned — view SEU</span>.\n\nChoose the Profile \"Modified Demo Profile for ArchVault Team\" and choose <span style=\"color: blue\">Save</span>.\n\nThe Saved SEU section then offers <span style=\"color: blue\">Validate</span>. Validation checks that the Packs and Profiles used are still Active.\n\nCompose the Engineering Behavior Model by choosing <span style=\"color: blue\">Compose EBM</span> on the validation page.",
     "target": {},
     "payload": {
       "routes": [
@@ -2112,38 +2116,31 @@
     "area": "Commission",
     "title": "Resolve EBM conflicts",
     "description": "Resolve EBM conflicts.",
-    "annotation": "Engineering Behavior Model is composed from the Template, Profile, Packs and Policies. More often then not, they may provide conflicting directions. When an EBM is composed, these conflicts are unraveled. The user resolves the conflicts. SEU will not complete Commissioning till the conflicts are resolved. \n\n",
+    "annotation": "The Engineering Behavior Model is composed from the Template, Profile, Packs and Policies. Their directions can conflict. When the model is composed, the conflicts are listed and the user resolves them. The SEU does not complete Commissioning until the conflicts are resolved.",
     "target": {},
-    "payload": {
-      "routes": [
-        {
-          "method": "GET",
-          "path": "/aisworg/seu/seus/new"
-        },
-        {
-          "method": "POST",
-          "path": "/aisworg/seu/seus"
-        }
-      ]
-    }
+    "payload": {}
   },
   {
     "code": "resolve-ebm-conflict",
     "kind": "visitor-action",
     "area": "Commission",
-    "title": "Commission a Software Engineering Unit",
-    "description": "Choose New SEU, select the Objective, Template and Profile, and commission.",
-    "annotation": "Go to <span style=\"color: blue\">All SEUs</span>.\n\nWhen there are conflicts, SEU will be in Validated state. You should be seeing the Compose button. Click on <span style=\"color: blue\">Compose</span>.\n\nIn the <span style=\"color: blue\">Services</span> tab, choose \"Mobile Engineering Service\". And then choose the WorkItem Types within each Deliverable.\n\nIn the <span style=\"color: blue\">Capabilities</span> tab, include or exclude the Packs you need.\n\n Validate the EBM.\n\nActivate the EBM.\n\nNow, when you go back to the <span style=\"color: blue\">All SEUs</span>, the SEU should be operational.",
+    "title": "Resolve the Engineering Behavior Model conflicts",
+    "description": "Resolve the conflicts of the composed Engineering Behavior Model.",
+    "annotation": "Go to <span style=\"color: blue\">All SEUs</span>. When the SEU has no Engineering Behavior Model yet, choose <span style=\"color: blue\">Compose</span>. On the compose page choose <span style=\"color: blue\">Resolve Conflicts</span>.\n\nIn the <span style=\"color: blue\">Services</span> tab, choose \"Mobile Engineering Service\", tick the Work Item Types within each Deliverable and choose <span style=\"color: blue\">Apply</span>.\n\nIn the <span style=\"color: blue\">Capabilities</span> tab, include or exclude the Packs listed, then choose <span style=\"color: blue\">Apply</span>.\n\nWhen no conflict is open, choose <span style=\"color: blue\">Validate</span>. Then choose <span style=\"color: blue\">View EBM</span> and choose <span style=\"color: blue\">Activate</span> at the top of the EBM page.\n\nBack in <span style=\"color: blue\">All SEUs</span>, the SEU becomes operational.",
     "target": {},
     "payload": {
       "routes": [
         {
           "method": "GET",
-          "path": "/aisworg/seu/seus/new"
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/resolve-conflicts"
         },
         {
           "method": "POST",
-          "path": "/aisworg/seu/seus"
+          "path": "/aisworg/seu/objectives/00000000-0000-0000-0000-000000000000/compose-ebm"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/ebm/transition/activate"
         }
       ]
     }
@@ -2191,7 +2188,7 @@
     "area": "Commission",
     "title": "Open a Software Engineering Unit",
     "description": "Open an SEU.",
-    "annotation": "Choose a unit in the list to see its state, Capabilities, Deliverables and Obligations.",
+    "annotation": "Choose <span style=\"color: blue\">View</span> on a unit in the list to see its state, Capabilities, Deliverables and Obligations.",
     "target": {},
     "payload": {
       "routes": [
@@ -2218,7 +2215,7 @@
     "area": "Commission",
     "title": "Move the unit to its next state",
     "description": "Move the SEU to its next lifecycle state.",
-    "annotation": "Choose a state change on the unit, such as Validate, Suspend or Resume.",
+    "annotation": "On the unit page, choose one of the buttons offered, such as <span style=\"color: blue\">Validate</span>, <span style=\"color: blue\">Suspend</span>, <span style=\"color: blue\">Resume</span>, <span style=\"color: blue\">Retire</span> or <span style=\"color: blue\">Archive</span>. Only the buttons the viewer holds the badge for are shown.",
     "target": {},
     "payload": {
       "routes": [
@@ -2250,8 +2247,8 @@
     "kind": "note",
     "area": "Commission",
     "title": "The model governs the unit",
-    "description": "Open the Evidence-Based Model - note",
-    "annotation": "The Evidence-Based Model is authoritative for the unit until it is superseded through a governed recomposition.",
+    "description": "Open the Engineering Behavior Model - note",
+    "annotation": "The Engineering Behavior Model is authoritative for the unit until it is superseded through a governed recomposition.",
     "target": {},
     "payload": {}
   },
@@ -2259,9 +2256,9 @@
     "code": "view-ebm",
     "kind": "visitor-action",
     "area": "Commission",
-    "title": "Open the Evidence-Based Model",
-    "description": "Open the Evidence-Based Model of the SEU.",
-    "annotation": "Open the Evidence-Based Model from the unit page. It lists the Packs that govern the unit.",
+    "title": "Open the Engineering Behavior Model",
+    "description": "Open the Engineering Behavior Model of the SEU.",
+    "annotation": "Choose <span style=\"color: blue\">View EBM</span> on the unit page, or in the All SEUs list. The page shows the Metadata, the composed Packs and one tab for each settled table, such as Services, Capabilities and Policies. The link appears once the SEU has an Engineering Behavior Model.",
     "target": {},
     "payload": {
       "routes": [
@@ -2287,8 +2284,8 @@
     "kind": "visitor-action",
     "area": "Commission",
     "title": "Move the model to its next state",
-    "description": "Move the Evidence-Based Model to its next state.",
-    "annotation": "On the model page, choose Validate or Activate.",
+    "description": "Move the Engineering Behavior Model to its next state.",
+    "annotation": "At the top of the EBM page, choose <span style=\"color: blue\">Validate</span>, then <span style=\"color: blue\">Activate</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -2319,7 +2316,7 @@
     "area": "Commission",
     "title": "Fulfil a Capability",
     "description": "Fulfil a Capability with a Participant.",
-    "annotation": "On the unit page, choose a Capability and select a Participant to fulfil it.",
+    "annotation": "On the <span style=\"color: blue\">Capability Fulfilment</span> tab of the unit page, tick the Participants offered for a Capability and choose <span style=\"color: blue\">Assign</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -2363,7 +2360,7 @@
     "area": "Commission",
     "title": "Release returns the Capability to the pool",
     "description": "Release a Capability - note",
-    "annotation": "The Capability is no longer fulfilled until another Participant takes it.",
+    "annotation": "The Capability is Unfulfilled again until another Participant is assigned.",
     "target": {},
     "payload": {}
   },
@@ -2373,7 +2370,7 @@
     "area": "Commission",
     "title": "Release a Capability",
     "description": "Release a Capability.",
-    "annotation": "Choose Release on the Capability.",
+    "annotation": "On the <span style=\"color: blue\">Capability Fulfilment</span> tab, tick the assigned Participants of a Fulfilled Capability and choose <span style=\"color: blue\">Replace</span>. They are released and you then pick the replacements.",
     "target": {},
     "payload": {
       "routes": [
@@ -2390,7 +2387,7 @@
     "area": "Execute",
     "title": "Work is queued for Participants",
     "description": "Open the work queue - note",
-    "annotation": "The queue lists what has to be done next. Work is generated from the Evidence-Based Model.",
+    "annotation": "The queue lists what has to be done next. Work is generated from the Engineering Behavior Model.",
     "target": {},
     "payload": {}
   },
@@ -2555,9 +2552,9 @@
     "code": "record-evidence-note",
     "kind": "note",
     "area": "Execute",
-    "title": "Evidence shows an Obligation was met",
+    "title": "Evidence records what the work produced",
     "description": "Record Evidence - note",
-    "annotation": "Evidence is the record that an Obligation has been satisfied.",
+    "annotation": "Evidence is a record of what the work produced. It is collected against a Deliverable.",
     "target": {},
     "payload": {}
   },
@@ -2566,8 +2563,8 @@
     "kind": "visitor-action",
     "area": "Execute",
     "title": "Record Evidence",
-    "description": "Record Evidence against an Obligation.",
-    "annotation": "Choose Record Evidence on an Obligation, enter the details and save.",
+    "description": "Collect Evidence against a Deliverable.",
+    "annotation": "Open the <span style=\"color: blue\">Evidence</span> tab of the SEU. Choose the Deliverable and the category, enter a title and the source, then choose <span style=\"color: blue\">Collect Evidence</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -2584,7 +2581,7 @@
     "area": "Execute",
     "title": "Evidence is checked before it is accepted",
     "description": "Validate the Evidence - note",
-    "annotation": "Validation checks the Evidence against what the Obligation requires.",
+    "annotation": "Each Evidence item is assessed on five dimensions: authenticity, completeness, consistency, source credibility and engineering relevance. The assessments set the confidence of the Evidence.",
     "target": {},
     "payload": {}
   },
@@ -2593,8 +2590,8 @@
     "kind": "visitor-action",
     "area": "Execute",
     "title": "Validate the Evidence",
-    "description": "Validate the Evidence.",
-    "annotation": "Choose Validate on the Evidence.",
+    "description": "Assess the Evidence on a dimension.",
+    "annotation": "On the <span style=\"color: blue\">Evidence</span> tab, choose a dimension and a status (Pass, Partial, Fail or Not Assessed) in the row of the Evidence, then choose <span style=\"color: blue\">Assess</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -2611,7 +2608,7 @@
     "area": "Execute",
     "title": "Evidence has a lifecycle",
     "description": "Move the Evidence on - note",
-    "annotation": "Accepted Evidence can close an Obligation.",
+    "annotation": "Accepted Evidence helps a Deliverable pass the Quality Gate from Approved to Baselined.",
     "target": {},
     "payload": {}
   },
@@ -2621,7 +2618,7 @@
     "area": "Execute",
     "title": "Move the Evidence on",
     "description": "Move the Evidence to its next state.",
-    "annotation": "Choose a state change on the Evidence, such as Accept or Reject.",
+    "annotation": "In the Transition column of the Evidence row, choose one of the buttons offered, such as <span style=\"color: blue\">Accept</span> or <span style=\"color: blue\">Reject</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -2654,7 +2651,7 @@
     "area": "Execute",
     "title": "Links show what the Evidence supports",
     "description": "Link the Evidence - note",
-    "annotation": "A link connects the Evidence to another Obligation or record.",
+    "annotation": "A link connects the Evidence to a Deliverable it supports.",
     "target": {},
     "payload": {}
   },
@@ -2663,8 +2660,8 @@
     "kind": "visitor-action",
     "area": "Execute",
     "title": "Link the Evidence",
-    "description": "Link the Evidence to another record.",
-    "annotation": "Choose Link on the Evidence and select the record.",
+    "description": "Link the Evidence to a Deliverable.",
+    "annotation": "In the <span style=\"color: blue\">Link another</span> column of the Evidence row, select a Deliverable and choose <span style=\"color: blue\">Link</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -3123,7 +3120,7 @@
     "area": "Execute",
     "title": "Attention items flag what needs notice",
     "description": "Raise an Attention item - note",
-    "annotation": "A Blocker stops work. A Risk may stop it.",
+    "annotation": "An Attention Item flags something that needs notice. One that blocks progress holds its Deliverable until it is resolved.",
     "target": {},
     "payload": {}
   },
@@ -3132,8 +3129,8 @@
     "kind": "visitor-action",
     "area": "Execute",
     "title": "Raise an Attention item",
-    "description": "Raise an Attention item (Blocker or Risk).",
-    "annotation": "On the unit page, choose Raise Attention, select Blocker or Risk, enter the details and save.",
+    "description": "Raise an Attention Item.",
+    "annotation": "On the unit page, open the <span style=\"color: blue\">Attention Items</span> tab. Choose the Deliverable, or SEU-level, enter the category and the title, choose the priority and choose <span style=\"color: blue\">Create Attention Item</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -3150,7 +3147,7 @@
     "area": "Execute",
     "title": "An Attention item is cleared by a person",
     "description": "Move the Attention item on - note",
-    "annotation": "Resolving a Blocker lets the work continue.",
+    "annotation": "Resolving an Attention Item that blocks progress lets the work continue.",
     "target": {},
     "payload": {}
   },
@@ -3160,7 +3157,7 @@
     "area": "Execute",
     "title": "Move the Attention item on",
     "description": "Resolve, release or waive an Attention item on the SEU.",
-    "annotation": "On the unit page, choose a state change on the Attention item, such as Resolve.",
+    "annotation": "On the <span style=\"color: blue\">Attention Items</span> tab, choose a button in the Transition column of the item, such as <span style=\"color: blue\">Resolve</span>.",
     "target": {},
     "payload": {
       "routes": [
@@ -3263,7 +3260,7 @@
     "area": "Execute",
     "title": "Compliance is the state of the Obligations",
     "description": "Open the compliance view - note",
-    "annotation": "The view shows how far the unit has met what the Evidence-Based Model requires.",
+    "annotation": "The view shows how far the unit has met what the Engineering Behavior Model requires.",
     "target": {},
     "payload": {}
   },
@@ -3419,6 +3416,249 @@
         {
           "method": "GET",
           "path": "/aisworg/seu/version-events"
+        }
+      ]
+    }
+  },
+  {
+    "code": "seu-deliverables-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "The Deliverables tab shows the work in execution",
+    "description": "Deliverables tab of an SEU - note",
+    "annotation": "The Deliverables tab lists every Deliverable of the unit with its state. For each one it shows the Quality Gate items that apply to its next hop, the Quality Gate Outcome, the Attention items, the participants and the transition that is blocked.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "seu-open-deliverables-tab",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Open the Deliverables tab",
+    "description": "Open the Deliverables tab of an SEU.",
+    "annotation": "Use the Modified Demo Profile for ArchVault Team to commission the SEU, then open it from <span style=\"color: blue\">SEU Platform</span> and <span style=\"color: blue\">All SEUs</span>. Stay on the <span style=\"color: blue\">Deliverables</span> tab.\n\nEach row is a Deliverable with its state, the Quality Gate items of its next hop, the Quality Gate Outcome, the Attention items, the participants and the blocked transition.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "why-gate-blocked-requirements-model",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Why Requirements Analysis Model is blocked",
+    "description": "Read why the Quality Gate is Blocked.",
+    "annotation": "Requirements Analysis Model is in the Defined state, and the <span style=\"color: blue\">No Unresolved Obligations</span> Quality Gate governs the hop from Defined to In Progress.\n\nThe Demo False Trigger Policy raised the Obligation \"Resolve the Demo False Trigger Policy\" for this Deliverable. The Obligation is still open, so the Quality Gate Outcome is Blocked and the <span style=\"color: blue\">In Progress</span> button stays disabled.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "why-gate-not-decided-other-deliverables",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Why the other Deliverables are not decided",
+    "description": "Read why the Quality Gate is Not decided.",
+    "annotation": "The Quality Gate Outcome shows <span style=\"color: blue\">Not decided yet</span> for Source Code and Deployment Manifest. No decision is stored for their hop yet.\n\nBoth Deliverables depend on Requirements Analysis Model, so their decision waits on that Deliverable.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "check-policy-obligation-attention",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Check whether a Policy raised an Obligation or Attention Item",
+    "description": "Find the Obligation or Attention Item of a Policy.",
+    "annotation": "Read the <span style=\"color: blue\">Attention items</span> column of the Deliverable row.\n\nOpen the <span style=\"color: blue\">Obligations</span> tab and the <span style=\"color: blue\">Attention Items</span> tab of the SEU to see each record, its Deliverable and its status.\n\nOpen the <span style=\"color: blue\">Quality Gates</span> tab. Under <span style=\"color: blue\">Blocked now</span> each blocked line states why it blocks.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "unblock-progress-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "Progress is unblocked by resolution or by a waiver",
+    "description": "Unblock progress - note",
+    "annotation": "A blocked hop is unblocked in one of two ways. Resolve the Obligations and Attention Items that hold it, or grant a waiver for the Obligation or the Quality Gate line that blocks it.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "unblock-progress-waivers",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Grant the waivers",
+    "description": "Waive the Obligation and the Quality Gate.",
+    "annotation": "Open the SEU and choose the <span style=\"color: blue\">Quality Gates</span> tab. Under <span style=\"color: blue\">Blocked now</span> are the Obligation \"Resolve the Demo False Trigger Policy\" and the <span style=\"color: blue\">No Unresolved Obligations</span> Quality Gate line.\n\nChoose <span style=\"color: blue\">Grant waiver</span> on the Obligation line, enter a rationale and save.\n\nChoose <span style=\"color: blue\">Grant waiver</span> again, pick the <span style=\"color: blue\">No Unresolved Obligations</span> Quality Gate line, enter a rationale and save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000/quality-gate-waivers"
+        }
+      ]
+    }
+  },
+  {
+    "code": "unblock-progress-check-deliverables",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "See the Deliverables move",
+    "description": "Reload the Deliverables tab.",
+    "annotation": "Reload the SEU and open the <span style=\"color: blue\">Deliverables</span> tab. Requirements Analysis Model has moved to In Progress.\n\nThe Quality Gate of Deployment Manifest is now checked, because the Deliverable dependency it waits on is met.\n\nThe Quality Gate itself still blocks the move to the next state until its own conditions are met or waived.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "participants-view-human-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "The demo participants view mocks what a Human participant sees",
+    "description": "Demo participants view - note",
+    "annotation": "The Demo participants view is a mock of the page an actual Human participant gets to see. It also shows a sample response from an AI participant.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "participants-view-open",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Open the Demo participants view",
+    "description": "Open Demo Participants.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">SEU Platform</span>, then <span style=\"color: blue\">Demo Participants</span>. Choose a Human participant in the list. The page shows what that participant sees, and every action runs as that participant.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/demo/participants"
+        }
+      ]
+    }
+  },
+  {
+    "code": "participants-view-evidence",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Provide Evidence",
+    "description": "Provide Evidence as a participant.",
+    "annotation": "On the <span style=\"color: blue\">Deliverables</span> tab of the participant page, choose the <span style=\"color: blue\">Actions</span> of a Deliverable and then <span style=\"color: blue\">Provide Evidence</span>. Pick the category, enter a title and save. The Evidence is listed on the <span style=\"color: blue\">Evidence</span> tab.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/demo/participants"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/demo/participants/00000000-0000-0000-0000-000000000000/seus/00000000-0000-0000-0000-000000000000/evidence"
+        }
+      ]
+    }
+  },
+  {
+    "code": "participants-view-knowledge",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Create Knowledge",
+    "description": "Create Knowledge as a participant.",
+    "annotation": "Choose the <span style=\"color: blue\">Actions</span> of a Deliverable and then <span style=\"color: blue\">Create Knowledge</span>. Select the supporting Evidence, enter the category and title, and save. Knowledge always cites the Evidence it rests on.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/demo/participants"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/demo/participants/00000000-0000-0000-0000-000000000000/seus/00000000-0000-0000-0000-000000000000/knowledge"
+        }
+      ]
+    }
+  },
+  {
+    "code": "participants-view-decision",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "Create a Decision",
+    "description": "Create a Decision as a participant.",
+    "annotation": "Choose the <span style=\"color: blue\">Actions</span> of a Deliverable and then <span style=\"color: blue\">Create Decision</span>. Enter the title, add the alternatives, select the supporting Knowledge or Evidence, and save.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/demo/participants"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/demo/participants/00000000-0000-0000-0000-000000000000/seus/00000000-0000-0000-0000-000000000000/decisions"
+        }
+      ]
+    }
+  },
+  {
+    "code": "participants-view-ai-note",
+    "kind": "note",
+    "area": "Execute",
+    "title": "An AI participant responds through the same page",
+    "description": "AI participant view - note",
+    "annotation": "An AI participant does its work through the same records a Human participant uses. The page shows a simulated response, so no tokens are used.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "participants-view-ai-response",
+    "kind": "visitor-action",
+    "area": "Execute",
+    "title": "View the AI response",
+    "description": "Open an AI participant.",
+    "annotation": "Open <span style=\"color: blue\">Demo Participants</span> and choose an AI participant, for example ArchVault Analysis Agent. The simulated response is the Evidence, Knowledge, Decision and Attention Items the agent recorded, listed on the matching tabs, and the status it reported on the <span style=\"color: blue\">Command / Work Item</span> tab. Choose <span style=\"color: blue\">Instructions</span> there to read what the agent was asked to do.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/demo/participants"
         }
       ]
     }
