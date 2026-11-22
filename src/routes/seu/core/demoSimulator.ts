@@ -370,6 +370,7 @@ export interface GuideStep {
 
 export interface GuideState {
   code: string;
+  area: string;
   number: number;
   title: string;
   titleHtml: string;
@@ -397,6 +398,7 @@ export async function getGuide(code: string): Promise<GuideState | null> {
   const visitor = step?.kind === DEMO_VISITOR_STEP_KIND;
   return {
     code: scenario.code,
+    area: scenario.area,
     number: sameArea.findIndex((p) => p.code === scenario.code) + 1,
     title: scenario.title,
     titleHtml: renderInlineMarkdown(scenario.title),

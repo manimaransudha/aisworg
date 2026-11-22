@@ -29,6 +29,8 @@
     "playbook": [
       "capability-definitions-note",
       "copy-capability-definition-note",
+      "copy-capability-definition-note2",
+      "browse-designing-software-architecture",
       "copy-capability-definition",
       "edit-capability-definition"
     ],

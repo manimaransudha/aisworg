@@ -590,7 +590,9 @@
     "method": "GET",
     "path": "/aisworg/seu/knowledge/capital",
     "badges": [],
-    "roles": [],
+    "roles": [
+      "superuser"
+    ],
     "match_mode": "any"
   },
   {
@@ -816,8 +818,7 @@
     "path": "/aisworg/seu/participants",
     "badges": [],
     "roles": [
-      "participant",
-      "demo"
+      "participant"
     ],
     "match_mode": "any"
   },

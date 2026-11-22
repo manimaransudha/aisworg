@@ -330,7 +330,7 @@
     "area": "Declare",
     "title": "A Template is the engineering blueprint for delivering software",
     "description": "Find the Template in the Registry - note",
-    "annotation": "A Template groups the typical processes that a type of work needs, such as the domain, compliance and technology Packs. A Profile is built on a Template. Templates declare structures combining Capabilities to create a typical software engineering configuration. \n\nIn the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Template Registry</span>.",
+    "annotation": "A Template groups the typical processes that a type of work needs, such as the domain, compliance and technology Packs. A Profile is built on a Template. Templates declare structures combining Capabilities to create a typical software engineering configuration.",
     "target": {},
     "payload": {}
   },
@@ -340,7 +340,7 @@
     "area": "Declare",
     "title": "Find the Template in the Registry",
     "description": "Open Registry, then Templates and find the Template.",
-    "annotation": "\n\nArchVault Digital Shelf is being built for mobiles. Check the Template Registry for a mobile platform development Template.\n\nIn the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Template Registry</span>. Search for \"mobile\".\n\nYou will see there are 2 Templates: One defined by the  platform and the other by Demo tenant.",
+    "annotation": "\n\nArchVault Digital Shelf is being built for mobiles. Check the Template Registry for a mobile platform development Template.\n\nIn the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Template Registry</span>. Search for \"mobile\".\n\nYou will see there are 2 Templates: One defined by the Platform and the other by Demo tenant.",
     "target": {},
     "payload": {
       "routes": [
@@ -355,7 +355,7 @@
     "code": "explore-mobile-templates",
     "kind": "visitor-action",
     "area": "Declare",
-    "title": "Explore the two Template in the Registry",
+    "title": "Explore the two Templates in the Registry",
     "description": "View the Templates to identify the differences.",
     "annotation": "View the \"Mobile Application\" declared by the Platform. Go to the <span style=\"color: blue\">Deliverable Catalogue</span> tab. You can see the Deliverables to be created for this blueprint. You can also see the Deliverable dependency.\n\n<span style=\"color: red\">Demo has created its own lean version of the Template.</span>\n\nView the \"Mobile Application\" declared by the Demo tenant. Go to the <span style=\"color: blue\">Deliverable Catalogue</span> tab. You can see the Template has three Deliverables and no dependencies.",
     "target": {},
@@ -635,7 +635,7 @@
     "area": "Declare",
     "title": "Edit the Deliverable dependencies",
     "description": "Edit the Deliverable dependencies.",
-    "annotation": "Go to the <span style=\"color: blue\">Dependency Graph</span> in the <span style=\"color: blue\">Deliverable Catalogue</span>.\n\n1. Choose \"Deployment Manifest\" in To code and \"Requirements Analysis Model\" for the first set.\n\n2. Choose \"Source Code\" in To code and \"Requirements Analysis Model\" for the second set.\n\n3. Remove the third set.\n\n4. Save the Draft and provide the reason for editing if it asks for one.\n\n You should see the updated dependency graph for the Deliverables.",
+    "annotation": "Go to the <span style=\"color: blue\">Dependency Graph</span> in the <span style=\"color: blue\">Deliverable Catalogue</span>.\n\n1. Choose \"Deployment Manifest\" in To code, \"Requirements Analysis Model\" and Required State as \"In Progress\" for the first set.\n\n2. Choose \"Source Code\" in To code, \"Requirements Analysis Model\" and Required State as \"Approved\" for the second set.\n\n3. Remove the third set.\n\n4. Save the Draft and provide the reason for editing if it asks for one.\n\n You should see the updated dependency graph for the Deliverables.",
     "target": {},
     "payload": {
       "routes": [
@@ -838,7 +838,7 @@
     "area": "Declare",
     "title": "Publish the Profile",
     "description": "Publish the Profile.",
-    "annotation": "Choose <span style=\"color: blue\">Publish Profile</span>, then <span style=\"color: blue\">Activate Profile</span>. An Active Profile can be used to commission a Software Engineering Unit.\n\nActivate the Profile and we will use it to commission an SEU in the next section.",
+    "annotation": "Choose <span style=\"color: blue\">Publish Profile</span>, then <span style=\"color: blue\">Activate Profile</span>. An Active Profile can be used to commission a Software Engineering Unit.\n\nActivate the Profile and we will use \"Modified Demo Profile for ArchVault Team\" to commission an SEU in the Commission stage.",
     "target": {},
     "payload": {
       "routes": [
@@ -880,7 +880,7 @@
     "code": "browse-designing-software-architecture",
     "kind": "visitor-action",
     "area": "Declare",
-    "title": "Suppose, you want to view \"Designing Software Architecture\" Capability",
+    "title": "View \"Designing Software Architecture\" Capability",
     "description": "Search and view the Capability Definitions.",
     "annotation": "Scroll to locate or search for Designing Software Architecture and choose <span style=\"color: blue\">View</span>.\n\nYou can view the details.\n\nChoose <span style=\"color: blue\">View the Service offered</span> to see the value the competency promises to deliver.\n\nThe <span style=\"color: blue\">Roles and Worktypes</span> section lists the Roles performing the activities in the Capability and the typical Worktypes they produce.",
     "target": {},
@@ -904,12 +904,22 @@
     "payload": {}
   },
   {
+    "code": "copy-capability-definition-note2",
+    "kind": "note",
+    "area": "Declare",
+    "title": "Copying and editing a Capability",
+    "description": "Copy the Capability Definition - note",
+    "annotation": "Let us try to create a copy of \"Designing software architecture Capability\".",
+    "target": {},
+    "payload": {}
+  },
+  {
     "code": "copy-capability-definition",
     "kind": "visitor-action",
     "area": "Declare",
     "title": "Copy the Capability Definition",
     "description": "Copy a Capability Definition into a new draft.",
-    "annotation": "Let us try to create a copy of \"Designing software architecture Capability\". Choose <span style=\"color: blue\">Copy</span> on the Capability Definition. A new Draft is created from it and opens for editing.",
+    "annotation": "Choose <span style=\"color: blue\">Copy</span> on the Capability Definition. A new Draft is created from it and opens for editing.",
     "target": {},
     "payload": {
       "routes": [
@@ -3642,7 +3652,7 @@
     "area": "Execute",
     "title": "An AI participant responds through the same page",
     "description": "AI participant view - note",
-    "annotation": "An AI participant does its work through the same records a Human participant uses. The page shows a simulated response, so no tokens are used.",
+    "annotation": "An AI participant does its work through the same records a Human participant uses. The Work Item Instructions provides the required Prompts/Skills for the AI agent to work within the governed environment.",
     "target": {},
     "payload": {}
   },
@@ -3652,7 +3662,7 @@
     "area": "Execute",
     "title": "View the AI response",
     "description": "Open an AI participant.",
-    "annotation": "Open <span style=\"color: blue\">Demo Participants</span> and choose an AI participant, for example ArchVault Analysis Agent. The simulated response is the Evidence, Knowledge, Decision and Attention Items the agent recorded, listed on the matching tabs, and the status it reported on the <span style=\"color: blue\">Command / Work Item</span> tab. Choose <span style=\"color: blue\">Instructions</span> there to read what the agent was asked to do.",
+    "annotation": "Open <span style=\"color: blue\">Demo Participants</span> and choose an AI participant, for example ArchVault Analysis Agent. \n\nThe response is the Evidence, Knowledge, Decision and Attention Items the agent recorded, listed on the matching tabs. \n\nThe status it reported on the <span style=\"color: blue\">Command / Work Item</span> tab. \n\nChoose <span style=\"color: blue\">Instructions</span> there to read what the agent was asked to do.",
     "target": {},
     "payload": {
       "routes": [

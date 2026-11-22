@@ -21,11 +21,13 @@
   var base = '/aisworg/seu/demo/guide';
   var el = function (id) { return document.getElementById(id); };
   var collapsed = false;
+  var guideArea = '';
   try { collapsed = sessionStorage.getItem('demoGuideCollapsed') === '1'; } catch (e) {}
 
   function render(guide) {
     if (!guide) { panel.classList.add('d-none'); return; }
     panel.classList.remove('d-none');
+    guideArea = guide.area;
     el('demoGuideTitle').innerHTML = guide.number + '. ' + guide.titleHtml;
     el('demoGuideCount').textContent = guide.index + ' of ' + guide.total + ' done';
     el('demoGuideBody').classList.toggle('d-none', collapsed);
@@ -72,7 +74,7 @@
   }
 
   el('demoGuideAction').addEventListener('click', function () {
-    if (this.dataset.finished) { return close(); }
+    if (this.dataset.finished) { return close().then(function () { window.location.href = backToDemo(); }); }
     var btn = this;
     // Done and Continue only advance the guide; a message is shown for a failure or for a step the simulator ran.
     var ran = btn.textContent === 'Run';
@@ -84,10 +86,11 @@
       .then(function () { btn.disabled = false; });
   });
 
+  function backToDemo() { return '/aisworg/seu/demo' + (guideArea ? '?category=' + encodeURIComponent(guideArea) : ''); }
   function close() {
     return fetch(base + '/close', { method: 'POST' }).then(function () { render(null); });
   }
-  el('demoGuideClose').addEventListener('click', function (e) { e.stopPropagation(); close(); });
+  el('demoGuideClose').addEventListener('click', function (e) { e.stopPropagation(); close().then(function () { window.location.href = backToDemo(); }); });
   el('demoGuideHeader').addEventListener('click', function () {
     collapsed = !collapsed;
     try { sessionStorage.setItem('demoGuideCollapsed', collapsed ? '1' : '0'); } catch (e) {}
