@@ -2251,7 +2251,9 @@
     "badges": [
       "root"
     ],
-    "roles": [],
+    "roles": [
+      "superuser"
+    ],
     "match_mode": "any"
   },
   {

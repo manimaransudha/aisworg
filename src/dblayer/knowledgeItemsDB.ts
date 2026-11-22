@@ -162,14 +162,18 @@ export const knowledgeItemsDB = {
     }
   },
 
-  async countByAcquisitionScope(seuId?: string): Promise<DbResult<Record<AcquisitionScope, number>>> {
+  async countByAcquisitionScope(seuId?: string, tenantId?: string): Promise<DbResult<Record<AcquisitionScope, number>>> {
     try {
+      const where: string[] = [];
+      const args: unknown[] = [];
+      if (seuId) { args.push(seuId); where.push(`seu_id = $${args.length}`); }
+      if (tenantId) { args.push(tenantId); where.push(`seu_id IN (SELECT id FROM seus WHERE tenant_id = $${args.length})`); }
       const { rows } = await query<{ acquisition_scope: AcquisitionScope; count: string }>(
         `SELECT acquisition_scope, COUNT(*)::text AS count
          FROM knowledge_items
-         ${seuId ? "WHERE seu_id = $1" : ""}
+         ${where.length ? "WHERE " + where.join(" AND ") : ""}
          GROUP BY acquisition_scope`,
-        seuId ? [seuId] : []
+        args
       );
       const byScope: Record<AcquisitionScope, number> = { SEU: 0, Capability: 0, Enterprise: 0, Platform: 0 };
       for (const row of rows) byScope[row.acquisition_scope] = Number(row.count);

@@ -42,8 +42,12 @@ export const qualityGateEvaluationsDB = {
     }
   },
 
-  async findLatencies(seuId?: string): Promise<DbResult<QualityGateLatencyRow[]>> {
+  async findLatencies(seuId?: string, tenantId?: string): Promise<DbResult<QualityGateLatencyRow[]>> {
     try {
+      const where: string[] = [];
+      const args: unknown[] = [];
+      if (seuId) { args.push(seuId); where.push(`qge.seu_id = $${args.length}`); }
+      if (tenantId) { args.push(tenantId); where.push(`qge.seu_id IN (SELECT id FROM seus WHERE tenant_id = $${args.length})`); }
       const { rows } = await query<QualityGateLatencyRow>(
         `SELECT
            qge.quality_gate_id,
@@ -58,11 +62,11 @@ export const qualityGateEvaluationsDB = {
            )) AS latency_seconds
          FROM quality_gate_evaluations qge
          JOIN quality_gate_definitions qg ON qg.id = qge.quality_gate_id
-         ${seuId ? "WHERE qge.seu_id = $1" : ""}
+         ${where.length ? "WHERE " + where.join(" AND ") : ""}
          GROUP BY qge.quality_gate_id, qg.name, qge.entity_id, qge.seu_id
          HAVING MIN(qge.evaluated_at) FILTER (WHERE qge.outcome = 'Passed') IS NOT NULL
          ORDER BY latency_seconds DESC`,
-        seuId ? [seuId] : []
+        args
       );
       return { data: rows };
     } catch (err) {
@@ -71,18 +75,22 @@ export const qualityGateEvaluationsDB = {
     }
   },
 
-  async findReworkByEntity(seuId?: string): Promise<DbResult<ReworkRow[]>> {
+  async findReworkByEntity(seuId?: string, tenantId?: string): Promise<DbResult<ReworkRow[]>> {
     try {
+      const where: string[] = [];
+      const args: unknown[] = [];
+      if (seuId) { args.push(seuId); where.push(`seu_id = $${args.length}`); }
+      if (tenantId) { args.push(tenantId); where.push(`seu_id IN (SELECT id FROM seus WHERE tenant_id = $${args.length})`); }
       const { rows } = await query<{ entity_type: string; entity_id: string; seu_id: string; blocked_count: string }>(
         `SELECT
            entity_type, entity_id, seu_id,
            COUNT(*) FILTER (WHERE outcome = 'Blocked')::text AS blocked_count
          FROM quality_gate_evaluations
-         ${seuId ? "WHERE seu_id = $1" : ""}
+         ${where.length ? "WHERE " + where.join(" AND ") : ""}
          GROUP BY entity_type, entity_id, seu_id
          HAVING COUNT(*) FILTER (WHERE outcome = 'Passed') > 0
          ORDER BY blocked_count DESC`,
-        seuId ? [seuId] : []
+        args
       );
       return { data: rows.map((r) => ({ entity_type: r.entity_type, entity_id: r.entity_id, seu_id: r.seu_id, blocked_count: Number(r.blocked_count) })) };
     } catch (err) {

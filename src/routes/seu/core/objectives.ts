@@ -214,7 +214,7 @@ export async function listObjectives(tenantId?: string | null): Promise<Objectiv
 
 export async function listCommissionableObjectives(tenantId?: string | null): Promise<ObjectiveListItem[]> {
   const all = await listObjectives(tenantId);
-  return all.filter((o) => o.commissionable);
+  return all.filter((o) => o.commissionable).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 // Commented out: no code and no test calls listSelectableObjectives.

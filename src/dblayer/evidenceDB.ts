@@ -165,14 +165,16 @@ export const evidenceDB = {
     }
   },
 
-  async count(seuId?: string): Promise<DbResult<number>> {
+  async count(seuId?: string, tenantId?: string): Promise<DbResult<number>> {
     try {
-      const { rows } = seuId
+      const { rows } = seuId || tenantId
         ? await query<{ count: string }>(
             `SELECT COUNT(DISTINCT e.id)::text AS count FROM evidence e
              JOIN evidence_relationships r ON r.evidence_id = e.id
-             WHERE r.related_object_type = 'SEU' AND r.related_object_id = $1`,
-            [seuId]
+             WHERE r.related_object_type = 'SEU'
+               ${seuId ? "AND r.related_object_id = $1" : ""}
+               ${tenantId ? `AND r.related_object_id IN (SELECT id FROM seus WHERE tenant_id = $${seuId ? 2 : 1})` : ""}`,
+            [...(seuId ? [seuId] : []), ...(tenantId ? [tenantId] : [])]
           )
         : await query<{ count: string }>("SELECT COUNT(*)::text AS count FROM evidence", []);
       return { data: Number(rows[0]?.count ?? 0) };

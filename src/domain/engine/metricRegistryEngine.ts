@@ -29,17 +29,19 @@ export interface MetricScope {
   seuId?: string;
   // The tenant the MetricCalculated event is recorded under. When omitted, the event takes the tenant of the system actor that publishes it.
   tenantId?: string;
+  // Limits every metric to the SEUs of this tenant. When omitted the metric spans all tenants (a root viewer).
+  viewTenantId?: string;
 }
 
 async function deliverableCycleTime(scope: MetricScope): Promise<FlowMetricsValue> {
-  const { data } = await deliverablesDB.findCycleTimes(scope.seuId);
+  const { data } = await deliverablesDB.findCycleTimes(scope.seuId, scope.viewTenantId);
   const rows = data ?? [];
   const averageCycleTimeSeconds = rows.length === 0 ? null : rows.reduce((sum, r) => sum + r.cycle_time_seconds, 0) / rows.length;
   return { deliverableCycleTimes: rows, averageCycleTimeSeconds };
 }
 
 async function qualityGateLatency(scope: MetricScope): Promise<GovernanceMetricsValue> {
-  const { data } = await qualityGateEvaluationsDB.findLatencies(scope.seuId);
+  const { data } = await qualityGateEvaluationsDB.findLatencies(scope.seuId, scope.viewTenantId);
   const rows = data ?? [];
 
   const byGate = new Map<string, { gateName: string; total: number; count: number }>();
@@ -64,7 +66,7 @@ export interface CommandVolumeValue {
 }
 
 async function commandGenerationCount(scope: MetricScope): Promise<CommandVolumeValue> {
-  const { data } = await runtimeTelemetryDB.countCommandsGenerated(scope.seuId);
+  const { data } = await runtimeTelemetryDB.countCommandsGenerated(scope.seuId, scope.viewTenantId);
   return { commandsGenerated: data ?? 0 };
 }
 
@@ -74,7 +76,7 @@ export interface DispatchLatencyValue {
 }
 
 async function dispatchLatency(scope: MetricScope): Promise<DispatchLatencyValue> {
-  const { data } = await runtimeTelemetryDB.findDispatchLatencies(scope.seuId);
+  const { data } = await runtimeTelemetryDB.findDispatchLatencies(scope.seuId, scope.viewTenantId);
   const rows = data ?? [];
   const averageDispatchLatencySeconds = rows.length === 0 ? null : rows.reduce((sum, r) => sum + r.latency_seconds, 0) / rows.length;
   return { dispatchLatencies: rows, averageDispatchLatencySeconds };
@@ -86,7 +88,7 @@ export interface WorkItemDurationValue {
 }
 
 async function workItemDuration(scope: MetricScope): Promise<WorkItemDurationValue> {
-  const { data } = await runtimeTelemetryDB.findWorkItemDurations(scope.seuId);
+  const { data } = await runtimeTelemetryDB.findWorkItemDurations(scope.seuId, scope.viewTenantId);
   const rows = data ?? [];
   const averageDurationSeconds = rows.length === 0 ? null : rows.reduce((sum, r) => sum + r.duration_seconds, 0) / rows.length;
   return { workItemDurations: rows, averageDurationSeconds };
@@ -98,7 +100,7 @@ export interface KnowledgeGrowthValue {
 }
 
 async function knowledgeGrowth(scope: MetricScope): Promise<KnowledgeGrowthValue> {
-  const { data } = await knowledgeItemsDB.countByAcquisitionScope(scope.seuId);
+  const { data } = await knowledgeItemsDB.countByAcquisitionScope(scope.seuId, scope.viewTenantId);
   const byAcquisitionScope = data ?? { SEU: 0, Capability: 0, Enterprise: 0, Platform: 0 };
   const totalKnowledgeItems = Object.values(byAcquisitionScope).reduce((sum, n) => sum + n, 0);
   return { totalKnowledgeItems, byAcquisitionScope };
@@ -109,7 +111,7 @@ export interface EvidenceGenerationValue {
 }
 
 async function evidenceGeneration(scope: MetricScope): Promise<EvidenceGenerationValue> {
-  const { data } = await evidenceDB.count(scope.seuId);
+  const { data } = await evidenceDB.count(scope.seuId, scope.viewTenantId);
   return { evidenceGenerated: data ?? 0 };
 }
 
@@ -122,7 +124,7 @@ export interface ReworkRateValue {
 }
 
 async function reworkRate(scope: MetricScope): Promise<ReworkRateValue> {
-  const { data } = await qualityGateEvaluationsDB.findReworkByEntity(scope.seuId);
+  const { data } = await qualityGateEvaluationsDB.findReworkByEntity(scope.seuId, scope.viewTenantId);
   const rows = data ?? [];
   const totalEntitiesMeasured = rows.length;
   const entitiesNeedingRework = rows.filter((r) => r.blocked_count > 0).length;
@@ -138,7 +140,7 @@ export interface AcceptanceRateValue {
 }
 
 async function deliverableAcceptanceRate(scope: MetricScope): Promise<AcceptanceRateValue> {
-  const { data } = await deliverablesDB.findLifecycleStateDistribution(scope.seuId);
+  const { data } = await deliverablesDB.findLifecycleStateDistribution(scope.seuId, scope.viewTenantId);
   const byLifecycleState = data ?? {};
   const totalDeliverables = Object.values(byLifecycleState).reduce((sum, n) => sum + n, 0);
   const acceptanceRate = totalDeliverables === 0 ? null : (byLifecycleState["Baselined"] ?? 0) / totalDeliverables;

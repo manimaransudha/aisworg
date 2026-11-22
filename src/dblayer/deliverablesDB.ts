@@ -91,8 +91,12 @@ export const deliverablesDB = {
     }
   },
 
-  async findCycleTimes(seuId?: string): Promise<DbResult<DeliverableCycleTimeRow[]>> {
+  async findCycleTimes(seuId?: string, tenantId?: string): Promise<DbResult<DeliverableCycleTimeRow[]>> {
     try {
+      const where: string[] = [];
+      const args: unknown[] = [];
+      if (seuId) { args.push(seuId); where.push(`d.seu_id = $${args.length}`); }
+      if (tenantId) { args.push(tenantId); where.push(`d.seu_id IN (SELECT id FROM seus WHERE tenant_id = $${args.length})`); }
       const { rows } = await query<DeliverableCycleTimeRow>(
         `SELECT
            d.id, d.name, d.seu_id, d.lifecycle_state, d.created_at,
@@ -100,10 +104,10 @@ export const deliverablesDB = {
            EXTRACT(EPOCH FROM (MAX(e.occurred_at) - d.created_at)) AS cycle_time_seconds
          FROM deliverables d
          JOIN events e ON e.originating_object_type = 'Deliverable' AND e.originating_object_id = d.id AND e.event_type = 'DeliverableTransitioned'
-         ${seuId ? "WHERE d.seu_id = $1" : ""}
+         ${where.length ? "WHERE " + where.join(" AND ") : ""}
          GROUP BY d.id
          ORDER BY cycle_time_seconds DESC`,
-        seuId ? [seuId] : []
+        args
       );
       return { data: rows };
     } catch (err) {
@@ -112,11 +116,15 @@ export const deliverablesDB = {
     }
   },
 
-  async findLifecycleStateDistribution(seuId?: string): Promise<DbResult<Record<string, number>>> {
+  async findLifecycleStateDistribution(seuId?: string, tenantId?: string): Promise<DbResult<Record<string, number>>> {
     try {
+      const where: string[] = [];
+      const args: unknown[] = [];
+      if (seuId) { args.push(seuId); where.push(`seu_id = $${args.length}`); }
+      if (tenantId) { args.push(tenantId); where.push(`seu_id IN (SELECT id FROM seus WHERE tenant_id = $${args.length})`); }
       const { rows } = await query<{ lifecycle_state: string; count: string }>(
-        `SELECT lifecycle_state, COUNT(*)::text AS count FROM deliverables ${seuId ? "WHERE seu_id = $1" : ""} GROUP BY lifecycle_state`,
-        seuId ? [seuId] : []
+        `SELECT lifecycle_state, COUNT(*)::text AS count FROM deliverables ${where.length ? "WHERE " + where.join(" AND ") : ""} GROUP BY lifecycle_state`,
+        args
       );
       const byState: Record<string, number> = {};
       for (const row of rows) byState[row.lifecycle_state] = Number(row.count);

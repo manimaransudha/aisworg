@@ -45,12 +45,14 @@ router.get("/telemetry", attachVM("seu/telemetry/index"), async (req: Request, r
     seus.seuId = seuId;
     // The MetricCalculated events are recorded under the viewer's tenant.
     const metricTenantId = sessionTenantId ?? undefined;
+    // Metrics span only the viewer's tenant's SEUs; a root viewer sees every tenant.
+    const viewTenantId = isRoot ? undefined : (sessionTenantId ?? undefined);
     const [flowMetrics, governanceMetrics, runtimeMetrics, knowledgeMetrics, qualityMetrics] = await Promise.all([
-      getFlowMetrics(seuId, metricTenantId),
-      getGovernanceMetrics(seuId, metricTenantId),
-      getRuntimeMetrics(seuId, metricTenantId),
-      getKnowledgeMetrics(seuId, metricTenantId),
-      getQualityMetrics(seuId, metricTenantId),
+      getFlowMetrics(seuId, metricTenantId, viewTenantId),
+      getGovernanceMetrics(seuId, metricTenantId, viewTenantId),
+      getRuntimeMetrics(seuId, metricTenantId, viewTenantId),
+      getKnowledgeMetrics(seuId, metricTenantId, viewTenantId),
+      getQualityMetrics(seuId, metricTenantId, viewTenantId),
       // listSeus(),
     ]);
 
@@ -69,6 +71,7 @@ router.get("/telemetry", attachVM("seu/telemetry/index"), async (req: Request, r
     req.vm.req.seuList = seus;
     req.vm.opt.listBasePath = "/aisworg/seu/telemetry";
     req.vm.opt.selectedSeuId = seuId ?? null;
+    req.vm.opt.tenantScoped = !isRoot;
     req.vm.opt.selectedSeuObjective = selectedObjective?.statement ?? null;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/telemetry/index", req.vm);

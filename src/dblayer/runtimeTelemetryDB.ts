@@ -2,12 +2,22 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, DispatchLatencyRow, WorkItemDurationRow } from "./seuTypes.js";
 
+// WHERE clause limiting a seu_id column to one SEU and/or to the SEUs of one tenant.
+function commandScope(seuColumn: string, seuId?: string, tenantId?: string): { where: string; args: unknown[] } {
+  const conds: string[] = [];
+  const args: unknown[] = [];
+  if (seuId) { args.push(seuId); conds.push(`${seuColumn} = $${args.length}`); }
+  if (tenantId) { args.push(tenantId); conds.push(`${seuColumn} IN (SELECT id FROM seus WHERE tenant_id = $${args.length})`); }
+  return { where: conds.length ? "WHERE " + conds.join(" AND ") : "", args };
+}
+
 export const runtimeTelemetryDB = {
-  async countCommandsGenerated(seuId?: string): Promise<DbResult<number>> {
+  async countCommandsGenerated(seuId?: string, tenantId?: string): Promise<DbResult<number>> {
     try {
+      const { where, args } = commandScope("seu_id", seuId, tenantId);
       const { rows } = await query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count FROM commands ${seuId ? "WHERE seu_id = $1" : ""}`,
-        seuId ? [seuId] : []
+        `SELECT COUNT(*)::text AS count FROM commands ${where}`,
+        args
       );
       return { data: Number(rows[0]?.count ?? 0) };
     } catch (err) {
@@ -16,8 +26,9 @@ export const runtimeTelemetryDB = {
     }
   },
 
-  async findDispatchLatencies(seuId?: string): Promise<DbResult<DispatchLatencyRow[]>> {
+  async findDispatchLatencies(seuId?: string, tenantId?: string): Promise<DbResult<DispatchLatencyRow[]>> {
     try {
+      const { where, args } = commandScope("c.seu_id", seuId, tenantId);
       const { rows } = await query<DispatchLatencyRow>(
         `SELECT
            c.id AS command_id, c.seu_id, c.command_type,
@@ -26,10 +37,10 @@ export const runtimeTelemetryDB = {
            EXTRACT(EPOCH FROM (MIN(e.occurred_at) - c.created_at)) AS latency_seconds
          FROM commands c
          JOIN events e ON e.correlation_id = c.correlation_id AND e.event_type = 'WorkItemDispatched'
-         ${seuId ? "WHERE c.seu_id = $1" : ""}
+         ${where}
          GROUP BY c.id, c.seu_id, c.command_type, c.created_at
          ORDER BY latency_seconds DESC`,
-        seuId ? [seuId] : []
+        args
       );
       return { data: rows };
     } catch (err) {
@@ -38,8 +49,9 @@ export const runtimeTelemetryDB = {
     }
   },
 
-  async findWorkItemDurations(seuId?: string): Promise<DbResult<WorkItemDurationRow[]>> {
+  async findWorkItemDurations(seuId?: string, tenantId?: string): Promise<DbResult<WorkItemDurationRow[]>> {
     try {
+      const { where, args } = commandScope("c.seu_id", seuId, tenantId);
       const { rows } = await query<WorkItemDurationRow>(
         `SELECT
            wi.id AS work_item_id, c.seu_id,
@@ -50,10 +62,10 @@ export const runtimeTelemetryDB = {
          JOIN commands c ON c.id = wi.command_id
          JOIN events e_start ON e_start.originating_object_type = 'WorkItem' AND e_start.originating_object_id = wi.id AND e_start.event_type = 'WorkItemStarted'
          JOIN events e_complete ON e_complete.originating_object_type = 'WorkItem' AND e_complete.originating_object_id = wi.id AND e_complete.event_type = 'WorkItemCompleted'
-         ${seuId ? "WHERE c.seu_id = $1" : ""}
+         ${where}
          GROUP BY wi.id, c.seu_id
          ORDER BY duration_seconds DESC`,
-        seuId ? [seuId] : []
+        args
       );
       return { data: rows };
     } catch (err) {
