@@ -175,6 +175,9 @@ export const REFERENCEABLE_PACK_STATUSES = ["Active", "Retired", "Archived"] as 
 // The transition entity type of an authoring kind whose name differs from it (CR-128). The Deliverable Definition has its own lifecycle apart from the runtime Deliverable.
 export const AUTHORING_KIND_ENTITY_TYPE = { Deliverable: "DeliverableDefinition" } as const;
 
+// The states in which an authoring row can be edited, for a kind whose editing runs past its birth state. A kind not listed is editable in its birth state only.
+export const EDITABLE_AUTHORING_STATES: Readonly<Record<string, readonly string[]>> = { Profile: ["Draft", "Validated"] };
+
 export const COMMENT_REQUIRED_POLICY_CODE = "policy-comment-required";
 export const MATERIALISE_TEMPLATE_POLICY_CODE = "policy-materialise-template";
 export const MATERIALISE_PROFILE_POLICY_CODE = "policy-materialise-profile";

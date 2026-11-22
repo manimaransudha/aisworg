@@ -56,7 +56,15 @@
            default will be created"). A chosen Template missing something
            else the Objective proposed isn't a blocker. %>
       <h2 class="h3 mb-1 text-dark fw-bold">Commission SEU from Objective</h2>
-      <p class="mb-4"><%= fromObjective.objective.statement %></p>
+      <div class="section-card mb-4" style="border-left: 6px solid var(--primary-dark) !important; background: color-mix(in srgb, var(--primary) 22%, var(--surface));">
+        <div class="px-4 py-3">
+          <div class="small text-uppercase fw-bold mb-2" style="letter-spacing: .08em; color: var(--primary-dark);">
+            <i class="bi bi-bullseye me-1"></i>Objective
+            <% if (fromObjective.objective.display_id) { %><span class="display-id-pill ms-2"><%= fromObjective.objective.display_id %></span><% } %>
+          </div>
+          <div class="fs-5 fw-semibold text-dark"><%= fromObjective.objective.statement %></div>
+        </div>
+      </div>
 
       <%# Bug fix (owner, 2026-09-06: "The corresponding objective should not
            allow any more commissioning requests against the same
@@ -117,24 +125,22 @@
              change needed). commissionSeu's own guard
              (core/commissioning.ts) is the real backstop; this is just the
              form matching that rule. %>
-        <%- include('../../partials/listControls', { list: list, listBasePath: '/aisworg/seu/seus/new', searchPlaceholder: 'Search profile / template / capability' }) %>
-        <div class="small text-muted mb-3">Sort:
-          <%- sortLink('Profile', 'profile', list, '/aisworg/seu/seus/new') %> &middot;
-          <%- sortLink('Code', 'code', list, '/aisworg/seu/seus/new') %> &middot;
-          <%- sortLink('Template', 'template', list, '/aisworg/seu/seus/new') %>
+        <%# Action toolbar sits directly under the Objective card (owner request); it
+             lies outside the form because the list controls below hold their own
+             GET form, so Save targets the commission form by id. %>
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
+          <span class="small text-muted">Choose one Profile below, then Save.</span>
+          <div class="d-flex gap-2 flex-shrink-0">
+            <% if (locals.canSave) { %>
+              <button type="submit" form="commission-form" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save</button>
+            <% } %>
+            <a href="/aisworg/seu/objectives/<%= fromObjective.objective.id %>" class="btn btn-link text-muted btn-sm">Cancel</a>
+          </div>
         </div>
-        <form method="POST" action="/aisworg/seu/seus">
+        <%- include('../../partials/listControls', { list: list, listBasePath: '/aisworg/seu/seus/new', searchPlaceholder: 'Search profile / template / capability' }) %>
+        <form method="POST" action="/aisworg/seu/seus" id="commission-form">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="hidden" name="objectiveId" value="<%= fromObjective.objective.id %>">
-          <div class="d-flex align-items-center justify-content-between gap-3 mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
-            <span class="small text-muted">Choose one Profile below, then Save.</span>
-            <div class="d-flex gap-2 flex-shrink-0">
-              <% if (locals.canSave) { %>
-                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save</button>
-              <% } %>
-              <a href="/aisworg/seu/objectives/<%= fromObjective.objective.id %>" class="btn btn-link text-muted btn-sm">Cancel</a>
-            </div>
-          </div>
 
           <div class="section-card">
             <div class="section-header">Available Profiles</div>

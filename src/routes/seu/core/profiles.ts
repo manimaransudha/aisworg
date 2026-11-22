@@ -293,7 +293,6 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   const ownCatalogue = (seed.deliverableCatalogue ?? []).filter((entry) => entry.code?.trim());
   const catalogueCodes = new Set((ownCatalogue.length > 0 ? ownCatalogue : baseTemplate?.deliverable_catalogue ?? []).map((entry) => entry.code));
   for (const [i, loc] of (seed.knowledgeLocations ?? []).entries()) {
-    if (!loc.outputLocation?.trim()) errors.push(`knowledgeLocations[${i}] needs a location`);
     for (const code of loc.deliverableCodes ?? []) {
       const { data: concept } = await ontologyDB.findConcept("deliverable-name", code.trim(), ontologyViewer);
       if (!concept) errors.push(`knowledgeLocations[${i}] references unknown deliverable-name code "${code}"`);

@@ -11,19 +11,6 @@
     "sortOrder": 1
   },
   {
-    "code": "create-new-ontology",
-    "area": "Declare",
-    "title": "Create new Ontology",
-    "playbook": [
-      "open-ontology",
-      "propose-ontology-code",
-      "review-ontology-approvals",
-      "approve-ontology-code"
-    ],
-    "enabled": false,
-    "sortOrder": 2
-  },
-  {
       "code": "view-existing-capability-definitions",
       "area": "Declare",
       "title": "What engineering competencies are available?",
@@ -32,9 +19,9 @@
         "browse-capability-definitions",
         "browse-designing-software-architecture"
       ],
-      "sortOrder": 3,
+      "sortOrder": 2,
       "enabled": true
-    },
+  },
   {
     "code": "copy-existing-capability-definition",
     "area": "Declare",
@@ -42,9 +29,10 @@
     "playbook": [
       "capability-definitions-note",
       "copy-capability-definition-note",
-      "copy-capability-definition"
+      "copy-capability-definition",
+      "edit-capability-definition"
     ],
-    "sortOrder": 4,
+    "sortOrder": 3,
     "enabled": true
   },
   {
@@ -53,15 +41,114 @@
     "title": "What engineering blueprint does the ArchVault Digital Shelf use?",
     "playbook": [
       "browse-templates-note",
-      "browse-templates"
+      "browse-templates",
+      "explore-mobile-templates"
     ],
-    "sortOrder": 5,
+    "sortOrder": 4,
     "enabled": true
+  },
+  {
+    "code": "copy-existing-profile",
+    "area": "Declare",
+    "title": "How do I tailor the Template for the ArchVault team?",
+    "playbook": [
+      "browse-profiles-note",
+      "browse-profiles",
+      "copy-profile-note",
+      "copy-profile",
+      "edit-deliverable-dependencies",
+      "edit-service-levels",
+      "validate-profile-note",
+      "validate-profile",
+      "publish-profile-note",
+      "publish-profile"
+    ],
+    "enabled": true,
+    "sortOrder": 5
+  },
+  {
+    "code": "publish-new-pack",
+    "area": "Declare",
+    "title": "I want the ArchVault team to follow a different checklist",
+    "playbook": [
+      "open-pack-authoring-note",
+      "open-pack-authoring",
+      "create-pack-draft-note",
+      "create-pack-draft",
+      "import-pack-contributions-note",
+      "import-pack-contributions",
+      "validate-pack-note",
+      "validate-pack",
+      "publish-pack-note",
+      "publish-pack"
+    ],
+    "enabled": true,
+    "sortOrder": 6
+  },
+  {
+    "code": "view-objectives",
+    "area": "Commission",
+    "title": "Decompose what you want to build as a hierarchy of Objectives",
+    "playbook": [
+      "browse-objectives-note",
+      "browse-objectives",
+      "objective-hierarchy-note",
+      "open-objective",
+      "propose-objective-note",
+      "propose-objective",
+      "activate-objective-note"
+    ],
+    "enabled": true,
+    "sortOrder": 1
+  },
+  {
+    "code": "commission-new-seu",
+    "area": "Commission",
+    "title": "Commission a Software Engineering Unit",
+    "playbook": [
+      "commission-seu-note",
+      "commission-seu",
+      "validate-commission-note",
+      "validate-commission",
+      "compose-ebm-note",
+      "compose-ebm",
+      "resolve-ebm-conflict-note",
+      "resolve-ebm-conflict"
+    ],
+    "sortOrder": 2
+  },
+  {
+    "code": "view-seus",
+    "area": "Commission",
+    "title": "View Software Engineering Units",
+    "playbook": [
+      "browse-seus-note",
+      "browse-seus",
+      "open-seu-note",
+      "open-seu",
+      "view-ebm-note",
+      "view-ebm"
+    ],
+    "sortOrder": 3
+  },
+  {
+    "code": "view-seu-execution",
+    "area": "Execution",
+    "title": "View Execution of Software Engineering Unit",
+    "playbook": [
+      "browse-seus-note",
+      "browse-seus",
+      "open-seu-note",
+      "open-seu",
+      "view-ebm-note",
+      "view-ebm"
+    ],
+    "sortOrder": 3
   },
   {
     "code": "copy-existing-template",
     "area": "Declare",
-    "title": "Copy an existing Template",
+    "title": "What software engineering blurpints are available?",
     "playbook": [
       "browse-templates-note",
       "browse-templates",
@@ -102,27 +189,10 @@
       "find-pack-in-registry-note",
       "find-pack-in-registry"
     ],
+    "enabled": false,
     "sortOrder": 12
   },
-  {
-    "code": "publish-new-pack",
-    "area": "Declare",
-    "title": "I want the ArchVault team to follow standards I specify",
-    "playbook": [
-      "open-pack-authoring-note",
-      "open-pack-authoring",
-      "create-pack-draft-note",
-      "create-pack-draft",
-      "import-pack-contributions-note",
-      "import-pack-contributions",
-      "validate-pack-note",
-      "validate-pack",
-      "publish-pack-note",
-      "publish-pack"
-    ],
-    "enabled": true,
-    "sortOrder": 13
-  },
+  
   {
     "code": "compose-new-pack",
     "area": "Declare",
@@ -143,32 +213,13 @@
   {
     "code": "view-existing-profiles",
     "area": "Declare",
-    "title": "View existing Profiles",
+    "title": "How do I view Profiles?",
     "playbook": [
       "browse-profiles-note",
       "browse-profiles"
     ],
     "enabled": false,
-    "sortOrder": 9
-  },
-  {
-    "code": "copy-existing-profile",
-    "area": "Declare",
-    "title": "Copy an existing Profile",
-    "playbook": [
-      "browse-profiles-note",
-      "browse-profiles",
-      "copy-profile-note",
-      "copy-profile",
-      "create-profile-change-service-level-note",
-      "create-profile-change-service-level",
-      "validate-profile-note",
-      "validate-profile",
-      "publish-profile-note",
-      "publish-profile"
-    ],
-    "enabled": false,
-    "sortOrder": 10
+    "sortOrder": 6
   },
   {
     "code": "publish-new-profile",
@@ -208,7 +259,8 @@
       "browse-deliverable-definitions-note",
       "browse-deliverable-definitions"
     ],
-    "sortOrder": 15
+    "sortOrder": 15,
+    "enabled": false
   },
   {
     "code": "copy-existing-deliverable-definition",
@@ -242,7 +294,8 @@
       "browse-service-definitions-note",
       "browse-service-definitions"
     ],
-    "sortOrder": 18
+    "sortOrder": 18,
+    "enabled": false
   },
   {
     "code": "copy-existing-service-definition",
@@ -276,7 +329,8 @@
       "browse-policy-definitions-note",
       "browse-policy-definitions"
     ],
-    "sortOrder": 21
+    "sortOrder": 21,
+    "enabled": false
   },
   {
     "code": "copy-existing-policy-definition",
@@ -326,7 +380,7 @@
   },
   {
     "code": "view-participants",
-    "area": "Declare",
+    "area": "Execute",
     "title": "View Participants",
     "playbook": [
       "browse-participants-note",
@@ -346,7 +400,8 @@
       "view-authority-mapping-note",
       "view-authority-mapping"
     ],
-    "sortOrder": 27
+    "sortOrder": 27,
+    "enabled": false
   },
   {
     "code": "add-authority-noun-scenario",
@@ -414,18 +469,6 @@
     "enabled": false
   },
   {
-    "code": "view-objectives",
-    "area": "Commission",
-    "title": "View Objectives",
-    "playbook": [
-      "browse-objectives-note",
-      "browse-objectives",
-      "open-objective-note",
-      "open-objective"
-    ],
-    "sortOrder": 1
-  },
-  {
     "code": "propose-new-objective",
     "area": "Commission",
     "title": "Propose a new Objective",
@@ -437,6 +480,7 @@
       "activate-objective-note",
       "activate-objective"
     ],
+    "enabled": false,
     "sortOrder": 2
   },
   {
@@ -453,6 +497,7 @@
       "move-objective-note",
       "move-objective"
     ],
+    "enabled": false,
     "sortOrder": 3
   },
   {
@@ -467,6 +512,7 @@
       "archive-objective-note",
       "archive-objective"
     ],
+    "enabled": false,
     "sortOrder": 4
   },
   {
@@ -479,6 +525,7 @@
       "reject-objective-note",
       "reject-objective"
     ],
+    "enabled": false,
     "sortOrder": 5
   },
   {
@@ -493,37 +540,8 @@
       "compose-ebm-note",
       "compose-ebm"
     ],
+    "enabled": false,
     "sortOrder": 6
-  },
-  {
-    "code": "view-seus",
-    "area": "Commission",
-    "title": "View Software Engineering Units",
-    "playbook": [
-      "browse-seus-note",
-      "browse-seus",
-      "open-seu-note",
-      "open-seu",
-      "view-ebm-note",
-      "view-ebm"
-    ],
-    "sortOrder": 7
-  },
-  {
-    "code": "commission-new-seu",
-    "area": "Commission",
-    "title": "Commission a Software Engineering Unit",
-    "playbook": [
-      "commission-seu-note",
-      "commission-seu",
-      "view-ebm-note",
-      "view-ebm",
-      "move-ebm-state-note",
-      "move-ebm-state",
-      "move-seu-state-note",
-      "move-seu-state"
-    ],
-    "sortOrder": 8
   },
   {
     "code": "staff-an-seu",
@@ -539,6 +557,7 @@
       "release-capability-note",
       "release-capability"
     ],
+    "enabled": false,
     "sortOrder": 9
   },
   {
@@ -742,5 +761,18 @@
     ],
     "sortOrder": 16,
     "enabled": false
+  },
+  {
+    "code": "create-new-ontology",
+    "area": "Declare",
+    "title": "Create new Ontology",
+    "playbook": [
+      "open-ontology",
+      "propose-ontology-code",
+      "review-ontology-approvals",
+      "approve-ontology-code"
+    ],
+    "enabled": false,
+    "sortOrder": 2
   }
 ]

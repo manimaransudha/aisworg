@@ -1647,9 +1647,6 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": [
-              "outputLocation"
-            ],
             "properties": {
               "deliverableCodes": {
                 "type": "array",
@@ -1915,7 +1912,6 @@
             "properties": {
               "code": {
                 "type": "string",
-                "x-help": "A Deliverable from the base Template's catalogue.",
                 "x-ontology": true,
                 "x-referential": "deliverable-name"
               }
@@ -1949,7 +1945,8 @@
               },
               "requiredState": {
                 "type": "string",
-                "default": "Approved"
+                "default": "Approved",
+                "x-referential": "deliverable-state"
               },
               "relationshipKind": {
                 "enum": [
@@ -2283,7 +2280,8 @@
               },
               "requiredState": {
                 "type": "string",
-                "default": "Approved"
+                "default": "Approved",
+                "x-referential": "deliverable-state"
               },
               "relationshipKind": {
                 "enum": [

@@ -313,3 +313,6 @@ What it doesn't do: it creates no Command, makes no call into the Execution Engi
 Stale event text: the eventSubscriptions.json description says completeWorkItem publishes DeliverableTransitioned. It no longer does.
 Result for this SEU: the Deliverable stays In Progress after "Done". Nothing evaluates the In Progress → Approved gates until someone requests Approve.
 Is "Done" meant to trigger the Execution Engine to request In Progress → Approved, or is it a separate step? I'll add your answer to the CR as a design point if you want it there.
+
+
+\n\n<span style=\"color: red\">Demo allows you to create and edit Objectives. You may not be able to activate them.</span>

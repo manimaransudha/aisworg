@@ -32,12 +32,10 @@
     <div class="d-flex align-items-center justify-content-end gap-2 mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
       <% var _ebm = locals.ebmConflicts || {}; %>
       <% var _ebmTotal = 0; var _ebmOpen = 0; Object.keys(_ebm).forEach(function(t) { (_ebm[t] || []).forEach(function(c) { _ebmTotal++; if (!c.notice && (c.resolution === null || c.resolution === undefined)) _ebmOpen++; }); }); %>
-      <% if (!locals.pending && _ebmTotal > 0) { %>
+      <% if (_ebmTotal > 0) { %>
         <a href="/aisworg/seu/objectives/<%= objectiveId %>/resolve-conflicts" class="btn btn-<%= _ebmOpen > 0 ? 'warning' : 'outline-secondary' %> btn-sm"><i class="bi bi-exclamation-diamond me-1"></i>Resolve Conflicts<%= _ebmOpen > 0 ? ' (' + _ebmOpen + ')' : '' %></a>
       <% } %>
-      <% if (locals.pending) { %>
-        <button type="submit" form="compose-pending-form" class="btn btn-primary btn-sm"><i class="bi bi-play-fill me-1"></i>Compose</button>
-      <% } else if (_barConflicts.length) { %>
+      <% if (_barConflicts.length) { %>
         <button type="submit" form="compose-conflicts-form" class="btn btn-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Apply &amp; re-validate</button>
         <a href="/aisworg/seu/seus/new?objectiveId=<%= objectiveId %>" class="btn btn-outline-secondary btn-sm">Back to selection</a>
       <% } else if (locals.seuId) { %>
@@ -45,25 +43,6 @@
       <% } %>
       <a href="/aisworg/seu/objectives/<%= objectiveId %>" class="btn btn-link text-muted btn-sm">Cancel</a>
     </div>
-
-    <%# design/mvp-build-plan/SEU Composition.md, 2026-09-07 — owner: "handler
-         have to check for the manual transition definition" — Compose EBM is
-         a manual transition; nothing runs it automatically off
-         CommissionValidated any more (ebmComposerHandler's own subscription
-         is gone). A human has to click this. %>
-    <% if (locals.pending) { %>
-      <div class="section-card">
-        <div class="p-3 text-center">
-          <p class="text-muted small mb-3">Validate Request passed. Nothing has been composed yet.</p>
-          <form id="compose-pending-form" method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <% (typeof selections !== 'undefined' ? selections : []).forEach(function(s) { %>
-              <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
-            <% }) %>
-          </form>
-        </div>
-      </div>
-    <% } %>
 
     <% var report = compositionReport; %>
     <% var resolved = (typeof resolvedParameterOverrides !== 'undefined' && resolvedParameterOverrides) ? resolvedParameterOverrides : {}; %>
@@ -107,16 +86,6 @@
          return String(value);
        } %>
 
-    <%# Bug fix (owner: "in addition to the Compose button, the
-         Composition — everything this selection resolves to, success flash
-         etc are visible by default") — isReady is derived purely from
-         compositionConflicts.length === 0, which is ALSO true on a genuinely
-         blank pending page (nothing composed yet means zero conflicts too,
-         not because it succeeded). Every results card below (profile
-         details, the resolved pool, warnings, the conflicts-resolution
-         form, and the isReady success alert) now only renders once there's
-         real content to show — i.e. NOT pending. %>
-    <% if (!locals.pending) { %>
     <% profileDetails.forEach(function(pd) { %>
       <div class="section-card">
         <div class="section-header"><i class="bi bi-person-badge me-1"></i><%= pd.profileName %> <code class="text-muted small"><%= pd.profileCode %></code></div>
@@ -303,7 +272,6 @@
         </div>
       <% } %>
 
-    <% } %>
     <% } %>
 
   </main>

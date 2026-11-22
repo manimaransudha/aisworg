@@ -54,7 +54,7 @@ import {
 } from "../core/authorityVocabulary.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import type { SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateDependencyGraphEntry } from "../../../dblayer/seuTypes.js";
-import { getPlatformTenantId, INITIAL_VERSION, TRANSITION_DEFINITION_DEFINE_BADGE } from "../../../dblayer/constants.js";
+import { getPlatformTenantId, INITIAL_VERSION, TRANSITION_DEFINITION_DEFINE_BADGE, EDITABLE_AUTHORING_STATES } from "../../../dblayer/constants.js";
  
 const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "pack-authoring": "Pack",
@@ -216,7 +216,7 @@ router.get("/sdk/:slug", requireAuthoring(), attachVM("seu/sdk/authoring/index")
       const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth(entityTypeForKind(kind));
       if (birthError) throw birthError;
       if (!birth) throw new Error(`no birth Transition Definition for ${kind}`);
-      req.vm.opt.editableStatus = birth.to_state;
+      req.vm.opt.editableStates = EDITABLE_AUTHORING_STATES[kind] ?? [birth.to_state];
     } else {
       req.vm.req.rows = [];
       req.vm.req.canCreate = false;
@@ -648,7 +648,7 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   if (birthError) throw birthError;
   if (!birth) throw new Error(`no birth Transition Definition for ${kind}`);
   const initialState = birth.to_state;
-  const isDraft = !draft || draft.status === initialState;
+  const isDraft = !draft || (EDITABLE_AUTHORING_STATES[kind] ?? [initialState]).includes(draft.status);
   const hop = await nextHop(kind, draft ? draft.status : initialState);
   const advanceBadges = hop ? await requiredBadgeForRowAction(kind, draft ? draft.status : initialState, { endpoint: "publish" }) : null;
   const canAdvance = !!hop && (advanceBadges ?? []).some((b) => held.has(b));
@@ -683,6 +683,7 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   req.vm.req.groups = groupFieldsForDisplay(schema, generatedFields);
   req.vm.req.contentJson = JSON.stringify(draft?.content ?? {}, null, 2);
   req.vm.req.canEdit = canDefine && isDraft;
+  req.vm.req.resetsToDraft = !!draft && draft.status !== initialState;
   req.vm.req.canPublish = canAdvance;
   req.vm.req.nextState = hop?.toState ?? null;
   req.vm.req.nextVerb = hop?.verb ?? null;
@@ -878,6 +879,15 @@ router.post("/sdk/:slug/:draftId/save", requireDraftTenantScope(), requireDefine
     if (kind === "Profile") reconstructProfileParameterOverrides(req.body ?? {});
     const content = parseFormBody(schema, req.body ?? {});
     const actorId = requireActorId(req);
+    // A save of a row past its birth state returns it to the birth state first, through that state's own governed transition.
+    const { data: birth } = await transitionDefinitionsDB.findBirth(entityTypeForKind(kind));
+    if (draft && birth && draft.status !== birth.to_state) {
+      const reason = typeof req.body?.editReason === "string" ? req.body.editReason.trim() : "";
+      if (!reason) return redirects.seu.sdkSave.error(req, res, `A reason is required to edit a ${draft.status} ${kind}.`);
+      const reset = await transitionEntity({ entityType: entityTypeForKind(kind), entityId: draftId, targetState: birth.to_state, actorId, context: { comment: reason } });
+      if (!reset.ok) return redirects.seu.sdkSave.error(req, res, `Return to ${birth.to_state} blocked: ${"detail" in reset ? reset.detail : reset.reason}`);
+      await publishTransition(reset);
+    }
     const saved = await saveAuthoringDraft({ kind, id: draftId, content, actorId });
     if (!saved.ok) return redirects.seu.sdkSave.error(req, res, saved.errors.join("; "));
     const errors = validateAgainstSchema(schema, content);

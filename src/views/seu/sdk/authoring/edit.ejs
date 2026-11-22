@@ -206,6 +206,9 @@
       <% if (canEdit || canPublish) { %>
         <div class="authoring-action-bar">
           <div class="container d-flex gap-2 align-items-center">
+            <% if (canEdit && resetsToDraft) { %>
+              <input type="text" name="editReason" class="form-control form-control-sm" style="width: auto; min-width: 280px;" placeholder="Reason for editing (saving returns it to Draft)" required>
+            <% } %>
             <% if (canEdit) { %>
               <%# Bug fix (owner: "Clicking on create draft seems to do
                   nothing") — every Contribution-type tab always renders one

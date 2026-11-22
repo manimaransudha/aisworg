@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateProfileWriteAgainstSchema } from "../routes/seu/core/profileWriteValidator.js";
 import type { DbResult, ProfileRow, ProfileDetailSource } from "./seuTypes.js";
-import { getPlatformTenantId, INITIAL_VERSION } from "./constants.js";
+import { getPlatformTenantId, INITIAL_VERSION, EDITABLE_AUTHORING_STATES } from "./constants.js";
  
 
 export type ProfileOptionRow = Pick<ProfileRow, "id" | "code" | "name" | "profile_version">;
@@ -197,8 +197,8 @@ export const profilesDB = {
 
       const { rows } = await query<ProfileRow>(
         `UPDATE profiles SET name = $2, base_template_id = $3, environment = $4, draft_content = $5, profile_version = $6
-         WHERE id = $1 AND status = 'Draft' RETURNING *`,
-        [id, input.name, input.baseTemplateId, environment, JSON.stringify(input.draftContent), input.profileVersion]
+         WHERE id = $1 AND status = ANY($7::text[]) RETURNING *`,
+        [id, input.name, input.baseTemplateId, environment, JSON.stringify(input.draftContent), input.profileVersion, EDITABLE_AUTHORING_STATES.Profile]
       );
       return { data: rows[0] };
     } catch (err) {

@@ -101,7 +101,14 @@
                   <% if (detail.deliverables.length === 0) { %>
                     <tr><td colspan="7" class="text-muted small">No Deliverable instances yet — created once commissioning reaches Create Engineering Assets.</td></tr>
                   <% } %>
-                  <% detail.deliverables.forEach(function(d) { %>
+                  <%# Sorted by Quality Gate Outcome (owner): alphabetical by outcome, Deliverables with no outcome decided yet last, then by name. A copy is sorted, so the Deliverable pickers on the other tabs keep their order. %>
+                  <% var gateOutcomeKey = function(d) { return d.qualityGateOutcomes.map(function(o) { return o.outcome; }).sort().join(', '); };
+                     var deliverablesByOutcome = detail.deliverables.slice().sort(function(a, b) {
+                       var ka = gateOutcomeKey(a), kb = gateOutcomeKey(b);
+                       if (!ka !== !kb) return ka ? -1 : 1;
+                       return ka.localeCompare(kb) || a.name.localeCompare(b.name);
+                     }); %>
+                  <% deliverablesByOutcome.forEach(function(d) { %>
                     <tr>
                       <td class="small"><%= d.name %><br><span class="text-muted" style="font-size:0.72rem;"><% if (d.category) { %><%= d.category %> &middot; <% } %>Acquisition Scope: <%= d.acquisitionScope %></span></td>
                       <td><span class="state-badge state-<%= d.lifecycleState.replace(/\s+/g, '-') %>"><%= d.lifecycleState %></span></td>

@@ -6,7 +6,7 @@ import type { JsonSchemaDocument, JsonSchemaProperty } from "../../../domain/sdk
 import { listConceptsForType } from "./ontology.js";
 import { listActiveNouns, activeMappingByNoun } from "./authorityVocabulary.js";
 import { validateChecklistIds, validatePolicyCodes } from "./packs.js";
-import { REFERENCEABLE_PACK_STATUSES } from "../../../dblayer/constants.js";
+import { BIRTH_STATE, REFERENCEABLE_PACK_STATUSES } from "../../../dblayer/constants.js";
 import { PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes } from "./templates.js";
 
 type Viewer = { isRoot: boolean; tenantId: string | null };
@@ -45,6 +45,17 @@ const SOURCE_LOADERS: Record<string, (viewer: Viewer) => Promise<string[]>> = {
   "worktype-name": conceptCodes("worktype-name"),
   "dispatch-strategy-preference": conceptCodes("dispatch-strategy-preference"),
   "transition-definition": async () => (await transitionDefinitionsDB.listActiveEdges()).data ?? [],
+  // The states a Deliverable can be in, in lifecycle order: walked from the birth state along the active Deliverable transitions.
+  "deliverable-state": async () => {
+    const edges = ((await transitionDefinitionsDB.listActiveEdges("Deliverable")).data ?? []).map((e) => e.split("|"));
+    const ordered: string[] = [];
+    const queue = [BIRTH_STATE];
+    while (queue.length) {
+      const from = queue.shift()!;
+      for (const [, edgeFrom, edgeTo] of edges) if (edgeFrom === from && edgeTo !== BIRTH_STATE && !ordered.includes(edgeTo)) { ordered.push(edgeTo); queue.push(edgeTo); }
+    }
+    return ordered;
+  },
   "quality-gate-code": async (viewer) => {
     const { data } = viewer.isRoot || !viewer.tenantId ? await qualityGateDefinitionsDB.findAll() : await qualityGateDefinitionsDB.findAllVisibleTo(viewer.tenantId);
     return [...new Set((data ?? []).filter((g) => g.status === "Active").map((g) => g.code))].sort();

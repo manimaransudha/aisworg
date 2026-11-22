@@ -844,7 +844,7 @@
                 <option value="<%= code %>" <%= (row.toCode || '') === code ? 'selected' : '' %>><%= deliverableLabels[code] || code %></option>
               <% }) %>
             </select>
-            <% if (toCodeField && toCodeField.help) { %><% if (canEdit) { %><div class="form-text small"><%= toCodeField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= toCodeField.help %>" aria-label="Help"></i><% } %><% } %>
+            <% if (toCodeField && toCodeField.help) { %><% if (canEdit) { %><div class="form-text small form-help"><%= toCodeField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= toCodeField.help %>" aria-label="Help"></i><% } %><% } %>
           </div>
           <div class="col-sm-6">
             <label class="form-label small text-muted mb-1"><%= (fromCodeField && fromCodeField.label) || ilabel('fromCode') %></label>
@@ -857,8 +857,17 @@
           </div>
           <div class="col-sm-6">
             <label class="form-label small text-muted mb-1"><%= (requiredStateField && requiredStateField.label) || ilabel('requiredState') %></label>
-            <input name="<%= field.name %>[<%= i %>][requiredState]" class="form-control form-control-sm" value="<%= row.requiredState || '' %>" <%- canEdit ? '' : 'disabled' %>>
-            <% if (requiredStateField && requiredStateField.help) { %><% if (canEdit) { %><div class="form-text small"><%= requiredStateField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= requiredStateField.help %>" aria-label="Help"></i><% } %><% } %>
+            <% var deliverableStates = (locals.referentialOptions || {})['deliverable-state'] || []; var storedRequiredState = row.requiredState || ''; %>
+            <select name="<%= field.name %>[<%= i %>][requiredState]" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
+              <option value="">— Required State —</option>
+              <% deliverableStates.forEach(function(st) { %>
+                <option value="<%= st %>" <%= storedRequiredState === st ? 'selected' : '' %>><%= st %></option>
+              <% }) %>
+              <% if (storedRequiredState && deliverableStates.indexOf(storedRequiredState) === -1) { %>
+                <option value="<%= storedRequiredState %>" selected>&#9888; <%= storedRequiredState %> (not a Deliverable state)</option>
+              <% } %>
+            </select>
+            <% if (requiredStateField && requiredStateField.help) { %><% if (canEdit) { %><div class="form-text small form-help"><%= requiredStateField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= requiredStateField.help %>" aria-label="Help"></i><% } %><% } %>
           </div>
           <div class="col-sm-6">
             <label class="form-label small text-muted mb-1"><%= (relationshipKindField && relationshipKindField.label) || ilabel('relationshipKind') %></label>
@@ -867,7 +876,7 @@
                 <option value="<%= opt %>" <%= (row.relationshipKind || 'dependency') === opt ? 'selected' : '' %>><%= opt %></option>
               <% }) %>
             </select>
-            <% if (relationshipKindField && relationshipKindField.help) { %><% if (canEdit) { %><div class="form-text small"><%= relationshipKindField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= relationshipKindField.help %>" aria-label="Help"></i><% } %><% } %>
+            <% if (relationshipKindField && relationshipKindField.help) { %><% if (canEdit) { %><div class="form-text small form-help"><%= relationshipKindField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= relationshipKindField.help %>" aria-label="Help"></i><% } %><% } %>
           </div>
         </div>
       <% } else { %>
@@ -983,7 +992,7 @@
                         <% } else { %>
                           <input name="<%= nestedInputName %>" class="form-control form-control-sm" value="<%= nestedValue %>" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>>
                         <% } %>
-                        <% if (nestedField.help) { %><% if (canEdit) { %><div class="form-text small"><%= nestedField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= nestedField.help %>" aria-label="Help"></i><% } %><% } %>
+                        <% if (nestedField.help) { %><% if (canEdit) { %><div class="form-text small form-help"><%= nestedField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= nestedField.help %>" aria-label="Help"></i><% } %><% } %>
                       </div>
                     <% }) %>
                   </div>
@@ -1089,7 +1098,7 @@
                                   <option value="<%= opt %>" <%= _nestedSelectedMulti.indexOf(opt) !== -1 ? 'selected' : '' %>><%= opt %></option>
                                 <% }) %>
                               </select>
-                              <div class="form-text small">Ctrl/Cmd-click to select more than one.</div>
+                              <div class="form-text small form-help">Ctrl/Cmd-click to select more than one.</div>
                             <% } else if (nestedField.kind === 'generated') { %>
                               <%# Owner: "identifier: system generated" —
                                   never author-editable; a disabled input
@@ -1178,7 +1187,7 @@
                                       <% } else { %>
                                         <input name="<%= subInputName %>" class="form-control form-control-sm" value="<%= subValue %>" <%- canEdit ? '' : 'disabled' %> <%- subRequired ? 'required' : '' %>>
                                       <% } %>
-                                      <% if (subField.help) { %><% if (canEdit) { %><div class="form-text small"><%= subField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= subField.help %>" aria-label="Help"></i><% } %><% } %>
+                                      <% if (subField.help) { %><% if (canEdit) { %><div class="form-text small form-help"><%= subField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= subField.help %>" aria-label="Help"></i><% } %><% } %>
                                     </div>
                                   <% }) %>
                                 </div>
@@ -1190,7 +1199,7 @@
                             <% } else { %>
                               <input name="<%= nestedInputName %>" class="form-control form-control-sm" value="<%= nestedValue %>" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>>
                             <% } %>
-                            <% if (nestedField.help) { %><% if (canEdit) { %><div class="form-text small"><%= nestedField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= nestedField.help %>" aria-label="Help"></i><% } %><% } %>
+                            <% if (nestedField.help) { %><% if (canEdit) { %><div class="form-text small form-help"><%= nestedField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= nestedField.help %>" aria-label="Help"></i><% } %><% } %>
                           </div>
                         <% }) %>
                       </div>
@@ -1225,7 +1234,7 @@
                       <option value="<%= opt.id %>" <%= (_selectedMultiRefs.indexOf(opt.id) !== -1 || _selectedMultiRefs.indexOf(opt.name) !== -1) ? 'selected' : '' %>><%= opt.name %> — <%= opt.packName %></option>
                     <% }) %>
                   </select>
-                  <div class="form-text small">Ctrl/Cmd-click to select more than one.</div>
+                  <div class="form-text small form-help">Ctrl/Cmd-click to select more than one.</div>
                 <% } else if ((locals.ontologyOptions || {})[itemField.referentialSource]) { %>
                   <%# An Ontology-backed multi-select (Profile knowledge locations' deliverableCodes): option
                       list is ontologyOptions[source], which the route narrows to the Base template's catalogue. %>
@@ -1234,7 +1243,7 @@
                       <option value="<%= opt.code %>" <%= _selectedMultiRefs.indexOf(opt.code) !== -1 ? 'selected' : '' %>><%= opt.label %></option>
                     <% }) %>
                   </select>
-                  <div class="form-text small">Ctrl/Cmd-click to select more than one.</div>
+                  <div class="form-text small form-help">Ctrl/Cmd-click to select more than one.</div>
                 <% } else { %>
                   <%# Owner: "Add only deliverable name and allow multiple
                       transitions" — Policy's own applicabilityDeliverables[].transitions,
@@ -1254,7 +1263,7 @@
                       <option value="<%= opt %>" <%= _selectedMultiRefs.indexOf(opt) !== -1 ? 'selected' : '' %>><%= _parts.length === 3 ? (_parts[0] + ': ' + _parts[1] + ' → ' + _parts[2]) : opt %></option>
                     <% }) %>
                   </select>
-                  <div class="form-text small">Ctrl/Cmd-click to select more than one — already filtered to this row's own entity type (policyTransitionFilter.js).</div>
+                  <div class="form-text small form-help">Ctrl/Cmd-click to select more than one — already filtered to this row's own entity type (policyTransitionFilter.js).</div>
                 <% } %>
               <% } else if (itemField.kind === 'referential' && itemField.referentialSource.indexOf('pack-code') === 0) { %>
                 <%# Owner: "Why is code not auto generated?... Pack code
@@ -1312,7 +1321,7 @@
                 <% var _selectedOntItem = _ontItemOpts.find(function(opt) { return opt.code === value; }); %>
                 <% var _selDescHtml = renderMarkdown((_selectedOntItem && _selectedOntItem.description) || ''); %>
                 <%# The description is a hover link, not inline text; its popover body is the rendered markdown (referentialListGroup.js keeps it in step with the selection). %>
-                <div class="form-text small"><span class="rlg-desc-link text-primary text-decoration-underline<%= _selDescHtml ? '' : ' d-none' %>" role="button" tabindex="0" data-autofill-from="<%= itemField.name %>" data-autofill-attr="description-html" data-autofill-popover="1" data-bs-content="<%= _selDescHtml %>">description</span></div>
+                <div class="form-text small form-help"><span class="rlg-desc-link text-primary text-decoration-underline<%= _selDescHtml ? '' : ' d-none' %>" role="button" tabindex="0" data-autofill-from="<%= itemField.name %>" data-autofill-attr="description-html" data-autofill-popover="1" data-bs-content="<%= _selDescHtml %>">description</span></div>
               <% } else if (itemField.kind === 'referential-dynamic') { %>
                 <%# CR-100 — Competency's own `value`, driven by this same
                     row's own `dimension` (e.g. "Technology" -> concept type
@@ -1411,7 +1420,7 @@
               <% } else { %>
                 <input name="<%= inputName %>" class="form-control form-control-sm"<%- itemField.sensitive ? ' type="password" autocomplete="off"' : '' %> value="<%= value %>" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>>
               <% } %>
-              <% if (itemField.help) { %><% if (canEdit) { %><div class="form-text small"><%= itemField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= itemField.help %>" aria-label="Help"></i><% } %><% } %>
+              <% if (itemField.help) { %><% if (canEdit) { %><div class="form-text small form-help"><%= itemField.help %></div><% } else { %><i class="bi bi-info-circle text-primary ms-1" title="<%= itemField.help %>" aria-label="Help"></i><% } %><% } %>
             </div>
           <% }) %>
         </div>

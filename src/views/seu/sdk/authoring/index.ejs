@@ -64,7 +64,7 @@
                   <td class="text-muted small"><%= new Date(r.createdAt).toLocaleString() %></td>
                   <td class="text-nowrap">
                     <a class="btn btn-sm btn-outline-primary" href="<%= locals.viewBase %>/<%= r.id %>">View</a>
-                    <% if (canCreate && r.status === locals.editableStatus && (locals.viewerIsRoot || r.tenantId === locals.viewerTenantId)) { %>
+                    <% if (canCreate && (locals.editableStates || []).includes(r.status) && (locals.viewerIsRoot || r.tenantId === locals.viewerTenantId)) { %>
                       <a class="btn btn-sm btn-outline-secondary" href="/aisworg/seu/sdk/<%= slug %>/<%= r.id %>">Edit</a>
                     <% } %>
                     <% (r.actions || []).forEach(function(a) { %>

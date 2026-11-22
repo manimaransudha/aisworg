@@ -241,7 +241,7 @@
                   <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %> <% if (f.help && !canEdit) { %><i class="bi bi-info-circle text-primary ms-1" title="<%= f.help %>" aria-label="Help"></i><% } %></label>
                   <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, serviceDefinitionOptions: locals.serviceDefinitionOptions, renderMarkdown: locals.renderMarkdown, fieldValueByName: fieldValueByName }) %>
                   <% if (f.name === 'dependencyGraph' && locals.dependencyGraphLayout !== undefined) { %><div class="mt-3"><div class="small fw-semibold mb-1">Graph</div><div class="form-text small mb-2">This graph shows the saved dependencies. Changes made above appear here after you save.</div><%- include('_dependencyGraphSvg', { graph: locals.dependencyGraphLayout }) %></div><% } %>
-                  <% if (f.help && canEdit) { %><div class="form-text small"><%= f.help %></div><% } %>
+                  <% if (f.help && canEdit) { %><div class="form-text small form-help"><%= f.help %></div><% } %>
                 </div>
               <% } else { %>
               <%# CR-081 — Pack's own `category` forced full-width (owner:
@@ -280,7 +280,7 @@
                 <div class="col-md-6">
                   <label class="form-label small fw-semibold">Existing versions</label>
                   <div class="pack-code-versions small"></div>
-                  <div class="form-text small">Pick one to start this new Draft from its content. Its own version is computed automatically once Code is chosen — shown next to Name.</div>
+                  <div class="form-text small form-help">Pick one to start this new Draft from its content. Its own version is computed automatically once Code is chosen — shown next to Name.</div>
                 </div>
                 <% } %>
                 <input type="hidden" name="packVersion" id="packVersion-field" value="<%= f.value %>">
@@ -391,7 +391,7 @@
                       <button type="button" class="btn btn-outline-secondary next-version-btn" data-version-target="<%= f.name %>-field"><i class="bi bi-arrow-up-circle me-1"></i>Next version</button>
                     <% } %>
                   </div>
-                  <div class="form-text small">Auto-generated — semver, bumped by the button, never hand-typed.</div>
+                  <div class="form-text small form-help">Auto-generated — semver, bumped by the button, never hand-typed.</div>
                 <% } else if (f.kind === 'string') { %>
                   <input name="<%= f.name %>" class="form-control form-control-sm" value="<%= f.value %>" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
                 <% } else if (f.kind === 'textarea') { %>
@@ -467,7 +467,7 @@
                     <input id="<%= f.name %>-field" name="<%= f.name %>" class="form-control form-control-sm ontology-combo-input" autocomplete="off" value="<%= f.value %>" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
                     <div class="ontology-combo-menu"></div>
                   </div>
-                  <div class="form-text small">Click or start typing to browse existing codes for the chosen category, or type a new one — publishing is blocked until it's a real, registered Ontology concept.</div>
+                  <div class="form-text small form-help">Click or start typing to browse existing codes for the chosen category, or type a new one — publishing is blocked until it's a real, registered Ontology concept.</div>
                 <% } else if (f.kind === 'referential-select' && f.ontology && f.composable) { %>
                   <%# x-ontology-composable on a single-value field: the same
                       on-page combo box as Pack's `code` (dynamicOntologyField.js),
@@ -562,7 +562,7 @@
                       </div>
                     <% }) %>
                   </div>
-                  <div class="form-text small">Dimmed policies don't obviously govern a deliverable-name this Pack's own declared Capabilities currently produce — check them anyway if you know better; nothing here is enforced.</div>
+                  <div class="form-text small form-help">Dimmed policies don't obviously govern a deliverable-name this Pack's own declared Capabilities currently produce — check them anyway if you know better; nothing here is enforced.</div>
                 <% } else if (f.kind === 'referential-multi-select' && f.driverField) { %>
                   <%# Owner: "what kind of coding is this? isn't this
                       fundamental?" — a driven multi-select (Policy's own
@@ -650,7 +650,7 @@
                     </div>
                     <% } %>
                   </div>
-                  <div class="form-text small">Pick as many as apply, or type a value that isn't listed yet — it will be proposed to the Ontology when saved, and must be accepted before this Policy can Publish.</div>
+                  <div class="form-text small form-help">Pick as many as apply, or type a value that isn't listed yet — it will be proposed to the Ontology when saved, and must be accepted before this Policy can Publish.</div>
                 <% } else if (f.kind === 'referential-multi-select') { %>
                   <%# CR-086/Ch.11 follow-on — Service Definition's own
                       `consumers`: same ontology-backed option source as a
@@ -678,7 +678,7 @@
                       <% }) %>
                     <% } %>
                   </select>
-                  <div class="form-text small">Ctrl/Cmd-click to select more than one — leave empty for none.</div>
+                  <div class="form-text small form-help">Ctrl/Cmd-click to select more than one — leave empty for none.</div>
                 <% } else if (f.kind === 'json') { %>
                   <textarea name="<%= f.name %>" class="form-control form-control-sm font-monospace" rows="4" <%- canEdit ? '' : 'disabled' %>><%= f.value %></textarea>
                 <% } %>
@@ -691,7 +691,7 @@
                     small muted text right under it, purely redundant, adding
                     clutter rather than information. Suppressed for that one
                     case only; every other field's help is unaffected. %>
-                <% if (f.help && canEdit && !(f.kind === 'referential-select' && f.ontology && f.dynamicSourceField)) { %><div class="form-text small"><%= f.help %></div><% } %>
+                <% if (f.help && canEdit && !(f.kind === 'referential-select' && f.ontology && f.dynamicSourceField)) { %><div class="form-text small form-help"><%= f.help %></div><% } %>
               </div>
               <% } %>
               <% } %>

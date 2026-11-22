@@ -148,7 +148,7 @@
     "area": "Declare",
     "title": "A Pack is the **fundamental unit of extension** within the Platform.",
     "description": "Open Pack Authoring - note",
-    "annotation": "Packs enable organisations to tailor SEUs to specific engineering practices, standards, policies, business domains, technologies, compliance requirements and integration environments while preserving architectural stability.",
+    "annotation": "Packs enable organisations to include specific engineering practices, standards, policies, business domains, technologies, compliance requirements and integration environments while preserving architectural stability of the SEU.",
     "target": {},
     "payload": {}
   },
@@ -158,7 +158,7 @@
     "area": "Declare",
     "title": "Open Pack Authoring",
     "description": "Open SDK / Pack Authoring and choose New Pack.",
-    "annotation": "In the navbar, open SDK / Authoring and choose Pack Authoring. Choose New Pack. Entered information has to comply to the Pack Schema so it can be converted to a computable configuration.",
+    "annotation": "In the navbar, open SDK / Authoring and choose Pack Authoring. Choose New Pack. Enter the detals. \n\nValidate ensures the created Pack complies to the Schema so it can be converted to a computable configuration.",
     "target": {},
     "payload": {
       "routes": [
@@ -214,7 +214,7 @@
     "area": "Declare",
     "title": "Contributions give the Pack its content",
     "description": "Add the contributions - note",
-    "annotation": "Contributions are the checklists, Obligations and other definitions that a Pack adds. A JSON document can supply them together.",
+    "annotation": "Contributions are the checklists, Obligations and other definitions that a Pack adds. You can add this in the form or import as a  JSON document.",
     "target": {},
     "payload": {}
   },
@@ -224,7 +224,7 @@
     "area": "Declare",
     "title": "Add the contributions",
     "description": "Paste a Pack document into the JSON import card and import it.",
-    "annotation": "On the draft, find the JSON import card. Paste the Pack document and choose Import. The contributions give the Pack its content.",
+    "annotation": "If you want this Pack to be part of a competency and be reused elsewhere, add the Capability this should be part of. For example, you are creating a new ESLint, add it to the \"Development\" Capability.\n\nYou can now define your Checklists and Quality Gates in the Pack.\n\nRemember to include this in the Profile you choose for your engineering work.",
     "target": {},
     "payload": {
       "routes": [
@@ -326,7 +326,7 @@
     "area": "Declare",
     "title": "A Template is the engineering blueprint for delivering software",
     "description": "Find the Template in the Registry - note",
-    "annotation": "A Template groups the typical processes that a type of work needs, such as the domain, compliance and technology Packs. A Profile is built on a Template. Templates describe the comprehensive engineering structure and engineering capital that should be available when the SEU is commissioned.\n\nArchVault Digital Shelf is being built for mobiles. Check the Template Registry for a mobile platform development.",
+    "annotation": "A Template groups the typical processes that a type of work needs, such as the domain, compliance and technology Packs. A Profile is built on a Template. Templates declare structures combining Capabilities to create a typical software engineering configuration. \n\nIn the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Template Registry</span>.",
     "target": {},
     "payload": {}
   },
@@ -336,7 +336,24 @@
     "area": "Declare",
     "title": "Find the Template in the Registry",
     "description": "Open Registry, then Templates and find the Template.",
-    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Template Registry</span>. Each card shows the Template and the Packs it composes.\n\n Search for mobile to see a shorter list.\n\nYou will see the platform defines a blueprint. Demo hs tailored it for its engineering activities.",
+    "annotation": "\n\nArchVault Digital Shelf is being built for mobiles. Check the Template Registry for a mobile platform development Template.\n\nIn the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Template Registry</span>. Search for \"mobile\".\n\nYou will see there are 2 Templates: One defined by the  platform and the other by Demo tenant.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/templates"
+        }
+      ]
+    }
+  },
+  {
+    "code": "explore-mobile-templates",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Explore the two Template in the Registry",
+    "description": "View the Templates to identify the differences.",
+    "annotation": "View the \"Mobile Application\" declared by the Platform. Go to the <span style=\"color: blue\">Deliverable Catalogue</span> tab. You can see the Deliverables to be created for this blueprint. You can also see the Deliverable dependency.\n\n<span style=\"color: red\">Demo has created its own lean version of the Template.</span>\n\nView the \"Mobile Application\" declared by the Demo tenant. Go to the <span style=\"color: blue\">Deliverable Catalogue</span> tab. You can see the Template has three Deliverables and no dependencies.",
     "target": {},
     "payload": {
       "routes": [
@@ -529,9 +546,9 @@
     "code": "browse-profiles-note",
     "kind": "note",
     "area": "Declare",
-    "title": "A Profile fits a Template to a team",
+    "title": "A Profile tailors a Template for the project needs",
     "description": "Find the Profile in the Registry - note",
-    "annotation": "Templates are very broad. Profiles use the Templates and tailor it for use.",
+    "annotation": "Templates are very broad. Profiles use the Templates and tailor it for use.\n\nProfiles specify environments, configurations, authority mechanisms etc. These are local to the project. To reflect it, a Profile has to be derived from the Template and specifics included.\n\nThe Demo created a default Profile \"ArchVault Digital App\"for the ArchVault team.",
     "target": {},
     "payload": {}
   },
@@ -541,7 +558,7 @@
     "area": "Declare",
     "title": "Find the Profile in the Registry",
     "description": "Open Registry, then Profiles, and find the Profile.",
-    "annotation": "In the navbar, open Registry, then Profiles. Each card shows the Profile and the Packs it uses.",
+    "annotation": "In the navbar, open <span style=\"color: blue\">Registry</span>, then <span style=\"color: blue\">Profile Registry</span>.\n\nSearch for \"ArchVault Digital App\". You can view the engineering parameters for the profile.\n\nLet us suppose you want to have a different Profile. You can create one or copy an existing one to modify.",
     "target": {},
     "payload": {
       "routes": [
@@ -558,7 +575,7 @@
     "area": "Declare",
     "title": "Copying starts a new Draft from an existing Profile",
     "description": "Copy the Profile - note",
-    "annotation": "Copy is the quickest way to derive a Profile. The new Draft starts with the same content and can be changed before it is published.",
+    "annotation": "Copy is the quickest way to declare a Profile. The new Draft starts with the same content and can be changed before it is published.\n\nTo view your draft, go to <span style=\"color: blue\">SDK Authoring</span> and <span style=\"color: blue\">Profile Authoring</span>.",
     "target": {},
     "payload": {}
   },
@@ -568,7 +585,70 @@
     "area": "Declare",
     "title": "Copy the Profile",
     "description": "Copy an existing Profile into a new draft.",
-    "annotation": "Choose Copy on the Profile. A new Draft is created from it and opens for editing.",
+    "annotation": "Choose Copy on the Profile. A new Draft is created from it and opens for editing.\n\nLet us give it a name \"Modified Demo Profile for ArchVault Team.\" You can modify other fields and <span style=\"color: blue\">Save Draft</span>.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/profiles/00000000-0000-0000-0000-000000000000/copy"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "edit-profile",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Edit the Profile",
+    "description": "Edit a drafted Profile.",
+    "annotation": "Let us add some specific configurations for the ArchVault development.\n\nGo to the <span style=\"color: blue\">Deliverable Catalogue</span>. You can see three deliverables are defined which are derived from the base Template. We will create the deliverable dependencies. ",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/profiles/00000000-0000-0000-0000-000000000000/copy"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "edit-deliverable-dependencies",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Edit the Deliverable dependencies",
+    "description": "Edit the Deliverable dependencies.",
+    "annotation": "Go to the <span style=\"color: blue\">Dependency Graph</span> in the <span style=\"color: blue\">Deliverable Catalogue</span>.\n\n1. Choose \"Deployment Manifest\" in To code and \"Requirements Analysis Model\" for the first set.\n\n2. Choose \"Source Code\" in To code and \"Requirements Analysis Model\" for the second set.\n\n3. Remove the third set.\n\n4. Save the Draft and provide the reason for editing if it asks for one.\n\n You should see the updated dependency graph for the Deliverables.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/profiles/00000000-0000-0000-0000-000000000000/copy"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/profile-authoring/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "edit-service-levels",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Edit the Service Levels",
+    "description": "Edit the service levels.",
+    "annotation": "Go to the <span style=\"color: blue\">Parameter Overrides</span> tab.\n\nYou can override Service levels that the Template defines. For example, Functional correctness of Source Code is expected to be at least 90 percent. You can relax this to 75 percent or tighten it to 95 percent.\n\nThe Service levels are measured and reported in Telemetry automatically.",
     "target": {},
     "payload": {
       "routes": [
@@ -736,7 +816,7 @@
     "area": "Declare",
     "title": "Publishing makes the Profile available",
     "description": "Publish the Profile - note",
-    "annotation": "A published Profile is Active and can be selected when a Software Engineering Unit is commissioned.",
+    "annotation": "A published Profile not longer editable and has to be Activated for SEUs to be able to use it.",
     "target": {},
     "payload": {}
   },
@@ -746,7 +826,7 @@
     "area": "Declare",
     "title": "Publish the Profile",
     "description": "Publish the Profile.",
-    "annotation": "Choose Publish. A published Profile is Active and can be used to commission a Software Engineering Unit.",
+    "annotation": "Choose Publish. A published Profile is Active and can be used to commission a Software Engineering Unit.\n\nActivate the Profile ans we will use it to commission a SEU in the next section.",
     "target": {},
     "payload": {
       "routes": [
@@ -818,6 +898,27 @@
     "title": "Copy the Capability Definition",
     "description": "Copy a Capability Definition into a new draft.",
     "annotation": "Let us try to create a copy of \"Designing software architecture Capability\". Choose <span style=\"color: blue\">Copy</span> on the Capability Definition. A new Draft is created from it and opens for editing.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/capability-definitions/00000000-0000-0000-0000-000000000000/copy"
+        },
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/sdk/capability-authoring/00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  },
+  {
+    "code": "edit-capability-definition",
+    "kind": "visitor-action",
+    "area": "Declare",
+    "title": "Create the Capability Definition",
+    "description": "Edit a Capability Definition.",
+    "annotation": "Make edits to the definition. There are help texts to guide you on the fields.\n\nYou can save the draft. Saved drafts can be viewed on the Registry and edited further till you publish.\n\n<span style=\"color: red\">Demo does not allow publishing of new Capability.</span>",
     "target": {},
     "payload": {
       "routes": [
@@ -1559,7 +1660,7 @@
     "area": "Commission",
     "title": "An Objective states what the work is for",
     "description": "Find the Objectives - note",
-    "annotation": "An Objective states an outcome the organisation wants. Objectives form a hierarchy, and a Software Engineering Unit is commissioned to deliver one.",
+    "annotation": "An Objective states aspects of the software you want to build. Objectives are built as a hierarchy. One or more Software Engineering Units are commissioned to deliver the Objectives.",
     "target": {},
     "payload": {}
   },
@@ -1569,7 +1670,7 @@
     "area": "Commission",
     "title": "Find the Objectives",
     "description": "Open Objectives.",
-    "annotation": "In the navbar, open Objectives. The list shows the Objectives and where each sits in the hierarchy.",
+    "annotation": "Demo has already built the Objectives for the ArchVault Digital Shelf.\n\nIn the navbar, open <span style=\"color: blue\">SEU Platform</span>. From here, click on the <span style=\"color: blue\">Objectives</span>. The list shows the Objectives and where each sits in the hierarchy.",
     "target": {},
     "payload": {
       "routes": [
@@ -1612,12 +1713,12 @@
     }
   },
   {
-    "code": "open-objective-note",
+    "code": "objective-hierarchy-note",
     "kind": "note",
     "area": "Commission",
-    "title": "An Objective can be broken into child Objectives",
+    "title": "Objectives hierarchy",
     "description": "Open an Objective - note",
-    "annotation": "Child Objectives split a larger outcome into parts that can each be delivered and tracked.",
+    "annotation": "A larger outcome is broken into smaller realisable Objectives. Strategic Objective is split into multiple Operational Objectives. Each Operational Objective holds many Engineering Objectives.",
     "target": {},
     "payload": {}
   },
@@ -1627,7 +1728,7 @@
     "area": "Commission",
     "title": "Open an Objective",
     "description": "Open an Objective.",
-    "annotation": "Choose an Objective in the list to see its details and its child Objectives.",
+    "annotation": "Choose an Objective in the list to see its details and its child Objectives.\n\nYou can add Objectives and build the hierarchy as long as you are in the Proposal state.",
     "target": {},
     "payload": {
       "routes": [
@@ -1733,7 +1834,7 @@
     "area": "Commission",
     "title": "Activate is a state change of the Objective",
     "description": "Activate the Objective - note",
-    "annotation": "Activation makes the Objective current. A Software Engineering Unit can then be commissioned for it.",
+    "annotation": "Activation makes the Objective current. A Software Engineering Unit can then be commissioned for it. \n\n<span style=\"color: red\">Demo allows you to create and edit Objectives. You may not be able to activate them.</span>",
     "target": {},
     "payload": {}
   },
@@ -1953,7 +2054,7 @@
     "area": "Commission",
     "title": "A Software Engineering Unit does the work",
     "description": "Find the Software Engineering Units - note",
-    "annotation": "A Software Engineering Unit is commissioned for an Objective. It carries the Capabilities, Deliverables, Obligations and Evidence of the work.",
+    "annotation": "A Software Engineering Unit is commissioned for an Objective. It carries the Engineering Behavior Model defined for the SEU and tracks it through its execution.",
     "target": {},
     "payload": {}
   },
@@ -1963,7 +2064,7 @@
     "area": "Commission",
     "title": "Find the Software Engineering Units",
     "description": "Open SEUs.",
-    "annotation": "In the navbar, open SEUs. Each entry is a unit commissioned to deliver an Objective.",
+    "annotation": "In the navbar, open \n\n<span style=\"color: blue\">SEU Platform</span>, then <span style=\"color: blue\">All SEUs</span>. Look at the SEU that is in operational state.\n\nYou can see and control execution by going through <span style=\"color: blue\">View</span>. If you just want a dashboard view, click on <span style=\"color: blue\">EEG</span>\n\nFollow steps in Commission tab to get an operational SEU to follow along.",
     "target": {},
     "payload": {
       "routes": [
@@ -1980,7 +2081,7 @@
     "area": "Commission",
     "title": "Commissioning creates the unit",
     "description": "Commission a Software Engineering Unit - note",
-    "annotation": "Commissioning composes the Evidence-Based Model and creates the Capabilities, Deliverables and Obligations the model calls for.",
+    "annotation": "Commissioning defines the Engineering Configuration that is followed for creating the software to achieve the Objective.\n\nCommissioning is done by attaching a Profile to an Objective and making the SEU operational.",
     "target": {},
     "payload": {}
   },
@@ -1990,7 +2091,7 @@
     "area": "Commission",
     "title": "Commission a Software Engineering Unit",
     "description": "Choose New SEU, select the Objective, Template and Profile, and commission.",
-    "annotation": "Choose New SEU, select the Objective, the Template and the Profile, and choose Commission.",
+    "annotation": "Go to any of the Objective. Look for the action button group and click on <span style=\"color: blue\">Commission SEU</span>.\n\nIf SEU is already operational, the button would say SEU Commissioned.\n\nChoose the Profile \"Modified Demo Profile for ArchVault Team\". Click on \n\n<span style=\"color: blue\">Save</span>.\n\nCommissioning has to ensure the Packs and Profiles used are still Active. So validate the \"liveness\" by clicking on <span style=\"color: blue\">Validate</span>.\n\nCompose the EBM(Engineerging Behavior Model) by clicking on <span style=\"color: blue\">Compose EBM</span>.\n\n",
     "target": {},
     "payload": {
       "routes": [
@@ -2001,6 +2102,75 @@
         {
           "method": "POST",
           "path": "/aisworg/seu/seus"
+        }
+      ]
+    }
+  },
+  {
+    "code": "resolve-ebm-conflict-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "Resolve EBM conflicts",
+    "description": "Resolve EBM conflicts.",
+    "annotation": "Engineering Behavior Model is composed from the Template, Profile, Packs and Policies. More often then not, they may provide conflicting directions. When an EBM is composed, these conflicts are unraveled. The user resolves the conflicts. SEU will not complete Commissioning till the conflicts are resolved. \n\n",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/new"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus"
+        }
+      ]
+    }
+  },
+  {
+    "code": "resolve-ebm-conflict",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Commission a Software Engineering Unit",
+    "description": "Choose New SEU, select the Objective, Template and Profile, and commission.",
+    "annotation": "Go to <span style=\"color: blue\">All SEUs</span>.\n\nWhen there are conflicts, SEU will be in Validated state. You should be seeing the Compose button. Click on <span style=\"color: blue\">Compose</span>.\n\nIn the <span style=\"color: blue\">Services</span> tab, choose \"Mobile Engineering Service\". And then choose the WorkItem Types within each Deliverable.\n\nIn the <span style=\"color: blue\">Capabilities</span> tab, include or exclude the Packs you need.\n\n Validate the EBM.\n\nActivate the EBM.\n\nNow, when you go back to the <span style=\"color: blue\">All SEUs</span>, the SEU should be operational.",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/new"
+        },
+        {
+          "method": "POST",
+          "path": "/aisworg/seu/seus"
+        }
+      ]
+    }
+  },
+  {
+    "code": "open-seu-deliverable-note",
+    "kind": "note",
+    "area": "Commission",
+    "title": "The Deliverable tab",
+    "description": "Open a Software Engineering Unit Deliverable tab - note",
+    "annotation": "The Deliverable tab shows the Deliverables state in execution. It shows the Deliverable dependency, the participants assigned to them, the Quality Gate checks and what blocks them from progressing.",
+    "target": {},
+    "payload": {}
+  },
+  {
+    "code": "open-seu-deliverable",
+    "kind": "visitor-action",
+    "area": "Commission",
+    "title": "Open a Software Engineering Unit",
+    "description": "Open an SEU.",
+    "annotation": "a. Deployment Manifest and Source Code Deliverables are dependent on Requirements Analysis Model in the Approved State",
+    "target": {},
+    "payload": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/aisworg/seu/seus/00000000-0000-0000-0000-000000000000"
         }
       ]
     }

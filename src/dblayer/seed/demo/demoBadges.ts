@@ -79,11 +79,27 @@ export async function grantRouteBadges(participantId: string, method: string, pa
 // Grants the badge a transition_definitions row's verb resolves to. An
 // ungoverned row (verb null) has no badge to grant.
 export async function grantTransitionBadge(participantId: string, entityType: TransitionEntityType, fromState: string, toState: string): Promise<void> {
+  const badge = await transitionBadgeName(entityType, fromState, toState);
+  if (badge) await grantBadge(participantId, badge);
+}
+
+// The badge a transition_definitions row's verb resolves to; null for an ungoverned row (verb null).
+export async function transitionBadgeName(entityType: TransitionEntityType, fromState: string, toState: string): Promise<string | null> {
   const { data: definition, error } = await transitionDefinitionsDB.find(entityType, fromState, toState);
   if (error) throw error;
-  if (!definition) throw new Error(`grantTransitionBadge: no transition_definitions row for ${entityType} ${fromState} -> ${toState}`);
-  if (!definition.verb) return;
-  await grantBadge(participantId, `${entityType.toLowerCase()}_${definition.verb}`);
+  if (!definition) throw new Error(`transitionBadgeName: no transition_definitions row for ${entityType} ${fromState} -> ${toState}`);
+  return definition.verb ? `${entityType.toLowerCase()}_${definition.verb}` : null;
+}
+
+// Removes a badge from the Demo User's authorised_badges. Returns true when the badge was held.
+export async function revokeBadge(participantId: string, badge: string): Promise<boolean> {
+  const { data: master, error: findError } = await participantsMasterDB.findById(participantId);
+  if (findError) throw findError;
+  if (!master) throw new Error(`revokeBadge: no participants_master row ${participantId}`);
+  if (!master.authorised_badges.some((b) => b.badge === badge)) return false;
+  const { error } = await participantsMasterDB.setAuthorisedBadges(participantId, master.authorised_badges.filter((b) => b.badge !== badge));
+  if (error) throw error;
+  return true;
 }
 
 // Grants every badge with one of the prefixes (for example "seu_") that a transition_definitions verb or a route_authority row declares, in one write.

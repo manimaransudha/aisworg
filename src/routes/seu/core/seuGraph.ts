@@ -222,17 +222,25 @@ export async function getSeuGraph(seuId: string): Promise<SeuGraph | null> {
   // The latest stored Quality Gate result of each gate for each entity. The graph reads the stored rows and never evaluates a gate.
   const latestByEntityAndGate = new Map<string, QualityGateEvaluationRow>();
   for (const evaluation of gateEvaluations ?? []) {
-    const key = `${evaluation.entity_id}|${evaluation.quality_gate_id}`;
+    const key = `${evaluation.entity_id}|${evaluation.quality_gate_id}|${evaluation.from_state}|${evaluation.to_state}`;
     if (!latestByEntityAndGate.has(key)) latestByEntityAndGate.set(key, evaluation);
   }
   const { data: gates } = await qualityGateDefinitionsDB.findByIds([...new Set([...latestByEntityAndGate.values()].map((e) => e.quality_gate_id))]);
   const gateNameById = new Map((gates ?? []).map((g) => [g.id, g.name]));
+  // The results of a Deliverable are those of the hops it can take from its current state, as on the Deliverables tab. The latest result of each gate is kept for each hop.
+  const currentHopsOf = new Map(detail.deliverables.map((d) => [d.id, { from: d.lifecycleState, to: new Set(d.possibleNextStates) }]));
   const gateResultsOf = (entityId: string): GraphQualityGateResult[] =>
     [...latestByEntityAndGate.values()]
       .filter((e) => e.entity_id === entityId)
+      .filter((e) => { const hops = currentHopsOf.get(entityId); return !hops || (e.from_state === hops.from && hops.to.has(e.to_state)); })
       .map((e) => ({ gate: gateNameById.get(e.quality_gate_id) ?? e.quality_gate_id, outcome: e.outcome, evaluatedAt: e.evaluated_at, detail: text(e.detail) }));
+  // A Deliverable is Blocked for the same Quality Gate reasons as its transition on the Deliverables tab of the SEU page: the stored outcome of a hop is Blocked,
+  // or a Quality Gate item of a hop is not evaluated and no outcome is stored for that hop. The stored evaluations listed on a node do not decide it, because they
+  // are not limited to the current hop and do not take waivers into account.
   for (const d of detail.deliverables) {
-    if (gateResultsOf(d.id).some((r) => r.outcome === "Blocked")) blockedDeliverableIds.add(d.id);
+    const decidedTo = new Set(d.qualityGateOutcomes.map((o) => o.toState));
+    if (d.qualityGateOutcomes.some((o) => o.outcome === "Blocked")) blockedDeliverableIds.add(d.id);
+    if (d.qualityGateItems.some((i) => i.result === "Not evaluated" && !decidedTo.has(i.toState))) blockedDeliverableIds.add(d.id);
   }
 
   for (const d of detail.deliverables) {

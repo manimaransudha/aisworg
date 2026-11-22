@@ -24,7 +24,7 @@ import { transitionDefinitionsDB } from "../../transitionDefinitionsDB.js";
 import type { ObjectiveTier } from "../../seuTypes.js";
 import { seedDemoParticipants } from "./demoParticipants.js";
 import { purgeDemoTenant } from "./demoPurge.js";
-import { getDemoActor, grantBadge, grantBadgesWithPrefixes, grantTransitionBadge, type DemoActor } from "./demoBadges.js";
+import { getDemoActor, grantBadge, grantBadgesWithPrefixes, grantTransitionBadge, transitionBadgeName, revokeBadge, type DemoActor } from "./demoBadges.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "..", "data", "demo");
@@ -45,7 +45,8 @@ interface DemoObjectiveSeed {
 }
 
 const PACK_HOPS = [["Draft", "Validated"], ["Validated", "Published"], ["Published", "Active"]] as const;
-const PROFILE_HOPS = PACK_HOPS;
+// The last hop is Reject (profile_reject), which saving an edit of a Validated Profile runs.
+const PROFILE_HOPS = [...PACK_HOPS, ["Validated", "Draft"]] as const;
 const TEMPLATE_HOPS = PACK_HOPS;
 const POLICY_HOPS = PACK_HOPS;
 
@@ -69,8 +70,6 @@ async function grantAuthoringBadges(actor: DemoActor): Promise<void> {
   for (const [from, to] of PACK_HOPS) await grantTransitionBadge(actor.participantId, "Pack", from, to);
   for (const [from, to] of TEMPLATE_HOPS) await grantTransitionBadge(actor.participantId, "Template", from, to);
   for (const [from, to] of PROFILE_HOPS) await grantTransitionBadge(actor.participantId, "Profile", from, to);
-  const initialState = await objectiveInitialState();
-  await grantTransitionBadge(actor.participantId, "Objective", initialState, "Active");
   const { data: birth, error: birthError } = await transitionDefinitionsDB.findBirth("Objective");
   if (birthError || !birth?.verb) throw birthError ?? new Error("no birth Transition Definition with a verb for Objective");
   await grantBadge(actor.participantId, `objective_${birth.verb}`);
@@ -189,11 +188,19 @@ async function seedObjectives(actor: DemoActor): Promise<void> {
     });
     idByKey.set(o.key, objective.id);
   }
-  for (const o of objectives) {
-    const objectiveId = idByKey.get(o.key)!;
-    const result = await transitionEntity({ entityType: "Objective", entityId: objectiveId, targetState: "Active", actorId: actor.participantId });
-    if (!result.ok) throw new Error(`[seed:demo] Objective ${o.key} activation failed: ${result.reason}${"detail" in result ? `: ${result.detail}` : ""}`);
-    await publishTransition(result);
+  // The Demo User holds the activation badge only while the seed activates the Objectives.
+  const activateBadge = await transitionBadgeName("Objective", await objectiveInitialState(), "Active");
+  if (!activateBadge) throw new Error("[seed:demo] the Objective activation transition declares no verb");
+  await grantBadge(actor.participantId, activateBadge);
+  try {
+    for (const o of objectives) {
+      const objectiveId = idByKey.get(o.key)!;
+      const result = await transitionEntity({ entityType: "Objective", entityId: objectiveId, targetState: "Active", actorId: actor.participantId });
+      if (!result.ok) throw new Error(`[seed:demo] Objective ${o.key} activation failed: ${result.reason}${"detail" in result ? `: ${result.detail}` : ""}`);
+      await publishTransition(result);
+    }
+  } finally {
+    await revokeBadge(actor.participantId, activateBadge);
   }
 }
 

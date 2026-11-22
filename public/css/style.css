@@ -821,3 +821,12 @@ li.demo-note { margin: .75rem 1rem; border-top: 1px solid #6ea8f0 !important; }
 .lp-term:focus-visible { outline: 2px solid var(--primary-dark); outline-offset: 2px; }
 .lp-popover { --bs-popover-max-width: 22rem; --bs-popover-border-color: var(--primary-dark); --bs-popover-header-bg: var(--primary-light); --bs-popover-header-color: var(--primary-dark); --bs-popover-body-font-size: .85rem; }
 .lp-popover .popover-header { font-weight: 700; }
+
+/* Help text under a form field (the schema's x-help and the fixed hints of the authoring form): a colour of its own, so it reads apart from the form's content. */
+.form-text.form-help,
+.referential-list-group .referential-list-row .form-text.form-help { color: var(--primary-dark) !important; }
+/* A very small info icon (bootstrap-icons "info-circle") before the help text. */
+.form-text.form-help::before { content: "\F431"; font-family: "bootstrap-icons"; font-size: .75em; margin-right: .3rem; }
+/* No info icon when the help line has no visible message: an empty line, or one whose only content is a hidden description link. */
+.form-text.form-help:empty::before,
+.form-text.form-help:has(> .rlg-desc-link.d-none)::before { content: none; }
