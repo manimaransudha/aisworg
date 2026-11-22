@@ -1946,7 +1946,7 @@
               "requiredState": {
                 "type": "string",
                 "default": "Approved",
-                "x-referential": "deliverable-state"
+                "x-referential-source": "deliverable-state"
               },
               "relationshipKind": {
                 "enum": [
@@ -2281,7 +2281,7 @@
               "requiredState": {
                 "type": "string",
                 "default": "Approved",
-                "x-referential": "deliverable-state"
+                "x-referential-source": "deliverable-state"
               },
               "relationshipKind": {
                 "enum": [
