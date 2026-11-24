@@ -24,7 +24,7 @@ Source: `tests/testFixtures.ts` and `tests/schemaFixtures.ts`. Read the helper y
 - Direct DB-layer writes in a test (`decisionsDB.create`, `knowledgeItemsDB.create`) take the SEU-scoped `participants.id` of the actor, not the `participants_master` id, plus a badge.
 - A test that builds an ad-hoc transition definition with policies through `transitionDefinitionsDB.upsert` declares a `verb`. The engine throws when a transition needs a badge and the definition has none. Use a verb whose `<entity>_<verb>` badge the actor holds.
 - Engine-raised rows (work items, Attention Items, Obligations, the SEU capabilities and Deliverables) are authored by the SEU's system participant, which commissioning creates when the SEU is Commissioned. A test that creates an SEU with `seusDB.create` calls `ensureSeuSystemParticipant(seuId)` before anything engine-driven runs. `getSystemActor(seuId)` throws when it is missing.
-- `createDraft` and `upsert` require `tenantId`. Nothing defaults it. `PLATFORM_TENANT_ID` exported by `tests/testFixtures.ts` is the test-platform tenant (`getTestPlatformTenantId()`), not the real Platform tenant. A test never writes under the real one.
+- `createDraft` and `upsert` require `tenantId`. Nothing defaults it. `PLATFORM_TENANT_ID` exported by `tests/testFixtures.ts` is the test-platform tenant (`getTestPlatformTenantId()`), not the real Platform tenant. A test never writes under the real one. Reading under the Platform tenant is allowed. Every test write lands in a test tenant: Athens, Babylon, the test-platform tenant, or a tenant the test creates under the test-platform participant. `src/dblayer/seed/cleanTestData.ts` finds those tenants and deletes the rows they hold. It identifies a test row by its own `tenant_id`, by its SEU's tenant, by the tenant of its Pack, Template, Profile or Objective, or, in a global table, by the tenant of the author's `participants_master` row. A write under any other tenant is never cleaned.
 - `templatesDB.upsert` resolves the superuser itself (`userDB.getSuperuserId`), and `profilesDB.upsert` takes no `draftContent`. A test that needs a Template or Profile with content uses a schema fixture or `createAuthoringDraft`, not these two.
 - A created row records the author's badge. Assert `"root"` for a root actor, not `null`.
 
@@ -89,7 +89,7 @@ Source: `tests/schemaFixtures.ts`. Used by `tests/registry-views.test.ts` and th
 
 ## Running tests
 
-- Run `tsc`, `db:clean-slate` and the tests only on the user's explicit instruction in that turn.
+- `tsc` may be run without being asked. Run `db:clean-slate` and the tests only on the user's explicit instruction in that turn.
 - Grep the output file for failures first (`grep -n "FAIL\|Error"`) and read only the relevant sections.
 - Run a failing test alone to separate load from a real regression. The automatic commence-work rescan race (KI-001 in `design/Known Issues.md`) explains the Phase and attestation failures under load.
 - A schema-changing CR lists the fixtures it affects and fixes them in the same pass.

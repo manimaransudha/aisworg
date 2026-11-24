@@ -2,13 +2,13 @@
 
 ## Project principles
 
-- ASK INSTEAD OF ASSUMING IF YOU SEE ANY DEVIATIONS FROM WHAT IS STATED HERE. 
+- ASK INSTEAD OF ASSUMING IF YOU SEE ANY DEVIATIONS FROM WHAT IS STATED HERE.
 
 - NEVER GUESS. Do not state a cause, a fact or a fix that has not been verified by reading the code or data. If the code cannot settle it, say so plainly and ask the user for the missing evidence (for example a query result). Do not offer unverified explanations, and do not leave an unverified change in place as a "harmless guess".
 
 - A claim that something is absent or a gap ("no X exists", "X is not handled", "no merge rule") must name the search that supports it: the terms grepped across all of `src/` and the files read. Without that search, the claim is not written. Reading only the files already cited, or only the files where X is expected, does not support an absence claim. This applies to audit and traceability documents (src/docs/implementation) in every row, and to answers in chat.
 
-- design/tbi.md and notes.md are the user's personal scratchpad. Do not read or load them into the context. 
+- design/tbi.md and notes.md are the user's personal scratchpad. Do not read or load them into the context.
 
 - don't dispatch Agent/subagents for any work.
 
@@ -20,105 +20,66 @@
 
 - There should be no hard-coded constants used in the code, except in src/dblayer/constants.ts. Everything else should be Ontology driven. And Ontology changes are data changes and should not warrant a code change unless approved by user explicitly.
 
-- Data seed scripts should load Ontology once and not do a live-query. Data seed scripts should do a batch dbwrite. If you are using assertCanoncicalCategory in the seed scripts, you are deviating. If you are not using utils/db/bulkInsert, you are deviating.
-
-- never run db:clean-slate/tests or sql migrations even when the user's own words describe wanting to see results — only on an explicit direct instruction you can run these. You can run tsc. 
-  
-- don't add new pnpm seed:X package.json entries; all seed data population goes through db:clean-slate only.  
+- never run db:clean-slate/tests or sql migrations even when the user's own words describe wanting to see results — only on an explicit direct instruction you can run these. You can run tsc.
 
 - don't announce routine/expected tool-call steps; it burns tokens. Speak only for real findings/decisions.
-- new pages get full CR-083 (not just card class); existing pages get checked/fixed for CR-083 on every edit, unprompted.
-
-- Version Feature Plan.md implementation has to be used everytime a lifecycle state or version is necessary for retrofit or new changes. new entities/transitions from now on must get transition_definitions.event_type/version_event/entityId wired in at build time, not deferred to a later Version Feature Plan retrofit pass.
-
-- any list / table on the UI gets parseListParams/paginateList/listControls/sortLink by default. don't wait to be asked.
-
-- transition buttons/links: core computes possibleNextStates filtered by trigger==="manual".
-
-- chapter/spec review findings go in compact lists/tables, not explanatory paragraphs.
-
-- when design/foundations chapters exist for the area, read them thoroughly first; the code lags/diverges from spec. But don't relitigate settled/out-of-scope decisions just because a chapter audit mentions them.
-
-- for open-ended architecture questions, ask in plain text; Do not use a multi-choice AskUserQuestion bundle. 
 
 - Flag and wait for approval before any change beyond the literal ask, even a correct adjacent fix — user can't follow fast tool-call scrolling.
-
-- schema-changing CRs must list which test fixtures need updating and fix them in the same build pass, not after the suite breaks.
-
-- tests and test fixtures never WRITE under the Platform tenant id (reading is allowed). Every test write lands in a test tenant (seeded athens/babylon, schema-fixtures-*, or a per-run tenant), so the test-data cleanup script identifies test rows by tenant alone (own tenant_id, SEU's tenant, or author's participants_master tenant).
-
-- "No superuser provisioned." test failures are a recurring, not one-off, gap: tests/testFixtures.ts has no shared helper that provisions a superuser (real participants_master row + badge) once. Each test file stands up its own tenant/actor fixture independently and keeps omitting the participants_master insert for the actor it uses. When this surfaces again, the fix belongs in a shared fixture helper, not a per-test patch — ask before adding one, since it touches many test files.
-
-- actorId/authorityBadge/author_id are typed `string`/`string | null` with no branding — `tsc` cannot catch a wrong-but-string value (e.g. `"1"` where a UUID row id is required, or a silently-missing badge). NOT NULL and UUID-format violations only surface at the DB. Do not expect typecheck to catch these; they need runtime/DB-level verification (tests, fixtures) or a branded-type change (a design decision requiring explicit approval), not a types-only fix.
-
-- A running register of change requests raised against the platform is in design/Change Requests.md and serves as the index (newest first).  Each CR is its own file in [change-requests/](change-requests/); this page is the request as raised, the agreed scope, the design decisions, and (once built) a Built banner. Do not edit these files directly unless asked for by the user. 
-
-## Application specifics 
-
-- coding_principles.md has to be followed.
-
-- Generation of action buttons and the authority to do transitions are defined and have to be used through src/middleware/requireBadge.ts strictly. NO HARDCODING of checking authority as part of the code logic. The field role in the user table is not equal to authority. 
-
-- All objects/entities are tenancy scoped unless explicitly stated. src/middleware/requireTenantScope.ts etc. have to be used strictly. NO HARDCODING of checking tenant scope as part of the code logic. 
-
-- Specifications for the platform are in design/foundations/03_Book 3 (Refined). Code implementation may have a refined construct  but conceptually should follow the specification. 
-
-- You cannot alter the specification directly. You are only allowed to add/ update implementation section at the end of the chapter. 
-
-- Some chapters , though not stated explicitly can have a definition aspect and an execution aspect. This has to be distinctly understood and used when interpreting a chapter or designing something. For example, a pack is a definition declarative only. But SEU will have definition part and an execution part all integrated in the same chapter. 
-
-- The EBM defines the behaviour of the SEU. The SEU and every SEU-driven entity (dispatch, work item, obligation, policy, capability fulfilment, deliverable and anything related) must take what they need from the SEU's EBM and must not bypass it by reading the Template, Profile or Pack directly. Commissioning reads Capabilities from the EBM's pool, which derives them from the Deliverable Catalogue through the Services the composed Packs contribute.
-
-- Dependency engine already has an implementation and has to be reused.
-
-- Composition strategy already has an implementation and has to be reused.
-
-- Event publishing / subscribing is already implemented and has to be reused. There should  strictly be NO code statements after an event is puclished.
-
-- Every `eventBus.publish` call must carry a real `actorId` and badge — never `?? null`/`?? ""`/any silent fallback. A missing actor is a bug to surface (throw or require it upstream), not something to paper over with a default at the publish call. 
-
-- Event subscriber rule: `transition_definitions` is scoped `UNIQUE(entity_type, from_state, to_state)` — one row is one hop inside exactly one entity's own state machine, and it has no way to declare an effect on a different entity. Add a real subscriber (HANDLER_REGISTRY entry + event_subscriptions row) ONLY when the effect that must follow an event lands on a different entity_type (or outside transition_definitions entirely, e.g. delivery to a Participant) than the one whose transition produced it. Definition-only, single-entity, linear-lifecycle entities (Objective, Pack, Template, Profile, Service Definition, Ontology) never need a subscriber — their own transition row is the whole effect, start to finish. Do not add a subscriber for a transition that only ever advances its own entity's own state, and do not treat "multi-hop" or "async" alone as a reason for one — the deciding question is strictly whether the consequence crosses an entity_type/chapter boundary.
 
 - If user specifies something as a repeating mistake or a fundamental application aspect or something as reusable, it has to be updated in CLAUDE.md
 
 - NEVER build a parallel/bypass mechanism to route around a gap in the platform's own governed construct (e.g. writing straight to a DB-layer table instead of going through the real authoring/publish path that construct requires). If the real path can't yet do what's needed, that is a gap to flag and fix in the real path (or scope as a proper design change), not something to work around with a shortcut that produces data the platform's own registries/UI can't see or reason about.
 
+## Application specifics
+
+- coding_principles.md has to be followed.
+
+- Authority checks go through src/middleware/requireBadge.ts strictly. NO HARDCODING of checking authority as part of the code logic. The field role in the user table is not equal to authority.
+
+- All objects/entities are tenancy scoped unless explicitly stated. src/middleware/requireTenantScope.ts etc. have to be used strictly. NO HARDCODING of checking tenant scope as part of the code logic.
+
 - No file except `src/utils/db.ts` calls `pool.connect()` or creates a `Client`. Everything else uses `query`, `bulkInsert`, `withTransaction` or `withAdvisoryLock` (see the Database section of coding_principles.md). A function that takes its own connection inside a transaction deadlocks the pool (CR-145).
 
-- Every route's required badge(s)/role(s) live in the `route_authority` table (CR-110), not in a per-route `requireBadge`/`requireRole` call — the global `routeAuthorityGate` (src/middleware/routeAuthorityGate.ts) looks up each request's (method, path) there and fails closed on no match. Every new route must get a `route_authority` row in the same build pass it's added, or it is denied by default, not silently ungated.
+- any list / table on the UI gets parseListParams/paginateList/listControls/sortLink by default. don't wait to be asked.
 
-## Architecture & Design
+- new pages get full CR-083 (not just card class); existing pages get checked/fixed for CR-083 on every edit, unprompted.
 
-### Design Proposals
-Propose a complete fix always grounded in the specifications and what is already implemented.
- 
+- Change Request files in design/change-requests/ are not edited unless the user asks. The index is design/Change Requests.md.
+
 ## Request Scope
 
 ### Reject Overly Broad Requests
 Do not start executing on a request that is too broad to scope — e.g. "migrate the codebase," "refactor this area," "fix the tests," or anything with no named file, directory, or explicit list. Stop and ask which files/directories/scope to apply to before doing any exploration or editing. Proceed without asking only when the request already names an exact file, a specific directory, or an explicit file list.
 
 ### Do Not Deliver Unchecked Work
-Before writing or changing a file, verify every assumption it depends on by reading the code (signatures, return shapes, fixtures, routes, rows, config). If an assumption cannot be settled by reading, stop and ask before writing. Never hand over a file with a "not checked" or "assumes" list. Running tsc, tests or db:clean-slate remains forbidden without an explicit instruction, so reading is the only verification allowed.
+Before writing or changing a file, verify every assumption it depends on by reading the code (signatures, return shapes, fixtures, routes, rows, config). If an assumption cannot be settled by reading, stop and ask before writing. Never hand over a file with a "not checked" or "assumes" list. `tsc` may be run without being asked. Tests, db:clean-slate and SQL migrations run only on an explicit instruction in that turn, so reading and `tsc` are the only verification allowed without one.
 
 ## Output & Communication
 
 ### Long-Form Output Goes to a File
 Any response longer than 500 words  — reports, findings, drafts, design write-ups, review results — write it to a file and give a short pointer (file path + one-line summary) in the response, instead of pasting the full content into the conversation. Short, direct , less than 500 word responses still go straight in chat. This doesn't retroactively shrink an already-long session, but it stops the same content from being restated multiple times as the conversation continues.
 
-### Checkpoint Whiteboarding Sessions
-Design reviews here are mostly live back-and-forth ("whiteboarding"), not a single deliverable — the discussion itself is what piles up in the session, not just the final output. During any extended design/architecture discussion, periodically write the current state to a running file (e.g. `DECISIONS.md` or a session-specific scratch file): what's been settled, what's still open, and the immediate next step. Do this unprompted at natural pause points, not only when asked. This lets the user `/clear` the raw discussion without losing the thread — the file becomes the source of truth for "where we left off," not the live conversation.
-  
+- chapter/spec review findings go in compact lists/tables, not explanatory paragraphs.
 
-## Token-Efficient Test Runs
-The user runs the test suite manually (`pnpm test > output.txt`) rather than having Claude run it via a hook or hand it the raw output. When checking results:
-- Grep `output.txt` for failures first (`grep -n "FAIL\|Error" output.txt`) instead of reading the whole file.
-- Only read the sections relevant to the failure being investigated.
-- Once a failure is resolved, don't keep re-reading old passing output — treat each run's file as disposable.
+- for open-ended architecture questions, ask in plain text; Do not use a multi-choice AskUserQuestion bundle.
 
-## Prose & Documentation Style
+- During an extended design discussion, write the current state (settled, open, next step) to a running file such as `DECISIONS.md` at natural pause points, unprompted.
 
-When writing or editing book chapters, specs, or design docs:
-- Use short, formal, complete sentences. No sentence fragments.
-- Avoid negative framing ("this is not X", "unlike Y"); state what something *is*.
-- No marketing tone, rhetorical questions, or em-dash asides.
-- Match the surrounding chapter's register before drafting new sections.
+### Prose and documentation style
+When writing or editing book chapters, specs, or design docs: use short, formal, complete sentences with no fragments. State what something is and avoid negative framing. No marketing tone, rhetorical questions, or em-dash asides. Match the surrounding chapter's register.
+
+## Skills that carry the detailed rules
+
+Each skill loads when its description matches the task.
+
+| Skill | Covers |
+|---|---|
+| `spec-and-design` | Book 3 spec, definition vs execution, EBM rule, dependency engine and composition reuse, design proposals |
+| `seed-scripts` | Ontology loaded once, `bulkInsert`, no `seed:X` entries, seeds via `db:clean-slate` |
+| `test-fixtures` | Test tenants, badges, superuser gap, unbranded ids, test-run output handling, schema-CR fixtures |
+| `transition-definition` | Transition rows, event/version wiring, subscriber rule, buttons, event publish discipline |
+| `version-feature-plan` | Per-chapter versioning retrofit |
+| `new-route` | Controller, `route_authority` row, ViewModel, `redirects.ts` |
+| `author-id-badge` | Real actor and badge, no silent fallback, `eventBus.publish` actor |
+| `change-request` | CR numbering, layout, status, standing CR rules |
+| `ui-styling` | CR-083 styling, section cards, badges, border tokens, form controls, tables, list controls (`parseListParams`, `paginateList`, `listControls`, `sortLink`) |

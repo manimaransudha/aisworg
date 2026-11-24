@@ -56,10 +56,11 @@ Use the same status text in the file and in the index row. Update both together.
 ## Standing rules that apply to every CR
 
 - **Schema-changing CRs list the affected test fixtures and fix them in the same build pass**, not after the suite breaks. Record them under "Test fixtures updated in the same pass".
+- **A CR that adds a Pack-attributed table adds it to `USAGE_DATA_TABLES` in `cleanSlate.ts`** (for example `review_gates`).
 - **Specifications are read-only.** A CR may add or update the implementation section at the end of a chapter, never the specification text.
 - **Ontology changes are data changes.** Do not turn one into a code change without the user's explicit approval.
 - **Versioning.** A CR that adds an entity or transition wires `event_type`, `version_event` and `entityId` into `transition_definitions` at build time (see the `transition-definition` and `version-feature-plan` skills). Version numbers come from `src/utils/version.ts`.
-- **Verification runs** (`tsc`, `db:clean-slate`, tests, SQL migrations) run only on the user's explicit instruction in that turn. Record in the CR which of them were run and which were not.
+- **Verification runs**: `tsc` may be run without being asked. `db:clean-slate`, tests and SQL migrations run only on the user's explicit instruction in that turn. Record in the CR which of them were run and which were not.
 - Flag anything beyond the literal ask and wait for approval before building it.
 
 ## Prose style

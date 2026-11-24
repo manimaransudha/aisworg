@@ -25,6 +25,8 @@ Follow `coding_principles.md` for the controller template.
 - Add the row to `src/dblayer/seed/data/routeAuthority.json` in the same pass: `method`, `path` (the full path, including the mount prefix), `badges`, `roles`, `match_mode`.
 - Use `[]` for both arrays when the route needs no badge or role. A route with no row is denied.
 - Seed data reaches the database only through `db:clean-slate`. Do not add a `pnpm seed:X` script.
+- `routeAuthorityGate.ts` treats `/aisworg/seu/route-authority/*` and `/aisworg/seu/data-migrations/*` as self-CRUD paths. They require the root badge in the gate and need no row.
+- The dynamic `/aisworg/seu/sdk/:slug` rows carry the roles `sdk_author` and `demo` with empty badges.
 
 ## 3. ViewModel
 
@@ -56,4 +58,4 @@ Follow `coding_principles.md` for the controller template.
 - No file outside `redirects.ts` calls `flashError`, `flashSuccess` or assigns `req.session.flash`.
 - The handler has no session-presence check, no null fallback on an author id, and no default author badge.
 - Tests that insert `route_authority` rows or assert on a redirect `Location` are updated in the same pass.
-- `tsc`, `db:clean-slate` and the tests run only when the user says so.
+- `tsc` may be run without being asked. `db:clean-slate`, the tests and SQL migrations run only when the user says so.

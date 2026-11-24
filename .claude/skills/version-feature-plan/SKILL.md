@@ -34,7 +34,7 @@ Work through these in order. Steps 1–2 are read/reasoning steps — do not tou
 
 6. **Create/update the lifecycle-table test file**, mirroring `tests/objective-event-lifecycle-table.test.ts` / `tests/pack-event-lifecycle-table.test.ts`: a DEFINITION test (loop the entity's real `transition_definitions` rows, assert `event_type`/`version_event`/`submit_verb` against the corrected table) plus DRIVEN tests (call the real create/edit/transition functions, assert actually-published events via `eventsDB.findByOriginatingObject`). Use `actorId: "1001"` (the standing test-fixture actor with broad/root badges) to drive governed transitions.
 
-7. **Run only the new/targeted test file(s) plus `pnpm typecheck`** directly, as normal build-it-correctly diligence. Never run the full test suite or `db:clean-slate` — those are the user's own manual step, per standing project rule.
+7. **Run `pnpm typecheck`** directly, as normal build-it-correctly diligence. Never run tests (targeted or full), `db:clean-slate` or SQL migrations unless the user explicitly instructs it in that turn.
 
 8. **Leave chapter file updates to the user.** Once tested, the corrected States/Transitions section moving into the real Book 3 chapter file as source of truth is a manual step the user does themselves — do not edit the chapter file.
 
